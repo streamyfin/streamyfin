@@ -3,11 +3,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { File, Paths } from "expo-file-system";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import DeviceInfo from "react-native-device-info";
 import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
+import { DOWNLOAD_EXTRAS_CONCURRENCY } from "@/constants/Downloads";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
@@ -28,9 +29,14 @@ import {
 } from "../fileOperations";
 import { buildDownloadActivityMetadata } from "../liveActivity";
 import {
+  type DownloadAssets,
+  finalizeWhenReady,
   getPendingDownload,
+  getPendingDownloads,
+  type PendingDownload,
   removePendingDownload,
   savePendingDownload,
+  storeDownloadAssets,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
@@ -55,6 +61,39 @@ type StartInFlight = {
 };
 const startsInFlight = new Map<string, StartInFlight>();
 
+/**
+ * Extras downloads in flight, by item id and enqueue time: a start of an item after a cancel is
+ * another download, with extras of its own.
+ */
+const extrasInFlight = new Set<string>();
+let extrasRunning = 0;
+const extrasWaiting: Array<() => void> = [];
+
+/** Waits for one of the DOWNLOAD_EXTRAS_CONCURRENCY slots. */
+const takeExtrasSlot = () =>
+  new Promise<void>((resolve) => {
+    if (extrasRunning < DOWNLOAD_EXTRAS_CONCURRENCY) {
+      extrasRunning++;
+      resolve();
+      return;
+    }
+    extrasWaiting.push(() => {
+      extrasRunning++;
+      resolve();
+    });
+  });
+
+const giveExtrasSlot = () => {
+  extrasRunning--;
+  extrasWaiting.shift()?.();
+};
+
+/** What fetching the extras of a download needs to know about it. */
+type ExtrasOwner = Pick<
+  PendingDownload,
+  "itemId" | "item" | "mediaSource" | "enqueuedAt"
+>;
+
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -78,6 +117,108 @@ export function useDownloadOperations({
   const { t } = useTranslation();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
+
+  /**
+   * Fetches the extras of a download whose video native already has, and stores them in its
+   * pending record. Whichever of the video and the extras finishes second finalizes the download.
+   */
+  const fetchExtras = useCallback(
+    ({ itemId, item, mediaSource, enqueuedAt }: ExtrasOwner) => {
+      const key = `${itemId}@${enqueuedAt}`;
+      if (!api || extrasInFlight.has(key)) return;
+      extrasInFlight.add(key);
+      const isStillThisDownload = () =>
+        getPendingDownload(itemId)?.enqueuedAt === enqueuedAt;
+
+      (async () => {
+        await takeExtrasSlot();
+        try {
+          // Cancelled while it waited for a slot.
+          if (!isStillThisDownload()) return;
+
+          let extras: DownloadAssets;
+          try {
+            extras = await downloadAdditionalAssets({
+              item,
+              mediaSource,
+              api,
+              saveImageFn: saveImage,
+              saveSeriesImageFn: saveSeriesPrimaryImage,
+            });
+          } catch (error) {
+            // The video plays offline without them, short of its scrubbing previews, sidecar
+            // subtitles and skip buttons.
+            logAndCaptureError(
+              "Downloading the extras of a download failed",
+              error,
+              {
+                itemType: item.Type,
+              },
+            );
+            extras = { updatedMediaSource: mediaSource };
+          }
+
+          if (!isStillThisDownload()) {
+            // Cancelled while they came in: cancelDownload removed what was there then, and these
+            // landed after. They go too, unless the item has been started again and the names
+            // are the new download's.
+            if (!getPendingDownload(itemId) && !startsInFlight.has(itemId)) {
+              deletePendingDownloadFiles({ itemId, item, mediaSource });
+            }
+            return;
+          }
+
+          let ready: PendingDownload | undefined;
+          try {
+            ready = storeDownloadAssets(itemId, extras);
+          } catch (error) {
+            // The record still waits for them, so the next run fetches them again.
+            logAndCaptureError(
+              "Storing the extras of a download failed",
+              error,
+              {
+                itemType: item.Type,
+              },
+            );
+            return;
+          }
+          if (!ready) return;
+          try {
+            finalizeWhenReady(ready);
+          } catch (error) {
+            // As a completion that cannot be finalized: the download goes, with its card, rather
+            // than stay a record that no longer waits for anything.
+            logAndCaptureError("Handling download completion failed", error, {
+              itemType: item.Type,
+            });
+            // The card first: the storage that just failed can fail again.
+            removeProcess(itemId);
+            removePendingDownload(itemId);
+          }
+        } finally {
+          giveExtrasSlot();
+          extrasInFlight.delete(key);
+        }
+      })().catch((error) => {
+        // Nothing above is meant to throw this far; a stray rejection is still reported.
+        logAndCaptureError("Fetching the extras of a download failed", error, {
+          itemType: item.Type,
+        });
+      });
+    },
+    [api, saveImage, saveSeriesPrimaryImage, removeProcess],
+  );
+
+  // A run can end before the extras of its downloads are in, while native keeps downloading the
+  // videos. The next run fetches them.
+  const fetchExtrasRef = useRef(fetchExtras);
+  fetchExtrasRef.current = fetchExtras;
+  useEffect(() => {
+    if (!api) return;
+    for (const record of getPendingDownloads()) {
+      if (record.assetsPending) fetchExtrasRef.current(record);
+    }
+  }, [api]);
 
   const startBackgroundDownload = useCallback(
     async (
@@ -116,15 +257,6 @@ export function useDownloadOperations({
         }
         startsInFlight.set(processId, start);
 
-        // Download all additional assets BEFORE starting native video download
-        const additionalAssets = await downloadAdditionalAssets({
-          item,
-          mediaSource,
-          api,
-          saveImageFn: saveImage,
-          saveSeriesImageFn: saveSeriesPrimaryImage,
-        });
-
         // Ensure URL is absolute (not relative) before storing
         let downloadUrl = url;
         if (url.startsWith("/")) {
@@ -135,7 +267,8 @@ export function useDownloadOperations({
           );
         }
 
-        // Create job status with pre-downloaded assets
+        // The card shows at once. The extras (trickplay sheets, subtitles, segments, covers) come
+        // in once the video is handed to native, and the download is finalized when both are.
         const jobStatus: JobStatus = {
           id: processId,
           inputUrl: downloadUrl,
@@ -145,34 +278,12 @@ export function useDownloadOperations({
           progress: 0,
           status: "downloading",
           timestamp: new Date(),
-          mediaSource: additionalAssets.updatedMediaSource,
+          mediaSource,
           maxBitrate,
           bytesDownloaded: 0,
-          trickPlayData: additionalAssets.trickPlayData,
-          introSegments: additionalAssets.introSegments,
-          creditSegments: additionalAssets.creditSegments,
-          recapSegments: additionalAssets.recapSegments,
-          commercialSegments: additionalAssets.commercialSegments,
-          previewSegments: additionalAssets.previewSegments,
           audioStreamIndex,
           subtitleStreamIndex,
         };
-
-        // Cancelled before its card was up, so the cancel ran before the assets above were all
-        // written. They go now, unless the item has been started again since and owns them.
-        if (start.cancelled) {
-          if (
-            !startsInFlight.has(processId) &&
-            !getPendingDownload(processId)
-          ) {
-            deletePendingDownloadFiles({
-              itemId: processId,
-              item,
-              mediaSource,
-            });
-          }
-          return;
-        }
 
         // Add to processes. From here on the card, and its cancel button, is on screen.
         setProcesses((prev) => [...prev, jobStatus]);
@@ -221,25 +332,21 @@ export function useDownloadOperations({
 
         // Persist the pending record BEFORE handing the download to native, so there is no window
         // where a transfer exists that a later app session cannot account for.
+        const enqueuedAt = new Date().toISOString();
         savePendingDownload({
           itemId: processId,
           status: "queued",
-          enqueuedAt: new Date().toISOString(),
+          enqueuedAt,
           inputUrl: downloadUrl,
           videoFileName,
           item,
-          mediaSource: additionalAssets.updatedMediaSource,
+          mediaSource,
           maxBitrate,
           deviceId,
-          trickPlayData: additionalAssets.trickPlayData,
-          introSegments: additionalAssets.introSegments,
-          creditSegments: additionalAssets.creditSegments,
-          recapSegments: additionalAssets.recapSegments,
-          commercialSegments: additionalAssets.commercialSegments,
-          previewSegments: additionalAssets.previewSegments,
           audioStreamIndex,
           subtitleStreamIndex,
           activityMetadata,
+          assetsPending: true,
         });
 
         // Start the download using enqueueDownload for sequential processing
@@ -274,6 +381,8 @@ export function useDownloadOperations({
             item: item.Name,
           }),
         );
+
+        fetchExtras({ itemId: processId, item, mediaSource, enqueuedAt });
       } catch (error) {
         // The user cancelled this start and has been told so. cancelDownload cleaned up, and
         // the record and the files of the item may belong to a newer start by now.
@@ -289,8 +398,7 @@ export function useDownloadOperations({
           const record = getPendingDownload(item.Id);
           removePendingDownload(item.Id);
           removeProcess(item.Id);
-          // A start that fails before the record is saved has still written its subtitles
-          // and trickplay sheets.
+          // Nothing is written before the record is saved; after, the record says what.
           deletePendingDownloadFiles(
             record ?? { itemId: item.Id, item, mediaSource },
           );
@@ -305,7 +413,7 @@ export function useDownloadOperations({
         }
       }
     },
-    [api, authHeader, processes, setProcesses, removeProcess, t],
+    [api, authHeader, processes, setProcesses, removeProcess, t, fetchExtras],
   );
 
   const cancelDownload = useCallback(

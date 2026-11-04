@@ -1,0 +1,81 @@
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import { createStore, Provider } from "jotai";
+import "@/augmentations/number";
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: { size?: string }) =>
+      options?.size ? `${key}:${options.size}` : key,
+  }),
+}));
+const mockPush = jest.fn();
+jest.mock("@/hooks/useAppRouter", () => ({
+  __esModule: true,
+  default: () => ({ push: mockPush }),
+}));
+
+import {
+  type NextEpisodesHold,
+  nextEpisodesHoldAtom,
+} from "@/providers/Downloads/nextEpisodesHold";
+import { NextEpisodesNotice } from "./NextEpisodesNotice";
+
+const renderNotice = async (hold: NextEpisodesHold) => {
+  const store = createStore();
+  store.set(nextEpisodesHoldAtom, hold);
+  await render(
+    <Provider store={store}>
+      <NextEpisodesNotice />
+    </Provider>,
+  );
+};
+
+beforeEach(() => jest.clearAllMocks());
+
+describe("NextEpisodesNotice", () => {
+  test("shows nothing while nothing holds the next episodes back", async () => {
+    await renderNotice(null);
+    expect(screen.toJSON()).toBeNull();
+  });
+
+  test("says storage is low, and how much has to be free", async () => {
+    await renderNotice("low_space");
+    expect(
+      screen.getByText("home.downloads.next_episodes.low_space_title"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("home.downloads.next_episodes.low_space:2 GB"),
+    ).toBeTruthy();
+  });
+
+  test("says the next episodes are waiting for Wi-Fi", async () => {
+    await renderNotice("waiting_for_wifi");
+    expect(
+      screen.getByText("home.downloads.next_episodes.waiting_for_wifi"),
+    ).toBeTruthy();
+  });
+
+  test("says the next episodes are waiting for the home network", async () => {
+    await renderNotice("waiting_for_home_network");
+    expect(
+      screen.getByText("home.downloads.next_episodes.waiting_for_home_network"),
+    ).toBeTruthy();
+  });
+
+  test("opens the network settings when no home network is set up", async () => {
+    await renderNotice("home_network_not_set_up");
+    expect(
+      screen.getByText("home.downloads.next_episodes.home_network_not_set_up"),
+    ).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole("button"));
+
+    expect(mockPush).toHaveBeenCalledWith("/settings/network/page");
+  });
+
+  test("opens the download settings", async () => {
+    await renderNotice("waiting_for_wifi");
+    await fireEvent.press(screen.getByRole("button"));
+    expect(mockPush).toHaveBeenCalledWith("/settings/downloads/page");
+  });
+});

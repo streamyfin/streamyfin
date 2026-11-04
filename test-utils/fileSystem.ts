@@ -2,6 +2,8 @@ const existing = new Set<string>();
 const deleted: string[] = [];
 const undeletable = new Set<string>();
 const downloaded: { url: string; destination: string }[] = [];
+// Sizes of the files a test gave one with fakeFiles.sized; any other file has none.
+const sizes = new Map<string, number>();
 
 const withoutTrailingSlash = (uri: string) => uri.replace(/\/+$/, "");
 
@@ -40,9 +42,13 @@ class FakeFile extends FakeEntry {
     return destination;
   }
 
-  /** Sizes are not modelled: every file reports 0 bytes. */
+  /** The size a test gave the file with fakeFiles.sized, or none (`size`) and 0 (`info`). */
+  get size(): number | undefined {
+    return sizes.get(this.location);
+  }
+
   info() {
-    return { exists: this.exists, size: 0 };
+    return { exists: this.exists, size: this.size ?? 0 };
   }
 }
 
@@ -117,6 +123,11 @@ export const fakeFiles = {
   deleted: () => [...deleted],
   /** Every download so far, in order. */
   downloads: () => [...downloaded],
+  /** Puts a file of `bytes` bytes on the fake disk. */
+  sized: (path: string, bytes: number) => {
+    existing.add(withoutTrailingSlash(path));
+    sizes.set(withoutTrailingSlash(path), bytes);
+  },
   /** Makes deleting `path` throw, as a locked or protected file would. */
   lock: (path: string) => void undeletable.add(withoutTrailingSlash(path)),
   /** Empties the fake disk. Call it from `beforeEach` so tests stay isolated. */
@@ -125,5 +136,6 @@ export const fakeFiles = {
     deleted.length = 0;
     downloaded.length = 0;
     undeletable.clear();
+    sizes.clear();
   },
 };

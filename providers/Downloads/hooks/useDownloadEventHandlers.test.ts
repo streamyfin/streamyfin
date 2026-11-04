@@ -49,9 +49,11 @@ jest.mock("react-i18next", () => ({
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";
 import {
   finalizePendingDownload,
+  finalizeWhenReady,
   getPendingDownload,
   type PendingDownload,
   savePendingDownload,
+  storeDownloadAssets,
 } from "../pendingDownloads";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
 
@@ -223,5 +225,38 @@ describe("a download that starts", () => {
     await start({ ...started, itemId: undefined });
 
     expect(mockCancelDownload).not.toHaveBeenCalled();
+  });
+});
+
+// The video is handed to native before the extras of its download are in, and can finish first.
+describe("a video that finishes before the extras of its download", () => {
+  beforeEach(() => {
+    clearMmkv();
+    clearAllDownloadedItems();
+    fakeFiles.clear();
+  });
+
+  it("waits for them, then is finalized by them", async () => {
+    fakeFiles.add(VIDEO);
+    savePendingDownload({ ...record, assetsPending: true });
+    const complete = await listenerFor("complete");
+
+    await complete(completed);
+
+    expect(getDownloadedItemById("item-1")).toBeUndefined();
+    expect(getPendingDownload("item-1")).toMatchObject({ videoFileSize: 0 });
+
+    const ready = storeDownloadAssets("item-1", {
+      updatedMediaSource: { Id: "local" },
+      trickPlayData: { path: "trickplay/", size: 1 },
+    });
+    expect(ready).toBeDefined();
+    finalizeWhenReady(ready!);
+
+    expect(getPendingDownload("item-1")).toBeUndefined();
+    expect(getDownloadedItemById("item-1")).toMatchObject({
+      mediaSource: { Id: "local" },
+      trickPlayData: { size: 1 },
+    });
   });
 });

@@ -1,4 +1,5 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import type { NetInfoState } from "@react-native-community/netinfo";
 
 /**
  * Whether a download the user confirmed has to be turned down for want of a
@@ -16,3 +17,18 @@ export const lacksMediaSource = (
   pendingCount: number,
   mediaSource: MediaSourceInfo | null | undefined,
 ): boolean => pendingCount === 1 && !mediaSource?.Id;
+
+/**
+ * Whether a connection can carry downloads nobody asked for right now. Wi-Fi
+ * and Ethernet can, mobile data cannot, and anything else (a VPN, an unknown
+ * link) only when the system says it is not metered.
+ */
+export const isUnmeteredConnection = (
+  state: Pick<NetInfoState, "type" | "isConnected" | "details">,
+): boolean => {
+  if (!state.isConnected) return false;
+  if (state.type === "wifi" || state.type === "ethernet") return true;
+  if (state.type === "cellular") return false;
+  const details = state.details as { isConnectionExpensive?: boolean } | null;
+  return details?.isConnectionExpensive === false;
+};

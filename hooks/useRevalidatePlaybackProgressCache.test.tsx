@@ -3,11 +3,18 @@ import { renderHook } from "@testing-library/react-native";
 import { SIMILAR_ITEMS_LIMIT } from "@/constants/Recommendations";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
 
+const mockRunNextEpisodesCheck = jest.fn();
+const mockSyncPlaybackState = jest.fn(async (_itemId: string) => false);
 jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ getDownloadedItems: () => [] }),
+  useDownload: () => ({
+    getDownloadedItems: () => [{ item: { Id: "episode-1" } }],
+    runNextEpisodesCheck: mockRunNextEpisodesCheck,
+  }),
 }));
 jest.mock("./useTwoWaySync", () => ({
-  useTwoWaySync: () => ({ syncPlaybackState: async () => false }),
+  useTwoWaySync: () => ({
+    syncPlaybackState: (itemId: string) => mockSyncPlaybackState(itemId),
+  }),
 }));
 
 const revalidateWith = async (client: QueryClient) => {
@@ -21,6 +28,8 @@ const revalidateWith = async (client: QueryClient) => {
   );
   await result.current();
 };
+
+beforeEach(() => jest.clearAllMocks());
 
 describe("useInvalidatePlaybackProgressCache", () => {
   // A similar-items row draws each poster's watched badge and never goes stale
@@ -40,5 +49,22 @@ describe("useInvalidatePlaybackProgressCache", () => {
 
     expect(client.getQueryState(similarKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(unrelatedKey)?.isInvalidated).toBe(false);
+  });
+
+  // An episode watched offline reaches the server in the sync; the series
+  // rules are checked after it, so they see the episode as watched.
+  test("checks the series rules once the downloads are synced", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
+    mockSyncPlaybackState.mockImplementation(async () => {
+      expect(mockRunNextEpisodesCheck).not.toHaveBeenCalled();
+      return false;
+    });
+
+    await revalidateWith(client);
+
+    expect(mockSyncPlaybackState).toHaveBeenCalledWith("episode-1");
+    expect(mockRunNextEpisodesCheck).toHaveBeenCalledTimes(1);
   });
 });

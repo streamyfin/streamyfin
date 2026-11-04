@@ -7,7 +7,7 @@ import { useTwoWaySync } from "./useTwoWaySync";
  */
 export function useInvalidatePlaybackProgressCache() {
   const queryClient = useNetworkAwareQueryClient();
-  const { getDownloadedItems } = useDownload();
+  const { getDownloadedItems, runNextEpisodesCheck } = useDownload();
   const { syncPlaybackState } = useTwoWaySync();
 
   const revalidate = async () => {
@@ -67,6 +67,10 @@ export function useInvalidatePlaybackProgressCache() {
         );
       }
     }
+
+    // After the sync, so a series rule sees what was watched offline as
+    // watched: the next episodes move on, and the watched ones can go.
+    runNextEpisodesCheck();
   };
 
   return revalidate;

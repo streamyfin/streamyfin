@@ -129,6 +129,11 @@ function SettingsMobile() {
               />
             )}
             <ListItem
+              onPress={() => router.push("/settings/downloads/page")}
+              showArrow
+              title={t("home.settings.downloads.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/music/page")}
               showArrow
               title={t("home.settings.music.title")}

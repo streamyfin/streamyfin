@@ -1,4 +1,4 @@
-import { lacksMediaSource } from "./downloadRequest";
+import { isUnmeteredConnection, lacksMediaSource } from "./downloadRequest";
 
 describe("lacksMediaSource", () => {
   // Sentry REACT-NATIVE-FX: the server lists no media source for an item it
@@ -20,5 +20,40 @@ describe("lacksMediaSource", () => {
   // resolves its own once the download starts, so none is needed up front.
   test("asks nothing of a download of several items", () => {
     expect(lacksMediaSource(2, undefined)).toBe(false);
+  });
+});
+
+describe("isUnmeteredConnection", () => {
+  const state = (
+    type: string,
+    details: { isConnectionExpensive?: boolean } | null = null,
+    isConnected = true,
+  ) => ({ type, details, isConnected }) as never;
+
+  test.each(["wifi", "ethernet"])("lets downloads run on %s", (type) => {
+    expect(isUnmeteredConnection(state(type))).toBe(true);
+  });
+
+  test("holds them back on mobile data", () => {
+    expect(
+      isUnmeteredConnection(
+        state("cellular", { isConnectionExpensive: false }),
+      ),
+    ).toBe(false);
+  });
+
+  test("holds them back without a connection", () => {
+    expect(isUnmeteredConnection(state("wifi", null, false))).toBe(false);
+  });
+
+  // A VPN hides the link under it; the system still knows whether it is metered.
+  test("asks the system about any other connection", () => {
+    expect(
+      isUnmeteredConnection(state("vpn", { isConnectionExpensive: false })),
+    ).toBe(true);
+    expect(
+      isUnmeteredConnection(state("vpn", { isConnectionExpensive: true })),
+    ).toBe(false);
+    expect(isUnmeteredConnection(state("unknown"))).toBe(false);
   });
 });
