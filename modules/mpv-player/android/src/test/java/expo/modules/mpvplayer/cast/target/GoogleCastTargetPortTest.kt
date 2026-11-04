@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast.target
 
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -173,6 +174,25 @@ class GoogleCastTargetPortTest {
     }
 
     // The sheet's icon: a TV for a receiver with a screen, a speaker for one without.
+    // The level goes through the selected MediaRouter route, which counts it in steps (20 on a Chromecast).
+    @Test
+    fun aLevelGoesToTheRoutesNearestStep() {
+        assertEquals(7, GoogleCastTargetPort.routeStep(0.37, 20))
+        assertEquals(0, GoogleCastTargetPort.routeStep(0.0, 20))
+        assertEquals(20, GoogleCastTargetPort.routeStep(1.0, 20))
+        assertEquals(20, GoogleCastTargetPort.routeStep(1.4, 20))
+        assertEquals(0, GoogleCastTargetPort.routeStep(-0.2, 20))
+    }
+
+    // The app mutes the playing stream, as the SDK's expanded controls do; another sender may mute the device.
+    @Test
+    fun aMutedStreamOrDeviceMutesTheReceiver() {
+        assertTrue(GoogleCastTargetPort.receiverMuted(device = false, stream = true))
+        assertTrue(GoogleCastTargetPort.receiverMuted(device = true, stream = null))
+        assertFalse(GoogleCastTargetPort.receiverMuted(device = false, stream = null))
+        assertFalse(GoogleCastTargetPort.receiverMuted(device = false, stream = false))
+    }
+
     @Test
     fun aDeviceWithoutVideoOutSaysSo() {
         val speaker = GoogleCastTargetPort.device("id-s", null, "Google Home", videoOut = false)

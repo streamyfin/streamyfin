@@ -9,9 +9,10 @@ import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import expo.modules.mpvplayer.cast.CastMapping
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
-import java.io.IOException
+import kotlin.math.roundToInt
 
 /** A Cast route as the port uses it: the receiver it reaches, whether MediaRouter takes it now, and how to select it. */
 internal class CastRoute(val device: TargetDevice, val enabled: Boolean = true, val select: () -> Unit)
@@ -156,6 +157,12 @@ internal class GoogleCastTargetPort(
 
         fun device(id: String, name: String?, model: String?, videoOut: Boolean) = TargetDevice(id, name ?: "", model, videoOut)
 
+        /** The selected route's volume step closest to [level]: MediaRouter counts in steps, 20 on a Chromecast. */
+        fun routeStep(level: Double, max: Int) = (level.coerceIn(0.0, 1.0) * max).roundToInt()
+
+        /** The app mutes the playing stream; another sender may have muted the device itself. */
+        fun receiverMuted(device: Boolean, stream: Boolean?) = device || stream == true
+
         @MainThread
         fun of(context: Context, cast: CastContext): GoogleCastTargetPort {
             val router = MediaRouter.getInstance(context.applicationContext)
@@ -163,26 +170,38 @@ internal class GoogleCastTargetPort(
             var sessionListener: SessionManagerListener<CastSession>? = null
             var routerCallback: MediaRouter.Callback? = null
             var volumeRelay: ((Double, Boolean) -> Unit)? = null
-            // The receiver's volume comes through the session's Cast.Listener, one per session.
+            fun levelOf(session: CastSession) =
+                session.volume to receiverMuted(session.isMute, session.remoteMediaClient?.mediaStatus?.isMute)
+            fun relayVolume() {
+                sessions.currentCastSession?.let(::levelOf)?.let { (level, muted) -> volumeRelay?.invoke(level, muted) }
+            }
+            // The device's level and mute come through the session's Cast.Listener, the stream's mute through its
+            // media client: one of each per session.
             val volumeListener = object : Cast.Listener() {
-                override fun onVolumeChanged() {
-                    sessions.currentCastSession?.let { volumeRelay?.invoke(it.volume, it.isMute) }
-                }
+                override fun onVolumeChanged() = relayVolume()
+            }
+            val streamListener = object : RemoteMediaClient.Callback() {
+                override fun onStatusUpdated() = relayVolume()
             }
             fun listenToVolume(session: CastSession) {
                 session.removeCastListener(volumeListener)
                 session.addCastListener(volumeListener)
-            }
-            // The SDK refuses a volume for a session that is not connected; the state follows what it reports.
-            fun onSession(action: String, set: (CastSession) -> Unit) {
-                val session = sessions.currentCastSession ?: return
-                try {
-                    set(session)
-                } catch (error: IOException) {
-                    Log.w(TAG, "$action failed", error)
-                } catch (error: IllegalStateException) {
-                    Log.w(TAG, "$action failed", error)
+                session.remoteMediaClient?.let {
+                    it.unregisterCallback(streamListener)
+                    it.registerCallback(streamListener)
                 }
+            }
+            fun stopListeningToVolume(session: CastSession) {
+                session.removeCastListener(volumeListener)
+                session.remoteMediaClient?.unregisterCallback(streamListener)
+            }
+            // The session's own setters are not used: after CastSession.setVolume or setMute the session no longer
+            // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). Google's Android
+            // surfaces do the same: the Cast dialog's slider sets the selected route's volume, the SDK's expanded
+            // controls mute the stream.
+            fun castRoute(): MediaRouter.RouteInfo? {
+                val selector = cast.mergedSelector ?: return null
+                return router.selectedRoute.takeIf { it.matchesSelector(selector) && it.volumeMax > 0 }
             }
 
             fun castRoutes(): List<CastRoute> {
@@ -207,7 +226,7 @@ internal class GoogleCastTargetPort(
                 watchSessions = { relay ->
                     sessionListener?.let { sessions.removeSessionManagerListener(it, CastSession::class.java) }
                     sessionListener = relay?.let { report ->
-                        sessionListener(report, ::endError, onUp = ::listenToVolume, onGone = { it.removeCastListener(volumeListener) })
+                        sessionListener(report, ::endError, onUp = ::listenToVolume, onGone = ::stopListeningToVolume)
                     }
                     sessionListener?.let { sessions.addSessionManagerListener(it, CastSession::class.java) }
                 },
@@ -231,13 +250,19 @@ internal class GoogleCastTargetPort(
                     }
                 },
                 schedule = mainLooperSchedule(),
-                sessionVolume = { sessions.currentCastSession?.let { it.volume to it.isMute } },
-                setSessionVolume = { level -> onSession("setVolume") { it.volume = level } },
-                setSessionMuted = { muted -> onSession("setMute") { it.isMute = muted } },
+                sessionVolume = { sessions.currentCastSession?.let(::levelOf) },
+                setSessionVolume = { level ->
+                    val route = castRoute()
+                    if (route != null) route.requestSetVolume(routeStep(level, route.volumeMax)) else Log.w(TAG, "setVolume: no Cast route selected")
+                },
+                // Only a stream can be muted this way: without one loaded, the receiver plays nothing to mute.
+                setSessionMuted = { muted ->
+                    sessions.currentCastSession?.remoteMediaClient?.takeIf { it.hasMediaSession() }?.setStreamMute(muted)
+                },
                 watchVolume = { relay ->
                     volumeRelay = relay
                     sessions.currentCastSession?.let { session ->
-                        if (relay != null) listenToVolume(session) else session.removeCastListener(volumeListener)
+                        if (relay != null) listenToVolume(session) else stopListeningToVolume(session)
                     }
                 },
             )

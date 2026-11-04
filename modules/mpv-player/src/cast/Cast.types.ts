@@ -155,6 +155,7 @@ export interface RemoteTargetState {
   error: string | null;
   /** The receiver's own volume, 0 to 1, as the SDK last reported it; null before it has, or with no target. */
   volume: number | null;
+  /** The receiver is muted: the device, or on Android the playing stream, which is what the app mutes there. */
   muted: boolean;
   /** The SDK's status code for `error`: null with no error, and for a refusal of the native side's own. */
   errorCode: number | null;

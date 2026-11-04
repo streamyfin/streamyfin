@@ -74,10 +74,15 @@ export const disconnectRemoteTarget = ({
 /**
  * Sets the connected receiver's own volume, 0 to 1, and does nothing without a
  * connected target. The state's volume follows once the receiver reports it.
+ * Android sets it in the Cast route's steps, 20 on a Chromecast.
  */
 export const setRemoteTargetVolume = (level: number): Promise<void> =>
   native()?.setTargetVolume(level) ?? Promise.resolve();
 
+/**
+ * Mutes the connected receiver: the device on iOS, the playing stream on
+ * Android, as the SDK's expanded controls do there, which needs media loaded.
+ */
 export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
   native()?.setTargetMuted(muted) ?? Promise.resolve();
 
