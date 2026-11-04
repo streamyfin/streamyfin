@@ -1497,6 +1497,26 @@ describe("isStaleIdError", () => {
         }),
       ),
     ).toBe(false);
+    // And in its hex-struct form, which takes spaces, a sign and short groups.
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: {
+            parentId:
+              "{0x00000000,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}}",
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: {
+            parentId: "{ +0x0, 0x0,0x0,{0x0,0x0,0x0,0x0,0x0,0x0,0x0,+0x0} }",
+          },
+        }),
+      ),
+    ).toBe(false);
     // The GUID one past it is a record like any other, in braces too.
     expect(
       isStaleIdError(
@@ -1509,6 +1529,16 @@ describe("isStaleIdError", () => {
       isStaleIdError(
         unknownParent(itemsUrl("recursive=true"), {
           params: { parentId: "{00000000-0000-0000-0000-000000000001}" },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: {
+            parentId:
+              "{0x00000000,0x0000,0x0000,{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01}}",
+          },
         }),
       ),
     ).toBe(true);

@@ -633,17 +633,22 @@ const skipsParentLookup = (path: string, config: RequestQuery): boolean => {
   return kinds.length === 1 && skipping.has(kinds[0]);
 };
 
-// Guid.Empty in the forms .NET reads: without dashes, with them, and dashed
-// in braces or in parentheses. Jellyfin turns it away as a parent ("Guid
+// Guid.Empty in any form .NET reads (bare, dashed, in braces or parentheses,
+// the hex-struct form with its 0x prefixes, signs and spaces): every hex digit
+// is zero once the rest is gone. Jellyfin turns it away as a parent ("Guid
 // can't be empty") in the same words as an unknown one: a fault of the
-// request, which named no record at all.
-const EMPTY_GUID =
-  /^(?:0{32}|0{8}-0{4}-0{4}-0{4}-0{12}|\{0{8}-0{4}-0{4}-0{4}-0{12}\}|\(0{8}-0{4}-0{4}-0{4}-0{12}\))$/;
+// request, which named no record at all. Zeros that make no GUID get
+// validation details from the server instead, so reading them as empty
+// changes nothing.
+const isEmptyGuid = (guid: string): boolean => {
+  const digits = guid.replace(/0x/gi, "").replace(/[\s{}(),+-]/g, "");
+  return /^0+$/.test(digits);
+};
 
 // ASP.NET binds a blank parentId as no parent, and reads a GUID trimmed.
 const namesParent = (id: string): boolean => {
   const guid = id.trim();
-  return guid !== "" && !EMPTY_GUID.test(guid);
+  return guid !== "" && !isEmptyGuid(guid);
 };
 
 /**
