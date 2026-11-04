@@ -959,13 +959,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // This runs for a long time, one network round trip per track. If the
       // session switches meanwhile, every remaining track belongs to an account
-      // that is no longer signed in, so stop instead of adding them.
+      // that is no longer signed in, so stop instead of adding them; a new
+      // queue start supersedes this queue the same way.
       // Checked again inside every turn on the native queue, right before the
       // call that adds: the turn may have waited behind another edit, and the
       // session teardown bumps the generation before it resets the player, so
       // an add that passes the check is ahead of that reset.
       const generation = sessionGenerationRef.current;
-      const isStale = () => generation !== sessionGenerationRef.current;
+      const startSequence = startSequenceRef.current;
+      const isStale = () =>
+        generation !== sessionGenerationRef.current ||
+        startSequence !== startSequenceRef.current;
 
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
@@ -1399,6 +1403,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           return {
             ...base,
             streamUrl: activeTrack?.url ?? null,
+            // The PlaybackInfo above opened a session for the track on screen:
+            // when that is the live one, stop reports go under it.
+            playSessionId:
+              activeTrack?.id === state.currentTrack?.Id
+                ? result.sessionId
+                : prev.playSessionId,
             isPlaying: true,
           };
         });
@@ -1412,6 +1422,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         api,
         preferLocal,
       );
+      loadedOutOfOrderRef.current = false;
       await TrackPlayer.reset();
       if (isStale()) return;
       setMusicNormalizationTrack(track);
@@ -1430,6 +1441,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         playSessionId: result.sessionId,
         isPlaying: true,
       }));
+      // The native queue holds this one track: load the rest of the restored
+      // queue behind it, as a fresh start does, or next, previous and the end
+      // of the track find nothing after it.
+      if (state.queue.length > 1) {
+        loadRemainingTracksInBackground(
+          state.queue,
+          state.queueIndex,
+          preferLocal,
+        );
+      }
     } else {
       await TrackPlayer.play();
       setState((prev) => ({ ...prev, isPlaying: true }));
@@ -1443,6 +1464,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.queueIndex,
     settings?.preferLocalAudio,
     playerReadyForControl,
+    loadRemainingTracksInBackground,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -1727,6 +1749,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         // from the previous one, and the native side rejects that.
         const currentIndex = await TrackPlayer.getActiveTrackIndex();
         const insertIndex = (currentIndex ?? -1) + 1;
+        // The state skips a superseded edit, so the native queue must too.
+        if (isStale()) continue;
         if (result) {
           await TrackPlayer.add(
             itemToTrack(item, result.url, api, preferLocal),

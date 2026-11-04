@@ -149,7 +149,7 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
     }
     return {
       url: `https://jellyfin.example.com/Audio/${itemId}/stream`,
-      sessionId: null,
+      sessionId: `session-${itemId}`,
       mediaSource: null,
       isTranscoding: false,
     };
@@ -485,10 +485,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   });
 
   // Same report, the other way in: a queue restored after a restart is only
-  // on screen. Resuming loads the one track it stopped on.
+  // on screen. Resuming loads the one track it stopped on, then the rest in
+  // the background; t1 held here keeps that load from catching up.
   test("jumps to another track of a queue restored after a restart", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    holdStreams("t1");
     await run((p) => p.resume());
     expect(nativeIds()).toEqual(["t2"]);
 
@@ -501,6 +503,52 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeIds()).toEqual(["t0", "t2", "t4"]);
     expect(nativeActiveId()).toBe("t0");
     expect(player.queueIndex).toBe(0);
+  });
+
+  // Resume used to load the track it stopped on and nothing else, so the
+  // native queue had no track after it: next did nothing and playback stopped
+  // at the end of that track.
+  test("resuming a restored queue loads the rest of it behind the track", async () => {
+    persistQueue(ALBUM, 1);
+    await mount();
+    await run((p) => p.resume());
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+
+    await run((p) => p.next());
+
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+  });
+
+  // The previous queue's load must not add its tracks behind a new one.
+  test("a new queue stops the background load of the previous one", async () => {
+    await mount();
+    holdStreams("t3");
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds()).toEqual(["t0", "t1", "t2"]);
+
+    await run((p) => p.playQueue(["x0", "x1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["x0", "x1"]);
+  });
+
+  // A track jumpToIndex loaded paused is live when Play resumes it: the
+  // resume played it without the session its PlaybackInfo opened, and every
+  // stop report after it was skipped.
+  test("resuming a jump-loaded track keeps its playback session", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    await run((p) => p.jumpToIndex(3));
+    expect(nativeActiveId()).toBe("t3");
+
+    await run((p) => p.resume());
+
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.playSessionId).toBe("session-t3");
   });
 
   // An id cannot tell two copies of a track apart; the row's index can, once
@@ -549,6 +597,8 @@ describe("MusicPlayerProvider and the native queue", () => {
   test("next and previous show the track the player moved to across a gap", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    // The rest of the restored queue is still loading.
+    holdStreams("t1");
     await run((p) => p.resume());
     await run((p) => p.jumpToIndex(4));
     expect(nativeIds()).toEqual(["t2", "t4"]);
@@ -644,16 +694,40 @@ describe("MusicPlayerProvider and the native queue", () => {
     await act(async () => {
       queued = player.playNext(track("extra"));
     });
-    await run((p) => p.playQueue([track("other")], 0));
-    expect(nativeIds()).toEqual(["other"]);
+    await run((p) => p.jumpToIndex(1));
+    expect(nativeActiveId()).toBe("t1");
 
     await releaseStreams();
     await act(async () => {
       await queued;
     });
 
-    expect(nativeIds()).toEqual(["other", "extra"]);
-    expect(nativeActiveId()).toBe("other");
+    expect(nativeIds()).toEqual(["t0", "t1", "extra", "t2", "t3", "t4"]);
+    expect(player.queue.map((t) => t.Id)).toEqual(nativeIds());
+    expect(nativeActiveId()).toBe("t1");
+  });
+
+  // A new queue supersedes a Play next still waiting on its stream URL. The
+  // state skipped it while the native queue took it, so the track played
+  // after the new album's first one with nothing on screen for it.
+  test("drops a Play next whose stream URL arrives after a new queue started", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    holdStreams("extra");
+    let queued: unknown;
+    await act(async () => {
+      queued = player.playNext(track("extra"));
+    });
+    await run((p) => p.playQueue([track("other")], 0));
+
+    await releaseStreams();
+    await act(async () => {
+      await queued;
+    });
+
+    expect(nativeIds()).toEqual(["other"]);
+    expect(player.queue.map((t) => t.Id)).toEqual(["other"]);
   });
 });
 
@@ -905,7 +979,8 @@ describe("MusicPlayerProvider native player setup", () => {
 
     await run((p) => p.resume());
 
-    expect(nativeIds()).toEqual(["t2"]);
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
     expect(setupCalls()).toBe(1);
   });
 
@@ -1032,7 +1107,8 @@ describe("MusicPlayerProvider native player setup", () => {
     await run((p) => p.resume());
 
     expect(player.isPlayerReady).toBe(true);
-    expect(nativeIds()).toEqual(["t2"]);
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
   });
 
   // The controls share one guard, and it starts the setup instead of skipping
