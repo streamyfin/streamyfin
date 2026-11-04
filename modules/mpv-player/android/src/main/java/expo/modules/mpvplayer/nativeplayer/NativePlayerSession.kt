@@ -687,7 +687,15 @@ class NativePlayerSession(
 
         // Before the engine loads, so the mode settles while the stream
         // buffers instead of after the first juddered frames.
-        loadConfig.contentFrameRate?.let { matchContentFrameRate(it) }
+        val contentFrameRate = loadConfig.contentFrameRate
+        if (contentFrameRate == null) {
+            // Setting off, or the PlaybackInfo response carried no
+            // RealFrameRate for the video stream — one line, because this is
+            // the silent exit the refresh-rate feature loses to.
+            Log.i(TAG, "Refresh-rate match: config carries no content frame rate")
+        } else {
+            matchContentFrameRate(contentFrameRate)
+        }
 
         engine?.load(loadConfig)
 
@@ -747,7 +755,25 @@ class NativePlayerSession(
                 activity.getSystemService(DisplayManager::class.java) ?: return
             val display =
                 displayManager.getDisplay(Display.DEFAULT_DISPLAY) ?: return
-            val mode = RefreshRateMatcher.pickMode(display, contentFrameRate) ?: return
+            val current = display.mode
+            val mode = RefreshRateMatcher.pickMode(display, contentFrameRate)
+            if (mode == null) {
+                // The mode list is what jellyfin-androidtv reads too, so if
+                // it has no qualifying mode for a rate that app switches to,
+                // this line is the evidence of the difference.
+                Log.i(
+                    TAG,
+                    "Refresh-rate match: no mode for " + contentFrameRate + " fps" +
+                        "; current " + current.modeId + "@" + current.refreshRate + "Hz" +
+                        "; supported " + display.supportedModes.joinToString(
+                            prefix = "[", postfix = "]",
+                        ) { m ->
+                            m.modeId.toString() + "@" + m.refreshRate + "Hz " +
+                                m.physicalWidth + "x" + m.physicalHeight
+                        },
+                )
+                return
+            }
             val attributes = activity.window.attributes
             if (originalPreferredDisplayModeId == null) {
                 originalPreferredDisplayModeId = attributes.preferredDisplayModeId

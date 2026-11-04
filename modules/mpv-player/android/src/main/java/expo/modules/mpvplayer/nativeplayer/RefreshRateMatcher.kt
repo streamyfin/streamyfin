@@ -12,9 +12,16 @@ import kotlin.math.abs
  * real rate is known — 25fps content then stays on a 60Hz panel and judders
  * in an uneven 2:2:3 cadence. Window-level preferredDisplayModeId is the API
  * Android's docs prescribe for TV boxes: Surface.setFrameRate() only drives
- * seamless switches, and TV panels switch non-seamlessly.
+ * seamless switches, and TV panels switch non-seamlessly. This is the same
+ * mechanism jellyfin-androidtv's PlaybackController uses, and it demonstrably
+ * works on the affected box.
  */
 object RefreshRateMatcher {
+
+    // Content rate and its 2x / 2.5x / 3x / 4x multiples; 2.5 is what maps
+    // 24 fps onto a 60 Hz panel (jellyfin-androidtv qualifies the same set).
+    // 1.5x covers no broadcast rate a TV panel carries.
+    private val MULTIPLES = floatArrayOf(1f, 2f, 2.5f, 3f, 4f)
 
     // A mode matches when its refresh rate is a near-integer multiple of the
     // content rate (25 → 50, 23.976 → 24). The tolerance grows with the
@@ -23,7 +30,7 @@ object RefreshRateMatcher {
     // below any real rate difference — deliberately NOT nearest-match, which
     // would pull 25fps onto a 24 Hz mode (1 Hz away) and judder worse than
     // the 50 Hz two steps away.
-    private fun tolerance(multiple: Int) = 0.5f + 0.02f * multiple
+    private fun tolerance(multiple: Float) = 0.5f + 0.02f * multiple
 
     /**
      * The supported mode to switch to for `contentFrameRate`, or null when no
@@ -35,7 +42,7 @@ object RefreshRateMatcher {
         if (contentFrameRate <= 0.0) return null
         val current = display.mode
         var best: Display.Mode? = null
-        var bestMultiple = Int.MAX_VALUE
+        var bestMultiple = Float.MAX_VALUE
         for (mode in display.supportedModes) {
             if (mode.physicalWidth != current.physicalWidth ||
                 mode.physicalHeight != current.physicalHeight
@@ -45,9 +52,9 @@ object RefreshRateMatcher {
             // Lowest multiple wins: the panel divides it back down to the
             // content rate, and lower multiples drift less. First hit at a
             // multiple stops the scan for this mode.
-            for (multiple in 1..4) {
-                val target = contentFrameRate * multiple
-                if (abs(mode.refreshRate - target.toFloat()) <= tolerance(multiple)) {
+            for (multiple in MULTIPLES) {
+                val target = (contentFrameRate * multiple).toFloat()
+                if (abs(mode.refreshRate - target) <= tolerance(multiple)) {
                     if (multiple < bestMultiple) {
                         best = mode
                         bestMultiple = multiple
