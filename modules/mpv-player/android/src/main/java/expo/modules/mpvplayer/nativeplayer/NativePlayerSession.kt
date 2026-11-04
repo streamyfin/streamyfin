@@ -173,6 +173,8 @@ class NativePlayerSession(
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
+                // The menus follow the engine built here: a later load never swaps it.
+                viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
 
                 // Initialize controllers

@@ -271,9 +271,10 @@ export type NativePlayerUIOptions = {
 };
 
 /**
- * Which engine decodes the stream inside the native chrome. Android-only:
- * iOS's chrome always runs mpv and ignores the field. Defaults to "mpv"
- * when absent (older configs, mobile).
+ * Which engine the native chrome builds. ExoPlayer exists on Android only;
+ * both platforms refuse a name they do not build when the player is
+ * presented (ERR_UNSUPPORTED_ENGINE). Defaults to "mpv" when absent (older
+ * configs, mobile).
  */
 export type NativePlayerEngine = "mpv" | "exoplayer";
 
