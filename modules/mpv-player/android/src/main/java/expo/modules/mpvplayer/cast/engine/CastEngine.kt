@@ -639,7 +639,8 @@ class CastEngine(
             log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
         }
         reportState(status.playerState, status.idleReason, data)
-        if (reclaimPending && data?.playSessionId != null && data.playSessionId == ownPlaySession) {
+        // A load on its way carries the envelope of its own server: the reclaim waits for it to settle.
+        if (reclaimPending && pendingLoad == null && data?.playSessionId != null && data.playSessionId == ownPlaySession) {
             reclaimPending = false
             val binding = boundSessionId
             // Not taken: nothing was reclaimed, and the next status of that playback tries again.
