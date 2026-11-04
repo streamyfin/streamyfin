@@ -18,7 +18,9 @@ internal final class NoPresenterException: Exception, @unchecked Sendable {
 /// controller and the view model, and funnels every dismissal path through a
 /// single teardown ordering (see dismiss(reason:completion:)).
 final class NativePlayerSession {
-	let engine: PlayerEngine = MPVPlayerEngine()
+	let engine: ChromeEngine
+	/// The screen of a local engine; nil for one without, whose surface paths do not run.
+	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 	let viewModel = PlayerViewModel()
 
 	private var viewController: NativePlayerViewController?
@@ -29,10 +31,12 @@ final class NativePlayerSession {
 	private var backgroundObserver: NSObjectProtocol?
 
 	init(
+		engine: ChromeEngine,
 		emit: @escaping (String, [String: Any]) -> Void,
 		onTornDown: @escaping () -> Void,
 		presenterProvider: @escaping () -> UIViewController? = { nil }
 	) {
+		self.engine = engine
 		self.emit = emit
 		self.onTornDown = onTornDown
 		self.presenterProvider = presenterProvider
@@ -157,7 +161,7 @@ final class NativePlayerSession {
 	private func startStream(config: PlayerPresentConfigRecord, force: Bool = false) {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
-		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
+		rendering?.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must
 		// explicitly write 1.0 or the old speed carries over.
@@ -167,7 +171,7 @@ final class NativePlayerSession {
 		// Same persistence rule as speed: sync offsets and gain survive on
 		// the mpv handle across loadfile, so write the view model's current
 		// values on every swap (apply() resets them when the item changes).
-		engine.setSubtitleDelay(viewModel.subtitleDelay)
+		rendering?.setSubtitleDelay(viewModel.subtitleDelay)
 		engine.setAudioDelay(viewModel.audioDelay)
 		engine.setVolumeBoost(viewModel.volumeBoostPercent)
 		engine.setDialogueBoost(viewModel.dialogueBoostEnabled)
@@ -184,18 +188,19 @@ final class NativePlayerSession {
 	}
 
 	private func applySubtitleStyle(_ style: SubtitleStyleRecord) {
-		if let marginY = style.marginY { engine.setSubtitleMarginY(marginY) }
-		if let alignX = style.alignX { engine.setSubtitleAlignX(alignX) }
-		if let alignY = style.alignY { engine.setSubtitleAlignY(alignY) }
+		guard let rendering else { return }
+		if let marginY = style.marginY { rendering.setSubtitleMarginY(marginY) }
+		if let alignX = style.alignX { rendering.setSubtitleAlignX(alignX) }
+		if let alignY = style.alignY { rendering.setSubtitleAlignY(alignY) }
 
 		var appearance: [String: Any] = [:]
 		if let color = style.color { appearance["color"] = color }
 		if let font = style.font { appearance["font"] = font }
 		if let background = style.background { appearance["background"] = background }
 		if let padding = style.backgroundPadding { appearance["backgroundPadding"] = padding }
-		if !appearance.isEmpty { engine.setSubtitleStyle(config: appearance) }
+		if !appearance.isEmpty { rendering.setSubtitleStyle(config: appearance) }
 
-		if let assOverride = style.assOverride { engine.setSubtitleAssOverride(assOverride) }
+		if let assOverride = style.assOverride { rendering.setSubtitleAssOverride(assOverride) }
 	}
 
 	func applyNowPlayingMetadata(_ metadata: MetadataRecord) {
@@ -240,9 +245,9 @@ final class NativePlayerSession {
 		isDismissing = true
 
 		viewModel.willTeardown()
-		engine.setPictureInPictureAutoStartEnabled(false)
-		if engine.isPictureInPictureActive() {
-			engine.stopPictureInPicture()
+		rendering?.setPictureInPictureAutoStartEnabled(false)
+		if rendering?.isPictureInPictureActive() == true {
+			rendering?.stopPictureInPicture()
 		}
 
 		let duration = engine.getDuration()

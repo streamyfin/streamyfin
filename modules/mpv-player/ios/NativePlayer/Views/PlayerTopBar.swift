@@ -49,7 +49,7 @@ struct PlayerTopBar: View {
 					.accessibilityIdentifier("syncplay-open-queue")
 			}
 
-			if viewModel.engine?.isPictureInPictureSupported() == true {
+			if viewModel.canPictureInPicture {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
 					viewModel.togglePictureInPicture()
 				}

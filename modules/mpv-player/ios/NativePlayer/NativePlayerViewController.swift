@@ -16,7 +16,9 @@ import CoreMedia
 /// which single layer the focus engine may see at any moment — SwiftUI
 /// handles focus WITHIN a layer, UIKit decides between layers.
 final class NativePlayerViewController: UIViewController {
-	private let engine: PlayerEngine
+	private let engine: ChromeEngine
+	/// The screen of a local engine; nil for one without, which shows no video layer.
+	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 	private let viewModel: PlayerViewModel
 	#if os(iOS)
 	/// Starts from the config's lock and changes when the user taps Rotate.
@@ -43,7 +45,7 @@ final class NativePlayerViewController: UIViewController {
 	private var remoteRecognizers: [UIGestureRecognizer] = []
 	#endif
 
-	init(engine: PlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
+	init(engine: ChromeEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
 		self.engine = engine
 		self.viewModel = viewModel
 		#if os(iOS)
@@ -119,8 +121,10 @@ final class NativePlayerViewController: UIViewController {
 		videoContainerView.clipsToBounds = true
 		view.addSubview(videoContainerView)
 
-		engine.displayLayer.frame = view.bounds
-		videoContainerView.layer.addSublayer(engine.displayLayer)
+		if let rendering {
+			rendering.displayLayer.frame = view.bounds
+			videoContainerView.layer.addSublayer(rendering.displayLayer)
+		}
 
 		#if os(tvOS)
 		// The TV chrome is tvOS 26+ by design (native glass menus etc.) —
@@ -311,9 +315,11 @@ final class NativePlayerViewController: UIViewController {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		videoContainerView.frame = view.bounds
-		engine.displayLayer.frame = zoomAwareLayerFrame()
-		engine.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
-		engine.syncSubtitleLayerFrame()
+		if let rendering {
+			rendering.displayLayer.frame = zoomAwareLayerFrame()
+			rendering.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
+			rendering.syncSubtitleLayerFrame()
+		}
 		CATransaction.commit()
 		viewModel.applySubtitleScale()
 	}
@@ -352,7 +358,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 		isViewVisible = true
-		engine.setPictureInPictureHostVisible(true)
+		rendering?.setPictureInPictureHostVisible(true)
 		UIApplication.shared.isIdleTimerDisabled = viewModel.isPlaying
 		#if os(iOS)
 		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
@@ -368,7 +374,7 @@ final class NativePlayerViewController: UIViewController {
 	override func viewWillDisappear(_ animated: Bool) {
 		super.viewWillDisappear(animated)
 		isViewVisible = false
-		engine.setPictureInPictureHostVisible(false)
+		rendering?.setPictureInPictureHostVisible(false)
 		UIApplication.shared.isIdleTimerDisabled = false
 		#if os(iOS)
 		// Hand the bar back visible — the app-level state persists past this

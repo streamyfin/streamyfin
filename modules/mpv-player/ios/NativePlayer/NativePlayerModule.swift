@@ -25,7 +25,7 @@ internal final class UnsupportedEngineException: GenericException<String>, @unch
 }
 
 /// Module-level (non-view) player: presents a full-screen native
-/// UIViewController with SwiftUI controls over the shared MPVPlayerEngine.
+/// UIViewController with SwiftUI controls over the engine the config names.
 /// Compiles for both iOS and tvOS; the view controller hosts the platform's
 /// root view (touch chrome on iOS, focus/remote chrome on tvOS).
 /// All Jellyfin orchestration (stream negotiation, session reporting,
@@ -70,7 +70,13 @@ public class NativePlayerModule: Module {
 			case nil:
 				break
 			}
+			// The refusal above already turned every other name away: this only unwraps the kind.
+			guard let kind = NativeEngineKind(configName: config.engine) else {
+				promise.reject(UnsupportedEngineException(config.engine ?? ""))
+				return
+			}
 			let session = NativePlayerSession(
+				engine: Self.makeEngine(kind),
 				emit: { [weak self] name, payload in
 					self?.sendEvent(name, payload)
 				},
@@ -247,8 +253,7 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		AsyncFunction("getTechnicalInfo") { (promise: Promise) in
-			guard let engine = self.session?.engine else { return promise.resolve([String: Any]()) }
-			engine.getTechnicalInfo { promise.resolve($0) }
+			readTechnicalInfo(from: self.session?.engine) { promise.resolve($0) }
 		}.runOnQueue(.main)
 
 		OnDestroy {
@@ -256,6 +261,14 @@ public class NativePlayerModule: Module {
 			// synchronously so the mpv handle and audio session are released.
 			self.session?.teardownImmediately()
 			self.session = nil
+		}
+	}
+
+	/// The engine a kind stands for. No default case: a kind added later does not compile here
+	/// until it is built.
+	private static func makeEngine(_ kind: NativeEngineKind) -> ChromeEngine {
+		switch kind {
+		case .mpv: return MPVPlayerEngine()
 		}
 	}
 }

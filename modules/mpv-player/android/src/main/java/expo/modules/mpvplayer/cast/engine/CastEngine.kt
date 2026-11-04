@@ -14,8 +14,8 @@ import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
+import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
-import expo.modules.mpvplayer.nativeplayer.engine.QueueEngine
 import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import org.json.JSONObject
@@ -39,7 +39,7 @@ class CastEngine(
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val runOnMain: (() -> Unit) -> Unit,
     private val log: (String) -> Unit = {},
-) : TransportEngine, QueueEngine {
+) : ChromeEngine {
     override var delegate: TransportEngine.Delegate? = null
     var bindingListener: CastBindingListener? = null
 

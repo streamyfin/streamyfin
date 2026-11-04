@@ -30,10 +30,10 @@ data class VideoLoadConfig(
  * The interface has three faces: [TransportEngine] (what every chrome mode calls),
  * [RenderingEngine] (what only a local decoder has) and [QueueEngine] (what only a
  * target with a list has). The local engines, mpv and ExoPlayer, carry all three; a
- * remote engine carries transport and queue, and the chrome in remote mode never
- * calls the rendering face.
+ * remote engine carries transport and queue, a [ChromeEngine], which is what the chrome
+ * holds.
  */
-interface PlayerEngine : TransportEngine, RenderingEngine, QueueEngine {
+interface PlayerEngine : ChromeEngine, RenderingEngine {
 
     /** Process-level player slot; mapped onto the shared single-player gate. */
     enum class Owner { EMBEDDED_VIEW, NATIVE_SESSION }
