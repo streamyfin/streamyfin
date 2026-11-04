@@ -79,6 +79,16 @@ const Layout = () => {
           initialParams={{ libraryId }}
           options={{ title: t("music.tabs.playlists") }}
         />
+        <Tab.Screen
+          name='songs'
+          initialParams={{ libraryId }}
+          options={{ title: t("music.tabs.tracks") }}
+        />
+        <Tab.Screen
+          name='folders'
+          initialParams={{ libraryId }}
+          options={{ title: t("music.tabs.folders") }}
+        />
       </Tab>
     </>
   );
