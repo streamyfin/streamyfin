@@ -50,11 +50,14 @@ class CastModule : Module() {
     private var cachedState: String? = null
     @Volatile
     private var cachedSession: Map<String, Any?>? = null
-    // JS asked for discovery; it pauses while the app is in the background and resumes with it.
-    private var discoveryWanted = false
     // The target hub outlives the module, like the channel hub: it holds the port, discovery and the
     // target state, and the module relays what it publishes until OnDestroy lets go of the relay.
     private val remoteTargets = RemoteTargetHub.shared
+    // JS asks for discovery; it runs only in the foreground, paused with the app and resumed with it.
+    private val appDiscovery = AppDiscovery(
+        start = { if (ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY) },
+        stop = { remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY) },
+    )
     private var removeTargetRelay: (() -> Unit)? = null
     private var mediaClient: RemoteMediaClient? = null
     // The hub holds the SDK registration of each namespace and outlives the module; the module only
@@ -146,11 +149,11 @@ class CastModule : Module() {
 
         // An active scan costs battery; the SDK's own button paused it while off screen.
         OnActivityEntersBackground {
-            mainHandler.post { remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY) }
+            mainHandler.post { appDiscovery.background() }
         }
 
         OnActivityEntersForeground {
-            mainHandler.post { if (discoveryWanted && ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY) }
+            mainHandler.post { appDiscovery.foreground() }
         }
 
         Function("isAvailable") { CastSupport.isAvailable(context) }
@@ -172,14 +175,12 @@ class CastModule : Module() {
         Function("getDevices") { remoteTargets.devices.map { it.toMap() } }
 
         AsyncFunction("startDiscovery") {
-            discoveryWanted = true
-            if (ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+            appDiscovery.want()
             Unit
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("stopDiscovery") {
-            discoveryWanted = false
-            remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
+            appDiscovery.release()
             Unit
         }.runOnQueue(Queues.MAIN)
 
@@ -346,7 +347,7 @@ class CastModule : Module() {
     }
 
     private fun release() {
-        remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        appDiscovery.release()
         removeTargetRelay?.invoke()
         removeTargetRelay = null
         detachMedia()
