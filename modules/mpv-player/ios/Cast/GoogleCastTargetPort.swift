@@ -21,6 +21,7 @@ final class GoogleCastTargetPort: TargetPort {
   static let receiverGone = "The receiver is no longer on the network"
   static let startRefused = "The Cast SDK did not start the session"
   static let endRefused = "The Cast SDK did not end the session a switch had to end"
+  static let disconnectRefused = "The Cast SDK did not end the session"
 
   private let routes: () -> [CastTargetRoute]
   private let runningSession: () -> RunningTargetSession?
@@ -115,8 +116,11 @@ final class GoogleCastTargetPort: TargetPort {
 
   func disconnect(stopPlayback: Bool) {
     pendingSwitch = nil
-    if runningSession() != nil {
-      _ = endSession(stopPlayback)
+    if let running = runningSession() {
+      // The SDK kept the session: it stays, and the state says why.
+      if !endSession(stopPlayback) {
+        events?.sessionEvent("endRefused", device: running.device, error: Self.disconnectRefused)
+      }
       return
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.

@@ -6,6 +6,8 @@ class FakeTargetPort(
     var known: List<TargetDevice> = emptyList(),
     /** Lists [known] inside startDiscovery, as the SDK port does with the routes MediaRouter already has. */
     private val listsOnDiscovery: Boolean = false,
+    /** Devices whose connection the port answers at once with startFailed, as a disabled route is. */
+    private val refuses: Set<String> = emptySet(),
 ) : TargetPort {
     // Kept after stop, so a test can play a stale port talking to the hub.
     var events: TargetPortEvents? = null
@@ -38,6 +40,7 @@ class FakeTargetPort(
 
     override fun connect(device: TargetDevice) {
         connects += device
+        if (device.id in refuses) events?.sessionEvent("startFailed", device, "refused")
     }
 
     override fun disconnect(stopPlayback: Boolean) {

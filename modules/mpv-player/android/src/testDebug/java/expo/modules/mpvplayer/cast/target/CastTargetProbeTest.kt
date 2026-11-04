@@ -145,6 +145,70 @@ class CastTargetProbeTest {
         assertFalse(probe.isActive)
     }
 
+    // A refused switch used to publish nothing: the probe waited 30 s and said "never connected".
+    @Test
+    fun aRefusedSwitchFailsTheProbeWithItsCause() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom), refuses = setOf(bedroom.id))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Bedroom")
+
+        probe.start()
+        port.discover(listOf(livingRoom, bedroom))
+
+        assertFalse(probe.isActive)
+        assertEquals("failed: connection failed error=refused", logs.last())
+    }
+
+    // Finished inside its first request, the probe must not go on to ask the receiver it was leaving.
+    @Test
+    fun aProbeThatFinishedInsideTheRequestAsksNothingMore() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom), refuses = setOf(bedroom.id))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Bedroom", back = true)
+
+        probe.start()
+        port.discover(listOf(livingRoom, bedroom))
+
+        assertEquals(listOf(bedroom), port.connects)
+        assertFalse(probe.isActive)
+    }
+
+    @Test
+    fun aBackWithTheHeldReceiverUnlistedAsksNothing() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Bedroom", back = true)
+
+        probe.start()
+        port.discover(listOf(bedroom))
+
+        assertTrue(port.connects.isEmpty())
+        assertEquals("failed: Living room is not listed, nothing to go back to", logs.last())
+    }
+
+    // The app switched receivers during the hold: the session is no longer the probe's to end.
+    @Test
+    fun theHoldLeavesASessionTheProbeDidNotOpen() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = hubWith(port)
+        val probe = probe(hub, "Living room")
+
+        probe.start()
+        port.discover(listOf(livingRoom, bedroom))
+        port.emit("started", livingRoom)
+        hub.connect(bedroom.id)
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom, "Cast session status code 2155 (2155)")
+        port.emit("started", bedroom)
+        scheduler.advance(CastTargetProbe.CONNECTED_HOLD_MS)
+
+        assertTrue(port.disconnects.isEmpty())
+        assertEquals("failed: the session went to Bedroom", logs.last())
+    }
+
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
     @Test
     fun aPartialMatchThatLeftCanSettleAgain() {

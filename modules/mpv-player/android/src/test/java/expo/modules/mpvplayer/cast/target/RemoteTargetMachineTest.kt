@@ -100,12 +100,14 @@ class RemoteTargetMachineTest {
     }
 
     @Test
-    fun aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiver() {
+    fun aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiverAndSaysWhy() {
         val machine = connectedTo(livingRoom)
         machine.connectRequested(bedroom)
 
-        assertFalse(machine.sessionEvent("startFailed", bedroom, "busy"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
+        // A switch the port refuses at once (a disabled route, an end the SDK keeps) leaves the receiver
+        // that holds the session, with the cause: silence there left the sheet, and the probe, waiting.
+        assertTrue(machine.sessionEvent("startFailed", bedroom, "busy"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "busy"), machine.snapshot)
         assertTrue(machine.sessionEvent("ended", livingRoom, null))
         assertEquals(RemoteTargetSnapshot.NONE, machine.snapshot)
     }
@@ -195,6 +197,27 @@ class RemoteTargetMachineTest {
 
         assertTrue(machine.sessionEvent("startFailed", livingRoom, "busy"))
         assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "busy"), machine.snapshot)
+    }
+
+    // The only start in flight during a switch is the asked receiver's: a start failure without its device
+    // is that one's, and ends the switch instead of leaving it connecting.
+    @Test
+    fun aDeviceLessStartFailureDuringASwitchEndsWithItsError() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+        machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)")
+
+        assertTrue(machine.sessionEvent("startFailed", null, "gone"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "gone"), machine.snapshot)
+    }
+
+    @Test
+    fun aRefusedEndKeepsTheReceiverAndSaysWhy() {
+        val machine = connectedTo(livingRoom)
+        machine.disconnectRequested()
+
+        assertTrue(machine.sessionEvent("endRefused", livingRoom, "kept"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "kept"), machine.snapshot)
     }
 
     @Test
