@@ -31,9 +31,11 @@ the flag as `false`.
 To check a build, read the flag from the APK:
 
 ```bash
-unzip -o -q app-release.apk 'classes*.dex' -d /tmp/apk
-for d in /tmp/apk/classes*.dex; do
-  "$ANDROID_HOME"/build-tools/*/dexdump "$d" | grep -A4 "name *: 'ALLOW_GLIDE_LOGS'"
+dex=$(mktemp -d)
+unzip -q app-release.apk 'classes*.dex' -d "$dex"
+dexdump=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/dexdump
+for d in "$dex"/classes*.dex; do
+  "$dexdump" "$d" | grep -A4 "name *: 'ALLOW_GLIDE_LOGS'"
 done
 ```
 
