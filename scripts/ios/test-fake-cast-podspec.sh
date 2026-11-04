@@ -9,6 +9,11 @@ podspec=modules/mpv-player/ios/MpvPlayer.podspec
 phase_name='Refuse fake Cast receivers in an archive'
 failures=0
 
+# Each case sets the variables it reads and inherits neither from the shell.
+spec() {
+  env -u STREAMYFIN_FAKE_CAST_DEVICES -u EAS_BUILD_PROFILE "$@" pod ipc spec "$podspec"
+}
+
 fail() {
   echo "FAIL: $1"
   failures=$((failures + 1))
@@ -30,11 +35,11 @@ read_spec() {
   ' "$1" "$phase_name"
 }
 
-plain=$(pod ipc spec "$podspec")
+plain=$(spec)
 [ "$(read_spec conditions <<<"$plain")" = '$(inherited)' ] || fail "a plain install compiles FAKE_CAST_DEVICES"
 [ -z "$(read_spec phase <<<"$plain")" ] || fail "a plain install carries the archive refusal"
 
-fake=$(STREAMYFIN_FAKE_CAST_DEVICES=1 pod ipc spec "$podspec")
+fake=$(spec STREAMYFIN_FAKE_CAST_DEVICES=1)
 [ "$(read_spec conditions <<<"$fake")" = '$(inherited) FAKE_CAST_DEVICES' ] || fail "a tier 1 install does not compile FAKE_CAST_DEVICES"
 script=$(read_spec script <<<"$fake")
 if [ -z "$script" ]; then
@@ -49,9 +54,12 @@ else
   ACTION=build /bin/sh -c "$script" >/dev/null 2>&1 || fail "the archive refusal stops a plain build"
 fi
 
-if store=$(EAS_BUILD_PROFILE=production STREAMYFIN_FAKE_CAST_DEVICES=1 pod ipc spec "$podspec" 2>&1) &&
-  [[ "$store" != *"fake Cast receivers never ship"* ]]; then
+# The store profile has to fail, and on the podspec's own refusal: the archive phase's script carries
+# the same closing words, so a spec that succeeds can contain them too.
+if store=$(spec EAS_BUILD_PROFILE=production STREAMYFIN_FAKE_CAST_DEVICES=1 2>&1); then
   fail "the store profile takes the fake receivers"
+elif [[ "$store" != *"is set for the store profile 'production'"* ]]; then
+  fail "the store profile failed for another reason: $store"
 fi
 
 if [ "$failures" -gt 0 ]; then
