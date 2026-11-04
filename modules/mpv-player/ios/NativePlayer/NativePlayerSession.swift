@@ -162,10 +162,10 @@ final class NativePlayerSession {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
 		rendering?.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
-		// Unconditional: mpv's speed property persists on the handle across
-		// loadfile, so an in-place swap from a 2× stream to a 1× config must
-		// explicitly write 1.0 or the old speed carries over.
-		// An engine that cannot change speed keeps its own; mpv always can.
+		// Written on every swap, not only on a change: mpv's speed property
+		// persists on the handle across loadfile, so an in-place swap from a 2×
+		// stream to a 1× config must write 1.0 or the old speed carries over.
+		// An engine that cannot change speed is left alone; mpv always can.
 		if viewModel.capabilities.speed {
 			let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
 			engine.setSpeed(speed: speed)

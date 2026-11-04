@@ -59,6 +59,7 @@ that picks the Jellyfin device profile. Consequences:
   speed follows `canChangeSpeed` on the transport face, true by default. The
   Android view model holds them as Compose state, set by the session once per
   presentation (`applyCapabilities`); the iOS one computes them. The view
-  model's guards (speed, the hold to speed up, zoom, the pinch, the brightness
-  reveal) cover every entry point, JS calls included. The TV menus do not read
-  them: remote mode is meant to be refused on TV.
+  models guard speed, the hold to speed up and zoom on both platforms, so every
+  entry point is covered, JS calls included; the pinch and the brightness reveal
+  are guarded in the iOS view model, and in the gesture plane on Android. The TV
+  menus do not read them: remote mode is meant to be refused on TV.
