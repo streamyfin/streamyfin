@@ -32,6 +32,25 @@ test("the line above an episode's title names its series, season and number", ()
   ).toBe("Doctor Who - Saison 2 Épisode 3");
 });
 
+// An episode with no number: the sentence's template, or "undefined", showed.
+test("an episode without a number gets no number label", () => {
+  expect(episodeNumberLabel(i18next.t, undefined)).toBe("");
+  expect(episodeNumberLabel(i18next.t, null)).toBe("");
+  expect(
+    episodeSubtitle(i18next.t, {
+      SeriesName: "Doctor Who",
+      SeasonName: "Saison 2",
+      ParentIndexNumber: 2,
+    }),
+  ).toBe("Doctor Who - Saison 2");
+});
+
+test("an episode without a season says no season", () => {
+  expect(
+    episodeSubtitle(i18next.t, { SeriesName: "Doctor Who", IndexNumber: 3 }),
+  ).toBe("Doctor Who - Épisode 3");
+});
+
 // An offline episode can come without a season name: it read "undefined".
 test("a season without a name is named from its number", () => {
   expect(
