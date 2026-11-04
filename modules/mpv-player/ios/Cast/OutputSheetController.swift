@@ -196,6 +196,9 @@ final class OutputSheetController: RemoteTargetListener {
     let holder = hub.snapshot.target
     // The receiver already there, which discovery may have lost: back to its panel.
     if holder?.id == deviceId {
+      // A switch on its way to another receiver is called off: that one is no longer asked for.
+      requestedId = nil
+      panelOn = nil
       _ = hub.connect(deviceId: deviceId)
       showingList = false
       publish()

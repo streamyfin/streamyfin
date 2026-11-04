@@ -55,10 +55,11 @@ internal class CastTargetProbe(
         if (current.phase == TargetPhase.CONNECTED) leaving = target
         // A whole name only: a part of one may name another receiver than the connected one.
         if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
-            showSheet()
             log("already connected to ${target.name}")
-            // The session the probe holds, for the hold's check.
+            // The session the probe holds, for the hold's check; held before the sheet, whose discovery could list a
+            // namesake first.
             device = TargetDevice(target.id, target.name)
+            showSheet()
             onConnected()
             return
         }
@@ -66,6 +67,8 @@ internal class CastTargetProbe(
         // connection started there sets its own wait, which this one must not replace.
         wait(DISCOVERY_TIMEOUT_MS, "no device named \"$deviceName\"")
         showSheet()
+        // A refusal inside the sheet's discovery can have ended the probe already.
+        if (!isActive) return
         hub.startDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
         devicesChanged(hub.devices)
     }

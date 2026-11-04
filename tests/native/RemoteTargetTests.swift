@@ -1056,6 +1056,33 @@ enum RemoteTargetTests {
       check("aReceiverTheSheetListsKeepsItsConnectionWait", port.connects == [chromecast] && probe.isActive)
     }
 
+    // A namesake of the connected receiver can come first in the sheet's discovery: the probe holds its own session.
+    do {
+      let namesake = TargetDevice(id: "device-c", name: "Living room", model: "Chromecast")
+      let port = FakeTargetPort(known: [namesake, chromecast], listsOnDiscovery: true)
+      var hub: RemoteTargetHub?
+      _ = run(
+        "Living room", port: port, presentSheet: { hub?.startDiscovery(owner: RemoteTargetHub.sheetDiscovery); return true },
+        before: {
+          hub = $0
+          port.emit("started", chromecast)
+        }
+      )
+      check("aConnectedProbeKeepsItsSessionWhenTheSheetListsANamesake", port.connects.isEmpty)
+    }
+
+    // A refusal inside the sheet's presentation ends the probe: it then starts no discovery of its own.
+    do {
+      let port = FakeTargetPort(known: [chromecast], listsOnDiscovery: true, refuses: [chromecast.id])
+      var hub: RemoteTargetHub?
+      let (probe, _, _) = run(
+        "Living room", port: port, presentSheet: { hub?.startDiscovery(owner: RemoteTargetHub.sheetDiscovery); return true },
+        before: { hub = $0 }
+      )
+      hub?.stopDiscovery(owner: RemoteTargetHub.sheetDiscovery)
+      check("aProbeEndedInsideTheSheetStartsNoDiscovery", !probe.isActive && !port.discovering)
+    }
+
     do {
       let port = FakeTargetPort(known: [chromecast])
       let (probe, _, logs) = run("Living room", mute: true, port: port, before: { _ in port.emit("started", chromecast) })
