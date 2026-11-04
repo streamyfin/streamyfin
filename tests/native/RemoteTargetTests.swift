@@ -633,6 +633,34 @@ enum RemoteTargetTests {
       check("aPartOfANameConnectsOnceDiscoverySettles", waited && port.connects == [chromecast] && probe.isActive)
     }
 
+    // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
+    do {
+      let port = FakeTargetPort()
+      // The hub holds its listeners weakly: the probe has to outlive the case.
+      let (probe, clock, _) = run("living", port: port)
+      port.discover([chromecast])
+      port.discover([])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      port.discover([chromecast])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      check("aPartialMatchThatLeftCanSettleAgain", port.connects == [chromecast] && probe.isActive)
+    }
+
+    // A port that lists its receivers inside startDiscovery: the probe connects there, and the discovery
+    // timeout set after it replaced the connection's, so a slow connection failed as an unknown name.
+    do {
+      let port = FakeTargetPort(known: [streamer], listsOnDiscovery: true)
+      let (probe, clock, logs) = run("Bedroom", port: port)
+      port.emit("starting", streamer)
+      clock.advance(CastTargetProbe.discoveryTimeoutMs + 1_000)
+      port.emit("started", streamer)
+      check(
+        "aReceiverListedWhileDiscoveryStartsKeepsTheConnectionWait",
+        port.connects == [streamer] && probe.isActive && !logs().contains { $0.hasPrefix("failed") }
+          && logs().contains("state=connected target=Bedroom reconnecting=false error=-")
+      )
+    }
+
     do {
       let port = FakeTargetPort()
       let (probe, clock, logs) = run("kitchen", port: port)

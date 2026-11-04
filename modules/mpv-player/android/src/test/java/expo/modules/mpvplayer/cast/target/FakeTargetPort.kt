@@ -4,6 +4,8 @@ package expo.modules.mpvplayer.cast.target
 class FakeTargetPort(
     private val atStart: List<Triple<String, TargetDevice?, String?>> = emptyList(),
     var known: List<TargetDevice> = emptyList(),
+    /** Lists [known] inside startDiscovery, as the SDK port does with the routes MediaRouter already has. */
+    private val listsOnDiscovery: Boolean = false,
 ) : TargetPort {
     // Kept after stop, so a test can play a stale port talking to the hub.
     var events: TargetPortEvents? = null
@@ -27,6 +29,7 @@ class FakeTargetPort(
 
     override fun startDiscovery() {
         discovering = true
+        if (listsOnDiscovery) events?.devicesChanged(known)
     }
 
     override fun stopDiscovery() {

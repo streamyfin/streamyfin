@@ -43,8 +43,10 @@ internal class CastTargetProbe(
             onConnected()
             return
         }
-        hub.startDiscovery()
+        // Set first: the SDK port lists the routes it has inside startDiscovery, and a connection
+        // started there sets its own wait, which this one must not replace.
         wait(DISCOVERY_TIMEOUT_MS, "no device named \"$deviceName\"")
+        hub.startDiscovery()
         devicesChanged(hub.devices)
     }
 
@@ -58,6 +60,8 @@ internal class CastTargetProbe(
         }
         if (settle == null && devices.any { matches(it.name) }) {
             settle = schedule(PARTIAL_MATCH_SETTLE_MS) {
+                // Spent either way: a receiver that left meanwhile can settle again when it comes back.
+                settle = null
                 val listed = hub.devices
                 (listed.firstOrNull { it.name.equals(deviceName, ignoreCase = true) } ?: listed.firstOrNull { matches(it.name) })
                     ?.let(::connect)

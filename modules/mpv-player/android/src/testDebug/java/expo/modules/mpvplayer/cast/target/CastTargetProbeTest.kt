@@ -94,6 +94,39 @@ class CastTargetProbeTest {
         assertEquals(listOf(livingRoom), port.connects)
     }
 
+    // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
+    @Test
+    fun aPartialMatchThatLeftCanSettleAgain() {
+        val port = FakeTargetPort()
+        probe(hubWith(port), "living").start()
+
+        port.discover(listOf(livingRoom))
+        port.discover(emptyList())
+        scheduler.advance(CastTargetProbe.PARTIAL_MATCH_SETTLE_MS)
+        port.discover(listOf(livingRoom))
+        scheduler.advance(CastTargetProbe.PARTIAL_MATCH_SETTLE_MS)
+
+        assertEquals(listOf(livingRoom), port.connects)
+    }
+
+    // The SDK port lists the receivers it knows inside startDiscovery, so the probe connects there: the
+    // discovery timeout set after it replaced the connection's, and a slow connection failed as an unknown name.
+    @Test
+    fun aReceiverListedWhileDiscoveryStartsKeepsTheConnectionWait() {
+        val port = FakeTargetPort(known = listOf(bedroom), listsOnDiscovery = true)
+        val probe = probe(hubWith(port), "Bedroom")
+
+        probe.start()
+        port.emit("starting", bedroom)
+        scheduler.advance(CastTargetProbe.DISCOVERY_TIMEOUT_MS + 1_000)
+        port.emit("started", bedroom)
+
+        assertEquals(listOf(bedroom), port.connects)
+        assertTrue(probe.isActive)
+        assertTrue(logs.none { it.startsWith("failed") })
+        assertTrue("state=connected target=Bedroom reconnecting=false error=-" in logs)
+    }
+
     // On iOS the SDK resumed the session after a relaunch while a probe watched for another name.
     @Test
     fun aConnectionToAnotherReceiverIsNotTheProbes() {

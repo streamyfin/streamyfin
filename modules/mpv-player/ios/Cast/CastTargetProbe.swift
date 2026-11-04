@@ -64,8 +64,10 @@ final class CastTargetProbe: RemoteTargetListener {
       onConnected()
       return
     }
-    hub.startDiscovery()
+    // Set first: a port can list its receivers inside startDiscovery, and a connection started there
+    // sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
+    hub.startDiscovery()
     remoteTargetDevicesDidChange(hub.devices)
   }
 
@@ -80,6 +82,8 @@ final class CastTargetProbe: RemoteTargetListener {
     guard settle == nil, devices.contains(where: { matches($0.name) }) else { return }
     settle = schedule(Self.partialMatchSettleMs) { [weak self] in
       guard let self else { return }
+      // Spent either way: a receiver that left meanwhile can settle again when it comes back.
+      settle = nil
       let listed = hub.devices
       if let found = listed.first(where: isWholeName) ?? listed.first(where: { self.matches($0.name) }) {
         connect(found)
