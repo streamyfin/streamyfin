@@ -560,11 +560,13 @@ public class BackgroundDownloaderModule: Module {
 
     do {
       let destinationURL: URL
+      let documentsDir = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
 
       if let customPath = taskInfo.destinationPath {
-        destinationURL = URL(fileURLWithPath: customPath)
+        // Stored when the download was queued, possibly before an update moved the container.
+        destinationURL = URL(
+          fileURLWithPath: AppContainerPath.current(customPath, documents: documentsDir))
       } else {
-        let documentsDir = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         let filename = downloadTask.response?.suggestedFilename
           ?? downloadTask.originalRequest?.url?.lastPathComponent
           ?? "download_\(taskId)"

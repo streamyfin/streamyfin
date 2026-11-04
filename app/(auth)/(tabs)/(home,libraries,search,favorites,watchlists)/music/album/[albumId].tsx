@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -66,7 +66,7 @@ export default function AlbumDetailScreen() {
   const { data: album, isLoading: loadingAlbum } = useQuery({
     queryKey: ["music-album", albumId, user?.Id],
     queryFn: async () => {
-      const response = await getUserLibraryApi(api!).getItem({
+      const response = await getLibraryApi(api!).getItem({
         userId: user?.Id,
         itemId: albumId!,
       });
@@ -78,7 +78,7 @@ export default function AlbumDetailScreen() {
   const { data: tracks, isLoading: loadingTracks } = useQuery({
     queryKey: ["music-album-tracks", albumId, user?.Id],
     queryFn: async () => {
-      const response = await getItemsApi(api!).getItems({
+      const response = await getLibraryApi(api!).getItems({
         userId: user?.Id,
         parentId: albumId,
         sortBy: ["IndexNumber"],

@@ -1,4 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { buildLibraryItemsQuery } from "./libraryItemsQuery";
 import {
   getLibraryContainerTabs,
   getLibraryTabFilters,
@@ -132,6 +133,7 @@ describe("the filter bar", () => {
     sortBy: ["DateCreated" as const],
     sortOrder: ["Descending" as const],
     genres: ["Action"],
+    officialRatings: ["PG-13"],
     years: [1999],
   };
 
@@ -139,7 +141,35 @@ describe("the filter bar", () => {
     expect(getLibraryTabFilters("items", filterBar)).toEqual(filterBar);
   });
 
-  // The bar is hidden on these tabs and its genres are those of the movies:
+  // The grid hands over the whole request it built for the filter bar. Every
+  // filter has to come out of it, and nothing else: the library's id and item
+  // type are set elsewhere for each tab.
+  test("takes every filter, and only the filters, from the request built for the bar", () => {
+    const built = buildLibraryItemsQuery({
+      userId: "user-1",
+      libraryId: "library-1",
+      collectionType: "movies",
+      sortBy: "DateCreated",
+      sortOrder: "Descending",
+      filterBy: ["IsUnplayed"],
+      genres: ["Action"],
+      officialRatings: ["PG-13"],
+      years: ["1999"],
+      tags: ["4K"],
+    });
+
+    expect(getLibraryTabFilters("items", built)).toEqual({
+      sortBy: ["DateCreated", "SortName", "ProductionYear"],
+      sortOrder: ["Descending"],
+      filters: ["IsUnplayed"],
+      genres: ["Action"],
+      officialRatings: ["PG-13"],
+      tags: ["4K"],
+      years: [1999],
+    });
+  });
+
+  // The bar is hidden on these tabs and its genres and ratings are those of the movies:
   // with a saved filter, a tab the count calls non-empty would open empty.
   test("is ignored by the collections and playlists tabs, sorted by name", () => {
     const byName = { sortBy: ["SortName"], sortOrder: ["Ascending"] };

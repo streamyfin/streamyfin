@@ -54,6 +54,7 @@ export const TVLogin: React.FC = () => {
     login,
     removeServer,
     initiateQuickConnect,
+    quickConnectStatus,
     stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
@@ -611,7 +612,10 @@ export const TVLogin: React.FC = () => {
             serverUrl={api.basePath}
             code={quickConnectCode}
             serverId={quickConnectServerId}
+            serverName={serverName}
+            status={quickConnectStatus}
             onNewCode={() => {
+              if (startingRef.current) return;
               stopQuickConnectPolling();
               void startQuickConnect();
             }}

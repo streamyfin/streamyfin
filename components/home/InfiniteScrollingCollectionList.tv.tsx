@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -114,7 +114,7 @@ const TVSeeAllCard: React.FC<{
   );
 };
 
-export const InfiniteScrollingCollectionList: React.FC<Props> = ({
+const InfiniteScrollingCollectionListComponent: React.FC<Props> = ({
   title,
   orientation = "vertical",
   disabled = false,
@@ -222,6 +222,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     } as any);
   }, [router, parentId, collectionType]);
 
+  const preferEpisodeImage = settings?.useEpisodeImagesForNextUp;
+
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => {
       const isFirstItem = isFirstSection && index === 0;
@@ -231,12 +233,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           <TVPosterCard
             item={item}
             orientation={orientation}
-            onPress={() => handleItemPress(item)}
-            onLongPress={() => showItemActions(item)}
+            onPress={handleItemPress}
+            onLongPress={showItemActions}
             hasTVPreferredFocus={isFirstItem}
-            onFocus={() => handleItemFocus(item)}
+            onFocus={handleItemFocus}
             width={itemWidth}
-            preferEpisodeImage={settings?.useEpisodeImagesForNextUp}
+            preferEpisodeImage={preferEpisodeImage}
             displayShowName={displayShowName}
           />
         </View>
@@ -250,7 +252,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       showItemActions,
       handleItemFocus,
       ITEM_GAP,
-      settings?.useEpisodeImagesForNextUp,
+      preferEpisodeImage,
+      displayShowName,
     ],
   );
 
@@ -403,3 +406,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     </View>
   );
 };
+
+export const InfiniteScrollingCollectionList = React.memo(
+  InfiniteScrollingCollectionListComponent,
+);

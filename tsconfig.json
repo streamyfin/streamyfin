@@ -28,6 +28,7 @@
     "hooks/**/*",
     "modules/**/*",
     "packages/**/*",
+    "patches/**/*",
     "plugins/**/*",
     "providers/**/*",
     "scripts/**/*",

@@ -20,6 +20,7 @@ on:
       - "test-utils/**"
       - "**/*.perf-test.*"
       - "jest.perf.config.js"
+      - "scripts/reassure-*.ts"
       - "package.json"
       - "bun.lock"
       - ".github/workflows/perf*.yml"
@@ -43,7 +44,10 @@ jobs:
       - name: 🛒 Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No ref: on a PR this is its merge into the base, what would land.
+          # The head alone of a branch cut before the scenarios has neither
+          # them nor the perf script, and `bun run perf` then starts the
+          # system's perf binary, which fails.
           fetch-depth: 0
           # The steps below run PR code, which has no use for the token.
           persist-credentials: false
@@ -52,7 +56,7 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # renovate: datasource=npm depName=bun
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -63,17 +67,12 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📏 Measure the base
-        run: |
-          HEAD_SHA=$(git rev-parse HEAD)
-          git switch --detach "origin/$BASE_REF"
-          bun install --frozen-lockfile
-          bun run --if-present perf:baseline
-          git switch --detach "$HEAD_SHA"
+        # Measured with this PR's scenarios, so one the PR adds or changes has a
+        # baseline too. The script switches to the base and back.
+        run: bun scripts/reassure-baseline.ts "origin/$BASE_REF"
 
       - name: 📏 Measure the PR
-        run: |
-          bun install --frozen-lockfile
-          bun run perf
+        run: bun run perf
 
       - name: 📝 Job summary
         if: always()

@@ -3,7 +3,7 @@ import {
   type BaseItemKind,
   ItemFields,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
@@ -165,7 +165,7 @@ export default function SearchPage() {
 
       try {
         if (searchEngine === "Jellyfin") {
-          const searchApi = await getItemsApi(api).getItems(
+          const searchApi = await getLibraryApi(api).getItems(
             {
               searchTerm: query,
               limit: SEARCH_RESULT_LIMIT,
@@ -222,7 +222,7 @@ export default function SearchPage() {
             return [];
           }
 
-          const itemsResponse = await getItemsApi(api).getItems(
+          const itemsResponse = await getLibraryApi(api).getItems(
             {
               ids: allIds,
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
@@ -254,7 +254,7 @@ export default function SearchPage() {
           return [];
         }
 
-        const response2 = await getItemsApi(api).getItems(
+        const response2 = await getLibraryApi(api).getItems(
           {
             ids,
             enableImageTypes: ["Primary", "Backdrop", "Thumb"],
@@ -292,7 +292,7 @@ export default function SearchPage() {
       }
 
       try {
-        const searchApi = await getItemsApi(api).getItems(
+        const searchApi = await getLibraryApi(api).getItems(
           {
             searchTerm: query,
             limit: SEARCH_RESULT_LIMIT,

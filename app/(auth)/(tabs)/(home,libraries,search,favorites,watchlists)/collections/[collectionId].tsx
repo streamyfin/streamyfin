@@ -3,11 +3,7 @@ import type {
   BaseItemDtoQueryResult,
   ItemSortBy,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getFilterApi,
-  getItemsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getFilterApi, getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
@@ -40,6 +36,7 @@ import {
   audioLanguageFilterAtom,
   filterOwnerAtom,
   genreFilterAtom,
+  officialRatingFilterAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
@@ -80,6 +77,9 @@ const page: React.FC = () => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
+  // Setter only: reading the atom would re-render this screen on every rating
+  // picked in a library.
+  const setSelectedOfficialRatings = useSetAtom(officialRatingFilterAtom);
   const [, setSelectedAudioLanguages] = useAtom(audioLanguageFilterAtom);
   const [, setSelectedSubtitleLanguages] = useAtom(subtitleLanguageFilterAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
@@ -90,7 +90,7 @@ const page: React.FC = () => {
     queryKey: ["collection", collectionId],
     queryFn: async () => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem({
+      const response = await getLibraryApi(api).getItem({
         itemId: collectionId,
         userId: user?.Id,
       });
@@ -162,6 +162,7 @@ const page: React.FC = () => {
       setSelectedYears([]);
       setSelectedTags([]);
       // Not offered here, but the shared reset button counts them as active.
+      setSelectedOfficialRatings([]);
       setSelectedAudioLanguages([]);
       setSelectedSubtitleLanguages([]);
       // The atoms are this collection's now: a library mounted underneath
@@ -186,6 +187,7 @@ const page: React.FC = () => {
       setSelectedGenres,
       setSelectedYears,
       setSelectedTags,
+      setSelectedOfficialRatings,
       setSelectedAudioLanguages,
       setSelectedSubtitleLanguages,
       setFilterOwner,
@@ -213,7 +215,7 @@ const page: React.FC = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !collection) return null;
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         userId: user?.Id,
         parentId: collectionId,
         limit: Platform.isTV ? 36 : 18,

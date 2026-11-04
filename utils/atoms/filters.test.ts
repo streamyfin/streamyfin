@@ -9,6 +9,7 @@ import { storage } from "@/utils/mmkv";
 import {
   FilterByPreferenceAtom,
   getFilterByPreference,
+  officialRatingPreferenceAtom,
   SortByOption,
   sortOptions,
   sortOptionsFor,
@@ -215,5 +216,23 @@ describe("sort options", () => {
     expect(sortOptionsFor("playlists")).toBe(sortOptionsFor("playlists"));
     expect(sortOptionsFor("tvshows")).toBe(sortOptionsFor("tvshows"));
     expect(sortOptionsFor("movies")).toBe(sortOptionsFor(undefined));
+  });
+});
+
+describe("the saved official ratings of a library", () => {
+  test("round-trip through storage under their own key", () => {
+    const writer = createStore();
+    writer.sub(officialRatingPreferenceAtom, () => undefined);
+    writer.set(officialRatingPreferenceAtom, { movies: ["PG-13", "R"] });
+
+    const reader = createStore();
+    reader.sub(officialRatingPreferenceAtom, () => undefined);
+
+    expect(reader.get(officialRatingPreferenceAtom)).toEqual({
+      movies: ["PG-13", "R"],
+    });
+    expect(storage.getString("officialRatingPreference")).toBe(
+      JSON.stringify({ movies: ["PG-13", "R"] }),
+    );
   });
 });

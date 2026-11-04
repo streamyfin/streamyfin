@@ -4,6 +4,8 @@ import { clearMmkv } from "@/test-utils/mmkv";
 import {
   audioLanguageFilterAtom,
   audioLanguagePreferenceAtom,
+  officialRatingFilterAtom,
+  officialRatingPreferenceAtom,
   SortByOption,
   sortByAtom,
   subtitleLanguageFilterAtom,
@@ -40,6 +42,7 @@ beforeEach(() => {
 });
 
 test.each([
+  ["an official rating", officialRatingFilterAtom],
   ["an audio language", audioLanguageFilterAtom],
   ["a subtitle language", subtitleLanguageFilterAtom],
 ])("shows the reset once %s is selected", async (_name, filterAtom) => {
@@ -68,5 +71,21 @@ test("a reset clears the language filters and what the library remembered", asyn
   // Another library's memory is not this reset's to forget.
   expect(store.get(audioLanguagePreferenceAtom)).toEqual({ shows: ["jpn"] });
   expect(store.get(subtitleLanguagePreferenceAtom)).toEqual({});
+  expect(result.current.hasActiveFilters).toBe(false);
+});
+
+test("a reset clears the official ratings and forgets only this library's memory", async () => {
+  const store = libraryStore();
+  store.set(officialRatingFilterAtom, ["PG-13"]);
+  store.set(officialRatingPreferenceAtom, {
+    movies: ["PG-13"],
+    shows: ["TV-MA"],
+  });
+  const result = await renderReset(store);
+
+  await act(async () => result.current.resetAllFilters());
+
+  expect(store.get(officialRatingFilterAtom)).toEqual([]);
+  expect(store.get(officialRatingPreferenceAtom)).toEqual({ shows: ["TV-MA"] });
   expect(result.current.hasActiveFilters).toBe(false);
 });

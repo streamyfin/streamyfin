@@ -7,9 +7,9 @@ import {
   PersonKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  getItemsApi,
-  getPersonsApi,
-  getStudiosApi,
+  getLibraryApi,
+  getPersonApi,
+  getStudioApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { sortBy } from "lodash";
 import {
@@ -97,7 +97,7 @@ export const searchPeople = ({
   if (!api || !query) return Promise.resolve([]);
 
   const fetchPeople = async (limit: number): Promise<BaseItemDto[]> => {
-    const response = await getPersonsApi(api).getPersons(
+    const response = await getPersonApi(api).getPersons(
       {
         searchTerm: query,
         limit,
@@ -139,7 +139,7 @@ export const searchStudios = ({
   if (!api || !query) return Promise.resolve([]);
 
   return emptyOnFailure("Studio search request failed", async () => {
-    const response = await getStudiosApi(api).getStudios(
+    const response = await getStudioApi(api).getStudios(
       {
         searchTerm: query,
         limit: SEARCH_RESULT_LIMIT,
@@ -171,7 +171,7 @@ export const getStudioItems = async ({
   limit: number;
   signal?: AbortSignal;
 }): Promise<BaseItemDtoQueryResult> => {
-  const response = await getItemsApi(api).getItems(
+  const response = await getLibraryApi(api).getItems(
     {
       userId,
       studioIds: [studioId],
