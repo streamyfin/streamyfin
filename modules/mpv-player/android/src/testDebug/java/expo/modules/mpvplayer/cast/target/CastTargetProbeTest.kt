@@ -94,6 +94,21 @@ class CastTargetProbeTest {
         assertEquals(listOf(livingRoom), port.connects)
     }
 
+    // The header's Cast button starts discovery when it mounts and never stops it: a probe's end kept it off.
+    @Test
+    fun aProbeLeavesTheDiscoveryTheAppAsked() {
+        val port = FakeTargetPort()
+        val hub = hubWith(port)
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        val probe = probe(hub, "kitchen")
+
+        probe.start()
+        scheduler.advance(CastTargetProbe.DISCOVERY_TIMEOUT_MS)
+
+        assertFalse(probe.isActive)
+        assertTrue(port.discovering)
+    }
+
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
     @Test
     fun aPartialMatchThatLeftCanSettleAgain() {

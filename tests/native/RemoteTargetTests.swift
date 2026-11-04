@@ -203,10 +203,42 @@ enum RemoteTargetTests {
       let hub = RemoteTargetHub()
       let port = FakeTargetPort()
       hub.install(port)
-      hub.startDiscovery()
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
       let started = port.discovering
-      hub.stopDiscovery()
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
       check("discoveryGoesToThePort", started && !port.discovering)
+    }
+
+    // The probe used to stop the discovery the header's Cast button had started, and nothing started it again.
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
+      hub.stopDiscovery(owner: RemoteTargetHub.probeDiscovery)
+      let kept = port.discovering
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
+      check("aStopFromOneOwnerKeepsAnotherOwnersDiscovery", kept && !port.discovering)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
+      check("anOwnerAskingTwiceStopsOnce", !port.discovering)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      hub.install(FakeTargetPort())
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      let next = FakeTargetPort()
+      hub.install(next)
+      check("aNewPortRunsTheDiscoveryStillAsked", next.discovering)
     }
 
     do {
@@ -631,6 +663,19 @@ enum RemoteTargetTests {
       let waited = port.connects.isEmpty
       clock.advance(CastTargetProbe.partialMatchSettleMs)
       check("aPartOfANameConnectsOnceDiscoverySettles", waited && port.connects == [chromecast] && probe.isActive)
+    }
+
+    // The header's Cast button starts discovery when it mounts and never stops it: a probe's end kept it off.
+    do {
+      let port = FakeTargetPort()
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      let clock = Clock()
+      let probe = CastTargetProbe(hub: hub, deviceName: "kitchen", keep: false, schedule: clock.schedule) { _ in }
+      probe.start()
+      clock.advance(CastTargetProbe.discoveryTimeoutMs)
+      check("aProbeLeavesTheDiscoveryTheAppAsked", !probe.isActive && port.discovering)
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.

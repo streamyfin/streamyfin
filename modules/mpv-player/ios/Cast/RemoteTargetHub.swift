@@ -32,6 +32,10 @@ protocol TargetPort: AnyObject {
 /// can be read from any thread.
 final class RemoteTargetHub {
   static let shared = RemoteTargetHub()
+  /// The app's own discovery request: the module, for JS.
+  static let appDiscovery = "app"
+  /// The debug probe's.
+  static let probeDiscovery = "probe"
 
   private struct Listener {
     let token: Int
@@ -42,6 +46,8 @@ final class RemoteTargetHub {
   private var listeners: [Listener] = []
   private var nextToken = 0
   private var port: TargetPort?
+  // Discovery runs while anyone still asks for it: each owner releases only its own request.
+  private var discoveryOwners: Set<String> = []
   // Written on the main thread, read by the module's synchronous getter from the JS thread.
   private let lock = NSLock()
   private var publishedSnapshot = RemoteTargetSnapshot.none
@@ -60,6 +66,7 @@ final class RemoteTargetHub {
     publish()
     // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
     port.start(events: PortEvents(hub: self, port: port))
+    if !discoveryOwners.isEmpty { port.startDiscovery() }
   }
 
   /// A new listener hears changes from now on; it reads `snapshot` and `devices` for the present.
@@ -91,12 +98,13 @@ final class RemoteTargetHub {
     port?.disconnect(stopPlayback: stopPlayback)
   }
 
-  func startDiscovery() {
-    port?.startDiscovery()
+  /// `owner` names who asks (`appDiscovery`, `probeDiscovery`); asking twice still takes one stop.
+  func startDiscovery(owner: String) {
+    if discoveryOwners.insert(owner).inserted, discoveryOwners.count == 1 { port?.startDiscovery() }
   }
 
-  func stopDiscovery() {
-    port?.stopDiscovery()
+  func stopDiscovery(owner: String) {
+    if discoveryOwners.remove(owner) != nil, discoveryOwners.isEmpty { port?.stopDiscovery() }
   }
 
   fileprivate func sessionEvent(from port: TargetPort, _ event: String, device: TargetDevice?, error: String?) {

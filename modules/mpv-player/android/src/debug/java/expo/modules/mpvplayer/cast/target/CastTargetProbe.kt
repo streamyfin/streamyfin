@@ -46,7 +46,7 @@ internal class CastTargetProbe(
         // Set first: the SDK port lists the routes it has inside startDiscovery, and a connection
         // started there sets its own wait, which this one must not replace.
         wait(DISCOVERY_TIMEOUT_MS, "no device named \"$deviceName\"")
-        hub.startDiscovery()
+        hub.startDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
         devicesChanged(hub.devices)
     }
 
@@ -137,7 +137,7 @@ internal class CastTargetProbe(
         settle = null
         removeListener?.invoke()
         removeListener = null
-        hub.stopDiscovery()
+        hub.stopDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
         log(result)
     }
 

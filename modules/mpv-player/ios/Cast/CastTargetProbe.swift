@@ -67,7 +67,7 @@ final class CastTargetProbe: RemoteTargetListener {
     // Set first: a port can list its receivers inside startDiscovery, and a connection started there
     // sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
-    hub.startDiscovery()
+    hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
     remoteTargetDevicesDidChange(hub.devices)
   }
 
@@ -172,7 +172,7 @@ final class CastTargetProbe: RemoteTargetListener {
     settle = nil
     removeListener?()
     removeListener = nil
-    hub.stopDiscovery()
+    hub.stopDiscovery(owner: RemoteTargetHub.probeDiscovery)
     log(result)
     onFinish?(result)
   }
