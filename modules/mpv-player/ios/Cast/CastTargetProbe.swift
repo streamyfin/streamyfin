@@ -52,7 +52,10 @@ final class CastTargetProbe: RemoteTargetListener {
     removeListener = hub.addListener(self)
     let current = hub.snapshot
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
-    if current.phase == .connected, let target = current.target, matches(target.name) {
+    // A whole name only: a part of one may name another receiver than the connected one.
+    if current.phase == .connected, let target = current.target,
+      target.name.caseInsensitiveCompare(deviceName) == .orderedSame
+    {
       log("already connected to \(target.name)")
       onConnected()
       return
@@ -88,6 +91,13 @@ final class CastTargetProbe: RemoteTargetListener {
     log("found \(found.name)")
     guard hub.connect(deviceId: found.id) else {
       fail("the hub refused \(found.name)")
+      return
+    }
+    // The hub asks nothing for the receiver already connected, so no event will come.
+    let now = hub.snapshot
+    if !connected, now.phase == .connected, now.target?.id == found.id {
+      log("already connected to \(found.name)")
+      onConnected()
       return
     }
     if !connected && isActive { wait(Self.connectTimeoutMs, failure: "never connected") }

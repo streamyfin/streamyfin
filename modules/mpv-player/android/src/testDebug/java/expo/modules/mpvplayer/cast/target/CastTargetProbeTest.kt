@@ -212,18 +212,44 @@ class CastTargetProbeTest {
     @Test
     fun aSessionRunningAtArmingIsReadAsConnected() {
         val port = FakeTargetPort(atStart = listOf(Triple("resumed", livingRoom, null)))
-        val probe = probe(hubWith(port), "living", keep = true)
+        val probe = probe(hubWith(port), "Living room", keep = true)
 
         probe.start()
 
         assertEquals(
             listOf(
-                "armed for \"living\" state=connected target=Living room reconnecting=false error=-",
+                "armed for \"Living room\" state=connected target=Living room reconnecting=false error=-",
                 "already connected to Living room",
                 "done, still connected",
             ),
             logs,
         )
         assertTrue(port.connects.isEmpty())
+    }
+
+    // On the bench: connected to "Salon - Chromecast", the probe asked for "Salon" switches to the Streamer.
+    @Test
+    fun aPartOfTheConnectedNameStillLooksForAWholeOne() {
+        val chromecast = TargetDevice("device-c", "Salon - Chromecast")
+        val streamer = TargetDevice("device-s", "Salon")
+        val port = FakeTargetPort(atStart = listOf(Triple("resumed", chromecast, null)))
+        probe(hubWith(port), "Salon", keep = true).start()
+
+        port.discover(listOf(chromecast, streamer))
+
+        assertEquals(listOf(streamer), port.connects)
+        assertTrue(logs.none { it.startsWith("already connected") })
+    }
+
+    @Test
+    fun aPartOfANameThatIsTheConnectedReceiverEndsAtOnce() {
+        val port = FakeTargetPort(atStart = listOf(Triple("resumed", livingRoom, null)))
+        probe(hubWith(port), "living", keep = true).start()
+
+        port.discover(listOf(livingRoom))
+        scheduler.advance(CastTargetProbe.PARTIAL_MATCH_SETTLE_MS)
+
+        assertTrue(port.connects.isEmpty())
+        assertEquals(listOf("found Living room", "already connected to Living room", "done, still connected"), logs.takeLast(3))
     }
 }

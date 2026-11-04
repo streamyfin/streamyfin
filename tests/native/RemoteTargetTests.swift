@@ -672,15 +672,41 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort(atStart: [("resumed", chromecast, nil)])
-      let (_, _, logs) = run("living", keep: true, port: port)
+      let (_, _, logs) = run("Living room", keep: true, port: port)
       check(
         "aSessionRunningAtArmingIsReadAsConnected",
         port.connects.isEmpty
           && logs() == [
-            "armed for \"living\" state=connected target=Living room reconnecting=false error=-",
+            "armed for \"Living room\" state=connected target=Living room reconnecting=false error=-",
             "already connected to Living room",
             "done, still connected",
           ]
+      )
+    }
+
+    // On the bench: connected to "Salon - Chromecast", the probe asked for "Salon" switches to the Streamer.
+    do {
+      let castDevice = TargetDevice(id: "device-c", name: "Salon - Chromecast")
+      let streamerDevice = TargetDevice(id: "device-s", name: "Salon")
+      let port = FakeTargetPort(atStart: [("resumed", castDevice, nil)])
+      let (probe, _, logs) = run("Salon", keep: true, port: port)
+      port.discover([castDevice, streamerDevice])
+      check(
+        "aPartOfTheConnectedNameStillLooksForAWholeOne",
+        port.connects == [streamerDevice] && !logs().contains { $0.hasPrefix("already connected") } && probe.isActive
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(atStart: [("resumed", chromecast, nil)])
+      // The hub holds the probe weakly: the test keeps it until the check.
+      let (probe, clock, logs) = run("living", keep: true, port: port)
+      port.discover([chromecast])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      check(
+        "aPartOfANameThatIsTheConnectedReceiverEndsAtOnce",
+        port.connects.isEmpty && !probe.isActive
+          && Array(logs().suffix(3)) == ["found Living room", "already connected to Living room", "done, still connected"]
       )
     }
   }
