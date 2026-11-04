@@ -114,6 +114,23 @@ enum RemoteTargetTests {
       check("theDeviceAlreadyConnectedAsksNothing", accepted && port.connects.isEmpty)
     }
 
+    // Focus 4 on the order nothing guarantees: the old session's end lands after the new one started.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      port.emit("ending", livingRoom)
+      port.emit("starting", bedroom)
+      port.emit("ended", livingRoom)
+      port.emit("started", bedroom)
+      check(
+        "aSwitchWhoseOldEndArrivesLateLandsOnTheNewDevice",
+        listener.targets.map(\.phase) == [.ending, .connecting, .connected]
+          && listener.targets.map(\.target) == [cast(livingRoom), cast(bedroom), cast(bedroom)]
+      )
+    }
+
     do {
       let hub = RemoteTargetHub()
       let port = FakeTargetPort()
@@ -348,6 +365,66 @@ enum RemoteTargetTests {
       port.start(events: events)
       port.disconnect(stopPlayback: true)
       check("disconnectEndsTheRunningSession", sdk.ended == [true] && events.sessions == ["resumed device-a nil"])
+    }
+
+    // GCKSessionManager.startSession(with:) answers NO while a session is established: a switch ends it
+    // first, and starts the other receiver once the SDK reports the end.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      let endedFirst = sdk.ended == [true] && sdk.started.isEmpty
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check(
+        "aSwitchEndsTheRunningSessionThenStartsTheOther",
+        endedFirst && sdk.started == [streamer]
+          && events.sessions == ["resumed device-a nil", "ended device-a nil"]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionStarts = false
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check(
+        "aSwitchTheSdkRefusesAfterTheEndFails",
+        events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.startRefused
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      sdk.running = RunningTargetSession(device: chromecast, connected: false)
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.connect(chromecast)
+      check("theReceiverAlreadyInSessionAsksNothing", sdk.ended.isEmpty && sdk.started.isEmpty)
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.connect(streamer)
+      port.disconnect(stopPlayback: true)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check("aDisconnectDuringASwitchDropsTheSwitch", sdk.started.isEmpty)
     }
 
     do {
@@ -603,6 +680,36 @@ enum RemoteTargetTests {
         seen.map(\.phase) == [.ending, .none, .connecting, .connected]
           && seen.map(\.target) == [cast(livingRoom), nil, cast(bedroom), cast(bedroom)]
       )
+    }
+
+    // Nothing promises the old session's end comes before the new one starts: a late end is the old session's.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.sessionEvent("ending", device: livingRoom, error: nil)
+      _ = machine.sessionEvent("starting", device: bedroom, error: nil)
+      let lateEnd = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      let stillConnecting = machine.snapshot == state(.connecting, cast(bedroom))
+      let started = machine.sessionEvent("started", device: bedroom, error: nil)
+      check(
+        "anEndNamingAnotherDeviceLeavesTheNewOneAlone",
+        !lateEnd && stillConnecting && started && machine.snapshot == state(.connected, cast(bedroom))
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      let refused = machine.sessionEvent("startFailed", device: bedroom, error: "refused")
+      let ending = machine.sessionEvent("ending", device: bedroom, error: nil)
+      check(
+        "aRefusedStartOfAnotherDeviceLeavesTheConnectedOne",
+        !refused && !ending && machine.snapshot == state(.connected, cast(livingRoom))
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      let ended = machine.sessionEvent("ended", device: nil, error: "network")
+      check("anEndWithoutADeviceStillEnds", ended && machine.snapshot == state(.none, nil, error: "network"))
     }
 
     do {

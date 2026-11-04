@@ -53,6 +53,36 @@ class RemoteTargetMachineTest {
         assertEquals(listOf(cast(livingRoom), null, cast(bedroom), cast(bedroom)), seen.map { it.target })
     }
 
+    // Nothing promises the old session's end comes before the new one starts: a late end is the old session's.
+    @Test
+    fun anEndNamingAnotherDeviceLeavesTheNewOneAlone() {
+        val machine = connectedTo(livingRoom)
+        machine.sessionEvent("ending", livingRoom, null)
+        machine.sessionEvent("starting", bedroom, null)
+
+        assertFalse(machine.sessionEvent("ended", livingRoom, null))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTING, cast(bedroom), false, null), machine.snapshot)
+        assertTrue(machine.sessionEvent("started", bedroom, null))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(bedroom), false, null), machine.snapshot)
+    }
+
+    @Test
+    fun aRefusedStartOfAnotherDeviceLeavesTheConnectedOne() {
+        val machine = connectedTo(livingRoom)
+
+        assertFalse(machine.sessionEvent("startFailed", bedroom, "refused"))
+        assertFalse(machine.sessionEvent("ending", bedroom, null))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
+    }
+
+    @Test
+    fun anEndWithoutADeviceStillEnds() {
+        val machine = connectedTo(livingRoom)
+
+        assertTrue(machine.sessionEvent("ended", null, "network"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "network"), machine.snapshot)
+    }
+
     @Test
     fun aSessionResumedWithoutStartingIsConnected() {
         val machine = RemoteTargetMachine()

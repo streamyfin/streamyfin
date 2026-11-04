@@ -9,8 +9,8 @@ import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import expo.modules.mpvplayer.cast.CastMapping
 
-/** A Cast route as the port uses it: the receiver it reaches, and how to select it. */
-internal class CastRoute(val device: TargetDevice, val select: () -> Unit)
+/** A Cast route as the port uses it: the receiver it reaches, whether MediaRouter takes it now, and how to select it. */
+internal class CastRoute(val device: TargetDevice, val enabled: Boolean = true, val select: () -> Unit)
 
 /** The SDK's current session when the port starts: connected, or still connecting. */
 internal class RunningSession(val device: TargetDevice?, val connected: Boolean)
@@ -66,6 +66,11 @@ internal class GoogleCastTargetPort(
             events?.sessionEvent("startFailed", device, RECEIVER_GONE)
             return
         }
+        // MediaRouter ignores a disabled route's select(), so no session event would ever come.
+        if (!route.enabled) {
+            events?.sessionEvent("startFailed", device, RECEIVER_BUSY)
+            return
+        }
         // The SDK's session manager follows the selected route: it ends a session on another one first.
         route.select()
     }
@@ -82,6 +87,7 @@ internal class GoogleCastTargetPort(
 
     companion object {
         const val RECEIVER_GONE = "The receiver is no longer on the network"
+        const val RECEIVER_BUSY = "The receiver cannot take a session now"
 
         fun device(device: CastDevice?): TargetDevice? =
             device?.let { TargetDevice(it.deviceId, it.friendlyName ?: "", it.modelName) }
@@ -97,7 +103,9 @@ internal class GoogleCastTargetPort(
                 val selector = cast.mergedSelector ?: return emptyList()
                 return router.routes
                     .filter { route -> !route.isDefault && route.matchesSelector(selector) }
-                    .mapNotNull { route -> device(CastDevice.getFromBundle(route.extras))?.let { CastRoute(it, route::select) } }
+                    .mapNotNull { route ->
+                        device(CastDevice.getFromBundle(route.extras))?.let { CastRoute(it, route.isEnabled, route::select) }
+                    }
             }
 
             // The SDK reports "Stop casting" under a status code of its own, which only the context resolves.
