@@ -13,6 +13,10 @@ final class CastTargetProbe: RemoteTargetListener {
   static let thenArgument = "CastTargetProbeThen"
   /// Asks the receiver held at the start again right after the switch request: the switch asked back.
   static let backArgument = "CastTargetProbeBack"
+  /// NO ends the session and leaves the receiver playing, as the output sheet's Disconnect does.
+  static let stopArgument = "CastTargetProbeStop"
+  /// A level, 0 to 1, set once connected; the receiver's report of it is logged.
+  static let volumeArgument = "CastTargetProbeVolume"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -26,6 +30,8 @@ final class CastTargetProbe: RemoteTargetListener {
   /// How long a connected session is held before the disconnection: long enough to cut the network in.
   private let holdMs: Double
   private let back: Bool
+  private let stop: Bool
+  private let volume: Double?
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -37,14 +43,17 @@ final class CastTargetProbe: RemoteTargetListener {
   private var device: TargetDevice?
   private var connected = false
   private var leaving: RemoteTarget?
+  private var last: RemoteTargetSnapshot?
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    back: Bool = false, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void),
-    log: @escaping (String) -> Void
+    back: Bool = false, stop: Bool = true, volume: Double? = nil,
+    schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
   ) {
     self.holdMs = holdMs
     self.back = back
+    self.stop = stop
+    self.volume = volume
     self.hub = hub
     self.deviceName = deviceName
     self.keep = keep
@@ -59,6 +68,10 @@ final class CastTargetProbe: RemoteTargetListener {
     return (keep || chained, back && !chained)
   }
 
+  static func level(_ volume: Double?) -> String {
+    volume.map { String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), $0) } ?? "-"
+  }
+
   static func describe(_ snapshot: RemoteTargetSnapshot) -> String {
     "state=\(snapshot.phase.rawValue) target=\(snapshot.target?.name ?? "-") "
       + "reconnecting=\(snapshot.reconnecting) error=\(snapshot.error ?? "-")"
@@ -68,6 +81,7 @@ final class CastTargetProbe: RemoteTargetListener {
     isActive = true
     removeListener = hub.addListener(self)
     let current = hub.snapshot
+    last = current
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
     if current.phase == .connected { leaving = current.target }
     // A whole name only: a part of one may name another receiver than the connected one.
@@ -148,6 +162,18 @@ final class CastTargetProbe: RemoteTargetListener {
 
   func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
     guard isActive else { return }
+    let previous = last
+    last = snapshot
+    // A volume report alone moves nothing the proof waits for: one line with the level.
+    if let previous {
+      var levelOnly = snapshot
+      levelOnly.volume = previous.volume
+      levelOnly.muted = previous.muted
+      if levelOnly == previous {
+        log("volume=\(Self.level(snapshot.volume)) muted=\(snapshot.muted)")
+        return
+      }
+    }
     log(Self.describe(snapshot))
     switch snapshot.phase {
     case .connected:
@@ -174,6 +200,10 @@ final class CastTargetProbe: RemoteTargetListener {
   private func onConnected() {
     connected = true
     cancelWait?()
+    if let volume {
+      log("setting the volume to \(Self.level(volume))")
+      hub.setVolume(volume)
+    }
     if keep {
       finish("done, still connected")
       return
@@ -186,9 +216,9 @@ final class CastTargetProbe: RemoteTargetListener {
         fail("the session went to \(holder?.name ?? "none")")
         return
       }
-      log("disconnecting")
+      log(stop ? "disconnecting" : "disconnecting without stopping the receiver")
       wait(Self.endTimeoutMs, failure: "never ended")
-      hub.disconnect(stopPlayback: true)
+      hub.disconnect(stopPlayback: stop)
     }
   }
 

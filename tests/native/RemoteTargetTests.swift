@@ -759,7 +759,7 @@ enum RemoteTargetTests {
 
     func run(
       _ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, back: Bool = false,
-      port: FakeTargetPort, before: (RemoteTargetHub) -> Void = { _ in }
+      stop: Bool = true, volume: Double? = nil, port: FakeTargetPort, before: (RemoteTargetHub) -> Void = { _ in }
     ) -> (CastTargetProbe, Clock, () -> [String]) {
       let hub = RemoteTargetHub()
       hub.install(port)
@@ -767,7 +767,8 @@ enum RemoteTargetTests {
       let clock = Clock()
       var logs: [String] = []
       let probe = CastTargetProbe(
-        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, schedule: clock.schedule
+        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, stop: stop, volume: volume,
+        schedule: clock.schedule
       ) { logs.append($0) }
       probe.start()
       return (probe, clock, { logs })
@@ -963,6 +964,26 @@ enum RemoteTargetTests {
         "aProbeArmedOnItsConnectedReceiverHoldsThenEndsIt",
         port.disconnects == [true] && logs().last == "disconnecting" && probe.isActive
       )
+    }
+
+    // The output sheet's "Disconnect" leaves the TV playing: the probe ends a session the same way.
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      let (probe, clock, logs) = run("Living room", stop: false, port: port) { _ in port.emit("started", chromecast) }
+      clock.advance(CastTargetProbe.connectedHoldMs)
+      check(
+        "aProbeAskedNotToStopLeavesTheReceiver",
+        port.disconnects == [false] && logs().last == "disconnecting without stopping the receiver" && probe.isActive
+      )
+    }
+
+    // The volume proof reads the level the receiver reports back, not the one asked.
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      let (probe, _, logs) = run("Living room", volume: 0.4, port: port) { _ in port.emit("started", chromecast) }
+      let asked = port.volumes == [0.4] && logs().last == "setting the volume to 0.40"
+      port.events?.volumeChanged(level: 0.4, muted: false)
+      check("aProbeAskedForAVolumeSetsIt", asked && logs().last == "volume=0.40 muted=false" && probe.isActive)
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.

@@ -268,19 +268,22 @@ extension CastTargetProbe {
   /// Logger, which prints each line with its type: the console reads [CastTargetProbe]. `then` names a
   /// second receiver, asked once the first one is connected: a switch inside one process, where every
   /// relaunch would first meet the SDK resuming its session.
-  static func run(deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false) {
+  static func run(
+    deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false, stop: Bool = true,
+    volume: Double? = nil
+  ) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
     RemoteTargets.installDefault()
     let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
-      hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back,
-      schedule: mainQueueSchedule, log: log
+      hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back, stop: stop,
+      volume: volume, schedule: mainQueueSchedule, log: log
     )
     if let next, !next.isEmpty {
       probe.onFinish = { result in
         guard result.hasPrefix("done") else { return }
-        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs, back: back) }
+        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs, back: back, stop: stop) }
       }
     }
     current = probe

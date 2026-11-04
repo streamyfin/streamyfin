@@ -20,7 +20,9 @@ class CastTargetProbeTest {
         keep: Boolean = false,
         holdMs: Long = CastTargetProbe.CONNECTED_HOLD_MS,
         back: Boolean = false,
-    ) = CastTargetProbe(hub, name, keep, holdMs, back, scheduler.schedule, logs::add)
+        stop: Boolean = true,
+        volume: Double? = null,
+    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -224,6 +226,34 @@ class CastTargetProbeTest {
         assertEquals(listOf(true), port.disconnects)
         assertEquals("disconnecting", logs.last())
         assertTrue(probe.isActive)
+    }
+
+    // The output sheet's "Disconnect" leaves the TV playing: the probe ends a session the same way.
+    @Test
+    fun aProbeAskedNotToStopLeavesTheReceiver() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        probe(hub, "Living room", stop = false).start()
+
+        scheduler.advance(CastTargetProbe.CONNECTED_HOLD_MS)
+
+        assertEquals(listOf(false), port.disconnects)
+        assertEquals("disconnecting without stopping the receiver", logs.last())
+    }
+
+    // The volume proof reads the level the receiver reports back, not the one asked.
+    @Test
+    fun aProbeAskedForAVolumeSetsIt() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        probe(hub, "Living room", volume = 0.4).start()
+
+        assertEquals(listOf(0.4), port.volumes)
+        assertEquals("setting the volume to 0.40", logs.last())
+        port.events?.volumeChanged(0.4, false)
+        assertEquals("volume=0.40 muted=false", logs.last())
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
