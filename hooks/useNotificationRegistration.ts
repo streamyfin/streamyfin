@@ -142,9 +142,13 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
       );
 
     // The device push token can roll while the app runs, and the Expo token
-    // built from the old one stops delivering.
+    // built from the old one stops delivering. Only a roll: the native side
+    // also emits the token the registration below asked for, and Android hands
+    // over a new FCM token whatever the permission says, so the listener
+    // refreshes nothing until the registration got a token.
     const pushToken: EventSubscription = Notifications.addPushTokenListener(
       (devicePushToken: DevicePushToken) => {
+        if (tokenFetch.current !== "done") return;
         Notifications.getExpoPushTokenAsync({
           projectId: EXPO_PROJECT_ID,
           devicePushToken,
@@ -172,6 +176,16 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
 
     const registerNotifications = async () => {
       const run = ++registrationRunRef.current;
+      // The task survives an admin signing out or switching to a non-admin
+      // account, and would keep polling sessions under the wrong one. Before
+      // the permission check: a revoked permission must not keep it running.
+      if (!isAdministrator) {
+        void unregisterBackgroundFetchAsyncSessions().then((unregistered) => {
+          if (!unregistered) {
+            console.warn("Failed to unregister the sessions background task");
+          }
+        });
+      }
       if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("default", {
           name: "default",
@@ -199,12 +213,6 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
 
       if (isAdministrator) {
         await registerBackgroundFetchAsyncSessions();
-      } else {
-        // The task survives an admin signing out or switching to a non-admin
-        // account, and would keep polling sessions under the wrong one.
-        if (!(await unregisterBackgroundFetchAsyncSessions())) {
-          console.warn("Failed to unregister the sessions background task");
-        }
       }
 
       // only create push token for real devices (pointless for emulators)

@@ -252,6 +252,63 @@ test("a rolled device token refreshes the expo token", async () => {
   expect(result.current?.data).toBe("tok2");
 });
 
+// The native side resolves the app's own device token request and then emits
+// the same token as an event, on iOS and on Android.
+test("the token the app asked for is not fetched a second time", async () => {
+  let resolveToken: (token: { data: string }) => void = () => {};
+  mockNotifications.getExpoPushTokenAsync.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveToken = resolve;
+      }),
+  );
+  const { result } = await renderHook(() => useNotificationRegistration(), {
+    wrapper,
+  });
+  await settle();
+
+  const listener = mockNotifications.addPushTokenListener.mock.calls[0][0];
+  await act(async () => {
+    listener({ type: "ios", data: "device-token" });
+    resolveToken({ data: "tok" });
+  });
+  await settle();
+
+  expect(mockNotifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+  expect(result.current?.data).toBe("tok");
+});
+
+// Android hands a new FCM token to the listener whatever the permission
+// says, and an emulator has one too.
+test("a device token arriving before any expo token fetches nothing", async () => {
+  mockNotifications.getPermissionsAsync.mockResolvedValue({ status: "denied" });
+  const { result } = await renderHook(() => useNotificationRegistration(), {
+    wrapper,
+  });
+  await settle();
+
+  const listener = mockNotifications.addPushTokenListener.mock.calls[0][0];
+  await act(async () => {
+    listener({ type: "android", data: "fcm-token" });
+  });
+  await settle();
+
+  expect(mockNotifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+  expect(result.current).toBeUndefined();
+});
+
+// A revoked permission must not keep the task polling sessions under the
+// account that signed in after an admin.
+test("a non-admin account unregisters the sessions task without notifications", async () => {
+  mockNotifications.getPermissionsAsync.mockResolvedValue({ status: "denied" });
+  await signIn({ Id: "u1" });
+  await renderHook(() => useNotificationRegistration(), { wrapper });
+  await settle();
+
+  expect(unregisterBackgroundFetchAsyncSessions).toHaveBeenCalled();
+  expect(registerBackgroundFetchAsyncSessions).not.toHaveBeenCalled();
+});
+
 test("does nothing on TV", async () => {
   setTV(true);
   await signIn({ Id: "u1" });
