@@ -69,10 +69,9 @@ const getPlaybackUrl = (
     mediaSource?.Protocol === "Http" &&
     mediaSource?.Path
   ) {
-    console.log(
-      "Video is remote stream, using direct Path:",
-      redactCredentials(mediaSource.Path),
-    );
+    // Not the URL itself: an external stream's credentials can sit in its
+    // userinfo or its path, which redactCredentials does not cover.
+    console.log("Video is remote stream, using its direct Path");
     return mediaSource.Path;
   }
 
