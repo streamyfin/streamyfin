@@ -4,4 +4,6 @@ import Foundation
 enum RemoteTargetConstants {
   static let fakeConnectDelayMs = 600.0
   static let fakeEndDelayMs = 300.0
+  /// How long a fake receiver takes to report back the volume it was set to, as a real one does.
+  static let fakeVolumeEchoMs = 100.0
 }

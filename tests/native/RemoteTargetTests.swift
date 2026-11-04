@@ -18,10 +18,13 @@ enum RemoteTargetTests {
     RemoteTarget(kind: "cast", id: device.id, name: device.name, volume: true)
   }
 
-  static func state(_ phase: TargetPhase, _ target: RemoteTarget?, reconnecting: Bool = false, error: String? = nil)
-    -> RemoteTargetSnapshot
-  {
-    RemoteTargetSnapshot(phase: phase, target: target, reconnecting: reconnecting, error: error)
+  static func state(
+    _ phase: TargetPhase, _ target: RemoteTarget?, reconnecting: Bool = false, error: String? = nil,
+    failedTarget: RemoteTarget? = nil
+  ) -> RemoteTargetSnapshot {
+    RemoteTargetSnapshot(
+      phase: phase, target: target, reconnecting: reconnecting, error: error, failedTarget: failedTarget
+    )
   }
 
   static func connected(to device: TargetDevice) -> RemoteTargetMachine {
@@ -112,6 +115,31 @@ enum RemoteTargetTests {
       let hub = connectedHub(port)
       let accepted = hub.connect(deviceId: livingRoom.id)
       check("theDeviceAlreadyConnectedAsksNothing", accepted && port.connects.isEmpty)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.setVolume(-0.2)
+      hub.setVolume(1.4)
+      hub.setMuted(true)
+      check("theHubBoundsTheLevelItSends", port.volumes == [0.0, 1.0] && port.mutes == [true])
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      hub.setVolume(0.5)
+      hub.setMuted(true)
+      check("aVolumeAskedWithNoTargetReachesNoPort", port.volumes.isEmpty && port.mutes.isEmpty)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      port.events?.volumeChanged(level: 0.3, muted: true)
+      check("aVolumeThePortReportsIsPublished", hub.snapshot.volume == 0.3 && hub.snapshot.muted)
     }
 
     // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
@@ -316,10 +344,19 @@ enum RemoteTargetTests {
   final class PortEventsRecording: TargetPortEvents {
     var sessions: [String] = []
     var deviceLists: [[TargetDevice]] = []
+    var volumes: [String] = []
+    var codes: [Int?] = []
 
     func sessionEvent(_ event: String, device: TargetDevice?, error: String?) {
       sessions.append(event + " " + (device?.id ?? "nil") + " " + (error ?? "nil"))
     }
+
+    func sessionEvent(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
+      sessionEvent(event, device: device, error: error)
+      codes.append(code)
+    }
+
+    func volumeChanged(level: Double, muted: Bool) { volumes.append("\(level) \(muted)") }
 
     func devicesChanged(_ devices: [TargetDevice]) { deviceLists.append(devices) }
   }
@@ -332,9 +369,13 @@ enum RemoteTargetTests {
     var endAccepted = true
     var started: [TargetDevice] = []
     var ended: [Bool] = []
-    var sessionWatches: [((String, TargetDevice?, String?) -> Void)?] = []
+    var sessionWatches: [((String, TargetDevice?, String?, Int?) -> Void)?] = []
     var deviceWatches: [(() -> Void)?] = []
     var discovery: [Bool] = []
+    var volume: (Double, Bool)?
+    var volumesSet: [Double] = []
+    var mutesSet: [Bool] = []
+    var volumeWatches: [((Double, Bool) -> Void)?] = []
 
     // The port holds the fake, not the other way round: a test may drop the fake and keep the port.
     func port() -> GoogleCastTargetPort {
@@ -355,7 +396,11 @@ enum RemoteTargetTests {
         },
         watchSessions: { sdk.sessionWatches.append($0) },
         watchDevices: { sdk.deviceWatches.append($0) },
-        discovery: { sdk.discovery.append($0) }
+        discovery: { sdk.discovery.append($0) },
+        sessionVolume: { sdk.volume },
+        setSessionVolume: { sdk.volumesSet.append($0) },
+        setSessionMuted: { sdk.mutesSet.append($0) },
+        watchVolume: { sdk.volumeWatches.append($0) }
       )
     }
   }
@@ -402,7 +447,7 @@ enum RemoteTargetTests {
       let events = PortEventsRecording()
       let port = sdk.port()
       port.start(events: events)
-      sdk.sessionWatches.last??("ending", chromecast, nil)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
       check("theSdkSessionCallbacksReachTheHub", sdk.sessionWatches.count == 1 && events.sessions == ["ending device-a nil"])
     }
 
@@ -463,7 +508,7 @@ enum RemoteTargetTests {
       port.connect(streamer)
       let endedFirst = sdk.ended == [true] && sdk.started.isEmpty
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check(
         "aSwitchEndsTheRunningSessionThenStartsTheOther",
         endedFirst && sdk.started == [streamer]
@@ -481,7 +526,7 @@ enum RemoteTargetTests {
       port.start(events: events)
       port.connect(streamer)
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check(
         "aSwitchTheSdkRefusesAfterTheEndFails",
         events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.startRefused
@@ -503,7 +548,7 @@ enum RemoteTargetTests {
       port.connect(kitchen)
       let endedOnce = sdk.ended == [true] && !events.sessions.contains { $0.hasPrefix("startFailed") }
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check("aSecondRequestDuringASwitchEndsTheOldSessionOnce", endedOnce && sdk.started == [kitchen])
     }
 
@@ -536,8 +581,61 @@ enum RemoteTargetTests {
       port.connect(streamer)
       let refused = events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.endRefused
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check("aSwitchWhoseEndTheSdkRefusesFails", refused && sdk.started.isEmpty)
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.volume = (0.3, false)
+      let events = PortEventsRecording()
+      sdk.port().start(events: events)
+      check("theSessionVolumeIsReadAtStart", events.volumes == ["0.3 false"])
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.volume = (0.8, true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check("aStartedSessionReportsItsVolume", events.volumes == ["0.8 true"])
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.volumeWatches.last??(0.7, true)
+      check("aVolumeChangeFromTheSdkIsForwarded", events.volumes == ["0.7 true"])
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.setVolume(0.4)
+      port.setMuted(true)
+      check("aVolumeSetReachesTheSession", sdk.volumesSet == [0.4] && sdk.mutesSet == [true])
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.sessionWatches.last??("ended", chromecast, "Cast session status code 2155 (2155)", 2155)
+      check("anEndCarriesTheSdkCode", events.codes == [2155])
+    }
+
+    // The sheet's icon: a TV for a receiver with a screen, a speaker for one without.
+    do {
+      let speaker = TargetDevice(id: "id-s", name: "", model: "Google Home", videoOut: false)
+      check("aDeviceWithoutVideoOutSaysSo", !speaker.videoOut && value(speaker.toDictionary(), "videoOut") as? Bool == false)
     }
 
     // Asked again before its session ended for a switch: the receiver starts again once that end comes,
@@ -552,7 +650,7 @@ enum RemoteTargetTests {
       port.connect(chromecast)
       let endedOnce = sdk.ended == [true]
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check("aSwitchBackBeforeTheOldEndRestartsTheOldReceiver", endedOnce && sdk.started == [chromecast])
     }
 
@@ -575,7 +673,7 @@ enum RemoteTargetTests {
       port.connect(streamer)
       port.disconnect(stopPlayback: true)
       sdk.running = nil
-      sdk.sessionWatches.last??("ended", chromecast, nil)
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
       check("aDisconnectDuringASwitchDropsTheSwitch", sdk.started.isEmpty)
     }
 
@@ -1044,6 +1142,21 @@ enum RemoteTargetTests {
     }
 
     do {
+      let clock = Clock()
+      let hub = RemoteTargetHub()
+      hub.install(FakeCastDevices(schedule: clock.schedule))
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      _ = hub.connect(deviceId: tv.id)
+      clock.advance(connectDelay)
+      hub.setVolume(0.4)
+      let before = hub.snapshot.volume
+      clock.advance(RemoteTargetConstants.fakeVolumeEchoMs)
+      check("theFakeReceiverEchoesTheVolume", before == nil && hub.snapshot.volume == 0.4)
+    }
+
+    check("theBenchSpeakerHasNoScreen", tv.videoOut && !speaker.videoOut)
+
+    do {
       let (port, _, events) = started()
       port.startDiscovery()
       check(
@@ -1182,7 +1295,7 @@ enum RemoteTargetTests {
       let ended = machine.sessionEvent("ended", device: nil, error: "network")
       check(
         "aSuspendedSessionReconnectsThenEndsWithItsError",
-        suspended && reconnecting && ended && machine.snapshot == state(.none, nil, error: "network")
+        suspended && reconnecting && ended && machine.snapshot == state(.none, nil, error: "network", failedTarget: cast(livingRoom))
       )
     }
 
@@ -1226,7 +1339,7 @@ enum RemoteTargetTests {
     do {
       let machine = connected(to: livingRoom)
       let ended = machine.sessionEvent("ended", device: nil, error: "network")
-      check("anEndWithoutADeviceStillEnds", ended && machine.snapshot == state(.none, nil, error: "network"))
+      check("anEndWithoutADeviceStillEnds", ended && machine.snapshot == state(.none, nil, error: "network", failedTarget: cast(livingRoom)))
     }
 
     // On a device the Android SDK ends the old session with status 2155 when a switch selects another route.
@@ -1254,7 +1367,7 @@ enum RemoteTargetTests {
       // A switch the port refuses at once (a disabled route, an end the SDK keeps) leaves the receiver
       // that holds the session, with the cause: silence there left the sheet, and the probe, waiting.
       let refused = machine.sessionEvent("startFailed", device: bedroom, error: "busy")
-      let kept = machine.snapshot == state(.connected, cast(livingRoom), error: "busy")
+      let kept = machine.snapshot == state(.connected, cast(livingRoom), error: "busy", failedTarget: cast(bedroom))
       let ended = machine.sessionEvent("ended", device: livingRoom, error: nil)
       check(
         "aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiverAndSaysWhy",
@@ -1269,7 +1382,7 @@ enum RemoteTargetTests {
       _ = machine.connectRequested(bedroom)
       _ = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)")
       let changed = machine.sessionEvent("startFailed", device: nil, error: "gone")
-      check("aDeviceLessStartFailureDuringASwitchEndsWithItsError", changed && machine.snapshot == state(.none, nil, error: "gone"))
+      check("aDeviceLessStartFailureDuringASwitchEndsWithItsError", changed && machine.snapshot == state(.none, nil, error: "gone", failedTarget: cast(bedroom)))
     }
 
     do {
@@ -1278,7 +1391,7 @@ enum RemoteTargetTests {
       let changed = machine.sessionEvent("endRefused", device: livingRoom, error: "kept")
       check(
         "aRefusedEndKeepsTheReceiverAndSaysWhy",
-        changed && machine.snapshot == state(.connected, cast(livingRoom), error: "kept")
+        changed && machine.snapshot == state(.connected, cast(livingRoom), error: "kept", failedTarget: cast(livingRoom))
       )
     }
 
@@ -1289,7 +1402,7 @@ enum RemoteTargetTests {
       let failed = machine.sessionEvent("startFailed", device: bedroom, error: "timeout")
       check(
         "aNewReceiverFailingAfterTheSwitchEndsWithItsError",
-        failed && machine.snapshot == state(.none, nil, error: "timeout")
+        failed && machine.snapshot == state(.none, nil, error: "timeout", failedTarget: cast(bedroom))
       )
     }
 
@@ -1315,6 +1428,79 @@ enum RemoteTargetTests {
       check(
         "aResumeAtLaunchReconnectsBeforeItConnects",
         resuming && reconnecting && resumed && machine.snapshot == state(.connected, cast(livingRoom))
+      )
+    }
+
+    // The output sheet's slider and mute follow the receiver's own volume, as the SDK reports it.
+    do {
+      let machine = connected(to: livingRoom)
+      let changed = machine.volumeChanged(level: 0.62, muted: false)
+      check("aVolumeChangeWhileConnectedIsPublished", changed && machine.snapshot.volume == 0.62 && !machine.snapshot.muted)
+    }
+
+    do {
+      let machine = RemoteTargetMachine()
+      let changed = machine.volumeChanged(level: 0.62, muted: false)
+      check("aVolumeChangeWithNoTargetIsIgnored", !changed && machine.snapshot.volume == nil)
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.volumeChanged(level: 0.62, muted: true)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      check("anEndForgetsTheVolume", machine.snapshot.volume == nil && !machine.snapshot.muted)
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.volumeChanged(level: 0.5, muted: false)
+      _ = machine.sessionEvent("suspended", device: nil, error: nil)
+      _ = machine.sessionEvent("resumed", device: livingRoom, error: nil)
+      check("theSameSessionKeepsItsVolume", machine.snapshot.volume == 0.5)
+    }
+
+    // The sheet writes the cause on the row of the receiver it belongs to, with the SDK's code for it.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)", code: 2155)
+      let named = machine.snapshot.errorCode == 2155 && machine.snapshot.failedTarget?.id == livingRoom.id
+      _ = machine.connectRequested(livingRoom)
+      check(
+        "aFailedEndNamesItsTargetAndCode",
+        named && machine.snapshot.errorCode == nil && machine.snapshot.failedTarget == nil
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.sessionEvent("startFailed", device: bedroom, error: "busy", code: 2004)
+      check(
+        "aRefusedSwitchNamesTheReceiverThatFailed",
+        machine.snapshot.target == cast(livingRoom) && machine.snapshot.failedTarget == cast(bedroom)
+          && machine.snapshot.errorCode == 2004
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      check("anEndTheUserAskedForNamesNoFailure", machine.snapshot.failedTarget == nil && machine.snapshot.errorCode == nil)
+    }
+
+    do {
+      let connectedMachine = connected(to: livingRoom)
+      _ = connectedMachine.volumeChanged(level: 0.62, muted: true)
+      let shape = connectedMachine.snapshot.toDictionary()
+      let failedMachine = connected(to: livingRoom)
+      _ = failedMachine.sessionEvent("ended", device: livingRoom, error: "lost", code: 2155)
+      let failed = failedMachine.snapshot.toDictionary()
+      let failedTarget = value(failed, "failedTarget") as? [String: Any?]
+      check(
+        "theJsShapeCarriesTheNewFields",
+        value(shape, "volume") as? Double == 0.62 && value(shape, "muted") as? Bool == true
+          && value(shape, "errorCode") == nil && value(shape, "failedTarget") == nil
+          && value(failed, "errorCode") as? Int == 2155 && value(failedTarget, "id") as? String == "device-a"
       )
     }
 
@@ -1354,7 +1540,7 @@ enum RemoteTargetTests {
       let changed = machine.sessionEvent("startFailed", device: livingRoom, error: "busy")
       check(
         "theHeldReceiverAskedBackThenFailingEndsWithItsError",
-        changed && machine.snapshot == state(.none, nil, error: "busy")
+        changed && machine.snapshot == state(.none, nil, error: "busy", failedTarget: cast(livingRoom))
       )
     }
 
@@ -1368,7 +1554,7 @@ enum RemoteTargetTests {
       let machine = RemoteTargetMachine()
       _ = machine.connectRequested(livingRoom)
       let failed = machine.sessionEvent("startFailed", device: livingRoom, error: "timeout")
-      check("aFailedStartEndsWithItsError", failed && machine.snapshot == state(.none, nil, error: "timeout"))
+      check("aFailedStartEndsWithItsError", failed && machine.snapshot == state(.none, nil, error: "timeout", failedTarget: cast(livingRoom)))
     }
 
     do {
@@ -1391,11 +1577,11 @@ enum RemoteTargetTests {
       let none = RemoteTargetSnapshot.none.toDictionary()
       check(
         "theJsShapeNamesThePhaseAndTheTarget",
-        shape.count == 4 && value(shape, "state") as? String == "connected"
+        shape.count == 8 && value(shape, "state") as? String == "connected"
           && value(target, "kind") as? String == "cast" && value(target, "id") as? String == "device-a"
           && value(target, "name") as? String == "Living room" && value(capabilities, "volume") as? Bool == true
           && value(shape, "reconnecting") as? Bool == false && shape.keys.contains("error") && value(shape, "error") == nil
-          && none.count == 4 && value(none, "state") as? String == "none" && none.keys.contains("target")
+          && none.count == 8 && value(none, "state") as? String == "none" && none.keys.contains("target")
           && value(none, "target") == nil
       )
     }

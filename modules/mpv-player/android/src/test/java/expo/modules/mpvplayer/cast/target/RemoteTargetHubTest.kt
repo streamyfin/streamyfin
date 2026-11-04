@@ -173,6 +173,42 @@ class RemoteTargetHubTest {
     }
 
     @Test
+    fun theHubBoundsTheLevelItSends() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.setVolume(-0.2)
+        hub.setVolume(1.4)
+        hub.setMuted(true)
+
+        assertEquals(listOf(0.0, 1.0), port.volumes)
+        assertEquals(listOf(true), port.mutes)
+    }
+
+    @Test
+    fun aVolumeAskedWithNoTargetReachesNoPort() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = RemoteTargetHub().also { it.install(port) }
+
+        hub.setVolume(0.5)
+        hub.setMuted(true)
+
+        assertTrue(port.volumes.isEmpty())
+        assertTrue(port.mutes.isEmpty())
+    }
+
+    @Test
+    fun aVolumeThePortReportsIsPublished() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        port.events?.volumeChanged(0.3, true)
+
+        assertEquals(0.3, hub.snapshot.volume)
+        assertTrue(hub.snapshot.muted)
+    }
+
+    @Test
     fun onlyChangesReachTheListeners() {
         val hub = RemoteTargetHub()
         val port = FakeTargetPort()

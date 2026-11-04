@@ -16,9 +16,20 @@ class GoogleCastTargetPortTest {
     private class Events : TargetPortEvents {
         val sessions = mutableListOf<Triple<String, TargetDevice?, String?>>()
         val deviceLists = mutableListOf<List<TargetDevice>>()
+        val volumes = mutableListOf<Pair<Double, Boolean>>()
+        val codes = mutableListOf<Int?>()
 
         override fun sessionEvent(event: String, device: TargetDevice?, error: String?) {
             sessions += Triple(event, device, error)
+        }
+
+        override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
+            sessionEvent(event, device, error)
+            codes += code
+        }
+
+        override fun volumeChanged(level: Double, muted: Boolean) {
+            volumes += level to muted
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {
@@ -34,8 +45,12 @@ class GoogleCastTargetPortTest {
         val selected = mutableListOf<TargetDevice>()
         val ended = mutableListOf<Boolean>()
         var unselects = 0
-        val sessionWatches = mutableListOf<((String, TargetDevice?, String?) -> Unit)?>()
+        val sessionWatches = mutableListOf<((String, TargetDevice?, String?, Int?) -> Unit)?>()
         val routeWatches = mutableListOf<(() -> Unit)?>()
+        var volume: Pair<Double, Boolean>? = null
+        val volumesSet = mutableListOf<Double>()
+        val mutesSet = mutableListOf<Boolean>()
+        val volumeWatches = mutableListOf<((Double, Boolean) -> Unit)?>()
 
         fun port() = GoogleCastTargetPort(
             routes = { routes.map { device -> CastRoute(device, enabled = device.id !in disabled) { selected += device } } },
@@ -45,6 +60,10 @@ class GoogleCastTargetPortTest {
             watchSessions = { relay -> sessionWatches += relay },
             watchRoutes = { onChange -> routeWatches += onChange },
             schedule = scheduler.schedule,
+            sessionVolume = { volume },
+            setSessionVolume = { level -> volumesSet += level },
+            setSessionMuted = { muted -> mutesSet += muted },
+            watchVolume = { relay -> volumeWatches += relay },
         )
     }
 
@@ -65,7 +84,7 @@ class GoogleCastTargetPortTest {
         port.connect(livingRoom)
         val beforeTheEnd = sdk.selected.toList()
         sdk.running = null
-        sdk.sessionWatches.last()?.invoke("ended", livingRoom, "Cast session status code 2155 (2155)")
+        sdk.sessionWatches.last()?.invoke("ended", livingRoom, "Cast session status code 2155 (2155)", 2155)
         val inTheEndCallback = sdk.selected.toList()
         sdk.scheduler.advance(0)
 
@@ -86,11 +105,81 @@ class GoogleCastTargetPortTest {
         port.connect(bedroom)
         port.connect(livingRoom)
         sdk.running = null
-        sdk.sessionWatches.last()?.invoke("ended", livingRoom, null)
+        sdk.sessionWatches.last()?.invoke("ended", livingRoom, null, null)
         port.disconnect(stopPlayback = true)
         sdk.scheduler.advance(0)
 
         assertEquals(listOf(bedroom), sdk.selected)
+    }
+
+    @Test
+    fun theSessionVolumeIsReadAtStart() {
+        val sdk = Sdk().apply {
+            running = RunningSession(livingRoom, connected = true)
+            volume = 0.3 to false
+        }
+        val events = Events()
+
+        sdk.port().start(events)
+
+        assertEquals(listOf(0.3 to false), events.volumes)
+    }
+
+    @Test
+    fun aStartedSessionReportsItsVolume() {
+        val sdk = Sdk()
+        val events = Events()
+        sdk.port().start(events)
+
+        sdk.volume = 0.8 to true
+        sdk.sessionWatches.last()?.invoke("started", livingRoom, null, null)
+
+        assertEquals(listOf(0.8 to true), events.volumes)
+    }
+
+    @Test
+    fun aVolumeChangeFromTheSdkIsForwarded() {
+        val sdk = Sdk()
+        val events = Events()
+        sdk.port().start(events)
+
+        sdk.volumeWatches.last()?.invoke(0.7, true)
+
+        assertEquals(listOf(0.7 to true), events.volumes)
+    }
+
+    @Test
+    fun aVolumeSetReachesTheSession() {
+        val sdk = Sdk().apply { running = RunningSession(livingRoom, connected = true) }
+        val port = sdk.port()
+        port.start(Events())
+
+        port.setVolume(0.4)
+        port.setMuted(true)
+
+        assertEquals(listOf(0.4), sdk.volumesSet)
+        assertEquals(listOf(true), sdk.mutesSet)
+    }
+
+    @Test
+    fun anEndCarriesTheSdkCode() {
+        val sdk = Sdk()
+        val events = Events()
+        sdk.port().start(events)
+
+        sdk.sessionWatches.last()?.invoke("ended", livingRoom, "Cast session status code 2155 (2155)", 2155)
+
+        assertEquals(listOf<Int?>(2155), events.codes)
+    }
+
+    // The sheet's icon: a TV for a receiver with a screen, a speaker for one without.
+    @Test
+    fun aDeviceWithoutVideoOutSaysSo() {
+        val speaker = GoogleCastTargetPort.device("id-s", null, "Google Home", videoOut = false)
+
+        assertEquals(false, speaker.videoOut)
+        assertEquals("", speaker.name)
+        assertEquals(false, speaker.toMap()["videoOut"])
     }
 
     @Test
@@ -130,7 +219,7 @@ class GoogleCastTargetPortTest {
 
         val relay = sdk.sessionWatches.single()
         assertNotNull(relay)
-        relay!!.invoke("ending", livingRoom, null)
+        relay!!.invoke("ending", livingRoom, null, null)
 
         assertEquals(listOf(Triple("ending", livingRoom, null)), events.sessions)
     }

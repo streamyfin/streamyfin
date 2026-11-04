@@ -68,6 +68,17 @@ class RemoteTargetHub {
         port?.disconnect(stopPlayback)
     }
 
+    /** Bounded to 0..1, and only for a connected receiver: the state follows what the SDK reports back. */
+    fun setVolume(level: Double) {
+        if (snapshot.phase != TargetPhase.CONNECTED) return
+        port?.setVolume(level.coerceIn(0.0, 1.0))
+    }
+
+    fun setMuted(muted: Boolean) {
+        if (snapshot.phase != TargetPhase.CONNECTED) return
+        port?.setMuted(muted)
+    }
+
     /** [owner] names who asks ([APP_DISCOVERY], [PROBE_DISCOVERY]); asking twice still takes one stop. */
     fun startDiscovery(owner: String) {
         if (discoveryOwners.add(owner) && discoveryOwners.size == 1) port?.startDiscovery()
@@ -79,9 +90,17 @@ class RemoteTargetHub {
 
     // Each port gets its own events: one replaced, or stopped late, is no longer heard.
     private fun eventsFor(port: TargetPort) = object : TargetPortEvents {
-        override fun sessionEvent(event: String, device: TargetDevice?, error: String?) {
+        override fun sessionEvent(event: String, device: TargetDevice?, error: String?) =
+            sessionEvent(event, device, error, null)
+
+        override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
             if (this@RemoteTargetHub.port !== port) return
-            if (machine.sessionEvent(event, device, error)) publish()
+            if (machine.sessionEvent(event, device, error, code)) publish()
+        }
+
+        override fun volumeChanged(level: Double, muted: Boolean) {
+            if (this@RemoteTargetHub.port !== port) return
+            if (machine.volumeChanged(level, muted)) publish()
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {
