@@ -142,5 +142,8 @@ class RemoteTargetHub {
 
         /** The debug probe's. */
         const val PROBE_DISCOVERY = "probe"
+
+        /** The output sheet's, while it is open. */
+        const val SHEET_DISCOVERY = "sheet"
     }
 }
