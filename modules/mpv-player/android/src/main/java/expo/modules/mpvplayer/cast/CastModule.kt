@@ -6,6 +6,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
@@ -244,7 +245,9 @@ class CastModule : Module() {
             @Suppress("UNCHECKED_CAST")
             val strings = (options["strings"] as? Map<String, Any?>).orEmpty().mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
             OutputPickerPresenter.strings = OutputPickerStrings(strings.toMap())
-            OutputPickerPresenter.present(activity, anchorRect(options["anchor"], activity), options["playingHere"] as? String) {
+            // The button's own view, which the popover follows across a rotation; its frame is the fallback.
+            val anchorView = (options["anchorTag"] as? Number)?.let { tag -> appContext.findView<View>(tag.toInt()) }
+            OutputPickerPresenter.present(activity, anchorRect(options["anchor"], activity), options["playingHere"] as? String, anchorView) {
                 if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "remote"))
             }
         }.runOnQueue(Queues.MAIN)

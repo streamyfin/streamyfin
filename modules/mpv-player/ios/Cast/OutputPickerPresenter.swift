@@ -28,9 +28,10 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   var isPresented: Bool { hosting != nil }
 
   /// True once presented, or already there; false with no view controller to present from.
-  /// `anchor` is the button's frame in window points, as JS measures it.
+  /// `anchorView` is the button's own view, which the popover follows when the window turns or resizes;
+  /// `anchor`, its frame in window points as JS measures it, is the fallback without it.
   @discardableResult
-  func present(anchor: CGRect?, playingHere: String?, onRemote: @escaping () -> Void) -> Bool {
+  func present(anchor: CGRect?, anchorView: UIView? = nil, playingHere: String?, onRemote: @escaping () -> Void) -> Bool {
     if let controller {
       self.onRemote = onRemote
       controller.environment.playingHere = playingHere
@@ -60,7 +61,12 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       popover.delegate = self
       popover.sourceView = top.view
       anchored = anchor != nil && top.view.window != nil
-      if let anchor, let window = top.view.window {
+      if let anchorView, anchorView.window != nil {
+        // UIKit keeps the popover on its source view through a rotation, which a rectangle in another view is not.
+        popover.sourceView = anchorView
+        popover.sourceRect = anchorView.bounds
+        anchored = true
+      } else if let anchor, let window = top.view.window {
         popover.sourceRect = top.view.convert(anchor, from: window)
       } else {
         popover.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY, width: 0, height: 0)

@@ -219,6 +219,11 @@ export interface OutputPickerOptions {
   strings: Partial<OutputPickerStrings>;
   /** The button a popover points at on a wide window; it is centred without one. */
   anchor?: OutputPickerAnchor | null;
+  /**
+   * The button's native view (`findNodeHandle`), which the popover follows when the window turns or resizes;
+   * `anchor` is the fallback when the view cannot be found.
+   */
+  anchorTag?: number | null;
   /** What plays on this device, for its row; null when nothing does. */
   playingHere?: string | null;
 }
