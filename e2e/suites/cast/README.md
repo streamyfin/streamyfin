@@ -132,3 +132,36 @@ Receiver 1.3.2 starts a transcode it cannot seek in at twice the position asked
 (jellyfin/jellyfin-chromecast#971): the second `seek+30` on MUSIC-FLAC shows it. Keep the
 evidence with `sessions.py --keep <subject>` and quote only that redacted copy: a raw log
 holds addresses.
+
+## Remote target probe
+
+Debug builds carry a second probe, for the target state the module publishes to JS
+(`getRemoteTarget`, `onRemoteTargetChanged`): it connects to a receiver by name through the
+same hub as `connectToDevice`, without the SDK's dialog, and logs every state it goes
+through. No server and no media are involved, so any receiver on the phone's network will do.
+
+**Android.** Name the receiver, or a part of its name; a whole name wins over a part of
+another (`Salon` against `Salon - Chromecast`):
+
+```sh
+adb logcat -c
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device "<name>"
+adb logcat -v time -s CastTargetProbe:I StreamyfinCast:W
+```
+
+The log reads `armed for "<name>" state=none …`, `found <device>`, then one line per state,
+`state=<none|connecting|connected|ending> target=<device> reconnecting=<bool> error=<…>`:
+connecting, connected, then, after 5 s, `disconnecting`, ending, none, and `done`. The TV
+shows the Jellyfin receiver, then its home screen. A `failed: <reason>` line ends a run that
+did not get there: no such device within 15 s, a connection the SDK refused (with its
+error), none within 30 s, or no end within 20 s.
+
+**A session running at launch.** Add `--ez keep true` and the probe stops at connected,
+leaving the session up. Kill the app (`adb shell am force-stop com.fredrikburmester.streamyfin`),
+open it again, and send the same broadcast with `keep`: the first line reads
+`armed for "<name>" state=connected target=<device>`, then `already connected to <device>`,
+because the SDK resumed the session before anything asked. A last broadcast without `keep`
+ends it.
+
+**iOS.** Pass `-CastTargetProbe "<name>"`, and `-CastTargetProbeKeep YES` to leave the
+session up, as launch arguments; the same lines come out under `[CastTargetProbe]`.

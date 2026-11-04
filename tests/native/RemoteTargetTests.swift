@@ -399,6 +399,152 @@ enum RemoteTargetTests {
     }
   }
 
+  /// Timers that run only when the test moves time on.
+  final class Clock {
+    private var now = 0.0
+    private var tasks: [(id: Int, at: Double, run: () -> Void)] = []
+    private var lastId = 0
+
+    // Held by what it schedules for, so a test may drop the clock and keep the probe.
+    var schedule: (Double, @escaping () -> Void) -> (() -> Void) {
+      { delay, run in
+        self.lastId += 1
+        let id = self.lastId
+        self.tasks.append((id, self.now + delay, run))
+        return { self.tasks.removeAll { $0.id == id } }
+      }
+    }
+
+    func advance(_ ms: Double) {
+      now += ms
+      while let index = tasks.firstIndex(where: { $0.at <= now }) {
+        let task = tasks.remove(at: index)
+        task.run()
+      }
+    }
+  }
+
+  // The debug probe on the real hub and a fake port: the same cases as CastTargetProbeTest.kt.
+  static func probeCases() {
+    let chromecast = TargetDevice(id: "device-a", name: "Living room", model: "Chromecast")
+    let streamer = TargetDevice(id: "device-b", name: "Bedroom", model: "Google TV Streamer")
+    let hold = CastTargetProbe.connectedHoldMs
+
+    func run(_ name: String, keep: Bool = false, port: FakeTargetPort) -> (CastTargetProbe, Clock, () -> [String]) {
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      let clock = Clock()
+      var logs: [String] = []
+      let probe = CastTargetProbe(hub: hub, deviceName: name, keep: keep, schedule: clock.schedule) { logs.append($0) }
+      probe.start()
+      return (probe, clock, { logs })
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("bed", port: port)
+      let discovering = port.discovering
+      port.discover([chromecast, streamer])
+      port.emit("starting", streamer)
+      port.emit("started", streamer)
+      clock.advance(hold)
+      port.emit("ending", streamer)
+      port.emit("ended", streamer)
+      check(
+        "connectsHoldsThenDisconnectsTheNamedDevice",
+        discovering && port.connects == [streamer] && port.disconnects == [true] && !probe.isActive && !port.discovering
+          && logs() == [
+            "armed for \"bed\" state=none target=- reconnecting=false error=-",
+            "found Bedroom",
+            "state=connecting target=Bedroom reconnecting=false error=-",
+            "state=connected target=Bedroom reconnecting=false error=-",
+            "disconnecting",
+            "state=ending target=Bedroom reconnecting=false error=-",
+            "state=none target=- reconnecting=false error=-",
+            "done",
+          ]
+      )
+    }
+
+    // The bench has "Salon" and "Salon - Chromecast": a name that is a whole device name means that device.
+    do {
+      let castDevice = TargetDevice(id: "device-c", name: "Salon - Chromecast")
+      let streamerDevice = TargetDevice(id: "device-s", name: "Salon")
+      let port = FakeTargetPort()
+      // The hub holds the probe weakly: the test keeps it until the check.
+      let (probe, _, _) = run("salon", port: port)
+      port.discover([castDevice, streamerDevice])
+      check("aWholeNameWinsOverAPartOfAnother", port.connects == [streamerDevice] && probe.isActive)
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("kitchen", port: port)
+      port.discover([chromecast])
+      clock.advance(CastTargetProbe.discoveryTimeoutMs)
+      check(
+        "aDeviceDiscoveryNeverListsFails",
+        logs().last == "failed: no device named \"kitchen\"" && port.connects.isEmpty && !probe.isActive
+          && !port.discovering
+      )
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, _, logs) = run("living", port: port)
+      port.discover([chromecast])
+      port.emit("startFailed", chromecast, error: "timeout")
+      check(
+        "aConnectionTheSdkRefusesFailsWithItsError",
+        logs().last == "failed: connection failed error=timeout" && !probe.isActive
+      )
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("living", port: port)
+      port.discover([chromecast])
+      clock.advance(CastTargetProbe.connectTimeoutMs)
+      check("aConnectionThatNeverLandsFails", logs().last == "failed: never connected" && !probe.isActive)
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("living", port: port)
+      port.discover([chromecast])
+      port.emit("started", chromecast)
+      clock.advance(hold)
+      clock.advance(CastTargetProbe.endTimeoutMs)
+      check("aSessionThatNeverEndsFails", logs().last == "failed: never ended" && !probe.isActive)
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("living", keep: true, port: port)
+      port.discover([chromecast])
+      port.emit("started", chromecast)
+      clock.advance(hold + CastTargetProbe.endTimeoutMs)
+      check(
+        "keepLeavesTheSessionUp",
+        port.disconnects.isEmpty && logs().last == "done, still connected" && !probe.isActive
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(atStart: [("resumed", chromecast, nil)])
+      let (_, _, logs) = run("living", keep: true, port: port)
+      check(
+        "aSessionRunningAtArmingIsReadAsConnected",
+        port.connects.isEmpty
+          && logs() == [
+            "armed for \"living\" state=connected target=Living room reconnecting=false error=-",
+            "already connected to Living room",
+            "done, still connected",
+          ]
+      )
+    }
+  }
+
   static func main() {
     do {
       let machine = RemoteTargetMachine()
@@ -498,6 +644,7 @@ enum RemoteTargetTests {
 
     hubCases()
     portCases()
+    probeCases()
 
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")

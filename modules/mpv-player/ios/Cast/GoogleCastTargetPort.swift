@@ -161,6 +161,31 @@ enum RemoteTargets {
   }
 }
 
+#if DEBUG
+extension CastTargetProbe {
+  private static var current: CastTargetProbe?
+
+  /// One probe at a time, on the app's hub, its timers on the main queue. Debug builds log through
+  /// Logger, which prints each line with its type: the console reads [CastTargetProbe].
+  static func run(deviceName: String, keep: Bool) {
+    let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
+    if current?.isActive == true { return log("already running") }
+    RemoteTargets.installDefault()
+    let probe = CastTargetProbe(
+      hub: .shared, deviceName: deviceName, keep: keep,
+      schedule: { delayMs, run in
+        let work = DispatchWorkItem(block: run)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+        return { work.cancel() }
+      },
+      log: log
+    )
+    current = probe
+    probe.start()
+  }
+}
+#endif
+
 /// The same event names and errors as the module's own listener, which onSessionEvent publishes.
 private final class TargetSessionListener: NSObject, GCKSessionManagerListener {
   private let report: (String, TargetDevice?, String?) -> Void
