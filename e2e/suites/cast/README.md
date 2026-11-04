@@ -172,4 +172,6 @@ ends it.
 
 **iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
-under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container.
+under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
+SDK resuming the session it had, so a switch inside a live session needs one process:
+`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected.

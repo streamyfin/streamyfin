@@ -9,6 +9,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let keepArgument = "CastTargetProbeKeep"
   /// Holds the session that many milliseconds before the disconnection.
   static let holdArgument = "CastTargetProbeHold"
+  /// A second receiver, asked once the first is connected (iOS only: Android sends a second broadcast).
+  static let thenArgument = "CastTargetProbeThen"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -24,6 +26,8 @@ final class CastTargetProbe: RemoteTargetListener {
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
+  /// Hears the last line once the run ends: the iOS chain arms its next probe from it.
+  var onFinish: ((String) -> Void)?
   private var removeListener: (() -> Void)?
   private var cancelWait: (() -> Void)?
   private var settle: (() -> Void)?
@@ -166,5 +170,6 @@ final class CastTargetProbe: RemoteTargetListener {
     removeListener = nil
     hub.stopDiscovery()
     log(result)
+    onFinish?(result)
   }
 }
