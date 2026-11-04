@@ -7,7 +7,10 @@ import {
 import type { Persister } from "@tanstack/react-query-persist-client";
 import { act, render } from "@testing-library/react-native";
 import type { ReactNode } from "react";
-import { queryDehydrateOptions } from "./queryPersistence";
+import {
+  queryDehydrateOptions,
+  withoutRedundantSaves,
+} from "./queryPersistence";
 
 jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
 jest.mock("./logStorage", () => ({
@@ -117,6 +120,79 @@ describe("persisted query cache at rest", () => {
   });
 
   it("writes on every tick of a query with a refetchInterval", async () => {
+    view = await render(
+      <Tree client={client}>
+        <PollingQuery />
+      </Tree>,
+    );
+    await tick(5_000);
+    const settled = writes;
+
+    await tick(60_000);
+
+    expect(writes - settled).toBeGreaterThanOrEqual(60);
+  });
+});
+
+// The Sessions badge in the Home header polls `["sessions"]` every 5 s for an
+// admin. That family is not persisted, but every refetch is a cache event, and
+// each one used to rewrite the whole persisted cache.
+const SessionsPoll = () => {
+  useQuery({
+    queryKey: ["sessions"],
+    queryFn: async () => [],
+    refetchInterval: 5_000,
+  });
+  return null;
+};
+
+describe("saves of the persisted cache", () => {
+  let writes: number;
+  let unsubscribe: () => void;
+  let client: QueryClient;
+  let view: Awaited<ReturnType<typeof render>> | undefined;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    writes = 0;
+    client = new QueryClient();
+    unsubscribe = persistQueryClientSubscribe({
+      queryClient: client,
+      persister: withoutRedundantSaves({
+        persistClient: () => {
+          writes += 1;
+        },
+        restoreClient: async () => undefined,
+        removeClient: async () => undefined,
+      }),
+      dehydrateOptions: queryDehydrateOptions,
+    });
+  });
+
+  afterEach(() => {
+    view?.unmount();
+    view = undefined;
+    unsubscribe();
+    client.clear();
+    jest.useRealTimers();
+  });
+
+  it("are skipped while only a query that is not persisted polls", async () => {
+    view = await render(
+      <Tree client={client}>
+        <SessionsPoll />
+      </Tree>,
+    );
+    await tick(5_000);
+    const settled = writes;
+    expect(settled).toBeGreaterThan(0);
+
+    await tick(60_000);
+
+    expect(writes).toBe(settled);
+  });
+
+  it("still happen on every refetch of a persisted query", async () => {
     view = await render(
       <Tree client={client}>
         <PollingQuery />

@@ -80,3 +80,33 @@ export const withoutPersistedMutations = (persister: Persister): Persister => ({
     };
   },
 });
+
+/**
+ * Skips a save that would write what the last one wrote. The persister saves
+ * the whole cache on every cache event, including those of the queries it
+ * never writes: the Sessions badge polls `["sessions"]` every 5 s for an admin,
+ * and each poll rewrote the cache. A persisted query only changes on disk when
+ * its data or its invalidation does, so those decide.
+ */
+export const withoutRedundantSaves = (persister: Persister): Persister => {
+  let lastWritten: string | undefined;
+  return {
+    persistClient: (persisted) => {
+      const written = persisted.clientState.queries
+        .map(
+          ({ queryHash, state }) =>
+            `${queryHash}@${state.dataUpdatedAt}${state.isInvalidated ? "!" : ""}`,
+        )
+        .join("|");
+      if (written === lastWritten) return;
+      lastWritten = written;
+      return persister.persistClient(persisted);
+    },
+    restoreClient: () => persister.restoreClient(),
+    // A later save must not be skipped against what is no longer on disk.
+    removeClient: () => {
+      lastWritten = undefined;
+      return persister.removeClient();
+    },
+  };
+};

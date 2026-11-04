@@ -46,6 +46,7 @@ import { responseRoute } from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
+  withoutRedundantSaves,
 } from "@/utils/queryPersistence";
 import { shouldRetryQuery } from "@/utils/queryRetry";
 import { reportDataError } from "@/utils/reportDataError";
@@ -270,13 +271,15 @@ const queryClient = new QueryClient({
 // Create MMKV-based persister for offline support. What it writes and what it
 // restores is in utils/queryPersistence.ts.
 const mmkvPersister = withoutPersistedMutations(
-  createSyncStoragePersister({
-    storage: {
-      getItem: (key) => storage.getString(key) ?? null,
-      setItem: (key, value) => storage.set(key, value),
-      removeItem: (key) => storage.remove(key),
-    },
-  }),
+  withoutRedundantSaves(
+    createSyncStoragePersister({
+      storage: {
+        getItem: (key) => storage.getString(key) ?? null,
+        setItem: (key, value) => storage.set(key, value),
+        removeItem: (key) => storage.remove(key),
+      },
+    }),
+  ),
 );
 
 function Layout() {

@@ -70,7 +70,7 @@ State and data:
 - `shared-value-js-write-lands-later` | a shared value set from JS is applied later on the UI thread, the next JS read still gets the old one; keep JS-only state in a ref
 - `jellyfin-unknown-parent-answers-400` | GET /Items with a parentId the server no longer has is a 400 "Error processing request.", not a 404; a renamed library has a new id, and the cache restores the old one for a day. Not reported nor retried, one WARN line in the local log
 - `unobserved-query-reports-its-first-failure` | a query whose key changed under it has no observer left, so React Query cancels its retries and its first failure goes to Sentry; one failing request and an instant event in the breadcrumbs is that
-- `polling-query-rewrites-persisted-cache` | a query with `refetchInterval` under the persister re-serializes the whole persisted cache every tick, even when its data never changes; enable it only while a consumer is mounted, with `gcTime: 0`
+- `polling-query-rewrites-persisted-cache` | a persisted query with `refetchInterval` re-serializes the whole persisted cache every tick, even when its data never changes (`withoutRedundantSaves` only skips the ticks of queries that are not persisted); enable it only while a consumer is focused, with `gcTime: 0`
 
 Native modules:
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
