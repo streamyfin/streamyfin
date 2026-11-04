@@ -10,12 +10,7 @@
  * not a documented API: when EAS changes them, this script fails, and the
  * signed job fails with it instead of shipping an unsigned IPA.
  */
-import {
-  appendFileSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const GRAPHQL_URL = "https://api.expo.dev/graphql";
@@ -140,10 +135,13 @@ const query = async <T>(
 /**
  * Usage: `bun scripts/ci/fetch-ios-credentials.ts <dir> <bundle id> ...`
  *
- * Writes `identity.p12`, one profile per bundle identifier, and
- * `profiles.json` (bundle identifier to profile path) to `<dir>`, and the
- * certificate password to `$GITHUB_OUTPUT` as `password`, masked in the log.
- * Reads `EXPO_TOKEN`, and the account and project from `app.json`.
+ * Writes `identity.p12`, its password as `password`, one profile per bundle
+ * identifier, and `profiles.json` (bundle identifier to profile path) to
+ * `<dir>`, readable by the runner's user only. Reads `EXPO_TOKEN`, and the
+ * account and project from `app.json`.
+ *
+ * The password must never reach the log or `$GITHUB_OUTPUT`: masking it means
+ * printing it as a workflow command, and a newline in it would inject outputs.
  */
 const main = async () => {
   const [dir, ...bundleIdentifiers] = process.argv.slice(2);
@@ -177,16 +175,15 @@ const main = async () => {
   }
   assertOneCertificate(targets);
 
-  // Mask the password before anything can print it.
-  if (targets[0].certificatePassword) {
-    console.log(`::add-mask::${targets[0].certificatePassword}`);
-  }
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   writeFileSync(
     path.join(dir, "identity.p12"),
     Buffer.from(targets[0].certificateP12, "base64"),
     { mode: 0o600 },
   );
+  writeFileSync(path.join(dir, "password"), targets[0].certificatePassword, {
+    mode: 0o600,
+  });
   const profiles: Record<string, string> = {};
   for (const target of targets) {
     const file = path.join(dir, `${target.bundleIdentifier}.mobileprovision`);
@@ -196,12 +193,6 @@ const main = async () => {
     profiles[target.bundleIdentifier] = file;
   }
   writeFileSync(path.join(dir, "profiles.json"), JSON.stringify(profiles));
-  if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(
-      process.env.GITHUB_OUTPUT,
-      `password=${targets[0].certificatePassword}\n`,
-    );
-  }
   console.log(
     `Fetched ${DISTRIBUTION} credentials for ${bundleIdentifiers.join(", ")}`,
   );

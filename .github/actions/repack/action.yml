@@ -50,7 +50,6 @@ runs:
         find "$RUNNER_TEMP/source" -name "*.$EXTENSION" -print -quit | xargs -I{} mv {} "$RUNNER_TEMP/source.$EXTENSION"
 
     - name: 🔏 Fetch the signing files from EAS
-      id: signing
       if: inputs.platform == 'ios' && inputs.expo-token != ''
       shell: bash
       env:
@@ -71,14 +70,13 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         OUTPUT: ${{ inputs.output }}
         SIGNED: ${{ inputs.platform == 'ios' && inputs.expo-token != '' }}
-        CERTIFICATE_PASSWORD: ${{ steps.signing.outputs.password }}
       run: |
         mkdir -p "$(dirname "$OUTPUT")"
         if [ "$PLATFORM" = "ios" ]; then
           args=(-p ios --source-app "$RUNNER_TEMP/source.ipa")
           if [ "$SIGNED" = "true" ]; then
             # With --certificate, repack-app signs with zsign, which needs no Xcode.
-            args+=(--certificate "$RUNNER_TEMP/signing/identity.p12" --key-password "$CERTIFICATE_PASSWORD"
+            args+=(--certificate "$RUNNER_TEMP/signing/identity.p12" --key-password "$(cat "$RUNNER_TEMP/signing/password")"
               --provisioning-profile "$(cat "$RUNNER_TEMP/signing/profiles.json")")
           fi
         else
