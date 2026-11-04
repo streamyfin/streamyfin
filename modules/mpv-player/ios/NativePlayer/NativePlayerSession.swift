@@ -165,9 +165,12 @@ final class NativePlayerSession {
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must
 		// explicitly write 1.0 or the old speed carries over.
-		let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
-		engine.setSpeed(speed: speed)
-		viewModel.speed = speed
+		// An engine that cannot change speed keeps its own; mpv always can.
+		if viewModel.capabilities.speed {
+			let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
+			engine.setSpeed(speed: speed)
+			viewModel.speed = speed
+		}
 		// Same persistence rule as speed: sync offsets and gain survive on
 		// the mpv handle across loadfile, so write the view model's current
 		// values on every swap (apply() resets them when the item changes).
