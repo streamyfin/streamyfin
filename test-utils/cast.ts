@@ -65,6 +65,10 @@ export interface CastDoubleState {
   connectRequests: string[];
   /** The `stopPlayback` of each `disconnect` call, in order. */
   disconnectCalls: boolean[];
+  /** Levels handed to `setTargetVolume`, in order. */
+  volumeCalls: number[];
+  /** Flags handed to `setTargetMuted`, in order. */
+  muteCalls: boolean[];
   /** Listeners registered through `addListener`, by event. */
   listeners: { [K in keyof CastNativeEvents]: CastNativeEvents[K][] };
 }
@@ -75,6 +79,7 @@ export const castDoubleDevice = (): CastDevice => ({
   deviceId: CAST_DOUBLE_DEVICE_ID,
   friendlyName: "Living Room TV",
   modelName: "Chromecast",
+  videoOut: true,
 });
 
 export const createCastDoubleState = (): CastDoubleState => ({
@@ -96,6 +101,8 @@ export const createCastDoubleState = (): CastDoubleState => ({
   connectAnswer: true,
   connectRequests: [],
   disconnectCalls: [],
+  volumeCalls: [],
+  muteCalls: [],
   listeners: {
     onCastStateChanged: [],
     onDevicesChanged: [],
@@ -120,6 +127,10 @@ export const castDoubleTarget = (
   },
   reconnecting: false,
   error: null,
+  volume: null,
+  muted: false,
+  errorCode: null,
+  failedTarget: null,
 });
 
 /** Moves the module's target state on and publishes it, as the native hub does on a change. */
@@ -229,6 +240,12 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   }),
   disconnect: jest.fn(async (stopPlayback: boolean) => {
     state().disconnectCalls.push(stopPlayback);
+  }),
+  setTargetVolume: jest.fn(async (level: number) => {
+    state().volumeCalls.push(level);
+  }),
+  setTargetMuted: jest.fn(async (muted: boolean) => {
+    state().muteCalls.push(muted);
   }),
   showCastDialog: jest.fn(async () => {
     state().dialogs.push("cast");

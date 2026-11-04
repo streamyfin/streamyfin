@@ -66,6 +66,16 @@ export const disconnectRemoteTarget = ({
 } = {}): Promise<void> =>
   native()?.disconnect(stopPlayback) ?? Promise.resolve();
 
+/**
+ * Sets the connected receiver's own volume, 0 to 1, and does nothing without a
+ * connected target. The state's volume follows once the receiver reports it.
+ */
+export const setRemoteTargetVolume = (level: number): Promise<void> =>
+  native()?.setTargetVolume(level) ?? Promise.resolve();
+
+export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
+  native()?.setTargetMuted(muted) ?? Promise.resolve();
+
 export const showCastDialog = (): Promise<boolean> =>
   native()?.showCastDialog() ?? Promise.resolve(false);
 

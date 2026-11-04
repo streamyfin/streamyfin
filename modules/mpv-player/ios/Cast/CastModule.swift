@@ -80,6 +80,17 @@ public class CastModule: Module {
       self.remoteTargets.disconnect(stopPlayback: stopPlayback)
     }.runOnQueue(.main)
 
+    // Only for a connected receiver; the state follows what the SDK reports back.
+    AsyncFunction("setTargetVolume") { (level: Double) in
+      self.ensureListening()
+      self.remoteTargets.setVolume(level)
+    }.runOnQueue(.main)
+
+    AsyncFunction("setTargetMuted") { (muted: Bool) in
+      self.ensureListening()
+      self.remoteTargets.setMuted(muted)
+    }.runOnQueue(.main)
+
     Function("getCurrentSession") { () -> [String: Any?]? in
       if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
       return self.cached { self.cachedSession }
@@ -357,6 +368,8 @@ public class CastModule: Module {
     Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
+    AsyncFunction("setTargetVolume") { (_: Double) in }
+    AsyncFunction("setTargetMuted") { (_: Bool) in }
 
     View(CastButtonView.self) {
       Prop("tintColor") { (view: CastButtonView, color: String?) in

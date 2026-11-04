@@ -38,6 +38,8 @@ export interface CastDevice {
   deviceId: string;
   friendlyName: string;
   modelName: string | null;
+  /** False for a receiver without a screen: a speaker or a speaker group. */
+  videoOut: boolean;
 }
 
 export interface CastSessionInfo {
@@ -145,6 +147,13 @@ export interface RemoteTargetState {
    * ended the session.
    */
   error: string | null;
+  /** The receiver's own volume, 0 to 1, as the SDK last reported it; null before it has, or with no target. */
+  volume: number | null;
+  muted: boolean;
+  /** The SDK's status code for `error`: null with no error, and for a refusal of the native side's own. */
+  errorCode: number | null;
+  /** The receiver `error` belongs to, which may not be the target: a refused switch keeps the one that holds. */
+  failedTarget: RemoteTarget | null;
 }
 
 export const NO_REMOTE_TARGET: RemoteTargetState = Object.freeze({
@@ -152,6 +161,10 @@ export const NO_REMOTE_TARGET: RemoteTargetState = Object.freeze({
   target: null,
   reconnecting: false,
   error: null,
+  volume: null,
+  muted: false,
+  errorCode: null,
+  failedTarget: null,
 });
 
 export type CastNativeEvents = {

@@ -25,6 +25,9 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   connectToDevice(deviceId: string): Promise<boolean>;
   /** Ends the session, or a connection the SDK has not started yet. */
   disconnect(stopPlayback: boolean): Promise<void>;
+  /** The connected receiver's own volume, 0 to 1; the state follows what the SDK reports back. */
+  setTargetVolume(level: number): Promise<void>;
+  setTargetMuted(muted: boolean): Promise<void>;
   showCastDialog(): Promise<boolean>;
   showExpandedControls(): Promise<boolean>;
   addChannel(

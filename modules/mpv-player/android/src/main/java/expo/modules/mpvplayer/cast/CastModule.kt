@@ -199,6 +199,17 @@ class CastModule : Module() {
             Unit
         }.runOnQueue(Queues.MAIN)
 
+        // Only for a connected receiver; the state follows what the SDK reports back.
+        AsyncFunction("setTargetVolume") { level: Double ->
+            if (ensureContext() != null) remoteTargets.setVolume(level)
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("setTargetMuted") { muted: Boolean ->
+            if (ensureContext() != null) remoteTargets.setMuted(muted)
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
         Function("getCurrentSession") {
             if (castContext == null) mainHandler.post { ensureContext() }
             cachedSession
