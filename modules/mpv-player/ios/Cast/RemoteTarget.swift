@@ -61,24 +61,47 @@ struct RemoteTargetSnapshot: Equatable {
 }
 
 /// Turns the session events the module already emits (onSessionEvent) into the target state. A switch
-/// ends one session before it starts the next, but nothing promises the old end arrives first: an end
-/// that names another receiver than the one connecting or connected is the old session's, and leaves
-/// the state alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it
-/// and publishes what changed.
+/// ends one session before it starts the next: the old session's end, whatever status the SDK gives it
+/// (2155 on Android), leads to the asked receiver, never to none. Nothing promises the old end arrives
+/// first, so an end that names another receiver than the one connecting or connected leaves the state
+/// alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it and publishes
+/// what changed.
 final class RemoteTargetMachine {
   private static let endEvents: Set<String> = ["ending", "ended", "startFailed"]
 
   private(set) var snapshot = RemoteTargetSnapshot.none
+  // The receiver asked for while another one held the session: the old session's end leads to it.
+  private var switchingTo: TargetDevice?
 
-  /// A connection asked from this phone; the SDK's own events follow. Ignored unless nothing is connected.
+  /// A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch starts.
   func connectRequested(_ device: TargetDevice) -> Bool {
-    guard snapshot.phase == .none else { return false }
+    guard snapshot.phase == .none else {
+      if snapshot.target?.id != device.id { switchingTo = device }
+      return false
+    }
+    switchingTo = nil
     return update(RemoteTargetSnapshot(phase: .connecting, target: .cast(device), reconnecting: false, error: nil))
+  }
+
+  /// A disconnection asked from this phone: a switch on its way goes with the session.
+  func disconnectRequested() {
+    switchingTo = nil
   }
 
   /// True when the state changed. An event without its device keeps the target already known.
   func sessionEvent(_ event: String, device: TargetDevice?, error: String?) -> Bool {
+    let failure = event == "ended" || event == "startFailed"
+    if failure, let switching = switchingTo, device?.id == switching.id {
+      // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
+      switchingTo = nil
+      guard snapshot.target?.id == switching.id else { return false }
+      return update(RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error))
+    }
     if Self.endEvents.contains(event), let device, heldOtherThan(device) { return false }
+    if failure, let switching = switchingTo {
+      return update(RemoteTargetSnapshot(phase: .connecting, target: .cast(switching), reconnecting: false, error: nil))
+    }
+    if event == "started" || event == "resumed", let device, device.id == switchingTo?.id { switchingTo = nil }
     let target = device.map(RemoteTarget.cast) ?? snapshot.target
     let next: RemoteTargetSnapshot
     switch event {

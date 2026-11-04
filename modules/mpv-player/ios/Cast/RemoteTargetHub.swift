@@ -87,6 +87,7 @@ final class RemoteTargetHub {
 
   /// The state follows the port's events, ending then ended, not this call.
   func disconnect(stopPlayback: Bool) {
+    machine.disconnectRequested()
     port?.disconnect(stopPlayback: stopPlayback)
   }
 

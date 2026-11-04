@@ -47,24 +47,49 @@ data class RemoteTargetSnapshot(
 
 /**
  * Turns the session events the module already emits (onSessionEvent) into the target state. A switch
- * ends one session before it starts the next, but nothing promises the old end arrives first: an end
- * that names another receiver than the one connecting or connected is the old session's, and leaves
- * the state alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it
- * and publishes what changed.
+ * ends one session before it starts the next: the old session's end, whatever status the SDK gives it
+ * (2155 on Android), leads to the asked receiver, never to none. Nothing promises the old end arrives
+ * first, so an end that names another receiver than the one connecting or connected leaves the state
+ * alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it and publishes
+ * what changed.
  */
 class RemoteTargetMachine {
     var snapshot: RemoteTargetSnapshot = RemoteTargetSnapshot.NONE
         private set
 
-    /** A connection asked from this phone; the SDK's own events follow. Ignored unless nothing is connected. */
+    // The receiver asked for while another one held the session: the old session's end leads to it.
+    private var switchingTo: TargetDevice? = null
+
+    /** A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch starts. */
     fun connectRequested(device: TargetDevice): Boolean {
-        if (snapshot.phase != TargetPhase.NONE) return false
+        if (snapshot.phase != TargetPhase.NONE) {
+            if (snapshot.target?.id != device.id) switchingTo = device
+            return false
+        }
+        switchingTo = null
         return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(device), reconnecting = false, error = null))
+    }
+
+    /** A disconnection asked from this phone: a switch on its way goes with the session. */
+    fun disconnectRequested() {
+        switchingTo = null
     }
 
     /** True when the state changed. An event without its device keeps the target already known. */
     fun sessionEvent(event: String, device: TargetDevice?, error: String?): Boolean {
+        val switching = switchingTo
+        val failure = event == "ended" || event == "startFailed"
+        if (failure && switching != null && device?.id == switching.id) {
+            // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
+            switchingTo = null
+            if (snapshot.target?.id != switching.id) return false
+            return update(RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error))
+        }
         if (event in END_EVENTS && device != null && heldOtherThan(device)) return false
+        if (failure && switching != null) {
+            return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(switching), reconnecting = false, error = null))
+        }
+        if ((event == "started" || event == "resumed") && device != null && device.id == switching?.id) switchingTo = null
         val target = device?.let(RemoteTarget::cast) ?: snapshot.target
         val next = when (event) {
             "starting" -> RemoteTargetSnapshot(TargetPhase.CONNECTING, target, reconnecting = false, error = null)
