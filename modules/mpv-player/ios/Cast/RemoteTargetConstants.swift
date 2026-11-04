@@ -12,6 +12,9 @@ enum RemoteTargetConstants {
   static let outputSearchTimeoutMs = 10_000.0
   /// A released slider keeps the level it sent this long at most, waiting for the receiver's echo.
   static let volumeSettleMs = 1_000.0
+  /// A slider left still this long counts as released: the system can take a touch back without the slider
+  /// hearing its end (a slow drag in the iOS sheet, 04/11).
+  static let volumeDragRestMs = 600.0
   /// How close the echo must come to the level sent: one step of the Cast route on Android (1 of 20).
   static let volumeEchoTolerance = 0.05
   /// From this width the sheet opens as a popover (tablets, landscape phones).

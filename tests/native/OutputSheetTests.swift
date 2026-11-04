@@ -278,6 +278,34 @@ enum OutputSheetTests {
       )
     }
 
+    // The system can take a touch back without the slider hearing its end (a slow drag in the iOS sheet,
+    // 04/11): a slider left still that long is sent as if released.
+    do {
+      let port = port()
+      let clock = Clock()
+      let sheet = sheet(port, clock: clock)
+      port.emit("started", livingRoom)
+      port.events?.volumeChanged(level: 0.3, muted: false)
+      sheet.dragVolume(0.4)
+      sheet.dragVolume(0.45)
+      clock.advance(RemoteTargetConstants.volumeDragRestMs - 1)
+      let beforeTheRest = port.volumes
+      clock.advance(1)
+      check("aSliderLeftStillIsSentAsReleased", beforeTheRest.isEmpty && port.volumes == [0.45])
+    }
+
+    do {
+      let port = port()
+      let clock = Clock()
+      let sheet = sheet(port, clock: clock)
+      port.emit("started", livingRoom)
+      port.events?.volumeChanged(level: 0.3, muted: false)
+      sheet.dragVolume(0.4)
+      sheet.releaseVolume(0.4)
+      clock.advance(RemoteTargetConstants.volumeDragRestMs)
+      check("aReleasedSliderIsSentOnce", port.volumes == [0.4])
+    }
+
     do {
       let port = port()
       let sheet = sheet(port, clock: Clock(), receiverTitle: nil)

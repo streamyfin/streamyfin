@@ -49,6 +49,7 @@ class OutputSheetController(
     private var removeListener: (() -> Unit)? = null
     private var cancelSearch: (() -> Unit)? = null
     private var cancelSettle: (() -> Unit)? = null
+    private var cancelRest: (() -> Unit)? = null
 
     var state: OutputSheetState = outputSheetState(input())
         private set
@@ -74,6 +75,8 @@ class OutputSheetController(
         cancelSearch = null
         cancelSettle?.invoke()
         cancelSettle = null
+        cancelRest?.invoke()
+        cancelRest = null
         removeListener?.invoke()
         removeListener = null
         hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
@@ -115,11 +118,19 @@ class OutputSheetController(
 
     fun dragVolume(level: Double) {
         dragged = level.coerceIn(0.0, 1.0)
+        // A release that never comes must not leave the level unsent: a slider left still counts as released.
+        cancelRest?.invoke()
+        cancelRest = schedule(RemoteTargetConstants.VOLUME_DRAG_REST_MS) {
+            cancelRest = null
+            dragged?.let(::releaseVolume)
+        }
         publish()
     }
 
     /** Sent once, at the release; the slider keeps that level until the receiver echoes it, or a moment. */
     fun releaseVolume(level: Double) {
+        cancelRest?.invoke()
+        cancelRest = null
         val sent = level.coerceIn(0.0, 1.0)
         dragged = null
         held = sent

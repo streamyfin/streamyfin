@@ -147,6 +147,39 @@ class OutputSheetControllerTest {
         assertEquals(0.6, panel(sheet).volume!!, 0.0)
     }
 
+    // The system can take a touch back without the slider hearing its end (a slow drag in the iOS sheet,
+    // 04/11): a slider left still that long is sent as if released.
+    @Test
+    fun aSliderLeftStillIsSentAsReleased() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        port.events?.volumeChanged(0.3, false)
+
+        sheet.dragVolume(0.4)
+        sheet.dragVolume(0.45)
+        scheduler.advance(RemoteTargetConstants.VOLUME_DRAG_REST_MS - 1)
+        val beforeTheRest = port.volumes.toList()
+        scheduler.advance(1)
+
+        assertEquals(emptyList<Double>(), beforeTheRest)
+        assertEquals(listOf(0.45), port.volumes)
+    }
+
+    @Test
+    fun aReleasedSliderIsSentOnce() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        port.events?.volumeChanged(0.3, false)
+
+        sheet.dragVolume(0.4)
+        sheet.releaseVolume(0.4)
+        scheduler.advance(RemoteTargetConstants.VOLUME_DRAG_REST_MS)
+
+        assertEquals(listOf(0.4), port.volumes)
+    }
+
     // Nothing plays on the receiver: the one end action reads "Disconnect", the remote is not offered,
     // and it closes the receiver app like the stop does.
     @Test

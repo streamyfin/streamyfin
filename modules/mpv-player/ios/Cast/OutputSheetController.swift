@@ -39,6 +39,7 @@ final class OutputSheetController: RemoteTargetListener {
   private var removeListener: (() -> Void)?
   private var cancelSearch: (() -> Void)?
   private var cancelSettle: (() -> Void)?
+  private var cancelRest: (() -> Void)?
 
   init(hub: RemoteTargetHub, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void)) {
     self.hub = hub
@@ -68,6 +69,8 @@ final class OutputSheetController: RemoteTargetListener {
     cancelSearch = nil
     cancelSettle?()
     cancelSettle = nil
+    cancelRest?()
+    cancelRest = nil
     removeListener?()
     removeListener = nil
     hub.stopDiscovery(owner: RemoteTargetHub.sheetDiscovery)
@@ -108,11 +111,20 @@ final class OutputSheetController: RemoteTargetListener {
 
   func dragVolume(_ level: Double) {
     dragged = min(max(level, 0), 1)
+    // A release that never comes must not leave the level unsent: a slider left still counts as released.
+    cancelRest?()
+    cancelRest = schedule(RemoteTargetConstants.volumeDragRestMs) { [weak self] in
+      guard let self else { return }
+      cancelRest = nil
+      if let level = dragged { releaseVolume(level) }
+    }
     publish()
   }
 
   /// Sent once, at the release; the slider keeps that level until the receiver echoes it, or a moment.
   func releaseVolume(_ level: Double) {
+    cancelRest?()
+    cancelRest = nil
     let sent = min(max(level, 0), 1)
     dragged = nil
     held = sent
