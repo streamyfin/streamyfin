@@ -38,9 +38,7 @@ jest.mock("react-native-reanimated", () => {
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => jest.fn() }));
 jest.mock("@/hooks/usePlayMedia", () => ({ usePlayMedia: () => jest.fn() }));
 jest.mock("@/modules/mpv-player/src/cast", () => {
-  const { View } = jest.requireActual("react-native");
   return {
-    CastButton: () => <View testID='native-cast-button' />,
     PlayServicesState: { AVAILABLE: "available" },
     playServicesState: () => "available",
     showExpandedControls: jest.fn(),

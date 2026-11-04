@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-28
 **Category**: native-modules
-**Key files**: `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/cast/CastModule.kt`, `components/Chromecast.tsx`
+**Key files**: `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/cast/CastModule.kt`, `components/cast/OutputButton.tsx`
 
 ## Detail
 
@@ -12,4 +12,5 @@ invisible `CastButton` just for that. The module registers a `MediaRouter.Callba
 Cast context's merged selector with `CALLBACK_FLAG_REQUEST_DISCOVERY` and
 `CALLBACK_FLAG_PERFORM_ACTIVE_SCAN` when `startCastDiscovery()` is called, and keeps the
 device list current from the callback. No view is needed, and the header button is a plain
-`HeaderButton` again.
+`HeaderButton` again. Since B2 the button starts no discovery on mount: the output sheet asks the
+hub for it while it is open (owner `sheet`).

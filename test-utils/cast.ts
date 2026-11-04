@@ -258,10 +258,6 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   setTargetMuted: jest.fn(async (muted: boolean) => {
     state().muteCalls.push(muted);
   }),
-  showCastDialog: jest.fn(async () => {
-    state().dialogs.push("cast");
-    return true;
-  }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");
     return true;

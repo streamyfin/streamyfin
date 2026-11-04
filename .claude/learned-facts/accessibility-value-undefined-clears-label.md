@@ -2,7 +2,7 @@
 
 **Date**: 2026-11-03
 **Category**: ui
-**Key files**: `components/Chromecast.tsx`,
+**Key files**: `components/cast/OutputButton.tsx`,
 `node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/uimanager/BaseViewManager.java`
 
 ## Detail

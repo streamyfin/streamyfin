@@ -7,13 +7,9 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Platform,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OutputButton } from "@/components/cast/OutputButton";
 import {
   HeaderButton,
   HeaderButtonGroup,
@@ -39,7 +35,6 @@ import { runtimeTicksToMinutes } from "@/utils/time";
 const ARTWORK_SIZE = 120;
 
 // Cast is off on TV.
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 export default function PlaylistDetailScreen() {
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
@@ -113,7 +108,7 @@ export default function PlaylistDetailScreen() {
       headerShadowVisible: false,
       headerRight: () => (
         <HeaderButtonGroup>
-          {Chromecast && <Chromecast.Chromecast />}
+          <OutputButton />
           <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
             <HeaderIcon name='more' />
           </HeaderButton>

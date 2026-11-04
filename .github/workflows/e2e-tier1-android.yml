@@ -43,7 +43,7 @@ jobs:
               - 'modules/mpv-player/**'
               - 'utils/cast/**'
               - 'constants/Cast.ts'
-              - 'components/Chromecast.tsx'
+              - 'components/cast/**'
               - 'components/JellyfinCastStopReporter.tsx'
               - 'components/PlayButton.tsx'
               - 'hooks/useMusicCast.ts'

@@ -1,6 +1,8 @@
 import { Stack } from "expo-router";
+import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
+import { OutputButton } from "@/components/cast/OutputButton";
 import {
   HeaderButton,
   HeaderButtonGroup,
@@ -13,10 +15,6 @@ import {
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
-
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
-
-import { useAtom } from "jotai";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 
@@ -61,7 +59,7 @@ export default function IndexLayout() {
           headerRight: () =>
             Platform.isTV ? null : (
               <HeaderButtonGroup>
-                <Chromecast.Chromecast />
+                <OutputButton />
                 <SyncPlayButton />
                 {user?.Policy?.IsAdministrator && <SessionsButton />}
                 <SettingsButton />

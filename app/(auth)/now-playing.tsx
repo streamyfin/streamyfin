@@ -1,4 +1,3 @@
-import { ExpoAvRoutePickerView } from "@douglowder/expo-av-route-picker-view";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import type {
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
 import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
+import { OutputButton } from "@/components/cast/OutputButton";
 import {
   DraggableQueueList,
   type QueueRow,
@@ -33,9 +33,7 @@ import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
-import { useMusicCast } from "@/hooks/useMusicCast";
-import { CastButton } from "@/modules/mpv-player/src/cast";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
@@ -69,18 +67,12 @@ type ViewMode = "player" | "queue";
 export default function NowPlayingScreen() {
   const { t } = useTranslation();
   const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>("player");
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
-
-  const { isConnected: isCastConnected } = useMusicCast({
-    api,
-    userId: user?.Id,
-  });
 
   const {
     currentTrack,
@@ -297,7 +289,6 @@ export default function NowPlayingScreen() {
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onOptionsPress={handleOptionsPress}
-            isCastConnected={isCastConnected}
           />
         ) : (
           <QueueView
@@ -362,7 +353,6 @@ interface PlayerViewProps {
   isFavorite: boolean | undefined;
   onToggleFavorite: () => void;
   onOptionsPress: () => void;
-  isCastConnected: boolean;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -392,7 +382,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   isFavorite,
   onToggleFavorite,
   onOptionsPress,
-  isCastConnected,
 }) => {
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
@@ -654,36 +643,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </View>
       )}
 
-      {/* AirPlay & Chromecast Buttons */}
+      {/* Where the music plays: this phone, a Cast receiver, or AirPlay on iOS, all in the output sheet. */}
       {!isTv && (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 32,
-            marginBottom: 16,
-          }}
-        >
-          {/* AirPlay (iOS only) */}
-          {Platform.OS === "ios" && (
-            <View style={{ transform: [{ scale: 2.8 }] }}>
-              <ExpoAvRoutePickerView
-                style={{ width: 24, height: 24 }}
-                tintColor='#666666'
-                activeTintColor='#9334E9'
-              />
-            </View>
-          )}
-          {/* Chromecast */}
-          <CastButton
-            tintColor={isCastConnected ? "#9334E9" : "#666"}
-            style={{
-              width: 24,
-              height: 24,
-              transform: [{ translateY: 1 }],
-            }}
-          />
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <OutputButton variant='inline' idleTint='#666' />
         </View>
       )}
     </ScrollView>

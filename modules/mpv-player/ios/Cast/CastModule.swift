@@ -109,12 +109,6 @@ public class CastModule: Module {
       return self.cached { self.cachedSession }
     }
 
-    AsyncFunction("showCastDialog") { () -> Bool in
-      self.ensureListening()
-      GCKCastContext.sharedInstance().presentCastDialog()
-      return true
-    }.runOnQueue(.main)
-
     AsyncFunction("showExpandedControls") { () -> Bool in
       self.ensureListening()
       GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
@@ -181,12 +175,6 @@ public class CastModule: Module {
       options.interval = positionSeconds
       self.ownSession(sessionId)?.remoteMediaClient?.seek(with: options)
     }.runOnQueue(.main)
-
-    View(CastButtonView.self) {
-      Prop("tintColor") { (view: CastButtonView, color: String?) in
-        view.setTintColor(color)
-      }
-    }
   }
 
   // Main thread only: the SDK expects it, and the caches are written here alone.
@@ -416,12 +404,6 @@ public class CastModule: Module {
     // No sheet on a TV or a Mac: the JS side keeps its button hidden there.
     AsyncFunction("presentOutputPicker") { (_: [String: Any]) -> Bool in false }
     AsyncFunction("dismissOutputPicker") {}
-
-    View(CastButtonView.self) {
-      Prop("tintColor") { (view: CastButtonView, color: String?) in
-        view.setTintColor(color)
-      }
-    }
   }
 }
 #endif

@@ -13,7 +13,7 @@ import {
   remoteTarget,
   setRemoteTargetMuted,
   setRemoteTargetVolume,
-  showCastDialog,
+  showExpandedControls,
 } from "./cast";
 
 // A bundle without the native module (web, a build that left it out): the
@@ -30,7 +30,7 @@ test("every call is a no-op when the native module is missing", async () => {
   expect(castState()).toBeNull();
   expect(castDevices()).toEqual([]);
   expect(currentCastSession()).toBeNull();
-  await expect(showCastDialog()).resolves.toBe(false);
+  await expect(showExpandedControls()).resolves.toBe(false);
 
   const channel = await addCastChannel("urn:x-cast:com.connectsdk", () => {});
   expect(channel.connected).toBe(false);

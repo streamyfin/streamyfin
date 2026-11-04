@@ -6,7 +6,6 @@
       "name": "streamyfin",
       "dependencies": {
         "@bottom-tabs/react-navigation": "1.4.0",
-        "@douglowder/expo-av-route-picker-view": "^0.0.5",
         "@expo/metro-runtime": "~57.0.16",
         "@expo/react-native-action-sheet": "^4.1.1",
         "@expo/ui": "57.0.21",
@@ -331,8 +330,6 @@
     "@callstack/reassure-logger": ["@callstack/reassure-logger@1.6.0", "", { "dependencies": { "chalk": "4.1.2" } }, "sha512-cDcCkDUZB6Q4p37KViSKAeU5fDoAUbJN2OpcPm7Oddv9Iqh7FTs/kOphW9PrZoKHeaM7EJ9f+AQgW15/FFsSLg=="],
 
     "@callstack/reassure-measure": ["@callstack/reassure-measure@1.6.0", "", { "dependencies": { "@callstack/reassure-logger": "1.6.0", "mathjs": "^15.2.0", "pretty-format": "^30.4.1", "react-test-config": "^1.0.0" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-05gIhKYk8/7Ka02hjiKYmE+9i0/Rz3NZGTnpjnK9IKRJ6819h12XGmNBsPkzZGqFUei3Vz8NSxoq4SA8kuz7SA=="],
-
-    "@douglowder/expo-av-route-picker-view": ["@douglowder/expo-av-route-picker-view@0.0.5", "", { "peerDependencies": { "expo": "*", "react": "*" } }, "sha512-oT4wf8aYYNfLEuZEkwZIH7CtEHKnEHWnjs6/hNwbFGEC0FnfjjWBNrQEt4fo5/gkafqa2G5ILkxndMyBZvk5dg=="],
 
     "@egjs/hammerjs": ["@egjs/hammerjs@2.0.17", "", { "dependencies": { "@types/hammerjs": "^2.0.36" } }, "sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A=="],
 

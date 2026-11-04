@@ -28,7 +28,7 @@ import {
   remoteTarget,
   setRemoteTargetMuted,
   setRemoteTargetVolume,
-  showCastDialog,
+  showExpandedControls,
   showPlayServicesErrorDialog,
 } from "./cast";
 
@@ -65,7 +65,7 @@ test("every call is a no-op when the module says it is unavailable", async () =>
   expect(castState()).toBeNull();
   expect(castDevices()).toEqual([]);
   expect(currentCastSession()).toBeNull();
-  await expect(showCastDialog()).resolves.toBe(false);
+  await expect(showExpandedControls()).resolves.toBe(false);
 
   const channel = await addCastChannel(NAMESPACE, () => {});
   expect(channel.connected).toBe(false);

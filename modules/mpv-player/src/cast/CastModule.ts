@@ -29,7 +29,6 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   /** The connected receiver's own volume, 0 to 1; the state follows what the SDK reports back. */
   setTargetVolume(level: number): Promise<void>;
   setTargetMuted(muted: boolean): Promise<void>;
-  showCastDialog(): Promise<boolean>;
   showExpandedControls(): Promise<boolean>;
   /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
   presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;
