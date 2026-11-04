@@ -65,3 +65,10 @@ export const RECEIVER_STOP_GRACE_MS = 3_000;
  * Three missed reports keeps one late request from reading as a dead TV.
  */
 export const RECEIVER_LIVENESS_WINDOW_MS = 15_000;
+
+/**
+ * How often the music player moves its position on while the receiver plays a
+ * queue. The receiver reports its position only when its state changes, so in
+ * between the player counts on from the last report.
+ */
+export const MUSIC_CAST_PROGRESS_TICK_MS = 1_000;

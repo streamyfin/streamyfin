@@ -577,6 +577,53 @@ describe("castToJellyfinReceiver", () => {
     return result;
   };
 
+  // The music player switches account under a cast still reading the media
+  // status: the queue of the previous account must not reach the TV.
+  test("sends nothing once its caller moved on while it read the media status", async () => {
+    const client = makeClient();
+    let stale = false;
+    client.getMediaStatus.mockImplementationOnce(async () => {
+      stale = true;
+      return null;
+    });
+
+    const outcome = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [movie] },
+      1_000,
+      () => stale,
+    );
+
+    expect(await outcome).toEqual({ status: "superseded" });
+    expect(lastChannel()?.sent ?? []).toEqual([]);
+  });
+
+  // A first command opens the channel, a native round trip during which the
+  // account can switch too.
+  test("sends nothing once its caller moved on while the channel opened", async () => {
+    const client = makeClient();
+    let stale = false;
+    let release = () => {};
+    mockCast.holdAdd = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const outcome = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [movie] },
+      1_000,
+      () => stale,
+    );
+    await sent();
+    stale = true;
+    release();
+
+    expect(await outcome).toEqual({ status: "superseded" });
+    expect(lastChannel()?.sent ?? []).toEqual([]);
+  });
+
   test("waits for the receiver to load the item, not for the send", async () => {
     const client = makeClient();
     const outcome = castToJellyfinReceiver(

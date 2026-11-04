@@ -2,8 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -45,7 +45,7 @@ export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
         }}
       >
         {imageUrl ? (
-          <Image
+          <ArtworkImage
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
