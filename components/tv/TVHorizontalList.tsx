@@ -134,12 +134,15 @@ export function TVHorizontalList<T>({
             {title}
           </Text>
         )}
+        {/* Laid out as the list below, custom padding included, so the
+            placeholders sit where the items will. */}
         <View
           style={{
             flexDirection: "row",
             gap: sizes.gaps.item,
-            paddingHorizontal: sizes.padding.scale,
+            paddingHorizontal: effectiveHorizontalPadding,
             paddingVertical: sizes.padding.scale,
+            marginHorizontal,
           }}
         >
           {Array.from({ length: skeletonCount }).map((_, i) => (
