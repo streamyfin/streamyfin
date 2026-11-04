@@ -24,6 +24,22 @@ export const MY_NOTIFICATIONS_QUERY = "myNotifications";
 /** The app's Notifications screen, which Settings and the iOS Settings link open. */
 export const NOTIFICATIONS_SETTINGS_ROUTE = "/settings/notifications/page";
 
+/**
+ * How often the background task that counts the server's sessions for the app
+ * badge asks to run, in minutes: expo-background-task reads minimumInterval in
+ * minutes, not seconds. 15 is the shortest Android's WorkManager allows, and
+ * iOS treats it as a minimum and picks its own moment.
+ */
+export const SESSIONS_TASK_INTERVAL_MINUTES = 15;
+
+/**
+ * The interval the sessions task was last registered with. A registration
+ * restarts the schedule on Android, so the task is registered again only when
+ * this differs, which also moves installs off the hours-long interval earlier
+ * builds registered.
+ */
+export const SESSIONS_TASK_INTERVAL_KEY = "sessionsTaskIntervalMinutes";
+
 /** Set once the app asked for notifications, so it asks once per install. */
 export const PERMISSION_ASKED_KEY = "hasAskedForNotificationPermission";
 

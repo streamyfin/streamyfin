@@ -1,7 +1,12 @@
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
 import { Platform } from "react-native";
+import {
+  SESSIONS_TASK_INTERVAL_KEY,
+  SESSIONS_TASK_INTERVAL_MINUTES,
+} from "@/constants/Notifications";
 import { writeErrorLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 
 const BackgroundTaskModule = !Platform.isTV ? BackgroundTask : null;
 
@@ -61,6 +66,7 @@ export async function unregisterBackgroundFetchAsyncSessions(): Promise<boolean>
     await BackgroundTaskModule!.unregisterTaskAsync(
       BACKGROUND_FETCH_TASK_SESSIONS,
     );
+    storage.remove(SESSIONS_TASK_INTERVAL_KEY);
     console.log("Successfully unregistered background fetch sessions task");
     return true;
   } catch (error) {
@@ -84,7 +90,14 @@ export async function registerBackgroundFetchAsyncSessions(): Promise<boolean> {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(
       BACKGROUND_FETCH_TASK_SESSIONS,
     );
-    if (isRegistered) {
+    // Registering restarts the schedule on Android, so a task already running
+    // at this interval is left alone. One registered by a build that passed
+    // seconds (600, 900: ten and fifteen hours) is registered again once.
+    if (
+      isRegistered &&
+      storage.getNumber(SESSIONS_TASK_INTERVAL_KEY) ===
+        SESSIONS_TASK_INTERVAL_MINUTES
+    ) {
       console.log("Background fetch sessions task already registered");
       return true;
     }
@@ -92,13 +105,11 @@ export async function registerBackgroundFetchAsyncSessions(): Promise<boolean> {
     await BackgroundTaskModule!.unregisterTaskAsync(
       BACKGROUND_FETCH_TASK_SESSIONS,
     );
-    const minimumInterval = Platform.OS === "android" ? 600 : 900;
     await BackgroundTaskModule!.registerTaskAsync(
       BACKGROUND_FETCH_TASK_SESSIONS,
-      {
-        minimumInterval,
-      },
+      { minimumInterval: SESSIONS_TASK_INTERVAL_MINUTES },
     );
+    storage.set(SESSIONS_TASK_INTERVAL_KEY, SESSIONS_TASK_INTERVAL_MINUTES);
     console.log("Successfully registered background fetch sessions task");
     return true;
   } catch (error) {
