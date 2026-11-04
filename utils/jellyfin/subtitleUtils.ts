@@ -61,13 +61,17 @@ export const isExternalSubtitle = (sub: MediaStream): boolean =>
  * Server contract (MediaInfoHelper.SetDeviceSpecificSubtitleInfo): DeliveryUrl
  * is server-relative (`/Videos/...`, may carry `?ApiKey=`) UNLESS
  * `IsExternalUrl` is set — then it is already an absolute URL and must not be
- * prefixed. Offline: DeliveryUrl holds the local file path.
+ * prefixed. Offline: DeliveryUrl holds the local file path. So does the
+ * online subtitle prefetch after it has rewritten DeliveryUrl onto a cache
+ * file — a local URI is returned as it is, since prefixing the server would
+ * concatenate the two into a garbage host.
  */
 export const getExternalSubtitleUrl = (
   sub: MediaStream,
   opts: { offline: boolean; basePath?: string | null },
 ): string | undefined => {
   if (!sub.DeliveryUrl) return undefined;
+  if (sub.DeliveryUrl.startsWith("file://")) return sub.DeliveryUrl;
   if (opts.offline || sub.IsExternalUrl) return sub.DeliveryUrl;
   return opts.basePath ? `${opts.basePath}${sub.DeliveryUrl}` : undefined;
 };

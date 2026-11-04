@@ -87,6 +87,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
+  getActivePlayerType,
   isNativeChromeActive,
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
@@ -139,6 +140,8 @@ import {
   type SyncPlayQueueDisplay,
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
+import { warmUpcomingSubtitles } from "@/utils/nativePlayer/warmUpcomingSubtitles";
+import { generateDeviceProfile } from "@/utils/profiles/native";
 import {
   fetchAndParseSegments,
   getSegmentsForItem,
@@ -824,11 +827,37 @@ const NativePlayerProviderInner: React.FC<{
   // Sessions whose countdown already advanced; see onNextEpisodeRequested.
   const [countdownAdvanced] = useState(() => new WeakSet<NativeSession>());
   const countdownAdvancedRef = useRef(countdownAdvanced);
+  // Items whose subtitles a background warm already started; one negotiation
+  // per item, not one per payload push.
+  const warmedSubtitleItemIdsRef = useRef(new Set<string>());
 
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
+      // The swap's inline prefetch (buildNativePlayerConfig) blocks the
+      // next-episode load for the whole subtitle budget on a slow path; warm
+      // the files now, while this episode still plays, so the swap finds them
+      // cached. Best effort and once per item.
+      const api = apiRef.current;
+      if (
+        api &&
+        !session.offline &&
+        !syncRef.current.enabled &&
+        next.Id &&
+        !warmedSubtitleItemIdsRef.current.has(next.Id)
+      ) {
+        warmedSubtitleItemIdsRef.current.add(next.Id);
+        void warmUpcomingSubtitles({
+          api,
+          item: next,
+          userId: userRef.current?.Id,
+          deviceProfile: generateDeviceProfile({
+            player: getActivePlayerType(currentSettings),
+            audioMode: currentSettings?.audioTranscodeMode,
+          }),
+        });
+      }
       // Decided once per episode, against its projected end at 1x. A pause
       // makes the prompt come an episode late; a faster speed can bring it
       // early.

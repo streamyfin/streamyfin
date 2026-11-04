@@ -58,3 +58,14 @@ export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
 
 /** How often, in ms, that wait checks whether the closing player is gone. */
 export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
+
+/**
+ * How long the native player may spend fetching an item's sidecar subtitles
+ * onto disk before starting playback, in ms, and the cap for one subtitle.
+ * A subtitle the engine fetches itself wedges the whole pipeline on a slow
+ * path (ExoPlayer #8566), so the player prefetches them; these bound how long
+ * that may delay the start and stop one dead sidecar starving the rest. A
+ * subtitle that misses the budget is undelivered for the session.
+ */
+export const SUBTITLE_PREFETCH_BUDGET_MS = 6_000;
+export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;

@@ -57,6 +57,7 @@ import {
 } from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo, trickplaySheetUrl } from "@/utils/trickplay";
+import { prefetchExternalSubtitles } from "./externalSubtitles";
 import type { PlayRequest } from "./playRequest";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
@@ -444,6 +445,9 @@ export async function buildNativePlayerConfig(params: {
     },
   });
   const bitrateValue = req.bitrateValue ?? BITRATES[0].value;
+  // The decoding engine — device profile and config must agree on it (see
+  // getActivePlayerType).
+  const engine = getActivePlayerType(settings);
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
   // mpv device profile — the native player renders through the MPV engine)
@@ -466,7 +470,7 @@ export async function buildNativePlayerConfig(params: {
       mediaSourceId: req.mediaSourceId,
       subtitleStreamIndex: subtitleIndex,
       deviceProfile: generateDeviceProfile({
-        player: getActivePlayerType(settings),
+        player: engine,
         audioMode: settings.audioTranscodeMode,
       }),
     });
@@ -477,6 +481,19 @@ export async function buildNativePlayerConfig(params: {
       mediaSource: res.mediaSource,
       requiredHttpHeaders: res.requiredHttpHeaders,
     };
+
+    // Prefetch the sidecar subtitles onto disk and point their DeliveryUrl
+    // at the local files before the config is built: a subtitle the engine
+    // itself must fetch over the network wedges the pipeline when the path
+    // is slow (SingleSampleMediaPeriod holds the period until the file
+    // lands — ExoPlayer #8566), observed as a minutes-long next-episode
+    // stall behind a reverse proxy. Budgeted; a subtitle that cannot be
+    // fetched in time is undelivered for this session instead.
+    await prefetchExternalSubtitles({
+      mediaSource: res.mediaSource,
+      item,
+      api,
+    });
   }
 
   const mediaSource = stream.mediaSource;
@@ -537,18 +554,31 @@ export async function buildNativePlayerConfig(params: {
       initialAudioMpvId: initialAudioId,
       playMethod,
       transcodeReasons: parseTranscodeReasons(mediaSource.TranscodingUrl),
-      cacheConfig: {
-        enabled: settings.mpvCacheEnabled,
-        cacheSeconds: settings.mpvCacheSeconds,
-        maxBytes: settings.mpvDemuxerMaxBytes,
-        maxBackBytes: settings.mpvDemuxerMaxBackBytes,
-      },
+      // MPV-only: mpv's demuxer-cache knobs. ExoPlayer derives its
+      // LoadControl internally and the settings UI hides these when it is
+      // the engine — sending them would imply stale hidden values still
+      // steer Exo playback.
+      cacheConfig:
+        engine === "mpv"
+          ? {
+              enabled: settings.mpvCacheEnabled,
+              cacheSeconds: settings.mpvCacheSeconds,
+              maxBytes: settings.mpvDemuxerMaxBytes,
+              maxBackBytes: settings.mpvDemuxerMaxBackBytes,
+            }
+          : undefined,
       videoWidth: videoDimensions.width,
       videoHeight: videoDimensions.height,
+      // Only sent when the user opted in — the native side never reads
+      // settings, so an opted-out player must not carry the rate at all.
+      contentFrameRate:
+        settings.matchRefreshRate === true
+          ? (videoStream?.RealFrameRate ?? undefined)
+          : undefined,
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.
-    engine: getActivePlayerType(settings),
+    engine,
     metadata: buildMetadata(item, api),
     // Episode-list and next-episode thumbnails are fetched natively, so they
     // need the headers as well. Offline URLs are local and match nothing.
