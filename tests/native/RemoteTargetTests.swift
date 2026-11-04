@@ -507,12 +507,16 @@ enum RemoteTargetTests {
     let streamer = TargetDevice(id: "device-b", name: "Bedroom", model: "Google TV Streamer")
     let hold = CastTargetProbe.connectedHoldMs
 
-    func run(_ name: String, keep: Bool = false, port: FakeTargetPort) -> (CastTargetProbe, Clock, () -> [String]) {
+    func run(_ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, port: FakeTargetPort)
+      -> (CastTargetProbe, Clock, () -> [String])
+    {
       let hub = RemoteTargetHub()
       hub.install(port)
       let clock = Clock()
       var logs: [String] = []
-      let probe = CastTargetProbe(hub: hub, deviceName: name, keep: keep, schedule: clock.schedule) { logs.append($0) }
+      let probe = CastTargetProbe(
+        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, schedule: clock.schedule
+      ) { logs.append($0) }
       probe.start()
       return (probe, clock, { logs })
     }
@@ -626,6 +630,43 @@ enum RemoteTargetTests {
       check(
         "keepLeavesTheSessionUp",
         port.disconnects.isEmpty && logs().last == "done, still connected" && !probe.isActive
+      )
+    }
+
+    // A switch: the old session ends, with no error, before the asked receiver starts.
+    do {
+      let port = FakeTargetPort(atStart: [("resumed", chromecast, nil)])
+      let (probe, _, logs) = run("Bedroom", keep: true, port: port)
+      port.discover([chromecast, streamer])
+      port.emit("ending", chromecast)
+      port.emit("ended", chromecast)
+      port.emit("starting", streamer)
+      port.emit("started", streamer)
+      check(
+        "aSwitchFromAnotherReceiverWaitsThroughItsEnd",
+        port.connects == [streamer] && logs().last == "done, still connected"
+          && !logs().contains { $0.hasPrefix("failed") } && !probe.isActive
+      )
+    }
+
+    // The receiver-loss proof: the hold leaves time to cut the network, and the run logs how it ends.
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("Living room", holdMs: 60_000, port: port)
+      port.discover([chromecast])
+      port.emit("started", chromecast)
+      clock.advance(59_999)
+      let held = port.disconnects.isEmpty
+      port.emit("suspended", nil)
+      port.emit("ended", nil, error: "network")
+      check(
+        "aSessionLostDuringALongHoldLogsItsEnd",
+        held && !probe.isActive
+          && Array(logs().suffix(3)) == [
+            "state=connecting target=Living room reconnecting=true error=-",
+            "state=none target=- reconnecting=false error=network",
+            "done",
+          ]
       )
     }
 

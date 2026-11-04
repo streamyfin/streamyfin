@@ -7,6 +7,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let launchArgument = "CastTargetProbe"
   /// Leaves the session up: the relaunch proof arms a second probe on it.
   static let keepArgument = "CastTargetProbeKeep"
+  /// Holds the session that many milliseconds before the disconnection.
+  static let holdArgument = "CastTargetProbeHold"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -17,6 +19,8 @@ final class CastTargetProbe: RemoteTargetListener {
   private let hub: RemoteTargetHub
   private let deviceName: String
   private let keep: Bool
+  /// How long a connected session is held before the disconnection: long enough to cut the network in.
+  private let holdMs: Double
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -27,9 +31,10 @@ final class CastTargetProbe: RemoteTargetListener {
   private var connected = false
 
   init(
-    hub: RemoteTargetHub, deviceName: String, keep: Bool,
+    hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
     schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
   ) {
+    self.holdMs = holdMs
     self.hub = hub
     self.deviceName = deviceName
     self.keep = keep
@@ -95,10 +100,12 @@ final class CastTargetProbe: RemoteTargetListener {
     case .connected:
       if !connected { onConnected() }
     case .none:
+      // A none without an error before the connection is a switch's old session ending: the asked
+      // receiver comes next, or the connection wait says it never did.
       if connected {
         finish("done")
-      } else if device != nil {
-        fail("connection failed error=\(snapshot.error ?? "-")")
+      } else if device != nil, let error = snapshot.error {
+        fail("connection failed error=\(error)")
       }
     default:
       break
@@ -112,7 +119,7 @@ final class CastTargetProbe: RemoteTargetListener {
       finish("done, still connected")
       return
     }
-    cancelWait = schedule(Self.connectedHoldMs) { [weak self] in
+    cancelWait = schedule(holdMs) { [weak self] in
       guard let self else { return }
       log("disconnecting")
       wait(Self.endTimeoutMs, failure: "never ended")

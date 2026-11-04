@@ -14,8 +14,8 @@ class CastTargetProbeTest {
     private val scheduler = ManualScheduler()
     private val logs = mutableListOf<String>()
 
-    private fun probe(hub: RemoteTargetHub, name: String, keep: Boolean = false) =
-        CastTargetProbe(hub, name, keep, scheduler.schedule, logs::add)
+    private fun probe(hub: RemoteTargetHub, name: String, keep: Boolean = false, holdMs: Long = CastTargetProbe.CONNECTED_HOLD_MS) =
+        CastTargetProbe(hub, name, keep, holdMs, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -162,6 +162,49 @@ class CastTargetProbeTest {
 
         assertTrue(port.disconnects.isEmpty())
         assertEquals("done, still connected", logs.last())
+        assertFalse(probe.isActive)
+    }
+
+    // A switch: the old session ends, with no error, before the asked receiver starts.
+    @Test
+    fun aSwitchFromAnotherReceiverWaitsThroughItsEnd() {
+        val port = FakeTargetPort(atStart = listOf(Triple("resumed", livingRoom, null)))
+        val probe = probe(hubWith(port), "Bedroom", keep = true)
+
+        probe.start()
+        port.discover(listOf(livingRoom, bedroom))
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom)
+        port.emit("starting", bedroom)
+        port.emit("started", bedroom)
+
+        assertEquals(listOf(bedroom), port.connects)
+        assertEquals("done, still connected", logs.last())
+        assertTrue(logs.none { it.startsWith("failed") })
+    }
+
+    // The receiver-loss proof: the hold leaves time to cut the network, and the run logs how it ends.
+    @Test
+    fun aSessionLostDuringALongHoldLogsItsEnd() {
+        val port = FakeTargetPort()
+        val probe = probe(hubWith(port), "Living room", holdMs = 60_000)
+
+        probe.start()
+        port.discover(listOf(livingRoom))
+        port.emit("started", livingRoom)
+        scheduler.advance(59_999)
+        assertTrue(port.disconnects.isEmpty())
+        port.emit("suspended", null)
+        port.emit("ended", null, "network")
+
+        assertEquals(
+            listOf(
+                "state=connecting target=Living room reconnecting=true error=-",
+                "state=none target=- reconnecting=false error=network",
+                "done",
+            ),
+            logs.takeLast(3),
+        )
         assertFalse(probe.isActive)
     }
 

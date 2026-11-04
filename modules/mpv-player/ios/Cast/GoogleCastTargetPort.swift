@@ -192,12 +192,12 @@ extension CastTargetProbe {
 
   /// One probe at a time, on the app's hub, its timers on the main queue. Debug builds log through
   /// Logger, which prints each line with its type: the console reads [CastTargetProbe].
-  static func run(deviceName: String, keep: Bool) {
+  static func run(deviceName: String, keep: Bool, holdMs: Double) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
     RemoteTargets.installDefault()
     let probe = CastTargetProbe(
-      hub: .shared, deviceName: deviceName, keep: keep,
+      hub: .shared, deviceName: deviceName, keep: keep, holdMs: holdMs,
       schedule: { delayMs, run in
         let work = DispatchWorkItem(block: run)
         DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
