@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
 import type React from "react";
 import { DiscoverSliderType } from "@/utils/seerr/types";
-import { SeerrApi, useSeerrImageCache } from "./useSeerr";
+import { Endpoints, SeerrApi, useSeerrImageCache } from "./useSeerr";
 
 jest.mock(
   "react-native-mmkv",
@@ -80,6 +80,31 @@ describe("SeerrApi.discoverSettings", () => {
 
   test("has no sliders when the answer is empty", async () => {
     expect(await answering("").discoverSettings()).toEqual([]);
+  });
+});
+
+// The genres row's request, answered the same way in Seerr's place. Read as
+// genres, a page's characters crash the row: the TypeError of
+// REACT-NATIVE-WG.
+describe("SeerrApi.getGenreSliders", () => {
+  test("gives the genres the server sends", async () => {
+    const genres = [{ id: 18, name: "Drama", backdrops: ["/drama.jpg"] }];
+    expect(
+      await answering(JSON.stringify(genres)).getGenreSliders(Endpoints.MOVIE),
+    ).toEqual(genres);
+  });
+
+  test("has no genres when a page answers in the server's place", async () => {
+    expect(
+      await answering(
+        "<!DOCTYPE html><html><body>Sign in</body></html>",
+      ).getGenreSliders(Endpoints.TV),
+    ).toEqual([]);
+    expect(mockWriteToLog).toHaveBeenCalledWith(
+      "WARN",
+      "Seerr genre sliders are not a list",
+      expect.stringContaining("<!DOCTYPE html>"),
+    );
   });
 });
 

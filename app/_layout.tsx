@@ -22,6 +22,7 @@ import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
 import {
+  DOWNLOAD_NOTIFICATION_CHANNEL,
   NOTIFICATION_PERMISSIONS,
   PERMISSION_ASKED_KEY,
 } from "@/constants/Notifications";
@@ -387,12 +388,15 @@ function Layout() {
       });
 
       // Create dedicated channel for download notifications
-      await Notifications?.setNotificationChannelAsync("downloads", {
-        name: "Downloads",
-        importance: Notifications.AndroidImportance.DEFAULT,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
+      await Notifications?.setNotificationChannelAsync(
+        DOWNLOAD_NOTIFICATION_CHANNEL,
+        {
+          name: "Downloads",
+          importance: Notifications.AndroidImportance.DEFAULT,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#FF231F7C",
+        },
+      );
     }
 
     const granted = await checkAndRequestPermissions();
