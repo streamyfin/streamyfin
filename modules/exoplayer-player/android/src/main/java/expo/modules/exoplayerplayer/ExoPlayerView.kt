@@ -32,8 +32,12 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.datasource.DefaultDataSource
+import java.io.IOException
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
@@ -43,7 +47,11 @@ import expo.modules.kotlin.views.ExpoView
 
 /**
  * Configuration for loading a video. Mirrors MpvPlayerView.VideoLoadConfig —
- * MPV-only fields are accepted and ignored.
+ * MPV-only fields are accepted and ignored. The cacheConfig fields
+ * (cacheEnabled/cacheSeconds/demuxerMaxBytes/demuxerMaxBackBytes) are MPV's
+ * demuxer-cache knobs: ExoPlayer derives its LoadControl internally (see
+ * buildLoadControl) and the settings UI hides them when this engine is
+ * selected, so a stale persisted value must not steer Exo playback.
  */
 data class VideoLoadConfig(
     val url: String,
@@ -81,6 +89,72 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // Format.id on embedded tracks. Format.id is the only field that
         // survives from SubtitleConfiguration into the track list.
         private const val SIDELOAD_ID_PREFIX = "sideload:"
+
+        // Excludes the platform's DTS decoders from the MediaCodec decode
+        // path, handing DTS/DTS-HD to the FFmpeg renderer instead — see
+        // ensurePlayer for why. DTS passthrough never consults this selector.
+        private val dtsExcludingMediaCodecSelector =
+            MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                val infos = MediaCodecSelector.DEFAULT.getDecoderInfos(
+                    mimeType,
+                    requiresSecureDecoder,
+                    requiresTunnelingDecoder,
+                )
+                // The prefix covers MimeTypes.AUDIO_DTS, AUDIO_DTS_HD and
+                // AUDIO_DTS_X; containers append ";..." profile parameters.
+                if (mimeType?.startsWith("audio/vnd.dts") == true) emptyList() else infos
+            }
+
+        // Only steer DTS away from MediaCodec when the FFmpeg audio renderer
+        // is in the binary — without it the DTS track would have no renderer
+        // at all. Same class discovery DefaultRenderersFactory itself uses.
+        private val hasFfmpegAudioRenderer: Boolean by lazy {
+            runCatching {
+                Class.forName("androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer")
+            }.isSuccess
+        }
+
+        // LoadControl. Named so the deferred upgrades are one-line edits
+        // (full recipe in
+        // .claude/learned-facts/exoplayer-loadcontrol-time-not-bytes.md):
+        // if dip-driven buffering resurfaces, a heap-safe byte pool is
+        // TARGET_BUFFER_BYTES = 100663296 (96 MiB) with MIN_BUFFER_MS = 5_000
+        // and MAX_BUFFER_MS = 30_000 — min < max lets the byte target bind
+        // as a total-memory cap under prioritize=true — plus a 10s HTTP read
+        // timeout for faster dead-socket recovery after pause. The pool must
+        // stay well under the 256 MB heap: the allocator shares it with
+        // React Native.
+        //
+        // The values below are the original mapping's effective defaults
+        // (what ran before the fix), minus the starvation — see
+        // buildLoadControl for the one line that matters — and with the
+        // back buffer shortened because the old byte target was the only
+        // thing capping total allocator memory.
+        //
+        // ⚠ TWIN: modules/mpv-player/.../nativeplayer/engine/ExoPlayerEngine.kt
+        // carries the same mapping for the native chrome's engine — these
+        // were duplicated, not shared, because the Kotlin modules are
+        // independent. Keep them in lockstep; the original bug survived in
+        // one copy after being fixed in the other.
+        private const val MIN_BUFFER_MS = 10_000
+        private const val MAX_BUFFER_MS = 10_000
+        private const val BUFFER_FOR_PLAYBACK_MS = 2_500
+        private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
+        // 10s of retained back buffer. The buffer allocator's byte[] segments
+        // live in the app's Java heap (256 MB growth limit here), and BOTH
+        // buffers draw on it: total allocator memory ≈ bitrate × (forward +
+        // back). The old prioritize=false byte target — besides causing the
+        // starvation — was silently capping that total at ~75/150 MB; with
+        // prioritize=true only this duration caps the back buffer, so it
+        // stays short: at 64 Mbps, 10s forward + 10s back ≈ 160 MB. The 50s
+        // this replaced OOM'd the heap (~337 MB at 45 Mbps) a couple of
+        // minutes into playback. Longer backwards seeks re-fetch over the
+        // LAN.
+        private const val BACK_BUFFER_MS = 10_000
+        // Inert as is: under prioritize=true with min == max there is no
+        // (min, max) window for a byte target to stop loading in. UNSET
+        // lets media3 auto-derive from the selected tracks.
+        private val TARGET_BUFFER_BYTES: Int = C.LENGTH_UNSET
     }
 
     // Event dispatchers — names must match the Events() declaration in the module.
@@ -183,6 +257,24 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // total that matches MPV's droppedFrames semantics.
             cumulativeDroppedFrames += droppedFrames
         }
+
+        override fun onLoadError(
+            eventTime: AnalyticsListener.EventTime,
+            loadEventInfo: LoadEventInfo,
+            mediaLoadData: MediaLoadData,
+            error: IOException,
+            wasCanceled: Boolean,
+        ) {
+            // Fires per failed load attempt, before the loader's retry/backoff
+            // policy decides. A read timeout here is the dead-idle-connection
+            // signature (pause with a full buffer, Wi-Fi roam); anything else
+            // narrows the stall to the server or the network path.
+            Log.w(
+                TAG,
+                "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
+                    " @ " + redactUrl(loadEventInfo.uri.toString()) + ": " + error.message,
+            )
+        }
     }
 
     private val playerListener = object : Player.Listener {
@@ -204,6 +296,25 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
+                    // Rebuffer diagnosis: buffered≈0 means the source stopped
+                    // delivering ahead of the playhead (network throughput
+                    // dip, dead idle connection after a pause, speed >1x); a
+                    // healthy buffered value points at decoder/track churn.
+                    // Every entry lands in logcat under ExoPlayerView.
+                    val p = player
+                    if (p != null) {
+                        val bufferedSec =
+                            if (p.bufferedPosition > p.currentPosition) {
+                                (p.bufferedPosition - p.currentPosition) / 1000.0
+                            } else 0.0
+                        Log.w(
+                            TAG,
+                            "Rebuffer: pos=" + (p.currentPosition / 1000) + "s" +
+                                " buffered=" + bufferedSec + "s" +
+                                " speed=" + p.playbackParameters.speed +
+                                " playWhenReady=" + p.playWhenReady,
+                        )
+                    }
                     onPlaybackStateChange(mapOf("isLoading" to true))
                 }
                 Player.STATE_READY -> {
@@ -375,21 +486,34 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
     }
 
+    /**
+     * Stream and subtitle URLs carry the server's ApiKey; logcat outlives the
+     * session and ends up in bug reports, so the token never goes in a log line.
+     */
+    private fun redactUrl(url: String): String =
+        url.replace(Regex("([?&]ApiKey=)[^&]*", RegexOption.IGNORE_CASE), "$1***")
+
     // MARK: - Video Loading
 
     fun loadVideo(config: VideoLoadConfig) {
         if (currentUrl == config.url && currentLoop == config.loop) return
+        // NOTE: unlike the chrome engine (ExoPlayerEngine.load), this view
+        // keeps one player instance across in-mount URL swaps. Episodes get a
+        // fresh mount here, and onTracksReady is once-per-view by contract
+        // (the subtitle resolver relies on it), so a rebuild-per-load would
+        // change that. Revisit together if the in-place handover ever shows
+        // the next-episode swap stall the chrome saw.
         currentUrl = config.url
         currentLoop = config.loop
         pendingConfig = config
-        ensurePlayer(config)
+        ensurePlayer()
         loadInternal(config)
     }
 
-    private fun ensurePlayer(config: VideoLoadConfig) {
+    private fun ensurePlayer() {
         if (player != null) return
 
-        val loadControl = buildLoadControl(config)
+        val loadControl = buildLoadControl()
 
         // Bitstream (passthrough) capable sinks change the renderer ordering:
         // when the HDMI sink (or on-device decoder) accepts E-AC-3 / E-AC-3 JOC
@@ -415,7 +539,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             "Audio output bitstream-capable=$bitstreamCapable " +
                 "(JOC=${audioCaps.supportsEncoding(C.ENCODING_E_AC3_JOC)}, " +
                 "EAC3=${audioCaps.supportsEncoding(C.ENCODING_E_AC3)}, " +
-                "AC3=${audioCaps.supportsEncoding(C.ENCODING_AC3)})"
+                "AC3=${audioCaps.supportsEncoding(C.ENCODING_AC3)}, " +
+                "DTS=${audioCaps.supportsEncoding(C.ENCODING_DTS)}, " +
+                "DTSHD=${audioCaps.supportsEncoding(C.ENCODING_DTS_HD)})"
         )
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
             .setExtensionRendererMode(
@@ -426,6 +552,25 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 }
             )
             .setEnableDecoderFallback(true)
+            // On bitstream-capable output MediaCodecAudioRenderer precedes
+            // FfmpegAudioRenderer and wins every DTS track the platform claims
+            // a decoder for. Vendor DTS decoders (Amlogic's
+            // c2.amlogic.audio.decoder.dtshd among them) fail on DTS-HD
+            // extension frames — "process Invalid dts frame" — and output
+            // silence without throwing, so neither decoder fallback nor
+            // recoverFromAudioRendererError ever fires. Excluding the platform
+            // decoders hands DTS to FFmpeg. DTS passthrough is unaffected: a
+            // sink that accepts DTS bitstream routes through
+            // MediaCodecSelector.getPassthroughDecoderInfos(), which never
+            // consults this selector. PCM-only output keeps DEFAULT — PREFER
+            // already orders FFmpeg ahead of MediaCodec there.
+            .setMediaCodecSelector(
+                if (bitstreamCapable && hasFfmpegAudioRenderer) {
+                    dtsExcludingMediaCodecSelector
+                } else {
+                    MediaCodecSelector.DEFAULT
+                }
+            )
 
         val exo = ExoPlayer.Builder(context, renderersFactory)
             .setLoadControl(loadControl)
@@ -451,79 +596,31 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         applySubtitleStyle()
     }
 
-    private fun buildLoadControl(config: VideoLoadConfig): DefaultLoadControl {
-        // Map MPV-style cache config to ExoPlayer's LoadControl.
-        val cacheEnabled = when (config.cacheEnabled) {
-            "no" -> false
-            "yes" -> true
-            else -> true // "auto"
-        }
-
-        // Buffer thresholds used as fallbacks when the user's cache config
-        // doesn't override them. Media3's own defaults changed in 1.6.0
-        // (bufferForPlaybackMs 2500→1000, afterRebuffer 5000→2000) for a
-        // faster start; we intentionally keep the older 2500/5000 here
-        // because low-RAM Android TVs with slow tuners benefit from the
-        // extra headroom before playback kicks in. Media3's DEFAULT_*
-        // IntDef fields are private, hence the literals.
-        val defaultMinBufferMs = 15000
-        val defaultBufferForPlaybackMs = 2500
-        val defaultBufferForPlaybackAfterRebufferMs = 5000
-
-        val targetBufferMs = if (!cacheEnabled) {
-            50000
-        } else {
-            val seconds = config.cacheSeconds?.coerceIn(5, 120) ?: 10
-            seconds * 1000
-        }
-        val backBufferMs = if (!cacheEnabled) {
-            0
-        } else {
-            val mb = config.demuxerMaxBackBytes ?: 50
-            // Heuristic: 1 MB ≈ 1s of typical 1080p bitrate.
-            (mb * 1000).coerceAtLeast(1000)
-        }
-
-        // DefaultLoadControl's builder validates maxBufferMs >= minBufferMs
-        // (and minBufferMs >= both start thresholds) and throws
-        // IllegalArgumentException otherwise. The user's cacheSeconds can be
-        // as low as 5s — below the 15s default min — so derive the min from
-        // the same target. An unclamped pair (e.g. the 10s default) throws
-        // inside ensurePlayer(), which the Expo prop layer swallows into
-        // LogBox: the view is left with no player, no events ever fire, and
-        // the JS loader spins forever.
-        val minBufferMs = minOf(defaultMinBufferMs, targetBufferMs)
-            .coerceAtLeast(defaultBufferForPlaybackAfterRebufferMs)
-
-        // demuxerMaxBytes is in MiB; multiplying in Int overflows at 2048 MiB
-        // (2048 * 1024 * 1024 wraps negative). A negative byte target behaves
-        // like the 0 case documented below — loading halts immediately — so
-        // convert in Long and clamp to the largest representable value.
-        // Non-positive maxBytes (0 or -1) would likewise produce a 0 or
-        // negative target, so fall back to the positive default.
-        val mb = config.demuxerMaxBytes?.takeIf { it > 0 } ?: 150
-        val targetBufferBytes =
-            if (!cacheEnabled) C.LENGTH_UNSET
-            else (mb.toLong() * 1024 * 1024)
-                .coerceAtMost(Int.MAX_VALUE.toLong())
-                .toInt()
-
-        val builder = DefaultLoadControl.Builder()
-            // C.LENGTH_UNSET lets ExoPlayer auto-derive the byte target from the
-            // selected tracks. A literal 0 makes targetBufferSizeReached true on
-            // the first allocation (prioritizeTimeOverSizeThresholds is false),
-            // so loading halts with <500ms buffered and playback starves.
-            .setTargetBufferBytes(targetBufferBytes)
+    private fun buildLoadControl(): DefaultLoadControl {
+        // The mpv cache settings (cacheConfig) are deliberately NOT consulted:
+        // the settings UI hides them when ExoPlayer is the engine, so a stale
+        // persisted value must not steer playback it cannot explain.
+        //
+        // setPrioritizeTimeOverSizeThresholds(true) is the fix that matters:
+        // media3's default false lets a reached targetBufferBytes veto loading
+        // even below minBufferMs — with a byte target and a long retained
+        // back buffer counting against the same allocator, streams at ≳20
+        // Mbps pinned cacheSeconds at ~0.x until a seek discarded back-buffer
+        // bytes and lifted the veto (media3 logs "Target buffer size reached
+        // with less than 500ms of buffered media data" in exactly that
+        // state). Under true, loading below min never stops, so that state is
+        // impossible. See the companion constants for the deferred pool.
+        return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ minBufferMs,
-                /* maxBufferMs = */ targetBufferMs,
-                /* bufferForPlaybackMs = */ defaultBufferForPlaybackMs,
-                /* bufferForPlaybackAfterRebufferMs = */ defaultBufferForPlaybackAfterRebufferMs
+                /* minBufferMs = */ MIN_BUFFER_MS,
+                /* maxBufferMs = */ MAX_BUFFER_MS,
+                /* bufferForPlaybackMs = */ BUFFER_FOR_PLAYBACK_MS,
+                /* bufferForPlaybackAfterRebufferMs = */ BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
             )
-        if (cacheEnabled) {
-            builder.setBackBuffer(backBufferMs, /* retainBackBufferFromKeyframe = */ true)
-        }
-        return builder.build()
+            .setTargetBufferBytes(TARGET_BUFFER_BYTES)
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(BACK_BUFFER_MS, /* retainBackBufferFromKeyframe = */ true)
+            .build()
     }
 
     private fun loadInternal(config: VideoLoadConfig) {
