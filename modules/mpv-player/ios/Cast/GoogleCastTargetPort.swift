@@ -95,6 +95,11 @@ final class GoogleCastTargetPort: TargetPort {
         // Otherwise that receiver's session is already there, or on its way.
         return
       }
+      // The end a switch asked for is under way: only the receiver that starts after it changes.
+      if switching {
+        pendingSwitch = device
+        return
+      }
       // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
       // answers NO): end it, and start this receiver once the SDK reports the end.
       pendingSwitch = device

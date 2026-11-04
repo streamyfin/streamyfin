@@ -488,6 +488,25 @@ enum RemoteTargetTests {
       )
     }
 
+    // A second request while a switch waits for the old end asks the SDK nothing more: it only changes the
+    // receiver that starts once that end comes (the SDK may answer NO to an end already under way).
+    do {
+      let sdk = Sdk()
+      let kitchen = TargetDevice(id: "device-c", name: "Kitchen", model: "Chromecast")
+      sdk.receivers = [chromecast, streamer, kitchen]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      sdk.endAccepted = false
+      port.connect(kitchen)
+      let endedOnce = sdk.ended == [true] && !events.sessions.contains { $0.hasPrefix("startFailed") }
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check("aSecondRequestDuringASwitchEndsTheOldSessionOnce", endedOnce && sdk.started == [kitchen])
+    }
+
     // endSessionAndStopCasting answering NO keeps the session: the switch cannot start, and says so,
     // and a later end of that session does not start it either.
     do {
