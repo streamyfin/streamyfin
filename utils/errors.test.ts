@@ -1482,12 +1482,34 @@ describe("isStaleIdError", () => {
         }),
       ),
     ).toBe(false);
-    // The GUID one past it is a record like any other.
+    // .NET reads the dashed form in braces or in parentheses as well.
+    expect(
+      isStaleIdError(
+        unknownParent(
+          itemsUrl(`parentId=${encodeURIComponent(`{${EMPTY_GUID}}`)}`),
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: { parentId: `(${EMPTY_GUID})` },
+        }),
+      ),
+    ).toBe(false);
+    // The GUID one past it is a record like any other, in braces too.
     expect(
       isStaleIdError(
         unknownParent(
           itemsUrl("parentId=00000000-0000-0000-0000-000000000001"),
         ),
+      ),
+    ).toBe(true);
+    expect(
+      isStaleIdError(
+        unknownParent(itemsUrl("recursive=true"), {
+          params: { parentId: "{00000000-0000-0000-0000-000000000001}" },
+        }),
       ),
     ).toBe(true);
   });

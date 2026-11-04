@@ -633,10 +633,12 @@ const skipsParentLookup = (path: string, config: RequestQuery): boolean => {
   return kinds.length === 1 && skipping.has(kinds[0]);
 };
 
-// Guid.Empty, written without dashes or with them. Jellyfin turns it away as
-// a parent ("Guid can't be empty") in the same words as an unknown one: a
-// fault of the request, which named no record at all.
-const EMPTY_GUID = /^(?:0{32}|0{8}-0{4}-0{4}-0{4}-0{12})$/;
+// Guid.Empty in the forms .NET reads: without dashes, with them, and dashed
+// in braces or in parentheses. Jellyfin turns it away as a parent ("Guid
+// can't be empty") in the same words as an unknown one: a fault of the
+// request, which named no record at all.
+const EMPTY_GUID =
+  /^(?:0{32}|0{8}-0{4}-0{4}-0{4}-0{12}|\{0{8}-0{4}-0{4}-0{4}-0{12}\}|\(0{8}-0{4}-0{4}-0{4}-0{12}\))$/;
 
 // ASP.NET binds a blank parentId as no parent, and reads a GUID trimmed.
 const namesParent = (id: string): boolean => {
