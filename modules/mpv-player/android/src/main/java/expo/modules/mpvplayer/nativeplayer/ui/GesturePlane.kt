@@ -105,7 +105,7 @@ fun GesturePlane(
                         val pointers = event.changes
 
                         // Check for pinch zoom if 2+ pointers
-                        if (pointers.size >= 2 && viewModel.uiOptions.pinchToZoomEnabled) {
+                        if (pointers.size >= 2 && viewModel.uiOptions.pinchToZoomEnabled && viewModel.capabilities.zoom) {
                             dragSuppressed = true
                             val zoomChange = event.calculateZoom()
                             accumulatedZoom *= zoomChange
@@ -144,8 +144,11 @@ fun GesturePlane(
                                     viewModel.startScrubbing()
                                 } else {
                                     if (dragOnLeftHalf) {
-                                        viewModel.brightnessController?.isUserInteracting = true
-                                        viewModel.revealBrightnessSliderTransiently()
+                                        // An engine with no screen here leaves no brightness to drive.
+                                        if (viewModel.capabilities.brightness) {
+                                            viewModel.brightnessController?.isUserInteracting = true
+                                            viewModel.revealBrightnessSliderTransiently()
+                                        }
                                     } else {
                                         viewModel.volumeController?.isUserInteracting = true
                                         viewModel.revealVolumeSliderTransiently()
@@ -166,8 +169,10 @@ fun GesturePlane(
                                 val deltaFraction = -(totalPanY / verticalTravelPx)
                                 val newLevel = (dragStartLevel + deltaFraction).coerceIn(0.0f, 1.0f)
                                 if (dragOnLeftHalf) {
-                                    viewModel.brightnessController?.setBrightness(newLevel)
-                                    viewModel.revealBrightnessSliderTransiently()
+                                    if (viewModel.capabilities.brightness) {
+                                        viewModel.brightnessController?.setBrightness(newLevel)
+                                        viewModel.revealBrightnessSliderTransiently()
+                                    }
                                 } else {
                                     viewModel.volumeController?.setVolume(newLevel)
                                     viewModel.revealVolumeSliderTransiently()
