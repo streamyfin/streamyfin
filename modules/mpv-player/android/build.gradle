@@ -56,6 +56,15 @@ android {
   lintOptions {
     abortOnError false
   }
+  testOptions {
+    unitTests.all {
+      // The receiver protocol vectors live at the repository root, shared with Jest and the bench.
+      def vectors = file("../../../e2e/fixtures/receiver-protocol")
+      // Read at run time, so declared as an input: an edited vector would otherwise leave the task UP-TO-DATE.
+      inputs.dir(vectors).withPropertyName("receiverProtocolVectors").withPathSensitivity(PathSensitivity.RELATIVE)
+      systemProperty "receiverProtocolVectors", vectors.absolutePath
+    }
+  }
   sourceSets {
     main {
       jniLibs.srcDirs = ['libs']
