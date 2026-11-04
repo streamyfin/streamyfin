@@ -215,8 +215,9 @@ class NativePlayerSession(
                 newEngine.start(PlayerEngine.Owner.NATIVE_SESSION) {
                     if (engine !== newEngine) return@start
                     rendererStarted = true
+                    // The engine is the new one here: rendering is its screen, when it has one.
                     surfaceView?.takeIf { it.holder.surface?.isValid == true }?.let { sv ->
-                        newEngine.attachSurfaceView(sv)
+                        rendering?.attachSurfaceView(sv)
                         syncSurfaceSize()
                     }
                     val configToLoad = pendingConfig ?: config
@@ -239,7 +240,7 @@ class NativePlayerSession(
      * mpv (older JS configs). The module refuses a name the chrome does not build, so an
      * unknown one never starts mpv in its place.
      */
-    private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
+    private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): ChromeEngine {
         val kind = NativeEngineKind.of(config.engine) ?: throw UnsupportedEngineException(config.engine)
         return when (kind) {
             NativeEngineKind.MPV -> MPVLayerRenderer(activity, voDriver = "gpu-next")

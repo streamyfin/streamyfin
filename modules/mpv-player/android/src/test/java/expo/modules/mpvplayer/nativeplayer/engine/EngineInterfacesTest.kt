@@ -18,6 +18,7 @@ class EngineInterfacesTest {
     // The chrome holds a ChromeEngine: a local engine is one already, with no adapter.
     @Test
     fun aLocalEngineIsAChromeEngine() {
+        // The check is the compilation: the widening builds only while PlayerEngine extends ChromeEngine.
         val widen: (PlayerEngine) -> ChromeEngine = { it }
         assertNotNull(widen)
     }

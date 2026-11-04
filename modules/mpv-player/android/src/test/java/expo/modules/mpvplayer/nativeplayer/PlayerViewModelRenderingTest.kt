@@ -20,7 +20,8 @@ class PlayerViewModelRenderingTest {
         viewModel.setSubtitleScale(1.5)
         viewModel.setSubtitleDelay(0.5)
         assertTrue("setZoomedToFill true" in engine.rendered)
-        assertTrue("setSubtitleScale" in engine.rendered)
+        // No video size yet: the scale reaches the engine as asked.
+        assertTrue("setSubtitleScale 1.5" in engine.rendered)
         assertTrue("setSubtitleDelay 0.5" in engine.rendered)
         assertEquals(mapOf("videoCodec" to "h264"), viewModel.technicalInfo())
     }

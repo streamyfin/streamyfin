@@ -57,7 +57,7 @@ internal class RecordingLocalEngine : RemoteOnlyEngine(), PlayerEngine {
     override fun isVideoOutputBroken() = false
     override fun recoverVideoOutput(surface: Surface?) {}
     override fun setSubtitlePosition(position: Int) {}
-    override fun setSubtitleScale(scale: Double) { rendered += "setSubtitleScale" }
+    override fun setSubtitleScale(scale: Double) { rendered += "setSubtitleScale $scale" }
     override fun setSubtitleDelay(seconds: Double) { rendered += "setSubtitleDelay $seconds" }
     override fun setSubtitleMarginY(margin: Int) { rendered += "setSubtitleMarginY $margin" }
     override fun setSubtitleAlignX(alignment: String) {}
