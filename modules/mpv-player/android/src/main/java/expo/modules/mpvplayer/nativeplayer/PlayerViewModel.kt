@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -370,7 +369,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun apply(config: PlayerPresentConfigRecord) {
         updateSyncPlay(config.syncPlay)
-        isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
