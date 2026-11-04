@@ -46,10 +46,11 @@ data class RemoteTargetSnapshot(
 }
 
 /**
- * Turns the session events the module already emits (onSessionEvent) into the target state. The
- * SDK ends a session before it starts the next one, so a device switch goes through `ending` and
- * `none`, and no state ever pairs one device's id with another's name. Pure: the hub feeds it and
- * publishes what changed.
+ * Turns the session events the module already emits (onSessionEvent) into the target state. A switch
+ * ends one session before it starts the next, but nothing promises the old end arrives first: an end
+ * that names another receiver than the one connecting or connected is the old session's, and leaves
+ * the state alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it
+ * and publishes what changed.
  */
 class RemoteTargetMachine {
     var snapshot: RemoteTargetSnapshot = RemoteTargetSnapshot.NONE
@@ -63,6 +64,7 @@ class RemoteTargetMachine {
 
     /** True when the state changed. An event without its device keeps the target already known. */
     fun sessionEvent(event: String, device: TargetDevice?, error: String?): Boolean {
+        if (event in END_EVENTS && device != null && heldOtherThan(device)) return false
         val target = device?.let(RemoteTarget::cast) ?: snapshot.target
         val next = when (event) {
             "starting" -> RemoteTargetSnapshot(TargetPhase.CONNECTING, target, reconnecting = false, error = null)
@@ -81,5 +83,15 @@ class RemoteTargetMachine {
         if (next == snapshot) return false
         snapshot = next
         return true
+    }
+
+    private fun heldOtherThan(device: TargetDevice): Boolean {
+        val held = snapshot.target ?: return false
+        val live = snapshot.phase == TargetPhase.CONNECTING || snapshot.phase == TargetPhase.CONNECTED
+        return live && held.id != device.id
+    }
+
+    private companion object {
+        val END_EVENTS = setOf("ending", "ended", "startFailed")
     }
 }

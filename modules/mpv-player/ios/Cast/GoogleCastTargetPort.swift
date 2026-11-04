@@ -29,6 +29,8 @@ final class GoogleCastTargetPort: TargetPort {
   private let discovery: (_ on: Bool) -> Void
   private var events: TargetPortEvents?
   private var discovering = false
+  // The receiver a switch is waiting to start, once the SDK reports the end of the session before it.
+  private var pendingSwitch: TargetDevice?
 
   init(
     routes: @escaping () -> [CastTargetRoute],
@@ -48,7 +50,7 @@ final class GoogleCastTargetPort: TargetPort {
 
   func start(events: TargetPortEvents) {
     self.events = events
-    watchSessions { [weak self] event, device, error in self?.events?.sessionEvent(event, device: device, error: error) }
+    watchSessions { [weak self] event, device, error in self?.sessionChanged(event, device: device, error: error) }
     watchDevices { [weak self] in self?.reportDevices() }
     reportDevices()
     // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
@@ -58,6 +60,7 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func stop() {
+    pendingSwitch = nil
     stopDiscovery()
     watchSessions(nil)
     watchDevices(nil)
@@ -81,23 +84,45 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func connect(_ device: TargetDevice) {
-    guard let route = routes().first(where: { $0.device.id == device.id }) else {
-      events?.sessionEvent("startFailed", device: device, error: Self.receiverGone)
+    pendingSwitch = nil
+    if let running = runningSession() {
+      // That receiver's session is already there, or on its way.
+      if running.device?.id == device.id { return }
+      // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
+      // answers NO): end it, and start this receiver once the SDK reports the end.
+      pendingSwitch = device
+      endSession(true)
       return
     }
-    // The SDK ends a session on another receiver itself before it starts this one.
-    if !route.startSession() {
-      events?.sessionEvent("startFailed", device: device, error: Self.startRefused)
-    }
+    startSession(on: device)
   }
 
   func disconnect(stopPlayback: Bool) {
+    pendingSwitch = nil
     if runningSession() != nil {
       endSession(stopPlayback)
       return
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.
     events?.sessionEvent("ended", device: nil, error: nil)
+  }
+
+  private func startSession(on device: TargetDevice) {
+    guard let route = routes().first(where: { $0.device.id == device.id }) else {
+      events?.sessionEvent("startFailed", device: device, error: Self.receiverGone)
+      return
+    }
+    if !route.startSession() {
+      events?.sessionEvent("startFailed", device: device, error: Self.startRefused)
+    }
+  }
+
+  private func sessionChanged(_ event: String, device: TargetDevice?, error: String?) {
+    events?.sessionEvent(event, device: device, error: error)
+    // The session a switch ended is gone: the receiver asked for meanwhile can start now.
+    guard event == "ended" || event == "startFailed", let next = pendingSwitch else { return }
+    pendingSwitch = nil
+    startSession(on: next)
   }
 
   private func reportDevices() {

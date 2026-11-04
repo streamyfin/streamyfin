@@ -52,7 +52,8 @@ class RemoteTargetHub {
         }
         // Announced before the port is asked: its first event can come back inside connect.
         if (machine.connectRequested(device)) publish()
-        // While another device is connected, the SDK ends that session itself before it starts this one.
+        // While another device is connected, the port ends that session before this one starts: the
+        // Android SDK does it on route selection, the iOS port asks for it.
         port.connect(device)
         return true
     }

@@ -27,6 +27,7 @@ class GoogleCastTargetPortTest {
 
     private class Sdk {
         var routes = listOf<TargetDevice>()
+        var disabled = setOf<String>()
         var running: RunningSession? = null
         val selected = mutableListOf<TargetDevice>()
         val ended = mutableListOf<Boolean>()
@@ -35,7 +36,7 @@ class GoogleCastTargetPortTest {
         val routeWatches = mutableListOf<(() -> Unit)?>()
 
         fun port() = GoogleCastTargetPort(
-            routes = { routes.map { device -> CastRoute(device) { selected += device } } },
+            routes = { routes.map { device -> CastRoute(device, enabled = device.id !in disabled) { selected += device } } },
             runningSession = { running },
             endSession = { stopPlayback -> ended += stopPlayback },
             unselectRoute = { unselects += 1 },
@@ -108,6 +109,23 @@ class GoogleCastTargetPortTest {
 
         assertTrue(sdk.selected.isEmpty())
         assertEquals(listOf(Triple("startFailed", livingRoom, GoogleCastTargetPort.RECEIVER_GONE)), events.sessions)
+    }
+
+    // MediaRouter ignores select() on a disabled route: without an answer the hub would stay connecting.
+    @Test
+    fun aDisabledRouteEndsInStartFailed() {
+        val sdk = Sdk().apply {
+            routes = listOf(livingRoom)
+            disabled = setOf(livingRoom.id)
+        }
+        val events = Events()
+        val port = sdk.port()
+        port.start(events)
+
+        port.connect(livingRoom)
+
+        assertTrue(sdk.selected.isEmpty())
+        assertEquals(listOf(Triple("startFailed", livingRoom, GoogleCastTargetPort.RECEIVER_BUSY)), events.sessions)
     }
 
     @Test

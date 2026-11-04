@@ -60,11 +60,14 @@ struct RemoteTargetSnapshot: Equatable {
   }
 }
 
-/// Turns the session events the module already emits (onSessionEvent) into the target state. The
-/// SDK ends a session before it starts the next one, so a device switch goes through `ending` and
-/// `none`, and no state ever pairs one device's id with another's name. Pure: the hub feeds it and
-/// publishes what changed.
+/// Turns the session events the module already emits (onSessionEvent) into the target state. A switch
+/// ends one session before it starts the next, but nothing promises the old end arrives first: an end
+/// that names another receiver than the one connecting or connected is the old session's, and leaves
+/// the state alone. No state ever pairs one device's id with another's name. Pure: the hub feeds it
+/// and publishes what changed.
 final class RemoteTargetMachine {
+  private static let endEvents: Set<String> = ["ending", "ended", "startFailed"]
+
   private(set) var snapshot = RemoteTargetSnapshot.none
 
   /// A connection asked from this phone; the SDK's own events follow. Ignored unless nothing is connected.
@@ -75,6 +78,7 @@ final class RemoteTargetMachine {
 
   /// True when the state changed. An event without its device keeps the target already known.
   func sessionEvent(_ event: String, device: TargetDevice?, error: String?) -> Bool {
+    if Self.endEvents.contains(event), let device, heldOtherThan(device) { return false }
     let target = device.map(RemoteTarget.cast) ?? snapshot.target
     let next: RemoteTargetSnapshot
     switch event {
@@ -101,5 +105,10 @@ final class RemoteTargetMachine {
     guard next != snapshot else { return false }
     snapshot = next
     return true
+  }
+
+  private func heldOtherThan(_ device: TargetDevice) -> Bool {
+    guard let held = snapshot.target, snapshot.phase == .connecting || snapshot.phase == .connected else { return false }
+    return held.id != device.id
   }
 }

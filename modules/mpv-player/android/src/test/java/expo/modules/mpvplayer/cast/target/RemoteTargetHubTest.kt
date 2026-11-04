@@ -86,6 +86,26 @@ class RemoteTargetHubTest {
         assertEquals(RemoteTarget.cast(livingRoom), hub.snapshot.target)
     }
 
+    // Focus 4 on the order nothing guarantees: the old session's end lands after the new one started.
+    @Test
+    fun aSwitchWhoseOldEndArrivesLateLandsOnTheNewDevice() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+        val listener = Recording()
+        hub.addListener(listener)
+
+        port.emit("ending", livingRoom)
+        port.emit("starting", bedroom)
+        port.emit("ended", livingRoom)
+        port.emit("started", bedroom)
+
+        assertEquals(
+            listOf(TargetPhase.ENDING, TargetPhase.CONNECTING, TargetPhase.CONNECTED),
+            listener.targets.map { it.phase },
+        )
+        assertEquals(listOf(RemoteTarget.cast(livingRoom), RemoteTarget.cast(bedroom), RemoteTarget.cast(bedroom)), listener.targets.map { it.target })
+    }
+
     @Test
     fun theDeviceAlreadyConnectedAsksNothing() {
         val port = FakeTargetPort(known = listOf(livingRoom))
