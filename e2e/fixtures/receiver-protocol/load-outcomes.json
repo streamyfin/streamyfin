@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "timeoutMs": 30000,
+  "request": { "itemId": "item-1" },
+  "cases": [
+    {
+      "name": "loaded once the receiver plays the item under a new play session",
+      "previous": { "itemId": "item-1", "playSessionId": "ps-0" },
+      "events": [
+        {
+          "status": {
+            "itemId": "item-1",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "the media being replaced does not count as the new load",
+      "previous": { "itemId": "item-1", "playSessionId": "ps-0" },
+      "events": [
+        {
+          "status": {
+            "itemId": "item-1",
+            "playSessionId": "ps-0",
+            "playerState": "playing"
+          }
+        },
+        {
+          "status": {
+            "itemId": "item-1",
+            "playSessionId": "ps-1",
+            "playerState": "buffering"
+          }
+        }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "another item playing is not this load",
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "item-9",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "timed_out" }
+    },
+    {
+      "name": "an idle status does not count",
+      "previous": null,
+      "events": [
+        {
+          "status": {
+            "itemId": "item-1",
+            "playSessionId": "ps-1",
+            "playerState": "idle"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "timed_out" }
+    },
+    {
+      "name": "a playback error fails the load",
+      "previous": null,
+      "events": [
+        {
+          "message": {
+            "type": "playbackerror",
+            "message": "Unable to load media"
+          }
+        }
+      ],
+      "expected": { "status": "failed", "error": "playback_failed" }
+    },
+    {
+      "name": "a connection error means the receiver cannot reach the server",
+      "previous": null,
+      "events": [{ "message": { "type": "connectionerror" } }],
+      "expected": { "status": "failed", "error": "server_unreachable" }
+    },
+    {
+      "name": "a rejected message fails the load as rejected",
+      "previous": null,
+      "events": [
+        { "message": { "type": "error", "message": "invalid command" } }
+      ],
+      "expected": { "status": "failed", "error": "rejected" }
+    },
+    {
+      "name": "a newer cast supersedes this one",
+      "previous": null,
+      "events": [{ "supersede": true }],
+      "expected": { "status": "superseded" }
+    },
+    {
+      "name": "silence until the deadline times out",
+      "previous": null,
+      "events": [{ "timeout": true }],
+      "expected": { "status": "timed_out" }
+    }
+  ]
+}
