@@ -3,11 +3,7 @@ import type {
   BaseItemDtoQueryResult,
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getFilterApi,
-  getItemsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getFilterApi, getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import {
   keepPreviousData,
@@ -513,7 +509,7 @@ const LibraryPage = () => {
     queryKey: ["library", libraryId],
     queryFn: async () => {
       if (!api) return null;
-      const response = await getUserLibraryApi(api).getItem({
+      const response = await getLibraryApi(api).getItem({
         itemId: libraryId,
         userId: user?.Id,
       });
@@ -694,7 +690,7 @@ const LibraryPage = () => {
       // the two cannot drift apart. A collections or playlists tab swaps it,
       // and the item type, for its own.
       const itemsQuery = buildLibraryItemsQuery(libraryFilter);
-      const response = await getItemsApi(api).getItems(
+      const response = await getLibraryApi(api).getItems(
         {
           userId: itemsQuery.userId,
           parentId: itemsQuery.parentId,

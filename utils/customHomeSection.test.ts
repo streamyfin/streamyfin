@@ -1,4 +1,4 @@
-// The app installs api.get, which custom endpoints go through, at launch.
+// The app installs api.pluginGet, which custom endpoints go through, at launch.
 import "@/augmentations/api";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import type { HomeSection } from "@/utils/atoms/settings";
@@ -181,7 +181,7 @@ describe("an items section", () => {
     const section = { items: { parentId: "Shows" } };
     const api = homeServer();
     const otherServer = homeServer();
-    otherServer.basePath = "https://other.example.com";
+    otherServer.update({ basePath: "https://other.example.com" });
 
     await fetchPage(api, section, 4, "user-1");
     await fetchPage(otherServer, section, 4, "user-1");

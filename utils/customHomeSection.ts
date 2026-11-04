@@ -3,11 +3,7 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  getItemsApi,
-  getTvShowsApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import type {
   HomeSection,
   HomeSectionCustomEndpointResolver,
@@ -115,7 +111,7 @@ export const fetchCustomHomeSection = async (
     if (!isBindableParentId(section.items.parentId)) {
       return leaveEmpty(api, userId, index, section.items.parentId);
     }
-    const response = await getItemsApi(api).getItems({
+    const response = await getLibraryApi(api).getItems({
       userId,
       startIndex: pageParam,
       limit: section.items?.limit || pageSize,
@@ -129,7 +125,7 @@ export const fetchCustomHomeSection = async (
     return response.data.Items || [];
   }
   if (section.nextUp) {
-    const response = await getTvShowsApi(api).getNextUp({
+    const response = await getShowApi(api).getNextUp({
       userId,
       startIndex: pageParam,
       limit: section.nextUp?.limit || pageSize,
@@ -143,7 +139,7 @@ export const fetchCustomHomeSection = async (
     // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
     const allData =
       (
-        await getUserLibraryApi(api).getLatestMedia({
+        await getLibraryApi(api).getLatestMedia({
           userId,
           includeItemTypes: section.latest?.includeItemTypes,
           limit: section.latest?.limit || 10,
@@ -160,7 +156,7 @@ export const fetchCustomHomeSection = async (
     if (!isBindableParentId(parentId)) {
       return leaveEmpty(api, userId, index, parentId);
     }
-    const response = await api.get<BaseItemDtoQueryResult>(
+    const response = await api.pluginGet<BaseItemDtoQueryResult>(
       section.custom.endpoint,
       {
         params: {

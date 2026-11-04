@@ -1,3 +1,4 @@
+import type { Api } from "@jellyfin/sdk";
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { useEffect, useState } from "react";
@@ -51,7 +52,8 @@ const originalWebSocket = globalThis.WebSocket;
 
 describe("WebSocketProvider Performance", () => {
   beforeEach(() => {
-    Object.assign(getDefaultStore().get(apiAtom) as object, {
+    // SDK 1.0 Api fields are read only: they change through update().
+    (getDefaultStore().get(apiAtom) as Api).update({
       basePath: "https://jellyfin.example.com",
       accessToken: "test-token",
     });
