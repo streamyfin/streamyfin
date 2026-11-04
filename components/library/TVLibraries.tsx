@@ -24,7 +24,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 
 const HORIZONTAL_PADDING = scaleSize(80);
@@ -297,7 +297,7 @@ export const TVLibraries: React.FC = () => {
                 previewItems: [],
               };
             } catch (error) {
-              writeErrorLog("Failed to count the Live TV channels", error);
+              logAndCaptureError("Failed to count the Live TV channels", error);
               return { ...library, previewItems: [] };
             }
           }

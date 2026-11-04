@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError } from "@/utils/log";
 import { TVLibraries } from "./TVLibraries";
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -27,7 +27,7 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 // The real log writes to MMKV, which no test environment has.
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
+jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The real scale reads the settings enum the mock above leaves out.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => new Proxy({}, { get: () => 16 }),
@@ -85,7 +85,7 @@ describe("TVLibraries", () => {
     );
     expect(screen.getByText("Live TV")).toBeTruthy();
     expect(screen.queryByText(/live_tv\.tabs\.channels/)).toBeNull();
-    expect(writeErrorLog).toHaveBeenCalledWith(
+    expect(logAndCaptureError).toHaveBeenCalledWith(
       "Failed to count the Live TV channels",
       expect.anything(),
     );
