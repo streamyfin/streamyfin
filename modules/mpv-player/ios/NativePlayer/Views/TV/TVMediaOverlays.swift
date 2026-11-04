@@ -57,11 +57,7 @@ struct TVSkipPill: View {
 	let segment: MediaSegmentRecord
 
 	var body: some View {
-		Text(
-			segment.type == "Intro"
-				? viewModel.str("skipIntro", "Skip Intro")
-				: viewModel.str("skipCredits", "Skip Credits")
-		)
+		Text(viewModel.skipLabel(for: segment.type))
 		.font(.callout.weight(.semibold))
 		.foregroundStyle(.white)
 		.padding(.horizontal, 28)
