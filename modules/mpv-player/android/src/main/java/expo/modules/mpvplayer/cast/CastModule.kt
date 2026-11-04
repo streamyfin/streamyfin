@@ -7,8 +7,6 @@ import android.os.Looper
 import android.util.Log
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.MediaRouteControllerDialog
-import androidx.mediarouter.media.MediaRouter
-import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastReasonCodes
@@ -22,6 +20,11 @@ import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.RemoteTargetListener
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.RemoteTargets
+import expo.modules.mpvplayer.cast.target.TargetDevice
 
 /**
  * The Cast SDK, owned by the module: context, discovery, session, custom channels and the
@@ -46,15 +49,16 @@ class CastModule : Module() {
     @Volatile
     private var cachedState: String? = null
     @Volatile
-    private var cachedDevices: List<Map<String, Any?>> = emptyList()
-    @Volatile
     private var cachedSession: Map<String, Any?>? = null
-    private var routerCallback: MediaRouter.Callback? = null
-    // The router the callback went to: OnDestroy runs once the React context may be gone, and the
-    // context getter would throw on the main looper instead of letting the callback go.
-    private var registeredRouter: MediaRouter? = null
-    // JS asked for discovery; it pauses while the app is in the background and resumes with it.
-    private var discoveryWanted = false
+    // The target hub outlives the module, like the channel hub: it holds the port, discovery and the
+    // target state, and the module relays what it publishes until OnDestroy lets go of the relay.
+    private val remoteTargets = RemoteTargetHub.shared
+    // JS asks for discovery; it runs only in the foreground, paused with the app and resumed with it.
+    private val appDiscovery = AppDiscovery(
+        start = { if (ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY) },
+        stop = { remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY) },
+    )
+    private var removeTargetRelay: (() -> Unit)? = null
     private var mediaClient: RemoteMediaClient? = null
     // The hub holds the SDK registration of each namespace and outlives the module; the module only
     // keeps what JS asked to hear, so that a reload or a session end lets go of exactly that.
@@ -62,6 +66,17 @@ class CastModule : Module() {
     private val jsSubscriptions = mutableMapOf<String, ReceiverSubscription>()
 
     private val stateListener = CastStateListener { state -> updateState(state) }
+
+    // The hub calls on the main looper until release() lets go of the relay, which can be after OnDestroy.
+    private val targetRelay = object : RemoteTargetListener {
+        override fun targetChanged(snapshot: RemoteTargetSnapshot) {
+            if (!destroyed) sendEvent("onRemoteTargetChanged", snapshot.toMap())
+        }
+
+        override fun devicesChanged(devices: List<TargetDevice>) {
+            if (!destroyed) sendEvent("onDevicesChanged", mapOf("devices" to devices.map { it.toMap() }))
+        }
+    }
 
     private val mediaCallback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() {
@@ -111,7 +126,14 @@ class CastModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("StreamyfinCast")
 
-        Events("onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage")
+        Events(
+            "onCastStateChanged",
+            "onDevicesChanged",
+            "onSessionEvent",
+            "onMediaStatusChanged",
+            "onReceiverMessage",
+            "onRemoteTargetChanged",
+        )
 
         OnStartObserving {
             mainHandler.post { ensureContext() }
@@ -127,11 +149,11 @@ class CastModule : Module() {
 
         // An active scan costs battery; the SDK's own button paused it while off screen.
         OnActivityEntersBackground {
-            mainHandler.post { stopDiscovery() }
+            mainHandler.post { appDiscovery.background() }
         }
 
         OnActivityEntersForeground {
-            mainHandler.post { if (discoveryWanted) ensureContext()?.let { cast -> startDiscovery(cast) } }
+            mainHandler.post { appDiscovery.foreground() }
         }
 
         Function("isAvailable") { CastSupport.isAvailable(context) }
@@ -150,17 +172,30 @@ class CastModule : Module() {
             Unit
         }.runOnQueue(Queues.MAIN)
 
-        Function("getDevices") { cachedDevices }
+        Function("getDevices") { remoteTargets.devices.map { it.toMap() } }
 
         AsyncFunction("startDiscovery") {
-            discoveryWanted = true
-            ensureContext()?.let { cast -> startDiscovery(cast) }
+            appDiscovery.want()
             Unit
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("stopDiscovery") {
-            discoveryWanted = false
-            stopDiscovery()
+            appDiscovery.release()
+            Unit
+        }.runOnQueue(Queues.MAIN)
+
+        Function("getRemoteTarget") {
+            if (castContext == null) mainHandler.post { ensureContext() }
+            remoteTargets.snapshot.toMap()
+        }
+
+        // False when discovery does not know the device; the state then follows the session events.
+        AsyncFunction("connectToDevice") { deviceId: String ->
+            ensureContext() != null && remoteTargets.connect(deviceId)
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("disconnect") { stopPlayback: Boolean ->
+            if (ensureContext() != null) remoteTargets.disconnect(stopPlayback)
             Unit
         }.runOnQueue(Queues.MAIN)
 
@@ -255,6 +290,9 @@ class CastModule : Module() {
         // Before the module's own listener and before a present session is announced: whatever JS
         // sends on hearing of a session finds the hub attached to it.
         GoogleCastChannelBinding.install(cast.sessionManager)
+        // Relayed before the port is installed: a session the port finds running reaches JS as connected.
+        if (removeTargetRelay == null) removeTargetRelay = remoteTargets.addListener(targetRelay)
+        RemoteTargets.installDefault(reactContext, cast)
         cast.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         cast.sessionManager.currentCastSession?.let { session ->
             attachMedia(session)
@@ -309,7 +347,9 @@ class CastModule : Module() {
     }
 
     private fun release() {
-        stopDiscovery()
+        appDiscovery.release()
+        removeTargetRelay?.invoke()
+        removeTargetRelay = null
         detachMedia()
         // The relays hold this instance and the hub outlives it: a live session would keep calling them.
         removeJsSubscriptions()
@@ -333,43 +373,5 @@ class CastModule : Module() {
 
     private companion object {
         const val TAG = "StreamyfinCast"
-    }
-
-    private fun startDiscovery(cast: CastContext) {
-        if (routerCallback != null) return
-        val selector = cast.mergedSelector ?: return
-        val router = MediaRouter.getInstance(context.applicationContext)
-        val callback = object : MediaRouter.Callback() {
-            override fun onRouteAdded(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
-            override fun onRouteRemoved(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
-            override fun onRouteChanged(router: MediaRouter, route: MediaRouter.RouteInfo) = updateDevices(router, cast)
-        }
-        // Active scan finds the receivers a passive one misses; the library needed a mounted button for this.
-        router.addCallback(
-            selector,
-            callback,
-            MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY or MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN,
-        )
-        routerCallback = callback
-        registeredRouter = router
-        updateDevices(router, cast)
-    }
-
-    private fun stopDiscovery() {
-        val callback = routerCallback ?: return
-        registeredRouter?.removeCallback(callback)
-        routerCallback = null
-        registeredRouter = null
-    }
-
-    private fun updateDevices(router: MediaRouter, cast: CastContext) {
-        val selector = cast.mergedSelector ?: return
-        val devices = router.routes
-            .filter { route -> !route.isDefault && route.matchesSelector(selector) }
-            .mapNotNull { route -> CastDevice.getFromBundle(route.extras) }
-            .mapNotNull { device -> CastRecords.device(device) }
-        if (devices == cachedDevices) return
-        cachedDevices = devices
-        sendEvent("onDevicesChanged", mapOf("devices" to devices))
     }
 }

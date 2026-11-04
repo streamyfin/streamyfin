@@ -2,10 +2,16 @@ import { act, renderHook } from "@testing-library/react-native";
 import {
   type CastDoubleState,
   castDoubleDevice,
+  castDoubleTarget,
   createCastDoubleState,
   emitCastEvent,
+  emitRemoteTarget,
 } from "@/test-utils/cast";
-import type { CastMediaStatus, CastSessionEvent } from "./Cast.types";
+import {
+  type CastMediaStatus,
+  type CastSessionEvent,
+  NO_REMOTE_TARGET,
+} from "./Cast.types";
 import {
   useCastClient,
   useCastDevice,
@@ -13,6 +19,7 @@ import {
   useCastMediaStatus,
   useCastSession,
   useCastState,
+  useRemoteTarget,
 } from "./hooks";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -174,4 +181,20 @@ test("useCastMediaStatus reads the status once on mount", async () => {
   await act(async () => {});
   expect(view.result.current).toEqual(status("playing"));
   expect(native.getMediaStatus).toHaveBeenCalledTimes(1);
+});
+
+test("useRemoteTarget starts from the native state, follows it and lets go on unmount", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connecting");
+  const view = await renderHook(useRemoteTarget);
+  expect(view.result.current.state).toBe("connecting");
+
+  await act(() => emitRemoteTarget(mockCast, castDoubleTarget("connected")));
+  expect(view.result.current).toEqual(castDoubleTarget("connected"));
+
+  const ended = { ...NO_REMOTE_TARGET, error: "network" };
+  await act(() => emitRemoteTarget(mockCast, ended));
+  expect(view.result.current).toEqual(ended);
+
+  await view.unmount();
+  expect(mockCast.listeners.onRemoteTargetChanged).toHaveLength(0);
 });

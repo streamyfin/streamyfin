@@ -132,3 +132,54 @@ Receiver 1.3.2 starts a transcode it cannot seek in at twice the position asked
 (jellyfin/jellyfin-chromecast#971): the second `seek+30` on MUSIC-FLAC shows it. Keep the
 evidence with `sessions.py --keep <subject>` and quote only that redacted copy: a raw log
 holds addresses.
+
+## Remote target probe
+
+Debug builds carry a second probe, for the target state the module publishes to JS
+(`getRemoteTarget`, `onRemoteTargetChanged`): it connects to a receiver by name through the
+same hub as `connectToDevice`, without the SDK's dialog, and logs every state it goes
+through. No server and no media are involved, so any receiver on the phone's network will do.
+
+**Android.** Name the receiver, or a part of its name. A whole name connects at once and wins
+over a part of another (`Salon` against `Salon - Chromecast`); a part of a name waits 3 s for
+the whole one to show up, since iOS lists receivers one at a time:
+
+```sh
+adb logcat -c
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device "<name>"
+adb logcat -v time -s CastTargetProbe:I StreamyfinCast:W
+```
+
+The log reads `armed for "<name>" state=none …`, `found <device>`, then one line per state,
+`state=<none|connecting|connected|ending> target=<device> reconnecting=<bool> error=<…>`:
+connecting, connected, then, after 5 s, `disconnecting`, ending, none, and `done`. The TV
+shows the Jellyfin receiver, then its home screen. A `failed: <reason>` line ends a run that
+did not get there: no such device within 15 s, a connection the SDK refused (with its
+error), none within 30 s, or no end within 20 s.
+
+**A switch, a lost receiver.** Armed while another receiver is connected, the probe switches
+to the one it names: the old session ends (`none` without an error is that end, not a
+failure), then the new one connects. `--el hold <ms>` holds the session that long before the
+disconnection, which leaves time to cut the phone's network or the receiver's power: the log
+then reads `reconnecting=true`, then `none` with the error the SDK gave, and `done`.
+
+**A switch asked back.** Armed while another receiver is connected, `--ez back true` makes
+the probe ask for the receiver it names, then at once for the connected one again, before the
+switch has ended its session: the last request wins. The log reads `found <device>`,
+`asking <connected device> again`, then ending, connecting and connected on that receiver,
+with no `none` in between, and the receiver the probe named never connects.
+
+**A session running at launch.** Add `--ez keep true` and the probe stops at connected,
+leaving the session up. Kill the app (`adb shell am force-stop com.fredrikburmester.streamyfin`),
+open it again, and send the same broadcast with `keep`: the first line reads
+`armed for "<name>" state=connected target=<device>`, then `already connected to <device>`,
+because the SDK resumed the session before anything asked. A last broadcast without `keep`
+ends it.
+
+**iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
+up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
+under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
+SDK resuming the session it had, so a switch inside a live session needs one process:
+`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
+the first session kept up with or without `-CastTargetProbeKeep`.
+`-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.

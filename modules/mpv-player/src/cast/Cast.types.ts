@@ -116,6 +116,44 @@ export interface CastSubscription {
   remove(): void;
 }
 
+/** Where playback goes: nothing, a receiver being reached, a connected receiver, or one being left. */
+export type RemoteTargetPhase = "none" | "connecting" | "connected" | "ending";
+
+/** Only Cast targets exist so far; Play On and AirPlay come with their engines. */
+export type RemoteTargetKind = "cast" | "playon" | "airplay" | "local";
+
+export interface RemoteTarget {
+  kind: RemoteTargetKind;
+  /** The id discovery lists: CastDevice.deviceId for a Cast target. */
+  id: string;
+  name: string;
+  capabilities: { volume: boolean };
+}
+
+/**
+ * The target the module holds natively and publishes. JS reads it and asks for
+ * a connection or a disconnection; the state itself only follows the SDK.
+ */
+export interface RemoteTargetState {
+  state: RemoteTargetPhase;
+  target: RemoteTarget | null;
+  /** The SDK is reaching a session it lost, or one it resumes after a relaunch. */
+  reconnecting: boolean;
+  /**
+   * Why the last session ended, or why a request the native side refused at once
+   * left the target as it was; null when nothing went wrong, or when the user
+   * ended the session.
+   */
+  error: string | null;
+}
+
+export const NO_REMOTE_TARGET: RemoteTargetState = Object.freeze({
+  state: "none",
+  target: null,
+  reconnecting: false,
+  error: null,
+});
+
 export type CastNativeEvents = {
   onCastStateChanged: (payload: { state: CastStateValue }) => void;
   onDevicesChanged: (payload: { devices: CastDevice[] }) => void;
@@ -123,4 +161,9 @@ export type CastNativeEvents = {
   onMediaStatusChanged: (payload: { status: CastMediaStatus | null }) => void;
   /** The raw string the receiver sent; parsing is the caller's. */
   onReceiverMessage: (payload: { namespace: string; message: string }) => void;
+  /**
+   * Carries the new state, sent on each change only. A listener reads
+   * remoteTarget() once, when it subscribes, for the state until the first event.
+   */
+  onRemoteTargetChanged: (payload: RemoteTargetState) => void;
 };

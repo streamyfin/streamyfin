@@ -30,6 +30,17 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
     #if DEBUG
     // The device proof of the Cast engine, armed by `-CastEngineProbe YES` at launch.
     if UserDefaults.standard.bool(forKey: CastEngineProbeScript.launchArgument) { CastEngineProbe.arm() }
+    // The device proof of the remote target, armed by `-CastTargetProbe <part of a receiver's name>`
+    // (`-CastTargetProbeKeep YES` leaves the session up, `-CastTargetProbeHold <ms>` holds it longer,
+    // `-CastTargetProbeBack YES` asks the receiver a switch leaves again before its session ends).
+    if let name = UserDefaults.standard.string(forKey: CastTargetProbe.launchArgument), !name.isEmpty {
+      let keep = UserDefaults.standard.bool(forKey: CastTargetProbe.keepArgument)
+      let hold = UserDefaults.standard.double(forKey: CastTargetProbe.holdArgument)
+      let holdMs = hold > 0 ? hold : CastTargetProbe.connectedHoldMs
+      let next = UserDefaults.standard.string(forKey: CastTargetProbe.thenArgument)
+      let back = UserDefaults.standard.bool(forKey: CastTargetProbe.backArgument)
+      DispatchQueue.main.async { CastTargetProbe.run(deviceName: name, keep: keep, holdMs: holdMs, then: next, back: back) }
+    }
     #endif
     return true
   }
