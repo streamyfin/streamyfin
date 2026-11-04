@@ -209,10 +209,9 @@ extension CastTargetProbe {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
     RemoteTargets.installDefault()
-    let chained = !(next ?? "").isEmpty
+    let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
-      // `back` belongs to the probe that switches: in a chain, the next one.
-      hub: .shared, deviceName: deviceName, keep: keep, holdMs: holdMs, back: back && !chained,
+      hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back,
       schedule: { delayMs, run in
         let work = DispatchWorkItem(block: run)
         DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)

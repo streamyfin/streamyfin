@@ -738,6 +738,16 @@ enum RemoteTargetTests {
       check("aProbeLeavesTheDiscoveryTheAppAsked", !probe.isActive && port.discovering)
     }
 
+    // `then` asks the second receiver once the first is connected: the first session has to stay up for
+    // that switch to run live, and `back` is for the probe that switches.
+    do {
+      let lone = CastTargetProbe.firstOfChain(keep: false, then: nil, back: true)
+      let chained = CastTargetProbe.firstOfChain(keep: false, then: "Bedroom", back: true)
+      let blank = CastTargetProbe.firstOfChain(keep: false, then: "", back: false)
+      check("aNextReceiverKeepsTheFirstSessionUp", chained.keep && !lone.keep && !blank.keep)
+      check("backBelongsToTheProbeThatSwitches", lone.back && !chained.back)
+    }
+
     // The bench proof of a switch asked back: the receiver held when the probe started is asked again
     // before the switch has ended its session, and the probe ends connected to it.
     do {

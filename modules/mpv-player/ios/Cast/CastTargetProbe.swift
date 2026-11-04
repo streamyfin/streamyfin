@@ -52,6 +52,13 @@ final class CastTargetProbe: RemoteTargetListener {
     self.log = log
   }
 
+  /// How a chain arms its first probe: a next receiver keeps the first session up, so the switch to it
+  /// runs live, and `back` belongs to the probe that switches.
+  static func firstOfChain(keep: Bool, then next: String?, back: Bool) -> (keep: Bool, back: Bool) {
+    let chained = !(next ?? "").isEmpty
+    return (keep || chained, back && !chained)
+  }
+
   static func describe(_ snapshot: RemoteTargetSnapshot) -> String {
     "state=\(snapshot.phase.rawValue) target=\(snapshot.target?.name ?? "-") "
       + "reconnecting=\(snapshot.reconnecting) error=\(snapshot.error ?? "-")"

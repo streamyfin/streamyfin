@@ -180,5 +180,6 @@ ends it.
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
 under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
 SDK resuming the session it had, so a switch inside a live session needs one process:
-`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected.
+`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
+the first session kept up with or without `-CastTargetProbeKeep`.
 `-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.
