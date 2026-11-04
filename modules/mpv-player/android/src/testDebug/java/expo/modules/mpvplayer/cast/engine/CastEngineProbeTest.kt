@@ -102,4 +102,20 @@ class CastEngineProbeTest {
         )
         assertFalse(logs.any { "tok-123" in it })
     }
+
+    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) left
+    // the probe armed, its engine bound, until the session ended: every later arming said so.
+    @Test
+    fun anItemThatNeverPlaysDisarmsTheProbe() {
+        hub.attach(port)
+        val probe = CastEngineProbe(hub, { server -> engine(server) }, scheduler.schedule, logs::add)
+        probe.arm()
+        hub.send(ns, ReceiverProtocol.playNow(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))).toString()) {}
+        scheduler.advance(0)
+        runFor(CastEngineConstants.LOAD_TIMEOUT_MS + 5_000)
+
+        assertFalse(probe.isActive)
+        assertNull(media.listener)
+        assertTrue("item never played" in logs)
+    }
 }

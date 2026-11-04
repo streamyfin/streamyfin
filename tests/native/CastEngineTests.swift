@@ -1043,18 +1043,34 @@ enum CastEngineTests {
     }
 
     // The receiver sends its bus to the last sender that spoke: after a resume, a load's engine has
-    // to speak first to hear the receiver again (spec §8, risk 6).
+    // to speak first to hear the receiver again (spec §8, risk 6). The receiver applies the envelope of
+    // every message, whatever its command, so it speaks once a status shows an item it cast: on
+    // another sender's item, the SetVolume switched the receiver's server and token to this one's.
     do {
       let bench = Bench()
       _ = bench.engine().loadRecorded()
       bench.hub.suspend()
       let port2 = FakeChannelPort()
       bench.hub.attach(port2)
+      let beforeStatus = port2.sent.isEmpty
+      bench.media.report(snapshot(), position: 0)
+      bench.media.report(snapshot(), position: 1)
       let sent = port2.sent.compactMap { try? JSONSerialization.jsonObject(with: Data($0.text.utf8)) as? [String: Any] }
       check(
-        "aResumeAfterALoadReclaimsTheBusWithAnInertCommand",
-        sent.count == 1 && sent[0]["command"] as? String == "SetVolume" && (sent[0]["options"] as? [String: Any])?.isEmpty == true
+        "aResumeAfterALoadReclaimsTheBusOnceTheReceiverShowsItsItem",
+        beforeStatus && sent.count == 1 && sent[0]["command"] as? String == "SetVolume"
+          && (sent[0]["options"] as? [String: Any])?.isEmpty == true
       )
+    }
+
+    do {
+      let bench = Bench()
+      _ = bench.engine().loadRecorded()
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "item-9", "playSessionId": "ps-9"])), position: 0)
+      check("aResumeOntoAnotherSendersItemReclaimsNothing", port2.sent.isEmpty)
     }
 
     do {
@@ -1285,6 +1301,211 @@ enum CastEngineTests {
             == ["PlayNow", "PlayNow", "SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"].map { "bus sent \($0)" }
           && !bench.logs.contains { $0.contains("tok-123") }
       )
+    }
+
+    // A skip, or any move of the receiver to another item, while a reload of the old one waits: the
+    // reload only settles on a status of its own item, and the position stayed on its target with the
+    // loading on for thirty seconds, then reported a timeout.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(12.5, reloadable)
+      engine.seekTo(position: 125.6, exact: false)
+      engine.skipToNext()
+      bench.media.report(snapshot(customData: ours(["itemId": "track-2", "playSessionId": "ps-4"])), position: 3)
+      let position = engine.getCurrentPosition()
+      let loading = bench.delegate.loadings.last
+      bench.clock.advance(30_000)
+      check("anotherItemOnTheReceiverEndsAReloadOfTheOldOne", close(position, 3) && loading == false && bench.delegate.errors.isEmpty)
+    }
+
+    // What acts on the item on screen waits for a load on its way: a quality change cast the old item
+    // again over the queue the load had just sent, and a track change or a seek reached the old item.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-2")])) { _ in }
+      engine.reloadCurrentItem()
+      engine.setAudioTrack(2)
+      engine.seekTo(position: 10, exact: false)
+      check(
+        "theItemCommandsWaitForAPendingLoad",
+        bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow"] && bench.media.seeks.isEmpty
+      )
+    }
+
+    // After a finished item the receiver fetches the next one of the queue this engine cast: Play in
+    // that gap cast the finished item again from its start, racing the receiver's own next.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: ours(["itemId": "t-1"])), position: 0)
+      let before = bench.port.sent.count
+      engine.play()
+      check("playWhileTheNextItemOfTheQueueIsOnItsWayCastsNothing", bench.port.sent.count == before)
+    }
+
+    // A PlayNow the channel did not take leaves the receiver on its queue, under its server: a reload
+    // after it cast the unsent queue's item alone, under the unsent envelope.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["t-1", "t-2", "t-3"].map { ReceiverItem(id: $0, type: "Audio") })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 5)
+      bench.port.sendError = "receiver busy"
+      let other = ReceiverServer(
+        serverAddress: "https://jellyfin.example.test", accessToken: "tok-other", userId: "user-1",
+        receiverName: "Living Room TV", maxBitrate: 8_000_000
+      )
+      engine.load(server: other, request: ReceiverPlayRequest(items: ["x-1", "x-2"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      let last = bench.sentMessages().last
+      let options = last?["options"] as? [String: Any]
+      let ids = (options?["items"] as? [[String: Any]])?.compactMap { $0["Id"] as? String }
+      check(
+        "aLoadThatIsNotSentKeepsTheQueueAndTheServerTheReceiverHas",
+        ids == ["t-1", "t-2", "t-3"] && (options?["startIndex"] as? NSNumber)?.intValue == 1 && last?["accessToken"] as? String == "tok-123"
+      )
+    }
+
+    // The receiver does not say which copy of an item queued twice it plays: the engine follows the
+    // copy it cast and where the queue went, where a reload used to go from the first copy.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let queue = ["A", "B", "A", "C"].map { ReceiverItem(id: $0, type: "Audio") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: queue, startIndex: 2)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "A"])), position: 0)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check("aReloadOfAnItemQueuedTwiceGoesOnFromTheCopyThatPlays", (options?["startIndex"] as? NSNumber)?.intValue == 2)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let queue = ["A", "B", "A", "C"].map { ReceiverItem(id: $0, type: "Audio") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: queue)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "A", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "B", "playSessionId": "ps-2"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "A", "playSessionId": "ps-3"])), position: 0)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check("aQueueThatPlaysOnFollowsTheCopyOfAnItemQueuedTwice", (options?["startIndex"] as? NSNumber)?.intValue == 2)
+    }
+
+    // A send result that comes back after a newer load (Android's Play Services hands it over later)
+    // added a PlayLast's items to the new queue, which a reload then cast again.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: ["t-4"])
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      bench.media.report(snapshot(customData: ours(["itemId": "b-1", "playSessionId": "ps-2"])), position: 0)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      let ids = (options?["items"] as? [[String: Any]])?.compactMap { $0["Id"] as? String }
+      check("aPlayLastAnsweredAfterANewLoadStaysOutOfIt", ids == ["b-1"])
+    }
+
+    // A host that stops the engine and starts it again, a new chrome with a new delegate, never heard the
+    // state the receiver was in: the dedupe kept what the old delegate had been told.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.report(snapshot(playerState: "paused"))
+      engine.shutdown()
+      let next = RecordingDelegate()
+      engine.delegate = next
+      try? engine.start()
+      bench.media.report(snapshot(playerState: "paused"))
+      check("aStartAfterAStopReportsTheStateToTheNewDelegate", next.pauses == [true] && next.loadings == [false])
+    }
+
+    // A destroyed item keeps no timer: its end wait reported an end fifteen seconds later.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished"))
+      engine.destroy()
+      bench.clock.advance(15_000)
+      check("aDestroyedItemNeverReachesItsEnd", bench.delegate.ended == 0)
+    }
+
+    // The hub, still on a session the SDK replaced, announces its ready inside the engine's subscribe:
+    // the binding was lost there, yet the engine went on to listen to the media and to start.
+    do {
+      let bench = Bench()
+      bench.hub.attach(FakeChannelPort(sessionId: "session-2"))
+      let binding = RecordingBinding()
+      let engine = CastEngine(server: server, sessions: bench.source, hub: bench.hub, deliver: bench.clock.deliver)
+      engine.delegate = bench.delegate
+      engine.bindingListener = binding
+      var thrown = false
+      do { try engine.start() } catch { thrown = true }
+      check(
+        "aBindingLostWhileSubscribingNeitherListensNorStarts",
+        thrown && binding.lost == ["session-1 The Cast session was replaced"] && bench.media.listener == nil
+      )
+    }
+
+    // A reload over one the receiver has not answered: when the newer one failed, the track the older
+    // one chose stayed in the getters, though the receiver never played it.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, hasTextTracks: false)
+      engine.setSubtitleTrack(5)
+      engine.setAudioTrack(2)
+      bench.port.deliver(#"{"type":"connectionerror","message":"Request failed"}"#)
+      check("aReloadOverAnUnansweredOneUndoesBothWhenItFails", subtitle(engine) == 3 && audio(engine) == 1)
+    }
+
+    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) left
+    // the probe armed, its engine bound, until the session ended: every later arming said so.
+    do {
+      let bench = Bench()
+      bench.hub.attach(bench.port)
+      let probe = CastEngineProbe(
+        hub: bench.hub,
+        makeEngine: { [unowned bench] in
+          CastEngine(server: $0, sessions: bench.source, hub: bench.hub, deliver: bench.clock.deliver, log: { bench.logs.append($0) })
+        },
+        deliver: bench.clock.deliver,
+        log: { [unowned bench] in bench.logs.append($0) }
+      )
+      let playNow = json((try? ReceiverProtocol.playNow(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-1")]))) ?? [:])
+      var active = true
+      withExtendedLifetime(probe) {
+        probe.arm()
+        bench.hub.send(namespace: ReceiverProtocol.namespace, text: playNow) { _ in }
+        bench.clock.advance(0)
+        bench.clock.advance(CastEngineConstants.loadTimeoutMs + 5_000)
+        active = probe.isActive
+      }
+      check(
+        "anItemThatNeverPlaysDisarmsTheProbe",
+        !active && bench.media.listener == nil && bench.logs.contains("item never played")
+      )
+    }
+
+    // A status of the item the TV played before can still come after a load went out: the engine's place
+    // in the queue is the load's start until the load settles, or a copy queued twice is lost.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let queue = ["A", "B", "A", "C"].map { ReceiverItem(id: $0, type: "Audio") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: queue, startIndex: 2)) { _ in }
+      bench.media.report(snapshot(), position: 43.5)
+      bench.media.report(snapshot(customData: ours(["itemId": "A", "playSessionId": "ps-2"])), position: 0)
+      engine.reloadCurrentItem()
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check("aStatusOfThePreviousItemKeepsTheLoadsPlaceInTheQueue", (options?["startIndex"] as? NSNumber)?.intValue == 2)
     }
 
     if failures.isEmpty {

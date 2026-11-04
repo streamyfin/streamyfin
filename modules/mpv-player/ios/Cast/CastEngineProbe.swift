@@ -149,6 +149,12 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
     self.busLogger = busLogger
     bus = hub.subscribe(namespace: ReceiverProtocol.namespace, listener: busLogger)
     log("engine bound, waiting for the item to play")
+    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) gets
+    // as long as a load, or the probe stays armed until the session ends.
+    cancelEnd = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
+      self?.log("item never played")
+      self?.disarm()
+    }
   }
 
   // The TV may still show what it played before: the script waits for the item JS loaded.
@@ -156,6 +162,7 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
     guard let engine, !started, !paused, !loading, itemId != nil, engine.currentItemId == itemId else { return }
     started = true
     log("item playing, running the script")
+    cancelEnd?()
     script?.run()
     cancelEnd = deliver(Self.detachAt) { [weak self] in self?.disarm() }
   }
@@ -166,6 +173,7 @@ final class CastEngineProbe: PlayerEngineDelegate, CastBindingListener {
     script?.cancel()
     cancelEnd?()
     cancelEnd = nil
+    engine?.shutdown()
     bus?.remove()
     bus = nil
     busLogger = nil

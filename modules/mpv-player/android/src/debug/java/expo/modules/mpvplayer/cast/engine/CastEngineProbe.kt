@@ -143,6 +143,12 @@ internal class CastEngineProbe(
             bus = hub.subscribe(ReceiverProtocol.NAMESPACE, BusLogger(log))
             log("engine bound, waiting for the item to play")
         }
+        // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server)
+        // gets as long as a load, or the probe stays armed until the session ends.
+        cancelEnd = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
+            log("item never played")
+            disarm()
+        }
     }
 
     // The TV may still show what it played before: the script waits for the item JS loaded.
@@ -151,6 +157,7 @@ internal class CastEngineProbe(
         if (started || paused || loading || itemId == null || engine.currentItemId != itemId) return
         started = true
         log("item playing, running the script")
+        cancelEnd?.invoke()
         script?.run()
         cancelEnd = schedule(DETACH_AT_MS) { disarm() }
     }
@@ -161,6 +168,7 @@ internal class CastEngineProbe(
         script?.cancel()
         cancelEnd?.invoke()
         cancelEnd = null
+        engine?.stop()
         bus?.remove()
         bus = null
         hub.sendObserver = null

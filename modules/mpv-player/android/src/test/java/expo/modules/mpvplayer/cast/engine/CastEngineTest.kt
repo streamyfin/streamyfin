@@ -702,14 +702,29 @@ class CastEngineTest {
     }
 
     // The receiver sends its bus to the last sender that spoke: after a resume, a load's engine has
-    // to speak first to hear the receiver again (spec §8, risk 6).
+    // to speak first to hear the receiver again (spec §8, risk 6). The receiver applies the envelope of
+    // every message, whatever its command, so it speaks once a status shows an item it cast: on
+    // another sender's item, the SetVolume switched the receiver's server and token to this one's.
     @Test
-    fun aResumeAfterALoadReclaimsTheBusWithAnInertCommand() {
+    fun aResumeAfterALoadReclaimsTheBusOnceTheReceiverShowsItsItem() {
         engine().loadRecorded()
         hub.suspend()
         val port2 = FakeChannelPort()
         hub.attach(port2)
+        assertEquals(emptyList<Pair<String, String>>(), port2.sent)
+        media.report(snapshot(), 0)
+        media.report(snapshot(), 1_000)
         assertEquals(listOf("SetVolume" to "{}"), port2.sent.map { (_, text) -> JSONObject(text).let { it.getString("command") to it.getJSONObject("options").toString() } })
+    }
+
+    @Test
+    fun aResumeOntoAnotherSendersItemReclaimsNothing() {
+        engine().loadRecorded()
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("itemId" to "item-9", "playSessionId" to "ps-9")), 0)
+        assertEquals(emptyList<Pair<String, String>>(), port2.sent)
     }
 
     @Test
@@ -830,5 +845,175 @@ class CastEngineTest {
             source.current = FakeSession(media = FakeMedia(), wasLaunched = launched)
             assertEquals(launched, engine().receiverIdentityIsOurs)
         }
+    }
+
+    // A skip, or any move of the receiver to another item, while a reload of the old one waits: the
+    // reload only settles on a status of its own item, and the position stayed on its target with the
+    // loading on for thirty seconds, then reported a timeout.
+    @Test
+    fun anotherItemOnTheReceiverEndsAReloadOfTheOldOne() {
+        val engine = playing(12_500, *reloadable)
+        engine.seekTo(125.6)
+        engine.skipToNext()
+        media.report(snapshot(customData = ours("itemId" to "track-2", "playSessionId" to "ps-4")), 3_000)
+        assertEquals(3.0, engine.currentPosition, 1e-9)
+        assertFalse(delegate.loadings.last())
+        scheduler.advance(30_000)
+        assertEquals(emptyList<String>(), delegate.errors)
+    }
+
+    // What acts on the item on screen waits for a load on its way: a quality change cast the old item
+    // again over the queue the load had just sent, and a track change or a seek reached the old item.
+    @Test
+    fun theItemCommandsWaitForAPendingLoad() {
+        val engine = playing(42_500)
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-2")))) {}
+        engine.reloadCurrentItem()
+        engine.setAudioTrack(2)
+        engine.seekTo(10.0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        assertEquals(emptyList<Long>(), media.seeks)
+    }
+
+    // After a finished item the receiver fetches the next one of the queue this engine cast: Play in
+    // that gap cast the finished item again from its start, racing the receiver's own next.
+    @Test
+    fun playWhileTheNextItemOfTheQueueIsOnItsWayCastsNothing() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "t-1"), playerState = "idle", idleReason = "finished"), 0)
+        port.sent.clear()
+        engine.play()
+        engine.togglePause()
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+    }
+
+    // A PlayNow the channel did not take leaves the receiver on its queue, under its server: a reload
+    // after it cast the unsent queue's item alone, under the unsent envelope.
+    @Test
+    fun aLoadThatIsNotSentKeepsTheQueueAndTheServerTheReceiverHas() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2", "t-3").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 5_000)
+        port.sendError = "receiver busy"
+        engine.load(SERVER.copy(accessToken = "tok-other"), ReceiverPlayRequest(items = listOf("x-1", "x-2").map { ReceiverItem(id = it) })) {}
+        port.sendError = null
+        engine.reloadCurrentItem()
+        val last = JSONObject(port.sent.last().second)
+        val items = last.getJSONObject("options").getJSONArray("items")
+        assertEquals(listOf("t-1", "t-2", "t-3"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, last.getJSONObject("options").getInt("startIndex"))
+        assertEquals("tok-123", last.getString("accessToken"))
+    }
+
+    // The receiver does not say which copy of an item queued twice it plays: the engine follows the
+    // copy it cast and where the queue went, where a reload used to go from the first copy.
+    @Test
+    fun aReloadOfAnItemQueuedTwiceGoesOnFromTheCopyThatPlays() {
+        val engine = engine()
+        val queue = listOf("A", "B", "A", "C").map { ReceiverItem(id = it, type = "Audio") }
+        engine.load(SERVER, ReceiverPlayRequest(items = queue, startIndex = 2)) {}
+        media.report(snapshot(customData = ours("itemId" to "A")), 0)
+        engine.reloadCurrentItem()
+        assertEquals(2, JSONObject(port.sent.last().second).getJSONObject("options").getInt("startIndex"))
+    }
+
+    @Test
+    fun aQueueThatPlaysOnFollowsTheCopyOfAnItemQueuedTwice() {
+        val engine = engine()
+        val queue = listOf("A", "B", "A", "C").map { ReceiverItem(id = it, type = "Audio") }
+        engine.load(SERVER, ReceiverPlayRequest(items = queue)) {}
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "B", "playSessionId" to "ps-2")), 0)
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-3")), 0)
+        engine.reloadCurrentItem()
+        assertEquals(2, JSONObject(port.sent.last().second).getJSONObject("options").getInt("startIndex"))
+    }
+
+    // A resume joins the receiver app this sender launched, and the SDK then says it did not launch it:
+    // the identity turned "not ours" after every resume.
+    @Test
+    fun aResumeKeepsWhoLaunchedTheReceiverApp() {
+        source.current = FakeSession(media = media, wasLaunched = true)
+        val engine = engine()
+        source.listener!!.onSuspended("session-1")
+        source.listener!!.onResumed(FakeSession(media = FakeMedia(), wasLaunched = false))
+        assertEquals(true, engine.receiverIdentityIsOurs)
+    }
+
+    // Play Services hands a send's result over later: a PlayLast answered after a newer load added its
+    // items to the new queue, which a reload then cast again.
+    @Test
+    fun aPlayLastAnsweredAfterANewLoadStaysOutOfIt() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        port.holdResults = true
+        engine.enqueue(listOf("t-4"))
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.holdResults = false
+        port.releaseResults()
+        media.report(snapshot(customData = ours("itemId" to "b-1", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem()
+        val items = JSONObject(port.sent.last().second).getJSONObject("options").getJSONArray("items")
+        assertEquals(listOf("b-1"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+    }
+
+    // A host that stops the engine and starts it again, a new chrome with a new delegate, never heard the
+    // state the receiver was in: the dedupe kept what the old delegate had been told.
+    @Test
+    fun aStartAfterAStopReportsTheStateToTheNewDelegate() {
+        val engine = playing()
+        media.report(snapshot(playerState = "paused"))
+        engine.stop()
+        val next = RecordingDelegate()
+        engine.delegate = next
+        engine.start(PlayerEngine.Owner.NATIVE_SESSION) {}
+        media.report(snapshot(playerState = "paused"))
+        assertEquals(listOf(true), next.pauses)
+        assertEquals(listOf(false), next.loadings)
+    }
+
+    // The hub, still on a session the SDK replaced, announces its ready inside the engine's subscribe:
+    // the binding was lost there, yet the engine went on to listen to the media and to start.
+    @Test
+    fun aBindingLostWhileSubscribingNeitherListensNorStarts() {
+        hub.attach(FakeChannelPort(sessionId = "session-2"))
+        val lost = mutableListOf<Pair<String?, String?>>()
+        CastEngine(SERVER, source, hub, scheduler.schedule, { it() }, logs::add).also {
+            it.delegate = delegate
+            it.bindingListener = CastBindingListener { sessionId, error -> lost += sessionId to error }
+            it.start(PlayerEngine.Owner.NATIVE_SESSION) { started += 1 }
+        }
+        assertEquals(listOf<Pair<String?, String?>>("session-1" to "The Cast session was replaced"), lost)
+        assertEquals(0, started)
+        assertNull(media.listener)
+    }
+
+    // A reload over one the receiver has not answered: when the newer one failed, the track the older
+    // one chose stayed in the getters, though the receiver never played it.
+    @Test
+    fun aReloadOverAnUnansweredOneUndoesBothWhenItFails() {
+        val engine = playing(42_500, hasTextTracks = false)
+        engine.setSubtitleTrack(5)
+        engine.setAudioTrack(2)
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        assertEquals(3, engine.getCurrentSubtitleTrack())
+        assertEquals(1, engine.getCurrentAudioTrack())
+    }
+
+    // A status of the item the TV played before can still come after a load went out: the engine's place
+    // in the queue is the load's start until the load settles, or a copy queued twice is lost.
+    @Test
+    fun aStatusOfThePreviousItemKeepsTheLoadsPlaceInTheQueue() {
+        val engine = playing()
+        val queue = listOf("A", "B", "A", "C").map { ReceiverItem(id = it, type = "Audio") }
+        engine.load(SERVER, ReceiverPlayRequest(items = queue, startIndex = 2)) {}
+        media.report(snapshot(), 43_500)
+        media.report(snapshot(customData = ours("itemId" to "A", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem()
+        assertEquals(2, JSONObject(port.sent.last().second).getJSONObject("options").getInt("startIndex"))
     }
 }

@@ -52,6 +52,33 @@ describe("native mirrors of constants/Cast.ts", () => {
     ]).toEqual([RECEIVER_MAX_QUEUE_ITEMS, RECEIVER_MAX_QUEUE_ITEMS]);
   });
 
+  // Native only, with no TypeScript twin: the two engines still have to end a
+  // queue and tick alike.
+  test("both engines wait as long for the next item and tick at the same pace", () => {
+    expect(
+      declared(
+        `${ANDROID}/engine/CastEngineConstants.kt`,
+        /NEXT_ITEM_WAIT_MS: Long = ([\d_]+)L/,
+      ),
+    ).toBe(
+      declared(
+        `${IOS}/CastEngineConstants.swift`,
+        /nextItemWaitMs: Double = ([\d_]+)/,
+      ),
+    );
+    expect(
+      declared(
+        `${ANDROID}/engine/CastEngineConstants.kt`,
+        /PROGRESS_INTERVAL_MS: Long = ([\d_]+)L/,
+      ),
+    ).toBe(
+      declared(
+        `${IOS}/CastEngineConstants.swift`,
+        /progressIntervalMs: Double = ([\d_]+)/,
+      ),
+    );
+  });
+
   test("both receiver readers send RECEIVER_UNCAPPED_BITRATE", () => {
     expect([
       declared(

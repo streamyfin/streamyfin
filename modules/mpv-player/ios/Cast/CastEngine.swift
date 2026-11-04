@@ -78,6 +78,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     let cancelTimer: () -> Void
     // What the request changed that the receiver has to confirm: the chosen track.
     let undo: () -> Void
+    let itemId: String?
   }
 
   private var reload: Reload?
@@ -99,10 +100,21 @@ final class CastEngine: TransportEngine, QueueEngine {
   // its whole queue, so a reload sends it again.
   private var queue: [ReceiverItem] = []
 
+  // Where in `queue` the receiver plays: it names the item, not which copy of one queued twice.
+  private var playingIndex = -1
+
+  // Bumped by each load: a send result that comes back after a newer load (Android's Play Services
+  // hands it over later) no longer describes the receiver's queue.
+  private var queueGeneration = 0
+
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
   private var busClaimed = false
   private var suspended = false
+
+  // The receiver applies the envelope of every message, whatever its command: after a resume the bus
+  // is reclaimed once a status shows an item this engine cast, never over another sender's.
+  private var reclaimPending = false
 
   // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
   private var cancelEndWait: (() -> Void)?
@@ -143,7 +155,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     // Bound already: binding again would subscribe and ask for a status a second time.
     guard session == nil else { return }
     guard let current = sessions.current, current.isConnected else { throw CastEngineError.noSession }
-    bind(current)
+    guard bind(current) else { throw CastEngineError.noSession }
   }
 
   // The TV plays on: detaching sends nothing, and never ends the session.
@@ -155,8 +167,11 @@ final class CastEngine: TransportEngine, QueueEngine {
   // Forgets the item and keeps the binding, where the mpv engine rebuilds its handle to be loaded again.
   func destroy() {
     onMain()
+    if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     reload?.cancelTimer()
     reload = nil
+    // What ended is forgotten with the item: its end would come fifteen seconds later.
+    endWait(false)
     stopTicking()
     ours = nil
     hasMedia = false
@@ -169,7 +184,7 @@ final class CastEngine: TransportEngine, QueueEngine {
     publishState()
   }
 
-  private func bind(_ session: CastSessionPort) {
+  private func bind(_ session: CastSessionPort) -> Bool {
     self.session = session
     boundSessionId = session.sessionId
     volume = session.volume
@@ -179,10 +194,18 @@ final class CastEngine: TransportEngine, QueueEngine {
     sessions.listener = sessionEar
     let busEar = BusEar(engine: self)
     self.busEar = busEar
-    bus = hub.subscribe(namespace: ReceiverProtocol.namespace, listener: busEar)
+    let subscription = hub.subscribe(namespace: ReceiverProtocol.namespace, listener: busEar)
+    // The hub, still on a session the SDK replaced, announces that one's ready inside the subscribe,
+    // which loses this binding: nothing is left to listen to.
+    guard self.session === session else {
+      subscription.remove()
+      return false
+    }
+    bus = subscription
     attachMedia(session.media)
     publishState()
     log("bound to session \(boundSessionId ?? "?")")
+    return true
   }
 
   private func attachMedia(_ port: CastMediaPort?) {
@@ -213,6 +236,11 @@ final class CastEngine: TransportEngine, QueueEngine {
     stopTicking()
     reload?.cancelTimer()
     reload = nil
+    reclaimPending = false
+    // What was reported was reported to this host: the next one starts from nothing.
+    reportedPause = nil
+    reportedLoading = nil
+    readyToSeekFor = nil
     if session != nil { log("detached from session \(boundSessionId ?? "?")") }
     session = nil
     boundSessionId = nil
@@ -270,8 +298,9 @@ final class CastEngine: TransportEngine, QueueEngine {
       loseBinding(Self.sessionReplacedError)
       return
     }
-    // An inert command: SetVolume without a level changes nothing on the receiver.
-    if busClaimed { send("SetVolume", [:]) }
+    // SetVolume without a level changes no volume, but the receiver takes its envelope: it waits for
+    // a status that shows an item this engine cast.
+    reclaimPending = busClaimed
   }
 
   // MARK: - Loading
@@ -298,8 +327,15 @@ final class CastEngine: TransportEngine, QueueEngine {
       completion(.notSent(String(describing: error)))
       return
     }
+    let previousServer = self.server
+    let previousQueue = queue
+    let previousIndex = playingIndex
+    queueGeneration += 1
+    let generation = queueGeneration
+    let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
-    queue = ReceiverProtocol.toReceiverRequest(request).items
+    queue = receiverRequest.items
+    playingIndex = receiverRequest.startIndex ?? 0
     reload?.cancelTimer()
     reload = nil
     endWait(false)
@@ -316,7 +352,14 @@ final class CastEngine: TransportEngine, QueueEngine {
     }
     setLoading(true)
     sendMessage("PlayNow", message, sent: { [weak self] in self?.busClaimed = true }) { [weak self] error in
-      guard let self, self.pendingLoad === load else { return }
+      guard let self else { return }
+      // Never sent: the receiver keeps its queue, under its server.
+      if generation == self.queueGeneration {
+        self.server = previousServer
+        self.queue = previousQueue
+        self.playingIndex = previousIndex
+      }
+      guard self.pendingLoad === load else { return }
       load.cancelTimer()
       self.pendingLoad = nil
       self.setLoading(self.isBuffering())
@@ -407,7 +450,8 @@ final class CastEngine: TransportEngine, QueueEngine {
   }
 
   private func seek(_ seconds: Double) {
-    guard let port = media else { return }
+    // A load on its way replaces the item: a seek would reach the old one.
+    guard pendingLoad == nil, let port = media else { return }
     let data = ours
     // Nothing loaded, stopped, or live: a Seek by reload would restart a stopped item.
     guard hasMedia, playerState != State.idle, data?.canSeek != false else { return }
@@ -511,7 +555,8 @@ final class CastEngine: TransportEngine, QueueEngine {
   // receiver plays, in the window that fits one message, or that item alone when the queue is
   // someone else's.
   private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: @escaping () -> Void = {}) {
-    let index = queue.firstIndex { $0.id == data.itemId }
+    let index = queue.indices.contains(playingIndex) && queue[playingIndex].id == data.itemId
+      ? playingIndex : queue.firstIndex { $0.id == data.itemId }
     let window = ReceiverProtocol.queueWindow(
       index == nil ? [ReceiverItem(id: data.itemId)] : queue, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems
     )
@@ -560,12 +605,17 @@ final class CastEngine: TransportEngine, QueueEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
+    let generation = queueGeneration
     stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).forEach { start in
       let window = Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
       // A window joins the replay queue once the channel took it.
       sendMessage(
         "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
-        sent: { [weak self] in self?.queue += window.map { ReceiverItem(id: $0) } }, failed: reportFailure
+        sent: { [weak self] in
+          guard let self, generation == self.queueGeneration else { return }
+          self.queue += window.map { ReceiverItem(id: $0) }
+        },
+        failed: reportFailure
       )
     }
   }
@@ -591,6 +641,13 @@ final class CastEngine: TransportEngine, QueueEngine {
       return
     }
     let data = status.customData.map(ReceiverProtocol.parseCustomData)
+    // The receiver moved to another item (a skip, the queue going on, another sender): a reload of the
+    // old one never settles on its statuses, and held the position for thirty seconds.
+    if let pending = reload, let itemId = data?.itemId, itemId != pending.itemId {
+      settleReload(pending, .superseded, recompute: false)
+    }
+    // Until a load settles, its start is the place: a status of what played before is not the queue moving.
+    if pendingLoad == nil { followQueue(data?.itemId) }
     // Settled at the end, once this status is the engine's: the host acts on the result from it.
     let load = pendingLoad
     let loadOutcome = load?.tracker.onMediaStatus(customData: data, playerState: status.playerState)
@@ -614,6 +671,10 @@ final class CastEngine: TransportEngine, QueueEngine {
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
     }
     reportState(status.playerState, reason: status.idleReason, data: data)
+    if reclaimPending, let itemId = data?.itemId, queue.contains(where: { $0.id == itemId }) {
+      reclaimPending = false
+      send("SetVolume", [:])
+    }
     publishState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
@@ -760,13 +821,16 @@ final class CastEngine: TransportEngine, QueueEngine {
   private func startReload(
     target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {}, send: (@escaping (String) -> Void) -> Void
   ) {
-    reload?.cancelTimer()
+    let previous = reload
+    previous?.cancelTimer()
+    // A reload the receiver has not answered: when this one fails, what that one chose goes too.
+    let undoAll: () -> Void = previous.map { previous in { undo(); previous.undo() } } ?? undo
     let tracker = ReceiverLoadTracker(request: ReceiverPlayRequest(items: [ReceiverItem(id: data.itemId)]), previousPlaySessionId: data.playSessionId)
     let cancelTimer = deliver(CastEngineConstants.loadTimeoutMs) { [weak self] in
       guard let self, let pending = self.reload, pending.tracker === tracker, let outcome = tracker.timeOut() else { return }
       self.settleReload(pending, outcome, recompute: true)
     }
-    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undo)
+    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undoAll, itemId: data.itemId)
     position = target
     setLoading(true)
     publishState()
@@ -852,16 +916,31 @@ final class CastEngine: TransportEngine, QueueEngine {
   // MARK: - Helpers
 
   // Our item, loaded and not stopped: the receiver's commands need one (spec §4).
+  // A load on its way replaces it: a command would act on the old item.
   private func loadedItem() -> ReceiverCustomData? {
-    guard hasMedia, playerState != State.idle, let data = ours, data.itemId != nil else { return nil }
+    guard hasMedia, playerState != State.idle, pendingLoad == nil, let data = ours, data.itemId != nil else { return nil }
     return data
   }
 
   // Our item, stopped with its media still in the status, and nothing on its way to replace it.
   private func stoppedItem() -> ReceiverCustomData? {
-    guard hasMedia, playerState == State.idle, idleReason != Reason.interrupted, !awaitingReceiver(), let data = ours, data.itemId != nil
+    guard hasMedia, playerState == State.idle, idleReason != Reason.interrupted, !awaitingReceiver(), !nextItemComing(),
+      let data = ours, data.itemId != nil
     else { return nil }
     return data
+  }
+
+  // A finished item the receiver goes on from: the queue this engine cast has one after it, which the
+  // receiver fetches while the end waits. Play then would race it with the finished item.
+  private func nextItemComing() -> Bool { cancelEndWait != nil && playingIndex >= 0 && playingIndex < queue.count - 1 }
+
+  // The receiver names the item it plays, not which copy of one queued twice: the copy where the engine
+  // is in the queue, else the one after it (the queue went on), else the one before (it went back),
+  // else the first.
+  private func followQueue(_ itemId: String?) {
+    guard let itemId else { return }
+    let near = [playingIndex, playingIndex + 1, playingIndex - 1].first { queue.indices.contains($0) && queue[$0].id == itemId }
+    playingIndex = near ?? queue.firstIndex { $0.id == itemId } ?? -1
   }
 
   private func publishState() {

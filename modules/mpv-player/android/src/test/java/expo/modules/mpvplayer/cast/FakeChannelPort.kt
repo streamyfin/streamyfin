@@ -28,9 +28,20 @@ class FakeChannelPort(
         unregistrations += namespace
     }
 
+    /** Holds each send's result until [releaseResults], as Play Services hands its PendingResult over later. */
+    var holdResults = false
+    private val heldResults = mutableListOf<() -> Unit>()
+
     override fun send(namespace: String, text: String, done: (String?) -> Unit) {
         sent += namespace to text
-        done(sendError)
+        val error = sendError
+        if (holdResults) heldResults += { done(error) } else done(error)
+    }
+
+    fun releaseResults() {
+        val held = heldResults.toList()
+        heldResults.clear()
+        held.forEach { it() }
     }
 
     /** A message from the receiver, as the SDK hands it over: to the last callback registered here. */
