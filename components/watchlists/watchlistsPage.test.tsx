@@ -12,13 +12,6 @@ let mockQuery: {
   refetch: () => Promise<unknown>;
 };
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
 jest.mock("@/hooks/useWatchlists", () => ({
   useStreamystatsEnabled: () => true,
   useWatchlistsQuery: () => mockQuery,
