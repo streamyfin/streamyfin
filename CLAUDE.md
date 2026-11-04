@@ -90,6 +90,7 @@ Native modules:
 - `cast-resume-rebuilds-the-client` | a Cast resume hands a new media client and drops channel callbacks; register again on resume, never keep either across one
 - `cast-session-id-goes-null-when-ended` | an ended Android CastSession answers null for its id, so an end matched against the live id matches nothing; keep the id the binding was made with
 - `cast-stop-from-tv-leaves-an-idle-status` | stopped from the TV, the session stays connected and the SDK keeps an idle status with its media, at position 0; play() does nothing there, send the item or queue again from your own position
+- `cast-switch-ends-the-old-session` | a receiver switch is two sessions: iOS startSession(with:) answers NO while one is established, so end it first; Android ends the old one with status 2155, the same code as a network loss, so only the request tells them apart
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
