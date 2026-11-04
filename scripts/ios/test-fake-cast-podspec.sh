@@ -54,13 +54,18 @@ else
   ACTION=build /bin/sh -c "$script" >/dev/null 2>&1 || fail "the archive refusal stops a plain build"
 fi
 
-# The store profile has to fail, and on the podspec's own refusal: the archive phase's script carries
-# the same closing words, so a spec that succeeds can contain them too.
-if store=$(spec EAS_BUILD_PROFILE=production STREAMYFIN_FAKE_CAST_DEVICES=1 2>&1); then
-  fail "the store profile takes the fake receivers"
-elif [[ "$store" != *"is set for the store profile 'production'"* ]]; then
-  fail "the store profile failed for another reason: $store"
-fi
+# Every store profile eas.json defines (their names start with production) has to fail, and on the
+# podspec's own refusal: the archive phase's script carries the same closing words, so a spec that
+# succeeds can contain them too.
+store_profiles=$(ruby -rjson -e 'puts JSON.parse(File.read("eas.json"))["build"].keys.select { |k| k.start_with?("production") }')
+[ -n "$store_profiles" ] || fail "eas.json names no store profile"
+for profile in $store_profiles; do
+  if store=$(spec EAS_BUILD_PROFILE="$profile" STREAMYFIN_FAKE_CAST_DEVICES=1 2>&1); then
+    fail "the $profile profile takes the fake receivers"
+  elif [[ "$store" != *"is set for the store profile '$profile'"* ]]; then
+    fail "the $profile profile failed for another reason: $store"
+  fi
+done
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures fake Cast podspec check(s) failed"
