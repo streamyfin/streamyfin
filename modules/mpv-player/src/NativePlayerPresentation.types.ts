@@ -132,6 +132,10 @@ export type NativePlayerEpisodeListItem = {
   itemId: string;
   title: string;
   indexNumber?: number;
+  /** Full synopsis; native views decide how much fits on screen. */
+  overview?: string;
+  /** Localized numbering, runtime, air date, ratings and watched status. */
+  details?: string;
   imageUrl?: string;
   /** 0-100 watched progress. */
   progressPercent?: number;

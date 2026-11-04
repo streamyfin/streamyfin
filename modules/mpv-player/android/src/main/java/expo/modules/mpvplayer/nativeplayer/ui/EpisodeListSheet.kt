@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -92,7 +91,7 @@ private fun EpisodeRow(
             .background(if (isCurrent) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
             .clickable { onClick() }
             .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
         // Episode index / play icon
         Box(
@@ -121,16 +120,33 @@ private fun EpisodeRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Title and watched progress
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = episode.title,
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+
+            episode.details?.takeIf { it.isNotBlank() }?.let { details ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = details,
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 12.sp
+                )
+            }
+
+            episode.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = overview,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
+                )
+            }
 
             if (episode.progressPercent > 0.0) {
                 Spacer(modifier = Modifier.height(6.dp))
