@@ -80,6 +80,9 @@ export const useWatchlistsQuery = () => {
     },
     enabled: streamystatsEnabled && Boolean(api?.accessToken),
     staleTime: 60 * 1000, // 1 minute
+    // Asked once: a server that never answers costs a whole timeout per
+    // attempt, and the tab's failed state offers Retry.
+    retry: false,
   });
 };
 
