@@ -40,6 +40,15 @@ class FakeFile extends FakeEntry {
     return destination;
   }
 
+  /** Re-keys the entry, like the real move: the old path stops existing. */
+  move(destination: FakeFile | FakeDirectory | string) {
+    const to = withoutTrailingSlash(
+      typeof destination === "string" ? destination : destination.uri,
+    );
+    existing.delete(this.location);
+    existing.add(to);
+  }
+
   /** Sizes are not modelled: every file reports 0 bytes. */
   info() {
     return { exists: this.exists, size: 0 };
@@ -94,8 +103,8 @@ export const DISK_AVAILABLE = 10_000_000_000;
  *   );
  *
  * Only what the app's delete and download paths call is implemented: the `File` and `Directory`
- * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.info()` for the
- * completion handler, and `create()` and `list()` on a directory.
+ * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.move()`,
+ * `File.info()` for the completion handler, and `create()` and `list()` on a directory.
  */
 export const fileSystemModule = {
   File: FakeFile,

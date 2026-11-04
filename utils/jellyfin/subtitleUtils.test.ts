@@ -395,6 +395,18 @@ describe("getExternalSubtitleUrl — server contract (MediaInfoHelper)", () => {
     ).toBe("file:///subs/0.srt");
   });
 
+  test("a local file:// DeliveryUrl is never prefixed with the basePath", () => {
+    // The online prefetch rewrites DeliveryUrl onto a cache file while the
+    // session stays online; re-deriving the load URL from it afterwards must
+    // not concatenate server and path into a garbage host.
+    expect(
+      getExternalSubtitleUrl(
+        ext(0, { DeliveryUrl: "file:///cache/subtitles/0.srt" }),
+        { offline: false, basePath: "https://jf.example" },
+      ),
+    ).toBe("file:///cache/subtitles/0.srt");
+  });
+
   test("no DeliveryUrl or no basePath online → undefined", () => {
     expect(
       getExternalSubtitleUrl(sub({ Index: 0, IsExternal: true }), {
