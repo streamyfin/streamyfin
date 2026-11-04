@@ -855,6 +855,18 @@ enum RemoteTargetTests {
       )
     }
 
+    // Armed on the receiver already connected, the probe holds that session and ends it: the hold's check
+    // took it for another receiver's session, since that path never named the probe's device (bench, 04/11).
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      let (probe, clock, logs) = run("Living room", port: port) { _ in port.emit("started", chromecast) }
+      clock.advance(CastTargetProbe.connectedHoldMs)
+      check(
+        "aProbeArmedOnItsConnectedReceiverHoldsThenEndsIt",
+        port.disconnects == [true] && logs().last == "disconnecting" && probe.isActive
+      )
+    }
+
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
     do {
       let port = FakeTargetPort()
