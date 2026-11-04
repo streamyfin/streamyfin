@@ -146,6 +146,32 @@ class RemoteTargetHubTest {
         assertTrue(port.connects.isEmpty())
     }
 
+    // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
+    @Test
+    fun askingTheConnectedReceiverAgainDuringASwitchReachesThePort() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.connect(bedroom.id)
+        assertTrue(hub.connect(livingRoom.id))
+
+        assertEquals(listOf(bedroom, livingRoom), port.connects)
+    }
+
+    @Test
+    fun aReplacedPortForgetsTheOldPortsDevices() {
+        val hub = RemoteTargetHub()
+        val first = FakeTargetPort()
+        hub.install(first)
+        first.discover(listOf(livingRoom))
+        val heard = Recording().also { hub.addListener(it) }
+
+        hub.install(FakeTargetPort())
+
+        assertTrue(hub.devices.isEmpty())
+        assertEquals(listOf(emptyList<TargetDevice>()), heard.deviceLists)
+    }
+
     @Test
     fun onlyChangesReachTheListeners() {
         val hub = RemoteTargetHub()

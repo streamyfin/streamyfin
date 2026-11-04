@@ -64,6 +64,7 @@ final class RemoteTargetHub {
     // A target the old port reported means nothing to the new one.
     machine = RemoteTargetMachine()
     publish()
+    updateDevices([])
     // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
     port.start(events: PortEvents(hub: self, port: port))
     if !discoveryOwners.isEmpty { port.startDiscovery() }
@@ -81,9 +82,9 @@ final class RemoteTargetHub {
   func connect(deviceId: String) -> Bool {
     guard let port, let device = port.devices().first(where: { $0.id == deviceId }) else { return false }
     let current = snapshot
-    if current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected) {
-      return true
-    }
+    let held = current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected)
+    // The receiver already there asks nothing, unless a switch is taking its session away.
+    if held && !machine.isSwitching { return true }
     // Announced before the port is asked: its first event can come back inside connect.
     if machine.connectRequested(device) { publish() }
     // While another device is connected, the port ends that session before this one starts: the

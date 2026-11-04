@@ -19,6 +19,8 @@ internal class CastTargetProbe(
     private val keep: Boolean,
     /** How long a connected session is held before the disconnection: long enough to cut the network in. */
     private val holdMs: Long,
+    /** Asks the receiver held at the start again right after the switch request: the switch asked back. */
+    private val back: Boolean,
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val log: (String) -> Unit,
 ) : RemoteTargetListener {
@@ -30,6 +32,7 @@ internal class CastTargetProbe(
     private var settle: (() -> Unit)? = null
     private var device: TargetDevice? = null
     private var connected = false
+    private var leaving: RemoteTarget? = null
 
     fun start() {
         isActive = true
@@ -37,6 +40,7 @@ internal class CastTargetProbe(
         val current = hub.snapshot
         log("armed for \"$deviceName\" ${describe(current)}")
         val target = current.target
+        if (current.phase == TargetPhase.CONNECTED) leaving = target
         // A whole name only: a part of one may name another receiver than the connected one.
         if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
             log("already connected to ${target.name}")
@@ -77,6 +81,18 @@ internal class CastTargetProbe(
         log("found ${found.name}")
         if (!hub.connect(found.id)) {
             fail("the hub refused ${found.name}")
+            return
+        }
+        val left = leaving
+        if (back && left != null && left.id != found.id) {
+            // Before the switch has ended the held session: the last request must win.
+            log("asking ${left.name} again")
+            device = TargetDevice(left.id, left.name)
+            if (!hub.connect(left.id)) {
+                fail("the hub refused ${left.name}")
+                return
+            }
+            wait(CONNECT_TIMEOUT_MS, "never connected")
             return
         }
         // The hub asks nothing for the receiver already connected, so no event will come.
@@ -158,7 +174,7 @@ internal class CastTargetProbe(
 
         /** One probe at a time: a broadcast while one runs does nothing. */
         @MainThread
-        fun run(context: Context, deviceName: String, keep: Boolean, holdMs: Long) {
+        fun run(context: Context, deviceName: String, keep: Boolean, holdMs: Long, back: Boolean) {
             if (current?.isActive == true) {
                 Log.i(TAG, "already running")
                 return
@@ -175,13 +191,13 @@ internal class CastTargetProbe(
             }
             // The module installs the same port when JS first touches Cast; whichever comes first wins.
             RemoteTargets.installDefault(context, cast)
-            current = CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, mainLooperSchedule()) { Log.i(TAG, it) }
+            current = CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, back, mainLooperSchedule()) { Log.i(TAG, it) }
                 .also { it.start() }
         }
     }
 }
 
-/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>]` */
+/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true]` */
 class CastTargetProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != CastTargetProbe.ACTION) return
@@ -190,6 +206,7 @@ class CastTargetProbeReceiver : BroadcastReceiver() {
             intent.getStringExtra("device").orEmpty(),
             intent.getBooleanExtra("keep", false),
             intent.getLongExtra("hold", CastTargetProbe.CONNECTED_HOLD_MS),
+            intent.getBooleanExtra("back", false),
         )
     }
 }

@@ -34,6 +34,7 @@ class RemoteTargetHub {
         // A target the old port reported means nothing to the new one.
         machine = RemoteTargetMachine()
         publish()
+        updateDevices(emptyList())
         // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
         port.start(eventsFor(port))
         if (discoveryOwners.isNotEmpty()) port.startDiscovery()
@@ -50,9 +51,9 @@ class RemoteTargetHub {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
         val current = snapshot
-        if (current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)) {
-            return true
-        }
+        val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
+        // The receiver already there asks nothing, unless a switch is taking its session away.
+        if (held && !machine.isSwitching) return true
         // Announced before the port is asked: its first event can come back inside connect.
         if (machine.connectRequested(device)) publish()
         // While another device is connected, the port ends that session before this one starts: the

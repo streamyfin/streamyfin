@@ -84,10 +84,15 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func connect(_ device: TargetDevice) {
+    let switching = pendingSwitch != nil
     pendingSwitch = nil
     if let running = runningSession() {
-      // That receiver's session is already there, or on its way.
-      if running.device?.id == device.id { return }
+      if running.device?.id == device.id {
+        // Asked back while a switch ends its session: start it again once that end comes.
+        if switching { pendingSwitch = device }
+        // Otherwise that receiver's session is already there, or on its way.
+        return
+      }
       // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
       // answers NO): end it, and start this receiver once the SDK reports the end.
       pendingSwitch = device
@@ -194,12 +199,14 @@ extension CastTargetProbe {
   /// Logger, which prints each line with its type: the console reads [CastTargetProbe]. `then` names a
   /// second receiver, asked once the first one is connected: a switch inside one process, where every
   /// relaunch would first meet the SDK resuming its session.
-  static func run(deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil) {
+  static func run(deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
     RemoteTargets.installDefault()
+    let chained = !(next ?? "").isEmpty
     let probe = CastTargetProbe(
-      hub: .shared, deviceName: deviceName, keep: keep, holdMs: holdMs,
+      // `back` belongs to the probe that switches: in a chain, the next one.
+      hub: .shared, deviceName: deviceName, keep: keep, holdMs: holdMs, back: back && !chained,
       schedule: { delayMs, run in
         let work = DispatchWorkItem(block: run)
         DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
@@ -210,7 +217,7 @@ extension CastTargetProbe {
     if let next, !next.isEmpty {
       probe.onFinish = { result in
         guard result.hasPrefix("done") else { return }
-        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs) }
+        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs, back: back) }
       }
     }
     current = probe

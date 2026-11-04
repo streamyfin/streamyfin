@@ -14,8 +14,13 @@ class CastTargetProbeTest {
     private val scheduler = ManualScheduler()
     private val logs = mutableListOf<String>()
 
-    private fun probe(hub: RemoteTargetHub, name: String, keep: Boolean = false, holdMs: Long = CastTargetProbe.CONNECTED_HOLD_MS) =
-        CastTargetProbe(hub, name, keep, holdMs, scheduler.schedule, logs::add)
+    private fun probe(
+        hub: RemoteTargetHub,
+        name: String,
+        keep: Boolean = false,
+        holdMs: Long = CastTargetProbe.CONNECTED_HOLD_MS,
+        back: Boolean = false,
+    ) = CastTargetProbe(hub, name, keep, holdMs, back, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -107,6 +112,37 @@ class CastTargetProbeTest {
 
         assertFalse(probe.isActive)
         assertTrue(port.discovering)
+    }
+
+    // The bench proof of a switch asked back: the receiver held when the probe started is asked again
+    // before the switch has ended its session, and the probe ends connected to it.
+    @Test
+    fun aProbeAskedToGoBackEndsOnTheReceiverItLeft() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Bedroom", keep = true, back = true)
+
+        probe.start()
+        port.discover(listOf(livingRoom, bedroom))
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom, "Cast session status code 2155 (2155)")
+        port.emit("starting", livingRoom)
+        port.emit("started", livingRoom)
+
+        assertEquals(listOf(bedroom, livingRoom), port.connects)
+        assertEquals(
+            listOf(
+                "found Bedroom",
+                "asking Living room again",
+                "state=ending target=Living room reconnecting=false error=-",
+                "state=connecting target=Living room reconnecting=false error=-",
+                "state=connected target=Living room reconnecting=false error=-",
+                "done, still connected",
+            ),
+            logs.drop(1),
+        )
+        assertFalse(probe.isActive)
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.

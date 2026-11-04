@@ -11,6 +11,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let holdArgument = "CastTargetProbeHold"
   /// A second receiver, asked once the first is connected (iOS only: Android sends a second broadcast).
   static let thenArgument = "CastTargetProbeThen"
+  /// Asks the receiver held at the start again right after the switch request: the switch asked back.
+  static let backArgument = "CastTargetProbeBack"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -23,6 +25,7 @@ final class CastTargetProbe: RemoteTargetListener {
   private let keep: Bool
   /// How long a connected session is held before the disconnection: long enough to cut the network in.
   private let holdMs: Double
+  private let back: Bool
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -33,12 +36,15 @@ final class CastTargetProbe: RemoteTargetListener {
   private var settle: (() -> Void)?
   private var device: TargetDevice?
   private var connected = false
+  private var leaving: RemoteTarget?
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
+    back: Bool = false, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void),
+    log: @escaping (String) -> Void
   ) {
     self.holdMs = holdMs
+    self.back = back
     self.hub = hub
     self.deviceName = deviceName
     self.keep = keep
@@ -56,6 +62,7 @@ final class CastTargetProbe: RemoteTargetListener {
     removeListener = hub.addListener(self)
     let current = hub.snapshot
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
+    if current.phase == .connected { leaving = current.target }
     // A whole name only: a part of one may name another receiver than the connected one.
     if current.phase == .connected, let target = current.target,
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
@@ -99,6 +106,17 @@ final class CastTargetProbe: RemoteTargetListener {
     log("found \(found.name)")
     guard hub.connect(deviceId: found.id) else {
       fail("the hub refused \(found.name)")
+      return
+    }
+    if back, let left = leaving, left.id != found.id {
+      // Before the switch has ended the held session: the last request must win.
+      log("asking \(left.name) again")
+      device = TargetDevice(id: left.id, name: left.name, model: nil)
+      guard hub.connect(deviceId: left.id) else {
+        fail("the hub refused \(left.name)")
+        return
+      }
+      wait(Self.connectTimeoutMs, failure: "never connected")
       return
     }
     // The hub asks nothing for the receiver already connected, so no event will come.
