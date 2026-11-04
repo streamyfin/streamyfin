@@ -108,7 +108,8 @@ final class CastTargetProbe: RemoteTargetListener {
     log(Self.describe(snapshot))
     switch snapshot.phase {
     case .connected:
-      if !connected { onConnected() }
+      // Only the receiver it found: the SDK can resume another session meanwhile, after a relaunch.
+      if !connected, let device, snapshot.target?.id == device.id { onConnected() }
     case .none:
       // A none without an error before the connection is a switch's old session ending: the asked
       // receiver comes next, or the connection wait says it never did.

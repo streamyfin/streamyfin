@@ -94,6 +94,21 @@ class CastTargetProbeTest {
         assertEquals(listOf(livingRoom), port.connects)
     }
 
+    // On iOS the SDK resumed the session after a relaunch while a probe watched for another name.
+    @Test
+    fun aConnectionToAnotherReceiverIsNotTheProbes() {
+        val port = FakeTargetPort()
+        val probe = probe(hubWith(port), "kitchen")
+
+        probe.start()
+        port.emit("started", livingRoom)
+        scheduler.advance(CastTargetProbe.DISCOVERY_TIMEOUT_MS)
+
+        assertTrue(port.disconnects.isEmpty())
+        assertEquals("failed: no device named \"kitchen\"", logs.last())
+        assertFalse(probe.isActive)
+    }
+
     @Test
     fun aDeviceDiscoveryNeverListsFails() {
         val port = FakeTargetPort()
