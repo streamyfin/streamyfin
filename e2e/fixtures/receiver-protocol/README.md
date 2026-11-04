@@ -34,6 +34,10 @@ reader serializes it the way the wire and the native bridges deliver it; a strin
 is a payload as received. Status messages show the keys a sender reads: the receiver puts
 more of the item in `NowPlayingItem`.
 
+The Android Cast engine replays `load-outcomes.json` and `media-position.json` through its
+own timer, media channel and receiver bus (`CastEngineVectorsTest.kt`, next to
+`CastEngine.kt`), so the engine settles a load and reads a position as the readers do.
+
 The native readers replay every case of every file: JUnit
 (`modules/mpv-player/android/src/test/java/expo/modules/mpvplayer/cast/receiver/ReceiverProtocolVectorsTest.kt`,
 on Kotlin's `ReceiverProtocol`) and the Swift check (`scripts/ios/test-receiver-protocol.sh`,

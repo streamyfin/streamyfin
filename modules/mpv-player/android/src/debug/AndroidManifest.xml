@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: adb arms the Cast engine probe (e2e/suites/cast/README.md). The DUMP
+     permission keeps the broadcast to the shell, which holds it, and away from other apps. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="expo.modules.mpvplayer.cast.engine.CastEngineProbeReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="expo.modules.mpvplayer.CAST_ENGINE_PROBE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -2,10 +2,12 @@ package expo.modules.mpvplayer.cast
 
 import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.common.ConnectionResult
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -52,6 +54,25 @@ class CastMappingTest {
         val error = CastMapping.sessionEndError(CastStatusCodes.NETWORK_ERROR, CastReasonCodes.NETWORK_ERROR)
         assertNotNull(error)
         assertTrue(error!!.endsWith("(${CastStatusCodes.NETWORK_ERROR})"))
+    }
+
+    // The engine tells an end from an error by why the receiver went idle.
+    @Test
+    fun idleReasonsMapToTheReceiverNames() {
+        assertEquals("none", CastMapping.idleReasonName(MediaStatus.IDLE_REASON_NONE))
+        assertEquals("finished", CastMapping.idleReasonName(MediaStatus.IDLE_REASON_FINISHED))
+        assertEquals("cancelled", CastMapping.idleReasonName(MediaStatus.IDLE_REASON_CANCELED))
+        assertEquals("interrupted", CastMapping.idleReasonName(MediaStatus.IDLE_REASON_INTERRUPTED))
+        assertEquals("error", CastMapping.idleReasonName(MediaStatus.IDLE_REASON_ERROR))
+        assertEquals("none", CastMapping.idleReasonName(42))
+    }
+
+    // A subtitle change goes over the bus only when the media has text tracks; without any, it reloads.
+    @Test
+    fun textTracksAreTheTracksOfTypeText() {
+        assertTrue(CastMapping.hasTextTracks(listOf(MediaTrack.TYPE_AUDIO, MediaTrack.TYPE_TEXT)))
+        assertFalse(CastMapping.hasTextTracks(listOf(MediaTrack.TYPE_AUDIO, MediaTrack.TYPE_VIDEO)))
+        assertFalse(CastMapping.hasTextTracks(emptyList()))
     }
 
     // Seen on a device with SDK 22.3.1: "Stop casting" ends the session with 2154 and a lost

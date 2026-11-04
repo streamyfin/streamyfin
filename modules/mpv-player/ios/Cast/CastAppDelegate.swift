@@ -27,6 +27,10 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
     CastContextBootstrap.initializeIfNeeded()
+    #if DEBUG
+    // The device proof of the Cast engine, armed by `-CastEngineProbe YES` at launch.
+    if UserDefaults.standard.bool(forKey: CastEngineProbeScript.launchArgument) { CastEngineProbe.arm() }
+    #endif
     return true
   }
 }

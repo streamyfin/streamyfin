@@ -34,6 +34,21 @@ enum CastMappingTests {
         // with react-native-google-cast; false would only post a notification nothing observes.
         precondition(CastMapping.useDefaultExpandedMediaControls == true)
 
-        print("PASS: Cast state, player state, session end error, receiver id and expanded controls")
+        // GCKMediaPlayerIdleReason: none 0, finished 1, cancelled 2, interrupted 3, error 4. The engine
+        // tells an end from an error by it.
+        precondition(CastMapping.idleReasonName(0) == "none")
+        precondition(CastMapping.idleReasonName(1) == "finished")
+        precondition(CastMapping.idleReasonName(2) == "cancelled")
+        precondition(CastMapping.idleReasonName(3) == "interrupted")
+        precondition(CastMapping.idleReasonName(4) == "error")
+        precondition(CastMapping.idleReasonName(42) == "none")
+
+        // GCKMediaTrackType: unknown 0, text 1, audio 2, video 3. A subtitle change goes over the bus
+        // only when the media has text tracks; without any, it reloads.
+        precondition(CastMapping.hasTextTracks([2, 1]))
+        precondition(!CastMapping.hasTextTracks([2, 3]))
+        precondition(!CastMapping.hasTextTracks([]))
+
+        print("PASS: Cast state, player state, idle reason, text tracks, session end error, receiver id and expanded controls")
     }
 }
