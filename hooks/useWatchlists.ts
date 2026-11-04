@@ -3,9 +3,10 @@ import type {
   PublicSystemInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { onlineManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
+import { STREAMYSTATS_REFRESH_RETRIES } from "@/constants/Streamystats";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
@@ -53,18 +54,20 @@ export const useJellyfinServerId = () => {
  * Hook to get all watchlists (own + public)
  */
 export const useWatchlistsQuery = () => {
+  const queryClient = useQueryClient();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
   const streamystatsEnabled = useStreamystatsEnabled();
+  const queryKey = [
+    "streamystats",
+    "watchlists",
+    settings?.streamyStatsServerUrl,
+    user?.Id,
+  ];
 
   return useQuery({
-    queryKey: [
-      "streamystats",
-      "watchlists",
-      settings?.streamyStatsServerUrl,
-      user?.Id,
-    ],
+    queryKey,
     queryFn: async ({ signal }): Promise<StreamystatsWatchlist[]> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
         return [];
@@ -80,9 +83,13 @@ export const useWatchlistsQuery = () => {
     },
     enabled: streamystatsEnabled && Boolean(api?.accessToken),
     staleTime: 60 * 1000, // 1 minute
-    // Asked once: a server that never answers costs a whole timeout per
-    // attempt, and the tab's failed state offers Retry.
-    retry: false,
+    // The first load is asked once: a server that never answers costs a whole
+    // timeout per attempt, and the tab's failed state offers Retry. A refresh
+    // behind lists already shown retries like the app's other queries.
+    retry: (failureCount) =>
+      queryClient.getQueryData(queryKey) !== undefined &&
+      onlineManager.isOnline() &&
+      failureCount < STREAMYSTATS_REFRESH_RETRIES,
   });
 };
 

@@ -41,5 +41,37 @@ test("the watchlists are asked for once before the failure shows", async () => {
 
   await waitFor(() => expect(result.current.isError).toBe(true));
   expect(mockGetWatchlists).toHaveBeenCalledTimes(1);
+  // The request carries the query's signal, so leaving the tab cancels it.
+  expect(mockGetWatchlists).toHaveBeenCalledWith(expect.any(AbortSignal));
+  client.clear();
+});
+
+// Asking once is for the first load only: a refresh behind lists already shown
+// failed for good on one dropped request, and the stale lists stayed until the
+// tab was opened again.
+test("a refresh behind lists already shown is retried", async () => {
+  mockGetWatchlists
+    .mockReset()
+    .mockRejectedValueOnce(new Error("Network Error"))
+    .mockResolvedValue({ data: [{ id: 2, name: "New" }] });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: 3, retryDelay: 0, gcTime: Infinity } },
+  });
+  // Lists from an earlier visit, old enough to be refreshed on mount.
+  client.setQueryData(
+    ["streamystats", "watchlists", "http://streamystats.test", "user-1"],
+    [{ id: 1, name: "Old" }],
+    { updatedAt: Date.now() - 10 * 60 * 1000 },
+  );
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+
+  const { result } = await renderHook(() => useWatchlistsQuery(), { wrapper });
+
+  await waitFor(() =>
+    expect(result.current.data).toEqual([{ id: 2, name: "New" }]),
+  );
+  expect(mockGetWatchlists).toHaveBeenCalledTimes(2);
   client.clear();
 });
