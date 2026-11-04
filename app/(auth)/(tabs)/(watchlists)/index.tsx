@@ -144,7 +144,7 @@ const LoadFailedState: React.FC<{
       <Ionicons name='cloud-offline-outline' size={64} color='#4b5563' />
       <Text
         className='text-xl font-semibold mt-4 text-center'
-        style={isTV ? { fontSize: typography.heading } : undefined}
+        style={isTV ? { fontSize: typography.title } : undefined}
       >
         {t("watchlists.load_failed_title")}
       </Text>

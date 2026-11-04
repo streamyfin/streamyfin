@@ -31,7 +31,12 @@ jest.mock("react-i18next", () => ({
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({ heading: 42, body: 24, callout: 20 }),
+  useScaledTVTypography: () => ({
+    title: 50,
+    heading: 42,
+    body: 24,
+    callout: 20,
+  }),
 }));
 // Its own imports reach the app's settings and device modules; a press is enough here.
 jest.mock("@/components/Button", () => {
@@ -135,7 +140,7 @@ test("on TV the failure has a black Retry and TV-sized text", async () => {
     StyleSheet.flatten(
       screen.getByText("watchlists.load_failed_title").props.style,
     ).fontSize,
-  ).toBe(42);
+  ).toBe(50);
   expect(
     StyleSheet.flatten(
       screen.getByText("watchlists.load_failed_description").props.style,
