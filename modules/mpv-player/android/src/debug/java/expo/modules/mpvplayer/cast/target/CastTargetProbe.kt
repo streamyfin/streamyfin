@@ -37,7 +37,8 @@ internal class CastTargetProbe(
         val current = hub.snapshot
         log("armed for \"$deviceName\" ${describe(current)}")
         val target = current.target
-        if (current.phase == TargetPhase.CONNECTED && target != null && matches(target.name)) {
+        // A whole name only: a part of one may name another receiver than the connected one.
+        if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
             log("already connected to ${target.name}")
             onConnected()
             return
@@ -72,6 +73,13 @@ internal class CastTargetProbe(
         log("found ${found.name}")
         if (!hub.connect(found.id)) {
             fail("the hub refused ${found.name}")
+            return
+        }
+        // The hub asks nothing for the receiver already connected, so no event will come.
+        val now = hub.snapshot
+        if (!connected && now.phase == TargetPhase.CONNECTED && now.target?.id == found.id) {
+            log("already connected to ${found.name}")
+            onConnected()
             return
         }
         if (!connected && isActive) wait(CONNECT_TIMEOUT_MS, "never connected")
