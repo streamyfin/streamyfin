@@ -36,9 +36,13 @@ export function TVBelowTabBar({ children }: PropsWithChildren) {
 
 /**
  * Where content inside TVBelowTabBar starts so that it rests `top` points
- * below the top of the screen, safe area included, on either TV.
+ * below the top of the screen, safe area included, on either TV. On Android TV
+ * the area itself starts where the tab bar ends: a `top` above that rests at
+ * the area's top.
  */
 export function useTVBelowTabBarContentTop(top: number): number {
   const insets = useSafeAreaInsets();
-  return tabBarOverPage() ? top - TV_TOP_TAB_BAR_CLEARANCE : insets.top + top;
+  return tabBarOverPage()
+    ? Math.max(0, top - TV_TOP_TAB_BAR_CLEARANCE)
+    : insets.top + top;
 }

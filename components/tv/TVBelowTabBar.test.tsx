@@ -44,6 +44,15 @@ test("on Apple TV it leaves the page as it was", async () => {
   expect(style.overflow).toBeUndefined();
 });
 
+// The area starts where the bar ends: content cannot rest inside the bar, and
+// a negative padding would only pull it under the area's top edge.
+test("on Android TV content never starts above the area", async () => {
+  jest.replaceProperty(Platform, "OS", "android");
+  expect(
+    (await renderHook(() => useTVBelowTabBarContentTop(40))).result.current,
+  ).toBe(0);
+});
+
 test("content rests where it did, below the safe area, on both TVs", async () => {
   jest.replaceProperty(Platform, "OS", "android");
   expect(
