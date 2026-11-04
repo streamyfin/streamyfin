@@ -632,9 +632,14 @@ enum RemoteTargetTests {
       let events = PortEventsRecording()
       let port = sdk.port()
       port.start(events: events)
-      sdk.volume = (0.8, true)
+      // Joining a receiver app, the SDK starts the session before the receiver's first status: its
+      // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
+      sdk.volume = (0.0, false)
       sdk.sessionWatches.last??("started", chromecast, nil, nil)
-      check("aStartedSessionReportsItsVolume", events.volumes == ["0.8 true"])
+      sdk.sessionWatches.last??("resumed", chromecast, nil, nil)
+      let atTheEvents = events.volumes
+      sdk.volumeWatches.last??(0.86, false)
+      check("aStartedSessionWaitsForTheReceiverVolume", atTheEvents.isEmpty && events.volumes == ["0.86 false"])
     }
 
     do {
@@ -792,7 +797,8 @@ enum RemoteTargetTests {
 
     func run(
       _ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, back: Bool = false,
-      stop: Bool = true, volume: Double? = nil, port: FakeTargetPort, before: (RemoteTargetHub) -> Void = { _ in }
+      stop: Bool = true, volume: Double? = nil, mute: Bool? = nil, port: FakeTargetPort,
+      before: (RemoteTargetHub) -> Void = { _ in }
     ) -> (CastTargetProbe, Clock, () -> [String]) {
       let hub = RemoteTargetHub()
       hub.install(port)
@@ -800,7 +806,7 @@ enum RemoteTargetTests {
       let clock = Clock()
       var logs: [String] = []
       let probe = CastTargetProbe(
-        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, stop: stop, volume: volume,
+        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, stop: stop, volume: volume, mute: mute,
         schedule: clock.schedule
       ) { logs.append($0) }
       probe.start()
@@ -1007,6 +1013,15 @@ enum RemoteTargetTests {
       check(
         "aProbeAskedNotToStopLeavesTheReceiver",
         port.disconnects == [false] && logs().last == "disconnecting without stopping the receiver" && probe.isActive
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      let (probe, _, logs) = run("Living room", mute: true, port: port) { _ in port.emit("started", chromecast) }
+      check(
+        "aProbeAskedToMuteMutes",
+        port.mutes == [true] && logs().last == "setting the mute to true" && probe.isActive
       )
     }
 

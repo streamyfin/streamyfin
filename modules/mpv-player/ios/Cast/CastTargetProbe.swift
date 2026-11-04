@@ -17,6 +17,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let stopArgument = "CastTargetProbeStop"
   /// A level, 0 to 1, set once connected; the receiver's report of it is logged.
   static let volumeArgument = "CastTargetProbeVolume"
+  /// YES or NO, set once connected after the level; the receiver's report of it is logged.
+  static let muteArgument = "CastTargetProbeMute"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -32,6 +34,7 @@ final class CastTargetProbe: RemoteTargetListener {
   private let back: Bool
   private let stop: Bool
   private let volume: Double?
+  private let mute: Bool?
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -47,13 +50,14 @@ final class CastTargetProbe: RemoteTargetListener {
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    back: Bool = false, stop: Bool = true, volume: Double? = nil,
+    back: Bool = false, stop: Bool = true, volume: Double? = nil, mute: Bool? = nil,
     schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
   ) {
     self.holdMs = holdMs
     self.back = back
     self.stop = stop
     self.volume = volume
+    self.mute = mute
     self.hub = hub
     self.deviceName = deviceName
     self.keep = keep
@@ -203,6 +207,10 @@ final class CastTargetProbe: RemoteTargetListener {
     if let volume {
       log("setting the volume to \(Self.level(volume))")
       hub.setVolume(volume)
+    }
+    if let mute {
+      log("setting the mute to \(mute)")
+      hub.setMuted(mute)
     }
     if keep {
       finish("done, still connected")

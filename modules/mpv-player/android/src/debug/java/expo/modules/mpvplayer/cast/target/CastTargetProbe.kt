@@ -26,6 +26,8 @@ internal class CastTargetProbe(
     private val stop: Boolean,
     /** A level, 0 to 1, set once connected; the receiver's report of it is logged. */
     private val volume: Double?,
+    /** A mute, set once connected after the level; the receiver's report of it is logged. */
+    private val mute: Boolean?,
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val log: (String) -> Unit,
 ) : RemoteTargetListener {
@@ -155,6 +157,10 @@ internal class CastTargetProbe(
             log("setting the volume to ${level(it)}")
             hub.setVolume(it)
         }
+        mute?.let {
+            log("setting the mute to $it")
+            hub.setMuted(it)
+        }
         if (keep) {
             finish("done, still connected")
             return
@@ -213,7 +219,16 @@ internal class CastTargetProbe(
 
         /** One probe at a time: a broadcast while one runs does nothing. */
         @MainThread
-        fun run(context: Context, deviceName: String, keep: Boolean, holdMs: Long, back: Boolean, stop: Boolean, volume: Double?) {
+        fun run(
+            context: Context,
+            deviceName: String,
+            keep: Boolean,
+            holdMs: Long,
+            back: Boolean,
+            stop: Boolean,
+            volume: Double?,
+            mute: Boolean?,
+        ) {
             if (current?.isActive == true) {
                 Log.i(TAG, "already running")
                 return
@@ -231,7 +246,7 @@ internal class CastTargetProbe(
             // The module installs the same port when JS first touches Cast; whichever comes first wins.
             RemoteTargets.installDefault(context, cast)
             current =
-                CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mainLooperSchedule()) {
+                CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mute, mainLooperSchedule()) {
                     Log.i(TAG, it)
                 }.also { it.start() }
         }
@@ -239,7 +254,7 @@ internal class CastTargetProbe(
 }
 
 /**
- * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>]`
+ * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>] [--ez mute true|false]`
  */
 class CastTargetProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -252,6 +267,7 @@ class CastTargetProbeReceiver : BroadcastReceiver() {
             intent.getBooleanExtra("back", false),
             intent.getBooleanExtra("stop", true),
             if (intent.hasExtra("volume")) intent.getFloatExtra("volume", 0f).toDouble() else null,
+            if (intent.hasExtra("mute")) intent.getBooleanExtra("mute", false) else null,
         )
     }
 }

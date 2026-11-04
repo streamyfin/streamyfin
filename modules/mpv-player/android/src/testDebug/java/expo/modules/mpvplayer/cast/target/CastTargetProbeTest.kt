@@ -22,7 +22,8 @@ class CastTargetProbeTest {
         back: Boolean = false,
         stop: Boolean = true,
         volume: Double? = null,
-    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, scheduler.schedule, logs::add)
+        mute: Boolean? = null,
+    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, mute, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -240,6 +241,17 @@ class CastTargetProbeTest {
 
         assertEquals(listOf(false), port.disconnects)
         assertEquals("disconnecting without stopping the receiver", logs.last())
+    }
+
+    @Test
+    fun aProbeAskedToMuteMutes() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        probe(hub, "Living room", mute = true).start()
+
+        assertEquals(listOf(true), port.mutes)
+        assertEquals("setting the mute to true", logs.last())
     }
 
     // The volume proof reads the level the receiver reports back, not the one asked.

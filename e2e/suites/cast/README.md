@@ -180,7 +180,8 @@ ends it.
 way the output sheet's Disconnect does: the log reads `disconnecting without stopping the
 receiver`, and the receiver app should stay on what it plays. `--ef volume <0 to 1>` sets the
 receiver's volume once connected (`setting the volume to 0.40`), then logs each level the
-receiver reports back as `volume=0.40 muted=false`.
+receiver reports back as `volume=0.40 muted=false`. `--ez mute true|false` sets its mute after the level
+(`setting the mute to true`).
 
 **iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
@@ -189,4 +190,5 @@ SDK resuming the session it had, so a switch inside a live session needs one pro
 `-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
 the first session kept up with or without `-CastTargetProbeKeep`.
 `-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.
-`-CastTargetProbeStop NO` and `-CastTargetProbeVolume <0 to 1>` are `stop` and `volume`.
+`-CastTargetProbeStop NO`, `-CastTargetProbeVolume <0 to 1>` and `-CastTargetProbeMute YES|NO` are `stop`,
+`volume` and `mute`.

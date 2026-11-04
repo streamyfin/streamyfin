@@ -75,7 +75,8 @@ final class GoogleCastTargetPort: TargetPort {
     // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
     if let session = runningSession() {
       events.sessionEvent(session.connected ? "resumed" : "resuming", device: session.device, error: nil)
-      reportVolume()
+      // A connected session has had its receiver's status; one still resuming reports it when it comes.
+      if session.connected { reportVolume() }
     }
   }
 
@@ -166,8 +167,8 @@ final class GoogleCastTargetPort: TargetPort {
 
   private func sessionChanged(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
     events?.sessionEvent(event, device: device, error: error, code: code)
-    // A session's volume is the receiver's: read once it is up, then followed.
-    if event == "started" || event == "resumed" { reportVolume() }
+    // No read here: a session that joins a receiver app starts before the receiver's first status, and its
+    // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
     // The session a switch ended is gone: the receiver asked for meanwhile can start now.
     guard event == "ended" || event == "startFailed", let next = pendingSwitch else { return }
     pendingSwitch = nil
@@ -270,7 +271,7 @@ extension CastTargetProbe {
   /// relaunch would first meet the SDK resuming its session.
   static func run(
     deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false, stop: Bool = true,
-    volume: Double? = nil
+    volume: Double? = nil, mute: Bool? = nil
   ) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
@@ -278,7 +279,7 @@ extension CastTargetProbe {
     let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
       hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back, stop: stop,
-      volume: volume, schedule: mainQueueSchedule, log: log
+      volume: volume, mute: mute, schedule: mainQueueSchedule, log: log
     )
     if let next, !next.isEmpty {
       probe.onFinish = { result in
