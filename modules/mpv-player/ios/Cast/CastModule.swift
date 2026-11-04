@@ -16,9 +16,12 @@ public class CastModule: Module {
   // the JS thread; Swift collections are not safe to read while they are replaced.
   private let cacheLock = NSLock()
   private var cachedState: String?
-  private var cachedDevices: [[String: Any?]] = []
   private var cachedSession: [String: Any?]?
   private var observedClient: GCKRemoteMediaClient?
+  // The target hub outlives the module, like the channel hub: it holds the port, the devices and the
+  // target state, and holds the module's relay weakly.
+  private let remoteTargets = RemoteTargetHub.shared
+  private var targetRelay: TargetRelay?
 
   private func cached<T>(_ read: () -> T) -> T {
     cacheLock.lock()
@@ -29,7 +32,10 @@ public class CastModule: Module {
   public func definition() -> ModuleDefinition {
     Name("StreamyfinCast")
 
-    Events("onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage")
+    Events(
+      "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
+      "onRemoteTargetChanged"
+    )
 
     OnStartObserving {
       DispatchQueue.main.async { self.ensureListening() }
@@ -47,15 +53,31 @@ public class CastModule: Module {
 
     AsyncFunction("showPlayServicesErrorDialog") { (_: String) in }
 
-    Function("getDevices") { self.cached { self.cachedDevices } }
+    Function("getDevices") { self.remoteTargets.devices.map { $0.toDictionary() } }
 
     AsyncFunction("startDiscovery") {
       self.ensureListening()
-      GCKCastContext.sharedInstance().discoveryManager.startDiscovery()
+      self.remoteTargets.startDiscovery()
     }.runOnQueue(.main)
 
     AsyncFunction("stopDiscovery") {
-      GCKCastContext.sharedInstance().discoveryManager.stopDiscovery()
+      self.remoteTargets.stopDiscovery()
+    }.runOnQueue(.main)
+
+    Function("getRemoteTarget") { () -> [String: Any?] in
+      if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
+      return self.remoteTargets.snapshot.toDictionary()
+    }
+
+    // False when discovery does not know the device; the state then follows the session events.
+    AsyncFunction("connectToDevice") { (deviceId: String) -> Bool in
+      self.ensureListening()
+      return self.remoteTargets.connect(deviceId: deviceId)
+    }.runOnQueue(.main)
+
+    AsyncFunction("disconnect") { (stopPlayback: Bool) in
+      self.ensureListening()
+      self.remoteTargets.disconnect(stopPlayback: stopPlayback)
     }.runOnQueue(.main)
 
     Function("getCurrentSession") { () -> [String: Any?]? in
@@ -137,13 +159,16 @@ public class CastModule: Module {
     GoogleCastChannelBinding.install()
     let listener = CastListener(module: self)
     self.listener = listener
+    // Relayed before the port is installed: a session the port finds running reaches JS as connected.
+    let relay = TargetRelay(module: self)
+    targetRelay = relay
+    _ = remoteTargets.addListener(relay)
+    RemoteTargets.installDefault()
     context.sessionManager.add(listener)
-    context.discoveryManager.add(listener)
     NotificationCenter.default.addObserver(
       listener, selector: #selector(CastListener.castStateDidChange), name: .gckCastStateDidChange, object: nil
     )
     updateState(Int(context.castState.rawValue))
-    updateDevices()
     if let session = context.sessionManager.currentCastSession {
       observe(session)
       updateSession(session)
@@ -170,11 +195,12 @@ public class CastModule: Module {
     sendEvent("onCastStateChanged", ["state": name])
   }
 
-  fileprivate func updateDevices() {
-    let manager = GCKCastContext.sharedInstance().discoveryManager
-    let devices = (0..<manager.deviceCount).compactMap { CastRecords.device(manager.device(at: $0)) }
-    cached { cachedDevices = devices }
-    sendEvent("onDevicesChanged", ["devices": devices])
+  fileprivate func emitDevices(_ devices: [TargetDevice]) {
+    sendEvent("onDevicesChanged", ["devices": devices.map { $0.toDictionary() }])
+  }
+
+  fileprivate func emitRemoteTarget(_ snapshot: RemoteTargetSnapshot) {
+    sendEvent("onRemoteTargetChanged", snapshot.toDictionary())
   }
 
   fileprivate func updateSession(_ session: GCKCastSession?) {
@@ -219,6 +245,23 @@ public class CastModule: Module {
   }
 }
 
+/// What JS hears of the target and the devices, held by the module: the target hub holds its listeners weakly.
+private final class TargetRelay: RemoteTargetListener {
+  private weak var module: CastModule?
+
+  init(module: CastModule) {
+    self.module = module
+  }
+
+  func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+    module?.emitRemoteTarget(snapshot)
+  }
+
+  func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {
+    module?.emitDevices(devices)
+  }
+}
+
 /// What JS hears of the receiver, held by the module: the hub holds its listeners weakly.
 private final class ReceiverRelay: ReceiverBusListener {
   private let onMessage: (String) -> Void
@@ -236,10 +279,9 @@ private final class ReceiverRelay: ReceiverBusListener {
   func receiverBusDidLose(sessionId: String?, ended: Bool) {}
 }
 
-/// The SDK delegates, in one object the module owns; every callback lands on the main thread.
-private class CastListener: NSObject, GCKSessionManagerListener, GCKDiscoveryManagerListener,
-  GCKRemoteMediaClientListener
-{
+/// The SDK delegates, in one object the module owns; every callback lands on the main thread. The
+/// device list comes through the target hub's port.
+private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaClientListener {
   private weak var module: CastModule?
 
   init(module: CastModule) {
@@ -248,10 +290,6 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKDiscoveryMan
 
   @objc func castStateDidChange() {
     module?.updateState(Int(GCKCastContext.sharedInstance().castState.rawValue))
-  }
-
-  func didUpdateDeviceList() {
-    module?.updateDevices()
   }
 
   func sessionManager(_ sessionManager: GCKSessionManager, willStart session: GCKSession) {
@@ -306,13 +344,19 @@ public class CastModule: Module {
   public func definition() -> ModuleDefinition {
     Name("StreamyfinCast")
 
-    Events("onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage")
+    Events(
+      "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
+      "onRemoteTargetChanged"
+    )
 
     Function("isAvailable") { false }
     Function("getCastState") { () -> String? in nil }
     Function("getPlayServicesState") { () -> String? in nil }
     Function("getDevices") { [[String: Any]]() }
     Function("getCurrentSession") { () -> [String: Any]? in nil }
+    Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
+    AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
+    AsyncFunction("disconnect") { (_: Bool) in }
 
     View(CastButtonView.self) {
       Prop("tintColor") { (view: CastButtonView, color: String?) in

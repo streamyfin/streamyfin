@@ -216,6 +216,189 @@ enum RemoteTargetTests {
     }
   }
 
+  final class PortEventsRecording: TargetPortEvents {
+    var sessions: [String] = []
+    var deviceLists: [[TargetDevice]] = []
+
+    func sessionEvent(_ event: String, device: TargetDevice?, error: String?) {
+      sessions.append(event + " " + (device?.id ?? "nil") + " " + (error ?? "nil"))
+    }
+
+    func devicesChanged(_ devices: [TargetDevice]) { deviceLists.append(devices) }
+  }
+
+  /// Stands in for the discovery and session managers behind GoogleCastTargetPort.
+  final class Sdk {
+    var receivers: [TargetDevice] = []
+    var running: RunningTargetSession?
+    var sessionStarts = true
+    var started: [TargetDevice] = []
+    var ended: [Bool] = []
+    var sessionWatches: [((String, TargetDevice?, String?) -> Void)?] = []
+    var deviceWatches: [(() -> Void)?] = []
+    var discovery: [Bool] = []
+
+    // The port holds the fake, not the other way round: a test may drop the fake and keep the port.
+    func port() -> GoogleCastTargetPort {
+      let sdk = self
+      return GoogleCastTargetPort(
+        routes: {
+          sdk.receivers.map { device in
+            CastTargetRoute(device: device) {
+              sdk.started.append(device)
+              return sdk.sessionStarts
+            }
+          }
+        },
+        runningSession: { sdk.running },
+        endSession: { sdk.ended.append($0) },
+        watchSessions: { sdk.sessionWatches.append($0) },
+        watchDevices: { sdk.deviceWatches.append($0) },
+        discovery: { sdk.discovery.append($0) }
+      )
+    }
+  }
+
+  // The SDK half of the hub's port, with the SDK calls as closures: the same cases as
+  // GoogleCastTargetPortTest.kt, plus the two the iOS SDK adds (the device list it keeps, and a
+  // session it refuses to start).
+  static func portCases() {
+    let chromecast = TargetDevice(id: "device-a", name: "Living room", model: "Chromecast")
+    let streamer = TargetDevice(id: "device-b", name: "Bedroom", model: "Google TV Streamer")
+
+    check(
+      "aDeviceKeepsTheRecordDiscoveryPublishes",
+      value(chromecast.toDictionary(), "deviceId") as? String == "device-a"
+        && value(chromecast.toDictionary(), "friendlyName") as? String == "Living room"
+        && value(chromecast.toDictionary(), "modelName") as? String == "Chromecast"
+        && livingRoom.toDictionary().keys.contains("modelName") && value(livingRoom.toDictionary(), "modelName") == nil
+    )
+
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      sdk.port().start(events: events)
+      check("aSessionRunningAtStartIsReportedAsResumed", events.sessions == ["resumed device-a nil"])
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: false)
+      let events = PortEventsRecording()
+      sdk.port().start(events: events)
+      check("aSessionStillConnectingAtStartIsReportedAsResuming", events.sessions == ["resuming device-a nil"])
+    }
+
+    do {
+      let events = PortEventsRecording()
+      Sdk().port().start(events: events)
+      check("noSessionAtStartReportsNothing", events.sessions.isEmpty)
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.sessionWatches.last??("ending", chromecast, nil)
+      check("theSdkSessionCallbacksReachTheHub", sdk.sessionWatches.count == 1 && events.sessions == ["ending device-a nil"])
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.connect(streamer)
+      check("connectSelectsTheRouteOfThatDevice", sdk.started == [streamer])
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(chromecast)
+      check(
+        "aDeviceNoLongerRoutedEndsInStartFailed",
+        sdk.started.isEmpty && events.sessions == ["startFailed device-a " + GoogleCastTargetPort.receiverGone]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      sdk.sessionStarts = false
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(chromecast)
+      check(
+        "aSessionTheSdkWillNotStartEndsInStartFailed",
+        sdk.started == [chromecast] && events.sessions == ["startFailed device-a " + GoogleCastTargetPort.startRefused]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.disconnect(stopPlayback: true)
+      check("disconnectEndsTheRunningSession", sdk.ended == [true] && events.sessions == ["resumed device-a nil"])
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.disconnect(stopPlayback: false)
+      check("disconnectBeforeASessionStartedEndsTheRequest", sdk.ended.isEmpty && events.sessions == ["ended nil nil"])
+    }
+
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.startDiscovery()
+      port.startDiscovery()
+      sdk.receivers = [chromecast, streamer]
+      sdk.deviceWatches.last??()
+      check(
+        "discoveryListsTheRoutesAndFollowsThem",
+        sdk.discovery == [true] && events.deviceLists == [[chromecast], [chromecast, streamer]]
+          && port.devices() == [chromecast, streamer]
+      )
+    }
+
+    // The module listed what the SDK had found as soon as it listened, before any discovery call.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      let events = PortEventsRecording()
+      sdk.port().start(events: events)
+      check("theDeviceListIsReportedAtStart", events.deviceLists == [[chromecast]] && sdk.deviceWatches.count == 1)
+    }
+
+    do {
+      let sdk = Sdk()
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.startDiscovery()
+      port.stop()
+      check(
+        "stopLetsGoOfTheSdk",
+        sdk.sessionWatches.last.map { $0 == nil } == true && sdk.deviceWatches.last.map { $0 == nil } == true
+          && sdk.discovery == [true, false]
+      )
+    }
+  }
+
   static func main() {
     do {
       let machine = RemoteTargetMachine()
@@ -314,6 +497,7 @@ enum RemoteTargetTests {
     }
 
     hubCases()
+    portCases()
 
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")

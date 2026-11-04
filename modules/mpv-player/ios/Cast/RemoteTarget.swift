@@ -4,6 +4,18 @@ import Foundation
 struct TargetDevice: Equatable {
   let id: String
   let name: String
+  let model: String?
+
+  init(id: String, name: String, model: String? = nil) {
+    self.id = id
+    self.name = name
+    self.model = model
+  }
+
+  /// The CastDevice record of Cast.types.ts, which onDevicesChanged publishes.
+  func toDictionary() -> [String: Any?] {
+    ["deviceId": id, "friendlyName": name, "modelName": model]
+  }
 }
 
 /// Where playback goes. Only Cast targets exist for now; Play On and AirPlay come with their engines.
