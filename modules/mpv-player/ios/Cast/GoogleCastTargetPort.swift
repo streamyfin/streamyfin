@@ -284,7 +284,9 @@ extension CastTargetProbe {
     if let next, !next.isEmpty {
       probe.onFinish = { result in
         guard result.hasPrefix("done") else { return }
-        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs, back: back, stop: stop) }
+        DispatchQueue.main.async {
+          run(deviceName: next, keep: true, holdMs: holdMs, back: back, stop: stop, volume: volume, mute: mute)
+        }
       }
     }
     current = probe
@@ -313,6 +315,8 @@ private final class TargetSessionListener: NSObject, GCKSessionManagerListener {
     _ sessionManager: GCKSessionManager, castSession session: GCKCastSession,
     didReceiveDeviceVolume volume: Float, muted: Bool
   ) {
+    // A report still queued from a session a switch left is not the current receiver's level.
+    guard session === sessionManager.currentCastSession else { return }
     self.volume(Double(volume), muted)
   }
 

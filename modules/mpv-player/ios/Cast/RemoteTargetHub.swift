@@ -144,8 +144,9 @@ final class RemoteTargetHub {
 
   fileprivate func sessionEvent(from port: TargetPort, _ event: String, device: TargetDevice?, error: String?, code: Int?) {
     guard port === self.port else { return }
-    // A session the SDK starts on its own, from its dialog, is a new connection too.
-    if event == "starting" { disconnectedWithoutStop = false }
+    // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
+    // kept, or one that came back, is no end of that disconnect any more.
+    if event == "starting" || event == "endRefused" || event == "resumed" { disconnectedWithoutStop = false }
     if machine.sessionEvent(event, device: device, error: error, code: code) { publish() }
   }
 

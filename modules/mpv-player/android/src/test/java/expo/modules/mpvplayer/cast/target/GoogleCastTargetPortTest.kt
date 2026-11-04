@@ -184,6 +184,17 @@ class GoogleCastTargetPortTest {
         assertEquals(0, GoogleCastTargetPort.routeStep(-0.2, 20))
     }
 
+    // On a switch MediaRouter selects the new route before the old session ends: the level goes to the
+    // route of the session's receiver, never to the selected one.
+    @Test
+    fun theLevelGoesToTheSessionsRoute() {
+        val routes = listOf("device-b" to "route b", "device-a" to "route a", null to "route without a device")
+
+        assertEquals("route a", GoogleCastTargetPort.sessionRoute("device-a", routes))
+        assertEquals(null, GoogleCastTargetPort.sessionRoute("device-c", routes))
+        assertEquals(null, GoogleCastTargetPort.sessionRoute(null, routes))
+    }
+
     // The app mutes the playing stream, as the SDK's expanded controls do; another sender may mute the device.
     @Test
     fun aMutedStreamOrDeviceMutesTheReceiver() {
