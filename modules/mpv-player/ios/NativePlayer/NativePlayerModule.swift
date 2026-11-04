@@ -53,17 +53,22 @@ public class NativePlayerModule: Module {
 		// MARK: - Lifecycle
 
 		AsyncFunction("presentPlayer") { (config: PlayerPresentConfigRecord, promise: Promise) in
-			if self.session != nil {
+			switch PresentRefusal(
+				presented: self.session != nil,
+				streamIsValid: config.stream.toVideoLoadConfig() != nil,
+				engine: config.engine
+			) {
+			case .alreadyPresented:
 				promise.reject(PlayerAlreadyPresentedException())
 				return
-			}
-			guard config.stream.toVideoLoadConfig() != nil else {
+			case .invalidStream:
 				promise.reject(InvalidStreamUrlException())
 				return
-			}
-			guard NativeEngineKind(configName: config.engine) != nil else {
-				promise.reject(UnsupportedEngineException(config.engine ?? ""))
+			case let .unsupportedEngine(name):
+				promise.reject(UnsupportedEngineException(name))
 				return
+			case nil:
+				break
 			}
 			let session = NativePlayerSession(
 				emit: { [weak self] name, payload in

@@ -21,6 +21,14 @@ class InvalidStreamUrlException :
 class UnsupportedEngineException(name: String?) :
     CodedException("The native player does not run the engine \"$name\"")
 
+/** Why presentPlayer refuses [config] before it builds a session, checked in this order; null when it presents it. */
+internal fun presentRefusal(presented: Boolean, config: PlayerPresentConfigRecord): CodedException? = when {
+    presented -> PlayerAlreadyPresentedException()
+    config.stream.toVideoLoadConfig() == null -> InvalidStreamUrlException()
+    NativeEngineKind.of(config.engine) == null -> UnsupportedEngineException(config.engine)
+    else -> null
+}
+
 class NativePlayerModule : Module() {
 
     private var session: NativePlayerSession? = null
@@ -47,16 +55,8 @@ class NativePlayerModule : Module() {
         // MARK: - Lifecycle
 
         AsyncFunction("presentPlayer") { config: PlayerPresentConfigRecord, promise: Promise ->
-            if (this@NativePlayerModule.session != null) {
-                promise.reject(PlayerAlreadyPresentedException())
-                return@AsyncFunction
-            }
-            if (config.stream.toVideoLoadConfig() == null) {
-                promise.reject(InvalidStreamUrlException())
-                return@AsyncFunction
-            }
-            if (NativeEngineKind.of(config.engine) == null) {
-                promise.reject(UnsupportedEngineException(config.engine))
+            presentRefusal(this@NativePlayerModule.session != null, config)?.let {
+                promise.reject(it)
                 return@AsyncFunction
             }
 
