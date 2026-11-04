@@ -8,6 +8,7 @@ import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import expo.modules.mpvplayer.cast.CastMapping
+import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
 
 /** A Cast route as the port uses it: the receiver it reaches, whether MediaRouter takes it now, and how to select it. */
 internal class CastRoute(val device: TargetDevice, val enabled: Boolean = true, val select: () -> Unit)
@@ -26,12 +27,15 @@ internal class GoogleCastTargetPort(
     private val unselectRoute: () -> Unit,
     private val watchSessions: (((String, TargetDevice?, String?) -> Unit)?) -> Unit,
     private val watchRoutes: ((() -> Unit)?) -> Unit,
+    /** The main loop, for what has to wait until the SDK has finished the callback it is in. */
+    private val schedule: (Long, () -> Unit) -> (() -> Unit),
 ) : TargetPort {
     private var events: TargetPortEvents? = null
     private var discovering = false
     // The receiver a switch is taking the session from, until the SDK reports that session's end, and the
-    // one asked back meanwhile. Its route is selected only after that end: selected before, the SDK's
-    // cleanup of the old session saw its route selected again and selected the default route over it.
+    // one asked back meanwhile. Its route is selected on the main loop turn after that end: the SDK's
+    // cleanup of an ended session selects the default route when that session's route is selected at that
+    // moment, after the listeners have run, so a route selected before, or inside the callback, lost to it.
     private var leaving: TargetDevice? = null
     private var afterLeaving: TargetDevice? = null
 
@@ -111,10 +115,12 @@ internal class GoogleCastTargetPort(
         if (event != "ended" && event != "startFailed") return
         if (device != null && device.id != left.id) return
         leaving = null
-        // The old session is gone: the receiver asked back can be selected now.
-        afterLeaving?.let {
+        if (afterLeaving == null) return
+        // A disconnect meanwhile drops the request: it clears afterLeaving before this runs.
+        schedule(0) {
+            val next = afterLeaving ?: return@schedule
             afterLeaving = null
-            select(it)
+            select(next)
         }
     }
 
@@ -175,6 +181,7 @@ internal class GoogleCastTargetPort(
                         routerCallback = callback
                     }
                 },
+                schedule = mainLooperSchedule(),
             )
         }
 

@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.cast.target
 
+import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -26,6 +27,7 @@ class GoogleCastTargetPortTest {
     }
 
     private class Sdk {
+        val scheduler = ManualScheduler()
         var routes = listOf<TargetDevice>()
         var disabled = setOf<String>()
         var running: RunningSession? = null
@@ -42,12 +44,14 @@ class GoogleCastTargetPortTest {
             unselectRoute = { unselects += 1 },
             watchSessions = { relay -> sessionWatches += relay },
             watchRoutes = { onChange -> routeWatches += onChange },
+            schedule = scheduler.schedule,
         )
     }
 
-    // Asked back while its session ends, the old route is selected only once the SDK reports that end:
-    // selected before, the SDK's cleanup of the old session saw its route selected again, selected the
-    // default route over it, and nothing started (seen on the bench, 04/11).
+    // Asked back while its session ends, the old route is selected only after the SDK has finished with
+    // that session: its cleanup selects the default route when the ended session's route is selected at
+    // that moment, after the listeners, so a route selected before, or inside the end callback, lost to
+    // it and nothing started (seen on the bench, 04/11). The selection waits for the next main loop turn.
     @Test
     fun aSwitchBackWaitsForTheOldSessionToEndBeforeSelectingItsRoute() {
         val sdk = Sdk().apply {
@@ -62,8 +66,11 @@ class GoogleCastTargetPortTest {
         val beforeTheEnd = sdk.selected.toList()
         sdk.running = null
         sdk.sessionWatches.last()?.invoke("ended", livingRoom, "Cast session status code 2155 (2155)")
+        val inTheEndCallback = sdk.selected.toList()
+        sdk.scheduler.advance(0)
 
         assertEquals(listOf(bedroom), beforeTheEnd)
+        assertEquals(listOf(bedroom), inTheEndCallback)
         assertEquals(listOf(bedroom, livingRoom), sdk.selected)
     }
 
@@ -78,9 +85,10 @@ class GoogleCastTargetPortTest {
 
         port.connect(bedroom)
         port.connect(livingRoom)
-        port.disconnect(stopPlayback = true)
         sdk.running = null
         sdk.sessionWatches.last()?.invoke("ended", livingRoom, null)
+        port.disconnect(stopPlayback = true)
+        sdk.scheduler.advance(0)
 
         assertEquals(listOf(bedroom), sdk.selected)
     }
