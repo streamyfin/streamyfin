@@ -160,6 +160,9 @@ internal class GoogleCastTargetPort(
         /** The selected route's volume step closest to [level]: MediaRouter counts in steps, 20 on a Chromecast. */
         fun routeStep(level: Double, max: Int) = (level.coerceIn(0.0, 1.0) * max).roundToInt()
 
+        /** The step to ask a route for, or none on a route that reports no maximum: MediaRouter allows it. */
+        fun volumeRequest(level: Double, max: Int): Int? = if (max > 0) routeStep(level, max) else null
+
         /** The app mutes the playing stream; another sender may have muted the device itself. */
         fun receiverMuted(device: Boolean, stream: Boolean?) = device || stream == true
 
@@ -189,8 +192,9 @@ internal class GoogleCastTargetPort(
             // route of the session's own receiver.
             fun sessionCastRoute(): MediaRouter.RouteInfo? {
                 val selector = cast.mergedSelector ?: return null
+                // A route with no maximum stays: a fixed one still has to hide its level.
                 val routes = router.routes
-                    .filter { it.matchesSelector(selector) && it.volumeMax > 0 }
+                    .filter { it.matchesSelector(selector) }
                     .map { CastDevice.getFromBundle(it.extras)?.deviceId to it }
                 return sessionRoute(sessions.currentCastSession?.castDevice?.deviceId, routes)
             }
@@ -274,7 +278,8 @@ internal class GoogleCastTargetPort(
                 sessionVolume = { sessions.currentCastSession?.let(::levelOf) },
                 setSessionVolume = { level ->
                     val route = sessionCastRoute()
-                    if (route != null) route.requestSetVolume(routeStep(level, route.volumeMax)) else Log.w(TAG, "setVolume: no route for the session's receiver")
+                    val step = route?.let { volumeRequest(level, it.volumeMax) }
+                    if (step != null) route.requestSetVolume(step) else Log.w(TAG, "setVolume: no route with a volume for the session's receiver")
                 },
                 // Only a stream can be muted this way: without one loaded, the receiver plays nothing to mute.
                 setSessionMuted = { muted ->

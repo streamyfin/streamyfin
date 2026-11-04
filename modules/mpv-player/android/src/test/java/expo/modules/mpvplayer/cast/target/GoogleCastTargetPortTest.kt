@@ -205,6 +205,13 @@ class GoogleCastTargetPortTest {
         assertFalse(GoogleCastTargetPort.receiverMuted(device = false, stream = false))
     }
 
+    // MediaRouter lets a route report no maximum: a step would then be 0 and silence the TV, so no request.
+    @Test
+    fun aRouteWithoutAMaximumTakesNoLevel() {
+        assertNull(GoogleCastTargetPort.volumeRequest(0.6, 0))
+        assertEquals(12, GoogleCastTargetPort.volumeRequest(0.6, 20))
+    }
+
     // A Google TV whose sound the TV sets through HDMI-CEC reports 0 on a route MediaRouter marks fixed: that
     // is no level, and nothing for the sheet's slider (bench, 04/11: the Streamer fixed, the Chromecast variable
     // from its session's start).
