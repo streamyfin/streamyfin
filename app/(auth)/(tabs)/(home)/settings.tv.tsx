@@ -946,6 +946,9 @@ export default function SettingsTV() {
           />
 
           <TVSettingsToggle
+            disabledByAdmin={
+              pluginSettings?.confirmBeforeStoppingPlayback?.locked
+            }
             label={t("home.settings.other.confirm_before_stopping_playback")}
             value={settings.confirmBeforeStoppingPlayback}
             onToggle={(value) =>
