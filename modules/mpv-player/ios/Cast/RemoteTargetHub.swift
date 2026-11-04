@@ -51,6 +51,8 @@ final class RemoteTargetHub {
   static let appDiscovery = "app"
   /// The debug probe's.
   static let probeDiscovery = "probe"
+  /// The output sheet's, while it is open.
+  static let sheetDiscovery = "sheet"
 
   private struct Listener {
     let token: Int

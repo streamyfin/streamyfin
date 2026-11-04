@@ -53,6 +53,17 @@ final class PlayerAudioSession {
 		}
 	}
 
+	/// The name of the AirPlay output in the current route, nil without one:
+	/// `currentRoute` is a call to the audio server like the setters. `completion`
+	/// runs on the main thread.
+	func airPlayOutputName(completion: @escaping (String?) -> Void) {
+		queue.async {
+			let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
+			let name = outputs.first { $0.portType == .airPlay }?.portName
+			DispatchQueue.main.async { completion(name) }
+		}
+	}
+
 	/// Returns once every change requested so far has been made. For the mpv
 	/// work queue, ahead of the commands that open or restart the audio
 	/// output. Never for the main thread, which is exactly what this type

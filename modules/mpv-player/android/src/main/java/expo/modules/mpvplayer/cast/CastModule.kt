@@ -2,11 +2,13 @@ package expo.modules.mpvplayer.cast
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.MediaRouteControllerDialog
+import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastReasonCodes
@@ -20,6 +22,8 @@ import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.RemoteTargetListener
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
@@ -81,6 +85,7 @@ class CastModule : Module() {
     private val mediaCallback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() {
             sendEvent("onMediaStatusChanged", mapOf("status" to CastRecords.mediaStatus(mediaClient?.mediaStatus)))
+            OutputPickerPresenter.refresh()
         }
     }
 
@@ -133,7 +138,21 @@ class CastModule : Module() {
             "onMediaStatusChanged",
             "onReceiverMessage",
             "onRemoteTargetChanged",
+            "onOutputPickerAction",
+            "onOutputPickerDismissed",
         )
+
+        OnCreate {
+            // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
+            OutputPickerPresenter.receiverTitle = {
+                mediaClient?.mediaStatus?.let { status ->
+                    CastMapping.playingTitle(status.playerState, status.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE))
+                }
+            }
+            OutputPickerPresenter.receiverPlaying = { mediaClient?.mediaStatus?.let { CastMapping.isPlaying(it.playerState) } == true }
+            OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
+            OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
+        }
 
         OnStartObserving {
             mainHandler.post { ensureContext() }
@@ -144,7 +163,10 @@ class CastModule : Module() {
         OnDestroy {
             destroyed = true
             mainHandler.removeCallbacksAndMessages(null)
-            mainHandler.post { release() }
+            mainHandler.post {
+                OutputPickerPresenter.dismiss()
+                release()
+            }
         }
 
         // An active scan costs battery; the SDK's own button paused it while off screen.
@@ -229,6 +251,24 @@ class CastModule : Module() {
             true
         }.runOnQueue(Queues.MAIN)
 
+        // The output sheet (Cast receivers, this device): true once on screen, false where it cannot show.
+        AsyncFunction("presentOutputPicker") { options: Map<String, Any?> ->
+            if (destroyed) return@AsyncFunction false
+            val activity = appContext.currentActivity ?: return@AsyncFunction false
+            // Not gated on the Cast context: without Play Services the sheet says so and offers the fix.
+            ensureContext()
+            @Suppress("UNCHECKED_CAST")
+            val strings = (options["strings"] as? Map<String, Any?>).orEmpty().mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+            OutputPickerPresenter.strings = OutputPickerStrings(strings.toMap())
+            OutputPickerPresenter.present(activity, anchorRect(options["anchor"], activity), options["playingHere"] as? String) {
+                if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "remote"))
+            }
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("dismissOutputPicker") {
+            OutputPickerPresenter.dismiss()
+        }.runOnQueue(Queues.MAIN)
+
         AsyncFunction("showExpandedControls") {
             if (ensureContext() == null) return@AsyncFunction false
             val intent = Intent(context, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -278,6 +318,21 @@ class CastModule : Module() {
         View(CastButtonView::class) {
             Prop("tintColor") { view: CastButtonView, color: String? -> view.setTintColor(color) }
         }
+    }
+
+    // The button's frame in window dp, as JS measures it, to the window pixels the popover is placed in.
+    private fun anchorRect(anchor: Any?, activity: android.app.Activity): Rect? {
+        val frame = anchor as? Map<*, *> ?: return null
+        val density = activity.resources.displayMetrics.density
+        fun px(key: String): Int? {
+            val dp = (frame[key] as? Number)?.toDouble() ?: return null
+            return (dp * density).toInt()
+        }
+        val left = px("x") ?: return null
+        val top = px("y") ?: return null
+        val width = px("width") ?: return null
+        val height = px("height") ?: return null
+        return Rect(left, top, left + width, top + height)
     }
 
     // Main thread only: the SDK checks it, and the caches are written here alone.
