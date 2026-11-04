@@ -16,6 +16,10 @@ export const PERSISTED_QUERY_FAMILIES: readonly string[] = [
   // Home's Streamystats rows wait for the server info before they render.
   "jellyfin",
   "streamystats",
+  // Settings > Audio & Subtitles, mobile and TV: the server's language
+  // preferences and the languages to pick from.
+  "authUser",
+  "cultures",
   // The Libraries tab: the list, each library's header and its count.
   "user-views",
   "library",
@@ -35,6 +39,9 @@ export const PERSISTED_QUERY_FAMILIES: readonly string[] = [
   "music-album-tracks",
   "music-playlist",
   "music-playlist-tracks",
+  // How many tracks of each playlist are downloaded: the badge that tells
+  // which playlists play without a connection.
+  "playlist-tracks-status",
 ];
 
 /**

@@ -220,6 +220,11 @@ describe("which query families are persisted", () => {
     ["music artists", ["music-artists", "lib-1", "user-1"]],
     ["a music album", ["music-album-tracks", "album-1", "user-1"]],
     ["a music playlist", ["music-playlist-tracks", "pl-1", "user-1"]],
+    ["a playlist card's download badge", ["playlist-tracks-status", "pl-1"]],
+    // Settings > Audio & Subtitles keeps its language pickers disabled until
+    // both answer.
+    ["the server's language preferences", ["authUser"]],
+    ["the languages to pick from", ["cultures"]],
   ])("%s is persisted", (_name, queryKey) => {
     const client = newClient();
     client.setQueryData(queryKey, { Name: "Alien" });
@@ -259,6 +264,8 @@ describe("which query families are persisted", () => {
     "app/(auth)/(tabs)/(libraries)/music/[libraryId]/artists.tsx",
     "app/(auth)/(tabs)/(libraries)/music/[libraryId]/albums.tsx",
     "app/(auth)/(tabs)/(libraries)/music/[libraryId]/playlists.tsx",
+    // The download badge of each playlist card.
+    "components/music/MusicPlaylistCard.tsx",
   ])("%s only reads persisted query families", (file) => {
     const source = readFileSync(join(__dirname, "..", file), "utf8");
     const families = [...source.matchAll(/queryKey: *\[\s*"([^"]+)"/g)].map(
