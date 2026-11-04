@@ -2,7 +2,9 @@ name: 🏗️ Build Apps
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A push to develop must finish: its iOS artifacts are the binaries that pull
+  # requests and merge queue entries repack (see the fingerprint job).
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 on:
   workflow_dispatch:
@@ -23,6 +25,77 @@ env:
   EXPO_PUBLIC_GIT_RUN_NUMBER: ${{ github.run_number }}
 
 jobs:
+  # Hashes the native project with `@expo/fingerprint` and finds an earlier iOS
+  # build with the same hash. An iOS job with a match repacks that IPA with this
+  # commit's JS on Linux instead of rebuilding it on a macOS runner, the scarce
+  # resource the merge queue waits on. Android builds on Linux and always builds.
+  fingerprint:
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    runs-on: ubuntu-26.04
+    name: 🧬 Native fingerprint
+    permissions:
+      contents: read
+      actions: read # list and download earlier runs' artifacts
+    outputs:
+      ios_hash: ${{ steps.hash.outputs.ios }}
+      tv_hash: ${{ steps.hash.outputs.tv }}
+      ios_phone_source: ${{ steps.find.outputs.ios_phone }}
+      ios_phone_unsigned_source: ${{ steps.find.outputs.ios_phone_unsigned }}
+      ios_tv_unsigned_source: ${{ steps.find.outputs.ios_tv_unsigned }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🧬 Hash the native project
+        id: hash
+        # fingerprint.config.js keeps the per-build metadata out of the hash.
+        run: |
+          echo "ios=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          echo "tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
+
+      - name: 🔎 Find an earlier build to repack
+        id: find
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY_ID: ${{ github.repository_id }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO_ID: ${{ github.event.pull_request.head.repo.id }}
+          IOS: ${{ steps.hash.outputs.ios }}
+          TV: ${{ steps.hash.outputs.tv }}
+          # A signed IPA is re-signed with files fetched from EAS, so a run
+          # without the EAS token (a fork PR) must build it on macOS.
+          CAN_SIGN: ${{ secrets.EXPO_TOKEN != '' }}
+        run: |
+          names=(
+            "ios_phone_unsigned=streamyfin-ios-phone-unsigned-ipa-fp-$IOS"
+            "ios_tv_unsigned=streamyfin-ios-tv-unsigned-ipa-fp-$TV"
+          )
+          if [ "$CAN_SIGN" = "true" ]; then
+            names+=("ios_phone=streamyfin-ios-phone-ipa-fp-$IOS")
+          fi
+          bun scripts/ci/find-native-build.ts "${names[@]}"
+
   build-android-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: ubuntu-26.04
@@ -226,12 +299,19 @@ jobs:
         uses: ./.github/actions/refresh-pr-comment
 
   build-ios-phone:
-    if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-    runs-on: macos-26
+    needs: fingerprint
+    # !cancelled() keeps a failed fingerprint job from skipping this required
+    # check, which would count as a pass. Its outputs are then empty, so the
+    # job falls back to the full macOS build.
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
+    runs-on: ${{ needs.fingerprint.outputs.ios_phone_source != '' && 'ubuntu-26.04' || 'macos-26' }}
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_phone_source }}
+      FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
 
     steps:
       - name: 📥 Checkout code
@@ -249,12 +329,14 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
+            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
               xcode-version: "26.6"
 
           - name: 🏗️ Setup EAS
+            if: env.REPACK_SOURCE == ''
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
             with:
               eas-version: latest
@@ -274,14 +356,27 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
+        if: env.REPACK_SOURCE == ''
         run: bun run prebuild
 
       - name: 🚀 Build iOS app
+        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 0
         # `ci` profile (extends production, autoIncrement off): keeps CI builds out of
         # the production version tier and stops them inflating the store build counter.
         run: eas build -p ios --local --non-interactive --profile ci
+
+      - name: 📦 Repack the earlier IPA
+        if: env.REPACK_SOURCE != ''
+        uses: ./.github/actions/repack-ios
+        with:
+          source-run-id: ${{ env.REPACK_SOURCE }}
+          artifact-name: streamyfin-ios-phone-ipa-fp-${{ env.FINGERPRINT }}
+          tv: "0"
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          # The app and every extension it embeds; each needs its own profile.
+          bundle-identifiers: com.fredrikburmester.streamyfin com.fredrikburmester.streamyfin.downloadactivity
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -289,20 +384,28 @@ jobs:
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
-          path: build-*.ipa
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: ${{ env.FINGERPRINT != '' && format('streamyfin-ios-phone-ipa-fp-{0}', env.FINGERPRINT) || format('streamyfin-ios-phone-ipa-{0}', env.DATE_TAG) }}
+          path: |
+            build-*.ipa
+            build/*.ipa
           retention-days: 7
 
       - name: 🔄 Refresh PR build comment
         uses: ./.github/actions/refresh-pr-comment
 
   build-ios-phone-unsigned:
-    if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: macos-26
+    needs: fingerprint
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ${{ needs.fingerprint.outputs.ios_phone_unsigned_source != '' && 'ubuntu-26.04' || 'macos-26' }}
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_phone_unsigned_source }}
+      FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
 
     steps:
       - name: 📥 Checkout code
@@ -320,6 +423,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
+            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
@@ -338,12 +442,22 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
+        if: env.REPACK_SOURCE == ''
         run: bun run prebuild
 
       - name: 🚀 Build iOS app
+        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 0
         run: bun run ios:unsigned-build
+
+      - name: 📦 Repack the earlier IPA
+        if: env.REPACK_SOURCE != ''
+        uses: ./.github/actions/repack-ios
+        with:
+          source-run-id: ${{ env.REPACK_SOURCE }}
+          artifact-name: streamyfin-ios-phone-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          tv: "0"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -351,7 +465,9 @@ jobs:
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: streamyfin-ios-phone-unsigned-ipa-${{ env.DATE_TAG }}
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: ${{ env.FINGERPRINT != '' && format('streamyfin-ios-phone-unsigned-ipa-fp-{0}', env.FINGERPRINT) || format('streamyfin-ios-phone-unsigned-ipa-{0}', env.DATE_TAG) }}
           path: build/*.ipa
           retention-days: 7
 
@@ -432,12 +548,16 @@ jobs:
     # Unsigned tvOS build is enabled (compiles without Apple credentials).
     # The signed tvOS job above stays disabled until tvOS provisioning
     # profiles are set up in EAS (app + TopShelf targets).
-    if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: macos-26
+    needs: fingerprint
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ${{ needs.fingerprint.outputs.ios_tv_unsigned_source != '' && 'ubuntu-26.04' || 'macos-26' }}
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_tv_unsigned_source }}
+      FINGERPRINT: ${{ needs.fingerprint.outputs.tv_hash }}
 
     steps:
       - name: 📥 Checkout code
@@ -455,6 +575,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
+            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
@@ -473,12 +594,22 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
+        if: env.REPACK_SOURCE == ''
         run: bun run prebuild:tv
 
       - name: 🚀 Build iOS app
+        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 1
         run: bun run ios:unsigned-build:tv
+
+      - name: 📦 Repack the earlier IPA
+        if: env.REPACK_SOURCE != ''
+        uses: ./.github/actions/repack-ios
+        with:
+          source-run-id: ${{ env.REPACK_SOURCE }}
+          artifact-name: streamyfin-ios-tv-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          tv: "1"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -486,7 +617,9 @@ jobs:
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: streamyfin-ios-tv-unsigned-ipa-${{ env.DATE_TAG }}
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: ${{ env.FINGERPRINT != '' && format('streamyfin-ios-tv-unsigned-ipa-fp-{0}', env.FINGERPRINT) || format('streamyfin-ios-tv-unsigned-ipa-{0}', env.DATE_TAG) }}
           path: build/*.ipa
           retention-days: 7
 
