@@ -1,0 +1,77 @@
+appId: com.fredrikburmester.streamyfin
+# Tier 1: the output sheet on the fake receivers of a tier 1 build (e2e/README.md, "Fake Cast receivers"). The Cast
+# button opens it, "Bench TV" connects, the button says so, and Disconnect ends the session. Signs in first: the
+# button shows only with a server session. Needs SERVER_URL, USERNAME and PASSWORD for a server the device reaches
+# (in CI, the throwaway one of e2e/suites/syncplay/setup.py through adb reverse), the release build, and an English
+# device: the sheet is native and has no test ids, so it is found by its text, which follows the device's language.
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-server-url"
+    timeout: 60000
+- tapOn:
+    id: "login-server-url"
+- inputText: ${SERVER_URL}
+- tapOn:
+    id: "login-connect"
+- extendedWaitUntil:
+    visible:
+      id: "login-username"
+    timeout: 30000
+- tapOn:
+    id: "login-username"
+- inputText: ${USERNAME}
+- tapOn:
+    id: "login-password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "login-submit"
+# The intro opens over Home a second after the first sign in; its button closes it, at the end of its list.
+- scrollUntilVisible:
+    element:
+      id: "intro-done"
+    timeout: 60000
+- tapOn:
+    id: "intro-done"
+- extendedWaitUntil:
+    notVisible:
+      id: "intro-done"
+    timeout: 15000
+- tapOn:
+    id: "output-button"
+- extendedWaitUntil:
+    visible: "Play on"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Bench TV"
+    timeout: 15000
+- takeScreenshot: output-sheet-list
+- tapOn: "Bench TV"
+# A fake receiver connects 600 ms after the request; the panel replaces the list.
+- extendedWaitUntil:
+    visible: "Chromecast, connected"
+    timeout: 15000
+- takeScreenshot: output-sheet-connected
+# Nothing plays on a fake receiver, so the one end action reads Disconnect. The sheet closes on back first: the
+# button says it is connected, and opens the panel again.
+- back
+- extendedWaitUntil:
+    visible: "Cast button.*, Connected"
+    timeout: 15000
+- tapOn:
+    id: "output-button"
+- extendedWaitUntil:
+    visible: "Disconnect"
+    timeout: 15000
+- tapOn: "Disconnect"
+- extendedWaitUntil:
+    visible: "Bench TV"
+    timeout: 15000
+- takeScreenshot: output-sheet-disconnected
+- back
+- extendedWaitUntil:
+    visible: "Cast button.*, Not connected"
+    timeout: 15000

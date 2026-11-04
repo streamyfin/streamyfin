@@ -116,11 +116,17 @@ export function OutputButton({
     // The frame the popover points at, measured when the sheet opens.
     <View ref={anchor} collapsable={false}>
       {variant === "header" ? (
-        <HeaderButton {...accessibility} onPress={open} {...props}>
+        <HeaderButton
+          testID='output-button'
+          {...accessibility}
+          onPress={open}
+          {...props}
+        >
           {glyph}
         </HeaderButton>
       ) : (
         <Pressable
+          testID='output-button'
           {...accessibility}
           onPress={open}
           hitSlop={10}

@@ -1,6 +1,6 @@
 appId: com.fredrikburmester.streamyfin
 # Casts one item on a receiver from a signed-in app, then stops casting from the SDK's expanded controls.
-# Needs ITEM_NAME (the item's title, as the search shows it) and CAST_NAME (the receiver's name in the Cast dialog),
+# Needs ITEM_NAME (the item's title, as the search shows it) and CAST_NAME (the receiver's name in the output sheet),
 # a phone emulator on the receiver's network, and the release build installed (the module's Cast support is native).
 # Taps by position are for the 1080x2400 phone emulator of the bench (Review_Phone).
 ---
@@ -29,17 +29,19 @@ appId: com.fredrikburmester.streamyfin
 - extendedWaitUntil:
     visible: "Play button"
     timeout: 30000
-# The header Cast button opens the SDK dialog; the receivers come from the module's own discovery.
-# Android reads the button's state after its name ("Cast button, Not connected").
-- tapOn: "Cast button.*"
+# The header Cast button opens the output sheet, which starts the discovery; its panel replaces the list once
+# the receiver is connected, and back closes it.
+- tapOn:
+    id: "output-button"
 - extendedWaitUntil:
     visible: ${CAST_NAME}
     timeout: 30000
-- takeScreenshot: cast-dialog
+- takeScreenshot: cast-sheet
 - tapOn: ${CAST_NAME}
 - extendedWaitUntil:
-    notVisible: "Cast to"
-    timeout: 30000
+    visible: "Chromecast, connected"
+    timeout: 45000
+- back
 # The play pill shows its cast glyph once the session is connected.
 - extendedWaitUntil:
     visible:

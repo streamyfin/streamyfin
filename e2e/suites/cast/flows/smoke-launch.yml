@@ -1,5 +1,5 @@
 # Tier 1 smoke flow: the app launches to its server screen. Proves the Maestro pipeline on
-# a fresh build before any cast flow exists. Needs a build that embeds the JS bundle (the
+# a fresh build before the cast flows run. Needs a build that embeds the JS bundle (the
 # release APK): a debug build is an Expo dev client waiting for Metro. Run with
 # e2e/bench/maestro.py. The screen is found by its test ids, never by its text: with no
 # language stored the app speaks the device's, and `maestro test` cannot set the locale.
