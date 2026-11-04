@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +14,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
 import { TVOptionCard, useTVFocusAnimation } from "@/components/tv";
-import { TV_PANEL_BACKING } from "@/constants/Colors";
+import { tvSheetBacking } from "@/components/tv/tvSheetBacking";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
@@ -299,10 +298,7 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
             trapFocusLeft
             trapFocusRight
             testID='tv-save-account-panel'
-            style={[
-              styles.content,
-              Platform.OS === "android" && styles.androidBacking,
-            ]}
+            style={[styles.content, tvSheetBacking()]}
           >
             {/* Header */}
             <View style={styles.header}>
@@ -430,12 +426,6 @@ const styles = StyleSheet.create({
     paddingTop: scaleSize(24),
     paddingBottom: scaleSize(50),
     overflow: "visible",
-  },
-  // Android TV only tints behind a BlurView: without a backing of its own, the
-  // sign-in form's buttons showed through the sheet. Apple TV really blurs, so
-  // its sheet stays frosted glass like the other sign-in sheets.
-  androidBacking: {
-    backgroundColor: TV_PANEL_BACKING,
   },
   header: {
     paddingHorizontal: scaleSize(48),
