@@ -125,6 +125,16 @@ class RemoteTargetHubTest {
         assertEquals(listOf(listOf(livingRoom, bedroom)), listener.deviceLists)
     }
 
+    // getDevices answered nothing before discovery ran, and still does.
+    @Test
+    fun noDeviceIsListedBeforeDiscovery() {
+        val hub = RemoteTargetHub()
+
+        hub.install(FakeTargetPort(known = listOf(livingRoom)))
+
+        assertTrue(hub.devices.isEmpty())
+    }
+
     @Test
     fun disconnectGoesToThePortAndWaitsForItsEvents() {
         val port = FakeTargetPort(known = listOf(livingRoom))

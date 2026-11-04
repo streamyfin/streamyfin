@@ -58,8 +58,8 @@ final class RemoteTargetHub {
     // A target the old port reported means nothing to the new one.
     machine = RemoteTargetMachine()
     publish()
+    // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
     port.start(events: PortEvents(hub: self, port: port))
-    updateDevices(port.devices())
   }
 
   /// A new listener hears changes from now on; it reads `snapshot` and `devices` for the present.

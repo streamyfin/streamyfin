@@ -140,6 +140,12 @@ enum RemoteTargetTests {
     }
 
     do {
+      let hub = RemoteTargetHub()
+      hub.install(FakeTargetPort(known: [livingRoom]))
+      check("noDeviceIsListedBeforeDiscovery", hub.devices.isEmpty)
+    }
+
+    do {
       let port = FakeTargetPort(known: [livingRoom])
       let hub = connectedHub(port)
       hub.disconnect(stopPlayback: true)
