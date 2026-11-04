@@ -144,7 +144,11 @@ class CastModule : Module() {
 
         OnCreate {
             // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
-            OutputPickerPresenter.receiverTitle = { mediaClient?.mediaStatus?.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE) }
+            OutputPickerPresenter.receiverTitle = {
+                mediaClient?.mediaStatus?.let { status ->
+                    CastMapping.playingTitle(status.playerState, status.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE))
+                }
+            }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
         }

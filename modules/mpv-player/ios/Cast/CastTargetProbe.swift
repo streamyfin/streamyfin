@@ -92,25 +92,30 @@ final class CastTargetProbe: RemoteTargetListener {
     let current = hub.snapshot
     last = current
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
-    if let present = presentSheet {
-      log(present() ? "presenting the output sheet" : "no view controller for the output sheet")
-    }
     if current.phase == .connected { leaving = current.target }
     // A whole name only: a part of one may name another receiver than the connected one.
     if current.phase == .connected, let target = current.target,
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
     {
+      showSheet()
       log("already connected to \(target.name)")
       // The session the probe holds, for the hold's check.
       device = TargetDevice(id: target.id, name: target.name, model: nil)
       onConnected()
       return
     }
-    // Set first: a port can list its receivers inside startDiscovery, and a connection started there
-    // sets its own wait, which this one must not replace.
+    // Set first: a port can list its receivers inside startDiscovery, the sheet's too, and a connection
+    // started there sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
+    showSheet()
     hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
     remoteTargetDevicesDidChange(hub.devices)
+  }
+
+  private func showSheet() {
+    if let present = presentSheet {
+      log(present() ? "presenting the output sheet" : "no view controller for the output sheet")
+    }
   }
 
   func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {

@@ -306,6 +306,42 @@ enum OutputSheetTests {
       check("aReleasedSliderIsSentOnce", port.volumes == [0.4])
     }
 
+    // The view still holds its drag when the rest sends it: the release it sends after asks nothing more.
+    do {
+      let port = port()
+      let clock = Clock()
+      let sheet = sheet(port, clock: clock)
+      port.emit("started", livingRoom)
+      port.events?.volumeChanged(level: 0.3, muted: false)
+      sheet.dragVolume(0.45)
+      clock.advance(RemoteTargetConstants.volumeDragRestMs)
+      sheet.releaseVolume(0.45)
+      check("aSliderReleasedAfterItsRestIsSentOnce", port.volumes == [0.45])
+    }
+
+    // A port can refuse inside connect, as a disabled route does: the asked row shows the failure, not a wait.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom], listsOnDiscovery: true, refuses: [bedroom.id])
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      var failed = false
+      if case .failed = status(sheet.state, bedroom) { failed = true }
+      check("aSwitchRefusedAtOnceShowsItsFailure", failed)
+    }
+
+    // Discovery can lose the receiver that holds the session; its row still leads back to its panel.
+    do {
+      let port = port()
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      port.discover([bedroom])
+      sheet.tap(deviceRow(sheet, livingRoom))
+      check("theConnectedRowLeadsBackToItsPanelOnceDiscoveryLostIt", panel(sheet.state)?.target.id == livingRoom.id)
+    }
+
     do {
       let port = port()
       let sheet = sheet(port, clock: Clock(), receiverTitle: nil)

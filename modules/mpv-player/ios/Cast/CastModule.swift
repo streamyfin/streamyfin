@@ -41,7 +41,10 @@ public class CastModule: Module {
       // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
       let presenter = OutputPickerPresenter.shared
       presenter.receiverTitle = {
-        self?.observedClient?.mediaStatus?.mediaInformation?.metadata?.string(forKey: kGCKMetadataKeyTitle)
+        guard let status = self?.observedClient?.mediaStatus else { return nil }
+        return CastMapping.playingTitle(
+          status.playerState.rawValue, title: status.mediaInformation?.metadata?.string(forKey: kGCKMetadataKeyTitle)
+        )
       }
       presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
     }
