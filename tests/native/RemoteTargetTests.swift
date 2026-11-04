@@ -445,6 +445,7 @@ enum RemoteTargetTests {
       let (probe, clock, logs) = run("bed", port: port)
       let discovering = port.discovering
       port.discover([chromecast, streamer])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
       port.emit("starting", streamer)
       port.emit("started", streamer)
       clock.advance(hold)
@@ -477,6 +478,27 @@ enum RemoteTargetTests {
       check("aWholeNameWinsOverAPartOfAnother", port.connects == [streamerDevice] && probe.isActive)
     }
 
+    // iOS lists receivers one at a time: a part of a name waits for the whole name to show up.
+    do {
+      let castDevice = TargetDevice(id: "device-c", name: "Salon - Chromecast")
+      let streamerDevice = TargetDevice(id: "device-s", name: "Salon")
+      let port = FakeTargetPort()
+      let (probe, _, _) = run("salon", port: port)
+      port.discover([castDevice])
+      let waited = port.connects.isEmpty
+      port.discover([castDevice, streamerDevice])
+      check("aPartOfANameWaitsForTheWholeName", waited && port.connects == [streamerDevice] && probe.isActive)
+    }
+
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, _) = run("living", port: port)
+      port.discover([chromecast])
+      let waited = port.connects.isEmpty
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      check("aPartOfANameConnectsOnceDiscoverySettles", waited && port.connects == [chromecast] && probe.isActive)
+    }
+
     do {
       let port = FakeTargetPort()
       let (probe, clock, logs) = run("kitchen", port: port)
@@ -491,7 +513,7 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort()
-      let (probe, _, logs) = run("living", port: port)
+      let (probe, _, logs) = run("Living room", port: port)
       port.discover([chromecast])
       port.emit("startFailed", chromecast, error: "timeout")
       check(
@@ -502,7 +524,7 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort()
-      let (probe, clock, logs) = run("living", port: port)
+      let (probe, clock, logs) = run("Living room", port: port)
       port.discover([chromecast])
       clock.advance(CastTargetProbe.connectTimeoutMs)
       check("aConnectionThatNeverLandsFails", logs().last == "failed: never connected" && !probe.isActive)
@@ -510,7 +532,7 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort()
-      let (probe, clock, logs) = run("living", port: port)
+      let (probe, clock, logs) = run("Living room", port: port)
       port.discover([chromecast])
       port.emit("started", chromecast)
       clock.advance(hold)
@@ -520,7 +542,7 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort()
-      let (probe, clock, logs) = run("living", keep: true, port: port)
+      let (probe, clock, logs) = run("Living room", keep: true, port: port)
       port.discover([chromecast])
       port.emit("started", chromecast)
       clock.advance(hold + CastTargetProbe.endTimeoutMs)

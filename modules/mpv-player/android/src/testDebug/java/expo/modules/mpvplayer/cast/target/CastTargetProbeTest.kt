@@ -28,6 +28,7 @@ class CastTargetProbeTest {
         probe.start()
         assertTrue(port.discovering)
         port.discover(listOf(livingRoom, bedroom))
+        scheduler.advance(CastTargetProbe.PARTIAL_MATCH_SETTLE_MS)
         port.emit("starting", bedroom)
         port.emit("started", bedroom)
         scheduler.advance(CastTargetProbe.CONNECTED_HOLD_MS)
@@ -66,6 +67,33 @@ class CastTargetProbeTest {
         assertEquals(listOf(streamer), port.connects)
     }
 
+    // iOS lists receivers one at a time: a part of a name waits for the whole name to show up.
+    @Test
+    fun aPartOfANameWaitsForTheWholeName() {
+        val chromecast = TargetDevice("device-c", "Salon - Chromecast")
+        val streamer = TargetDevice("device-s", "Salon")
+        val port = FakeTargetPort()
+        probe(hubWith(port), "salon").start()
+
+        port.discover(listOf(chromecast))
+        assertTrue(port.connects.isEmpty())
+        port.discover(listOf(chromecast, streamer))
+
+        assertEquals(listOf(streamer), port.connects)
+    }
+
+    @Test
+    fun aPartOfANameConnectsOnceDiscoverySettles() {
+        val port = FakeTargetPort()
+        probe(hubWith(port), "living").start()
+
+        port.discover(listOf(livingRoom))
+        assertTrue(port.connects.isEmpty())
+        scheduler.advance(CastTargetProbe.PARTIAL_MATCH_SETTLE_MS)
+
+        assertEquals(listOf(livingRoom), port.connects)
+    }
+
     @Test
     fun aDeviceDiscoveryNeverListsFails() {
         val port = FakeTargetPort()
@@ -84,7 +112,7 @@ class CastTargetProbeTest {
     @Test
     fun aConnectionTheSdkRefusesFailsWithItsError() {
         val port = FakeTargetPort()
-        val probe = probe(hubWith(port), "living")
+        val probe = probe(hubWith(port), "Living room")
 
         probe.start()
         port.discover(listOf(livingRoom))
@@ -97,7 +125,7 @@ class CastTargetProbeTest {
     @Test
     fun aConnectionThatNeverLandsFails() {
         val port = FakeTargetPort()
-        val probe = probe(hubWith(port), "living")
+        val probe = probe(hubWith(port), "Living room")
 
         probe.start()
         port.discover(listOf(livingRoom))
@@ -110,7 +138,7 @@ class CastTargetProbeTest {
     @Test
     fun aSessionThatNeverEndsFails() {
         val port = FakeTargetPort()
-        val probe = probe(hubWith(port), "living")
+        val probe = probe(hubWith(port), "Living room")
 
         probe.start()
         port.discover(listOf(livingRoom))
@@ -125,7 +153,7 @@ class CastTargetProbeTest {
     @Test
     fun keepLeavesTheSessionUp() {
         val port = FakeTargetPort()
-        val probe = probe(hubWith(port), "living", keep = true)
+        val probe = probe(hubWith(port), "Living room", keep = true)
 
         probe.start()
         port.discover(listOf(livingRoom))

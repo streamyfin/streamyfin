@@ -140,8 +140,9 @@ Debug builds carry a second probe, for the target state the module publishes to 
 same hub as `connectToDevice`, without the SDK's dialog, and logs every state it goes
 through. No server and no media are involved, so any receiver on the phone's network will do.
 
-**Android.** Name the receiver, or a part of its name; a whole name wins over a part of
-another (`Salon` against `Salon - Chromecast`):
+**Android.** Name the receiver, or a part of its name. A whole name connects at once and wins
+over a part of another (`Salon` against `Salon - Chromecast`); a part of a name waits 3 s for
+the whole one to show up, since iOS lists receivers one at a time:
 
 ```sh
 adb logcat -c

@@ -25,6 +25,7 @@ internal class CastTargetProbe(
 
     private var removeListener: (() -> Unit)? = null
     private var cancelWait: (() -> Unit)? = null
+    private var settle: (() -> Unit)? = null
     private var device: TargetDevice? = null
     private var connected = false
 
@@ -46,10 +47,25 @@ internal class CastTargetProbe(
 
     override fun devicesChanged(devices: List<TargetDevice>) {
         if (!isActive || device != null) return
-        // A whole name first: on the bench "Salon" is a device, and a part of "Salon - Chromecast".
-        val found = devices.firstOrNull { it.name.equals(deviceName, ignoreCase = true) }
-            ?: devices.firstOrNull { matches(it.name) }
-            ?: return
+        // A whole name connects at once. A part of one waits: iOS lists receivers one at a time, and on
+        // the bench "Salon" may come after "Salon - Chromecast".
+        devices.firstOrNull { it.name.equals(deviceName, ignoreCase = true) }?.let {
+            connect(it)
+            return
+        }
+        if (settle == null && devices.any { matches(it.name) }) {
+            settle = schedule(PARTIAL_MATCH_SETTLE_MS) {
+                val listed = hub.devices
+                (listed.firstOrNull { it.name.equals(deviceName, ignoreCase = true) } ?: listed.firstOrNull { matches(it.name) })
+                    ?.let(::connect)
+            }
+        }
+    }
+
+    private fun connect(found: TargetDevice) {
+        if (!isActive || device != null) return
+        settle?.invoke()
+        settle = null
         device = found
         log("found ${found.name}")
         if (!hub.connect(found.id)) {
@@ -100,6 +116,8 @@ internal class CastTargetProbe(
         isActive = false
         cancelWait?.invoke()
         cancelWait = null
+        settle?.invoke()
+        settle = null
         removeListener?.invoke()
         removeListener = null
         hub.stopDiscovery()
@@ -109,6 +127,7 @@ internal class CastTargetProbe(
     companion object {
         const val ACTION = "expo.modules.mpvplayer.CAST_TARGET_PROBE"
         const val DISCOVERY_TIMEOUT_MS = 15_000L
+        const val PARTIAL_MATCH_SETTLE_MS = 3_000L
         // Longer than the SDK's own connection timeout, which answers startFailed first.
         const val CONNECT_TIMEOUT_MS = 30_000L
         const val CONNECTED_HOLD_MS = 5_000L

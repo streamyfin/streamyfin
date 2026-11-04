@@ -8,6 +8,7 @@ final class CastTargetProbe: RemoteTargetListener {
   /// Leaves the session up: the relaunch proof arms a second probe on it.
   static let keepArgument = "CastTargetProbeKeep"
   static let discoveryTimeoutMs = 15_000.0
+  static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
   static let connectTimeoutMs = 30_000.0
   static let connectedHoldMs = 5_000.0
@@ -21,6 +22,7 @@ final class CastTargetProbe: RemoteTargetListener {
   private(set) var isActive = false
   private var removeListener: (() -> Void)?
   private var cancelWait: (() -> Void)?
+  private var settle: (() -> Void)?
   private var device: TargetDevice?
   private var connected = false
 
@@ -56,9 +58,27 @@ final class CastTargetProbe: RemoteTargetListener {
   }
 
   func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {
-    // A whole name first: on the bench "Salon" is a device, and a part of "Salon - Chromecast".
-    let whole = devices.first { $0.name.caseInsensitiveCompare(deviceName) == .orderedSame }
-    guard isActive, device == nil, let found = whole ?? devices.first(where: { matches($0.name) }) else { return }
+    guard isActive, device == nil else { return }
+    // A whole name connects at once. A part of one waits: iOS lists receivers one at a time, and on
+    // the bench "Salon" may come after "Salon - Chromecast".
+    if let whole = devices.first(where: isWholeName) {
+      connect(whole)
+      return
+    }
+    guard settle == nil, devices.contains(where: { matches($0.name) }) else { return }
+    settle = schedule(Self.partialMatchSettleMs) { [weak self] in
+      guard let self else { return }
+      let listed = hub.devices
+      if let found = listed.first(where: isWholeName) ?? listed.first(where: { self.matches($0.name) }) {
+        connect(found)
+      }
+    }
+  }
+
+  private func connect(_ found: TargetDevice) {
+    guard isActive, device == nil else { return }
+    settle?()
+    settle = nil
     device = found
     log("found \(found.name)")
     guard hub.connect(deviceId: found.id) else {
@@ -104,6 +124,10 @@ final class CastTargetProbe: RemoteTargetListener {
     name.range(of: deviceName, options: .caseInsensitive) != nil
   }
 
+  private func isWholeName(_ device: TargetDevice) -> Bool {
+    device.name.caseInsensitiveCompare(deviceName) == .orderedSame
+  }
+
   private func wait(_ delayMs: Double, failure: String) {
     cancelWait?()
     cancelWait = schedule(delayMs) { [weak self] in self?.fail(failure) }
@@ -118,6 +142,8 @@ final class CastTargetProbe: RemoteTargetListener {
     isActive = false
     cancelWait?()
     cancelWait = nil
+    settle?()
+    settle = nil
     removeListener?()
     removeListener = nil
     hub.stopDiscovery()
