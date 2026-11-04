@@ -18,6 +18,7 @@ data class OutputSheetEnvironment(
     val thisDevice: ThisDeviceKind = ThisDeviceKind.PHONE,
     val playingHere: String? = null,
     val receiverTitle: String? = null,
+    val receiverPlaying: Boolean = false,
 )
 
 /**
@@ -196,9 +197,11 @@ class OutputSheetController(
             cancelSettle?.invoke()
             cancelSettle = null
         }
-        // The asked receiver took the session, or refused it: the state says so from now on.
+        // The asked receiver took the session, or refused it: the state says so from now on. The receiver a switch
+        // leaves is the target until its session ends, which takes nothing.
         val asked = requestedId
-        if (asked != null && (snapshot.target?.id == asked || snapshot.failedTarget?.id == asked)) requestedId = null
+        val took = snapshot.target?.id == asked && (snapshot.phase == TargetPhase.CONNECTING || snapshot.phase == TargetPhase.CONNECTED)
+        if (asked != null && (took || snapshot.failedTarget?.id == asked)) requestedId = null
         val panel = panelOn
         if (panel != null && snapshot.failedTarget?.id == panel && snapshot.error != null) panelOn = null
         if (panel != null && snapshot.phase == TargetPhase.CONNECTED && snapshot.target?.id == panel) {
@@ -212,18 +215,17 @@ class OutputSheetController(
 
     private fun connect(deviceId: String) {
         val holder = hub.snapshot.target
-        // The receiver already there, which discovery may have lost: back to its panel.
-        if (holder?.id == deviceId) {
-            // A switch on its way to another receiver is called off: that one is no longer asked for.
-            requestedId = null
-            panelOn = null
+        // The receiver already there, which discovery may have lost: back to its panel. During a switch the sheet
+        // asked for, it is a request like another's.
+        if (holder?.id == deviceId && requestedId == null) {
             hub.connect(deviceId)
             showingList = false
             publish()
             return
         }
-        // Over another receiver's session the hub waits for its end: the row shows the request meanwhile, and the
-        // list stays until the asked receiver is connected. Set before the request: a port can refuse inside it.
+        // Over a session the hub waits for its end: the row shows the request meanwhile, and the list stays until the
+        // asked receiver is connected. Set before the request, as a port can refuse inside it; a refused request
+        // leaves a switch on its way as it was.
         val requested = requestedId
         val panel = panelOn
         requestedId = deviceId.takeIf { holder != null }
@@ -247,6 +249,7 @@ class OutputSheetController(
             thisDevice = environment.thisDevice,
             playingHere = environment.playingHere,
             receiverTitle = environment.receiverTitle,
+            receiverPlaying = environment.receiverPlaying,
             showingList = showingList,
             draggedVolume = dragged ?: held,
             requestedId = requestedId,

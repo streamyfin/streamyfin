@@ -30,8 +30,10 @@ data class OutputSheetInput(
     val thisDevice: ThisDeviceKind,
     /** What plays on this device, null when nothing does. */
     val playingHere: String?,
-    /** What the receiver plays, null when it plays nothing. */
+    /** What the receiver plays, null when it plays nothing or names nothing. */
     val receiverTitle: String?,
+    /** Something plays on the receiver, with a title or without. */
+    val receiverPlaying: Boolean = false,
     /** "Change" asked for the list over a connected target. */
     val showingList: Boolean,
     /** The level under the finger, or the one sent until the receiver echoes it. */
@@ -124,10 +126,10 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             volume = input.draggedVolume ?: snapshot.volume,
             muted = snapshot.muted,
             canSetVolume = target.volume && snapshot.volume != null,
-            canMute = target.volume && snapshot.volume != null && input.receiverTitle != null,
+            canMute = target.volume && snapshot.volume != null && input.receiverPlaying,
             reconnecting = snapshot.reconnecting,
             receiverTitle = input.receiverTitle,
-            canStop = input.receiverTitle != null,
+            canStop = input.receiverPlaying,
         )
     }
     val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere))

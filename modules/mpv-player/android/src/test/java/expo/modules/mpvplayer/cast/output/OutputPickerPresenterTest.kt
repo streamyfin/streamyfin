@@ -27,6 +27,7 @@ class OutputPickerPresenterTest {
     fun dismissLeftovers() {
         OutputPickerPresenter.dismiss()
         OutputPickerPresenter.onDismissed = null
+        OutputPickerPresenter.currentActivity = { null }
         OutputPickerPresenter.checkPlayServices = OutputPickerPresenter.defaultCheckPlayServices
         OutputPickerPresenter.resolvePlayServices = OutputPickerPresenter.defaultResolvePlayServices
     }
@@ -62,6 +63,22 @@ class OutputPickerPresenterTest {
         OutputPickerPresenter.presentedController?.remote()
 
         assertEquals(false, presentedAtTheRemote)
+    }
+
+    // The probe's sheet never takes over one the app opened: the app's remote still answers, and its track stays.
+    @Test
+    fun theProbeLeavesASheetTheAppOpened() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.currentActivity = { screen.get() }
+        var remote = 0
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = "Bonus 1") { remote++ }
+
+        OutputPickerPresenter.presentForProbe()
+        val playingHere = OutputPickerPresenter.presentedController?.environment?.playingHere
+        OutputPickerPresenter.presentedController?.remote()
+
+        assertEquals("Bonus 1", playingHere)
+        assertEquals(1, remote)
     }
 
     // Back from the Play Store, the services may be there now: the sheet checks them again.

@@ -13,6 +13,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   var strings = OutputPickerStrings()
   /// What the receiver plays, from the media status the module follows.
   var receiverTitle: () -> String? = { nil }
+  /// Whether something plays on the receiver, with a title or without.
+  var receiverPlaying: () -> Bool = { false }
   /// Called once the sheet is gone, whichever way it went.
   var onDismissed: (() -> Void)?
 
@@ -33,6 +35,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       self.onRemote = onRemote
       controller.environment.playingHere = playingHere
       controller.environment.receiverTitle = receiverTitle()
+      controller.environment.receiverPlaying = receiverPlaying()
       return true
     }
     // A sheet that cannot show keeps no callback, which would hold the module.
@@ -44,7 +47,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       airPlay: AirPlayInput(activeRoute: airPlayRoute.activeRoute),
       thisDevice: UIDevice.current.userInterfaceIdiom == .pad ? .tablet : .phone,
       playingHere: playingHere,
-      receiverTitle: receiverTitle()
+      receiverTitle: receiverTitle(),
+      receiverPlaying: receiverPlaying()
     )
     sheet.onOutput = { [weak self] output in self?.handle(output) }
     let store = OutputSheetStore(controller: sheet)
@@ -83,11 +87,13 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   /// The receiver started or changed what it plays: the panel's remote row follows.
   func refresh() {
     controller?.environment.receiverTitle = receiverTitle()
+    controller?.environment.receiverPlaying = receiverPlaying()
   }
 
-  /// The debug probe's sheet, for its screenshots: over whatever the app shows.
+  /// The debug probe's sheet, for its screenshots: over whatever the app shows, and never in place of the app's.
   func presentForProbe() -> Bool {
-    present(anchor: nil, playingHere: nil) {}
+    guard !isPresented else { return true }
+    return present(anchor: nil, playingHere: nil) {}
   }
 
   // A swipe down or a tap outside closed it.

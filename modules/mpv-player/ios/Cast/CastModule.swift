@@ -46,6 +46,9 @@ public class CastModule: Module {
           status.playerState.rawValue, title: status.mediaInformation?.metadata?.string(forKey: kGCKMetadataKeyTitle)
         )
       }
+      presenter.receiverPlaying = {
+        CastMapping.isPlaying(self?.observedClient?.mediaStatus?.playerState.rawValue ?? 0)
+      }
       presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
     }
 
