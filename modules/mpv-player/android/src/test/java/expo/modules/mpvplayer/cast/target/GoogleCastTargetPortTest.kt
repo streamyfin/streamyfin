@@ -45,6 +45,46 @@ class GoogleCastTargetPortTest {
         )
     }
 
+    // Asked back while its session ends, the old route is selected only once the SDK reports that end:
+    // selected before, the SDK's cleanup of the old session saw its route selected again, selected the
+    // default route over it, and nothing started (seen on the bench, 04/11).
+    @Test
+    fun aSwitchBackWaitsForTheOldSessionToEndBeforeSelectingItsRoute() {
+        val sdk = Sdk().apply {
+            routes = listOf(livingRoom, bedroom)
+            running = RunningSession(livingRoom, connected = true)
+        }
+        val port = sdk.port()
+        port.start(Events())
+
+        port.connect(bedroom)
+        port.connect(livingRoom)
+        val beforeTheEnd = sdk.selected.toList()
+        sdk.running = null
+        sdk.sessionWatches.last()?.invoke("ended", livingRoom, "Cast session status code 2155 (2155)")
+
+        assertEquals(listOf(bedroom), beforeTheEnd)
+        assertEquals(listOf(bedroom, livingRoom), sdk.selected)
+    }
+
+    @Test
+    fun aDisconnectDropsASwitchBackStillWaiting() {
+        val sdk = Sdk().apply {
+            routes = listOf(livingRoom, bedroom)
+            running = RunningSession(livingRoom, connected = true)
+        }
+        val port = sdk.port()
+        port.start(Events())
+
+        port.connect(bedroom)
+        port.connect(livingRoom)
+        port.disconnect(stopPlayback = true)
+        sdk.running = null
+        sdk.sessionWatches.last()?.invoke("ended", livingRoom, null)
+
+        assertEquals(listOf(bedroom), sdk.selected)
+    }
+
     @Test
     fun aSessionRunningAtStartIsReportedAsResumed() {
         val sdk = Sdk().apply { running = RunningSession(livingRoom, connected = true) }
