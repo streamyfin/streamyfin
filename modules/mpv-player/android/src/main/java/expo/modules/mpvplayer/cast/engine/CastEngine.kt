@@ -126,8 +126,14 @@ class CastEngine(
     private var suspended = false
 
     // The receiver applies the envelope of every message, whatever its command: after a resume the
-    // bus is reclaimed once a status shows an item this engine cast, never over another sender's.
+    // bus is reclaimed only for a playback this engine cast. An item of its queue proves nothing, nor
+    // does the TV's last play session: another sender can cast the same item, or be what played last,
+    // and the receiver would take this envelope for that playback.
     private var reclaimPending = false
+
+    // The play session this engine knows it cast: one its load or reload settled on, or the next of its
+    // queue the receiver went on to after an end of its own. It outlives a binding, as the TV plays on.
+    private var ownPlaySession: String? = null
 
     // The id the binding was made with. A CastSession answers null once the SDK has ended it, after
     // a suspend it could not resume (Task 14, run 4), so the end is matched and reported under this.
@@ -289,7 +295,7 @@ class CastEngine(
             return
         }
         // SetVolume without a level changes no volume, but the receiver takes its envelope: it waits
-        // for a status that shows an item this engine cast.
+        // for a status that shows what this engine cast.
         reclaimPending = busClaimed
     }
 
@@ -326,6 +332,8 @@ class CastEngine(
         playingIndex = receiverRequest.startIndex ?: 0
         reload?.cancelTimer?.invoke()
         reload = null
+        // A seek of the old item: the new item's first status does not answer it.
+        seekToComplete = null
         cancelEndWait()
         noCompatibleStreamFollows = false
         // The media on the TV now, read at the send: a status of its play session is never this load.
@@ -413,8 +421,11 @@ class CastEngine(
         if (data == null || data.canClientSeek != false) {
             log("seek $target path=media")
             val sentAt = statusCount
+            val generation = queueGeneration
             port.seek((target * 1000).roundToLong()) { succeeded ->
                 when {
+                    // A load went out meanwhile: the seek was the old item's.
+                    generation != queueGeneration -> Unit
                     !succeeded -> delegate?.onPositionChanged(position, itemDuration, 0.0)
                     // The status that answered the seek came first: the position is the seek's already.
                     statusCount > sentAt -> requestId?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
@@ -551,15 +562,25 @@ class CastEngine(
     // A Cast message holds 64 KB: the items go a window at a time.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
-        val generation = queueGeneration
-        itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS).forEach { window ->
-            sendMessage(
-                "PlayLast",
-                ReceiverProtocol.playLast(server, window),
-                failed = { delegate?.onError(it) },
-                sent = { if (generation == queueGeneration) queue = queue + window.map { ReceiverItem(id = it) } },
-            )
-        }
+        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration)
+    }
+
+    // Each window once the channel took the one before: the queue then holds them in the order the
+    // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
+    // its PlayNow having replaced the queue the rest was for.
+    private fun enqueueWindows(windows: List<List<String>>, generation: Long) {
+        val window = windows.firstOrNull() ?: return
+        sendMessage(
+            "PlayLast",
+            ReceiverProtocol.playLast(server, window),
+            failed = { delegate?.onError(it) },
+            sent = {
+                if (generation == queueGeneration) {
+                    queue = queue + window.map { ReceiverItem(id = it) }
+                    enqueueWindows(windows.drop(1), generation)
+                }
+            },
+        )
     }
 
     override val targetVolume: Double?
@@ -586,11 +607,19 @@ class CastEngine(
             if (data?.itemId != null && data.itemId != pending.itemId) settleReload(pending, ReceiverLoadOutcome.Superseded, recompute = false)
         }
         // Until a load settles, its start is the place: a status of what played before is not the queue moving.
-        if (pendingLoad == null) followQueue(data?.itemId)
+        // A new play session after an end is the queue going on, to the next copy of an item queued twice.
+        val wentOn = endWait != null && data?.playSessionId != null && data.playSessionId != playSessionId
+        if (pendingLoad == null) followQueue(data?.itemId, wentOn)
         // Settled at the end, once this status is the engine's: the host acts on the result from it.
         val loaded = pendingLoad?.let { load -> load.tracker.onMediaStatus(data, status.playerState)?.let { load to it } }
         val settled = reload?.let { pending -> pending.tracker.onMediaStatus(data, status.playerState)?.let { pending to it } }
         settled?.let { (pending, outcome) -> settleReload(pending, outcome, recompute = false) }
+        data?.playSessionId?.let { playSession ->
+            val ownLoad = loaded?.second == ReceiverLoadOutcome.Loaded || settled?.second == ReceiverLoadOutcome.Loaded
+            val ownQueueWentOn = wentOn && ownPlaySession != null && playSessionId == ownPlaySession &&
+                queue.getOrNull(playingIndex)?.id == data.itemId
+            if (ownLoad || ownQueueWentOn) ownPlaySession = playSession
+        }
         val newPlaySession = data?.playSessionId != playSessionId
         if (newPlaySession) {
             playSessionId = data?.playSessionId
@@ -610,9 +639,11 @@ class CastEngine(
             log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
         }
         reportState(status.playerState, status.idleReason, data)
-        if (reclaimPending && data?.itemId != null && queue.any { it.id == data.itemId }) {
+        if (reclaimPending && data?.playSessionId != null && data.playSessionId == ownPlaySession) {
             reclaimPending = false
-            send("SetVolume", JSONObject())
+            val binding = boundSessionId
+            // Not taken: nothing was reclaimed, and the next status of that playback tries again.
+            send("SetVolume", JSONObject()) { if (session != null && boundSessionId == binding) reclaimPending = true }
         }
         delegate?.onPositionChanged(position, itemDuration, 0.0)
         val completed = settled?.takeIf { it.second == ReceiverLoadOutcome.Loaded }?.first?.requestId ?: seekToComplete
@@ -840,11 +871,11 @@ class CastEngine(
 
     // The receiver names the item it plays, not which copy of one queued twice: the copy where the
     // engine is in the queue, else the one after it (the queue went on), else the one before (it went
-    // back), else the first.
-    private fun followQueue(itemId: String?) {
+    // back), else the first. After an end the queue went on: the one after it comes first.
+    private fun followQueue(itemId: String?, wentOn: Boolean) {
         if (itemId == null) return
-        playingIndex = listOf(playingIndex, playingIndex + 1, playingIndex - 1).firstOrNull { queue.getOrNull(it)?.id == itemId }
-            ?: queue.indexOfFirst { it.id == itemId }
+        val near = if (wentOn) listOf(playingIndex + 1, playingIndex, playingIndex - 1) else listOf(playingIndex, playingIndex + 1, playingIndex - 1)
+        playingIndex = near.firstOrNull { queue.getOrNull(it)?.id == itemId } ?: queue.indexOfFirst { it.id == itemId }
     }
 
     private fun updateTracks() {
