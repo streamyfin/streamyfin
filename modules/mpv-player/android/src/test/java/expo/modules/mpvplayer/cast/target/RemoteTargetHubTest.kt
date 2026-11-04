@@ -206,6 +206,23 @@ class RemoteTargetHubTest {
         assertFalse(hub.disconnectedWithoutStop)
     }
 
+    // A disconnect the SDK refused, or a session that came back, is no end of that disconnect any more.
+    @Test
+    fun aKeptOrResumedSessionClearsTheMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = false)
+        port.emit("endRefused", livingRoom, "kept")
+        val afterTheRefusal = hub.disconnectedWithoutStop
+        hub.disconnect(stopPlayback = false)
+        port.emit("suspended", livingRoom)
+        port.emit("resumed", livingRoom)
+
+        assertFalse(afterTheRefusal)
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
     @Test
     fun aStopLeavesNoMark() {
         val port = FakeTargetPort(known = listOf(livingRoom))

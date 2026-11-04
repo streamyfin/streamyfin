@@ -50,6 +50,11 @@ final class FakeCastDevices: TargetPort {
       events?.sessionEvent("ending", device: previous, error: nil)
       events?.sessionEvent("ended", device: previous, error: nil)
     }
+    // A level still on its way belongs to the receiver left; the next one starts at its own.
+    echo?()
+    echo = nil
+    volume = 1.0
+    muted = false
     current = device
     events?.sessionEvent("starting", device: device, error: nil)
     pending = schedule(RemoteTargetConstants.fakeConnectDelayMs) { [weak self] in

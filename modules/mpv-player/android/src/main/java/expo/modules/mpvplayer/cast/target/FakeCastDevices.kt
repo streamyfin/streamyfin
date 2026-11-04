@@ -41,6 +41,11 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
             events?.sessionEvent("ending", previous, null)
             events?.sessionEvent("ended", previous, null)
         }
+        // A level still on its way belongs to the receiver left; the next one starts at its own.
+        echo?.invoke()
+        echo = null
+        volume = 1.0
+        muted = false
         current = device
         events?.sessionEvent("starting", device, null)
         pending = schedule(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS) {

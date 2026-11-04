@@ -106,8 +106,9 @@ class RemoteTargetHub {
 
         override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
             if (this@RemoteTargetHub.port !== port) return
-            // A session the SDK starts on its own, from its dialog, is a new connection too.
-            if (event == "starting") disconnectedWithoutStop = false
+            // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
+            // kept, or one that came back, is no end of that disconnect any more.
+            if (event == "starting" || event == "endRefused" || event == "resumed") disconnectedWithoutStop = false
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 

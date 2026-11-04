@@ -175,6 +175,19 @@ enum RemoteTargetTests {
       check("aStopLeavesNoMark", !hub.disconnectedWithoutStop)
     }
 
+    // A disconnect the SDK refused, or a session that came back, is no end of that disconnect any more.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: false)
+      port.emit("endRefused", livingRoom, error: "kept")
+      let afterTheRefusal = hub.disconnectedWithoutStop
+      hub.disconnect(stopPlayback: false)
+      port.emit("suspended", livingRoom)
+      port.emit("resumed", livingRoom)
+      check("aKeptOrResumedSessionClearsTheMark", !afterTheRefusal && !hub.disconnectedWithoutStop)
+    }
+
     // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])
@@ -1030,8 +1043,9 @@ enum RemoteTargetTests {
       let port = FakeTargetPort(known: [chromecast])
       let (probe, _, logs) = run("Living room", volume: 0.4, port: port) { _ in port.emit("started", chromecast) }
       let asked = port.volumes == [0.4] && logs().last == "setting the volume to 0.40"
-      port.events?.volumeChanged(level: 0.4, muted: false)
-      check("aProbeAskedForAVolumeSetsIt", asked && logs().last == "volume=0.40 muted=false" && probe.isActive)
+      // The receiver's own report, not the level asked.
+      port.events?.volumeChanged(level: 0.35, muted: false)
+      check("aProbeAskedForAVolumeSetsIt", asked && logs().last == "volume=0.35 muted=false" && probe.isActive)
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
@@ -1221,6 +1235,20 @@ enum RemoteTargetTests {
       let before = hub.snapshot.volume
       clock.advance(RemoteTargetConstants.fakeVolumeEchoMs)
       check("theFakeReceiverEchoesTheVolume", before == nil && hub.snapshot.volume == 0.4)
+    }
+
+    // A switch inside the echo's delay must not report the TV's level on the speaker's session.
+    do {
+      let clock = Clock()
+      let hub = RemoteTargetHub()
+      hub.install(FakeCastDevices(schedule: clock.schedule))
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      _ = hub.connect(deviceId: tv.id)
+      clock.advance(RemoteTargetConstants.fakeConnectDelayMs)
+      hub.setVolume(0.3)
+      _ = hub.connect(deviceId: speaker.id)
+      clock.advance(RemoteTargetConstants.fakeConnectDelayMs)
+      check("aSwitchDropsThePendingVolumeEcho", hub.snapshot.target?.id == speaker.id && hub.snapshot.volume == nil)
     }
 
     check("theBenchSpeakerHasNoScreen", tv.videoOut && !speaker.videoOut)

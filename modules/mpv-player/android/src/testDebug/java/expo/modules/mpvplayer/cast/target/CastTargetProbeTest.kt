@@ -264,8 +264,9 @@ class CastTargetProbeTest {
 
         assertEquals(listOf(0.4), port.volumes)
         assertEquals("setting the volume to 0.40", logs.last())
-        port.events?.volumeChanged(0.4, false)
-        assertEquals("volume=0.40 muted=false", logs.last())
+        // The receiver's own report, not the level asked.
+        port.events?.volumeChanged(0.35, false)
+        assertEquals("volume=0.35 muted=false", logs.last())
     }
 
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.

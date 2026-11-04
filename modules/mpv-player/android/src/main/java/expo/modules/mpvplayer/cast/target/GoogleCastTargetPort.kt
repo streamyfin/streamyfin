@@ -163,6 +163,10 @@ internal class GoogleCastTargetPort(
         /** The app mutes the playing stream; another sender may have muted the device itself. */
         fun receiverMuted(device: Boolean, stream: Boolean?) = device || stream == true
 
+        /** The route of the session's receiver, by its device id: on a switch the selected route is the next one. */
+        fun <R> sessionRoute(sessionDeviceId: String?, routes: List<Pair<String?, R>>): R? =
+            sessionDeviceId?.let { id -> routes.firstOrNull { it.first == id }?.second }
+
         @MainThread
         fun of(context: Context, cast: CastContext): GoogleCastTargetPort {
             val router = MediaRouter.getInstance(context.applicationContext)
@@ -199,9 +203,14 @@ internal class GoogleCastTargetPort(
             // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). Google's Android
             // surfaces do the same: the Cast dialog's slider sets the selected route's volume, the SDK's expanded
             // controls mute the stream.
-            fun castRoute(): MediaRouter.RouteInfo? {
+            // MediaRouter selects a switch's next route before the old session has ended: the level goes to the
+            // route of the session's own receiver.
+            fun sessionCastRoute(): MediaRouter.RouteInfo? {
                 val selector = cast.mergedSelector ?: return null
-                return router.selectedRoute.takeIf { it.matchesSelector(selector) && it.volumeMax > 0 }
+                val routes = router.routes
+                    .filter { it.matchesSelector(selector) && it.volumeMax > 0 }
+                    .map { CastDevice.getFromBundle(it.extras)?.deviceId to it }
+                return sessionRoute(sessions.currentCastSession?.castDevice?.deviceId, routes)
             }
 
             fun castRoutes(): List<CastRoute> {
@@ -252,12 +261,13 @@ internal class GoogleCastTargetPort(
                 schedule = mainLooperSchedule(),
                 sessionVolume = { sessions.currentCastSession?.let(::levelOf) },
                 setSessionVolume = { level ->
-                    val route = castRoute()
-                    if (route != null) route.requestSetVolume(routeStep(level, route.volumeMax)) else Log.w(TAG, "setVolume: no Cast route selected")
+                    val route = sessionCastRoute()
+                    if (route != null) route.requestSetVolume(routeStep(level, route.volumeMax)) else Log.w(TAG, "setVolume: no route for the session's receiver")
                 },
                 // Only a stream can be muted this way: without one loaded, the receiver plays nothing to mute.
                 setSessionMuted = { muted ->
-                    sessions.currentCastSession?.remoteMediaClient?.takeIf { it.hasMediaSession() }?.setStreamMute(muted)
+                    val client = sessions.currentCastSession?.remoteMediaClient?.takeIf { it.hasMediaSession() }
+                    if (client != null) client.setStreamMute(muted) else Log.w(TAG, "setMute: no media playing to mute")
                 },
                 watchVolume = { relay ->
                     volumeRelay = relay
@@ -290,8 +300,12 @@ internal class GoogleCastTargetPort(
 
             override fun onSessionStartFailed(session: CastSession, error: Int) = failure("startFailed", session, error)
 
-            override fun onSessionSuspended(session: CastSession, reason: Int) =
+            // A resume can come with another media client: the listeners go with the suspension and come back
+            // with the resume.
+            override fun onSessionSuspended(session: CastSession, reason: Int) {
+                onGone(session)
                 report("suspended", device(session.castDevice), null, null)
+            }
 
             override fun onSessionResuming(session: CastSession, sessionId: String) =
                 report("resuming", device(session.castDevice), null, null)

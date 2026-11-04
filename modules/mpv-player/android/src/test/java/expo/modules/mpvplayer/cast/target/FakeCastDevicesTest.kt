@@ -42,6 +42,22 @@ class FakeCastDevicesTest {
         assertEquals(0.4, hub.snapshot.volume)
     }
 
+    // A switch inside the echo's delay must not report the TV's level on the speaker's session.
+    @Test
+    fun aSwitchDropsThePendingVolumeEcho() {
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(tv.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        hub.setVolume(0.3)
+        hub.connect(speaker.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        assertEquals(speaker.id, hub.snapshot.target?.id)
+        assertEquals(null, hub.snapshot.volume)
+    }
+
     @Test
     fun theBenchSpeakerHasNoScreen() {
         assertTrue(tv.videoOut)
