@@ -47,6 +47,8 @@ android {
       // Architectures supported by mpv-android
       abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
     }
+    // The Cast options provider is reached by name from the manifest, which R8 does not see.
+    consumerProguardFiles 'proguard-rules.pro'
   }
   buildFeatures {
     compose true
@@ -93,6 +95,16 @@ dependencies {
   implementation "androidx.media3:media3-ui:${media3Version}"
   implementation "androidx.media3:media3-common:${media3Version}"
   implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
+
+  // Google Cast SDK, used by the Cast support (expo.modules.mpvplayer.cast). 23.0.0 depends
+  // on androidx.mediarouter 1.9.0-beta01, which needs compileSdk 37 and Android Gradle
+  // plugin 9.1; raise it together with compileSdk. Linked on Android TV too, where the
+  // module answers isAvailable() false and never touches it.
+  implementation 'com.google.android.gms:play-services-cast-framework:22.3.1'
+  // The SDK's dialogs, button and expanded controls build on these; declared here so the
+  // module sees their classes and resources (R classes are not transitive).
+  implementation 'androidx.appcompat:appcompat:1.7.0'
+  implementation 'androidx.mediarouter:mediarouter:1.7.0'
 
   testImplementation 'junit:junit:4.13.2'
   testImplementation 'org.robolectric:robolectric:4.16.1'

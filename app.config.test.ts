@@ -71,18 +71,22 @@ describe.each([
   });
 });
 
-// Mods run in reverse order of registration. Registered after
-// react-native-google-cast, the edit ran before that plugin wrote the cast
-// options and found nothing to change, so iOS kept the TV playing again
-// without any build error.
-test("edits the iOS cast options after the Cast plugin has written them", () => {
-  const names = resolvedPlugins(false).map((plugin) =>
-    Array.isArray(plugin) ? plugin[0] : plugin,
+// The Cast SDK is configured by the native module itself; the plugin only
+// writes what the module reads at launch (the receiver id, the Bonjour
+// services), and TV builds carry no Cast at all.
+test("registers the Cast plugin with the Jellyfin receiver on phone builds only", () => {
+  const phone = resolvedPlugins(false).find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "./plugins/withCast.ts",
   );
-  const edit = names.indexOf("./plugins/withCastStopReceiverOnEnd.ts");
 
-  expect(edit).toBeGreaterThanOrEqual(0);
-  expect(edit).toBeLessThan(names.indexOf("react-native-google-cast"));
+  expect(phone).toEqual([
+    "./plugins/withCast.ts",
+    { receiverAppId: "F007D354" },
+  ]);
+  expect(resolvedPlugins(false).flat()).not.toContain(
+    "react-native-google-cast",
+  );
+  expect(resolvedPlugins(true).flat()).not.toContain("./plugins/withCast.ts");
 });
 
 // app.config.ts registers the tsx require hook for the Expo CLI. Registered

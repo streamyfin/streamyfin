@@ -6,4 +6,18 @@
     <uses-feature
         android:name="android.software.picture_in_picture"
         android:required="false" />
+
+    <application>
+        <!-- The Cast SDK reads its options from this provider at first use; merged into the app manifest by Gradle. -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="expo.modules.mpvplayer.cast.CastOptionsProvider" />
+
+        <!-- The SDK's expanded controls, opened after a cast until the remote player of the native chrome exists. -->
+        <activity
+            android:name="expo.modules.mpvplayer.cast.CastExpandedControllerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:launchMode="singleTask"
+            android:exported="false" />
+    </application>
 </manifest>

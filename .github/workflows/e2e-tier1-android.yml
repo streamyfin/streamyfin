@@ -47,6 +47,7 @@ jobs:
               - 'components/JellyfinCastStopReporter.tsx'
               - 'components/PlayButton.tsx'
               - 'hooks/useMusicCast.ts'
+              - 'providers/MusicPlayerProvider.tsx'
               - 'app/(auth)/now-playing.tsx'
               # The server screen the smoke flow finds by its test ids.
               - 'components/login/Login.tsx'
