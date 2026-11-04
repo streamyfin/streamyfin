@@ -93,6 +93,7 @@ Native modules:
 - `cast-switch-ends-the-old-session` | a receiver switch is two sessions: iOS startSession(with:) answers NO while one is established, so end it first; Android ends the old one with status 2155, the same code as a network loss, so only the request tells them apart; asked back, the old route is selected only on the turn after its end, or the SDK's cleanup selects the default route over it
 - `cast-launching-session-stops-the-receiver` | the session that launched the receiver app stops it at its end whatever stopCasting says, on both SDKs; only a joined session leaves the TV playing, so the stop reporter checks the receiver after a disconnect without stop
 - `cast-session-setters-freeze-android-volume` | on Android, CastSession.setVolume or setMute stops the session following the receiver; set the level through the selected MediaRouter route and mute the stream, as Google's surfaces do
+- `native-view-dies-with-a-recreated-activity` | a view added with addContentView stays on the old activity when the system recreates it (font size, display size, a background kill: not in configChanges); watch ON_DESTROY and close it
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals

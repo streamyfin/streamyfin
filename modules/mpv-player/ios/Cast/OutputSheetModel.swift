@@ -61,9 +61,13 @@ enum OutputRow: Equatable {
 
 struct ConnectedPanel: Equatable {
   let target: RemoteTarget
+  /// From discovery's record of the target: a speaker has none.
+  let videoOut: Bool
   let volume: Double?
   let muted: Bool
   let canSetVolume: Bool
+  /// iOS mutes the receiver itself, which takes nothing playing; Android waits for a stream to mute.
+  let canMute: Bool
   let reconnecting: Bool
   let receiverTitle: String?
   /// The receiver plays something: the end action reads "Stop playback" and the remote is offered.
@@ -106,8 +110,10 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
   if snapshot.phase == .connected, let target = snapshot.target, !input.showingList {
     return .connected(
       ConnectedPanel(
-        target: target, volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted,
-        canSetVolume: target.volume && snapshot.volume != nil, reconnecting: snapshot.reconnecting,
+        target: target, videoOut: input.devices.first(where: { $0.id == target.id })?.videoOut ?? true,
+        volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted,
+        canSetVolume: target.volume && snapshot.volume != nil,
+        canMute: target.volume && snapshot.volume != nil, reconnecting: snapshot.reconnecting,
         receiverTitle: input.receiverTitle, canStop: input.receiverTitle != nil
       )
     )

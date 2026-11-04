@@ -77,9 +77,13 @@ sealed interface OutputSheetState {
 
     data class Connected(
         val target: RemoteTarget,
+        /** From discovery's record of the target: a speaker has none. */
+        val videoOut: Boolean,
         val volume: Double?,
         val muted: Boolean,
         val canSetVolume: Boolean,
+        /** Android mutes the playing stream, as the SDK's expanded controls do: none while the receiver plays nothing. */
+        val canMute: Boolean,
         val reconnecting: Boolean,
         val receiverTitle: String?,
         /**
@@ -116,9 +120,11 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
     if (snapshot.phase == TargetPhase.CONNECTED && target != null && !input.showingList) {
         return OutputSheetState.Connected(
             target = target,
+            videoOut = input.devices.firstOrNull { it.id == target.id }?.videoOut ?: true,
             volume = input.draggedVolume ?: snapshot.volume,
             muted = snapshot.muted,
             canSetVolume = target.volume && snapshot.volume != null,
+            canMute = target.volume && snapshot.volume != null && input.receiverTitle != null,
             reconnecting = snapshot.reconnecting,
             receiverTitle = input.receiverTitle,
             canStop = input.receiverTitle != null,

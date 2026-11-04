@@ -23,6 +23,7 @@ class OutputSheetModelTest {
         playServices: PlayServicesStatus = PlayServicesStatus.AVAILABLE,
         airPlay: AirPlayInput? = null,
         playingHere: String? = null,
+        receiverTitle: String? = null,
     ) = OutputSheetInput(
         snapshot = snapshot,
         devices = devices,
@@ -32,7 +33,7 @@ class OutputSheetModelTest {
         airPlay = airPlay,
         thisDevice = ThisDeviceKind.PHONE,
         playingHere = playingHere,
-        receiverTitle = null,
+        receiverTitle = receiverTitle,
         showingList = false,
         draggedVolume = null,
     )
@@ -97,6 +98,36 @@ class OutputSheetModelTest {
             assertEquals("code $code", FailureCause.ReceiverUnavailable, failureCause("Cast session status code $code ($code)", code))
         }
         assertEquals(FailureCause.Other("Cast session status code 2100 (2100)"), failureCause("Cast session status code 2100 (2100)", 2100))
+    }
+
+    // A speaker draws as one: the panel takes the receiver's screen from discovery's record of it, and a
+    // receiver discovery dropped draws as a TV.
+    @Test
+    fun thePanelKnowsASpeakerByItsRecord() {
+        fun connectedTo(device: TargetDevice) =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(device), reconnecting = false, error = null, volume = 0.5)
+
+        val speaker = outputSheetState(input(snapshot = connectedTo(attic))) as OutputSheetState.Connected
+        val tv = outputSheetState(input(snapshot = connectedTo(livingRoom))) as OutputSheetState.Connected
+        val unlisted = outputSheetState(input(snapshot = connectedTo(attic), devices = listOf(livingRoom))) as OutputSheetState.Connected
+
+        assertEquals(false, speaker.videoOut)
+        assertEquals(true, tv.videoOut)
+        assertEquals(true, unlisted.videoOut)
+    }
+
+    // Android mutes the playing stream, as the SDK's expanded controls do: with nothing playing the button
+    // would do nothing, so it waits for something to play.
+    @Test
+    fun theMuteWaitsForSomethingToPlay() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val idle = outputSheetState(input(snapshot = connected)) as OutputSheetState.Connected
+        val playing = outputSheetState(input(snapshot = connected, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(false, idle.canMute)
+        assertEquals(true, playing.canMute)
     }
 
     @Test

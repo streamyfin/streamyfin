@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.annotation.MainThread
 import com.google.android.gms.cast.framework.CastContext
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import java.util.Locale
 
 // The device proof of the remote target, in debug builds only (e2e/suites/cast/README.md, "Remote
@@ -28,6 +29,8 @@ internal class CastTargetProbe(
     private val volume: Double?,
     /** A mute, set once connected after the level; the receiver's report of it is logged. */
     private val mute: Boolean?,
+    /** Opens the output sheet at arming, for its screenshots; null leaves it closed. */
+    private val presentSheet: (() -> Boolean)?,
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val log: (String) -> Unit,
 ) : RemoteTargetListener {
@@ -48,6 +51,9 @@ internal class CastTargetProbe(
         val current = hub.snapshot
         last = current
         log("armed for \"$deviceName\" ${describe(current)}")
+        presentSheet?.let { present ->
+            log(if (present()) "presenting the output sheet" else "no activity for the output sheet")
+        }
         val target = current.target
         if (current.phase == TargetPhase.CONNECTED) leaving = target
         // A whole name only: a part of one may name another receiver than the connected one.
@@ -228,6 +234,7 @@ internal class CastTargetProbe(
             stop: Boolean,
             volume: Double?,
             mute: Boolean?,
+            sheet: Boolean,
         ) {
             if (current?.isActive == true) {
                 Log.i(TAG, "already running")
@@ -241,12 +248,17 @@ internal class CastTargetProbe(
                 CastContext.getSharedInstance(context.applicationContext)
             } catch (error: RuntimeException) {
                 Log.w(TAG, "failed: no Cast context", error)
+                // The sheet says why on its own, missing or outdated Play Services: it is still worth a look.
+                if (sheet) Log.i(TAG, if (OutputPickerPresenter.presentForProbe()) "presenting the output sheet" else "no activity for the output sheet")
                 return
             }
             // The module installs the same port when JS first touches Cast; whichever comes first wins.
             RemoteTargets.installDefault(context, cast)
             current =
-                CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mute, mainLooperSchedule()) {
+                CastTargetProbe(
+                    RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mute,
+                    if (sheet) OutputPickerPresenter::presentForProbe else null, mainLooperSchedule(),
+                ) {
                     Log.i(TAG, it)
                 }.also { it.start() }
         }
@@ -254,7 +266,7 @@ internal class CastTargetProbe(
 }
 
 /**
- * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>] [--ez mute true|false]`
+ * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>] [--ez mute true|false] [--ez sheet true]`
  */
 class CastTargetProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -268,6 +280,7 @@ class CastTargetProbeReceiver : BroadcastReceiver() {
             intent.getBooleanExtra("stop", true),
             if (intent.hasExtra("volume")) intent.getFloatExtra("volume", 0f).toDouble() else null,
             if (intent.hasExtra("mute")) intent.getBooleanExtra("mute", false) else null,
+            intent.getBooleanExtra("sheet", false),
         )
     }
 }

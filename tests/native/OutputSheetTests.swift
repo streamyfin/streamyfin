@@ -111,6 +111,26 @@ enum OutputSheetTests {
       )
     }
 
+    // A speaker draws as one: the panel takes the receiver's screen from discovery's record of it, and a
+    // receiver discovery dropped draws as a TV.
+    do {
+      func connected(to device: TargetDevice) -> RemoteTargetSnapshot {
+        RemoteTargetSnapshot(phase: .connected, target: .cast(device), reconnecting: false, error: nil, volume: 0.5)
+      }
+      let speaker = panel(outputSheetState(input(snapshot: connected(to: attic))))?.videoOut
+      let tv = panel(outputSheetState(input(snapshot: connected(to: livingRoom))))?.videoOut
+      let unlisted = panel(outputSheetState(input(snapshot: connected(to: attic), devices: [livingRoom])))?.videoOut
+      check("thePanelKnowsASpeakerByItsRecord", speaker == false && tv == true && unlisted == true)
+    }
+
+    // iOS mutes the receiver itself, which takes nothing playing; Android mutes the stream and waits for one.
+    do {
+      let connected = RemoteTargetSnapshot(
+        phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
+      )
+      check("theDeviceMuteNeedsNothingPlaying", panel(outputSheetState(input(snapshot: connected)))?.canMute == true)
+    }
+
     do {
       let missing = rows(outputSheetState(input(devices: [], playServices: .missing)))
       let outdated = rows(outputSheetState(input(devices: [], playServices: .updateRequired)))

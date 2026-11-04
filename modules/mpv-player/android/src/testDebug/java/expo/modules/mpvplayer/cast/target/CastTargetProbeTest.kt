@@ -23,7 +23,8 @@ class CastTargetProbeTest {
         stop: Boolean = true,
         volume: Double? = null,
         mute: Boolean? = null,
-    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, mute, scheduler.schedule, logs::add)
+        presentSheet: (() -> Boolean)? = null,
+    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, mute, presentSheet, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -241,6 +242,17 @@ class CastTargetProbeTest {
 
         assertEquals(listOf(false), port.disconnects)
         assertEquals("disconnecting without stopping the receiver", logs.last())
+    }
+
+    // The sheet's screenshots: the probe opens it at arming, before it looks for its receiver.
+    @Test
+    fun aProbeAskedForTheSheetPresentsIt() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        var presented = 0
+        probe(hubWith(port), "Living room", presentSheet = { presented += 1; true }).start()
+
+        assertEquals(1, presented)
+        assertEquals("presenting the output sheet", logs[1])
     }
 
     @Test
