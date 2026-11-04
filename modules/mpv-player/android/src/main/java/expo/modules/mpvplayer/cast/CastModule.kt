@@ -146,11 +146,11 @@ class CastModule : Module() {
 
         // An active scan costs battery; the SDK's own button paused it while off screen.
         OnActivityEntersBackground {
-            mainHandler.post { remoteTargets.stopDiscovery() }
+            mainHandler.post { remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY) }
         }
 
         OnActivityEntersForeground {
-            mainHandler.post { if (discoveryWanted && ensureContext() != null) remoteTargets.startDiscovery() }
+            mainHandler.post { if (discoveryWanted && ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY) }
         }
 
         Function("isAvailable") { CastSupport.isAvailable(context) }
@@ -173,13 +173,13 @@ class CastModule : Module() {
 
         AsyncFunction("startDiscovery") {
             discoveryWanted = true
-            if (ensureContext() != null) remoteTargets.startDiscovery()
+            if (ensureContext() != null) remoteTargets.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
             Unit
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("stopDiscovery") {
             discoveryWanted = false
-            remoteTargets.stopDiscovery()
+            remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
             Unit
         }.runOnQueue(Queues.MAIN)
 
@@ -346,7 +346,7 @@ class CastModule : Module() {
     }
 
     private fun release() {
-        remoteTargets.stopDiscovery()
+        remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
         removeTargetRelay?.invoke()
         removeTargetRelay = null
         detachMedia()

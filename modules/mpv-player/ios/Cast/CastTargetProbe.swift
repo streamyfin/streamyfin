@@ -11,6 +11,8 @@ final class CastTargetProbe: RemoteTargetListener {
   static let holdArgument = "CastTargetProbeHold"
   /// A second receiver, asked once the first is connected (iOS only: Android sends a second broadcast).
   static let thenArgument = "CastTargetProbeThen"
+  /// Asks the receiver held at the start again right after the switch request: the switch asked back.
+  static let backArgument = "CastTargetProbeBack"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -23,6 +25,7 @@ final class CastTargetProbe: RemoteTargetListener {
   private let keep: Bool
   /// How long a connected session is held before the disconnection: long enough to cut the network in.
   private let holdMs: Double
+  private let back: Bool
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -33,17 +36,27 @@ final class CastTargetProbe: RemoteTargetListener {
   private var settle: (() -> Void)?
   private var device: TargetDevice?
   private var connected = false
+  private var leaving: RemoteTarget?
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
+    back: Bool = false, schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void),
+    log: @escaping (String) -> Void
   ) {
     self.holdMs = holdMs
+    self.back = back
     self.hub = hub
     self.deviceName = deviceName
     self.keep = keep
     self.schedule = schedule
     self.log = log
+  }
+
+  /// How a chain arms its first probe: a next receiver keeps the first session up, so the switch to it
+  /// runs live, and `back` belongs to the probe that switches.
+  static func firstOfChain(keep: Bool, then next: String?, back: Bool) -> (keep: Bool, back: Bool) {
+    let chained = !(next ?? "").isEmpty
+    return (keep || chained, back && !chained)
   }
 
   static func describe(_ snapshot: RemoteTargetSnapshot) -> String {
@@ -56,6 +69,7 @@ final class CastTargetProbe: RemoteTargetListener {
     removeListener = hub.addListener(self)
     let current = hub.snapshot
     log("armed for \"\(deviceName)\" \(Self.describe(current))")
+    if current.phase == .connected { leaving = current.target }
     // A whole name only: a part of one may name another receiver than the connected one.
     if current.phase == .connected, let target = current.target,
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
@@ -64,8 +78,10 @@ final class CastTargetProbe: RemoteTargetListener {
       onConnected()
       return
     }
-    hub.startDiscovery()
+    // Set first: a port can list its receivers inside startDiscovery, and a connection started there
+    // sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
+    hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
     remoteTargetDevicesDidChange(hub.devices)
   }
 
@@ -80,6 +96,8 @@ final class CastTargetProbe: RemoteTargetListener {
     guard settle == nil, devices.contains(where: { matches($0.name) }) else { return }
     settle = schedule(Self.partialMatchSettleMs) { [weak self] in
       guard let self else { return }
+      // Spent either way: a receiver that left meanwhile can settle again when it comes back.
+      settle = nil
       let listed = hub.devices
       if let found = listed.first(where: isWholeName) ?? listed.first(where: { self.matches($0.name) }) {
         connect(found)
@@ -95,6 +113,17 @@ final class CastTargetProbe: RemoteTargetListener {
     log("found \(found.name)")
     guard hub.connect(deviceId: found.id) else {
       fail("the hub refused \(found.name)")
+      return
+    }
+    if back, let left = leaving, left.id != found.id {
+      // Before the switch has ended the held session: the last request must win.
+      log("asking \(left.name) again")
+      device = TargetDevice(id: left.id, name: left.name, model: nil)
+      guard hub.connect(deviceId: left.id) else {
+        fail("the hub refused \(left.name)")
+        return
+      }
+      wait(Self.connectTimeoutMs, failure: "never connected")
       return
     }
     // The hub asks nothing for the receiver already connected, so no event will come.
@@ -168,7 +197,7 @@ final class CastTargetProbe: RemoteTargetListener {
     settle = nil
     removeListener?()
     removeListener = nil
-    hub.stopDiscovery()
+    hub.stopDiscovery(owner: RemoteTargetHub.probeDiscovery)
     log(result)
     onFinish?(result)
   }

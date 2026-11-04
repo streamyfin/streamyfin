@@ -73,10 +73,14 @@ final class RemoteTargetMachine {
   // The receiver asked for while another one held the session: the old session's end leads to it.
   private var switchingTo: TargetDevice?
 
-  /// A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch starts.
+  /// A switch is on its way: asking the receiver it leaves is a request again, not a no-op.
+  var isSwitching: Bool { switchingTo != nil }
+
+  /// A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch
+  /// starts; over the held one while a switch takes its session away, the last request wins.
   func connectRequested(_ device: TargetDevice) -> Bool {
     guard snapshot.phase == .none else {
-      if snapshot.target?.id != device.id { switchingTo = device }
+      if snapshot.target?.id != device.id || switchingTo != nil { switchingTo = device }
       return false
     }
     switchingTo = nil
@@ -92,9 +96,14 @@ final class RemoteTargetMachine {
   func sessionEvent(_ event: String, device: TargetDevice?, error: String?) -> Bool {
     let failure = event == "ended" || event == "startFailed"
     if failure, let switching = switchingTo, device?.id == switching.id {
+      let held = snapshot.target?.id == switching.id
+      // Asked back while a switch ended its session: that end leads to it again.
+      if held && snapshot.phase != .connecting {
+        return update(RemoteTargetSnapshot(phase: .connecting, target: .cast(switching), reconnecting: false, error: nil))
+      }
       // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
       switchingTo = nil
-      guard snapshot.target?.id == switching.id else { return false }
+      guard held else { return false }
       return update(RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error))
     }
     if Self.endEvents.contains(event), let device, heldOtherThan(device) { return false }
@@ -130,8 +139,9 @@ final class RemoteTargetMachine {
     return true
   }
 
+  // An ending session is still held: a late end of the receiver before it must not end it.
   private func heldOtherThan(_ device: TargetDevice) -> Bool {
-    guard let held = snapshot.target, snapshot.phase == .connecting || snapshot.phase == .connected else { return false }
+    guard let held = snapshot.target, snapshot.phase != .none else { return false }
     return held.id != device.id
   }
 }

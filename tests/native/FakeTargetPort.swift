@@ -4,6 +4,8 @@ import Foundation
 final class FakeTargetPort: TargetPort {
   private let atStart: [(String, TargetDevice?, String?)]
   var known: [TargetDevice]
+  /// Lists `known` inside startDiscovery, as the Android SDK port does with the routes MediaRouter has.
+  private let listsOnDiscovery: Bool
   // Kept after stop, so a test can play a stale port talking to the hub.
   var events: TargetPortEvents?
   var starts = 0
@@ -12,9 +14,10 @@ final class FakeTargetPort: TargetPort {
   var connects: [TargetDevice] = []
   var disconnects: [Bool] = []
 
-  init(atStart: [(String, TargetDevice?, String?)] = [], known: [TargetDevice] = []) {
+  init(atStart: [(String, TargetDevice?, String?)] = [], known: [TargetDevice] = [], listsOnDiscovery: Bool = false) {
     self.atStart = atStart
     self.known = known
+    self.listsOnDiscovery = listsOnDiscovery
   }
 
   func start(events: TargetPortEvents) {
@@ -29,7 +32,10 @@ final class FakeTargetPort: TargetPort {
 
   func devices() -> [TargetDevice] { known }
 
-  func startDiscovery() { discovering = true }
+  func startDiscovery() {
+    discovering = true
+    if listsOnDiscovery { events?.devicesChanged(known) }
+  }
 
   func stopDiscovery() { discovering = false }
 

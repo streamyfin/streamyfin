@@ -20,10 +20,12 @@ struct RunningTargetSession {
 final class GoogleCastTargetPort: TargetPort {
   static let receiverGone = "The receiver is no longer on the network"
   static let startRefused = "The Cast SDK did not start the session"
+  static let endRefused = "The Cast SDK did not end the session a switch had to end"
 
   private let routes: () -> [CastTargetRoute]
   private let runningSession: () -> RunningTargetSession?
-  private let endSession: (_ stopPlayback: Bool) -> Void
+  /// Answers the SDK's endSessionAndStopCasting: false when it kept the session.
+  private let endSession: (_ stopPlayback: Bool) -> Bool
   private let watchSessions: (((String, TargetDevice?, String?) -> Void)?) -> Void
   private let watchDevices: ((() -> Void)?) -> Void
   private let discovery: (_ on: Bool) -> Void
@@ -35,7 +37,7 @@ final class GoogleCastTargetPort: TargetPort {
   init(
     routes: @escaping () -> [CastTargetRoute],
     runningSession: @escaping () -> RunningTargetSession?,
-    endSession: @escaping (_ stopPlayback: Bool) -> Void,
+    endSession: @escaping (_ stopPlayback: Bool) -> Bool,
     watchSessions: @escaping (((String, TargetDevice?, String?) -> Void)?) -> Void,
     watchDevices: @escaping ((() -> Void)?) -> Void,
     discovery: @escaping (_ on: Bool) -> Void
@@ -84,14 +86,23 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func connect(_ device: TargetDevice) {
+    let switching = pendingSwitch != nil
     pendingSwitch = nil
     if let running = runningSession() {
-      // That receiver's session is already there, or on its way.
-      if running.device?.id == device.id { return }
+      if running.device?.id == device.id {
+        // Asked back while a switch ends its session: start it again once that end comes.
+        if switching { pendingSwitch = device }
+        // Otherwise that receiver's session is already there, or on its way.
+        return
+      }
       // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
       // answers NO): end it, and start this receiver once the SDK reports the end.
       pendingSwitch = device
-      endSession(true)
+      if !endSession(true) {
+        // The SDK kept the session it was asked to end: this receiver cannot start.
+        pendingSwitch = nil
+        events?.sessionEvent("startFailed", device: device, error: Self.endRefused)
+      }
       return
     }
     startSession(on: device)
@@ -100,7 +111,7 @@ final class GoogleCastTargetPort: TargetPort {
   func disconnect(stopPlayback: Bool) {
     pendingSwitch = nil
     if runningSession() != nil {
-      endSession(stopPlayback)
+      _ = endSession(stopPlayback)
       return
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.
@@ -159,7 +170,7 @@ extension GoogleCastTargetPort {
         guard let session = sessionManager.currentCastSession else { return nil }
         return RunningTargetSession(device: targetDevice(session.device), connected: session.connectionState == .connected)
       },
-      endSession: { stopPlayback in _ = sessionManager.endSessionAndStopCasting(stopPlayback) },
+      endSession: { stopPlayback in sessionManager.endSessionAndStopCasting(stopPlayback) },
       watchSessions: { relay in
         if let sessionListener { sessionManager.remove(sessionListener) }
         sessionListener = relay.map(TargetSessionListener.init)
@@ -205,17 +216,19 @@ extension CastTargetProbe {
   /// Logger, which prints each line with its type: the console reads [CastTargetProbe]. `then` names a
   /// second receiver, asked once the first one is connected: a switch inside one process, where every
   /// relaunch would first meet the SDK resuming its session.
-  static func run(deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil) {
+  static func run(deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
     RemoteTargets.installDefault()
+    let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
-      hub: .shared, deviceName: deviceName, keep: keep, holdMs: holdMs, schedule: mainQueueSchedule, log: log
+      hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back,
+      schedule: mainQueueSchedule, log: log
     )
     if let next, !next.isEmpty {
       probe.onFinish = { result in
         guard result.hasPrefix("done") else { return }
-        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs) }
+        DispatchQueue.main.async { run(deviceName: next, keep: true, holdMs: holdMs, back: back) }
       }
     }
     current = probe

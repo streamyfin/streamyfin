@@ -129,7 +129,7 @@ class FakeCastDevicesTest {
         val hub = RemoteTargetHub()
         hub.install(FakeCastDevices(scheduler.schedule))
 
-        hub.startDiscovery()
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
         assertTrue(hub.connect("fake-cast-living-room"))
         val connecting = hub.snapshot.phase
         scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)

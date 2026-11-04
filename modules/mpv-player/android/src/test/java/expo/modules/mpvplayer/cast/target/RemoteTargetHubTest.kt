@@ -146,6 +146,32 @@ class RemoteTargetHubTest {
         assertTrue(port.connects.isEmpty())
     }
 
+    // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
+    @Test
+    fun askingTheConnectedReceiverAgainDuringASwitchReachesThePort() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.connect(bedroom.id)
+        assertTrue(hub.connect(livingRoom.id))
+
+        assertEquals(listOf(bedroom, livingRoom), port.connects)
+    }
+
+    @Test
+    fun aReplacedPortForgetsTheOldPortsDevices() {
+        val hub = RemoteTargetHub()
+        val first = FakeTargetPort()
+        hub.install(first)
+        first.discover(listOf(livingRoom))
+        val heard = Recording().also { hub.addListener(it) }
+
+        hub.install(FakeTargetPort())
+
+        assertTrue(hub.devices.isEmpty())
+        assertEquals(listOf(emptyList<TargetDevice>()), heard.deviceLists)
+    }
+
     @Test
     fun onlyChangesReachTheListeners() {
         val hub = RemoteTargetHub()
@@ -202,10 +228,49 @@ class RemoteTargetHubTest {
         val port = FakeTargetPort()
         hub.install(port)
 
-        hub.startDiscovery()
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
         assertTrue(port.discovering)
-        hub.stopDiscovery()
+        hub.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
         assertFalse(port.discovering)
+    }
+
+    // The probe used to stop the discovery the header's Cast button had started, and nothing started it again.
+    @Test
+    fun aStopFromOneOwnerKeepsAnotherOwnersDiscovery() {
+        val hub = RemoteTargetHub()
+        val port = FakeTargetPort()
+        hub.install(port)
+
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.startDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
+        hub.stopDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
+        assertTrue(port.discovering)
+        hub.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        assertFalse(port.discovering)
+    }
+
+    @Test
+    fun anOwnerAskingTwiceStopsOnce() {
+        val hub = RemoteTargetHub()
+        val port = FakeTargetPort()
+        hub.install(port)
+
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.stopDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        assertFalse(port.discovering)
+    }
+
+    @Test
+    fun aNewPortRunsTheDiscoveryStillAsked() {
+        val hub = RemoteTargetHub()
+        hub.install(FakeTargetPort())
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        val next = FakeTargetPort()
+
+        hub.install(next)
+
+        assertTrue(next.discovering)
     }
 
     @Test

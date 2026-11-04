@@ -163,6 +163,12 @@ failure), then the new one connects. `--el hold <ms>` holds the session that lon
 disconnection, which leaves time to cut the phone's network or the receiver's power: the log
 then reads `reconnecting=true`, then `none` with the error the SDK gave, and `done`.
 
+**A switch asked back.** Armed while another receiver is connected, `--ez back true` makes
+the probe ask for the receiver it names, then at once for the connected one again, before the
+switch has ended its session: the last request wins. The log reads `found <device>`,
+`asking <connected device> again`, then ending, connecting and connected on that receiver,
+with no `none` in between, and the receiver the probe named never connects.
+
 **A session running at launch.** Add `--ez keep true` and the probe stops at connected,
 leaving the session up. Kill the app (`adb shell am force-stop com.fredrikburmester.streamyfin`),
 open it again, and send the same broadcast with `keep`: the first line reads
@@ -174,4 +180,6 @@ ends it.
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
 under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
 SDK resuming the session it had, so a switch inside a live session needs one process:
-`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected.
+`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
+the first session kept up with or without `-CastTargetProbeKeep`.
+`-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.

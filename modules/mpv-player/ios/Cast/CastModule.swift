@@ -57,11 +57,11 @@ public class CastModule: Module {
 
     AsyncFunction("startDiscovery") {
       self.ensureListening()
-      self.remoteTargets.startDiscovery()
+      self.remoteTargets.startDiscovery(owner: RemoteTargetHub.appDiscovery)
     }.runOnQueue(.main)
 
     AsyncFunction("stopDiscovery") {
-      self.remoteTargets.stopDiscovery()
+      self.remoteTargets.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
     }.runOnQueue(.main)
 
     Function("getRemoteTarget") { () -> [String: Any?] in

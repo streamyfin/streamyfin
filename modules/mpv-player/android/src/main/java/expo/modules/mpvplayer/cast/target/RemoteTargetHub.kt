@@ -15,6 +15,8 @@ class RemoteTargetHub {
     private var machine = RemoteTargetMachine()
     private val listeners = mutableListOf<RemoteTargetListener>()
     private var port: TargetPort? = null
+    // Discovery runs while anyone still asks for it: each owner releases only its own request.
+    private val discoveryOwners = mutableSetOf<String>()
 
     @Volatile
     var snapshot: RemoteTargetSnapshot = RemoteTargetSnapshot.NONE
@@ -32,8 +34,10 @@ class RemoteTargetHub {
         // A target the old port reported means nothing to the new one.
         machine = RemoteTargetMachine()
         publish()
+        updateDevices(emptyList())
         // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
         port.start(eventsFor(port))
+        if (discoveryOwners.isNotEmpty()) port.startDiscovery()
     }
 
     /** A new listener hears changes from now on; it reads [snapshot] and [devices] for the present. */
@@ -47,9 +51,9 @@ class RemoteTargetHub {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
         val current = snapshot
-        if (current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)) {
-            return true
-        }
+        val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
+        // The receiver already there asks nothing, unless a switch is taking its session away.
+        if (held && !machine.isSwitching) return true
         // Announced before the port is asked: its first event can come back inside connect.
         if (machine.connectRequested(device)) publish()
         // While another device is connected, the port ends that session before this one starts: the
@@ -64,12 +68,13 @@ class RemoteTargetHub {
         port?.disconnect(stopPlayback)
     }
 
-    fun startDiscovery() {
-        port?.startDiscovery()
+    /** [owner] names who asks ([APP_DISCOVERY], [PROBE_DISCOVERY]); asking twice still takes one stop. */
+    fun startDiscovery(owner: String) {
+        if (discoveryOwners.add(owner) && discoveryOwners.size == 1) port?.startDiscovery()
     }
 
-    fun stopDiscovery() {
-        port?.stopDiscovery()
+    fun stopDiscovery(owner: String) {
+        if (discoveryOwners.remove(owner) && discoveryOwners.isEmpty()) port?.stopDiscovery()
     }
 
     // Each port gets its own events: one replaced, or stopped late, is no longer heard.
@@ -99,5 +104,11 @@ class RemoteTargetHub {
 
     companion object {
         val shared = RemoteTargetHub()
+
+        /** The app's own request: the module, for JS and its foreground pauses. */
+        const val APP_DISCOVERY = "app"
+
+        /** The debug probe's. */
+        const val PROBE_DISCOVERY = "probe"
     }
 }

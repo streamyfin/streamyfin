@@ -157,6 +157,46 @@ class RemoteTargetMachineTest {
         assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
     }
 
+    // A late end of the receiver a switch left must not end the one that took over and is ending now.
+    @Test
+    fun aLateEndOfTheOldReceiverLeavesTheNewOneEnding() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+        machine.sessionEvent("ending", livingRoom, null)
+        machine.sessionEvent("starting", bedroom, null)
+        machine.sessionEvent("started", bedroom, null)
+        machine.sessionEvent("ending", bedroom, null)
+
+        assertFalse(machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.ENDING, cast(bedroom), false, null), machine.snapshot)
+    }
+
+    // Asked again while a switch takes its session away: the end of that session leads back to it.
+    @Test
+    fun askingTheHeldReceiverAgainDuringASwitchLeadsBackToIt() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+
+        assertFalse(machine.connectRequested(livingRoom))
+        machine.sessionEvent("ending", livingRoom, null)
+        machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)")
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTING, cast(livingRoom), false, null), machine.snapshot)
+        machine.sessionEvent("starting", livingRoom, null)
+        machine.sessionEvent("started", livingRoom, null)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
+    }
+
+    @Test
+    fun theHeldReceiverAskedBackThenFailingEndsWithItsError() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+        machine.connectRequested(livingRoom)
+        machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)")
+
+        assertTrue(machine.sessionEvent("startFailed", livingRoom, "busy"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "busy"), machine.snapshot)
+    }
+
     @Test
     fun aRequestWhileConnectedChangesNothing() {
         val machine = connectedTo(livingRoom)

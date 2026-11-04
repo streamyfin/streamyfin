@@ -157,6 +157,9 @@ export type CastNativeEvents = {
   onMediaStatusChanged: (payload: { status: CastMediaStatus | null }) => void;
   /** The raw string the receiver sent; parsing is the caller's. */
   onReceiverMessage: (payload: { namespace: string; message: string }) => void;
-  /** Sent on each change only: read remoteTarget() for the state before it. */
+  /**
+   * Carries the new state, sent on each change only. A listener reads
+   * remoteTarget() once, when it subscribes, for the state until the first event.
+   */
   onRemoteTargetChanged: (payload: RemoteTargetState) => void;
 };

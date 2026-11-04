@@ -114,6 +114,27 @@ enum RemoteTargetTests {
       check("theDeviceAlreadyConnectedAsksNothing", accepted && port.connects.isEmpty)
     }
 
+    // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      _ = hub.connect(deviceId: bedroom.id)
+      let accepted = hub.connect(deviceId: livingRoom.id)
+      check("askingTheConnectedReceiverAgainDuringASwitchReachesThePort", accepted && port.connects == [bedroom, livingRoom])
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let first = FakeTargetPort()
+      hub.install(first)
+      first.discover([livingRoom])
+      let heard = Recording()
+      let remove = hub.addListener(heard)
+      hub.install(FakeTargetPort())
+      remove()
+      check("aReplacedPortForgetsTheOldPortsDevices", hub.devices.isEmpty && heard.deviceLists == [[]])
+    }
+
     // What a device does on a switch (Android, status 2155 on the old session): no none in between.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])
@@ -203,10 +224,42 @@ enum RemoteTargetTests {
       let hub = RemoteTargetHub()
       let port = FakeTargetPort()
       hub.install(port)
-      hub.startDiscovery()
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
       let started = port.discovering
-      hub.stopDiscovery()
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
       check("discoveryGoesToThePort", started && !port.discovering)
+    }
+
+    // The probe used to stop the discovery the header's Cast button had started, and nothing started it again.
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
+      hub.stopDiscovery(owner: RemoteTargetHub.probeDiscovery)
+      let kept = port.discovering
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
+      check("aStopFromOneOwnerKeepsAnotherOwnersDiscovery", kept && !port.discovering)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      let port = FakeTargetPort()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      hub.stopDiscovery(owner: RemoteTargetHub.appDiscovery)
+      check("anOwnerAskingTwiceStopsOnce", !port.discovering)
+    }
+
+    do {
+      let hub = RemoteTargetHub()
+      hub.install(FakeTargetPort())
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      let next = FakeTargetPort()
+      hub.install(next)
+      check("aNewPortRunsTheDiscoveryStillAsked", next.discovering)
     }
 
     do {
@@ -276,6 +329,7 @@ enum RemoteTargetTests {
     var receivers: [TargetDevice] = []
     var running: RunningTargetSession?
     var sessionStarts = true
+    var endAccepted = true
     var started: [TargetDevice] = []
     var ended: [Bool] = []
     var sessionWatches: [((String, TargetDevice?, String?) -> Void)?] = []
@@ -295,7 +349,10 @@ enum RemoteTargetTests {
           }
         },
         runningSession: { sdk.running },
-        endSession: { sdk.ended.append($0) },
+        endSession: {
+          sdk.ended.append($0)
+          return sdk.endAccepted
+        },
         watchSessions: { sdk.sessionWatches.append($0) },
         watchDevices: { sdk.deviceWatches.append($0) },
         discovery: { sdk.discovery.append($0) }
@@ -431,6 +488,39 @@ enum RemoteTargetTests {
       )
     }
 
+    // endSessionAndStopCasting answering NO keeps the session: the switch cannot start, and says so,
+    // and a later end of that session does not start it either.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.endAccepted = false
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      let refused = events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.endRefused
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check("aSwitchWhoseEndTheSdkRefusesFails", refused && sdk.started.isEmpty)
+    }
+
+    // Asked again before its session ended for a switch: the receiver starts again once that end comes,
+    // and the one the switch asked for never does.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let port = sdk.port()
+      port.start(events: PortEventsRecording())
+      port.connect(streamer)
+      port.connect(chromecast)
+      let endedOnce = sdk.ended == [true]
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check("aSwitchBackBeforeTheOldEndRestartsTheOldReceiver", endedOnce && sdk.started == [chromecast])
+    }
+
     do {
       let sdk = Sdk()
       sdk.receivers = [chromecast]
@@ -534,15 +624,17 @@ enum RemoteTargetTests {
     let streamer = TargetDevice(id: "device-b", name: "Bedroom", model: "Google TV Streamer")
     let hold = CastTargetProbe.connectedHoldMs
 
-    func run(_ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, port: FakeTargetPort)
-      -> (CastTargetProbe, Clock, () -> [String])
-    {
+    func run(
+      _ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, back: Bool = false,
+      port: FakeTargetPort, before: (RemoteTargetHub) -> Void = { _ in }
+    ) -> (CastTargetProbe, Clock, () -> [String]) {
       let hub = RemoteTargetHub()
       hub.install(port)
+      before(hub)
       let clock = Clock()
       var logs: [String] = []
       let probe = CastTargetProbe(
-        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, schedule: clock.schedule
+        hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, schedule: clock.schedule
       ) { logs.append($0) }
       probe.start()
       return (probe, clock, { logs })
@@ -631,6 +723,81 @@ enum RemoteTargetTests {
       let waited = port.connects.isEmpty
       clock.advance(CastTargetProbe.partialMatchSettleMs)
       check("aPartOfANameConnectsOnceDiscoverySettles", waited && port.connects == [chromecast] && probe.isActive)
+    }
+
+    // The header's Cast button starts discovery when it mounts and never stops it: a probe's end kept it off.
+    do {
+      let port = FakeTargetPort()
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      let clock = Clock()
+      let probe = CastTargetProbe(hub: hub, deviceName: "kitchen", keep: false, schedule: clock.schedule) { _ in }
+      probe.start()
+      clock.advance(CastTargetProbe.discoveryTimeoutMs)
+      check("aProbeLeavesTheDiscoveryTheAppAsked", !probe.isActive && port.discovering)
+    }
+
+    // `then` asks the second receiver once the first is connected: the first session has to stay up for
+    // that switch to run live, and `back` is for the probe that switches.
+    do {
+      let lone = CastTargetProbe.firstOfChain(keep: false, then: nil, back: true)
+      let chained = CastTargetProbe.firstOfChain(keep: false, then: "Bedroom", back: true)
+      let blank = CastTargetProbe.firstOfChain(keep: false, then: "", back: false)
+      check("aNextReceiverKeepsTheFirstSessionUp", chained.keep && !lone.keep && !blank.keep)
+      check("backBelongsToTheProbeThatSwitches", lone.back && !chained.back)
+    }
+
+    // The bench proof of a switch asked back: the receiver held when the probe started is asked again
+    // before the switch has ended its session, and the probe ends connected to it.
+    do {
+      let port = FakeTargetPort(known: [chromecast, streamer])
+      let (probe, _, logs) = run("Bedroom", keep: true, back: true, port: port) { _ in port.emit("started", chromecast) }
+      port.discover([chromecast, streamer])
+      port.emit("ending", chromecast)
+      port.emit("ended", chromecast, error: "Cast session status code 2155 (2155)")
+      port.emit("starting", chromecast)
+      port.emit("started", chromecast)
+      check(
+        "aProbeAskedToGoBackEndsOnTheReceiverItLeft",
+        port.connects == [streamer, chromecast] && !probe.isActive
+          && Array(logs().dropFirst()) == [
+            "found Bedroom",
+            "asking Living room again",
+            "state=ending target=Living room reconnecting=false error=-",
+            "state=connecting target=Living room reconnecting=false error=-",
+            "state=connected target=Living room reconnecting=false error=-",
+            "done, still connected",
+          ]
+      )
+    }
+
+    // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
+    do {
+      let port = FakeTargetPort()
+      // The hub holds its listeners weakly: the probe has to outlive the case.
+      let (probe, clock, _) = run("living", port: port)
+      port.discover([chromecast])
+      port.discover([])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      port.discover([chromecast])
+      clock.advance(CastTargetProbe.partialMatchSettleMs)
+      check("aPartialMatchThatLeftCanSettleAgain", port.connects == [chromecast] && probe.isActive)
+    }
+
+    // A port that lists its receivers inside startDiscovery: the probe connects there, and the discovery
+    // timeout set after it replaced the connection's, so a slow connection failed as an unknown name.
+    do {
+      let port = FakeTargetPort(known: [streamer], listsOnDiscovery: true)
+      let (probe, clock, logs) = run("Bedroom", port: port)
+      port.emit("starting", streamer)
+      clock.advance(CastTargetProbe.discoveryTimeoutMs + 1_000)
+      port.emit("started", streamer)
+      check(
+        "aReceiverListedWhileDiscoveryStartsKeepsTheConnectionWait",
+        port.connects == [streamer] && probe.isActive && !logs().contains { $0.hasPrefix("failed") }
+          && logs().contains("state=connected target=Bedroom reconnecting=false error=-")
+      )
     }
 
     do {
@@ -871,7 +1038,7 @@ enum RemoteTargetTests {
       let clock = Clock()
       let hub = RemoteTargetHub()
       hub.install(FakeCastDevices(schedule: clock.schedule))
-      hub.startDiscovery()
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
       let accepted = hub.connect(deviceId: "fake-cast-living-room")
       let connecting = hub.snapshot.phase
       clock.advance(connectDelay)
@@ -1031,6 +1198,46 @@ enum RemoteTargetTests {
       check(
         "aResumeAtLaunchReconnectsBeforeItConnects",
         resuming && reconnecting && resumed && machine.snapshot == state(.connected, cast(livingRoom))
+      )
+    }
+
+    // A late end of the receiver a switch left must not end the one that took over and is ending now.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.sessionEvent("ending", device: livingRoom, error: nil)
+      _ = machine.sessionEvent("starting", device: bedroom, error: nil)
+      _ = machine.sessionEvent("started", device: bedroom, error: nil)
+      _ = machine.sessionEvent("ending", device: bedroom, error: nil)
+      let changed = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)")
+      check("aLateEndOfTheOldReceiverLeavesTheNewOneEnding", !changed && machine.snapshot == state(.ending, cast(bedroom)))
+    }
+
+    // Asked again while a switch takes its session away: the end of that session leads back to it.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      let requested = machine.connectRequested(livingRoom)
+      _ = machine.sessionEvent("ending", device: livingRoom, error: nil)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)")
+      let back = machine.snapshot == state(.connecting, cast(livingRoom))
+      _ = machine.sessionEvent("starting", device: livingRoom, error: nil)
+      _ = machine.sessionEvent("started", device: livingRoom, error: nil)
+      check(
+        "askingTheHeldReceiverAgainDuringASwitchLeadsBackToIt",
+        !requested && back && machine.snapshot == state(.connected, cast(livingRoom))
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.connectRequested(livingRoom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: "Cast session status code 2155 (2155)")
+      let changed = machine.sessionEvent("startFailed", device: livingRoom, error: "busy")
+      check(
+        "theHeldReceiverAskedBackThenFailingEndsWithItsError",
+        changed && machine.snapshot == state(.none, nil, error: "busy")
       )
     }
 

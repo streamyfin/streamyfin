@@ -60,10 +60,17 @@ class RemoteTargetMachine {
     // The receiver asked for while another one held the session: the old session's end leads to it.
     private var switchingTo: TargetDevice? = null
 
-    /** A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch starts. */
+    /** A switch is on its way: asking the receiver it leaves is a request again, not a no-op. */
+    val isSwitching: Boolean
+        get() = switchingTo != null
+
+    /**
+     * A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch
+     * starts; over the held one while a switch takes its session away, the last request wins.
+     */
     fun connectRequested(device: TargetDevice): Boolean {
         if (snapshot.phase != TargetPhase.NONE) {
-            if (snapshot.target?.id != device.id) switchingTo = device
+            if (snapshot.target?.id != device.id || switchingTo != null) switchingTo = device
             return false
         }
         switchingTo = null
@@ -80,9 +87,14 @@ class RemoteTargetMachine {
         val switching = switchingTo
         val failure = event == "ended" || event == "startFailed"
         if (failure && switching != null && device?.id == switching.id) {
+            val held = snapshot.target?.id == switching.id
+            // Asked back while a switch ended its session: that end leads to it again.
+            if (held && snapshot.phase != TargetPhase.CONNECTING) {
+                return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(switching), reconnecting = false, error = null))
+            }
             // The asked receiver failed: once the old session ended it was the target, before that nothing moves.
             switchingTo = null
-            if (snapshot.target?.id != switching.id) return false
+            if (!held) return false
             return update(RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error))
         }
         if (event in END_EVENTS && device != null && heldOtherThan(device)) return false
@@ -110,10 +122,10 @@ class RemoteTargetMachine {
         return true
     }
 
+    // An ending session is still held: a late end of the receiver before it must not end it.
     private fun heldOtherThan(device: TargetDevice): Boolean {
         val held = snapshot.target ?: return false
-        val live = snapshot.phase == TargetPhase.CONNECTING || snapshot.phase == TargetPhase.CONNECTED
-        return live && held.id != device.id
+        return snapshot.phase != TargetPhase.NONE && held.id != device.id
     }
 
     private companion object {
