@@ -1090,6 +1090,23 @@ class CastEngineTest {
         assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
     }
 
+    // A load to another server is under way: the engine's envelope is already that server's, and a reclaim
+    // for the playback it left gave the receiver that server and token before the PlayNow went out, or
+    // for good when it did not.
+    @Test
+    fun aLoadOnItsWayHoldsTheBusReclaimBack() {
+        val engine = engine()
+        engine.loadRecorded()
+        media.report(snapshot(), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        port2.holdResults = true
+        engine.load(SERVER.copy(serverAddress = "https://other.example.test", accessToken = "tok-other"), ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        media.report(snapshot(), 1_000)
+        assertEquals(listOf("PlayNow"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
+
     @Test
     fun aResumeOntoThePlaybackItLeftReclaimsTheBus() {
         engine().loadRecorded()

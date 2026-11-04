@@ -1576,6 +1576,27 @@ enum CastEngineTests {
       check("aResumeOntoThePlaybackItLeftReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
     }
 
+    // A load to another server is under way: the engine's envelope is already that server's, and a reclaim
+    // for the playback it left gave the receiver that server and token before the PlayNow went out, or
+    // for good when it did not.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      _ = engine.loadRecorded()
+      bench.media.report(snapshot(), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      port2.holdResults = true
+      let other = ReceiverServer(
+        serverAddress: "https://other.example.test", accessToken: "tok-other", userId: "user-1",
+        receiverName: "Living Room TV", maxBitrate: 8_000_000
+      )
+      engine.load(server: other, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.media.report(snapshot(), position: 1)
+      check("aLoadOnItsWayHoldsTheBusReclaimBack", commandsSent(on: port2) == ["PlayNow"])
+    }
+
     // Nor is the TV's last play session: another sender's, seen before the channel came back, got the
     // reclaim and this engine's envelope.
     do {
