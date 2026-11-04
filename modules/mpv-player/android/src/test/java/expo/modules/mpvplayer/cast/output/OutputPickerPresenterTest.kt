@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.cast.output
 
 import android.os.Looper.getMainLooper
+import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
@@ -79,6 +80,24 @@ class OutputPickerPresenterTest {
 
         assertEquals("Bonus 1", playingHere)
         assertEquals(1, remote)
+    }
+
+    // A rotation moves the header button: the popover follows its view, not the frame it had when it opened.
+    @Test
+    fun theAnchoredPopoverFollowsItsButton() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val button = View(screen.get())
+        screen.get().addContentView(button, ViewGroup.LayoutParams(40, 40))
+        shadowOf(getMainLooper()).idle()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null, anchorView = button) {}
+        val before = OutputPickerPresenter.presentedAnchor
+
+        button.offsetLeftAndRight(100)
+        button.viewTreeObserver.dispatchOnGlobalLayout()
+        val after = OutputPickerPresenter.presentedAnchor
+
+        assertEquals(40, before?.width)
+        assertEquals(100, (after?.left ?: 0) - (before?.left ?: 0))
     }
 
     // Back from the Play Store, the services may be there now: the sheet checks them again.

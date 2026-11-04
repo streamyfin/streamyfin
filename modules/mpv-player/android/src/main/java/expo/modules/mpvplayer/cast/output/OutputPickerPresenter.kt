@@ -3,9 +3,12 @@ package expo.modules.mpvplayer.cast.output
 import android.app.Activity
 import android.graphics.Rect
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.IntRect
 import androidx.lifecycle.Lifecycle
@@ -36,6 +39,15 @@ object OutputPickerPresenter {
     private var controller: OutputSheetController? = null
     private var onRemote: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
+    // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
+    private val anchorBounds = mutableStateOf<IntRect?>(null)
+    private var anchorView: View? = null
+
+    // A rotation lays the screen out again and moves the button: the popover goes with it.
+    private val anchorWatcher =
+        ViewTreeObserver.OnGlobalLayoutListener {
+            anchorView?.let(::windowBounds)?.let { bounds -> if (bounds != anchorBounds.value) anchorBounds.value = bounds }
+        }
 
     private val hostWatcher =
         LifecycleEventObserver { source, event ->
@@ -77,6 +89,10 @@ object OutputPickerPresenter {
     internal val presentedController: OutputSheetController?
         get() = controller
 
+    @VisibleForTesting
+    internal val presentedAnchor: IntRect?
+        get() = anchorBounds.value
+
     // Play Services' own check and dialog, which Robolectric has neither of.
     @VisibleForTesting
     internal val defaultCheckPlayServices: (Activity) -> Int = { GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(it) }
@@ -92,7 +108,7 @@ object OutputPickerPresenter {
 
     /** False on a TV, which has no sheet; true once presented, or already there. */
     @MainThread
-    fun present(activity: Activity, anchor: Rect?, playingHere: String?, onRemote: () -> Unit): Boolean {
+    fun present(activity: Activity, anchor: Rect?, playingHere: String?, anchorView: View? = null, onRemote: () -> Unit): Boolean {
         if (DeviceKind.isTelevision(activity)) return false
         this.onRemote = onRemote
         controller?.let { sheet ->
@@ -110,14 +126,18 @@ object OutputPickerPresenter {
                 receiverPlaying = receiverPlaying(),
             )
         sheet.onOutput = { output -> handle(activity, output) }
-        val anchorBounds = anchor?.let { IntRect(it.left, it.top, it.right, it.bottom) }
+        anchorBounds.value = anchorView?.let(::windowBounds) ?: anchor?.let { IntRect(it.left, it.top, it.right, it.bottom) }
+        anchorView?.takeIf { anchorBounds.value != null }?.let { button ->
+            this.anchorView = button
+            button.viewTreeObserver.addOnGlobalLayoutListener(anchorWatcher)
+        }
         val view =
             ComposeView(activity).apply {
                 // Compose needs the activity's owners on a view React Native's activity did not create.
                 (activity as? LifecycleOwner)?.let { setViewTreeLifecycleOwner(it) }
                 (activity as? ViewModelStoreOwner)?.let { setViewTreeViewModelStoreOwner(it) }
                 (activity as? SavedStateRegistryOwner)?.let { setViewTreeSavedStateRegistryOwner(it) }
-                setContent { PlayerTheme { OutputSheetHost(sheet, strings, anchorBounds, onDismiss = ::dismiss) } }
+                setContent { PlayerTheme { OutputSheetHost(sheet, strings, anchorBounds.value, onDismiss = ::dismiss) } }
             }
         activity.addContentView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         host = view
@@ -136,6 +156,9 @@ object OutputPickerPresenter {
         controller?.close()
         controller = null
         onRemote = null
+        anchorView?.viewTreeObserver?.removeOnGlobalLayoutListener(anchorWatcher)
+        anchorView = null
+        anchorBounds.value = null
         (view.parent as? ViewGroup)?.removeView(view)
         onDismissed?.invoke()
     }
@@ -192,6 +215,13 @@ object OutputPickerPresenter {
             ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED, ConnectionResult.SERVICE_UPDATING -> PlayServicesStatus.UPDATE_REQUIRED
             else -> PlayServicesStatus.MISSING
         }
+    }
+
+    // Null for a view that is not laid out in a window, which then gives no position.
+    private fun windowBounds(view: View): IntRect? {
+        if (!view.isAttachedToWindow || view.width == 0) return null
+        val origin = IntArray(2).also(view::getLocationInWindow)
+        return IntRect(origin[0], origin[1], origin[0] + view.width, origin[1] + view.height)
     }
 
     // A tablet by its smallest width, which a rotation does not change.

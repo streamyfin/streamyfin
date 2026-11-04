@@ -133,8 +133,14 @@ public class CastModule: Module {
       let presenter = OutputPickerPresenter.shared
       let strings = (options["strings"] as? [String: Any] ?? [:]).compactMapValues { $0 as? String }
       presenter.strings = OutputPickerStrings(strings)
+      // The button's own view, which the popover follows across a rotation; its frame is the fallback.
+      let anchorView = (options["anchorTag"] as? NSNumber).flatMap {
+        self.appContext?.findView(withTag: $0.intValue, ofType: UIView.self)
+      }
       // Held by the presenter only while the sheet is up.
-      return presenter.present(anchor: Self.anchorRect(options["anchor"]), playingHere: options["playingHere"] as? String) {
+      return presenter.present(
+        anchor: Self.anchorRect(options["anchor"]), anchorView: anchorView, playingHere: options["playingHere"] as? String
+      ) {
         self.sendEvent("onOutputPickerAction", ["action": "remote"])
       }
     }.runOnQueue(.main)
