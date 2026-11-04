@@ -20,10 +20,12 @@ struct RunningTargetSession {
 final class GoogleCastTargetPort: TargetPort {
   static let receiverGone = "The receiver is no longer on the network"
   static let startRefused = "The Cast SDK did not start the session"
+  static let endRefused = "The Cast SDK did not end the session a switch had to end"
 
   private let routes: () -> [CastTargetRoute]
   private let runningSession: () -> RunningTargetSession?
-  private let endSession: (_ stopPlayback: Bool) -> Void
+  /// Answers the SDK's endSessionAndStopCasting: false when it kept the session.
+  private let endSession: (_ stopPlayback: Bool) -> Bool
   private let watchSessions: (((String, TargetDevice?, String?) -> Void)?) -> Void
   private let watchDevices: ((() -> Void)?) -> Void
   private let discovery: (_ on: Bool) -> Void
@@ -35,7 +37,7 @@ final class GoogleCastTargetPort: TargetPort {
   init(
     routes: @escaping () -> [CastTargetRoute],
     runningSession: @escaping () -> RunningTargetSession?,
-    endSession: @escaping (_ stopPlayback: Bool) -> Void,
+    endSession: @escaping (_ stopPlayback: Bool) -> Bool,
     watchSessions: @escaping (((String, TargetDevice?, String?) -> Void)?) -> Void,
     watchDevices: @escaping ((() -> Void)?) -> Void,
     discovery: @escaping (_ on: Bool) -> Void
@@ -96,7 +98,11 @@ final class GoogleCastTargetPort: TargetPort {
       // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
       // answers NO): end it, and start this receiver once the SDK reports the end.
       pendingSwitch = device
-      endSession(true)
+      if !endSession(true) {
+        // The SDK kept the session it was asked to end: this receiver cannot start.
+        pendingSwitch = nil
+        events?.sessionEvent("startFailed", device: device, error: Self.endRefused)
+      }
       return
     }
     startSession(on: device)
@@ -105,7 +111,7 @@ final class GoogleCastTargetPort: TargetPort {
   func disconnect(stopPlayback: Bool) {
     pendingSwitch = nil
     if runningSession() != nil {
-      endSession(stopPlayback)
+      _ = endSession(stopPlayback)
       return
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.
@@ -164,7 +170,7 @@ extension GoogleCastTargetPort {
         guard let session = sessionManager.currentCastSession else { return nil }
         return RunningTargetSession(device: targetDevice(session.device), connected: session.connectionState == .connected)
       },
-      endSession: { stopPlayback in _ = sessionManager.endSessionAndStopCasting(stopPlayback) },
+      endSession: { stopPlayback in sessionManager.endSessionAndStopCasting(stopPlayback) },
       watchSessions: { relay in
         if let sessionListener { sessionManager.remove(sessionListener) }
         sessionListener = relay.map(TargetSessionListener.init)

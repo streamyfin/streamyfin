@@ -329,6 +329,7 @@ enum RemoteTargetTests {
     var receivers: [TargetDevice] = []
     var running: RunningTargetSession?
     var sessionStarts = true
+    var endAccepted = true
     var started: [TargetDevice] = []
     var ended: [Bool] = []
     var sessionWatches: [((String, TargetDevice?, String?) -> Void)?] = []
@@ -348,7 +349,10 @@ enum RemoteTargetTests {
           }
         },
         runningSession: { sdk.running },
-        endSession: { sdk.ended.append($0) },
+        endSession: {
+          sdk.ended.append($0)
+          return sdk.endAccepted
+        },
         watchSessions: { sdk.sessionWatches.append($0) },
         watchDevices: { sdk.deviceWatches.append($0) },
         discovery: { sdk.discovery.append($0) }
@@ -482,6 +486,23 @@ enum RemoteTargetTests {
         "aSwitchTheSdkRefusesAfterTheEndFails",
         events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.startRefused
       )
+    }
+
+    // endSessionAndStopCasting answering NO keeps the session: the switch cannot start, and says so,
+    // and a later end of that session does not start it either.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.endAccepted = false
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      let refused = events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.endRefused
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil)
+      check("aSwitchWhoseEndTheSdkRefusesFails", refused && sdk.started.isEmpty)
     }
 
     // Asked again before its session ended for a switch: the receiver starts again once that end comes,
