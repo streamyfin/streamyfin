@@ -18,8 +18,6 @@ import expo.modules.mpvplayer.cast.CastSupport
 import expo.modules.mpvplayer.cast.GoogleCastChannelBinding
 import expo.modules.mpvplayer.cast.ReceiverChannelHub
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
-import java.util.Collections
-import java.util.WeakHashMap
 
 // The Cast SDK behind the engine's ports: the one file of the engine that imports it. Every call runs
 // on the main thread, as the SDK asserts; what the SDK throws is caught and logged.
@@ -80,8 +78,12 @@ internal class GoogleCastSessionSource(
     private var listener: CastSessionListener? = null
     private var listening = false
 
-    // A Cast.Listener per session object, for the volume: a session keeps its listeners, so one only.
-    private val heard: MutableSet<CastSession> = Collections.newSetFromMap(WeakHashMap())
+    // A Cast.Listener per session object, for the volume: a session keeps its listeners, so one only,
+    // removed when the engine stops listening.
+    private val castListeners = SessionListeners<CastSession, Cast.Listener>(
+        { session, listener -> sdk("addCastListener") { session.addCastListener(listener) } },
+        { session, listener -> sdk("removeCastListener") { session.removeCastListener(listener) } },
+    )
 
     override val current: CastSessionPort?
         get() = sdk("currentCastSession") { sessionManager.currentCastSession }?.let(::portFor)
@@ -94,18 +96,17 @@ internal class GoogleCastSessionSource(
         } else if (listener == null && listening) {
             sdk("removeSessionManagerListener") { sessionManager.removeSessionManagerListener(managerListener, CastSession::class.java) }
             listening = false
+            castListeners.clear()
         }
     }
 
     private fun portFor(session: CastSession): CastSessionPort {
-        if (heard.add(session)) {
-            sdk("addCastListener") {
-                session.addCastListener(object : Cast.Listener() {
-                    override fun onVolumeChanged() {
-                        val volume = sdk("getVolume") { session.volume } ?: return
-                        listener?.onVolumeChanged(volume, sdk("isMute") { session.isMute } ?: false)
-                    }
-                })
+        castListeners.ensure(session) {
+            object : Cast.Listener() {
+                override fun onVolumeChanged() {
+                    val volume = sdk("getVolume") { session.volume } ?: return
+                    listener?.onVolumeChanged(volume, sdk("isMute") { session.isMute } ?: false)
+                }
             }
         }
         return GoogleCastSessionPort(session)

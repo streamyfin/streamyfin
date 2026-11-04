@@ -7,6 +7,7 @@ import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -52,9 +53,22 @@ class CastEngineProbeTest {
         val sent = port.sent.map { (_, text) -> JSONObject(text) }
         assertEquals(listOf("SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayNow", "NextTrack"), sent.map { it.getString("command") })
         assertEquals(192_000L, sent[2].getLong("maxBitrate"))
+        assertEquals("ms-1", sent[2].getJSONObject("options").getString("mediaSourceId"))
         assertNull(media.listener)
         assertEquals(CastEngineProbeScript.STEPS.map { "step ${it.second}" }, logs.filter { it.startsWith("step ") })
         assertFalse(logs.any { "tok-123" in it })
+    }
+
+    // Without an item in the PlayNow, nothing tells the TV's media from what JS loaded: no script.
+    @Test
+    fun aPlayNowWithoutAnItemNeverStartsTheScript() {
+        hub.attach(port)
+        CastEngineProbe(hub, { server -> engine(server) }, scheduler.schedule, logs::add).arm()
+        hub.send(ns, ReceiverProtocol.message("PlayNow", SERVER, JSONObject().put("items", JSONArray())).toString()) {}
+        scheduler.advance(0)
+        media.report(snapshot(customData = null), 10_000)
+        runFor(10_000)
+        assertFalse(logs.any { it.startsWith("step ") })
     }
 
     @Test
@@ -87,5 +101,21 @@ class CastEngineProbeTest {
             logs.filter { it.startsWith("bus sent ") },
         )
         assertFalse(logs.any { "tok-123" in it })
+    }
+
+    // An item the receiver never plays (a PlaybackInfo error, a TV that cannot reach the server) left
+    // the probe armed, its engine bound, until the session ended: every later arming said so.
+    @Test
+    fun anItemThatNeverPlaysDisarmsTheProbe() {
+        hub.attach(port)
+        val probe = CastEngineProbe(hub, { server -> engine(server) }, scheduler.schedule, logs::add)
+        probe.arm()
+        hub.send(ns, ReceiverProtocol.playNow(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))).toString()) {}
+        scheduler.advance(0)
+        runFor(CastEngineConstants.LOAD_TIMEOUT_MS + 5_000)
+
+        assertFalse(probe.isActive)
+        assertNull(media.listener)
+        assertTrue("item never played" in logs)
     }
 }
