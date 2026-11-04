@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { seasonLabel } from "@/utils/seasonLabel";
+import { findRememberedSeason } from "@/utils/seasonSelection";
 import { Text } from "../common/Text";
 import { PlatformDropdown } from "../PlatformDropdown";
 
@@ -132,8 +133,16 @@ export const SeasonDropdown: React.FC<Props> = ({
       trigger={
         <TouchableOpacity onPress={() => setOpen(true)}>
           <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
+            {/* Named as in the list, from one whole-sentence key: nothing
+                until a season is on screen. */}
             <Text>
-              {t("item_card.season")} {seasonIndex}
+              {seasonIndex === undefined || seasonIndex === null
+                ? null
+                : seasonLabel(
+                    t,
+                    findRememberedSeason(seasons, seasonIndex)?.Name,
+                    seasonIndex,
+                  )}
             </Text>
           </View>
         </TouchableOpacity>
