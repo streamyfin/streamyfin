@@ -35,6 +35,27 @@ server log, the session the server records, the receiver on the TV.
   Jellyfin receiver directly, so the receiver and the server can be tested without the
   app, and the sessions observer reads what the server recorded.
 
+## Fake Cast receivers
+
+Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of the Cast SDK's:
+"Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
+300 ms after a disconnection (`RemoteTargetConstants`), ending one session before starting
+another, as the SDK does. Only the target the module publishes (`getRemoteTarget`,
+`connectToDevice`, `onRemoteTargetChanged`) goes through them: no media plays, and the SDK's
+own Cast button still reads the real network.
+
+- **Android**: build with `-PstreamyfinFakeCastDevices=true`, or
+  `ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true` in the environment, which also reaches
+  `bun run android` and `bun run build:android:local`. It sets `BuildConfig.FAKE_CAST_DEVICES`
+  in the mpv-player module, in every variant.
+- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install` (and the same variable on
+  `expo run:ios`, which may install the pods again) adds `FAKE_CAST_DEVICES` to the module's
+  Swift conditions. Run `pod install` again without it before any other build.
+
+No store build sets either. The remote target probe (`e2e/suites/cast/README.md`) shows which
+receivers a build has: `--es device "Bench TV"` connects in a fake build, and ends with
+`failed: no device named "Bench TV"` in any other.
+
 ## Configuration
 
 The bench reads one private JSON file, never committed:
