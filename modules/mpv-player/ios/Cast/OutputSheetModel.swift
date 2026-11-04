@@ -28,8 +28,10 @@ struct OutputSheetInput {
   var thisDevice: ThisDeviceKind
   /// What plays on this device, nil when nothing does.
   var playingHere: String?
-  /// What the receiver plays, nil when it plays nothing.
+  /// What the receiver plays, nil when it plays nothing or names nothing.
   var receiverTitle: String?
+  /// Something plays on the receiver, with a title or without.
+  var receiverPlaying = false
   /// "Change" asked for the list over a connected target.
   var showingList: Bool
   /// The level under the finger, or the one sent until the receiver echoes it.
@@ -114,7 +116,7 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
         volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted,
         canSetVolume: target.volume && snapshot.volume != nil,
         canMute: target.volume && snapshot.volume != nil, reconnecting: snapshot.reconnecting,
-        receiverTitle: input.receiverTitle, canStop: input.receiverTitle != nil
+        receiverTitle: input.receiverTitle, canStop: input.receiverPlaying
       )
     )
   }

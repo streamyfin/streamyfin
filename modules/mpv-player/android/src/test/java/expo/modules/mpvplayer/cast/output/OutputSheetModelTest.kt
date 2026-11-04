@@ -24,6 +24,7 @@ class OutputSheetModelTest {
         airPlay: AirPlayInput? = null,
         playingHere: String? = null,
         receiverTitle: String? = null,
+        receiverPlaying: Boolean = receiverTitle != null,
     ) = OutputSheetInput(
         snapshot = snapshot,
         devices = devices,
@@ -34,6 +35,7 @@ class OutputSheetModelTest {
         thisDevice = ThisDeviceKind.PHONE,
         playingHere = playingHere,
         receiverTitle = receiverTitle,
+        receiverPlaying = receiverPlaying,
         showingList = false,
         draggedVolume = null,
     )
@@ -128,6 +130,19 @@ class OutputSheetModelTest {
 
         assertEquals(false, idle.canMute)
         assertEquals(true, playing.canMute)
+    }
+
+    // The receiver's media can come without a title: it still plays, so the stop, the remote and the mute stay.
+    @Test
+    fun aReceiverPlayingWithoutATitleCanStillBeStopped() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val playing = outputSheetState(input(snapshot = connected, receiverPlaying = true)) as OutputSheetState.Connected
+
+        assertEquals(true, playing.canStop)
+        assertEquals(true, playing.canMute)
+        assertEquals(null, playing.receiverTitle)
     }
 
     @Test

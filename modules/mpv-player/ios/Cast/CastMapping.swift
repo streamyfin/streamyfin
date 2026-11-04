@@ -44,10 +44,16 @@ enum CastMapping {
     }
   }
 
-  /// The title of what the receiver plays, none once it stopped: a stop from the TV keeps the idle media and its
-  /// metadata, and the output sheet would offer to stop it again. GCKMediaPlayerState: playing 2 to loading 5.
+  /// Something plays on the receiver, with a title or without. Not once it stopped: a stop from the TV keeps the
+  /// idle media and its metadata, and the output sheet would offer to stop it again. GCKMediaPlayerState: playing 2
+  /// to loading 5.
+  static func isPlaying(_ playerState: Int) -> Bool {
+    (2...5).contains(playerState)
+  }
+
+  /// The title of what the receiver plays, none once it stopped.
   static func playingTitle(_ playerState: Int, title: String?) -> String? {
-    (2...5).contains(playerState) ? title : nil
+    isPlaying(playerState) ? title : nil
   }
 
   /// GCKMediaTrackType text is 1. A subtitle change goes over the bus only when the media carries

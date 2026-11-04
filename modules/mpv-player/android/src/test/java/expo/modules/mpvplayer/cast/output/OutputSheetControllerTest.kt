@@ -22,7 +22,7 @@ class OutputSheetControllerTest {
 
     private fun sheet(hub: RemoteTargetHub, receiverTitle: String? = "Big Buck Bunny") =
         OutputSheetController(hub, scheduler.schedule).also {
-            it.environment = OutputSheetEnvironment(receiverTitle = receiverTitle)
+            it.environment = OutputSheetEnvironment(receiverTitle = receiverTitle, receiverPlaying = receiverTitle != null)
             it.onOutput = { output -> outputs += output }
             it.open()
         }
@@ -222,6 +222,38 @@ class OutputSheetControllerTest {
         sheet.change()
 
         assertEquals(DeviceStatus.Connecting, asked)
+        assertEquals(DeviceStatus.Idle, row(sheet, bedroom).status)
+    }
+
+    // Discovery can lose the receiver a switch leaves: going back to it is refused, and the switch goes on.
+    @Test
+    fun aSwitchGoesOnWhenTheReceiverItLeavesIsLost() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        sheet.tap(row(sheet, bedroom))
+        port.discover(listOf(bedroom))
+
+        sheet.tap(row(sheet, livingRoom))
+
+        assertEquals(DeviceStatus.Connecting, row(sheet, bedroom).status)
+    }
+
+    // Asked for again once its session is ending, the receiver a switch leaves waits for that end: its row shows the
+    // request meanwhile.
+    @Test
+    fun goingBackOnceTheSessionIsEndingShowsTheRequest() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        sheet.tap(row(sheet, bedroom))
+        port.emit("ending", livingRoom)
+
+        sheet.tap(row(sheet, livingRoom))
+
+        assertEquals(DeviceStatus.Connecting, row(sheet, livingRoom).status)
         assertEquals(DeviceStatus.Idle, row(sheet, bedroom).status)
     }
 

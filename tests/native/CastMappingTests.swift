@@ -51,6 +51,8 @@ enum CastMappingTests {
 
         // A stop from the TV leaves the idle media with its metadata: the sheet must not offer to stop it again.
         // GCKMediaPlayerState: unknown 0, idle 1, playing 2, paused 3, buffering 4, loading 5.
+        precondition((2...5).allSatisfy(CastMapping.isPlaying))
+        precondition(!CastMapping.isPlaying(1) && !CastMapping.isPlaying(0))
         precondition((2...5).allSatisfy { CastMapping.playingTitle($0, title: "Big Buck Bunny") == "Big Buck Bunny" })
         precondition(CastMapping.playingTitle(1, title: "Big Buck Bunny") == nil)
         precondition(CastMapping.playingTitle(0, title: "Big Buck Bunny") == nil)

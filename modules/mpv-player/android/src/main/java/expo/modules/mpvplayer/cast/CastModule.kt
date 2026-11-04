@@ -147,6 +147,7 @@ class CastModule : Module() {
                     CastMapping.playingTitle(status.playerState, status.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE))
                 }
             }
+            OutputPickerPresenter.receiverPlaying = { mediaClient?.mediaStatus?.let { CastMapping.isPlaying(it.playerState) } == true }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
         }

@@ -169,13 +169,15 @@ enum OutputSheetTests {
     let bedroom = TargetDevice(id: "device-b", name: "Bedroom")
 
     func sheet(
-      _ port: FakeTargetPort, clock: Clock, receiverTitle: String? = "Big Buck Bunny",
+      _ port: FakeTargetPort, clock: Clock, receiverTitle: String? = "Big Buck Bunny", receiverPlaying: Bool? = nil,
       outputs: @escaping (OutputSheetOutput) -> Void = { _ in }
     ) -> OutputSheetController {
       let hub = RemoteTargetHub()
       hub.install(port)
       let sheet = OutputSheetController(hub: hub, schedule: clock.schedule)
-      sheet.environment = OutputSheetEnvironment(receiverTitle: receiverTitle)
+      sheet.environment = OutputSheetEnvironment(
+        receiverTitle: receiverTitle, receiverPlaying: receiverPlaying ?? (receiverTitle != nil)
+      )
       sheet.onOutput = outputs
       sheet.open()
       return sheet
@@ -331,6 +333,17 @@ enum OutputSheetTests {
       check("aSwitchRefusedAtOnceShowsItsFailure", failed)
     }
 
+    // The receiver's media can come without a title: it still plays, so the stop and the remote stay.
+    do {
+      let port = port()
+      let sheet = sheet(port, clock: Clock(), receiverTitle: nil, receiverPlaying: true)
+      port.emit("started", livingRoom)
+      check(
+        "aReceiverPlayingWithoutATitleCanStillBeStopped",
+        panel(sheet.state)?.canStop == true && panel(sheet.state)?.receiverTitle == nil
+      )
+    }
+
     // Back to the receiver a switch was leaving: the asked one goes back to idle.
     do {
       let port = port()
@@ -343,6 +356,34 @@ enum OutputSheetTests {
       sheet.change()
       check(
         "goingBackDuringASwitchForgetsTheAskedReceiver", asked == .connecting && status(sheet.state, bedroom) == .idle
+      )
+    }
+
+    // Discovery can lose the receiver a switch leaves: going back to it is refused, and the switch goes on.
+    do {
+      let port = port()
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.discover([bedroom])
+      sheet.tap(deviceRow(sheet, livingRoom))
+      check("aSwitchGoesOnWhenTheReceiverItLeavesIsLost", status(sheet.state, bedroom) == .connecting)
+    }
+
+    // Asked for again once its session is ending, the receiver a switch leaves waits for that end: its row shows the
+    // request meanwhile.
+    do {
+      let port = port()
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.emit("ending", livingRoom)
+      sheet.tap(deviceRow(sheet, livingRoom))
+      check(
+        "goingBackOnceTheSessionIsEndingShowsTheRequest",
+        status(sheet.state, livingRoom) == .connecting && status(sheet.state, bedroom) == .idle
       )
     }
 

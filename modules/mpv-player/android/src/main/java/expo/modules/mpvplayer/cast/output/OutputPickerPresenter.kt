@@ -61,6 +61,9 @@ object OutputPickerPresenter {
     /** What the receiver plays, from the media status the module follows. */
     var receiverTitle: () -> String? = { null }
 
+    /** Whether something plays on the receiver, with a title or without. */
+    var receiverPlaying: () -> Boolean = { false }
+
     /** Called once the sheet is gone, whichever way it went. */
     var onDismissed: (() -> Unit)? = null
 
@@ -93,7 +96,8 @@ object OutputPickerPresenter {
         if (DeviceKind.isTelevision(activity)) return false
         this.onRemote = onRemote
         controller?.let { sheet ->
-            sheet.environment = sheet.environment.copy(playingHere = playingHere, receiverTitle = receiverTitle())
+            sheet.environment =
+                sheet.environment.copy(playingHere = playingHere, receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
             return true
         }
         val sheet = OutputSheetController(RemoteTargetHub.shared, mainLooperSchedule())
@@ -103,6 +107,7 @@ object OutputPickerPresenter {
                 thisDevice = thisDevice(activity),
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
+                receiverPlaying = receiverPlaying(),
             )
         sheet.onOutput = { output -> handle(activity, output) }
         val anchorBounds = anchor?.let { IntRect(it.left, it.top, it.right, it.bottom) }
@@ -138,12 +143,15 @@ object OutputPickerPresenter {
     /** The receiver started or changed what it plays: the panel's remote row follows. */
     @MainThread
     fun refresh() {
-        controller?.let { sheet -> sheet.environment = sheet.environment.copy(receiverTitle = receiverTitle()) }
+        controller?.let { sheet ->
+            sheet.environment = sheet.environment.copy(receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
+        }
     }
 
-    /** The debug probe's sheet, for its screenshots: over whatever the app shows. */
+    /** The debug probe's sheet, for its screenshots: over whatever the app shows, and never in place of the app's. */
     @MainThread
     fun presentForProbe(): Boolean {
+        if (isPresented) return true
         val activity = currentActivity() ?: return false
         return present(activity, anchor = null, playingHere = null) {}
     }

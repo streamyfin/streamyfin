@@ -12,6 +12,7 @@ struct OutputSheetEnvironment {
   var thisDevice: ThisDeviceKind = .phone
   var playingHere: String?
   var receiverTitle: String?
+  var receiverPlaying = false
 }
 
 /// The output sheet's behaviour, on the hub: discovery while it is open, the requests a tap makes, and the
@@ -174,9 +175,11 @@ final class OutputSheetController: RemoteTargetListener {
       cancelSettle?()
       cancelSettle = nil
     }
-    // The asked receiver took the session, or refused it: the state says so from now on.
-    if let asked = requestedId, snapshot.target?.id == asked || snapshot.failedTarget?.id == asked {
-      requestedId = nil
+    // The asked receiver took the session, or refused it: the state says so from now on. The receiver a switch
+    // leaves is the target until its session ends, which takes nothing.
+    if let asked = requestedId {
+      let took = snapshot.target?.id == asked && (snapshot.phase == .connecting || snapshot.phase == .connected)
+      if took || snapshot.failedTarget?.id == asked { requestedId = nil }
     }
     if let panel = panelOn {
       if snapshot.error != nil, snapshot.failedTarget?.id == panel { panelOn = nil }
@@ -194,18 +197,17 @@ final class OutputSheetController: RemoteTargetListener {
 
   private func connect(_ deviceId: String) {
     let holder = hub.snapshot.target
-    // The receiver already there, which discovery may have lost: back to its panel.
-    if holder?.id == deviceId {
-      // A switch on its way to another receiver is called off: that one is no longer asked for.
-      requestedId = nil
-      panelOn = nil
+    // The receiver already there, which discovery may have lost: back to its panel. During a switch the sheet
+    // asked for, it is a request like another's.
+    if holder?.id == deviceId, requestedId == nil {
       _ = hub.connect(deviceId: deviceId)
       showingList = false
       publish()
       return
     }
-    // Over another receiver's session the hub waits for its end: the row shows the request meanwhile, and the
-    // list stays until the asked receiver is connected. Set before the request: a port can refuse inside it.
+    // Over a session the hub waits for its end: the row shows the request meanwhile, and the list stays until the
+    // asked receiver is connected. Set before the request, as a port can refuse inside it; a refused request
+    // leaves a switch on its way as it was.
     let requested = requestedId
     let panel = panelOn
     requestedId = holder == nil ? nil : deviceId
@@ -222,7 +224,8 @@ final class OutputSheetController: RemoteTargetListener {
     OutputSheetInput(
       snapshot: hub.snapshot, devices: hub.devices, discovering: isOpen, searchTimedOut: searchTimedOut,
       playServices: environment.playServices, airPlay: environment.airPlay, thisDevice: environment.thisDevice,
-      playingHere: environment.playingHere, receiverTitle: environment.receiverTitle, showingList: showingList,
+      playingHere: environment.playingHere, receiverTitle: environment.receiverTitle,
+      receiverPlaying: environment.receiverPlaying, showingList: showingList,
       draggedVolume: dragged ?? held, requestedId: requestedId
     )
   }
