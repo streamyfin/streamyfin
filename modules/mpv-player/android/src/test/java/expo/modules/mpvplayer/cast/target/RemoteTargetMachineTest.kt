@@ -34,7 +34,7 @@ class RemoteTargetMachineTest {
         assertTrue(machine.sessionEvent("suspended", null, null))
         assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTING, cast(livingRoom), true, null), machine.snapshot)
         assertTrue(machine.sessionEvent("ended", null, "network"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "network"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "network", failedTarget = cast(livingRoom)), machine.snapshot)
     }
 
     @Test
@@ -107,7 +107,7 @@ class RemoteTargetMachineTest {
         // A switch the port refuses at once (a disabled route, an end the SDK keeps) leaves the receiver
         // that holds the session, with the cause: silence there left the sheet, and the probe, waiting.
         assertTrue(machine.sessionEvent("startFailed", bedroom, "busy"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "busy"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "busy", failedTarget = cast(bedroom)), machine.snapshot)
         assertTrue(machine.sessionEvent("ended", livingRoom, null))
         assertEquals(RemoteTargetSnapshot.NONE, machine.snapshot)
     }
@@ -119,7 +119,7 @@ class RemoteTargetMachineTest {
         machine.sessionEvent("ended", livingRoom, null)
 
         assertTrue(machine.sessionEvent("startFailed", bedroom, "timeout"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "timeout"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "timeout", failedTarget = cast(bedroom)), machine.snapshot)
     }
 
     @Test
@@ -138,7 +138,7 @@ class RemoteTargetMachineTest {
         val machine = connectedTo(livingRoom)
 
         assertTrue(machine.sessionEvent("ended", null, "network"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "network"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "network", failedTarget = cast(livingRoom)), machine.snapshot)
     }
 
     @Test
@@ -196,7 +196,7 @@ class RemoteTargetMachineTest {
         machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)")
 
         assertTrue(machine.sessionEvent("startFailed", livingRoom, "busy"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "busy"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "busy", failedTarget = cast(livingRoom)), machine.snapshot)
     }
 
     // The only start in flight during a switch is the asked receiver's: a start failure without its device
@@ -208,7 +208,7 @@ class RemoteTargetMachineTest {
         machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)")
 
         assertTrue(machine.sessionEvent("startFailed", null, "gone"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "gone"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "gone", failedTarget = cast(bedroom)), machine.snapshot)
     }
 
     @Test
@@ -217,7 +217,83 @@ class RemoteTargetMachineTest {
         machine.disconnectRequested()
 
         assertTrue(machine.sessionEvent("endRefused", livingRoom, "kept"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "kept"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, "kept", failedTarget = cast(livingRoom)), machine.snapshot)
+    }
+
+    // The output sheet's slider and mute follow the receiver's own volume, as the SDK reports it.
+    @Test
+    fun aVolumeChangeWhileConnectedIsPublished() {
+        val machine = connectedTo(livingRoom)
+
+        assertTrue(machine.volumeChanged(0.62, false))
+        assertEquals(0.62, machine.snapshot.volume)
+        assertFalse(machine.snapshot.muted)
+    }
+
+    @Test
+    fun aVolumeChangeWithNoTargetIsIgnored() {
+        val machine = RemoteTargetMachine()
+
+        assertFalse(machine.volumeChanged(0.62, false))
+        assertNull(machine.snapshot.volume)
+    }
+
+    @Test
+    fun anEndForgetsTheVolume() {
+        val machine = connectedTo(livingRoom)
+        machine.volumeChanged(0.62, true)
+
+        machine.sessionEvent("ended", livingRoom, null)
+
+        assertNull(machine.snapshot.volume)
+        assertFalse(machine.snapshot.muted)
+    }
+
+    @Test
+    fun theSameSessionKeepsItsVolume() {
+        val machine = connectedTo(livingRoom)
+        machine.volumeChanged(0.5, false)
+
+        machine.sessionEvent("suspended", null, null)
+        machine.sessionEvent("resumed", livingRoom, null)
+
+        assertEquals(0.5, machine.snapshot.volume)
+    }
+
+    // The sheet writes the cause on the row of the receiver it belongs to, with the SDK's code for it.
+    @Test
+    fun aFailedEndNamesItsTargetAndCode() {
+        val machine = connectedTo(livingRoom)
+
+        machine.sessionEvent("ended", livingRoom, "Cast session status code 2155 (2155)", 2155)
+
+        assertEquals(2155, machine.snapshot.errorCode)
+        assertEquals(livingRoom.id, machine.snapshot.failedTarget?.id)
+        machine.connectRequested(livingRoom)
+        assertNull(machine.snapshot.errorCode)
+        assertNull(machine.snapshot.failedTarget)
+    }
+
+    @Test
+    fun aRefusedSwitchNamesTheReceiverThatFailed() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+
+        machine.sessionEvent("startFailed", bedroom, "busy", 2004)
+
+        assertEquals(cast(livingRoom), machine.snapshot.target)
+        assertEquals(cast(bedroom), machine.snapshot.failedTarget)
+        assertEquals(2004, machine.snapshot.errorCode)
+    }
+
+    @Test
+    fun anEndTheUserAskedForNamesNoFailure() {
+        val machine = connectedTo(livingRoom)
+
+        machine.sessionEvent("ended", livingRoom, null)
+
+        assertNull(machine.snapshot.failedTarget)
+        assertNull(machine.snapshot.errorCode)
     }
 
     @Test
@@ -234,7 +310,7 @@ class RemoteTargetMachineTest {
         machine.connectRequested(livingRoom)
 
         assertTrue(machine.sessionEvent("startFailed", livingRoom, "timeout"))
-        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "timeout"), machine.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "timeout", failedTarget = cast(livingRoom)), machine.snapshot)
     }
 
     @Test
@@ -258,22 +334,39 @@ class RemoteTargetMachineTest {
     @Test
     fun aDeviceKeepsTheRecordDiscoveryPublishes() {
         assertEquals(
-            mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to "Chromecast"),
+            mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to "Chromecast", "videoOut" to true),
             TargetDevice("device-a", "Living room", "Chromecast").toMap(),
         )
-        assertEquals(mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to null), livingRoom.toMap())
+        assertEquals(
+            mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to null, "videoOut" to true),
+            livingRoom.toMap(),
+        )
+    }
+
+    @Test
+    fun theJsShapeCarriesTheNewFields() {
+        val connected = connectedTo(livingRoom).also { it.volumeChanged(0.62, true) }.snapshot.toMap()
+        val failed = connectedTo(livingRoom).also { it.sessionEvent("ended", livingRoom, "lost", 2155) }.snapshot.toMap()
+
+        assertEquals(0.62, connected["volume"])
+        assertEquals(true, connected["muted"])
+        assertNull(connected["errorCode"])
+        assertNull(connected["failedTarget"])
+        assertEquals(2155, failed["errorCode"])
+        assertEquals("device-a", (failed["failedTarget"] as Map<*, *>)["id"])
     }
 
     @Test
     fun theJsShapeNamesThePhaseAndTheTarget() {
         val target = mapOf("kind" to "cast", "id" to "device-a", "name" to "Living room", "capabilities" to mapOf("volume" to true))
+        val noVolumeNoFailure = mapOf("volume" to null, "muted" to false, "errorCode" to null, "failedTarget" to null)
 
         assertEquals(
-            mapOf("state" to "connected", "target" to target, "reconnecting" to false, "error" to null),
+            mapOf("state" to "connected", "target" to target, "reconnecting" to false, "error" to null) + noVolumeNoFailure,
             connectedTo(livingRoom).snapshot.toMap(),
         )
         assertEquals(
-            mapOf("state" to "none", "target" to null, "reconnecting" to false, "error" to null),
+            mapOf("state" to "none", "target" to null, "reconnecting" to false, "error" to null) + noVolumeNoFailure,
             RemoteTargetSnapshot.NONE.toMap(),
         )
     }

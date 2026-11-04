@@ -26,6 +26,15 @@ class RemoteTargetHub {
     var devices: List<TargetDevice> = emptyList()
         private set
 
+    /**
+     * True after a disconnect that asked to keep the receiver playing, until the next connection; the module
+     * marks the end it brings. The receiver keeps playing only when this session joined it: the session that
+     * launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
+     */
+    @Volatile
+    var disconnectedWithoutStop = false
+        private set
+
     /** The same port again does nothing, so every JS reload can install it. */
     fun install(port: TargetPort) {
         if (port === this.port) return
@@ -50,6 +59,7 @@ class RemoteTargetHub {
     fun connect(deviceId: String): Boolean {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
+        disconnectedWithoutStop = false
         val current = snapshot
         val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
         // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -64,8 +74,20 @@ class RemoteTargetHub {
 
     /** The state follows the port's events, ending then ended, not this call. */
     fun disconnect(stopPlayback: Boolean) {
+        disconnectedWithoutStop = !stopPlayback
         machine.disconnectRequested()
         port?.disconnect(stopPlayback)
+    }
+
+    /** Bounded to 0..1, and only for a connected receiver: the state follows what the SDK reports back. */
+    fun setVolume(level: Double) {
+        if (snapshot.phase != TargetPhase.CONNECTED) return
+        port?.setVolume(level.coerceIn(0.0, 1.0))
+    }
+
+    fun setMuted(muted: Boolean) {
+        if (snapshot.phase != TargetPhase.CONNECTED) return
+        port?.setMuted(muted)
     }
 
     /** [owner] names who asks ([APP_DISCOVERY], [PROBE_DISCOVERY]); asking twice still takes one stop. */
@@ -79,9 +101,20 @@ class RemoteTargetHub {
 
     // Each port gets its own events: one replaced, or stopped late, is no longer heard.
     private fun eventsFor(port: TargetPort) = object : TargetPortEvents {
-        override fun sessionEvent(event: String, device: TargetDevice?, error: String?) {
+        override fun sessionEvent(event: String, device: TargetDevice?, error: String?) =
+            sessionEvent(event, device, error, null)
+
+        override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
             if (this@RemoteTargetHub.port !== port) return
-            if (machine.sessionEvent(event, device, error)) publish()
+            // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
+            // kept, or one that came back, is no end of that disconnect any more.
+            if (event == "starting" || event == "endRefused" || event == "resumed") disconnectedWithoutStop = false
+            if (machine.sessionEvent(event, device, error, code)) publish()
+        }
+
+        override fun volumeChanged(level: Double, muted: Boolean) {
+            if (this@RemoteTargetHub.port !== port) return
+            if (machine.volumeChanged(level, muted)) publish()
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {

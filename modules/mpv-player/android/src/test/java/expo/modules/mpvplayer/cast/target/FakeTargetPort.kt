@@ -16,6 +16,8 @@ class FakeTargetPort(
     var discovering = false
     val connects = mutableListOf<TargetDevice>()
     val disconnects = mutableListOf<Boolean>()
+    val volumes = mutableListOf<Double>()
+    val mutes = mutableListOf<Boolean>()
 
     override fun start(events: TargetPortEvents) {
         this.events = events
@@ -45,6 +47,14 @@ class FakeTargetPort(
 
     override fun disconnect(stopPlayback: Boolean) {
         disconnects += stopPlayback
+    }
+
+    override fun setVolume(level: Double) {
+        volumes += level
+    }
+
+    override fun setMuted(muted: Boolean) {
+        mutes += muted
     }
 
     fun emit(event: String, device: TargetDevice?, error: String? = null) {

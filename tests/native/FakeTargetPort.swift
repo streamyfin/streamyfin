@@ -15,6 +15,8 @@ final class FakeTargetPort: TargetPort {
   var discovering = false
   var connects: [TargetDevice] = []
   var disconnects: [Bool] = []
+  var volumes: [Double] = []
+  var mutes: [Bool] = []
 
   init(
     atStart: [(String, TargetDevice?, String?)] = [], known: [TargetDevice] = [], listsOnDiscovery: Bool = false,
@@ -51,6 +53,10 @@ final class FakeTargetPort: TargetPort {
   }
 
   func disconnect(stopPlayback: Bool) { disconnects.append(stopPlayback) }
+
+  func setVolume(_ level: Double) { volumes.append(level) }
+
+  func setMuted(_ muted: Bool) { mutes.append(muted) }
 
   func emit(_ event: String, _ device: TargetDevice?, error: String? = nil) {
     events?.sessionEvent(event, device: device, error: error)

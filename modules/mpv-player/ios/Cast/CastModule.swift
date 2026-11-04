@@ -80,6 +80,17 @@ public class CastModule: Module {
       self.remoteTargets.disconnect(stopPlayback: stopPlayback)
     }.runOnQueue(.main)
 
+    // Only for a connected receiver; the state follows what the SDK reports back.
+    AsyncFunction("setTargetVolume") { (level: Double) in
+      self.ensureListening()
+      self.remoteTargets.setVolume(level)
+    }.runOnQueue(.main)
+
+    AsyncFunction("setTargetMuted") { (muted: Bool) in
+      self.ensureListening()
+      self.remoteTargets.setMuted(muted)
+    }.runOnQueue(.main)
+
     Function("getCurrentSession") { () -> [String: Any?]? in
       if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
       return self.cached { self.cachedSession }
@@ -209,11 +220,15 @@ public class CastModule: Module {
   }
 
   fileprivate func emitSession(_ event: String, _ session: GCKSession, error: Error?) {
-    sendEvent("onSessionEvent", [
+    var payload: [String: Any?] = [
       "event": event,
       "sessionId": session.sessionID,
       "error": CastMapping.sessionEndError(error),
-    ])
+    ]
+    // A disconnect without stop ends without an error too, and may leave the TV playing: the stop reporter
+    // checks the receiver for it instead of taking the end for a closed receiver.
+    if event == "ended" && remoteTargets.disconnectedWithoutStop { payload["withoutStop"] = true }
+    sendEvent("onSessionEvent", payload)
   }
 
   fileprivate func observe(_ session: GCKCastSession) {
@@ -357,6 +372,8 @@ public class CastModule: Module {
     Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
+    AsyncFunction("setTargetVolume") { (_: Double) in }
+    AsyncFunction("setTargetMuted") { (_: Bool) in }
 
     View(CastButtonView.self) {
       Prop("tintColor") { (view: CastButtonView, color: String?) in

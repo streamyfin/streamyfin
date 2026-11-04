@@ -7,13 +7,16 @@ final class FakeCastDevices: TargetPort {
   static let notOnTheBench = "Not one of the fake receivers"
   static let devices = [
     TargetDevice(id: "fake-cast-living-room", name: "Bench TV", model: "Fake Chromecast"),
-    TargetDevice(id: "fake-cast-bedroom", name: "Bench Speaker", model: "Fake Cast speaker"),
+    TargetDevice(id: "fake-cast-bedroom", name: "Bench Speaker", model: "Fake Cast speaker", videoOut: false),
   ]
 
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private var events: TargetPortEvents?
   private var current: TargetDevice?
   private var pending: (() -> Void)?
+  private var echo: (() -> Void)?
+  private var volume = 1.0
+  private var muted = false
 
   init(schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void)) {
     self.schedule = schedule
@@ -47,6 +50,11 @@ final class FakeCastDevices: TargetPort {
       events?.sessionEvent("ending", device: previous, error: nil)
       events?.sessionEvent("ended", device: previous, error: nil)
     }
+    // A level still on its way belongs to the receiver left; the next one starts at its own.
+    echo?()
+    echo = nil
+    volume = 1.0
+    muted = false
     current = device
     events?.sessionEvent("starting", device: device, error: nil)
     pending = schedule(RemoteTargetConstants.fakeConnectDelayMs) { [weak self] in
@@ -67,6 +75,27 @@ final class FakeCastDevices: TargetPort {
       self?.pending = nil
       self?.current = nil
       self?.events?.sessionEvent("ended", device: device, error: nil)
+    }
+  }
+
+  func setVolume(_ level: Double) {
+    volume = level
+    echoVolume()
+  }
+
+  func setMuted(_ muted: Bool) {
+    self.muted = muted
+    echoVolume()
+  }
+
+  // Reported back a moment later, as a receiver does, and only while a session is up.
+  private func echoVolume() {
+    guard current != nil else { return }
+    echo?()
+    echo = schedule(RemoteTargetConstants.fakeVolumeEchoMs) { [weak self] in
+      guard let self else { return }
+      echo = nil
+      if current != nil { events?.volumeChanged(level: volume, muted: muted) }
     }
   }
 

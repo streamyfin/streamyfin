@@ -1,20 +1,22 @@
 import Foundation
 
-/// A receiver the SDK can reach, as discovery lists it.
+/// A receiver the SDK can reach, as discovery lists it; `videoOut` tells a screen from a speaker.
 struct TargetDevice: Equatable {
   let id: String
   let name: String
   let model: String?
+  let videoOut: Bool
 
-  init(id: String, name: String, model: String? = nil) {
+  init(id: String, name: String, model: String? = nil, videoOut: Bool = true) {
     self.id = id
     self.name = name
     self.model = model
+    self.videoOut = videoOut
   }
 
   /// The CastDevice record of Cast.types.ts, which onDevicesChanged publishes.
   func toDictionary() -> [String: Any?] {
-    ["deviceId": id, "friendlyName": name, "modelName": model]
+    ["deviceId": id, "friendlyName": name, "modelName": model, "videoOut": videoOut]
   }
 }
 
@@ -31,6 +33,10 @@ struct RemoteTarget: Equatable {
   static func cast(_ device: TargetDevice) -> RemoteTarget {
     RemoteTarget(kind: kindCast, id: device.id, name: device.name, volume: true)
   }
+
+  func toDictionary() -> [String: Any?] {
+    ["kind": kind, "id": id, "name": name, "capabilities": ["volume": volume]]
+  }
 }
 
 /// The raw values are the names JS reads.
@@ -42,25 +48,36 @@ enum TargetPhase: String {
 struct RemoteTargetSnapshot: Equatable {
   static let none = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: nil)
 
-  let phase: TargetPhase
-  let target: RemoteTarget?
-  let reconnecting: Bool
+  var phase: TargetPhase
+  var target: RemoteTarget?
+  var reconnecting: Bool
   /// Why the last session ended, or why a request the port refused at once did not move the session
   /// that holds; nil when nothing went wrong, or when the user ended it.
-  let error: String?
+  var error: String?
+  /// The receiver's own volume, 0 to 1, as the SDK last reported it for this session; nil before.
+  var volume: Double?
+  var muted = false
+  /// The SDK's status code for `error`, and the receiver it belongs to: nil with no error, and the code
+  /// nil as well for a refusal of the port's own.
+  var errorCode: Int?
+  var failedTarget: RemoteTarget?
 
   func withError(_ error: String?) -> RemoteTargetSnapshot {
-    RemoteTargetSnapshot(phase: phase, target: target, reconnecting: reconnecting, error: error)
+    var next = self
+    next.error = error
+    return next
   }
 
   func toDictionary() -> [String: Any?] {
     [
       "state": phase.rawValue,
-      "target": target.map { target -> [String: Any?] in
-        ["kind": target.kind, "id": target.id, "name": target.name, "capabilities": ["volume": target.volume]]
-      },
+      "target": target?.toDictionary(),
       "reconnecting": reconnecting,
       "error": error,
+      "volume": volume,
+      "muted": muted,
+      "errorCode": errorCode,
+      "failedTarget": failedTarget?.toDictionary(),
     ]
   }
 }
@@ -97,8 +114,20 @@ final class RemoteTargetMachine {
     switchingTo = nil
   }
 
-  /// True when the state changed. An event without its device keeps the target already known.
-  func sessionEvent(_ event: String, device: TargetDevice?, error: String?) -> Bool {
+  /// The receiver's volume, as the SDK reports it: held only for a session connecting or connected.
+  func volumeChanged(level: Double, muted: Bool) -> Bool {
+    guard snapshot.phase == .connecting || snapshot.phase == .connected else { return false }
+    var next = snapshot
+    next.volume = min(max(level, 0), 1)
+    next.muted = muted
+    guard next != snapshot else { return false }
+    snapshot = next
+    return true
+  }
+
+  /// True when the state changed. An event without its device keeps the target already known. `code` is
+  /// the SDK's status code for `error`, when the SDK gave one.
+  func sessionEvent(_ event: String, device: TargetDevice?, error: String?, code: Int? = nil) -> Bool {
     let failure = event == "ended" || event == "startFailed"
     // The only start in flight during a switch is the asked receiver's, so a start failure without its
     // device is that one's.
@@ -112,8 +141,9 @@ final class RemoteTargetMachine {
       // The asked receiver failed. Once the old session ended it was the target; before that, the port
       // refused it at once, and the receiver holding the session stays, with the cause.
       switchingTo = nil
-      guard held else { return update(snapshot.withError(error)) }
-      return update(RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error))
+      guard held else { return update(failed(snapshot.withError(error), error, code, .cast(switching))) }
+      let ended = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error)
+      return update(failed(ended, error, code, .cast(switching)))
     }
     if Self.endEvents.contains(event), let device, heldOtherThan(device) { return false }
     if failure, let switching = switchingTo {
@@ -135,20 +165,35 @@ final class RemoteTargetMachine {
     case "ending":
       next = RemoteTargetSnapshot(phase: .ending, target: snapshot.target, reconnecting: false, error: nil)
     case "ended", "startFailed":
-      next = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error)
+      next = failed(RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error), error, code, target)
     case "endRefused":
       // The SDK kept a session it was asked to end: it stays, with the cause.
       guard snapshot.phase != .none else { return false }
-      next = snapshot.withError(error)
+      next = failed(snapshot.withError(error), error, code, snapshot.target)
     default:
       return false
     }
     return update(next)
   }
 
+  // An error names the receiver it belongs to and the SDK's code for it; no error names neither.
+  private func failed(_ next: RemoteTargetSnapshot, _ error: String?, _ code: Int?, _ target: RemoteTarget?)
+    -> RemoteTargetSnapshot
+  {
+    var named = next
+    named.errorCode = error == nil ? nil : code
+    named.failedTarget = error == nil ? nil : target
+    return named
+  }
+
+  // The same session keeps the volume the SDK last reported; another target, or none, starts without one.
   private func update(_ next: RemoteTargetSnapshot) -> Bool {
-    guard next != snapshot else { return false }
-    snapshot = next
+    var carried = next
+    let sameSession = next.phase != .none && next.target?.id == snapshot.target?.id
+    carried.volume = sameSession ? snapshot.volume : nil
+    carried.muted = sameSession ? snapshot.muted : false
+    guard carried != snapshot else { return false }
+    snapshot = carried
     return true
   }
 

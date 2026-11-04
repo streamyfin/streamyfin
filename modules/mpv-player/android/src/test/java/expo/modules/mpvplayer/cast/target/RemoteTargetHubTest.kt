@@ -172,6 +172,104 @@ class RemoteTargetHubTest {
         assertEquals(listOf(emptyList<TargetDevice>()), heard.deviceLists)
     }
 
+    // The module tells JS the end came from a disconnect that asked to keep the receiver: whether the TV still
+    // plays depends on who launched it, so the stop reporter checks before it reports.
+    @Test
+    fun aDisconnectWithoutStopMarksTheEnd() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = false)
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom)
+        val afterTheEnd = hub.disconnectedWithoutStop
+
+        assertEquals(listOf(false), port.disconnects)
+        assertTrue(afterTheEnd)
+    }
+
+    @Test
+    fun theNextConnectClearsTheMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+        hub.disconnect(stopPlayback = false)
+        port.emit("ended", livingRoom)
+
+        hub.connect(livingRoom.id)
+        val afterConnect = hub.disconnectedWithoutStop
+        hub.disconnect(stopPlayback = false)
+        port.emit("ended", livingRoom)
+        // A session the SDK's own dialog starts clears it too.
+        port.emit("starting", livingRoom)
+
+        assertFalse(afterConnect)
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
+    // A disconnect the SDK refused, or a session that came back, is no end of that disconnect any more.
+    @Test
+    fun aKeptOrResumedSessionClearsTheMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = false)
+        port.emit("endRefused", livingRoom, "kept")
+        val afterTheRefusal = hub.disconnectedWithoutStop
+        hub.disconnect(stopPlayback = false)
+        port.emit("suspended", livingRoom)
+        port.emit("resumed", livingRoom)
+
+        assertFalse(afterTheRefusal)
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
+    @Test
+    fun aStopLeavesNoMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = true)
+        port.emit("ended", livingRoom)
+
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
+    @Test
+    fun theHubBoundsTheLevelItSends() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.setVolume(-0.2)
+        hub.setVolume(1.4)
+        hub.setMuted(true)
+
+        assertEquals(listOf(0.0, 1.0), port.volumes)
+        assertEquals(listOf(true), port.mutes)
+    }
+
+    @Test
+    fun aVolumeAskedWithNoTargetReachesNoPort() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = RemoteTargetHub().also { it.install(port) }
+
+        hub.setVolume(0.5)
+        hub.setMuted(true)
+
+        assertTrue(port.volumes.isEmpty())
+        assertTrue(port.mutes.isEmpty())
+    }
+
+    @Test
+    fun aVolumeThePortReportsIsPublished() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        port.events?.volumeChanged(0.3, true)
+
+        assertEquals(0.3, hub.snapshot.volume)
+        assertTrue(hub.snapshot.muted)
+    }
+
     @Test
     fun onlyChangesReachTheListeners() {
         val hub = RemoteTargetHub()

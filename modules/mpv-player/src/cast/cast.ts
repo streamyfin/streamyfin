@@ -58,13 +58,33 @@ export const remoteTarget = (): RemoteTargetState =>
 export const connectToCastDevice = (deviceId: string): Promise<boolean> =>
   native()?.connectToDevice(deviceId) ?? Promise.resolve(false);
 
-/** Ends the session; `stopPlayback` (true unless set) also closes the receiver app. */
+/**
+ * Ends the session. `stopPlayback` (true unless set) also closes the receiver
+ * app. False keeps it playing only when this session joined a receiver app
+ * already running: the session that launched it stops it at its end on both
+ * platforms, whatever it asks. The `ended` that follows carries `withoutStop`.
+ */
 export const disconnectRemoteTarget = ({
   stopPlayback = true,
 }: {
   stopPlayback?: boolean;
 } = {}): Promise<void> =>
   native()?.disconnect(stopPlayback) ?? Promise.resolve();
+
+/**
+ * Sets the connected receiver's own volume, 0 to 1, and does nothing without a
+ * connected target. The state's volume follows once the receiver reports it.
+ * Android sets it in the Cast route's steps, 20 on a Chromecast.
+ */
+export const setRemoteTargetVolume = (level: number): Promise<void> =>
+  native()?.setTargetVolume(level) ?? Promise.resolve();
+
+/**
+ * Mutes the connected receiver: the device on iOS, the playing stream on
+ * Android, as the SDK's expanded controls do there, which needs media loaded.
+ */
+export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
+  native()?.setTargetMuted(muted) ?? Promise.resolve();
 
 export const showCastDialog = (): Promise<boolean> =>
   native()?.showCastDialog() ?? Promise.resolve(false);

@@ -24,6 +24,8 @@ import {
   onRemoteTargetChanged,
   playServicesState,
   remoteTarget,
+  setRemoteTargetMuted,
+  setRemoteTargetVolume,
   showCastDialog,
   showPlayServicesErrorDialog,
 } from "./cast";
@@ -336,8 +338,12 @@ test("the remote target answers none and no calls reach the module while Cast is
   expect(remoteTarget()).toEqual(NO_REMOTE_TARGET);
   await expect(connectToCastDevice("device-a")).resolves.toBe(false);
   await expect(disconnectRemoteTarget()).resolves.toBeUndefined();
+  await expect(setRemoteTargetVolume(0.5)).resolves.toBeUndefined();
+  await expect(setRemoteTargetMuted(true)).resolves.toBeUndefined();
   expect(mockCast.connectRequests).toEqual([]);
   expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockCast.volumeCalls).toEqual([]);
+  expect(mockCast.muteCalls).toEqual([]);
 });
 
 test("remoteTarget reads the state the module holds", () => {
@@ -353,6 +359,10 @@ test("remoteTarget reads the state the module holds", () => {
     },
     reconnecting: false,
     error: null,
+    volume: null,
+    muted: false,
+    errorCode: null,
+    failedTarget: null,
   });
 });
 
@@ -370,6 +380,23 @@ test("disconnectRemoteTarget stops the receiver's playback unless asked not to",
   await disconnectRemoteTarget({ stopPlayback: false });
 
   expect(mockCast.disconnectCalls).toEqual([true, false]);
+});
+
+test("setRemoteTargetVolume sends the level to native", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  await setRemoteTargetVolume(0.4);
+
+  expect(mockCast.volumeCalls).toEqual([0.4]);
+});
+
+test("setRemoteTargetMuted sends the flag to native", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  await setRemoteTargetMuted(true);
+  await setRemoteTargetMuted(false);
+
+  expect(mockCast.muteCalls).toEqual([true, false]);
 });
 
 test("onRemoteTargetChanged hands each state the module publishes", () => {
