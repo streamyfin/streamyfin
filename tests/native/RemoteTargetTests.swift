@@ -567,6 +567,137 @@ enum RemoteTargetTests {
     }
   }
 
+  // The fake receivers of a tier 1 build, and the choice between them and the SDK's port: the same
+  // cases as FakeCastDevicesTest.kt and FakeCastDevicesWiringTest.kt. The script compiles this file
+  // twice, the second time as a tier 1 build (-D FAKE_CAST_DEVICES, with --expect-fake).
+  static func fakeDeviceCases() {
+    let tv = FakeCastDevices.devices[0]
+    let speaker = FakeCastDevices.devices[1]
+    let connectDelay = RemoteTargetConstants.fakeConnectDelayMs
+    let endDelay = RemoteTargetConstants.fakeEndDelayMs
+
+    func started() -> (FakeCastDevices, Clock, PortEventsRecording) {
+      let clock = Clock()
+      let events = PortEventsRecording()
+      let port = FakeCastDevices(schedule: clock.schedule)
+      port.start(events: events)
+      return (port, clock, events)
+    }
+
+    do {
+      let (port, _, events) = started()
+      port.startDiscovery()
+      check(
+        "discoveryListsTheTwoBenchDevices",
+        port.devices().map(\.name) == ["Bench TV", "Bench Speaker"] && events.deviceLists == [FakeCastDevices.devices]
+      )
+    }
+
+    do {
+      let (port, clock, events) = started()
+      port.connect(tv)
+      let first = events.sessions
+      clock.advance(connectDelay - 1)
+      let early = events.sessions.count
+      clock.advance(1)
+      check(
+        "aConnectionStartsThenStartedAfterItsDelay",
+        first == ["starting fake-cast-living-room nil"] && early == 1
+          && events.sessions == ["starting fake-cast-living-room nil", "started fake-cast-living-room nil"]
+      )
+    }
+
+    do {
+      let (port, clock, events) = started()
+      port.connect(tv)
+      clock.advance(connectDelay)
+      port.disconnect(stopPlayback: true)
+      clock.advance(endDelay)
+      check(
+        "aDisconnectEndsWithoutError",
+        Array(events.sessions.dropFirst(2)) == ["ending fake-cast-living-room nil", "ended fake-cast-living-room nil"]
+      )
+    }
+
+    do {
+      let (port, clock, events) = started()
+      port.connect(tv)
+      clock.advance(connectDelay)
+      port.connect(speaker)
+      clock.advance(connectDelay)
+      check(
+        "anotherDeviceEndsTheFirstBeforeItStarts",
+        Array(events.sessions.dropFirst(2)) == [
+          "ending fake-cast-living-room nil", "ended fake-cast-living-room nil",
+          "starting fake-cast-bedroom nil", "started fake-cast-bedroom nil",
+        ]
+      )
+    }
+
+    do {
+      let (port, clock, events) = started()
+      port.connect(tv)
+      port.disconnect(stopPlayback: true)
+      clock.advance(connectDelay + endDelay)
+      check(
+        "aDisconnectWhileConnectingNeverStarts",
+        events.sessions == [
+          "starting fake-cast-living-room nil", "ending fake-cast-living-room nil", "ended fake-cast-living-room nil",
+        ]
+      )
+    }
+
+    do {
+      let (port, _, events) = started()
+      port.disconnect(stopPlayback: false)
+      check("aDisconnectWithNothingConnectedEnds", events.sessions == ["ended nil nil"])
+    }
+
+    do {
+      let (port, _, events) = started()
+      port.connect(livingRoom)
+      check(
+        "aDeviceOffTheBenchFailsToStart",
+        events.sessions == ["startFailed device-a " + FakeCastDevices.notOnTheBench]
+      )
+    }
+
+    do {
+      let (port, clock, events) = started()
+      port.connect(tv)
+      port.stop()
+      clock.advance(connectDelay)
+      check("aStoppedPortSendsNothingMore", events.sessions == ["starting fake-cast-living-room nil"])
+    }
+
+    do {
+      let clock = Clock()
+      let hub = RemoteTargetHub()
+      hub.install(FakeCastDevices(schedule: clock.schedule))
+      hub.startDiscovery()
+      let accepted = hub.connect(deviceId: "fake-cast-living-room")
+      let connecting = hub.snapshot.phase
+      clock.advance(connectDelay)
+      check(
+        "theHubConnectsToAFakeReceiverById",
+        accepted && connecting == .connecting && hub.snapshot == state(.connected, .cast(tv))
+          && hub.devices == FakeCastDevices.devices
+      )
+    }
+
+    do {
+      let expectFake = CommandLine.arguments.contains("--expect-fake")
+      let real = FakeTargetPort()
+      let schedule = Clock().schedule
+      check("theBuildHasFakeDevicesOnlyWhenItAskedForThem", RemoteTargets.fakeDevices == expectFake)
+      check(
+        "theRealPortUnlessTheBuildAskedForFakes",
+        RemoteTargets.portFor(fake: false, real: { real }, schedule: schedule) === real
+          && RemoteTargets.portFor(fake: true, real: { real }, schedule: schedule) is FakeCastDevices
+      )
+    }
+  }
+
   static func main() {
     do {
       let machine = RemoteTargetMachine()
@@ -667,6 +798,7 @@ enum RemoteTargetTests {
     hubCases()
     portCases()
     probeCases()
+    fakeDeviceCases()
 
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")

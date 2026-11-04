@@ -15,9 +15,14 @@ Pod::Spec.new do |s|
   # simulator), so this is the same pod the app linked through the library.
   s.ios.dependency 'google-cast-sdk', '~> 4.8'
 
+  # Tier 1 builds only (e2e/README.md, "Fake Cast receivers"): `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install`
+  # compiles fake receivers in place of the Cast SDK's. No store build sets it.
+  fake_cast_devices = ENV['STREAMYFIN_FAKE_CAST_DEVICES'] == '1'
+
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'SWIFT_COMPILATION_MODE' => 'wholemodule'
+    'SWIFT_COMPILATION_MODE' => 'wholemodule',
+    'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => fake_cast_devices ? '$(inherited) FAKE_CAST_DEVICES' : '$(inherited)'
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
