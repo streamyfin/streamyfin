@@ -9,6 +9,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.hardware.display.DisplayManager
+import android.view.Display
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -102,6 +104,11 @@ class NativePlayerSession(
 
     /** Between the host activity's onStop and its next onStart. */
     private var hostActivityStopped = false
+
+    // Refresh-rate matching: the mode we switched the window to, and the
+    // window attribute that was there before, so dismiss hands the display
+    // back to the system instead of leaving playback's rate pinned.
+    private var originalPreferredDisplayModeId: Int? = null
 
     /** The play state the PiP window's buttons were last built for. */
     private var pipActionsPlaying: Boolean? = null
@@ -678,6 +685,10 @@ class NativePlayerSession(
             return
         }
 
+        // Before the engine loads, so the mode settles while the stream
+        // buffers instead of after the first juddered frames.
+        loadConfig.contentFrameRate?.let { matchContentFrameRate(it) }
+
         engine?.load(loadConfig)
 
         // mpv's pause property is global and survives loadfile, and keep-open=
@@ -716,6 +727,55 @@ class NativePlayerSession(
             "onLoad",
             mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted, "isPlaying" to loadConfig.autoplay),
         )
+    }
+
+    /**
+     * Switch the window to the display mode matching the content's frame
+     * rate. MKV direct play never gives the platform a frame rate, so the
+     * codec starts on its default and the vendor's HDMI frame-rate adaptation
+     * fires before the real rate is known — without this, 25fps content stays
+     * on a 60Hz panel and judders in an uneven 2:2:3 cadence.
+     * preferredDisplayModeId is the API Android's docs prescribe for TV
+     * boxes: Surface.setFrameRate() only drives seamless switches, and TV
+     * panels switch non-seamlessly. Resolves to a no-op when no supported
+     * mode matches or the best match is already active.
+     */
+    private fun matchContentFrameRate(contentFrameRate: Double) {
+        val activity = hostActivity ?: return
+        try {
+            val displayManager =
+                activity.getSystemService(DisplayManager::class.java) ?: return
+            val display =
+                displayManager.getDisplay(Display.DEFAULT_DISPLAY) ?: return
+            val mode = RefreshRateMatcher.pickMode(display, contentFrameRate) ?: return
+            val attributes = activity.window.attributes
+            if (originalPreferredDisplayModeId == null) {
+                originalPreferredDisplayModeId = attributes.preferredDisplayModeId
+            }
+            attributes.preferredDisplayModeId = mode.modeId
+            activity.window.attributes = attributes
+            Log.i(
+                TAG,
+                "Matched display mode " + mode.modeId + " (" + mode.refreshRate +
+                    " Hz) to " + contentFrameRate + " fps"
+            )
+        } catch (e: Exception) {
+            // A refused mode switch must never take playback down with it.
+            Log.w(TAG, "Display mode match failed", e)
+        }
+    }
+
+    private fun restoreDisplayMode() {
+        val original = originalPreferredDisplayModeId ?: return
+        originalPreferredDisplayModeId = null
+        val activity = hostActivity ?: return
+        try {
+            val attributes = activity.window.attributes
+            attributes.preferredDisplayModeId = original
+            activity.window.attributes = attributes
+        } catch (e: Exception) {
+            // Ignored — the window is going away anyway.
+        }
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {
@@ -831,6 +891,7 @@ class NativePlayerSession(
                 } catch (e: Exception) {
                     // Ignored
                 }
+                restoreDisplayMode()
             }
 
             viewModel.brightnessController?.restore()
@@ -870,6 +931,7 @@ class NativePlayerSession(
             surfaceView = null
             composeView = null
             activity?.let { unregisterPiPReceiver(it) }
+            restoreDisplayMode()
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()
