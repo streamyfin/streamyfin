@@ -105,6 +105,16 @@ class RemoteTargetMachineTest {
         assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
     }
 
+    // onDevicesChanged kept its record when discovery moved into the port.
+    @Test
+    fun aDeviceKeepsTheRecordDiscoveryPublishes() {
+        assertEquals(
+            mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to "Chromecast"),
+            TargetDevice("device-a", "Living room", "Chromecast").toMap(),
+        )
+        assertEquals(mapOf("deviceId" to "device-a", "friendlyName" to "Living room", "modelName" to null), livingRoom.toMap())
+    }
+
     @Test
     fun theJsShapeNamesThePhaseAndTheTarget() {
         val target = mapOf("kind" to "cast", "id" to "device-a", "name" to "Living room", "capabilities" to mapOf("volume" to true))

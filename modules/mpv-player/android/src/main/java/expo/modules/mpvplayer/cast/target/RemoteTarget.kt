@@ -1,7 +1,10 @@
 package expo.modules.mpvplayer.cast.target
 
 /** A receiver the SDK can reach, as discovery lists it. */
-data class TargetDevice(val id: String, val name: String)
+data class TargetDevice(val id: String, val name: String, val model: String? = null) {
+    /** The CastDevice record of Cast.types.ts, which onDevicesChanged publishes. */
+    fun toMap(): Map<String, Any?> = mapOf("deviceId" to id, "friendlyName" to name, "modelName" to model)
+}
 
 /** Where playback goes. Only Cast targets exist for now; Play On and AirPlay come with their engines. */
 data class RemoteTarget(val kind: String, val id: String, val name: String, val volume: Boolean) {
