@@ -62,10 +62,16 @@ export interface CastSessionEventPayload {
   sessionId: string | null;
   /**
    * Why the session ended, or null when the user ended it: the module
-   * reports no error only for a stop asked from this phone, which also
-   * closes the receiver app.
+   * reports no error only for a stop or a disconnect asked from this phone.
    */
   error: string | null;
+  /**
+   * True on an `ended` that a disconnect without stop brought: the TV still
+   * plays when this session joined a receiver app already running, and has
+   * closed when this session launched it. Absent otherwise, where an end
+   * without an error closed the receiver app.
+   */
+  withoutStop?: boolean;
 }
 
 export interface CastMediaMetadata {

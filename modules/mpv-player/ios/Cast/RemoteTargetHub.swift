@@ -70,6 +70,10 @@ final class RemoteTargetHub {
 
   var snapshot: RemoteTargetSnapshot { locked { publishedSnapshot } }
   var devices: [TargetDevice] { locked { publishedDevices } }
+  /// True after a disconnect that asked to keep the receiver playing, until the next connection; the module
+  /// marks the end it brings. The receiver keeps playing only when this session joined it: the session that
+  /// launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
+  private(set) var disconnectedWithoutStop = false
 
   /// The same port again does nothing, so every JS reload can install it.
   func install(_ port: TargetPort) {
@@ -96,6 +100,7 @@ final class RemoteTargetHub {
   /// False, with nothing changed, when the port does not know the device.
   func connect(deviceId: String) -> Bool {
     guard let port, let device = port.devices().first(where: { $0.id == deviceId }) else { return false }
+    disconnectedWithoutStop = false
     let current = snapshot
     let held = current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected)
     // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -110,6 +115,7 @@ final class RemoteTargetHub {
 
   /// The state follows the port's events, ending then ended, not this call.
   func disconnect(stopPlayback: Bool) {
+    disconnectedWithoutStop = !stopPlayback
     machine.disconnectRequested()
     port?.disconnect(stopPlayback: stopPlayback)
   }
@@ -136,6 +142,8 @@ final class RemoteTargetHub {
 
   fileprivate func sessionEvent(from port: TargetPort, _ event: String, device: TargetDevice?, error: String?, code: Int?) {
     guard port === self.port else { return }
+    // A session the SDK starts on its own, from its dialog, is a new connection too.
+    if event == "starting" { disconnectedWithoutStop = false }
     if machine.sessionEvent(event, device: device, error: error, code: code) { publish() }
   }
 

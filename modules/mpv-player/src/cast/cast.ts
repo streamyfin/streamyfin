@@ -58,7 +58,12 @@ export const remoteTarget = (): RemoteTargetState =>
 export const connectToCastDevice = (deviceId: string): Promise<boolean> =>
   native()?.connectToDevice(deviceId) ?? Promise.resolve(false);
 
-/** Ends the session; `stopPlayback` (true unless set) also closes the receiver app. */
+/**
+ * Ends the session. `stopPlayback` (true unless set) also closes the receiver
+ * app. False keeps it playing only when this session joined a receiver app
+ * already running: the session that launched it stops it at its end on both
+ * platforms, whatever it asks. The `ended` that follows carries `withoutStop`.
+ */
 export const disconnectRemoteTarget = ({
   stopPlayback = true,
 }: {

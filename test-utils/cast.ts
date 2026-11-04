@@ -197,11 +197,14 @@ export const emitCastSessionEvent = (
   state: CastDoubleState,
   event: CastSessionEvent,
   error: string | null = null,
+  { withoutStop }: { withoutStop?: boolean } = {},
 ): void =>
   emitCastEvent(state, "onSessionEvent", {
     event,
     sessionId: state.session?.id ?? null,
     error,
+    // Only on an end a disconnect without stop brought, as the module sends it.
+    ...(withoutStop ? { withoutStop } : {}),
   });
 
 /** A receiver message on a channel's namespace; the native side only ever hands over strings. */

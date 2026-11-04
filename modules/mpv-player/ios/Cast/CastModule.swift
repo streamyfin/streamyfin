@@ -220,11 +220,15 @@ public class CastModule: Module {
   }
 
   fileprivate func emitSession(_ event: String, _ session: GCKSession, error: Error?) {
-    sendEvent("onSessionEvent", [
+    var payload: [String: Any?] = [
       "event": event,
       "sessionId": session.sessionID,
       "error": CastMapping.sessionEndError(error),
-    ])
+    ]
+    // A disconnect without stop ends without an error too, and may leave the TV playing: the stop reporter
+    // checks the receiver for it instead of taking the end for a closed receiver.
+    if event == "ended" && remoteTargets.disconnectedWithoutStop { payload["withoutStop"] = true }
+    sendEvent("onSessionEvent", payload)
   }
 
   fileprivate func observe(_ session: GCKCastSession) {

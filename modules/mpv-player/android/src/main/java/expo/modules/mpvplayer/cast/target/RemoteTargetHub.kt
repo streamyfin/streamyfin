@@ -26,6 +26,15 @@ class RemoteTargetHub {
     var devices: List<TargetDevice> = emptyList()
         private set
 
+    /**
+     * True after a disconnect that asked to keep the receiver playing, until the next connection; the module
+     * marks the end it brings. The receiver keeps playing only when this session joined it: the session that
+     * launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
+     */
+    @Volatile
+    var disconnectedWithoutStop = false
+        private set
+
     /** The same port again does nothing, so every JS reload can install it. */
     fun install(port: TargetPort) {
         if (port === this.port) return
@@ -50,6 +59,7 @@ class RemoteTargetHub {
     fun connect(deviceId: String): Boolean {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
+        disconnectedWithoutStop = false
         val current = snapshot
         val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
         // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -64,6 +74,7 @@ class RemoteTargetHub {
 
     /** The state follows the port's events, ending then ended, not this call. */
     fun disconnect(stopPlayback: Boolean) {
+        disconnectedWithoutStop = !stopPlayback
         machine.disconnectRequested()
         port?.disconnect(stopPlayback)
     }
@@ -95,6 +106,8 @@ class RemoteTargetHub {
 
         override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
             if (this@RemoteTargetHub.port !== port) return
+            // A session the SDK starts on its own, from its dialog, is a new connection too.
+            if (event == "starting") disconnectedWithoutStop = false
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 

@@ -172,6 +172,51 @@ class RemoteTargetHubTest {
         assertEquals(listOf(emptyList<TargetDevice>()), heard.deviceLists)
     }
 
+    // The module tells JS the end came from a disconnect that asked to keep the receiver: whether the TV still
+    // plays depends on who launched it, so the stop reporter checks before it reports.
+    @Test
+    fun aDisconnectWithoutStopMarksTheEnd() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = false)
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom)
+        val afterTheEnd = hub.disconnectedWithoutStop
+
+        assertEquals(listOf(false), port.disconnects)
+        assertTrue(afterTheEnd)
+    }
+
+    @Test
+    fun theNextConnectClearsTheMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+        hub.disconnect(stopPlayback = false)
+        port.emit("ended", livingRoom)
+
+        hub.connect(livingRoom.id)
+        val afterConnect = hub.disconnectedWithoutStop
+        hub.disconnect(stopPlayback = false)
+        port.emit("ended", livingRoom)
+        // A session the SDK's own dialog starts clears it too.
+        port.emit("starting", livingRoom)
+
+        assertFalse(afterConnect)
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
+    @Test
+    fun aStopLeavesNoMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = true)
+        port.emit("ended", livingRoom)
+
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
     @Test
     fun theHubBoundsTheLevelItSends() {
         val port = FakeTargetPort(known = listOf(livingRoom))

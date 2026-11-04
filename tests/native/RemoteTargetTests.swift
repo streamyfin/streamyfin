@@ -142,6 +142,39 @@ enum RemoteTargetTests {
       check("aVolumeThePortReportsIsPublished", hub.snapshot.volume == 0.3 && hub.snapshot.muted)
     }
 
+    // The module tells JS the end came from a disconnect that asked to keep the receiver: whether the TV still
+    // plays depends on who launched it, so the stop reporter checks before it reports.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: false)
+      port.emit("ending", livingRoom)
+      port.emit("ended", livingRoom)
+      check("aDisconnectWithoutStopMarksTheEnd", port.disconnects == [false] && hub.disconnectedWithoutStop)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: false)
+      port.emit("ended", livingRoom)
+      _ = hub.connect(deviceId: livingRoom.id)
+      let afterConnect = hub.disconnectedWithoutStop
+      hub.disconnect(stopPlayback: false)
+      port.emit("ended", livingRoom)
+      // A session the SDK's own dialog starts clears it too.
+      port.emit("starting", livingRoom)
+      check("theNextConnectClearsTheMark", !afterConnect && !hub.disconnectedWithoutStop)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: true)
+      port.emit("ended", livingRoom)
+      check("aStopLeavesNoMark", !hub.disconnectedWithoutStop)
+    }
+
     // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])

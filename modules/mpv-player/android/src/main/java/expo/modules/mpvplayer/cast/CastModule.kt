@@ -341,7 +341,11 @@ class CastModule : Module() {
     )
 
     private fun emitSession(event: String, session: CastSession, error: String?) {
-        sendEvent("onSessionEvent", mapOf("event" to event, "sessionId" to session.sessionId, "error" to error))
+        val payload = mapOf("event" to event, "sessionId" to session.sessionId, "error" to error)
+        // A disconnect without stop ends without an error too, and may leave the TV playing: the stop reporter
+        // checks the receiver for it instead of taking the end for a closed receiver.
+        val withoutStop = event == "ended" && remoteTargets.disconnectedWithoutStop
+        sendEvent("onSessionEvent", if (withoutStop) payload + ("withoutStop" to true) else payload)
     }
 
     private fun attachMedia(session: CastSession) {
