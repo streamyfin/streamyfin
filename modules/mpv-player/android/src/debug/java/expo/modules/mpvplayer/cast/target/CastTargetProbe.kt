@@ -89,7 +89,8 @@ internal class CastTargetProbe(
         if (!isActive) return
         log(describe(snapshot))
         when (snapshot.phase) {
-            TargetPhase.CONNECTED -> if (!connected) onConnected()
+            // Only the receiver it found: the SDK can resume another session meanwhile, after a relaunch.
+            TargetPhase.CONNECTED -> if (!connected && device != null && snapshot.target?.id == device?.id) onConnected()
             // A none without an error before the connection is a switch's old session ending: the
             // asked receiver comes next, or the connection wait says it never did.
             TargetPhase.NONE -> when {

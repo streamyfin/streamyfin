@@ -575,6 +575,18 @@ enum RemoteTargetTests {
       )
     }
 
+    // On iOS the SDK resumed the session after a relaunch while a probe watched for another name.
+    do {
+      let port = FakeTargetPort()
+      let (probe, clock, logs) = run("kitchen", port: port)
+      port.emit("started", chromecast)
+      clock.advance(CastTargetProbe.discoveryTimeoutMs)
+      check(
+        "aConnectionToAnotherReceiverIsNotTheProbes",
+        port.disconnects.isEmpty && logs().last == "failed: no device named \"kitchen\"" && !probe.isActive
+      )
+    }
+
     // The bench has "Salon" and "Salon - Chromecast": a name that is a whole device name means that device.
     do {
       let castDevice = TargetDevice(id: "device-c", name: "Salon - Chromecast")
