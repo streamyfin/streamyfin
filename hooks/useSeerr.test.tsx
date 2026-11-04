@@ -3,7 +3,7 @@ import {
   QueryClientProvider,
   useQuery,
 } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
 import type React from "react";
 import { DiscoverSliderType } from "@/utils/seerr/types";
@@ -175,17 +175,15 @@ describe("SeerrApi.imageProxy", () => {
 });
 
 describe("useSeerrImageCache", () => {
-  // No garbage collection timer, so Jest can exit when the spec ends.
+  let queryClient: QueryClient;
+  beforeEach(() => {
+    // No garbage collection timer, so Jest can exit when the spec ends.
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
+  });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
-        })
-      }
-    >
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
   test("sets the client's image cache from the server's public settings", async () => {
@@ -240,7 +238,28 @@ describe("useSeerrImageCache", () => {
     await waitFor(() =>
       expect(result.current.settings).toEqual({ cacheImages: false }),
     );
+    // One request: both readers share the query the client is built from.
+    expect(api.publicSettings).toHaveBeenCalledTimes(1);
     expect(result.current.client).toBe(api);
+    expect(api.cacheImages).toBe(false);
+  });
+
+  // The server's admin can turn the cache off while the app runs.
+  test("goes back to TMDB when the server stops caching images", async () => {
+    const api = new SeerrApi("https://seerr.example");
+    const publicSettings = jest
+      .spyOn(api, "publicSettings")
+      .mockResolvedValue({ cacheImages: true } as never);
+
+    const { result } = await renderHook(() => useSeerrImageCache(api), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current?.cacheImages).toBe(true));
+
+    publicSettings.mockResolvedValue({ cacheImages: false } as never);
+    await act(() => queryClient.refetchQueries());
+
+    await waitFor(() => expect(result.current).toBe(api));
     expect(api.cacheImages).toBe(false);
   });
 });
