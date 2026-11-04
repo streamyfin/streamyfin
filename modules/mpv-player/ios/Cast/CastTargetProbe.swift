@@ -75,6 +75,8 @@ final class CastTargetProbe: RemoteTargetListener {
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
     {
       log("already connected to \(target.name)")
+      // The session the probe holds, for the hold's check.
+      device = TargetDevice(id: target.id, name: target.name, model: nil)
       onConnected()
       return
     }

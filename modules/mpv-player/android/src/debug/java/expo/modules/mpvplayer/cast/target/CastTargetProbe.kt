@@ -44,6 +44,8 @@ internal class CastTargetProbe(
         // A whole name only: a part of one may name another receiver than the connected one.
         if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
             log("already connected to ${target.name}")
+            // The session the probe holds, for the hold's check.
+            device = TargetDevice(target.id, target.name)
             onConnected()
             return
         }

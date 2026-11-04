@@ -209,6 +209,23 @@ class CastTargetProbeTest {
         assertEquals("failed: the session went to Bedroom", logs.last())
     }
 
+    // Armed on the receiver already connected, the probe holds that session and ends it: the hold's check
+    // took it for another receiver's session, since that path never named the probe's device (bench, 04/11).
+    @Test
+    fun aProbeArmedOnItsConnectedReceiverHoldsThenEndsIt() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Living room")
+
+        probe.start()
+        scheduler.advance(CastTargetProbe.CONNECTED_HOLD_MS)
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals("disconnecting", logs.last())
+        assertTrue(probe.isActive)
+    }
+
     // A part of a name whose receiver left before the settle ended must not keep a later one waiting.
     @Test
     fun aPartialMatchThatLeftCanSettleAgain() {
