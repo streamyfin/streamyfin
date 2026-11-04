@@ -1,4 +1,4 @@
-`engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine and reaches rendering through a cast; engine comes from config.engine, an unknown one is refused
+`engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine and reaches rendering through a cast; engine comes from config.engine, an unknown one is refused; its controls follow ChromeCapabilities
 
 The native player chrome on Android (NativePlayerSession + PlayerViewModel +
 Compose UI in modules/mpv-player; Android TV, and phones with the Native
@@ -39,7 +39,7 @@ that picks the Jellyfin device profile. Consequences:
   `PlayerEngine`; a remote one is a `ChromeEngine` only. The session, the view
   model and, on iOS, the view controller reach rendering through a private
   `rendering` (`engine as? RenderingEngine`): without a screen those calls do
-  nothing. Views ask the view model (`canPictureInPicture`, `technicalInfo`),
+  nothing. Views ask the view model (`capabilities`, `technicalInfo`),
   never the engine. The technical info rule is a pure function on each side,
   `technicalInfoOf` (Kotlin) and `readTechnicalInfo(from:)` (Swift, beside
   `pictureInPictureSupported(by:)`), under test: no screen means an empty table,
@@ -51,3 +51,16 @@ that picks the Jellyfin device profile. Consequences:
   over the kind (`NativePlayerSession.createEngine` on Android,
   `NativePlayerModule.makeEngine` on iOS), so a kind added later does not
   compile until it is built.
+- What the phone chrome offers comes from `ChromeCapabilities` (2026-11-04),
+  a pure policy on each platform (`nativeplayer/ChromeCapabilities.kt`,
+  `NativePlayer/ChromeCapabilities.swift`, both under test): picture in
+  picture, zoom, brightness, decoder settings, technical info and speed. An
+  engine is remote when it has no rendering face (`ChromeEngine.isRemote`,
+  `isRemoteEngine(_:)`), and a remote engine gets none of the first five;
+  speed follows `canChangeSpeed` on the transport face, true by default. The
+  Android view model holds them as Compose state, set by the session once per
+  presentation (`applyCapabilities`); the iOS one computes them. The view
+  models guard speed, the hold to speed up and zoom on both platforms, so every
+  entry point is covered, JS calls included; the pinch and the brightness reveal
+  are guarded in the iOS view model, and in the gesture plane on Android. The TV
+  menus do not read them: remote mode is meant to be refused on TV.

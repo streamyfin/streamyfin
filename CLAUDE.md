@@ -77,7 +77,7 @@ Native modules:
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
-- `engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine (transport and queue faces, both platforms) and reaches rendering through a cast; the engine rides config.engine, an unknown one is refused at presentPlayer; resolvers split engine vs renderer
+- `engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine (transport and queue faces, both platforms) and reaches rendering through a cast; the engine rides config.engine, an unknown one is refused at presentPlayer; resolvers split engine vs renderer; the phone chrome's controls follow ChromeCapabilities
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
@@ -175,7 +175,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, the Cast module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the native engine kind, the receiver protocol, the receiver channel hub, the Cast engine), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the native engine kind, the chrome capabilities, the receiver protocol, the receiver channel hub, the Cast engine), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

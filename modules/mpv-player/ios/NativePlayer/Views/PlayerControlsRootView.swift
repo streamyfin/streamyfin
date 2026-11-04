@@ -160,7 +160,7 @@ struct PlayerControlsRootView: View {
 				.transition(.opacity)
 			}
 
-			if viewModel.showTechnicalInfo {
+			if viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo {
 				VStack {
 					HStack {
 						TechnicalInfoOverlay(viewModel: viewModel)
@@ -354,7 +354,8 @@ struct PlayerControlsRootView: View {
 						dragOnLeftHalf = value.startLocation.x < size.width / 2
 						if dragOnLeftHalf {
 							dragStartLevel = viewModel.brightnessController.brightness
-							viewModel.brightnessController.isUserInteracting = true
+							// An engine with no screen here leaves no brightness to drive.
+							viewModel.brightnessController.isUserInteracting = viewModel.capabilities.brightness
 						} else {
 							dragStartLevel = viewModel.volumeController.volume
 							viewModel.volumeController.isUserInteracting = true
@@ -371,8 +372,10 @@ struct PlayerControlsRootView: View {
 				case .vertical:
 					let level = dragStartLevel - value.translation.height / verticalDragRange
 					if dragOnLeftHalf {
-						viewModel.brightnessController.setBrightness(level)
-						viewModel.revealBrightnessSliderTransiently()
+						if viewModel.capabilities.brightness {
+							viewModel.brightnessController.setBrightness(level)
+							viewModel.revealBrightnessSliderTransiently()
+						}
 					} else {
 						viewModel.volumeController.setVolume(level)
 						viewModel.revealVolumeSliderTransiently()
@@ -430,7 +433,7 @@ struct PlayerControlsRootView: View {
 	}
 
 	private var brightnessSliderVisible: Bool {
-		viewModel.showBrightnessSlider
+		viewModel.showBrightnessSlider && viewModel.capabilities.brightness
 			&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed)
 	}
 
