@@ -16,6 +16,10 @@ internal open class RemoteOnlyEngine : ChromeEngine {
     override val isTv = false
     var played = 0
     val seeks = mutableListOf<String>()
+    /** What the engine says of speed; the chrome offers none when it is false. */
+    var speedAllowed = true
+    val speeds = mutableListOf<String>()
+    override val canChangeSpeed: Boolean get() = speedAllowed
     override fun start(owner: PlayerEngine.Owner, onStarted: () -> Unit) = onStarted()
     override fun stop() {}
     override fun load(config: VideoLoadConfig) {}
@@ -30,7 +34,7 @@ internal open class RemoteOnlyEngine : ChromeEngine {
         super.seekToExact(seconds)
     }
     override fun seekBy(seconds: Double) {}
-    override fun setSpeed(speed: Double) {}
+    override fun setSpeed(speed: Double) { speeds += "setSpeed $speed" }
     override fun getSpeed() = 1.0
     override fun setMute(muted: Boolean) {}
     override fun getChapters() = emptyList<Map<String, Any>>()

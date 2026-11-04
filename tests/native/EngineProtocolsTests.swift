@@ -142,6 +142,12 @@ enum EngineProtocolsTests {
 		precondition(engine.seeksTo.count == 1 && engine.seeksTo[0].position == 12 && engine.seeksTo[0].exact == false)
 		precondition(engine.seeksBy == [-10])
 
-		print("PASS: transport, rendering and queue faces, the chrome engine, its rendering questions, queue defaults, delegate play and seek defaults")
+		// An engine changes speed unless it says otherwise, and one without a screen here is remote.
+		precondition(engine.canChangeSpeed, "an engine changes speed unless it says otherwise")
+		precondition(isRemoteEngine(engine), "an engine without a screen here is remote")
+		precondition(!isRemoteEngine(LocalEngine()))
+		precondition(!isRemoteEngine(nil))
+
+		print("PASS: transport, rendering and queue faces, the chrome engine, its rendering questions, queue defaults, delegate play and seek defaults, speed and remote defaults")
 	}
 }

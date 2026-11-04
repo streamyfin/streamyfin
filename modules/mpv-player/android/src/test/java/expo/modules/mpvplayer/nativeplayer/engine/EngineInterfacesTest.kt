@@ -1,8 +1,10 @@
 package expo.modules.mpvplayer.nativeplayer.engine
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 // A remote engine carries transport and queue, never a surface: its double (EngineDoubles.kt)
@@ -21,6 +23,18 @@ class EngineInterfacesTest {
         // The check is the compilation: the widening builds only while PlayerEngine extends ChromeEngine.
         val widen: (PlayerEngine) -> ChromeEngine = { it }
         assertNotNull(widen)
+    }
+
+    @Test
+    fun anEngineChangesSpeedUnlessItSaysOtherwise() {
+        assertTrue(RemoteOnlyEngine().canChangeSpeed)
+    }
+
+    // Remote is what the type says: an engine without the rendering face has no screen here.
+    @Test
+    fun anEngineWithoutRenderingIsRemote() {
+        assertTrue(RemoteOnlyEngine().isRemote)
+        assertFalse(RecordingLocalEngine().isRemote)
     }
 
     @Test
