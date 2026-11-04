@@ -180,6 +180,65 @@ class OutputSheetControllerTest {
         assertEquals(listOf(0.4), port.volumes)
     }
 
+    // The view still holds its drag when the rest sends it: the release it sends after asks nothing more.
+    @Test
+    fun aSliderReleasedAfterItsRestIsSentOnce() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        port.events?.volumeChanged(0.3, false)
+
+        sheet.dragVolume(0.45)
+        scheduler.advance(RemoteTargetConstants.VOLUME_DRAG_REST_MS)
+        sheet.releaseVolume(0.45)
+
+        assertEquals(listOf(0.45), port.volumes)
+    }
+
+    // A port can refuse inside connect, as a disabled route does: the asked row shows the failure, not a wait.
+    @Test
+    fun aSwitchRefusedAtOnceShowsItsFailure() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom), listsOnDiscovery = true, refuses = setOf(bedroom.id))
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(row(sheet, bedroom))
+
+        assertTrue(row(sheet, bedroom).status is DeviceStatus.Failed)
+    }
+
+    // Discovery can lose the receiver that holds the session; its row still leads back to its panel.
+    @Test
+    fun theConnectedRowLeadsBackToItsPanelOnceDiscoveryLostIt() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        port.discover(listOf(bedroom))
+
+        sheet.tap(row(sheet, livingRoom))
+
+        assertEquals(livingRoom.id, panel(sheet).target.id)
+    }
+
+    // An active scan costs battery: out of sight, the sheet stops looking, and looks again when the app comes back.
+    @Test
+    fun aPausedSheetStopsDiscoveringUntilItResumes() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+
+        sheet.pauseDiscovery()
+        val paused = port.discovering
+        sheet.resumeDiscovery()
+        val resumed = port.discovering
+        sheet.close()
+
+        assertFalse(paused)
+        assertTrue(resumed)
+        assertFalse(port.discovering)
+    }
+
     // Nothing plays on the receiver: the one end action reads "Disconnect", the remote is not offered,
     // and it closes the receiver app like the stop does.
     @Test

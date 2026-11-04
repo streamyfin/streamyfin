@@ -51,24 +51,27 @@ internal class CastTargetProbe(
         val current = hub.snapshot
         last = current
         log("armed for \"$deviceName\" ${describe(current)}")
-        presentSheet?.let { present ->
-            log(if (present()) "presenting the output sheet" else "no activity for the output sheet")
-        }
         val target = current.target
         if (current.phase == TargetPhase.CONNECTED) leaving = target
         // A whole name only: a part of one may name another receiver than the connected one.
         if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
+            showSheet()
             log("already connected to ${target.name}")
             // The session the probe holds, for the hold's check.
             device = TargetDevice(target.id, target.name)
             onConnected()
             return
         }
-        // Set first: the SDK port lists the routes it has inside startDiscovery, and a connection
-        // started there sets its own wait, which this one must not replace.
+        // Set first: the SDK port lists the routes it has inside startDiscovery, the sheet's too, and a
+        // connection started there sets its own wait, which this one must not replace.
         wait(DISCOVERY_TIMEOUT_MS, "no device named \"$deviceName\"")
+        showSheet()
         hub.startDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
         devicesChanged(hub.devices)
+    }
+
+    private fun showSheet() {
+        presentSheet?.let { present -> log(if (present()) "presenting the output sheet" else "no activity for the output sheet") }
     }
 
     override fun devicesChanged(devices: List<TargetDevice>) {

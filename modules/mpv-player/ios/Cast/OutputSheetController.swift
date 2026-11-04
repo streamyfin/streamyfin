@@ -33,6 +33,8 @@ final class OutputSheetController: RemoteTargetListener {
   private var showingList = false
   private var dragged: Double?
   private var held: Double?
+  /// The level the rest sent for a drag still under the finger: its release then asks nothing more.
+  private var restSent: Double?
   private var requestedId: String?
   /// The receiver whose connection brings the panel back over the list "Change" opened.
   private var panelOn: String?
@@ -77,6 +79,7 @@ final class OutputSheetController: RemoteTargetListener {
     showingList = false
     dragged = nil
     held = nil
+    restSent = nil
     requestedId = nil
     panelOn = nil
   }
@@ -111,12 +114,16 @@ final class OutputSheetController: RemoteTargetListener {
 
   func dragVolume(_ level: Double) {
     dragged = min(max(level, 0), 1)
+    restSent = nil
     // A release that never comes must not leave the level unsent: a slider left still counts as released.
     cancelRest?()
     cancelRest = schedule(RemoteTargetConstants.volumeDragRestMs) { [weak self] in
       guard let self else { return }
       cancelRest = nil
-      if let level = dragged { releaseVolume(level) }
+      if let level = dragged {
+        releaseVolume(level)
+        restSent = level
+      }
     }
     publish()
   }
@@ -126,6 +133,9 @@ final class OutputSheetController: RemoteTargetListener {
     cancelRest?()
     cancelRest = nil
     let sent = min(max(level, 0), 1)
+    let rested = restSent
+    restSent = nil
+    if rested == sent { return }
     dragged = nil
     held = sent
     hub.setVolume(sent)
@@ -184,15 +194,23 @@ final class OutputSheetController: RemoteTargetListener {
 
   private func connect(_ deviceId: String) {
     let holder = hub.snapshot.target
-    guard hub.connect(deviceId: deviceId) else { return }
+    // The receiver already there, which discovery may have lost: back to its panel.
     if holder?.id == deviceId {
-      // The receiver already there: back to its panel.
+      _ = hub.connect(deviceId: deviceId)
       showingList = false
-    } else {
-      // Over another receiver's session the hub waits for its end: the row shows the request meanwhile,
-      // and the list stays until the asked receiver is connected.
-      requestedId = holder == nil ? nil : deviceId
-      panelOn = deviceId
+      publish()
+      return
+    }
+    // Over another receiver's session the hub waits for its end: the row shows the request meanwhile, and the
+    // list stays until the asked receiver is connected. Set before the request: a port can refuse inside it.
+    let requested = requestedId
+    let panel = panelOn
+    requestedId = holder == nil ? nil : deviceId
+    panelOn = deviceId
+    guard hub.connect(deviceId: deviceId) else {
+      requestedId = requested
+      panelOn = panel
+      return
     }
     publish()
   }

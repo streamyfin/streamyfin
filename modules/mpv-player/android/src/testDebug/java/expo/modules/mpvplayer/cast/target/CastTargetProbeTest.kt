@@ -255,6 +255,20 @@ class CastTargetProbeTest {
         assertEquals("presenting the output sheet", logs[1])
     }
 
+    // The sheet's discovery can list the receiver inside its presentation: the connection it starts keeps its own wait.
+    @Test
+    fun aReceiverTheSheetListsKeepsItsConnectionWait() {
+        val port = FakeTargetPort(known = listOf(livingRoom), listsOnDiscovery = true)
+        val hub = hubWith(port)
+        val probe = probe(hub, "Living room", presentSheet = { hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY); true })
+
+        probe.start()
+        scheduler.advance(CastTargetProbe.DISCOVERY_TIMEOUT_MS)
+
+        assertEquals(listOf(livingRoom), port.connects)
+        assertTrue(probe.isActive)
+    }
+
     @Test
     fun aProbeAskedToMuteMutes() {
         val port = FakeTargetPort(known = listOf(livingRoom))

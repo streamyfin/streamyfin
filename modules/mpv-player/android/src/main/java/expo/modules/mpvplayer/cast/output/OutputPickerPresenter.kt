@@ -5,6 +5,7 @@ import android.graphics.Rect
 import android.util.Log
 import android.view.ViewGroup
 import androidx.annotation.MainThread
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.IntRect
 import androidx.lifecycle.Lifecycle
@@ -36,9 +37,23 @@ object OutputPickerPresenter {
     private var onRemote: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
 
-    // The system recreates the activity on a change the manifest leaves to it, a font size among them, and
-    // the sheet's view goes with the old one: the sheet closes then, instead of staying presented nowhere.
-    private val hostWatcher = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_DESTROY) dismiss() }
+    private val hostWatcher =
+        LifecycleEventObserver { source, event ->
+            when (event) {
+                // The system recreates the activity on a change the manifest leaves to it, a font size among them,
+                // and the sheet's view goes with the old one: the sheet closes, instead of staying presented nowhere.
+                Lifecycle.Event.ON_DESTROY -> dismiss()
+                // Out of sight, the sheet stops scanning, as the app's own discovery does.
+                Lifecycle.Event.ON_STOP -> controller?.pauseDiscovery()
+                Lifecycle.Event.ON_START -> controller?.resumeDiscovery()
+                // Back from the Play Store, the services may be there now.
+                Lifecycle.Event.ON_RESUME ->
+                    (source as? Activity)?.let { activity ->
+                        controller?.let { sheet -> sheet.environment = sheet.environment.copy(playServices = playServicesStatus(activity)) }
+                    }
+                else -> Unit
+            }
+        }
 
     /** The texts JS sent last; English when the sheet opens from native. */
     var strings = OutputPickerStrings()
@@ -54,6 +69,23 @@ object OutputPickerPresenter {
 
     val isPresented: Boolean
         get() = host != null
+
+    @VisibleForTesting
+    internal val presentedController: OutputSheetController?
+        get() = controller
+
+    // Play Services' own check and dialog, which Robolectric has neither of.
+    @VisibleForTesting
+    internal val defaultCheckPlayServices: (Activity) -> Int = { GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(it) }
+
+    @VisibleForTesting
+    internal var checkPlayServices = defaultCheckPlayServices
+
+    @VisibleForTesting
+    internal val defaultResolvePlayServices: (Activity) -> Unit = { GoogleApiAvailability.getInstance().makeGooglePlayServicesAvailable(it) }
+
+    @VisibleForTesting
+    internal var resolvePlayServices = defaultResolvePlayServices
 
     /** False on a TV, which has no sheet; true once presented, or already there. */
     @MainThread
@@ -118,12 +150,20 @@ object OutputPickerPresenter {
 
     private fun handle(activity: Activity, output: OutputSheetOutput) {
         when (output) {
+            // Once the sheet is gone, as on iOS: the remote opens over the screen.
             OutputSheetOutput.REMOTE -> {
-                onRemote?.invoke()
+                val remote = onRemote
                 dismiss()
+                remote?.invoke()
             }
             OutputSheetOutput.DISMISS -> dismiss()
-            OutputSheetOutput.RESOLVE_PLAY_SERVICES -> GoogleApiAvailability.getInstance().makeGooglePlayServicesAvailable(activity)
+            // Its first step is the check below, which can throw the same way.
+            OutputSheetOutput.RESOLVE_PLAY_SERVICES ->
+                try {
+                    resolvePlayServices(activity)
+                } catch (error: Exception) {
+                    Log.w(TAG, "Play Services resolution failed", error)
+                }
             // AirPlay is iOS only.
             OutputSheetOutput.OPEN_AIRPLAY -> Unit
         }
@@ -134,7 +174,7 @@ object OutputPickerPresenter {
     private fun playServicesStatus(activity: Activity): PlayServicesStatus {
         val state =
             try {
-                GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(activity)
+                checkPlayServices(activity)
             } catch (error: Exception) {
                 Log.w(TAG, "Play Services check failed", error)
                 ConnectionResult.SERVICE_MISSING

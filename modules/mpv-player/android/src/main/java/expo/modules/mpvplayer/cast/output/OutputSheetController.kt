@@ -43,6 +43,9 @@ class OutputSheetController(
     private var showingList = false
     private var dragged: Double? = null
     private var held: Double? = null
+    // The level the rest sent for a drag still under the finger: its release then asks nothing more.
+    private var restSent: Double? = null
+    private var discoveryPaused = false
     private var requestedId: String? = null
     // The receiver whose connection brings the panel back over the list "Change" opened.
     private var panelOn: String? = null
@@ -58,6 +61,7 @@ class OutputSheetController(
         if (open) return
         open = true
         searchTimedOut = false
+        discoveryPaused = false
         removeListener = hub.addListener(this)
         hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
         cancelSearch = schedule(RemoteTargetConstants.OUTPUT_SEARCH_TIMEOUT_MS) {
@@ -80,11 +84,29 @@ class OutputSheetController(
         removeListener?.invoke()
         removeListener = null
         hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
+        discoveryPaused = false
         showingList = false
         dragged = null
         held = null
+        restSent = null
         requestedId = null
         panelOn = null
+    }
+
+    /**
+     * The app is out of sight: an active scan costs battery, so the sheet's discovery waits for it to come back.
+     * Android only: the iOS SDK suspends its discovery in the background itself.
+     */
+    fun pauseDiscovery() {
+        if (!open || discoveryPaused) return
+        discoveryPaused = true
+        hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
+    }
+
+    fun resumeDiscovery() {
+        if (!open || !discoveryPaused) return
+        discoveryPaused = false
+        hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
     }
 
     fun tap(row: OutputRow) {
@@ -118,11 +140,15 @@ class OutputSheetController(
 
     fun dragVolume(level: Double) {
         dragged = level.coerceIn(0.0, 1.0)
+        restSent = null
         // A release that never comes must not leave the level unsent: a slider left still counts as released.
         cancelRest?.invoke()
         cancelRest = schedule(RemoteTargetConstants.VOLUME_DRAG_REST_MS) {
             cancelRest = null
-            dragged?.let(::releaseVolume)
+            dragged?.let { level ->
+                releaseVolume(level)
+                restSent = level
+            }
         }
         publish()
     }
@@ -132,6 +158,9 @@ class OutputSheetController(
         cancelRest?.invoke()
         cancelRest = null
         val sent = level.coerceIn(0.0, 1.0)
+        val rested = restSent
+        restSent = null
+        if (rested == sent) return
         dragged = null
         held = sent
         hub.setVolume(sent)
@@ -183,15 +212,23 @@ class OutputSheetController(
 
     private fun connect(deviceId: String) {
         val holder = hub.snapshot.target
-        if (!hub.connect(deviceId)) return
+        // The receiver already there, which discovery may have lost: back to its panel.
         if (holder?.id == deviceId) {
-            // The receiver already there: back to its panel.
+            hub.connect(deviceId)
             showingList = false
-        } else {
-            // Over another receiver's session the hub waits for its end: the row shows the request meanwhile,
-            // and the list stays until the asked receiver is connected.
-            requestedId = deviceId.takeIf { holder != null }
-            panelOn = deviceId
+            publish()
+            return
+        }
+        // Over another receiver's session the hub waits for its end: the row shows the request meanwhile, and the
+        // list stays until the asked receiver is connected. Set before the request: a port can refuse inside it.
+        val requested = requestedId
+        val panel = panelOn
+        requestedId = deviceId.takeIf { holder != null }
+        panelOn = deviceId
+        if (!hub.connect(deviceId)) {
+            requestedId = requested
+            panelOn = panel
+            return
         }
         publish()
     }

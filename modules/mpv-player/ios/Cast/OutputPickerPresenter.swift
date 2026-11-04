@@ -29,13 +29,15 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   /// `anchor` is the button's frame in window points, as JS measures it.
   @discardableResult
   func present(anchor: CGRect?, playingHere: String?, onRemote: @escaping () -> Void) -> Bool {
-    self.onRemote = onRemote
     if let controller {
+      self.onRemote = onRemote
       controller.environment.playingHere = playingHere
       controller.environment.receiverTitle = receiverTitle()
       return true
     }
+    // A sheet that cannot show keeps no callback, which would hold the module.
     guard let top = Self.topViewController() else { return false }
+    self.onRemote = onRemote
     let sheet = OutputSheetController(hub: .shared, schedule: mainQueueSchedule)
     sheet.environment = OutputSheetEnvironment(
       playServices: .available,
