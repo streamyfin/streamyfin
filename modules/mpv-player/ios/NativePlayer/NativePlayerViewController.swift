@@ -16,7 +16,7 @@ import CoreMedia
 /// which single layer the focus engine may see at any moment — SwiftUI
 /// handles focus WITHIN a layer, UIKit decides between layers.
 final class NativePlayerViewController: UIViewController {
-	private let engine: MPVPlayerEngine
+	private let engine: PlayerEngine
 	private let viewModel: PlayerViewModel
 	#if os(iOS)
 	/// Starts from the config's lock and changes when the user taps Rotate.
@@ -43,7 +43,7 @@ final class NativePlayerViewController: UIViewController {
 	private var remoteRecognizers: [UIGestureRecognizer] = []
 	#endif
 
-	init(engine: MPVPlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
+	init(engine: PlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
 		self.engine = engine
 		self.viewModel = viewModel
 		#if os(iOS)

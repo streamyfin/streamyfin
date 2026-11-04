@@ -26,7 +26,7 @@ final class PlaybackTimeModel: ObservableObject {
 /// All engine callbacks arrive on the main thread (the engine dispatches
 /// them), and all UI intents come from SwiftUI — so no locking is needed.
 final class PlayerViewModel: NSObject, ObservableObject {
-	weak var engine: MPVPlayerEngine?
+	weak var engine: PlayerEngine?
 	var emit: ((String, [String: Any]) -> Void)?
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
 	/// Set by the view controller — it owns the orientation mask.
@@ -1642,10 +1642,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 }
 
-// MARK: - MPVPlayerEngineDelegate
+// MARK: - PlayerEngineDelegate
 
-extension PlayerViewModel: MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {
+extension PlayerViewModel: PlayerEngineDelegate {
+	/// Picture in picture is a rendering matter: a remote engine has none, so
+	/// every PiP question below reads as "not in PiP" for it.
+	private func rendering(_ engine: TransportEngine) -> RenderingEngine? {
+		engine as? RenderingEngine
+	}
+
+	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {
 		// Mute rides along: it is a device/session state, not a stream one, so
 		// JS has no other way to learn it for a player opened while already
 		// muted — no transition happens, so no onMuteStateChanged fires. The
@@ -1658,7 +1664,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
+	func engine(_ engine: TransportEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
 		guard !isTearingDown else { return }
 		hasAuthoritativePosition = true
 		self.position = position
@@ -1694,14 +1700,14 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		updateActiveSegment(for: position)
 	}
 
-	func engine(_ engine: MPVPlayerEngine, requestsSeekTo target: Double) {
+	func engine(_ engine: TransportEngine, requestsSeekTo target: Double) {
 		guard !isTearingDown else { return }
 		seek(to: target)
 	}
 
-	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
+	func engine(_ engine: TransportEngine, requestsSeekBy offset: Double) {
 		guard !isTearingDown else { return }
-		if isSyncPlayActive, engine.isPictureInPictureActive() {
+		if isSyncPlayActive, rendering(engine)?.isPictureInPictureActive() == true {
 			// The pause AVKit sent just ahead of this skip is still held.
 			pendingPipPause?.cancel()
 			pendingPipPause = nil
@@ -1710,7 +1716,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		seek(to: position + offset)
 	}
 
-	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
+	func engine(_ engine: TransportEngine, requestsPlaying playing: Bool) {
 		guard !isTearingDown else { return }
 		pendingPipPause?.cancel()
 		pendingPipPause = nil
@@ -1719,7 +1725,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 			return
 		}
 		#if os(iOS)
-		if engine.isPictureInPictureActive(),
+		if rendering(engine)?.isPictureInPictureActive() == true,
 			pipSkipBracket.covers(Date().timeIntervalSinceReferenceDate) {
 			return
 		}
@@ -1728,11 +1734,11 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// group because one member closed a window. Hold it for a moment: if
 		// PiP is on its way out by then, the stop handler leaves the group
 		// instead and the others play on.
-		if !playing, engine.isPictureInPictureActive() {
+		if !playing, rendering(engine)?.isPictureInPictureActive() == true {
 			let pause = DispatchWorkItem { [weak self, weak engine] in
-				guard let self, let engine else { return }
+				guard let self, let engine, let pip = self.rendering(engine) else { return }
 				self.pendingPipPause = nil
-				if engine.isPictureInPictureStopping || !engine.isPictureInPictureActive() { return }
+				if pip.isPictureInPictureStopping || !pip.isPictureInPictureActive() { return }
 				self.syncPlayAction("pause")
 			}
 			pendingPipPause = pause
@@ -1743,7 +1749,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		syncPlayAction(playing ? "play" : "pause")
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {
+	func engine(_ engine: TransportEngine, didChangePause isPaused: Bool) {
 		guard !isTearingDown else { return }
 		isPlaying = !isPaused
 		updateDisplayLinkState()
@@ -1767,24 +1773,24 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool) {
+	func engine(_ engine: TransportEngine, didChangeLoading isLoading: Bool) {
 		guard !isTearingDown else { return }
 		isBuffering = isLoading
 		emit?("onPlaybackStateChange", ["isLoading": isLoading])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool) {
+	func engine(_ engine: TransportEngine, didBecomeReadyToSeek ready: Bool) {
 		guard !isTearingDown else { return }
 		isReadyToSeek = ready
 		emit?("onPlaybackStateChange", ["isReadyToSeek": ready])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didBecomeTracksReady ready: Bool) {
+	func engine(_ engine: TransportEngine, didBecomeTracksReady ready: Bool) {
 		guard !isTearingDown else { return }
 		emit?("onTracksReady", [:])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool) {
+	func engine(_ engine: TransportEngine, didChangePictureInPicture isActive: Bool) {
 		guard !isTearingDown else { return }
 		isPipActive = isActive
 		emit?("onPictureInPictureChange", ["isActive": isActive])
@@ -1793,14 +1799,14 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// With its window closed nothing here can answer the next seek, and
 		// the group would wait on this session until iOS suspends the app.
 		// Returning to the app also stops PiP: that is a restore, not a close.
-		if !isActive, isSyncPlayActive, !engine.pictureInPictureStopIsRestore,
+		if !isActive, isSyncPlayActive, rendering(engine)?.pictureInPictureStopIsRestore != true,
 			UIApplication.shared.applicationState == .background {
 			withdrawFromSyncPlay()
 		}
 		#endif
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String) {
+	func engine(_ engine: TransportEngine, didFailWithError message: String) {
 		guard !isTearingDown else { return }
 		// Same keep-awake hole as the still-watching card: the error overlay
 		// waits for a tap that may never come, and mpv doesn't reliably flip
@@ -1813,12 +1819,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		emit?("onError", ["error": message])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
+	func engine(_ engine: TransportEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
 		// tvOS applies AVDisplayCriteria via the view controller; no-op on iOS.
 		onHDRModeDetected?(mode, fps)
 	}
 
-	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
+	func engineDidReachEnd(_ engine: TransportEngine) {
 		guard !isTearingDown else { return }
 		if isSyncPlayActive {
 			// mpv still counts as playing at the end of the file. Without the
