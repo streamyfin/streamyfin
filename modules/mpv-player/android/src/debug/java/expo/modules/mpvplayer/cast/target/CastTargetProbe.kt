@@ -17,6 +17,8 @@ internal class CastTargetProbe(
     private val deviceName: String,
     /** Leaves the session up: the relaunch proof arms a second probe on it. */
     private val keep: Boolean,
+    /** How long a connected session is held before the disconnection: long enough to cut the network in. */
+    private val holdMs: Long,
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val log: (String) -> Unit,
 ) : RemoteTargetListener {
@@ -80,9 +82,11 @@ internal class CastTargetProbe(
         log(describe(snapshot))
         when (snapshot.phase) {
             TargetPhase.CONNECTED -> if (!connected) onConnected()
+            // A none without an error before the connection is a switch's old session ending: the
+            // asked receiver comes next, or the connection wait says it never did.
             TargetPhase.NONE -> when {
                 connected -> finish("done")
-                device != null -> fail("connection failed error=${snapshot.error ?: "-"}")
+                device != null && snapshot.error != null -> fail("connection failed error=${snapshot.error}")
             }
             else -> Unit
         }
@@ -95,7 +99,7 @@ internal class CastTargetProbe(
             finish("done, still connected")
             return
         }
-        cancelWait = schedule(CONNECTED_HOLD_MS) {
+        cancelWait = schedule(holdMs) {
             log("disconnecting")
             wait(END_TIMEOUT_MS, "never ended")
             hub.disconnect(stopPlayback = true)
@@ -141,7 +145,7 @@ internal class CastTargetProbe(
 
         /** One probe at a time: a broadcast while one runs does nothing. */
         @MainThread
-        fun run(context: Context, deviceName: String, keep: Boolean) {
+        fun run(context: Context, deviceName: String, keep: Boolean, holdMs: Long) {
             if (current?.isActive == true) {
                 Log.i(TAG, "already running")
                 return
@@ -158,16 +162,21 @@ internal class CastTargetProbe(
             }
             // The module installs the same port when JS first touches Cast; whichever comes first wins.
             RemoteTargets.installDefault(context, cast)
-            current = CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, mainLooperSchedule()) { Log.i(TAG, it) }
+            current = CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, mainLooperSchedule()) { Log.i(TAG, it) }
                 .also { it.start() }
         }
     }
 }
 
-/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true]` */
+/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>]` */
 class CastTargetProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != CastTargetProbe.ACTION) return
-        CastTargetProbe.run(context, intent.getStringExtra("device").orEmpty(), intent.getBooleanExtra("keep", false))
+        CastTargetProbe.run(
+            context,
+            intent.getStringExtra("device").orEmpty(),
+            intent.getBooleanExtra("keep", false),
+            intent.getLongExtra("hold", CastTargetProbe.CONNECTED_HOLD_MS),
+        )
     }
 }

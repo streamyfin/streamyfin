@@ -157,6 +157,12 @@ shows the Jellyfin receiver, then its home screen. A `failed: <reason>` line end
 did not get there: no such device within 15 s, a connection the SDK refused (with its
 error), none within 30 s, or no end within 20 s.
 
+**A switch, a lost receiver.** Armed while another receiver is connected, the probe switches
+to the one it names: the old session ends (`none` without an error is that end, not a
+failure), then the new one connects. `--el hold <ms>` holds the session that long before the
+disconnection, which leaves time to cut the phone's network or the receiver's power: the log
+then reads `reconnecting=true`, then `none` with the error the SDK gave, and `done`.
+
 **A session running at launch.** Add `--ez keep true` and the probe stops at connected,
 leaving the session up. Kill the app (`adb shell am force-stop com.fredrikburmester.streamyfin`),
 open it again, and send the same broadcast with `keep`: the first line reads
@@ -164,5 +170,6 @@ open it again, and send the same broadcast with `keep`: the first line reads
 because the SDK resumed the session before anything asked. A last broadcast without `keep`
 ends it.
 
-**iOS.** Pass `-CastTargetProbe "<name>"`, and `-CastTargetProbeKeep YES` to leave the
-session up, as launch arguments; the same lines come out under `[CastTargetProbe]`.
+**iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
+up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
+under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container.
