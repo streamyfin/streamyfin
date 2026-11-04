@@ -36,7 +36,8 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
       let keep = UserDefaults.standard.bool(forKey: CastTargetProbe.keepArgument)
       let hold = UserDefaults.standard.double(forKey: CastTargetProbe.holdArgument)
       let holdMs = hold > 0 ? hold : CastTargetProbe.connectedHoldMs
-      DispatchQueue.main.async { CastTargetProbe.run(deviceName: name, keep: keep, holdMs: holdMs) }
+      let next = UserDefaults.standard.string(forKey: CastTargetProbe.thenArgument)
+      DispatchQueue.main.async { CastTargetProbe.run(deviceName: name, keep: keep, holdMs: holdMs, then: next) }
     }
     #endif
     return true

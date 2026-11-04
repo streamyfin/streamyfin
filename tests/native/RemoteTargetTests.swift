@@ -575,6 +575,20 @@ enum RemoteTargetTests {
       )
     }
 
+    // The iOS chain (-CastTargetProbeThen) starts the next probe from the end of the first.
+    do {
+      let port = FakeTargetPort()
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      var results: [String] = []
+      let probe = CastTargetProbe(hub: hub, deviceName: "Living room", keep: true, schedule: Clock().schedule) { _ in }
+      probe.onFinish = { results.append($0) }
+      probe.start()
+      port.discover([chromecast])
+      port.emit("started", chromecast)
+      check("aFinishedProbeSaysHowItEnded", results == ["done, still connected"] && !probe.isActive)
+    }
+
     // On iOS the SDK resumed the session after a relaunch while a probe watched for another name.
     do {
       let port = FakeTargetPort()
