@@ -1,6 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
-import type { DownloadCompleteEvent, DownloadStartedEvent } from "@/modules";
+import type {
+  DownloadCompleteEvent,
+  DownloadErrorEvent,
+  DownloadStartedEvent,
+} from "@/modules";
 import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
@@ -17,6 +21,7 @@ jest.mock(
 const mockListeners: {
   started?: (event: DownloadStartedEvent) => void;
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
+  error?: (event: DownloadErrorEvent) => Promise<void>;
 } = {};
 const mockCancelDownload = jest.fn();
 jest.mock("@/modules", () => ({
@@ -27,16 +32,30 @@ jest.mock("@/modules", () => ({
       return { remove: () => {} };
     },
     addProgressListener: () => ({ remove: () => {} }),
-    addErrorListener: () => ({ remove: () => {} }),
+    addErrorListener: (listener: typeof mockListeners.error) => {
+      mockListeners.error = listener;
+      return { remove: () => {} };
+    },
     addCompleteListener: (listener: typeof mockListeners.complete) => {
       mockListeners.complete = listener;
       return { remove: () => {} };
     },
   },
 }));
+const mockGetNotificationContent = jest.fn(() => ({ title: "", body: "" }));
+const mockSendDownloadNotification = jest.fn(async () => true);
 jest.mock("../notifications", () => ({
-  getNotificationContent: () => ({ title: "", body: "" }),
-  sendDownloadNotification: jest.fn(),
+  getNotificationContent: (...args: unknown[]) =>
+    mockGetNotificationContent(...(args as [])),
+  sendDownloadNotification: () => mockSendDownloadNotification(),
+}));
+const mockToastError = jest.fn();
+const mockToastDismiss = jest.fn();
+jest.mock("sonner-native", () => ({
+  toast: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    dismiss: (...args: unknown[]) => mockToastDismiss(...args),
+  },
 }));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
@@ -46,6 +65,7 @@ jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";
 import {
   finalizePendingDownload,
@@ -53,6 +73,7 @@ import {
   type PendingDownload,
   savePendingDownload,
 } from "../pendingDownloads";
+import { getDownloadToastId } from "../utils";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
 
 const VIDEO = `${DOCUMENTS}/show_s01e01.mp4`;
@@ -223,5 +244,86 @@ describe("a download that starts", () => {
     await start({ ...started, itemId: undefined });
 
     expect(mockCancelDownload).not.toHaveBeenCalled();
+  });
+});
+
+// A failed download only told the user it failed: the reason ("HTTP error: 500") was in the logs
+// alone, and the card went away three seconds later.
+describe("a download that fails", () => {
+  beforeEach(() => {
+    clearMmkv();
+    fakeFiles.clear();
+    mockGetNotificationContent.mockClear();
+    mockSendDownloadNotification.mockClear();
+    mockToastError.mockClear();
+    mockToastDismiss.mockClear();
+  });
+
+  const failed = (error: string): DownloadErrorEvent => ({
+    taskId: 7,
+    itemId: "item-1",
+    error,
+  });
+
+  it("tells the user the server could not convert it", async () => {
+    savePendingDownload({
+      ...record,
+      mediaSource: { TranscodingUrl: "/videos/item-1/master.m3u8" },
+    });
+    const error = await listenerFor("error");
+
+    await error(failed("HTTP error: 500 Internal Server Error"));
+
+    expect(mockGetNotificationContent).toHaveBeenCalledWith(
+      item,
+      expect.any(Function),
+      { kind: "conversion" },
+    );
+  });
+
+  it("tells the user the server refused an original file, with the status", async () => {
+    savePendingDownload(record);
+    const error = await listenerFor("error");
+
+    await error(failed("HTTP error: 404"));
+
+    expect(mockGetNotificationContent).toHaveBeenCalledWith(
+      item,
+      expect.any(Function),
+      { kind: "refused", status: 404 },
+    );
+  });
+
+  it("leaves telling the user to the notification when it is shown", async () => {
+    savePendingDownload(record);
+    const error = await listenerFor("error");
+
+    await error(failed("HTTP error: 404"));
+
+    expect(mockSendDownloadNotification).toHaveBeenCalled();
+    expect(mockToastError).not.toHaveBeenCalled();
+    // Still on screen under the notification, the toast that said it started is no longer true.
+    expect(mockToastDismiss).toHaveBeenCalledWith(getDownloadToastId("item-1"));
+  });
+
+  // A user who did not allow notifications was told nothing at all: the scheduling was refused
+  // ("Source is not authorized") and the card went away.
+  it("says it in the app when the notification cannot be shown", async () => {
+    mockGetNotificationContent.mockReturnValueOnce({
+      title: "Download failed",
+      body: "The server could not convert Neverland.",
+    });
+    mockSendDownloadNotification.mockResolvedValueOnce(false);
+    savePendingDownload(record);
+    const error = await listenerFor("error");
+
+    await error(failed("HTTP error: 404"));
+
+    // In place of the toast that said it started, long enough to read.
+    expect(mockToastError).toHaveBeenCalledWith("Download failed", {
+      id: getDownloadToastId("item-1"),
+      description: "The server could not convert Neverland.",
+      duration: DOWNLOAD_FAILURE_TOAST_DURATION_MS,
+    });
   });
 });
