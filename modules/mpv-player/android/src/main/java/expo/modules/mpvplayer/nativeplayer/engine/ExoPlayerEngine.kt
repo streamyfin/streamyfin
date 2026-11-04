@@ -30,6 +30,7 @@ import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -1339,6 +1340,22 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             initializedTimestampMs: Long,
         ) {
             audioDecoderName = decoderName
+        }
+
+        override fun onVideoInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?,
+        ) {
+            // The rate the codec is being configured with; the vendor HDMI
+            // frame-rate adaptation makes its one mode-switch decision from
+            // this value, so a 30 here on content the server rates at 25 is
+            // the whole 60 Hz story.
+            Log.i(
+                TAG,
+                "Video input format: " + format.width + "x" + format.height +
+                    " frameRate=" + format.frameRate,
+            )
         }
 
         override fun onDroppedVideoFrames(
