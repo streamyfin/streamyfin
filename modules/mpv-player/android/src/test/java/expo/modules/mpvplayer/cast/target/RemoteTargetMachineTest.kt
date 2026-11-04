@@ -75,6 +75,62 @@ class RemoteTargetMachineTest {
         assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
     }
 
+    // On a device the Android SDK ends the old session with status 2155 when a switch selects another route.
+    @Test
+    fun aSwitchGoesFromTheOldReceiverToTheNewOneWithoutAnError() {
+        val machine = connectedTo(livingRoom)
+        val seen = mutableListOf<RemoteTargetSnapshot>()
+
+        assertFalse(machine.connectRequested(bedroom))
+        listOf(
+            Triple("ending", livingRoom, null),
+            Triple("ended", livingRoom, "Cast session status code 2155 (2155)"),
+            Triple("starting", bedroom, null),
+            Triple("started", bedroom, null),
+        ).forEach { (event, device, error) -> if (machine.sessionEvent(event, device, error)) seen += machine.snapshot }
+
+        assertEquals(
+            listOf(
+                RemoteTargetSnapshot(TargetPhase.ENDING, cast(livingRoom), false, null),
+                RemoteTargetSnapshot(TargetPhase.CONNECTING, cast(bedroom), false, null),
+                RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(bedroom), false, null),
+            ),
+            seen,
+        )
+    }
+
+    @Test
+    fun aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiver() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+
+        assertFalse(machine.sessionEvent("startFailed", bedroom, "busy"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, cast(livingRoom), false, null), machine.snapshot)
+        assertTrue(machine.sessionEvent("ended", livingRoom, null))
+        assertEquals(RemoteTargetSnapshot.NONE, machine.snapshot)
+    }
+
+    @Test
+    fun aNewReceiverFailingAfterTheSwitchEndsWithItsError() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+        machine.sessionEvent("ended", livingRoom, null)
+
+        assertTrue(machine.sessionEvent("startFailed", bedroom, "timeout"))
+        assertEquals(RemoteTargetSnapshot(TargetPhase.NONE, null, false, "timeout"), machine.snapshot)
+    }
+
+    @Test
+    fun aDisconnectDuringASwitchEndsForGood() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+
+        machine.disconnectRequested()
+        machine.sessionEvent("ended", livingRoom, null)
+
+        assertEquals(RemoteTargetSnapshot.NONE, machine.snapshot)
+    }
+
     @Test
     fun anEndWithoutADeviceStillEnds() {
         val machine = connectedTo(livingRoom)

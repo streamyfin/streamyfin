@@ -60,6 +60,7 @@ class RemoteTargetHub {
 
     /** The state follows the port's events, ending then ended, not this call. */
     fun disconnect(stopPlayback: Boolean) {
+        machine.disconnectRequested()
         port?.disconnect(stopPlayback)
     }
 

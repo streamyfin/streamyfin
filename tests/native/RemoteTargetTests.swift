@@ -114,6 +114,33 @@ enum RemoteTargetTests {
       check("theDeviceAlreadyConnectedAsksNothing", accepted && port.connects.isEmpty)
     }
 
+    // What a device does on a switch (Android, status 2155 on the old session): no none in between.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      let accepted = hub.connect(deviceId: bedroom.id)
+      port.emit("ending", livingRoom)
+      port.emit("ended", livingRoom, error: "Cast session status code 2155 (2155)")
+      port.emit("starting", bedroom)
+      port.emit("started", bedroom)
+      check(
+        "aSwitchPublishesNoNoneBetweenTheReceivers",
+        accepted && listener.targets.map(\.phase) == [.ending, .connecting, .connected]
+          && listener.targets.allSatisfy { $0.error == nil }
+      )
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      _ = hub.connect(deviceId: bedroom.id)
+      hub.disconnect(stopPlayback: true)
+      port.emit("ended", livingRoom)
+      check("aDisconnectDuringASwitchEndsForGoodThroughTheHub", hub.snapshot == .none)
+    }
+
     // Focus 4 on the order nothing guarantees: the old session's end lands after the new one started.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])
@@ -777,6 +804,56 @@ enum RemoteTargetTests {
       let machine = connected(to: livingRoom)
       let ended = machine.sessionEvent("ended", device: nil, error: "network")
       check("anEndWithoutADeviceStillEnds", ended && machine.snapshot == state(.none, nil, error: "network"))
+    }
+
+    // On a device the Android SDK ends the old session with status 2155 when a switch selects another route.
+    do {
+      let machine = connected(to: livingRoom)
+      let requested = machine.connectRequested(bedroom)
+      var seen: [RemoteTargetSnapshot] = []
+      let events: [(String, TargetDevice, String?)] = [
+        ("ending", livingRoom, nil), ("ended", livingRoom, "Cast session status code 2155 (2155)"),
+        ("starting", bedroom, nil), ("started", bedroom, nil),
+      ]
+      for (event, device, error) in events where machine.sessionEvent(event, device: device, error: error) {
+        seen.append(machine.snapshot)
+      }
+      check(
+        "aSwitchGoesFromTheOldReceiverToTheNewOneWithoutAnError",
+        !requested
+          && seen == [state(.ending, cast(livingRoom)), state(.connecting, cast(bedroom)), state(.connected, cast(bedroom))]
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      let refused = machine.sessionEvent("startFailed", device: bedroom, error: "busy")
+      let kept = machine.snapshot == state(.connected, cast(livingRoom))
+      let ended = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      check(
+        "aSwitchRefusedBeforeTheOldEndKeepsTheOldReceiver",
+        !refused && kept && ended && machine.snapshot == .none
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      let failed = machine.sessionEvent("startFailed", device: bedroom, error: "timeout")
+      check(
+        "aNewReceiverFailingAfterTheSwitchEndsWithItsError",
+        failed && machine.snapshot == state(.none, nil, error: "timeout")
+      )
+    }
+
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      machine.disconnectRequested()
+      _ = machine.sessionEvent("ended", device: livingRoom, error: nil)
+      check("aDisconnectDuringASwitchEndsForGood", machine.snapshot == .none)
     }
 
     do {

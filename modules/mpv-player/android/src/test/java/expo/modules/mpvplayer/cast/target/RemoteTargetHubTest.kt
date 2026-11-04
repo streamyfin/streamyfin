@@ -106,6 +106,36 @@ class RemoteTargetHubTest {
         assertEquals(listOf(RemoteTarget.cast(livingRoom), RemoteTarget.cast(bedroom), RemoteTarget.cast(bedroom)), listener.targets.map { it.target })
     }
 
+    // What a device does on a switch (Android, status 2155 on the old session): no none in between.
+    @Test
+    fun aSwitchPublishesNoNoneBetweenTheReceivers() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+        val listener = Recording()
+        hub.addListener(listener)
+
+        assertTrue(hub.connect(bedroom.id))
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom, "Cast session status code 2155 (2155)")
+        port.emit("starting", bedroom)
+        port.emit("started", bedroom)
+
+        assertEquals(listOf(TargetPhase.ENDING, TargetPhase.CONNECTING, TargetPhase.CONNECTED), listener.targets.map { it.phase })
+        assertTrue(listener.targets.all { it.error == null })
+    }
+
+    @Test
+    fun aDisconnectDuringASwitchEndsForGood() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.connect(bedroom.id)
+        hub.disconnect(stopPlayback = true)
+        port.emit("ended", livingRoom)
+
+        assertEquals(RemoteTargetSnapshot.NONE, hub.snapshot)
+    }
+
     @Test
     fun theDeviceAlreadyConnectedAsksNothing() {
         val port = FakeTargetPort(known = listOf(livingRoom))
