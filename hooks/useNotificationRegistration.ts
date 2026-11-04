@@ -202,6 +202,11 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
 
       const granted = await checkAndRequestPermissions(Notifications);
       if (!granted) {
+        // The task only sets the app badge, which shows nothing without the
+        // permission, and it would keep polling sessions in the background.
+        if (isAdministrator && run === registrationRunRef.current) {
+          void unregisterBackgroundFetchAsyncSessions();
+        }
         console.log(
           "Notification permissions not granted, skipping background fetch and push token registration.",
         );

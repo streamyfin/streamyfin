@@ -309,6 +309,18 @@ test("a non-admin account unregisters the sessions task without notifications", 
   expect(registerBackgroundFetchAsyncSessions).not.toHaveBeenCalled();
 });
 
+// The task only sets the app badge, which shows nothing without the
+// permission, and it would keep polling sessions in the background.
+test("an admin without notifications unregisters the sessions task", async () => {
+  mockNotifications.getPermissionsAsync.mockResolvedValue({ status: "denied" });
+  await signIn(admin("a1"));
+  await renderHook(() => useNotificationRegistration(), { wrapper });
+  await settle();
+
+  expect(unregisterBackgroundFetchAsyncSessions).toHaveBeenCalled();
+  expect(registerBackgroundFetchAsyncSessions).not.toHaveBeenCalled();
+});
+
 test("does nothing on TV", async () => {
   setTV(true);
   await signIn({ Id: "u1" });
