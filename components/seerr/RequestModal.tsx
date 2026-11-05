@@ -24,7 +24,11 @@ import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrSeasonRequest } from "@/hooks/useSeerrSeasonRequest";
 import { writeDebugLog } from "@/utils/log";
-import { canRequestForOthers } from "@/utils/seerr/requests";
+import {
+  canRequestForOthers,
+  requestTagIds,
+  requestTagsLabel,
+} from "@/utils/seerr/requests";
 import type {
   MediaRequestBody,
   MediaType,
@@ -285,6 +289,11 @@ const RequestModal = forwardRef<
       ],
     );
 
+    const tagIds = useMemo(
+      () => requestTagIds(requestOverrides.tags, defaultTags),
+      [requestOverrides.tags, defaultTags],
+    );
+
     const tagsOptions = useMemo(
       () => [
         {
@@ -292,12 +301,10 @@ const RequestModal = forwardRef<
             defaultServiceDetails?.tags.map((tag) => ({
               type: "toggle" as const,
               label: tag.label,
-              value:
-                requestOverrides.tags?.includes(tag.id) ||
-                defaultTags.some((dt) => dt.id === tag.id),
+              value: tagIds.includes(tag.id),
               onToggle: () =>
                 setRequestOverrides((prev) => {
-                  const currentTags = prev.tags || defaultTags.map((t) => t.id);
+                  const currentTags = requestTagIds(prev.tags, defaultTags);
                   const hasTag = currentTags.includes(tag.id);
                   return {
                     ...prev,
@@ -309,7 +316,7 @@ const RequestModal = forwardRef<
             })) || [],
         },
       ],
-      [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags],
+      [defaultServiceDetails?.tags, defaultTags, tagIds],
     );
 
     const usersOptions = useMemo(
@@ -540,15 +547,10 @@ const RequestModal = forwardRef<
                       trigger={
                         <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
-                            {requestOverrides.tags
-                              ? defaultServiceDetails.tags
-                                  .filter((t) =>
-                                    requestOverrides.tags!.includes(t.id),
-                                  )
-                                  .map((t) => t.label)
-                                  .join(", ") ||
-                                defaultTags.map((t) => t.label).join(", ")
-                              : defaultTags.map((t) => t.label).join(", ")}
+                            {requestTagsLabel(
+                              defaultServiceDetails.tags,
+                              tagIds,
+                            ) ?? t("seerr.no_tags")}
                           </Text>
                         </View>
                       }

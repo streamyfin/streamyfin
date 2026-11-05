@@ -45,6 +45,10 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
   const remoteUrlRef = useRef<string | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSSIDRef = useRef<string | null>(null);
+  // A ref, not a dependency: a new evaluator re-runs the debounce effect, whose
+  // cleanup would drop a pending evaluation.
+  const basePathRef = useRef(api?.basePath);
+  basePathRef.current = api?.basePath;
 
   // Sync remoteUrl from storage when api changes
   useEffect(() => {
@@ -79,7 +83,11 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
 
     const targetUrl = shouldUseLocal ? config!.localUrl : remoteUrl;
 
-    switchServerUrl(targetUrl);
+    // A switch builds a new api, which reopens the WebSocket. The api drops one
+    // trailing slash from its base path, so compare without it.
+    if (targetUrl.replace(/\/$/, "") !== basePathRef.current) {
+      switchServerUrl(targetUrl);
+    }
     setIsUsingLocalUrl(shouldUseLocal);
     setEffectiveServerUrl(targetUrl);
   }, [ssid, switchServerUrl]);

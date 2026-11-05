@@ -1,7 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { t } from "i18next";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { seasonLabel } from "@/utils/seasonLabel";
+import { findRememberedSeason } from "@/utils/seasonSelection";
 import { Text } from "../common/Text";
 import { PlatformDropdown } from "../PlatformDropdown";
 
@@ -32,6 +34,8 @@ export const SeasonDropdown: React.FC<Props> = ({
 }) => {
   const isTv = Platform.isTV;
   const [open, setOpen] = useState(false);
+  // The hook's t changes with the language, which renames the options.
+  const { t } = useTranslation();
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -63,7 +67,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       {
         options:
           seasons?.sort(sortByIndex).map((season: any) => {
-            const title = season.Name || `Season ${season.IndexNumber}`;
+            const title = seasonLabel(t, season.Name, season.IndexNumber);
             return {
               type: "radio" as const,
               label: title,
@@ -75,7 +79,7 @@ export const SeasonDropdown: React.FC<Props> = ({
           }) || [],
       },
     ],
-    [seasons, seasonIndex, onSelect],
+    [seasons, seasonIndex, onSelect, t],
   );
 
   useEffect(() => {
@@ -129,8 +133,16 @@ export const SeasonDropdown: React.FC<Props> = ({
       trigger={
         <TouchableOpacity onPress={() => setOpen(true)}>
           <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
+            {/* Named as in the list, from one whole-sentence key: nothing
+                until a season is on screen. */}
             <Text>
-              {t("item_card.season")} {seasonIndex}
+              {seasonIndex === undefined || seasonIndex === null
+                ? null
+                : seasonLabel(
+                    t,
+                    findRememberedSeason(seasons, seasonIndex)?.Name,
+                    seasonIndex,
+                  )}
             </Text>
           </View>
         </TouchableOpacity>
