@@ -27,8 +27,12 @@ export const playRequestFromReceiver = (
     mediaSourceId: data.mediaSourceId ?? undefined,
     audioIndex: data.audioStreamIndex ?? undefined,
     subtitleIndex: data.subtitleStreamIndex ?? undefined,
+    // The last report falls behind while the receiver plays on: the SDK's estimate is where it is now.
     playbackPositionTicks: secondsToTicks(
-      receiverPositionInItem(status.streamPosition, data),
+      receiverPositionInItem(
+        status.approximateStreamPosition ?? status.streamPosition,
+        data,
+      ),
     ),
   };
 };

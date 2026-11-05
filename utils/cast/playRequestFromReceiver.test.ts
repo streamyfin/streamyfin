@@ -38,6 +38,17 @@ test("a receiver's item plays here at its position with its streams", () => {
   });
 });
 
+// The receiver reports its position on events only (a seek, a pause): while it plays on, the last report falls
+// behind, and the SDK's estimate says where it is now (bench, 05/11: 112 s reported, 169.7 s on the TV).
+test("a playing receiver goes on from where it is now, not from its last report", () => {
+  expect(
+    playRequestFromReceiver({
+      ...status({ itemId: "item-1", canClientSeek: true }, 112),
+      approximateStreamPosition: 169.7,
+    })?.playbackPositionTicks,
+  ).toBe(1_697_000_000);
+});
+
 // Transcoded music or live TV: the receiver's clock starts where the stream was loaded.
 test("a stream the receiver cannot seek in counts from where it was loaded", () => {
   expect(

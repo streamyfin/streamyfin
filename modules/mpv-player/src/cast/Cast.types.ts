@@ -89,7 +89,13 @@ export interface CastMediaInfo {
 export interface CastMediaStatus {
   playerState: CastMediaPlayerStateValue;
   currentItemId: number | null;
+  /** The position at the receiver's last report, which comes on events only (a seek, a pause, a buffer). */
   streamPosition: number;
+  /**
+   * Where the receiver is now, as the SDK estimates it from its last report, rate and time since. Only a
+   * `getMediaStatus` read carries it.
+   */
+  approximateStreamPosition?: number;
   playbackRate: number;
   volume: number;
   isMuted: boolean;
@@ -110,7 +116,13 @@ export interface CastChannel {
 /** What a screen needs from the session it casts to. */
 export interface CastClient {
   sessionId: string;
+  /** The status held: the receiver's last report, which comes on events only. */
   getMediaStatus(): Promise<CastMediaStatus | null>;
+  /**
+   * A status asked of the receiver now, which says where it is; the one held
+   * when it does not answer within `timeoutMs`.
+   */
+  requestMediaStatus(timeoutMs: number): Promise<CastMediaStatus | null>;
   onMediaStatusUpdated(
     listener: (status: CastMediaStatus | null) => void,
   ): CastSubscription;

@@ -30,6 +30,7 @@ import expo.modules.mpvplayer.cast.target.RemoteTargetListener
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
 import expo.modules.mpvplayer.cast.target.RemoteTargets
 import expo.modules.mpvplayer.cast.target.TargetDevice
+import java.util.concurrent.TimeUnit
 
 /**
  * The Cast SDK, owned by the module: context, discovery, session, custom channels and the
@@ -313,7 +314,22 @@ class CastModule : Module() {
         // Each transport call names the session JS meant it for: the current one may have
         // changed between the JS check and this main-queue run.
         AsyncFunction("getMediaStatus") { sessionId: String? ->
-            CastRecords.mediaStatus(ownSession(sessionId)?.remoteMediaClient?.mediaStatus)
+            mediaStatusRecord(ownSession(sessionId)?.remoteMediaClient)
+        }.runOnQueue(Queues.MAIN)
+
+        // The status held is the receiver's last report, which comes on events only: this asks the receiver, whose
+        // answer says where it is. The record comes with the answer, or as it stands once timeoutMs pass.
+        AsyncFunction("requestMediaStatus") { sessionId: String, timeoutMs: Double, promise: Promise ->
+            val client = ownSession(sessionId)?.remoteMediaClient
+            if (client == null) {
+                promise.resolve(null)
+                return@AsyncFunction
+            }
+            client.requestStatus().setResultCallback(
+                { promise.resolve(mediaStatusRecord(client)) },
+                timeoutMs.toLong(),
+                TimeUnit.MILLISECONDS,
+            )
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("play") { sessionId: String? -> ownSession(sessionId)?.remoteMediaClient?.play(); Unit }.runOnQueue(Queues.MAIN)
@@ -325,6 +341,13 @@ class CastModule : Module() {
             Unit
         }.runOnQueue(Queues.MAIN)
     }
+
+    // A status holds the position of its report: the record also says where the receiver is now, as the SDK
+    // estimates it from that report and the time since.
+    private fun mediaStatusRecord(client: RemoteMediaClient?): Map<String, Any?>? =
+        CastRecords.mediaStatus(client?.mediaStatus)?.let { record ->
+            record + ("approximateStreamPosition" to client?.approximateStreamPosition?.div(1000.0))
+        }
 
     // The button's frame in window dp, as JS measures it, to the window pixels the popover is placed in.
     private fun anchorRect(anchor: Any?, activity: android.app.Activity): Rect? {

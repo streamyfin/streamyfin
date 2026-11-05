@@ -298,6 +298,31 @@ test("continue here stops the receiver, then plays here where it was", async () 
   );
 });
 
+// The status held is the receiver's last report, which falls behind while it plays on (bench, 05/11: 19 s): the
+// phone asks the receiver where it is now.
+test("continue here goes on from where the receiver says it is when asked", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockCast.freshMediaStatus = {
+    ...receiverPlaying({ itemId: "item-1", canClientSeek: true }),
+    streamPosition: 177.4,
+  };
+  mockGetUserItemData.mockResolvedValue({
+    Id: "item-1",
+    Type: "Episode",
+    MediaType: "Video",
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ playbackPositionTicks: 1_774_000_000 }),
+    expect.anything(),
+  );
+});
+
 test("an item this server does not know only stops the receiver", async () => {
   mockCast.mediaStatus = receiverPlaying({
     itemId: "elsewhere-1",

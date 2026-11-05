@@ -13,6 +13,7 @@ import {
   type HeaderButtonProps,
 } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { RECEIVER_STATUS_TIMEOUT_MS } from "@/constants/Cast";
 import { Colors } from "@/constants/Colors";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
@@ -53,9 +54,10 @@ type PlayMedia = ReturnType<typeof usePlayMedia>;
  */
 const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
   const session = currentCastSession();
+  // The status held is the receiver's last report, which falls behind while it plays on: it is asked where it is.
   const status = session
     ? await castClientFor(session)
-        .getMediaStatus()
+        .requestMediaStatus(RECEIVER_STATUS_TIMEOUT_MS)
         .catch(() => null)
     : null;
   const request = playRequestFromReceiver(status);

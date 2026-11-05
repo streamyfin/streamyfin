@@ -24,6 +24,16 @@ public class CastModule: Module {
   // target state, and holds the module's relay weakly.
   private let remoteTargets = RemoteTargetHub.shared
   private var targetRelay: TargetRelay?
+  // Held until the receiver answers or the wait ends: a request keeps its delegate weakly.
+  private var statusRequests: [StatusRequest] = []
+
+  /// A status holds the position of its report: the record also says where the receiver is now, as the SDK
+  /// estimates it from that report and the time since.
+  private static func mediaStatusRecord(_ client: GCKRemoteMediaClient?) -> [String: Any?]? {
+    guard var record = CastRecords.mediaStatus(client?.mediaStatus), let client else { return nil }
+    record["approximateStreamPosition"] = client.approximateStreamPosition()
+    return record
+  }
 
   private func cached<T>(_ read: () -> T) -> T {
     cacheLock.lock()
@@ -180,7 +190,23 @@ public class CastModule: Module {
     // Each transport call names the session JS meant it for: the current one may have
     // changed between the JS check and this main-queue run.
     AsyncFunction("getMediaStatus") { (sessionId: String?) -> [String: Any?]? in
-      CastRecords.mediaStatus(self.ownSession(sessionId)?.remoteMediaClient?.mediaStatus)
+      Self.mediaStatusRecord(self.ownSession(sessionId)?.remoteMediaClient)
+    }.runOnQueue(.main)
+
+    // The status held is the receiver's last report, which comes on events only: this asks the receiver, whose
+    // answer says where it is. The record comes with the answer, or as it stands once timeoutMs pass.
+    AsyncFunction("requestMediaStatus") { (sessionId: String, timeoutMs: Double, promise: Promise) in
+      guard let client = self.ownSession(sessionId)?.remoteMediaClient else {
+        promise.resolve(nil)
+        return
+      }
+      let answer = StatusRequest { [weak self] request in
+        self?.statusRequests.removeAll { $0 === request }
+        promise.resolve(Self.mediaStatusRecord(client))
+      }
+      self.statusRequests.append(answer)
+      client.requestStatus().delegate = answer
+      DispatchQueue.main.asyncAfter(deadline: .now() + timeoutMs / 1000) { answer.finish() }
     }.runOnQueue(.main)
 
     AsyncFunction("play") { (sessionId: String?) in self.ownSession(sessionId)?.remoteMediaClient?.play() }.runOnQueue(.main)
@@ -412,6 +438,25 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
   func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
     module?.emitMediaStatus(mediaStatus)
   }
+}
+
+/// A status asked of the receiver: done once, at its answer, its failure, or the end of the wait.
+private final class StatusRequest: NSObject, GCKRequestDelegate {
+  private var done: ((StatusRequest) -> Void)?
+
+  init(done: @escaping (StatusRequest) -> Void) {
+    self.done = done
+  }
+
+  func finish() {
+    let run = done
+    done = nil
+    run?(self)
+  }
+
+  func requestDidComplete(_ request: GCKRequest) { finish() }
+  func request(_ request: GCKRequest, didFailWithError error: GCKError) { finish() }
+  func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) { finish() }
 }
 #else
 /// tvOS and Catalyst carry no Cast: the module answers unavailable and the JS side does nothing.

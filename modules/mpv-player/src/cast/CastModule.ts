@@ -40,6 +40,11 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   sendMessage(namespace: string, message: string): Promise<void>;
   /** Transport calls name the session they were meant for; another current session ignores them. */
   getMediaStatus(sessionId?: string): Promise<CastMediaStatus | null>;
+  /** Asks the receiver for its status and answers with it, or with the one held after `timeoutMs`. */
+  requestMediaStatus(
+    sessionId: string,
+    timeoutMs: number,
+  ): Promise<CastMediaStatus | null>;
   play(sessionId?: string): Promise<void>;
   pause(sessionId?: string): Promise<void>;
   stop(sessionId?: string): Promise<void>;

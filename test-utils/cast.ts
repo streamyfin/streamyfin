@@ -43,6 +43,8 @@ export interface CastDoubleState {
   session: CastSessionInfo | null;
   devices: CastDevice[];
   mediaStatus: CastMediaStatus | null;
+  /** What `requestMediaStatus` answers, the receiver asked now; the held status when unset. */
+  freshMediaStatus: CastMediaStatus | null;
   /** Every channel `addChannel` created, in order. */
   channels: CastDoubleChannel[];
   /** Namespaces handed to `removeChannel`, in order. */
@@ -94,6 +96,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   session: { id: "session-1", device: castDoubleDevice() },
   devices: [],
   mediaStatus: null,
+  freshMediaStatus: null,
   channels: [],
   removed: [],
   sent: [],
@@ -298,6 +301,11 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   // The native side acts only on the session a transport call names.
   getMediaStatus: jest.fn(async (sessionId?: string) =>
     sessionId && state().session?.id !== sessionId ? null : state().mediaStatus,
+  ),
+  requestMediaStatus: jest.fn(async (sessionId: string, _timeoutMs: number) =>
+    state().session?.id !== sessionId
+      ? null
+      : (state().freshMediaStatus ?? state().mediaStatus),
   ),
   play: jest.fn(async (_sessionId?: string) => {}),
   pause: jest.fn(async (_sessionId?: string) => {}),
