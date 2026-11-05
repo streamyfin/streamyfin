@@ -154,6 +154,13 @@
       "playback_controls": {
         "title": "Playback & controls"
       },
+      "remote_quality": {
+        "title": "Remote playback quality",
+        "description": "The quality a receiver plays at. The quality chosen on an item page applies to this device only.",
+        "chromecast": "Chromecast",
+        "same_as_chromecast": "Same as Chromecast",
+        "forget": "Forget this device"
+      },
       "audio_subtitles": {
         "title": "Audio & subtitles"
       },

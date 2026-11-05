@@ -23,6 +23,12 @@ export const RECEIVER_FALLBACK_ID_LENGTH = 8;
 export const RECEIVER_UNCAPPED_BITRATE = 120_000_000;
 
 /**
+ * Receivers the remote quality settings remember, the latest first: a connection
+ * adds one, and the oldest leaves the list, with its own quality, past this many.
+ */
+export const REMOTE_QUALITY_KNOWN_TARGETS_MAX = 20;
+
+/**
  * Most items handed to the receiver in one PlayNow message. Each one is only a
  * few ids, but a Cast message is capped at 64 KB, so a long music queue is sent
  * as a window of this size around the selected track.

@@ -25,6 +25,10 @@ import {
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
+import {
+  NO_REMOTE_QUALITY,
+  type RemotePlaybackQuality,
+} from "@/utils/cast/remoteQuality";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
@@ -423,6 +427,8 @@ export type Settings = {
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
+  /** The quality a receiver plays at; the item page's and the default one stay this device's. */
+  remotePlaybackQuality: RemotePlaybackQuality;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -625,6 +631,7 @@ export const defaultValues: Settings = {
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
   defaultBitrate: BITRATES[0],
+  remotePlaybackQuality: NO_REMOTE_QUALITY,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",

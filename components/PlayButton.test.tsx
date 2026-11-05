@@ -99,7 +99,16 @@ jest.mock("@/utils/atoms/primaryColor", () => ({
     .atom({ primary: "#FFFFFF", text: "#000000" }),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { showResumeDialog: true } }),
+  useSettings: () => ({
+    settings: {
+      showResumeDialog: true,
+      remotePlaybackQuality: {
+        byKind: { cast: "4 Mb/s" },
+        byTarget: {},
+        known: [],
+      },
+    },
+  }),
 }));
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   castToJellyfinReceiver: jest.fn(async () => ({ status: "loaded" })),
@@ -160,6 +169,23 @@ test("a press plays on the connected target", async () => {
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
   expect(mockShowActionSheet).not.toHaveBeenCalled();
   expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// The item page's quality is this device's: a cast plays at the remote quality.
+test("PlayButton sends the remote quality", async () => {
+  const localQuality = {
+    bitrate: { key: "1 Mb/s", value: 1_000_000 },
+  } as never;
+  await render(<PlayButton item={item} selectedOptions={localQuality} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ maxBitrate: 4_000_000 }),
+    expect.anything(),
+    expect.anything(),
+  );
 });
 
 test("a long press offers to play here", async () => {

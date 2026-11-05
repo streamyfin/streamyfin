@@ -23,6 +23,7 @@ import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
   castClientFor,
   currentCastSession,
+  type RemoteTarget,
   showExpandedControls,
   useCastMediaStatus,
   useRemoteTarget,
@@ -40,6 +41,7 @@ import {
 } from "@/utils/cast/jellyfinReceiver";
 import { resolvePlay, waitForTarget } from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { maxBitrateFor } from "@/utils/cast/remoteQuality";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -104,7 +106,7 @@ export const PlayButton: React.FC<Props> = ({
   // the item plus the chosen streams and runs PlaybackInfo itself, which is what
   // opens a real Jellyfin session and makes the cast visible in the dashboard.
   const playOnTarget = useCallback(
-    async (positionTicks: number, targetName: string) => {
+    async (positionTicks: number, remote: RemoteTarget) => {
       if (!api || !user?.Id || !item?.Id) {
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
@@ -125,8 +127,9 @@ export const PlayButton: React.FC<Props> = ({
           {
             api,
             userId: user.Id,
-            receiverName: (await currentReceiverName()) ?? targetName,
-            maxBitrate: selectedOptions.bitrate?.value,
+            receiverName: (await currentReceiverName()) ?? remote.name,
+            // The item page's quality is this device's: a receiver plays at the remote one.
+            maxBitrate: maxBitrateFor(remote, settings.remotePlaybackQuality),
           },
           {
             items: [item],
@@ -156,7 +159,7 @@ export const PlayButton: React.FC<Props> = ({
         );
       }
     },
-    [api, user, item, mediaStatus, selectedOptions, t],
+    [api, user, item, mediaStatus, selectedOptions, settings, t],
   );
 
   // One Play action: the target when one is connected, this device otherwise or
@@ -169,14 +172,14 @@ export const PlayButton: React.FC<Props> = ({
         offline: isOffline,
         longPress,
       });
-      if (destination.where === "target") {
-        await playOnTarget(positionTicks, destination.name);
+      if (destination.where === "target" && target.target) {
+        await playOnTarget(positionTicks, target.target);
         return;
       }
       if (destination.where === "waitForTarget") {
         const settled = await waitForTarget();
         if (settled.state === "connected" && settled.target) {
-          await playOnTarget(positionTicks, settled.target.name);
+          await playOnTarget(positionTicks, settled.target);
         } else {
           // Nothing plays: the connection the press waited for did not come.
           Alert.alert(t("player.client_error"), t("cast.output.failed"));
