@@ -508,6 +508,27 @@ class GoogleCastTargetPortTest {
         assertEquals(listOf(Triple("starting", livingRoom, null), Triple("ended", livingRoom, null)), events.sessions)
     }
 
+    // A stop while the session is suspended reaches no receiver: ended then, the session left the TV playing (bench,
+    // 05/11). It is sent once the session is back.
+    @Test
+    fun aStopWhileSuspendedReachesTheReceiverOnceItIsBack() {
+        val sdk = Sdk().apply { running = RunningSession(livingRoom, connected = true) }
+        val events = Events()
+        val port = sdk.port()
+        port.start(events)
+        sdk.running = RunningSession(livingRoom, connected = false)
+        sdk.report("suspended", livingRoom)
+
+        port.disconnect(stopPlayback = true)
+        val whileSuspended = sdk.ended.toList()
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("resumed", livingRoom)
+
+        assertEquals(emptyList<Boolean>(), whileSuspended)
+        assertEquals(listOf(true), sdk.ended)
+        assertEquals(listOf("resumed", "suspended", "ended"), events.sessions.map { it.first })
+    }
+
     // A receiver whose route is refused selects nothing, so nothing ends the cancelled launch either: its stop stays due.
     @Test
     fun aRefusedReceiverAfterACancelLeavesTheStopDue() {
