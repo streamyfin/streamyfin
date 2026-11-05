@@ -13,6 +13,11 @@ struct OutputPickerStrings {
     strings[key] ?? Self.fallbacks[key] ?? key
   }
 
+  /// "Play on" with the receiver's name, which the template leaves to native.
+  func playOn(_ name: String) -> String {
+    get("playOn").replacingOccurrences(of: "{{name}}", with: name)
+  }
+
   func cause(_ cause: FailureCause) -> String {
     switch cause {
     case .deviceGone: return get("deviceGone")
@@ -43,6 +48,7 @@ struct OutputPickerStrings {
     "unmute": "Unmute",
     "volume": "Volume",
     "remote": "Remote",
+    "playOn": "Play on {{name}}",
     "stopPlayback": "Stop playback",
     "disconnect": "Disconnect",
     "deviceGone": "This device is no longer on the network",

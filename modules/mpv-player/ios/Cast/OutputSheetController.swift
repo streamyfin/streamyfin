@@ -1,8 +1,9 @@
 import Foundation
 
-/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing.
+/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
+/// player's video handed off to the receiver.
 enum OutputSheetOutput: Equatable {
-  case openAirPlay, resolvePlayServices, remote, dismiss
+  case openAirPlay, resolvePlayServices, remote, dismiss, handOff
 }
 
 /// What the screen that opened the sheet knows, and the hub does not.
@@ -13,6 +14,8 @@ struct OutputSheetEnvironment {
   var playingHere: String?
   var receiverTitle: String?
   var receiverPlaying = false
+  /// Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel.
+  var handOff = false
 }
 
 /// The output sheet's behaviour, on the hub: discovery while it is open, the requests a tap makes, and the
@@ -165,6 +168,11 @@ final class OutputSheetController: RemoteTargetListener {
     onOutput?(.remote)
   }
 
+  /// The panel's "Play on", drawn only while it can hand off.
+  func handOff() {
+    onOutput?(.handOff)
+  }
+
   func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
     if let sent = held, let level = snapshot.volume, abs(level - sent) <= RemoteTargetConstants.volumeEchoTolerance {
       held = nil
@@ -177,14 +185,18 @@ final class OutputSheetController: RemoteTargetListener {
       let took = snapshot.target?.id == asked && (snapshot.phase == .connecting || snapshot.phase == .connected)
       if took || snapshot.failedTarget?.id == asked { requestedId = nil }
     }
+    var arrived = false
     if let panel = panelOn {
       if snapshot.error != nil, snapshot.failedTarget?.id == panel { panelOn = nil }
       if snapshot.phase == .connected, snapshot.target?.id == panel {
         panelOn = nil
         showingList = false
+        arrived = true
       }
     }
     publish()
+    // From the player, the receiver the sheet asked for takes the video as soon as it is connected.
+    if arrived, environment.handOff { onOutput?(.handOff) }
   }
 
   func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {
@@ -222,7 +234,7 @@ final class OutputSheetController: RemoteTargetListener {
       playServices: environment.playServices, airPlay: environment.airPlay, thisDevice: environment.thisDevice,
       playingHere: environment.playingHere, receiverTitle: environment.receiverTitle,
       receiverPlaying: environment.receiverPlaying, showingList: showingList,
-      draggedVolume: dragged ?? held, requestedId: requestedId
+      draggedVolume: dragged ?? held, requestedId: requestedId, handOff: environment.handOff
     )
   }
 

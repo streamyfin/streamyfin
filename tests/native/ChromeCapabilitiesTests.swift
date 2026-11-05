@@ -42,6 +42,21 @@ enum ChromeCapabilitiesTests {
 			"speed follows what the engine allows"
 		)
 
+		// The Cast button hands this device's video off: a local engine shows it when JS allows Cast, a remote one never.
+		cases += 1
+		precondition(
+			ChromeCapabilities.of(
+				isRemote: false, pictureInPictureSupported: true, canChangeSpeed: true, allowCast: true
+			).cast
+				&& !ChromeCapabilities.of(
+					isRemote: true, pictureInPictureSupported: true, canChangeSpeed: true, allowCast: true
+				).cast
+				&& !ChromeCapabilities.of(
+					isRemote: false, pictureInPictureSupported: true, canChangeSpeed: true, allowCast: false
+				).cast,
+			"the Cast button follows the config on local engines"
+		)
+
 		print("PASS: chrome capabilities (\(cases) cases)")
 	}
 }

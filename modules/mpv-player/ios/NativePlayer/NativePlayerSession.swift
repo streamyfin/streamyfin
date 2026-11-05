@@ -1,5 +1,8 @@
 import ExpoModulesCore
 import UIKit
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import GoogleCast
+#endif
 
 enum PlayerDismissReason: String {
 	case closeButton
@@ -66,6 +69,9 @@ final class NativePlayerSession {
 		try engine.start()
 
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		if viewModel.capabilities.cast { followCast() }
+		#endif
 
 		let vc = NativePlayerViewController(
 			engine: engine,
@@ -90,6 +96,26 @@ final class NativePlayerSession {
 			promise: promise
 		)
 	}
+
+	#if os(iOS) && !targetEnvironment(macCatalyst)
+	// The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+	// model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+	// app's sheet does.
+	private func followCast() {
+		viewModel.followCast()
+		viewModel.onOutputSheetRequested = { [weak viewModel] anchor in
+			guard let viewModel else { return }
+			let presenter = OutputPickerPresenter.shared
+			presenter.strings = OutputPickerStrings(viewModel.outputPickerStrings)
+			presenter.present(
+				anchor: anchor, playingHere: viewModel.metadata?.title, handOff: true,
+				onHandOff: { [weak viewModel] in viewModel?.requestCastHandOff() }
+			) {
+				GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+			}
+		}
+	}
+	#endif
 
 	/// The JS coordinator locks the window to landscape (expo-screen-orientation)
 	/// right before calling present, which starts rotating the whole app.

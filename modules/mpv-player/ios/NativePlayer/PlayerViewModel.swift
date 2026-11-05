@@ -39,8 +39,47 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		ChromeCapabilities.of(
 			isRemote: isRemoteEngine(engine),
 			pictureInPictureSupported: pictureInPictureSupported(by: engine),
-			canChangeSpeed: engine?.canChangeSpeed ?? true
+			canChangeSpeed: engine?.canChangeSpeed ?? true,
+			allowCast: allowCast
 		)
+	}
+
+	// MARK: - Cast hand-off
+
+	/// JS allows the Cast button, and sends the output sheet's texts with it.
+	private(set) var allowCast = false
+	private(set) var outputPickerStrings: [String: String] = [:]
+	/// The receiver's connection, for the Cast button's glyph: followed while the player is up.
+	@Published private(set) var castPhase: TargetPhase = .none
+	private var unfollowCast: (() -> Void)?
+	/// The Cast button: the session opens the output sheet over the player, from `anchor` in window points.
+	var onOutputSheetRequested: ((CGRect) -> Void)?
+
+	/// The Cast button's name and state, as the header button's: VoiceOver reads "Cast button, Connected".
+	var castButtonLabel: String { str("castButton", "Cast button") }
+	var castButtonState: String {
+		switch castPhase {
+		case .connected: return str("castConnected", "Connected")
+		case .connecting: return str("castConnecting", "Connecting")
+		default: return str("castNotConnected", "Not connected")
+		}
+	}
+
+	func followCast(_ hub: RemoteTargetHub = .shared) {
+		unfollowCast?()
+		castPhase = hub.snapshot.phase
+		unfollowCast = hub.addListener(self)
+	}
+
+	func openOutputSheet(anchor: CGRect) {
+		onOutputSheetRequested?(anchor)
+	}
+
+	/// The sheet handed the video off: paused here, JS sends the item to the receiver where the player is, read as
+	/// the dismiss that follows reads it, so the stop it reports is at that same position.
+	func requestCastHandOff() {
+		engine?.pause()
+		emit?("onCastHandOffRequested", ["positionSec": position])
 	}
 
 	/// What the technical info overlay shows: empty for an engine without a screen.
@@ -553,6 +592,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		subtitleScaleLocked = config.subtitleStyle?.scaleLocked ?? false
 		subtitlesAtTop = config.subtitleStyle?.alignY == "top"
 		uiStrings = config.ui.strings
+		allowCast = config.ui.allowCast
+		outputPickerStrings = config.ui.outputPickerStrings
 		updateSyncPlay(config.syncPlay)
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position
@@ -1475,6 +1516,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: - Teardown
 
 	func willTeardown() {
+		unfollowCast?()
+		unfollowCast = nil
+		onOutputSheetRequested = nil
 		cancelSyncPlayCommands()
 		isTearingDown = true
 		isHoldSpeedActive = false
@@ -1882,4 +1926,13 @@ extension PlayerViewModel: PlayerEngineDelegate {
 			onDismissRequested?(.playbackEnded)
 		}
 	}
+}
+
+// The Cast button's glyph follows the receiver's connection.
+extension PlayerViewModel: RemoteTargetListener {
+	func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+		castPhase = snapshot.phase
+	}
+
+	func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {}
 }

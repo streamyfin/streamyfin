@@ -16,13 +16,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
-  castClientFor,
-  currentCastSession,
   type RemoteTarget,
   showExpandedControls,
   useCastMediaStatus,
@@ -34,20 +31,14 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { effectiveSettingsAtom, useSettings } from "@/utils/atoms/settings";
-import {
-  castToJellyfinReceiver,
-  currentReceiverName,
-} from "@/utils/cast/jellyfinReceiver";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   choosePlay,
   isLatestPlayChoice,
   resolvePlay,
   waitForTarget,
 } from "@/utils/cast/playTarget";
-import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
-import { maxBitrateFor } from "@/utils/cast/remoteQuality";
-import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { Button } from "./Button";
@@ -118,71 +109,37 @@ export const PlayButton: React.FC<Props> = ({
     [item, selectedOptions, isOffline],
   );
 
-  // The official Jellyfin receiver negotiates playback on its own: it is handed
-  // the item plus the chosen streams and runs PlaybackInfo itself, which is what
-  // opens a real Jellyfin session and makes the cast visible in the dashboard.
   const playOnTarget = useCallback(
     async (positionTicks: number, remote: RemoteTarget, choice: number) => {
       if (!api || !user?.Id || !item?.Id) {
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
-      // Read now: a press that waited for the connection holds an older render.
-      const session = currentCastSession();
-      const client = session ? castClientFor(session) : null;
-      if (!session || !client) {
-        Alert.alert(t("player.client_error"), t("cast.output.failed"));
-        return;
-      }
       const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
       const isOpeningCurrentlyPlayingMedia =
         currentTitle && currentTitle === item.Name;
-      try {
-        const outcome = await castToJellyfinReceiver(
-          client,
-          {
-            api,
-            userId: user.Id,
-            receiverName: (await currentReceiverName()) ?? remote.name,
-            // The item page's quality is this device's: a receiver plays at the remote one, read now as the
-            // session is, with the admin's lock as the settings page shows it.
-            maxBitrate: maxBitrateFor(
-              remote,
-              store.get(effectiveSettingsAtom).remotePlaybackQuality,
-            ),
-          },
-          {
-            items: [item],
-            startPositionTicks: positionTicks,
-            mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-            audioStreamIndex: selectedOptions.audioIndex,
-            subtitleStreamIndex: selectedOptions.subtitleIndex,
-          },
-          RECEIVER_LOAD_TIMEOUT_MS,
-          // The load reads the receiver before it sends, and the send goes to the current session: another
-          // account, another receiver or a later play choice by then gets nothing sent.
-          () =>
-            store.get(userAtom)?.Id !== user.Id ||
-            currentCastSession()?.id !== session.id ||
-            !isLatestPlayChoice(choice),
-        );
-        const notStarted = castNotStartedMessage(t, outcome);
-        if (notStarted) {
-          writeErrorLog("Chromecast did not start", outcome);
-          Alert.alert(t("player.client_error"), notStarted);
-        } else if (
-          outcome.status === "loaded" &&
-          // state is already set when reopening current media, so skip it here.
-          !isOpeningCurrentlyPlayingMedia
-        ) {
-          showExpandedControls();
-        }
-      } catch (e) {
-        logAndCaptureError("Chromecast playback failed", e);
-        Alert.alert(
-          t("player.client_error"),
-          t("player.chromecast_playback_failed"),
-        );
+      const result = await sendToReceiver(
+        { api, userId: user.Id, store, t },
+        {
+          item,
+          positionTicks,
+          mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+          audioIndex: selectedOptions.audioIndex,
+          subtitleIndex: selectedOptions.subtitleIndex,
+        },
+        remote,
+        // Another account or a later play choice by then gets nothing sent.
+        () =>
+          store.get(userAtom)?.Id !== user.Id || !isLatestPlayChoice(choice),
+      );
+      if (result.status === "notStarted" || result.status === "failed") {
+        Alert.alert(t("player.client_error"), result.message);
+      } else if (
+        result.status === "loaded" &&
+        // state is already set when reopening current media, so skip it here.
+        !isOpeningCurrentlyPlayingMedia
+      ) {
+        showExpandedControls();
       }
     },
     [api, user, store, item, mediaStatus, selectedOptions, t],

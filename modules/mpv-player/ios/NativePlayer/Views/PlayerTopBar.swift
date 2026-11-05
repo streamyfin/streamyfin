@@ -49,6 +49,11 @@ struct PlayerTopBar: View {
 					.accessibilityIdentifier("syncplay-open-queue")
 			}
 
+			// Not in a SyncPlay group, which a later join can bring into a player that showed it.
+			if viewModel.capabilities.cast && !viewModel.isSyncPlayActive {
+				CastBarButton(viewModel: viewModel, size: buttonSize)
+			}
+
 			if viewModel.capabilities.pictureInPicture {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
 					viewModel.togglePictureInPicture()
@@ -385,6 +390,41 @@ struct PlayerTopBar: View {
 			.foregroundStyle(.white)
 			.frame(width: buttonSize, height: buttonSize)
 			.contentShape(Rectangle())
+	}
+}
+
+/// Hands the video off to a receiver through the output sheet; the glyph says whether one is connected, and a ring
+/// turns while one connects or reconnects. The sheet points at the button, from its frame in the window.
+private struct CastBarButton: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	let size: CGFloat
+	@State private var frame: CGRect = .zero
+
+	var body: some View {
+		let connected = viewModel.castPhase == .connected
+		Button {
+			viewModel.openOutputSheet(anchor: frame)
+		} label: {
+			ZStack {
+				CastGlyph(connected: connected)
+					.fill(connected ? castConnectedTint : .white)
+					.frame(width: 20, height: 20)
+				if viewModel.castPhase == .connecting {
+					ProgressView().tint(.white)
+				}
+			}
+			.frame(width: size, height: size)
+			.contentShape(Rectangle())
+		}
+		.background(
+			GeometryReader { proxy in
+				Color.clear
+					.onAppear { frame = proxy.frame(in: .global) }
+					.onChange(of: proxy.frame(in: .global)) { frame = $0 }
+			}
+		)
+		.accessibilityLabel(viewModel.castButtonLabel)
+		.accessibilityValue(viewModel.castButtonState)
 	}
 }
 #endif

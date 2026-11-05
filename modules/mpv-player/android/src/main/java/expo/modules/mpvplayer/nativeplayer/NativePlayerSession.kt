@@ -44,6 +44,9 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.cast.CastExpandedControllerActivity
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
@@ -173,7 +176,8 @@ class NativePlayerSession(
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
-                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported())
+                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported(), allowCast = config.ui.allowCast)
+                if (viewModel.capabilities.cast) followCastFrom(activity, config.ui.outputPickerStrings)
                 // The menus follow the engine built here: a later load never swaps it.
                 viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
@@ -784,6 +788,27 @@ class NativePlayerSession(
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
         rendering?.detachSurface()
+    }
+
+    // The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+    // model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+    // app's sheet does.
+    private fun followCastFrom(activity: Activity, strings: Map<String, String>) {
+        viewModel.followCast()
+        viewModel.onOutputSheetRequested = { anchor ->
+            OutputPickerPresenter.strings = OutputPickerStrings(strings)
+            OutputPickerPresenter.present(
+                activity,
+                anchor,
+                playingHere = viewModel.metadata?.title,
+                handOff = true,
+                onHandOff = { viewModel.requestCastHandOff() },
+            ) {
+                activity.startActivity(
+                    Intent(activity, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
     }
 
     // MARK: - Teardown

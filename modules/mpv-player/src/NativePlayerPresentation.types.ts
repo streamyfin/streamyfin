@@ -6,6 +6,8 @@
  * anything down; native never sees ticks.
  */
 
+import type { OutputPickerStrings } from "./cast/Cast.types";
+
 export type NativePlayerPlayMethod =
   | "DirectPlay"
   | "DirectStream"
@@ -235,7 +237,11 @@ export type NativePlayerStrings = Partial<
     | "searchSubtitles"
     | "searchFailed"
     | "noSubtitlesFound"
-    | "nowPlaying",
+    | "nowPlaying"
+    | "castButton"
+    | "castConnected"
+    | "castNotConnected"
+    | "castConnecting",
     string
   >
 >;
@@ -268,6 +274,10 @@ export type NativePlayerUIOptions = {
   subtitleSearchLanguages?: { code: string; name: string }[];
   subtitleSearchDefaultLanguage?: string;
   strings?: NativePlayerStrings;
+  /** The Cast button, which hands the video off to a receiver from the output sheet. */
+  allowCast?: boolean;
+  /** The output sheet's texts, for the sheet the Cast button opens. */
+  outputPickerStrings?: Partial<OutputPickerStrings>;
 };
 
 /**
@@ -471,4 +481,9 @@ export type NativePlayerEvents = {
     muted: boolean;
     positionSec: number;
   }) => void;
+  /**
+   * The output sheet handed the video off to the connected receiver: the player paused at `positionSec`, and JS
+   * sends the item there, then closes the player, or says why and plays on.
+   */
+  onCastHandOffRequested: (payload: { positionSec: number }) => void;
 };

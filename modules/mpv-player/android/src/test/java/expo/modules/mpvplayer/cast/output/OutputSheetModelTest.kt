@@ -25,6 +25,7 @@ class OutputSheetModelTest {
         playingHere: String? = null,
         receiverTitle: String? = null,
         receiverPlaying: Boolean = receiverTitle != null,
+        handOff: Boolean = false,
     ) = OutputSheetInput(
         snapshot = snapshot,
         devices = devices,
@@ -38,6 +39,7 @@ class OutputSheetModelTest {
         receiverPlaying = receiverPlaying,
         showingList = false,
         draggedVolume = null,
+        handOff = handOff,
     )
 
     private fun rows(state: OutputSheetState) = (state as OutputSheetState.List).rows
@@ -197,6 +199,21 @@ class OutputSheetModelTest {
         assertEquals(true, panel.showsVolume)
         assertEquals(false, panel.canSetVolume)
         assertEquals(false, panel.canMute)
+    }
+
+    // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
+    @Test
+    fun noHandOffWhileReconnecting() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val held = outputSheetState(input(snapshot = reconnecting, handOff = true)) as OutputSheetState.Connected
+        val back = outputSheetState(input(snapshot = connected, handOff = true)) as OutputSheetState.Connected
+
+        assertEquals(false, held.canHandOff)
+        assertEquals(true, back.canHandOff)
     }
 
     // A suspended session loses its media client until it resumes, and the resumed client reports nothing until the

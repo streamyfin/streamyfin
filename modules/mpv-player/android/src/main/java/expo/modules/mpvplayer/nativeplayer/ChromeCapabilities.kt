@@ -16,15 +16,19 @@ data class ChromeCapabilities(
     val technicalInfo: Boolean,
     /** The speed menu, the hold to speed up and the initial speed. */
     val speed: Boolean,
+    /** The Cast button, which hands this device's video off to a receiver: JS allows it, for a local engine. */
+    val cast: Boolean = false,
 ) {
     companion object {
-        fun of(isRemote: Boolean, pictureInPictureSupported: Boolean, canChangeSpeed: Boolean) = ChromeCapabilities(
-            pictureInPicture = !isRemote && pictureInPictureSupported,
-            zoom = !isRemote,
-            brightness = !isRemote,
-            decoderSettings = !isRemote,
-            technicalInfo = !isRemote,
-            speed = canChangeSpeed,
-        )
+        fun of(isRemote: Boolean, pictureInPictureSupported: Boolean, canChangeSpeed: Boolean, allowCast: Boolean = false) =
+            ChromeCapabilities(
+                pictureInPicture = !isRemote && pictureInPictureSupported,
+                zoom = !isRemote,
+                brightness = !isRemote,
+                decoderSettings = !isRemote,
+                technicalInfo = !isRemote,
+                speed = canChangeSpeed,
+                cast = !isRemote && allowCast,
+            )
     }
 }

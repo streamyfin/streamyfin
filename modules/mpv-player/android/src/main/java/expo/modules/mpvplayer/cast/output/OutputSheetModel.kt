@@ -40,6 +40,8 @@ data class OutputSheetInput(
     val draggedVolume: Double?,
     /** The receiver tapped while another holds the session: the hub starts it once that session ends. */
     val requestedId: String? = null,
+    /** Opened from the player, whose video the receiver can take. */
+    val handOff: Boolean = false,
 )
 
 sealed interface FailureCause {
@@ -101,6 +103,8 @@ sealed interface OutputSheetState {
          * it does at its end whatever it asks.
          */
         val canStop: Boolean,
+        /** Opened from the player, over a connected receiver: "Play on" hands the video off. Not while reconnecting. */
+        val canHandOff: Boolean,
     ) : OutputSheetState
 }
 
@@ -163,6 +167,7 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             reconnecting = snapshot.reconnecting,
             receiverTitle = input.receiverTitle,
             canStop = input.receiverPlaying,
+            canHandOff = input.handOff && snapshot.phase == TargetPhase.CONNECTED,
         )
     }
     val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere))
