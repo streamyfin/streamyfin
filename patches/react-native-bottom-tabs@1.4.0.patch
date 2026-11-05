@@ -1,3 +1,54 @@
+diff --git a/android/src/main/java/com/rcttabview/RCTTabView.kt b/android/src/main/java/com/rcttabview/RCTTabView.kt
+index 3c3d4bdbe2b070f8cc177f6175429fdcdf2d2304..4d982b599a48f2c3d1aa63d5a69b717fbb636fb6 100644
+--- a/android/src/main/java/com/rcttabview/RCTTabView.kt
++++ b/android/src/main/java/com/rcttabview/RCTTabView.kt
+@@ -100,23 +100,34 @@ class ReactBottomNavigationView(context: Context) : LinearLayout(context) {
+     uiModeConfiguration = resources.configuration.uiMode
+ 
+     post {
+-      addOnLayoutChangeListener { _, left, top, right, bottom,
++      addOnLayoutChangeListener { _, _, _, _, _,
+                                   _, _, _, _ ->
+-        val newWidth = right - left
+-        val newHeight = bottom - top
+-
+         // Notify about tab bar height.
+         onTabBarMeasuredListener?.invoke(Utils.convertPixelsToDp(context, bottomNavigation.height).toInt())
+-
+-        if (newWidth != lastReportedSize?.width || newHeight != lastReportedSize?.height) {
+-          val dpWidth = Utils.convertPixelsToDp(context, layoutHolder.width)
+-          val dpHeight = Utils.convertPixelsToDp(context, layoutHolder.height)
+-
+-          onNativeLayoutListener?.invoke(dpWidth, dpHeight)
+-          lastReportedSize = Size(newWidth, newHeight)
+-        }
++        reportHolderSize()
+       }
+     }
++    // Streamyfin: the holder changes size on its own, without the outer view
++    // moving: edge to edge, a keyboard no longer shrinks the window, the tab
++    // bar pads itself by the keyboard height instead. Deciding on the outer
++    // size meant a size taken while a keyboard was up (the app opened from a
++    // keyboard search) was never corrected once it closed, and every tab
++    // showed half a screen of content until a rotation.
++    layoutHolder.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
++      reportHolderSize()
++    }
++  }
++
++  private fun reportHolderSize() {
++    val holderWidth = layoutHolder.width
++    val holderHeight = layoutHolder.height
++    if (holderWidth <= 0 || holderHeight <= 0) return
++    if (holderWidth == lastReportedSize?.width && holderHeight == lastReportedSize?.height) return
++
++    val dpWidth = Utils.convertPixelsToDp(context, holderWidth)
++    val dpHeight = Utils.convertPixelsToDp(context, holderHeight)
++    onNativeLayoutListener?.invoke(dpWidth, dpHeight)
++    lastReportedSize = Size(holderWidth, holderHeight)
+   }
+ 
+   private val layoutCallback = Choreographer.FrameCallback {
 diff --git a/ios/TabView/LegacyTabView.swift b/ios/TabView/LegacyTabView.swift
 index 188ddfdeef97b0505983ed19feb723b93fcd4c40..dc3bf9e05c19d32d24ad5627a479e0bf152dd8ca 100644
 --- a/ios/TabView/LegacyTabView.swift
