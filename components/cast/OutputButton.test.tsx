@@ -80,6 +80,12 @@ test("hidden offline", async () => {
   expect(screen.queryByLabelText(LABEL)).toBeNull();
 });
 
+// A header renders outside its page's offline provider: the page says it is offline.
+test("hidden on a page that says it is offline", async () => {
+  await render(<OutputButton offline />);
+  expect(screen.queryByLabelText(LABEL)).toBeNull();
+});
+
 test("hidden on Catalyst", async () => {
   jest
     .spyOn(Platform as PlatformIOSStatic, "isMacCatalyst", "get")

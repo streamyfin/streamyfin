@@ -223,7 +223,7 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
-            <OutputButton />
+            <OutputButton offline={isOffline} />
             {shuffleButton}
             {!Platform.isTV && !isOffline && (
               <SyncPlayButton items={allEpisodes} title={item.Name} />

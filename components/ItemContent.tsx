@@ -178,7 +178,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         headerRight: () =>
           item && (
             <HeaderButtonGroup>
-              <OutputButton />
+              <OutputButton offline={isOffline} />
               {/* A group plays from the server: a downloaded copy has
                   nothing to start one with. */}
               {item.Type !== "Program" && !isOffline && (
