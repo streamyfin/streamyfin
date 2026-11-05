@@ -58,8 +58,11 @@ final class FakeCastDevices: TargetPort {
     current = device
     events?.sessionEvent("starting", device: device, error: nil)
     pending = schedule(RemoteTargetConstants.fakeConnectDelayMs) { [weak self] in
-      self?.pending = nil
-      self?.events?.sessionEvent("started", device: device, error: nil)
+      guard let self else { return }
+      pending = nil
+      events?.sessionEvent("started", device: device, error: nil)
+      // As the SDK does once the session is up.
+      events?.volumeChanged(level: volume, muted: muted)
     }
   }
 
