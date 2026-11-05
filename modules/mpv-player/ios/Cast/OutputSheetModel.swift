@@ -101,7 +101,9 @@ func failureCause(error: String?, code: Int?) -> FailureCause {
 
 func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
   let snapshot = input.snapshot
-  if snapshot.phase == .connected, let target = snapshot.target, !input.showingList {
+  // A suspended session stays the receiver's while the SDK reaches it again: its panel reads Reconnecting.
+  let held = snapshot.phase == .connected || (snapshot.phase == .connecting && snapshot.reconnecting)
+  if held, let target = snapshot.target, !input.showingList {
     return .connected(
       ConnectedPanel(
         target: target, videoOut: input.devices.first(where: { $0.id == target.id })?.videoOut ?? true,
