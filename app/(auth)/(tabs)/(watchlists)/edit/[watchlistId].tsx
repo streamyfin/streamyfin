@@ -15,6 +15,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import {
+  watchlistItemTypes,
+  watchlistSortOptions,
+} from "@/components/watchlists/watchlistOptions";
 import useRouter from "@/hooks/useAppRouter";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useUpdateWatchlist } from "@/hooks/useWatchlistMutations";
@@ -24,29 +28,11 @@ import type {
   StreamystatsWatchlistSortOrder,
 } from "@/utils/streamystats/types";
 
-const ITEM_TYPES: Array<{
-  value: StreamystatsWatchlistAllowedItemType;
-  label: string;
-}> = [
-  { value: null, label: "All Types" },
-  { value: "Movie", label: "Movies Only" },
-  { value: "Series", label: "Series Only" },
-  { value: "Episode", label: "Episodes Only" },
-];
-
-const SORT_OPTIONS: Array<{
-  value: StreamystatsWatchlistSortOrder;
-  label: string;
-}> = [
-  { value: "custom", label: "Custom Order" },
-  { value: "name", label: "Name" },
-  { value: "dateAdded", label: "Date Added" },
-  { value: "releaseDate", label: "Release Date" },
-];
-
 export default function EditWatchlistScreen() {
   useDismissKeyboardOnLeave();
   const { t } = useTranslation();
+  const itemTypes = watchlistItemTypes(t);
+  const sortOptions = watchlistSortOptions(t);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { watchlistId } = useLocalSearchParams<{ watchlistId: string }>();
@@ -205,7 +191,7 @@ export default function EditWatchlistScreen() {
             {t("watchlists.allowed_type_label")}
           </Text>
           <View className='flex-row flex-wrap gap-2'>
-            {ITEM_TYPES.map((type) => (
+            {itemTypes.map((type) => (
               <TouchableOpacity
                 key={type.value ?? "all"}
                 onPress={() => setAllowedItemType(type.value)}
@@ -231,7 +217,7 @@ export default function EditWatchlistScreen() {
             {t("watchlists.sort_order_label")}
           </Text>
           <View className='flex-row flex-wrap gap-2'>
-            {SORT_OPTIONS.map((sort) => (
+            {sortOptions.map((sort) => (
               <TouchableOpacity
                 key={sort.value}
                 onPress={() => setDefaultSortOrder(sort.value)}
