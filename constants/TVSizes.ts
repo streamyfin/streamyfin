@@ -45,6 +45,13 @@ export const TV_BACKDROP_DEBOUNCE_MS = 300;
 export const TV_BACKDROP_CROSSFADE_MS = 500;
 
 /**
+ * Where Android TV's top tab bar ends, in points below the safe area. That bar
+ * is drawn over the page with no background, so a page that scrolls text starts
+ * its scroll area there (TVBelowTabBar).
+ */
+export const TV_TOP_TAB_BAR_CLEARANCE = 70;
+
+/**
  * Base gap/spacing values in pixels.
  */
 export const TVGaps = {

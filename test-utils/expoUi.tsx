@@ -26,6 +26,11 @@ export const swiftUiModule = {
     </View>
   ),
   Button: () => null,
+  HStack: ({ children }: { children?: React.ReactNode }) => (
+    <View>{children}</View>
+  ),
+  Image: () => null,
+  Text: () => null,
 };
 
 /**
