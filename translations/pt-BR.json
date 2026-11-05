@@ -437,6 +437,9 @@
         "caching_description": "As próximas músicas da fila são armazenadas antecipadamente. As mais antigas são removidas quando o limite de tamanho é atingido.",
         "lookahead_enabled": "Ativar cache antecipado",
         "lookahead_count": "Músicas para pré-carregar",
+        "lookahead_songs_one": "{{count}} song",
+        "lookahead_songs_other": "{{count}} songs",
+        "lookahead_songs": "{{count}} songs",
         "max_cache_size": "Tamanho máximo do cache"
       },
       "plugins": {
@@ -699,7 +702,6 @@
         "could_not_delete_download": "Não foi possível excluir o download",
         "download_completed": "Download completo",
         "download_failed": "Download Falhou",
-        "download_failed_for_item": "Download falhou para {{item}} - {{error}}",
         "download_completed_for_item": "Download completo para {{item}}",
         "download_started_for_item": "Download Iniciado para {{item}}",
         "failed_to_start_download": "Falha ao iniciar o download",
@@ -709,6 +711,13 @@
         "could_not_get_download_url_for_item": "Não foi possível obter o URL de download para {{itemName}}",
         "no_media_source_to_download": "Este item não pode ser baixado",
         "file_deleted": "{{item}} deletado"
+      },
+      "failure": {
+        "conversion": "The server could not convert {{item}} for download. Try again, or download it at Max quality.",
+        "refused": "The server refused to send {{item}} (HTTP {{status}}).",
+        "no_space": "There is not enough free space on this device for {{item}}.",
+        "connection": "The connection to the server dropped while downloading {{item}}.",
+        "other": "Something went wrong while downloading {{item}}. The app logs have the details."
       }
     }
   },
@@ -779,7 +788,14 @@
     "tmdb_studio": "Estúdio TMDB",
     "tmdb_network": "Rede TMDB",
     "tmdb_movie_streaming_services": "Serviço de streaming de filmes TMDB",
-    "tmdb_tv_streaming_services": "Serviço de streaming de TV TMDB"
+    "tmdb_tv_streaming_services": "Serviço de streaming de TV TMDB",
+    "library_sort": {
+      "Relevance": "Relevance",
+      "Name": "Name",
+      "CommunityRating": "Rating",
+      "ProductionYear": "Year",
+      "DateCreated": "Date added"
+    }
   },
   "library": {
     "no_results": "Sem resultado",
@@ -964,13 +980,14 @@
     "cast_and_crew": "Elenco e equipe",
     "series": "Séries",
     "seasons": "Temporadas",
-    "season": "Temporada",
+    "episode_number": "Episode {{episode_number}}",
     "from_this_series": "Desta série",
     "more_from_this_season": "Mais desta temporada",
     "view_series": "Ver série",
     "view_season": "Ver temporada",
     "select_season": "Selecionar temporada",
     "no_episodes_for_this_season": "Sem episódios para esta temporada",
+    "episodes_load_failed": "Couldn't load the episodes.",
     "missing": "Faltando",
     "not_yet_aired": "Ainda não exibido",
     "overview": "Sinopse",
@@ -1128,6 +1145,7 @@
     "advanced": "Avançado",
     "request_as": "Solicitar como",
     "tags": "Etiquetas",
+    "no_tags": "No tags",
     "quality_profile": "Perfil de qualidade",
     "root_folder": "Pasta raiz",
     "season_all": "Temporada (todas)",
@@ -1311,7 +1329,15 @@
     "is_public_label": "Lista de observação pública",
     "is_public_description": "Permitir que outros vejam esta lista de observação",
     "allowed_type_label": "Categoria de Conteúdo",
+    "all_types": "All types",
+    "movies_only": "Movies only",
+    "series_only": "Series only",
+    "episodes_only": "Episodes only",
     "sort_order_label": "Ordenamento Padrão",
+    "sort_custom": "Custom order",
+    "sort_name": "Name",
+    "sort_date_added": "Date added",
+    "sort_release_date": "Release date",
     "empty_title": "Nenhuma Lista",
     "empty_description": "Crie uma lista de observação para juntar as coisas que você quer assistir",
     "empty_watchlist": "Esta lista de observação está vazia",
@@ -1319,12 +1345,15 @@
     "not_configured_title": "Streamystats não configurado",
     "not_configured_description": "Configure o Streamystats nas configurações para usar as listas de observação",
     "go_to_settings": "Ir para Configurações",
+    "load_failed_title": "Couldn't load your watchlists",
+    "load_failed_description": "The Streamystats server couldn't be reached or answered with an error. Try again.",
     "add_to_watchlist": "Adicionar à lista de observação",
     "remove_from_watchlist": "Remover da lista de observação",
     "select_watchlist": "Selecionar lista de observação",
     "create_new": "Criar nova lista de observação",
-    "item": "item",
-    "items": "itens",
+    "item_count_one": "{{count}} item",
+    "item_count_other": "{{count}} items",
+    "item_count": "{{count}} items",
     "public": "Público",
     "private": "Privado",
     "you": "Você",
@@ -1336,7 +1365,21 @@
     "remove_item_message": "Remover \"{{name}}\" desta lista de observação?",
     "loading": "Carregando lista de observações...",
     "no_compatible_watchlists": "Não há listas de observação compatíveis",
-    "create_one_first": "Crie uma lista que aceite este tipo de conteúdo"
+    "create_one_first": "Crie uma lista que aceite este tipo de conteúdo",
+    "toasts": {
+      "created": "Watchlist created",
+      "updated": "Watchlist updated",
+      "deleted": "Watchlist deleted",
+      "added_to": "Added to {{name}}",
+      "added": "Added to the watchlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from the watchlist",
+      "create_failed": "Could not create the watchlist",
+      "update_failed": "Could not save the watchlist",
+      "delete_failed": "Could not delete the watchlist",
+      "add_failed": "Could not add it to the watchlist",
+      "remove_failed": "Could not remove it from the watchlist"
+    }
   },
   "playback_speed": {
     "title": "Velocidade de reprodução",
