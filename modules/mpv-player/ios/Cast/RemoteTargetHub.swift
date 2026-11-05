@@ -131,6 +131,10 @@ final class RemoteTargetHub {
     port?.setMuted(muted)
   }
 
+  func clearFailure() {
+    if machine.clearFailure() { publish() }
+  }
+
   /// `owner` names who asks (`appDiscovery`, `probeDiscovery`); asking twice still takes one stop.
   func startDiscovery(owner: String) {
     if discoveryOwners.insert(owner).inserted, discoveryOwners.count == 1 { port?.startDiscovery() }

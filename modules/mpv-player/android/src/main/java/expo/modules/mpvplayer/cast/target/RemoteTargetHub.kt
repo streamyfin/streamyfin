@@ -90,6 +90,10 @@ class RemoteTargetHub {
         port?.setMuted(muted)
     }
 
+    fun clearFailure() {
+        if (machine.clearFailure()) publish()
+    }
+
     /** [owner] names who asks ([APP_DISCOVERY], [PROBE_DISCOVERY]); asking twice still takes one stop. */
     fun startDiscovery(owner: String) {
         if (discoveryOwners.add(owner) && discoveryOwners.size == 1) port?.startDiscovery()

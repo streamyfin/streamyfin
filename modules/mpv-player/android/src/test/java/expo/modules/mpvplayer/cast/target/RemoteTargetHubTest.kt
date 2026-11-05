@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast.target
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,6 +43,20 @@ class RemoteTargetHubTest {
 
         assertEquals(TargetPhase.CONNECTED, hub.snapshot.phase)
         assertEquals(RemoteTarget.cast(livingRoom), hub.snapshot.target)
+    }
+
+    @Test
+    fun aClearedFailureIsPublished() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+        port.emit("ended", livingRoom, "lost")
+        val listener = Recording()
+        hub.addListener(listener)
+
+        hub.clearFailure()
+
+        assertEquals(listOf(RemoteTargetSnapshot.NONE), listener.targets)
+        assertNull(hub.snapshot.error)
     }
 
     @Test

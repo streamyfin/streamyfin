@@ -343,6 +343,25 @@ class RemoteTargetMachineTest {
         )
     }
 
+    // A failure is read once: a sheet that showed it clears it on closing, so it is not drawn again later.
+    @Test
+    fun aClearedFailureLeavesNoCause() {
+        val machine = connectedTo(livingRoom).also { it.sessionEvent("ended", livingRoom, "lost", 2155) }
+
+        assertTrue(machine.clearFailure())
+        assertEquals(RemoteTargetSnapshot.NONE, machine.snapshot)
+        assertFalse(machine.clearFailure())
+    }
+
+    // A session the SDK kept keeps its cause until it ends: only a failure with nothing held is cleared.
+    @Test
+    fun aHeldSessionKeepsItsCause() {
+        val machine = connectedTo(livingRoom).also { it.sessionEvent("endRefused", livingRoom, "kept") }
+
+        assertFalse(machine.clearFailure())
+        assertEquals("kept", machine.snapshot.error)
+    }
+
     @Test
     fun theJsShapeCarriesTheNewFields() {
         val connected = connectedTo(livingRoom).also { it.volumeChanged(0.62, true) }.snapshot.toMap()
