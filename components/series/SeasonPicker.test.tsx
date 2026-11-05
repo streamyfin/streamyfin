@@ -1,6 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { userAtom } from "@/providers/JellyfinProvider";
@@ -65,6 +70,10 @@ jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
 jest.mock("../PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));
+let mockRequestMore: (() => void) | undefined;
+jest.mock("@/hooks/useSeerrSeriesRequest", () => ({
+  useSeerrSeriesRequest: () => mockRequestMore,
+}));
 
 const SERIES: BaseItemDto = { Id: "series-1", Type: "Series", Name: "Show" };
 
@@ -97,6 +106,28 @@ const renderPicker = async (store: ReturnType<typeof createStore>) => {
   );
   return { tree, view: await render(tree()) };
 };
+
+beforeEach(() => {
+  mockRequestMore = undefined;
+});
+
+describe("SeasonPicker Request more", () => {
+  // The Seerr action only exists while the hook offers it; pressing it must
+  // reach the callback the hook returned.
+  test("renders the action and forwards its press", async () => {
+    mockRequestMore = jest.fn();
+    mockDownloads = [episode(1, "Pilot")];
+    const store = createStore();
+
+    await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+
+    const button = screen.getByLabelText("seerr.request_more");
+    fireEvent.press(button);
+
+    expect(mockRequestMore).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("SeasonPicker offline", () => {
   // #2153: with one episode downloaded in season 1 and one in season 2,

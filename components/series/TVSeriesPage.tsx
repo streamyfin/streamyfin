@@ -28,6 +28,7 @@ import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useSeerrSeriesRequest } from "@/hooks/useSeerrSeriesRequest";
 import { useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -53,6 +54,9 @@ const HORIZONTAL_PADDING = scaleSize(80);
 const TOP_PADDING = scaleSize(140);
 const POSTER_WIDTH_PERCENT = 0.22;
 const SCALE_PADDING = scaleSize(20);
+// The row holds up to five buttons; an unbounded play or season label would
+// push the trailing controls out of the column and over the poster.
+const ACTION_LABEL_MAX_WIDTH = scaleSize(280);
 
 interface TVSeriesPageProps {
   item: BaseItemDto;
@@ -81,6 +85,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const { showSeasonModal } = useTVSeriesSeasonModal();
   const { showItemActions } = useTVItemActionModal();
   const { startShuffle } = useShuffleQueue();
+  const requestMore = useSeerrSeriesRequest(item);
   const { showOptions } = useTVOptionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
@@ -457,10 +462,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   style={{ marginRight: scaleSize(10) }}
                 />
                 <Text
+                  numberOfLines={1}
                   style={{
                     fontSize: typography.callout,
                     fontWeight: "bold",
                     color: "#000000",
+                    maxWidth: ACTION_LABEL_MAX_WIDTH,
                   }}
                 >
                   {playButtonText}
@@ -474,11 +481,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   variant='glass'
                 >
                   <Text
+                    numberOfLines={1}
                     style={{
                       fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#FFFFFF",
                       marginRight: scaleSize(10),
+                      maxWidth: ACTION_LABEL_MAX_WIDTH,
                     }}
                   >
                     {selectedSeasonName}
@@ -511,6 +520,30 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                     }}
                   >
                     {t("player.shuffle")}
+                  </Text>
+                </TVButton>
+              )}
+
+              {requestMore && (
+                <TVButton
+                  onPress={requestMore}
+                  disabled={isSeasonModalVisible}
+                  variant='primary'
+                >
+                  <Ionicons
+                    name='download-outline'
+                    size={scaleSize(28)}
+                    color='#000000'
+                    style={{ marginRight: scaleSize(10) }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "bold",
+                      color: "#000000",
+                    }}
+                  >
+                    {t("seerr.request_more")}
                   </Text>
                 </TVButton>
               )}
