@@ -109,15 +109,10 @@ internal class GoogleCastTargetPort(
     }
 
     override fun connect(device: TargetDevice) {
-        cancelled?.let { launch ->
-            when {
-                // Asked again before it was up: the launch goes on, and the hub follows it again.
-                launch.device.id == device.id && launch.stopWhenUp != null -> cancelled = null
-                // Asked again while that session is being ended: selected again once it has, as for a switch back.
-                launch.device.id == device.id -> leaving = launch.device
-                // Another receiver's route ends that launch: no stop is due, and its end still stays away from the hub.
-                else -> launch.stopWhenUp = null
-            }
+        cancelled?.takeIf { it.device.id == device.id }?.let { launch ->
+            // Asked again before it was up, the launch goes on and the hub follows it again; asked again while that
+            // session is being ended, it is selected again once it has, as for a switch back.
+            if (launch.stopWhenUp != null) cancelled = null else leaving = launch.device
         }
         if (device.id == leaving?.id) {
             afterLeaving = device
@@ -139,6 +134,9 @@ internal class GoogleCastTargetPort(
             events?.sessionEvent("startFailed", device, RECEIVER_BUSY)
             return
         }
+        // Another receiver's route ends a cancelled launch: no stop is due once it is selected, and that launch's end
+        // still stays away from the hub. A refused route selects nothing, and the stop stays due.
+        cancelled?.takeIf { it.device.id != device.id }?.stopWhenUp = null
         // The SDK's session manager follows the selected route: it ends a session on another one first.
         route.select()
     }
