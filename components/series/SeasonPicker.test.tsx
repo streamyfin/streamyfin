@@ -8,6 +8,8 @@ import { SeasonPicker, seasonIndexAtom } from "./SeasonPicker";
 
 let mockDownloads: DownloadedItem[] = [];
 let mockOffline = true;
+let mockTrackIcon = false;
+let mockIconMounts = 0;
 /** What the show API answers online: a season, and episodes held until released. */
 const mockShowApi = {
   getSeasons: jest.fn(),
@@ -55,8 +57,21 @@ jest.mock("../cards/CardListRow", () => ({
   },
 }));
 jest.mock("../DownloadItem", () => ({
-  DownloadItems: () => null,
+  DownloadItems: ({
+    DownloadedIconComponent,
+  }: {
+    DownloadedIconComponent: React.ComponentType;
+  }) => (mockTrackIcon ? <DownloadedIconComponent /> : null),
   DownloadSingleItem: () => null,
+}));
+jest.mock("@/components/common/HeaderIcon", () => ({
+  HeaderIcon: ({ name }: { name: string }) => {
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      if (name === "downloaded") mockIconMounts++;
+    }, []);
+    return null;
+  },
 }));
 jest.mock("../PlayedStatus", () => ({ PlayedStatus: () => null }));
 jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
@@ -121,6 +136,8 @@ describe("SeasonPicker offline", () => {
 
 describe("SeasonPicker online", () => {
   beforeEach(() => {
+    mockTrackIcon = false;
+    mockIconMounts = 0;
     mockOffline = false;
     mockShowApi.getSeasons.mockResolvedValue({
       data: { Items: [{ Id: "season-1", IndexNumber: 1, Name: "Season 1" }] },
@@ -251,6 +268,29 @@ describe("SeasonPicker online", () => {
     expect(screen.getByText("Pilot")).toBeTruthy();
     expect(mockShowApi.getSeasons).not.toHaveBeenCalled();
     expect(mockShowApi.getEpisodes).not.toHaveBeenCalled();
+  });
+
+  test("keeps the season download icon mounted as downloads finish", async () => {
+    mockDownloads = [episode(1, "Pilot")];
+    mockTrackIcon = true;
+    mockShowApi.getEpisodes.mockResolvedValue({
+      data: {
+        Items: [{ Id: "episode-1", Name: "Pilot", ParentIndexNumber: 1 }],
+        TotalRecordCount: 1,
+      },
+    });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    const mountsBeforeDownload = mockIconMounts;
+
+    mockDownloads = [episode(1, "Pilot"), episode(2, "Return")];
+    await view.rerender(tree());
+
+    expect(mockIconMounts).toBe(mountsBeforeDownload);
   });
 
   test("episodes that failed to load say so, not an empty season", async () => {
