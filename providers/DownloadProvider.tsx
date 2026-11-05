@@ -141,6 +141,7 @@ function useDownloadProvider() {
     processes,
     startBackgroundDownload,
     downloadedItems, // Reactive value that auto-updates
+    refreshKey,
     getDownloadedItems: getAllDownloadedItems, // Keep for backward compatibility
     getDownloadsDatabase,
     deleteAllFiles,
@@ -170,6 +171,7 @@ export function useDownload() {
       processes: [],
       startBackgroundDownload: async () => {},
       downloadedItems: [],
+      refreshKey: 0,
       getDownloadedItems: () => [],
       getDownloadsDatabase: () => ({ movies: {}, series: {}, other: {} }),
       deleteAllFiles: async () => {},

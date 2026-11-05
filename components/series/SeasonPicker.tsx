@@ -51,7 +51,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
   const isOffline = useOfflineMode();
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { getDownloadedItems, refreshKey } = useDownload();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
@@ -63,7 +63,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       "seasons",
       item.Id,
       isOffline,
-      downloadsKeyPart(isOffline, downloadedItems),
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {
@@ -117,7 +117,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       item.Id,
       isOffline ? selectedSeasonNumber : selectedSeasonId,
       isOffline,
-      downloadsKeyPart(isOffline, downloadedItems),
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {

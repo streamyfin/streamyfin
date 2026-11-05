@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react-native";
+import { act, render, renderHook } from "@testing-library/react-native";
+import { Component, type ReactNode } from "react";
 import { stubReactNative } from "@/test-utils/reactNative";
 import type { DownloadedItem } from "../types";
 
@@ -71,4 +72,44 @@ test("never reads on TV, where downloads do not exist", async () => {
 
   expect(mockGetAllDownloadedItems).not.toHaveBeenCalled();
   expect(result.current).toEqual([]);
+});
+
+class Boundary extends Component<
+  { onError: (error: unknown) => void; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    this.props.onError(error);
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+// Read in a timer, a damaged index skipped every error boundary and went
+// straight to the global handler.
+test("hands a failed read to the nearest error boundary", async () => {
+  const failure = new SyntaxError("Unexpected token");
+  mockGetAllDownloadedItems.mockImplementation(() => {
+    throw failure;
+  });
+  const onError = jest.fn();
+  const Reader = () => {
+    useDownloadedItems(0);
+    return null;
+  };
+  jest.spyOn(console, "error").mockImplementation(() => {});
+
+  await render(
+    <Boundary onError={onError}>
+      <Reader />
+    </Boundary>,
+  );
+  await act(async () => jest.runAllTimers());
+
+  expect(onError).toHaveBeenCalledWith(failure);
 });
