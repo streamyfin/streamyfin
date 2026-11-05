@@ -21,7 +21,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
-import { canRequestForOthers } from "@/utils/seerr/requests";
+import { canRequestForOthers, requestTagIds } from "@/utils/seerr/requests";
 import type {
   MediaRequestBody,
   QualityProfile,
@@ -200,9 +200,9 @@ export default function TVRequestModalPage() {
       defaultServiceDetails?.tags.map((tag) => ({
         id: tag.id,
         label: tag.label,
-        selected:
-          requestOverrides.tags?.includes(tag.id) ||
-          defaultTags.some((dt) => dt.id === tag.id),
+        selected: requestTagIds(requestOverrides.tags, defaultTags).includes(
+          tag.id,
+        ),
       })) ?? []
     );
   }, [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags]);
@@ -262,7 +262,7 @@ export default function TVRequestModalPage() {
   const handleTagToggle = useCallback(
     (tagId: number) => {
       setRequestOverrides((prev) => {
-        const currentTags = prev.tags || defaultTags.map((t) => t.id);
+        const currentTags = requestTagIds(prev.tags, defaultTags);
         const hasTag = currentTags.includes(tagId);
         return {
           ...prev,
