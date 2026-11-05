@@ -392,6 +392,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun destroy() {
         renderer?.stop()
         isLoadingMedia = false
+        // The next mpv handle starts at 1x; JS sets the speed again if needed.
+        playbackSpeedValue = 1.0
 
         // Reset view-level state so a subsequent loadVideo() on the SAME view
         // instance re-creates the mpv handle and re-attaches the still-live

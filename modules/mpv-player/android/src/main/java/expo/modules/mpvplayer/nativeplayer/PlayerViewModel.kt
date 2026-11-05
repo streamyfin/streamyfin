@@ -67,6 +67,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var onHapticRequested: (() -> Unit)? = null
     var onPlaybackStateSync: (() -> Unit)? = null
     var onMetadataSync: (() -> Unit)? = null
+    /** Each position report, for the media session to catch a seek or stall. */
+    var onPositionSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
 
     /**
@@ -1316,6 +1318,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (!isScrubbing) {
             displayPosition = position
         }
+        onPositionSync?.invoke()
 
         val didSeek = requestId != null
 
@@ -1425,6 +1428,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
         } else if (next?.stillWatchingRequired == true) {
             isPlaying = false
             showStillWatching = true
+            // The media session and its locks follow the play state.
+            onPlaybackStateSync?.invoke()
         } else {
             emit?.invoke("onPlaybackEnded", mapOf("positionSec" to displayPosition))
             onDismissRequested?.invoke("playbackEnded")

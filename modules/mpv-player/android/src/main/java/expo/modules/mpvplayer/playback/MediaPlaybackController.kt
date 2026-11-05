@@ -60,6 +60,8 @@ class MediaPlaybackController(
         private const val POSITION_DRIFT_REPUBLISH_MS = 1500L
 
         private const val ARTWORK_MAX_PX = 512
+        // A poster is a few hundred KB; anything past this is not one.
+        private const val ARTWORK_MAX_BYTES = 8 * 1024 * 1024
         // Offline the artwork request fails; retry on later state changes,
         // no more often than this, so it shows up once the network is back.
         private const val ARTWORK_RETRY_MS = 30_000L
@@ -189,8 +191,17 @@ class MediaPlaybackController(
         publishedSpeed = speed
 
         if (playing) {
-            if (!hasAudioFocus) requestAudioFocus()
+            // Never play over whoever holds the focus (a call): refused,
+            // the player pauses and this runs again with playing false.
+            if (!hasAudioFocus && !requestAudioFocus()) {
+                Log.i(TAG, "Audio focus refused — pausing")
+                target.pauseForInterruption()
+                return
+            }
             acquireLocks()
+            // A start refused while the app was in the background is
+            // retried on the next play the user makes in front of it.
+            PlaybackService.ensureStarted(context, this)
         } else {
             releaseLocks()
         }
@@ -260,7 +271,8 @@ class MediaPlaybackController(
             artworkExecutor.execute {
                 val bitmap = try {
                     decodeArtwork(uri, headers)
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    // OutOfMemoryError included: the artwork is never worth the process.
                     // Offline, an image the server does not have: the
                     // notification just goes without artwork.
                     Log.d(TAG, "Artwork unavailable: ${e.message}")
@@ -296,7 +308,18 @@ class MediaPlaybackController(
                 headers?.forEach { (k, v) -> conn.setRequestProperty(k, v) }
                 try {
                     if (conn.responseCode !in 200..299) return null
-                    conn.inputStream.use { it.readBytes() }
+                    if (conn.contentLengthLong > ARTWORK_MAX_BYTES) return null
+                    conn.inputStream.use { input ->
+                        val out = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(16 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            out.write(buffer, 0, read)
+                            if (out.size() > ARTWORK_MAX_BYTES) return null
+                        }
+                        out.toByteArray()
+                    }
                 } finally {
                     conn.disconnect()
                 }
@@ -403,9 +426,10 @@ class MediaPlaybackController(
                 target.pauseForInterruption()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                // A call or an assistant prompt. Keep the focus request so
-                // the user can resume with one press when it ends.
+                // A call or an assistant prompt. A Play pressed meanwhile
+                // asks for the focus again instead of playing over it.
                 Log.i(TAG, "Audio focus lost transiently — pausing")
+                hasAudioFocus = false
                 target.pauseForInterruption()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -422,7 +446,8 @@ class MediaPlaybackController(
         }
     }
 
-    private fun requestAudioFocus() {
+    /** True when the focus is granted. */
+    private fun requestAudioFocus(): Boolean {
         val attributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
@@ -435,6 +460,7 @@ class MediaPlaybackController(
             .build()
             .also { audioFocusRequest = it }
         hasAudioFocus = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return hasAudioFocus
     }
 
     private fun abandonAudioFocus() {

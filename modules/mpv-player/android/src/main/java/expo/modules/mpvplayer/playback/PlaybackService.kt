@@ -63,6 +63,17 @@ class PlaybackService : Service() {
             }
         }
 
+        /**
+         * Starts the service for [controller] if it should be running and is
+         * not: an earlier start refused in the background. Never takes the
+         * service from another player.
+         */
+        fun ensureStarted(context: Context, controller: MediaPlaybackController) {
+            if (running || startPending) return
+            if (owner != null && owner !== controller) return
+            attach(context, controller)
+        }
+
         fun refresh(context: Context, controller: MediaPlaybackController) {
             if (owner !== controller || !running) return
             try {

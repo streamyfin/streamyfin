@@ -520,6 +520,8 @@ class MPVLayerRenderer(
     // would fail the VO this exists to keep alive. Three 64x36 buffers; the
     // next lock reuses it and stop() releases it.
     private var offscreenSink: OffscreenSurfaceSink? = null
+    // A device that cannot make one is not asked again on every detach.
+    private var offscreenSinkUnavailable = false
 
     /**
      * Detach surface without killing the VO pipeline.
@@ -539,7 +541,12 @@ class MPVLayerRenderer(
             // Hand mpv a surface nobody sees instead of none: without one the
             // VO fails, the video track is dropped and the refresh seek that
             // follows can take tens of seconds (OffscreenSurfaceSink).
-            val sink = offscreenSink ?: OffscreenSurfaceSink.create()?.also { offscreenSink = it }
+            val sink = offscreenSink ?: if (offscreenSinkUnavailable) null else {
+                OffscreenSurfaceSink.create().also {
+                    offscreenSink = it
+                    offscreenSinkUnavailable = it == null
+                }
+            }
             if (sink != null) {
                 mpv?.attachSurface(sink.surface)
                 updateSurfaceSize(OffscreenSurfaceSink.WIDTH, OffscreenSurfaceSink.HEIGHT)

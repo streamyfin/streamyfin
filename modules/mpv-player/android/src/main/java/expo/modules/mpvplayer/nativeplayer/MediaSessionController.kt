@@ -28,8 +28,10 @@ class MediaSessionController(
                     artworkUri = it.artworkUri,
                 )
             }
+        // In a group Next goes to the group's next item, and only that.
         override val canSkipToNext get() =
-            viewModel.nextEpisode != null || viewModel.syncPlay?.hasNext == true
+            if (viewModel.syncPlayActive) viewModel.syncPlay?.hasNext == true
+            else viewModel.nextEpisode != null
 
         override fun play() = viewModel.play()
         override fun pause() = viewModel.pause()

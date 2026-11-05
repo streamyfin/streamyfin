@@ -50,8 +50,8 @@ internal class OffscreenSurfaceSink private constructor(
         /** Null below Android 10, where ImageReader cannot be a GPU target. */
         fun create(): OffscreenSurfaceSink? {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+            val thread = HandlerThread("mpv-offscreen-sink").apply { start() }
             return try {
-                val thread = HandlerThread("mpv-offscreen-sink").apply { start() }
                 val reader = ImageReader.newInstance(
                     WIDTH,
                     HEIGHT,
@@ -69,6 +69,7 @@ internal class OffscreenSurfaceSink private constructor(
                 OffscreenSurfaceSink(reader, thread)
             } catch (e: Exception) {
                 Log.w(TAG, "No offscreen sink: ${e.message}")
+                thread.quitSafely()
                 null
             }
         }
