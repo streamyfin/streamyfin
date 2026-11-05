@@ -16,12 +16,12 @@ android {
 }
 
 dependencies {
-  // Media3 (ExoPlayer). The default tracks react-native-track-player's
-  // pinned version (currently 1.10.1) so we don't end up with two media3
-  // versions on the classpath and duplicate-class errors. The
+  // Media3 (ExoPlayer). plugins/withExcludeMedia3Dash.ts aligns every
+  // androidx.media3 artifact on this release, react-native-track-player's
+  // included, so the classpath never mixes two. The
   // DASH/SmoothStreaming/RTSP artifacts that RNTP pulls in are excluded
   // globally via plugins/withExcludeMedia3Dash.js.
-  def media3Version = rootProject.ext.has('media3Version') ? rootProject.ext.get('media3Version') : '1.10.1'
+  def media3Version = rootProject.ext.has('media3Version') ? rootProject.ext.get('media3Version') : '1.11.1'
   implementation "androidx.media3:media3-exoplayer:${media3Version}"
   implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
   implementation "androidx.media3:media3-ui:${media3Version}"
@@ -44,7 +44,7 @@ dependencies {
   implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
 
   testImplementation 'junit:junit:4.13.2'
-  testImplementation 'org.robolectric:robolectric:4.16.1'
-  testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
-  testImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.0'
+  testImplementation 'org.robolectric:robolectric:4.17'
+  testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.1'
+  testImplementation 'com.squareup.okhttp3:okhttp-tls:4.12.1'
 }
