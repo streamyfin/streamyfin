@@ -17,8 +17,6 @@ enum RemoteTargetConstants {
   static let volumeDragRestMs = 600.0
   /// How close the echo must come to the level sent: one step of the Cast route on Android (1 of 20).
   static let volumeEchoTolerance = 0.05
-  /// From this width the sheet opens as a popover (tablets, landscape phones).
-  static let regularWidthDp = 600
   /// The popover's width, in points, as on Android.
   static let popoverWidth: CGFloat = 380
 }

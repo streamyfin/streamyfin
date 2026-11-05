@@ -169,7 +169,6 @@ enum OutputSheetTests {
         && OutputPickerStrings().cause(.other("")) == "The connection failed"
     )
 
-    check("theLayoutIsAPopoverFrom600dp", outputLayout(widthDp: 599) == .sheet && outputLayout(widthDp: 600) == .popover)
   }
 
   static func controllerCases() {
@@ -456,17 +455,5 @@ enum OutputSheetTests {
       check("closingTheSheetStopsDiscovery", open && !port.discovering && clock.pending == 0)
     }
 
-    // Rotating a tablet moves the sheet to a popover and back: what it shows stays as it was.
-    do {
-      let port = port()
-      let sheet = sheet(port, clock: Clock())
-      port.emit("started", livingRoom)
-      sheet.change()
-      let before = sheet.state
-      sheet.setWidth(720)
-      let wide = sheet.layout
-      sheet.setWidth(400)
-      check("theStateSurvivesALayoutChange", wide == .popover && sheet.layout == .sheet && sheet.state == before)
-    }
   }
 }

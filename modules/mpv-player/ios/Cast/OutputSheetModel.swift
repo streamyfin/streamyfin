@@ -83,14 +83,6 @@ enum OutputSheetState: Equatable {
   case connected(ConnectedPanel)
 }
 
-enum OutputLayout: Equatable {
-  case sheet, popover
-}
-
-func outputLayout(widthDp: Int) -> OutputLayout {
-  widthDp >= RemoteTargetConstants.regularWidthDp ? .popover : .sheet
-}
-
 // GCKErrorCode, from the google-cast-sdk reference: network, timeout, device not connected, network not
 // reachable, disconnected; then the receiver app not found or not running, its variants included.
 private let networkCodes: Set<Int> = [1, 2, 14, 17, 92]

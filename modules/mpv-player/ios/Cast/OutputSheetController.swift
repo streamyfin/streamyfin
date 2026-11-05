@@ -24,7 +24,6 @@ final class OutputSheetController: RemoteTargetListener {
   }
   var onState: ((OutputSheetState) -> Void)?
   var onOutput: ((OutputSheetOutput) -> Void)?
-  private(set) var layout = OutputLayout.sheet
   private(set) var state: OutputSheetState = .list([])
 
   private let hub: RemoteTargetHub
@@ -164,11 +163,6 @@ final class OutputSheetController: RemoteTargetListener {
 
   func remote() {
     onOutput?(.remote)
-  }
-
-  /// A rotation moves the sheet to a popover and back; what it shows stays as it was.
-  func setWidth(_ widthDp: Int) {
-    layout = outputLayout(widthDp: widthDp)
   }
 
   func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {

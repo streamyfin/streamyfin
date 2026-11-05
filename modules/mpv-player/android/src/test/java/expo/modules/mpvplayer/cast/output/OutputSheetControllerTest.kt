@@ -345,21 +345,4 @@ class OutputSheetControllerTest {
         assertEquals(0, scheduler.pending)
     }
 
-    // Rotating a tablet moves the sheet to a popover and back: what it shows stays as it was.
-    @Test
-    fun theStateSurvivesALayoutChange() {
-        val port = port()
-        val sheet = sheet(hubWith(port))
-        port.emit("started", livingRoom)
-        sheet.change()
-        val before = sheet.state
-
-        sheet.setWidth(720)
-        val wide = sheet.layout
-        sheet.setWidth(400)
-
-        assertEquals(OutputLayout.POPOVER, wide)
-        assertEquals(OutputLayout.SHEET, sheet.layout)
-        assertEquals(before, sheet.state)
-    }
 }
