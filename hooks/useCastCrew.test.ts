@@ -79,6 +79,7 @@ describe("useCastCrew", () => {
     );
 
     expect(result.current.map((p) => p.Id)).toEqual(["a"]);
+    expect(result.current[0].Role).toBe("Rex, Mother");
   });
 
   // Callers hand the result to memoized children: a new array every render,
