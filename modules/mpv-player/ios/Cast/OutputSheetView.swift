@@ -5,7 +5,7 @@ import SwiftUI
 // The output sheet's drawing: it follows the controller's state and hands every tap back to it. The same
 // sheet as OutputSheet.kt.
 
-private let accent = Color(red: 147 / 255, green: 51 / 255, blue: 233 / 255)
+private let accent = castConnectedTint
 private let sheetColor = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
 private let rowColor = Color.white.opacity(0.05)
 private let selectedRowColor = Color.white.opacity(0.12)

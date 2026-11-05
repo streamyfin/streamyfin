@@ -16,13 +16,13 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
-// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
-// module is absent from TV binaries and a top-level value import crashes on
-// launch (the type-only import above is erased at build time).
 import {
   isCastAvailable,
   type OutputPickerStrings,
 } from "@/modules/mpv-player/src/cast";
+// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
+// module is absent from TV binaries and a top-level value import crashes on
+// launch (the type-only import above is erased at build time).
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
@@ -538,14 +538,10 @@ export async function buildNativePlayerConfig(params: {
     if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
-  // The Cast button hands the video off to a receiver: online, where Cast and the output sheet exist (neither a TV
-  // nor a Mac). Not tied to SyncPlay: the player hides it while it plays for a group, and shows it once the group is
-  // left, which this config, built once, could not follow.
-  const castAllowed =
-    !offline &&
-    !Platform.isTV &&
-    !(Platform.OS === "ios" && Platform.isMacCatalyst) &&
-    isCastAvailable();
+  // The Cast button hands the video off to a receiver: online, where Cast and the output sheet exist (the module
+  // answers unavailable on a TV and a Mac). Not tied to SyncPlay: the player hides it while it plays for a group, and
+  // shows it once the group is left, which this config, built once, could not follow.
+  const castAllowed = !offline && isCastAvailable();
 
   const config: NativePlayerConfig = {
     stream: {

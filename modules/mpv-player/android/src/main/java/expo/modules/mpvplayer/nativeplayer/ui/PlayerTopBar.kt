@@ -149,7 +149,7 @@ fun PlayerTopBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.PictureInPicture,
-                    contentDescription = "Picture in Picture",
+                    contentDescription = viewModel.str("pictureInPicture", "Picture in picture"),
                     tint = Color.White
                 )
             }
