@@ -218,6 +218,7 @@ export const usePlaybackManager = ({
 
       const shouldSaveProgress =
         meetsMinimumPercentage && !isItemConsideredPlayed;
+      const lastPlayed = new Date().toISOString();
 
       updateDownloadedItem(itemId, {
         ...localItem,
@@ -233,7 +234,7 @@ export const usePlaybackManager = ({
                 ? 0
                 : Math.floor(positionTicks),
             Played: isItemConsideredPlayed,
-            LastPlayedDate: new Date().toISOString(),
+            LastPlayedDate: lastPlayed,
             PlayedPercentage:
               isItemConsideredPlayed || !shouldSaveProgress
                 ? 0
@@ -244,7 +245,7 @@ export const usePlaybackManager = ({
       // Saved where the server cannot see it: queue it for the sync that
       // runs once the server answers again (useOfflineProgressSync).
       if (user?.Id && (!isOnline || serverConnected !== true)) {
-        markOfflineProgress(user.Id, itemId);
+        markOfflineProgress(user.Id, itemId, lastPlayed);
       }
       // Force invalidate queries so they refetch from updated local database
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
@@ -267,8 +268,13 @@ export const usePlaybackManager = ({
         console.error("Failed to report playback progress", error);
         // A downloaded item's progress is still on the device: queue it.
         const itemId = playbackProgressInfo.ItemId;
-        if (user?.Id && itemId && getDownloadedItemById(itemId)) {
-          markOfflineProgress(user.Id, itemId);
+        const downloaded = itemId ? getDownloadedItemById(itemId) : undefined;
+        if (user?.Id && itemId && downloaded) {
+          markOfflineProgress(
+            user.Id,
+            itemId,
+            downloaded.item.UserData?.LastPlayedDate,
+          );
         }
       }
     }

@@ -12,10 +12,16 @@ import { useNetworkStatus } from "./useNetworkStatus";
  */
 /**
  * How one item's playback state was reconciled: the local state was sent to
- * the server, the server's was taken, both already agreed, or it could not be
- * settled (offline, the request failed).
+ * the server, the server's was taken, both already agreed, the item no longer
+ * exists on the server, or it could not be settled (offline, the request
+ * failed).
  */
-export type PlaybackSyncResult = "pushed" | "pulled" | "unchanged" | "failed";
+export type PlaybackSyncResult =
+  | "pushed"
+  | "pulled"
+  | "unchanged"
+  | "missing"
+  | "failed";
 
 export const useTwoWaySync = () => {
   const api = useAtomValue(apiAtom);
@@ -41,7 +47,7 @@ export const useTwoWaySync = () => {
     if (!localItem) return "unchanged";
 
     const fetchRemoteItem = async (): Promise<
-      (typeof localItem)["item"] | undefined
+      (typeof localItem)["item"] | "missing" | undefined
     > => {
       try {
         return (await getLibraryApi(api).getItem({ itemId, userId: user.Id }))
@@ -49,16 +55,18 @@ export const useTwoWaySync = () => {
       } catch (error) {
         // A 404 means the item was deleted server-side while still downloaded
         // locally, there is nothing to sync and no error worth surfacing.
-        if (!(error instanceof AxiosError && error.response?.status === 404)) {
-          logAndCaptureError(
-            "Fetching remote item during playback sync failed",
-            error,
-          );
+        if (error instanceof AxiosError && error.response?.status === 404) {
+          return "missing";
         }
+        logAndCaptureError(
+          "Fetching remote item during playback sync failed",
+          error,
+        );
         return undefined;
       }
     };
     const remoteItem = await fetchRemoteItem();
+    if (remoteItem === "missing") return "missing";
     if (!remoteItem) return "failed";
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
