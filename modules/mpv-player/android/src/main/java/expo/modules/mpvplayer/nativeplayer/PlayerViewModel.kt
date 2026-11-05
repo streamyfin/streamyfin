@@ -178,6 +178,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Content State
     var metadata by mutableStateOf<MetadataRecord?>(null)
+    /** The stream being played; a local file needs no Wi-Fi lock in the background. */
+    var sourceUrl: String = ""
     var chapters by mutableStateOf<List<ChapterRecord>>(emptyList())
     var segments by mutableStateOf<List<MediaSegmentRecord>>(emptyList())
     var activeSegment by mutableStateOf<MediaSegmentRecord?>(null)
@@ -387,6 +389,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         }
         currentItemId = newItemId
         metadata = config.metadata
+        sourceUrl = config.stream.url
         chapters = config.chapters.sortedBy { it.startSec }
         segments = config.segments
         nextEpisode = config.nextEpisode
