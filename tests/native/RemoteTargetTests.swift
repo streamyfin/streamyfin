@@ -1242,6 +1242,17 @@ enum RemoteTargetTests {
       return (port, clock, events)
     }
 
+    // A real receiver reports its level when the session opens: the fake ones do too, so tier 1 sees the slider.
+    do {
+      let clock = Clock()
+      let hub = RemoteTargetHub()
+      hub.install(FakeCastDevices(schedule: clock.schedule))
+      hub.startDiscovery(owner: RemoteTargetHub.appDiscovery)
+      _ = hub.connect(deviceId: tv.id)
+      clock.advance(RemoteTargetConstants.fakeConnectDelayMs)
+      check("aStartedFakeSessionReportsItsLevel", hub.snapshot.volume == 1.0 && hub.snapshot.muted == false)
+    }
+
     do {
       let clock = Clock()
       let hub = RemoteTargetHub()
@@ -1252,7 +1263,8 @@ enum RemoteTargetTests {
       hub.setVolume(0.4)
       let before = hub.snapshot.volume
       clock.advance(RemoteTargetConstants.fakeVolumeEchoMs)
-      check("theFakeReceiverEchoesTheVolume", before == nil && hub.snapshot.volume == 0.4)
+      // The level the session started at, until the receiver echoes the new one.
+      check("theFakeReceiverEchoesTheVolume", before == 1.0 && hub.snapshot.volume == 0.4)
     }
 
     // A switch inside the echo's delay must not report the TV's level on the speaker's session.
@@ -1266,7 +1278,8 @@ enum RemoteTargetTests {
       hub.setVolume(0.3)
       _ = hub.connect(deviceId: speaker.id)
       clock.advance(RemoteTargetConstants.fakeConnectDelayMs)
-      check("aSwitchDropsThePendingVolumeEcho", hub.snapshot.target?.id == speaker.id && hub.snapshot.volume == nil)
+      // The speaker's own level, never the TV's 0.3.
+      check("aSwitchDropsThePendingVolumeEcho", hub.snapshot.target?.id == speaker.id && hub.snapshot.volume == 1.0)
     }
 
     check("theBenchSpeakerHasNoScreen", tv.videoOut && !speaker.videoOut)
@@ -1365,10 +1378,11 @@ enum RemoteTargetTests {
       let accepted = hub.connect(deviceId: "fake-cast-living-room")
       let connecting = hub.snapshot.phase
       clock.advance(connectDelay)
+      var connected = state(.connected, .cast(tv))
+      connected.volume = 1.0
       check(
         "theHubConnectsToAFakeReceiverById",
-        accepted && connecting == .connecting && hub.snapshot == state(.connected, .cast(tv))
-          && hub.devices == FakeCastDevices.devices
+        accepted && connecting == .connecting && hub.snapshot == connected && hub.devices == FakeCastDevices.devices
       )
     }
 

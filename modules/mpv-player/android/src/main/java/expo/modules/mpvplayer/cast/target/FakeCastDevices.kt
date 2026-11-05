@@ -51,6 +51,8 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
         pending = schedule(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS) {
             pending = null
             events?.sessionEvent("started", device, null)
+            // As the SDK does once the session is up.
+            events?.volumeChanged(volume, muted)
         }
     }
 
