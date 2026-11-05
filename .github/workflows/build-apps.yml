@@ -3,11 +3,23 @@ name: 🏗️ Build Apps
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # A push to develop must finish: its iOS artifacts are the binaries that pull
-  # requests and merge queue entries repack (see the fingerprint job).
-  cancel-in-progress: ${{ github.event_name != 'push' }}
+  # requests and merge queue entries repack (see the fingerprint job). So must
+  # the weekly full build, which shares develop's group.
+  cancel-in-progress: ${{ !contains(fromJSON('["push", "schedule"]'), github.event_name) }}
 
 on:
   workflow_dispatch:
+    inputs:
+      full_build:
+        description: Build every app in full, without repacking an earlier build
+        type: boolean
+        default: false
+  # Every repack uploads the binary it started from again, so without this a
+  # native binary could be reused for months, built with a toolchain long
+  # gone. A weekly full build on develop gives every later repack a binary at
+  # most a week old.
+  schedule:
+    - cron: "0 3 * * 1"
   pull_request:
     branches: [develop, master]
   merge_group:
@@ -103,6 +115,8 @@ jobs:
 
       - name: 🔎 Find an earlier build to repack
         id: find
+        # Left out, every job builds in full: the weekly rebuild and on request.
+        if: github.event_name != 'schedule' && !inputs.full_build
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY_ID: ${{ github.repository_id }}
