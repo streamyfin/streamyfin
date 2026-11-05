@@ -169,3 +169,66 @@ describe("the native player's exit confirmation", () => {
     expect(await confirmExit(false)).toBe(false);
   });
 });
+
+describe("the native player's swipe gestures", () => {
+  const swipeOptions = async (swipeSettings: Partial<Settings>) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        enableHorizontalSwipeSkip: true,
+        enableLeftSideBrightnessSwipe: true,
+        enableRightSideVolumeSwipe: true,
+        ...swipeSettings,
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      item,
+    });
+    const ui = built?.config.ui;
+    return {
+      horizontalSwipeSeekEnabled: ui?.horizontalSwipeSeekEnabled,
+      brightnessSwipeEnabled: ui?.brightnessSwipeEnabled,
+      volumeSwipeEnabled: ui?.volumeSwipeEnabled,
+    };
+  };
+
+  // #2217: the native players scrubbed and changed brightness and volume
+  // whatever these switches said, because they never reached them.
+  test.each([
+    ["enableHorizontalSwipeSkip", "horizontalSwipeSeekEnabled"],
+    ["enableLeftSideBrightnessSwipe", "brightnessSwipeEnabled"],
+    ["enableRightSideVolumeSwipe", "volumeSwipeEnabled"],
+  ] as const)("turning off %s turns off only %s", async (setting, option) => {
+    expect(await swipeOptions({ [setting]: false })).toEqual({
+      horizontalSwipeSeekEnabled: true,
+      brightnessSwipeEnabled: true,
+      volumeSwipeEnabled: true,
+      [option]: false,
+    });
+  });
+
+  test("keeps every swipe on when the settings are unset", async () => {
+    expect(
+      await swipeOptions({
+        enableHorizontalSwipeSkip: undefined,
+        enableLeftSideBrightnessSwipe: undefined,
+        enableRightSideVolumeSwipe: undefined,
+      }),
+    ).toEqual({
+      horizontalSwipeSeekEnabled: true,
+      brightnessSwipeEnabled: true,
+      volumeSwipeEnabled: true,
+    });
+  });
+});
