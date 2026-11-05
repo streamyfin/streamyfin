@@ -1,4 +1,5 @@
 import {
+  assertCertificateValid,
   assertOneCertificate,
   assertProfileValid,
   parseBuildCredentials,
@@ -11,6 +12,7 @@ const answer = (
       id: string;
       certificateP12: string | null;
       certificatePassword: string | null;
+      validityNotAfter?: string | null;
     } | null;
     profile?: string | null;
   } | null,
@@ -24,7 +26,9 @@ const answer = (
               {
                 iosAppBuildCredentialsList: [
                   {
-                    distributionCertificate: build.certificate ?? null,
+                    distributionCertificate: build.certificate
+                      ? { validityNotAfter: null, ...build.certificate }
+                      : null,
                     provisioningProfile:
                       build.profile === undefined
                         ? null
@@ -45,11 +49,12 @@ const target = (
   certificateId,
   certificateP12: "cDEy",
   certificatePassword: "secret",
+  certificateValidUntil: null,
   provisioningProfile: "cHJvZmlsZQ==",
 });
 
 describe("parseBuildCredentials", () => {
-  it("reads the certificate, its password and the profile", () => {
+  it("reads the certificate, its password, its end date and the profile", () => {
     const parsed = parseBuildCredentials(
       "com.example.app",
       answer({
@@ -57,11 +62,15 @@ describe("parseBuildCredentials", () => {
           id: "cert-1",
           certificateP12: "cDEy",
           certificatePassword: "secret",
+          validityNotAfter: "2027-06-01T00:00:00.000Z",
         },
         profile: "cHJvZmlsZQ==",
       }),
     );
-    expect(parsed).toEqual(target("com.example.app", "cert-1"));
+    expect(parsed).toEqual({
+      ...target("com.example.app", "cert-1"),
+      certificateValidUntil: "2027-06-01T00:00:00.000Z",
+    });
   });
 
   it("treats a missing password as an empty one", () => {
@@ -173,5 +182,30 @@ describe("assertProfileValid", () => {
         now,
       ),
     ).toThrow(/expiration date/);
+  });
+});
+
+describe("assertCertificateValid", () => {
+  const now = new Date("2026-11-05T12:00:00Z");
+
+  it("accepts a certificate that expires later", () => {
+    expect(() =>
+      assertCertificateValid("com.app", "2027-06-01T00:00:00.000Z", now),
+    ).not.toThrow();
+  });
+
+  // zsign checks that the key matches the certificate, not its dates: an
+  // expired certificate would sign an IPA App Store Connect refuses, and the
+  // job would pass.
+  it("refuses an expired certificate", () => {
+    expect(() =>
+      assertCertificateValid("com.app", "2026-10-01T00:00:00.000Z", now),
+    ).toThrow(/expired/);
+  });
+
+  it("refuses a certificate without a validity date", () => {
+    expect(() => assertCertificateValid("com.app", null, now)).toThrow(
+      /validity/,
+    );
   });
 });

@@ -37,7 +37,7 @@ const BUILD_CREDENTIALS_QUERY = `
       byFullName(fullName: $projectFullName) {
         iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
           iosAppBuildCredentialsList(filter: { iosDistributionType: $iosDistributionType }) {
-            distributionCertificate { id certificateP12 certificatePassword }
+            distributionCertificate { id certificateP12 certificatePassword validityNotAfter }
             provisioningProfile { provisioningProfile }
           }
         }
@@ -55,6 +55,7 @@ interface BuildCredentialsResponse {
             id: string;
             certificateP12: string | null;
             certificatePassword: string | null;
+            validityNotAfter: string | null;
           } | null;
           provisioningProfile: { provisioningProfile: string | null } | null;
         }[];
@@ -68,6 +69,7 @@ export interface TargetCredentials {
   certificateId: string;
   certificateP12: string;
   certificatePassword: string;
+  certificateValidUntil: string | null;
   provisioningProfile: string;
 }
 
@@ -90,6 +92,7 @@ export const parseBuildCredentials = (
     certificateId: certificate.id,
     certificateP12: certificate.certificateP12,
     certificatePassword: certificate.certificatePassword ?? "",
+    certificateValidUntil: certificate.validityNotAfter ?? null,
     provisioningProfile: profile,
   };
 };
@@ -116,6 +119,29 @@ export const assertProfileValid = (
   if (expires <= now) {
     throw new Error(
       `The ${DISTRIBUTION} profile for ${bundleIdentifier} expired on ${expires.toISOString()}; a full build renews it.`,
+    );
+  }
+};
+
+/**
+ * Fails on a distribution certificate that has expired, or whose end date EAS
+ * does not give. zsign checks that the key matches the certificate, not its
+ * dates, so it would sign an IPA App Store Connect refuses and pass.
+ */
+export const assertCertificateValid = (
+  bundleIdentifier: string,
+  validUntil: string | null,
+  now = new Date(),
+) => {
+  const expires = validUntil ? new Date(validUntil) : undefined;
+  if (!expires || Number.isNaN(expires.getTime())) {
+    throw new Error(
+      `EAS gives no validity date for the certificate of ${bundleIdentifier}.`,
+    );
+  }
+  if (expires <= now) {
+    throw new Error(
+      `The distribution certificate of ${bundleIdentifier} expired on ${expires.toISOString()}; a full build signs with a valid one.`,
     );
   }
 };
@@ -200,6 +226,7 @@ const main = async () => {
     );
     const credentials = parseBuildCredentials(bundleIdentifier, data);
     assertProfileValid(bundleIdentifier, credentials.provisioningProfile);
+    assertCertificateValid(bundleIdentifier, credentials.certificateValidUntil);
     targets.push(credentials);
   }
   assertOneCertificate(targets);
