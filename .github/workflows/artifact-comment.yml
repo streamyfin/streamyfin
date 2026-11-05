@@ -187,11 +187,11 @@ jobs:
             // Map our build targets to their job display names. Exact name is
             // tried first so a signed target never collides with its
             // "(Unsigned)" sibling (whose name contains the signed name).
-            // iOS targets list the repack job beside the build job: either may
+            // Each target lists the repack job beside the build job: either may
             // hold the artifact while the other sits skipped.
             const jobMappings = {
-              'Android Phone': ['🤖 Build Android APK (Phone)'],
-              'Android TV': ['🤖 Build Android APK (TV)'],
+              'Android Phone': ['🤖 Build Android APK (Phone)', '🤖 Repack Android APK (Phone)'],
+              'Android TV': ['🤖 Build Android APK (TV)', '🤖 Repack Android APK (TV)'],
               'iOS': ['🍎 Build iOS IPA (Phone)', '🍎 Repack iOS IPA (Phone)'],
               'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', '🍎 Repack iOS IPA (Phone - Unsigned)'],
               'tvOS': ['🍎 Build tvOS IPA'],
