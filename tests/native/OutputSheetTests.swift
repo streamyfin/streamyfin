@@ -131,6 +131,21 @@ enum OutputSheetTests {
       check("theDeviceMuteNeedsNothingPlaying", panel(outputSheetState(input(snapshot: connected)))?.canMute == true)
     }
 
+    // A suspended session is still the receiver's: its panel stays, reading Reconnecting, while the SDK reaches it
+    // again, instead of a list whose Cancel would end it (bench 05/11, iOS back from the background).
+    do {
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      var playing = input(snapshot: reconnecting)
+      playing.receiverPlaying = true
+      let shown = panel(outputSheetState(playing))
+      check(
+        "aReconnectingTargetKeepsItsPanel",
+        shown?.target.id == "device-a" && shown?.reconnecting == true && shown?.canStop == true
+      )
+    }
+
     do {
       let missing = rows(outputSheetState(input(devices: [], playServices: .missing)))
       let outdated = rows(outputSheetState(input(devices: [], playServices: .updateRequired)))

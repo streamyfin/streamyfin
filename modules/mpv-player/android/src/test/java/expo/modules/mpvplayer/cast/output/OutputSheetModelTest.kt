@@ -155,6 +155,20 @@ class OutputSheetModelTest {
         assertEquals(null, playing.receiverTitle)
     }
 
+    // A suspended session is still the receiver's: its panel stays, reading Reconnecting, while the SDK reaches
+    // it again, instead of a list whose Cancel would end it (bench 05/11, iOS back from the background).
+    @Test
+    fun aReconnectingTargetKeepsItsPanel() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val panel = outputSheetState(input(snapshot = reconnecting, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals("device-a", panel.target.id)
+        assertEquals(true, panel.reconnecting)
+        assertEquals(true, panel.canStop)
+    }
+
     @Test
     fun theLayoutIsAPopoverFrom600dp() {
         assertEquals(OutputLayout.SHEET, outputLayout(599))
