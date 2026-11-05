@@ -1,4 +1,10 @@
-import { isAxiosError, isCancel } from "axios";
+import {
+  BaseItemKind,
+  ItemSortBy,
+  SortOrder,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { type AxiosResponse, isAxiosError, isCancel } from "axios";
+import { JELLYFIN_ID_PATTERN } from "@/constants/Jellyfin";
 
 /**
  * Marks errors that are user-facing outcomes rather than app defects — a
@@ -145,6 +151,11 @@ const isHtmlDocument = (body: unknown): boolean =>
   typeof body === "string" &&
   HTML_DOCUMENT_START.test(body.slice(0, HTML_SNIFF_CHARS));
 
+// Labelled as a page or starting as one, see isGatewayBlockError for why both.
+const isHtmlPage = (response: AxiosResponse): boolean =>
+  HTML_CONTENT_TYPE.test(String(response.headers?.["content-type"] ?? "")) ||
+  isHtmlDocument(response.data);
+
 /** A plain object, as parsed JSON gives: not an array, a class instance or null. */
 export const isPlainObject = (
   value: unknown,
@@ -192,22 +203,41 @@ const isCloudflareErrorDocument = (body: unknown): boolean =>
  */
 export const isGatewayBlockError = (error: unknown): boolean => {
   if (!isAxiosError(error) || error.response?.status !== 403) return false;
-  const contentType = error.response.headers?.["content-type"];
   return (
-    HTML_CONTENT_TYPE.test(String(contentType ?? "")) ||
-    isHtmlDocument(error.response.data) ||
-    isCloudflareErrorDocument(error.response.data)
+    isHtmlPage(error.response) || isCloudflareErrorDocument(error.response.data)
   );
+};
+
+/**
+ * True for a page that a gateway answered with in the server's place, under
+ * a success status: a captive portal on the user's network, or the sign-in
+ * page of a proxy whose session ran out, the redirect to it followed before
+ * the app sees the answer. The app asks its servers for data, never for a
+ * page, and the network the user is on is nothing it can act on.
+ *
+ * axios resolves every 2xx, so such an answer is only an error where a call
+ * site finds the body is not what the route returns and throws it with the
+ * response (utils/jellyfin/queryResult.ts). Any other body is left to be
+ * reported: an empty one, or JSON of another shape, can still be the app
+ * reading the wrong thing.
+ */
+export const isGatewayPageError = (error: unknown): boolean => {
+  if (!isAxiosError(error) || !error.response) return false;
+  const { status } = error.response;
+  return status >= 200 && status < 300 && isHtmlPage(error.response);
 };
 
 /**
  * True for a failure that comes from where the user is and what stands
  * between them and their server, rather than from the app: no answer, a
  * gateway that could not reach the server, or a gateway that refused the
- * request itself. Logged locally, never reported.
+ * request itself or answered it with a page of its own. Logged locally,
+ * never reported.
  */
 export const isEnvironmentError = (error: unknown): boolean =>
-  isConnectivityError(error) || isGatewayBlockError(error);
+  isConnectivityError(error) ||
+  isGatewayBlockError(error) ||
+  isGatewayPageError(error);
 
 export const isExpectedError = (error: unknown): boolean =>
   error !== null &&
@@ -216,8 +246,7 @@ export const isExpectedError = (error: unknown): boolean =>
 
 // Path segments that identify a record rather than name a route: GUIDs (with
 // or without dashes), hex hashes and bare numbers.
-const ID_SEGMENT =
-  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+const ID_SEGMENT = new RegExp(`^(?:${JELLYFIN_ID_PATTERN}|\\d+)$`, "i");
 // Anything else that isn't a plain route word (URL-encoded names, search
 // text, filenames) is a parameter too.
 const ROUTE_WORD = /^[A-Za-z][A-Za-z0-9_-]*$/;
@@ -269,15 +298,17 @@ export const describeHttpError = (
   };
 };
 
+// Jellyfin's ExceptionMiddleware, for any exception outside development mode.
+// In development mode it sends the exception message instead, which can hold
+// a library path.
+const JELLYFIN_EXCEPTION_REASON = "Error processing request.";
+
 // The reasons a server gives in fixed words: the same sentence for every
 // user, so it says who answered and nothing about whom it answered. Only
 // these are quoted. A reason goes on the list once it is known to be fixed,
 // by the server's source and not by having seen it twice.
 const FIXED_RESPONSE_REASONS: ReadonlySet<string> = new Set([
-  // Jellyfin's ExceptionMiddleware, for any exception outside development
-  // mode. In development mode it sends the exception message instead, which
-  // can hold a library path.
-  "Error processing request.",
+  JELLYFIN_EXCEPTION_REASON,
 ]);
 
 // A top-level key that reads as a field name ("title", "traceId", "ray_id").
@@ -462,4 +493,198 @@ export const describeHttpResponse = (
     // Read against the content type as it came, not the cut of it.
     ...describeResponseBody(error.response.data, String(contentType ?? "")),
   };
+};
+
+type RequestQuery = { url?: string; params?: unknown } | undefined;
+
+// An escape that does not decode is kept as it came: this runs while an
+// error is being handled and must not throw.
+const decodeQueryPart = (part: string): string => {
+  try {
+    return decodeURIComponent(part.replace(/\+/g, " "));
+  } catch {
+    return part;
+  }
+};
+
+// What a request sent under one query parameter: from its url, where the SDK
+// writes it, and from the params axios appends. The name is matched in any
+// case, the way ASP.NET binds it.
+const queryValues = (config: RequestQuery, name: string): string[] => {
+  const wanted = name.toLowerCase();
+  const values: string[] = [];
+  const url = config?.url ?? "";
+  const start = url.indexOf("?");
+  const query = start === -1 ? "" : url.slice(start + 1).split("#")[0];
+  for (const pair of query.split("&")) {
+    const at = pair.indexOf("=");
+    const key = decodeQueryPart(at === -1 ? pair : pair.slice(0, at));
+    if (key.toLowerCase() !== wanted) continue;
+    values.push(at === -1 ? "" : decodeQueryPart(pair.slice(at + 1)));
+  }
+  const params = config?.params;
+  if (isPlainObject(params)) {
+    for (const [key, value] of Object.entries(params)) {
+      if (key.toLowerCase() !== wanted || value == null) continue;
+      for (const item of Array.isArray(value) ? value : [value]) {
+        values.push(String(item));
+      }
+    }
+  }
+  return values;
+};
+
+// The entries Jellyfin's CommaDelimitedCollectionModelBinder makes of what a
+// list parameter carried: a value sent once is split on commas and loses its
+// empty pieces, a parameter sent more than once gives one entry per value,
+// left whole. Each entry is trimmed before it is converted.
+const boundEntries = (values: string[]): string[] =>
+  (values.length === 1
+    ? values[0].split(",").filter((piece) => piece !== "")
+    : values
+  ).map((entry) => entry.trim());
+
+const lowerCased = (names: readonly string[]): ReadonlySet<string> =>
+  new Set(names.map((name) => name.toLowerCase()));
+
+// The names of an SDK enum, which the binder reads in any case.
+const enumNames = (values: Record<string, string>): ReadonlySet<string> =>
+  lowerCased(Object.values(values));
+
+const SORT_FIELDS = enumNames(ItemSortBy);
+const SORT_ORDERS = enumNames(SortOrder);
+const ITEM_KINDS = enumNames(BaseItemKind);
+
+// An entry that names no value of the enum fails to convert, and the binder
+// drops it without a word: only the others reach the controller, lowercased
+// here.
+const keptEnumEntries = (
+  values: string[],
+  names: ReadonlySet<string>,
+): string[] =>
+  boundEntries(values)
+    .map((entry) => entry.toLowerCase())
+    .filter((entry) => names.has(entry));
+
+// A year the binder can convert to an Int32: digits with an optional sign,
+// within range.
+const INT32_TEXT = /^[+-]?\d+$/;
+const INT32_MIN = -(2 ** 31);
+const INT32_MAX = 2 ** 31 - 1;
+
+const isInt32 = (text: string): boolean => {
+  if (!INT32_TEXT.test(text)) return false;
+  const value = Number(text);
+  return value >= INT32_MIN && value <= INT32_MAX;
+};
+
+// Routes as templateRequestPath writes them, under whatever base path the
+// server is published at ("/jellyfin"). Only route words may come before
+// them, which keeps "/Users/:id/Items" and "/Playlists/:id/Items" out.
+const ITEMS_QUERY_ROUTE = /^(?:\/[A-Za-z][\w-]*)*\/Items(?:\/Filters)?$/;
+
+// GET /Items answers faults of the request itself in the same words as an
+// unknown parent, and a request carrying one is the app's to hear about,
+// whatever its parent:
+// - a year that is not an Int32 ("NaN", "99999999999"): its converter throws
+//   an ArgumentException, which the binder lets through
+// - more sort orders than sort fields, among the entries the binder keeps.
+//   Without a sort field, GetOrderBy returns before it reads a sort order.
+// This follows Jellyfin's CommaDelimitedCollectionModelBinder and
+// RequestHelpers.GetOrderBy, alike from 10.10 to 12.2: a drift from them
+// would let a fault of the app's pass for an id the server no longer has.
+const carriesItemsQueryFault = (config: RequestQuery): boolean => {
+  const years = boundEntries(queryValues(config, "years"));
+  if (years.some((year) => !isInt32(year))) return true;
+  const sortFields = keptEnumEntries(
+    queryValues(config, "sortBy"),
+    SORT_FIELDS,
+  ).length;
+  const sortOrders = keptEnumEntries(
+    queryValues(config, "sortOrder"),
+    SORT_ORDERS,
+  ).length;
+  return sortFields > 0 && sortOrders > sortFields;
+};
+
+// The item types that, asked for alone, keep Jellyfin 10.10 and 10.11 from
+// looking the parent up: GetItems drops the parentId of a request for box
+// sets, the legacy filters skip the lookup for box sets, playlists, trailers
+// or programs. An unknown parent then answers 200, so a 400 there is about
+// something else. Jellyfin 12 looks the parent up in more of these cases,
+// but its answer does not say which version sent it, so the rule follows
+// the versions that skip the lookup.
+const PARENT_SKIPPED_ON_ITEMS = lowerCased([BaseItemKind.BoxSet]);
+const PARENT_SKIPPED_ON_FILTERS = lowerCased([
+  BaseItemKind.BoxSet,
+  BaseItemKind.Playlist,
+  BaseItemKind.Trailer,
+  BaseItemKind.Program,
+]);
+
+const skipsParentLookup = (path: string, config: RequestQuery): boolean => {
+  const kinds = keptEnumEntries(
+    queryValues(config, "includeItemTypes"),
+    ITEM_KINDS,
+  );
+  const skipping = path.endsWith("/Filters")
+    ? PARENT_SKIPPED_ON_FILTERS
+    : PARENT_SKIPPED_ON_ITEMS;
+  return kinds.length === 1 && skipping.has(kinds[0]);
+};
+
+// Guid.Empty in any form .NET reads (bare, dashed, in braces or parentheses,
+// the hex-struct form with its 0x prefixes, signs and spaces): every hex digit
+// is zero once the rest is gone. Jellyfin turns it away as a parent ("Guid
+// can't be empty") in the same words as an unknown one: a fault of the
+// request, which named no record at all. Zeros that make no GUID get
+// validation details from the server instead, so reading them as empty
+// changes nothing.
+const isEmptyGuid = (guid: string): boolean => {
+  const digits = guid.replace(/0x/gi, "").replace(/[\s{}(),+-]/g, "");
+  return /^0+$/.test(digits);
+};
+
+// ASP.NET binds a blank parentId as no parent, and reads a GUID trimmed.
+const namesParent = (id: string): boolean => {
+  const guid = id.trim();
+  return guid !== "" && !isEmptyGuid(guid);
+};
+
+/**
+ * True for a request that named a library the server no longer has: renamed
+ * or deleted, as its id follows its folder and a rename is a new id. The
+ * query cache is restored from disk for up to a day (app/_layout.tsx), so an
+ * id an earlier session saw is asked for again until a fresh list replaces
+ * it. That is the server's content moving, not a bug of the app's: never
+ * reported, never retried (utils/queryRetry.ts), and written to the local log
+ * (utils/reportDataError.ts, utils/log.tsx).
+ *
+ * Only the answer that means nothing else, as replayed against Jellyfin
+ * 10.10, 10.11 and 13: GET /Items and GET /Items/Filters answer an unknown
+ * parentId with a 400 and JELLYFIN_EXCEPTION_REASON. A parentId that is not
+ * a GUID gets validation details instead and is still reported, as is the
+ * same reason for a request that named no parent (none, a blank one, the
+ * empty GUID), one whose parent Jellyfin does not look up
+ * (skipsParentLookup), or one that carries a fault of its own
+ * (carriesItemsQueryFault).
+ *
+ * Every other 400 and 404 is still reported: a 4xx on one route is what an
+ * app bug looks like (SERVER_WIDE_CLIENT_STATUSES in constants/Sentry.ts). A
+ * series' 404 among them: Jellyfin sends it for any id that is not a series
+ * the user can see, the id of an episode included.
+ */
+export const isStaleIdError = (error: unknown): boolean => {
+  if (!isAxiosError(error)) return false;
+  const http = describeHttpError(error);
+  if (http?.method !== "GET" || http.status !== 400) return false;
+  if (!ITEMS_QUERY_ROUTE.test(http.path)) return false;
+  const body = error.response?.data;
+  return (
+    typeof body === "string" &&
+    body.trim() === JELLYFIN_EXCEPTION_REASON &&
+    queryValues(error.config, "parentId").some(namesParent) &&
+    !skipsParentLookup(http.path, error.config) &&
+    !carriesItemsQueryFault(error.config)
+  );
 };

@@ -65,10 +65,10 @@ describe("a person's notification choices", () => {
 describe("the plugin's routes for a person's choices", () => {
   const answer = { data: mine };
   const api = {
-    get: jest.fn().mockResolvedValue(answer),
-    put: jest.fn().mockResolvedValue(answer),
-    post: jest.fn().mockResolvedValue(answer),
-    delete: jest.fn().mockResolvedValue(answer),
+    pluginGet: jest.fn().mockResolvedValue(answer),
+    pluginPut: jest.fn().mockResolvedValue(answer),
+    pluginPost: jest.fn().mockResolvedValue(answer),
+    pluginDelete: jest.fn().mockResolvedValue(answer),
   };
   const client = api as never;
 
@@ -78,8 +78,11 @@ describe("the plugin's routes for a person's choices", () => {
     expect(await getMyNotifications(client)).toBe(mine);
     await setMyNotifications(client, toUpdate(mine));
 
-    expect(api.get).toHaveBeenCalledWith(MY_NOTIFICATIONS_PATH);
-    expect(api.put).toHaveBeenCalledWith(MY_NOTIFICATIONS_PATH, toUpdate(mine));
+    expect(api.pluginGet).toHaveBeenCalledWith(MY_NOTIFICATIONS_PATH);
+    expect(api.pluginPut).toHaveBeenCalledWith(
+      MY_NOTIFICATIONS_PATH,
+      toUpdate(mine),
+    );
   });
 
   it("pause for some hours, or until turned back on, and lift it", async () => {
@@ -87,28 +90,30 @@ describe("the plugin's routes for a person's choices", () => {
     await pauseNotifications(client, null);
     await resumeNotifications(client);
 
-    expect(api.post).toHaveBeenNthCalledWith(
+    expect(api.pluginPost).toHaveBeenNthCalledWith(
       1,
       `${MY_NOTIFICATIONS_PATH}/pause`,
       { hours: 8 },
     );
-    expect(api.post).toHaveBeenNthCalledWith(
+    expect(api.pluginPost).toHaveBeenNthCalledWith(
       2,
       `${MY_NOTIFICATIONS_PATH}/pause`,
       { hours: null },
     );
-    expect(api.delete).toHaveBeenCalledWith(`${MY_NOTIFICATIONS_PATH}/pause`);
+    expect(api.pluginDelete).toHaveBeenCalledWith(
+      `${MY_NOTIFICATIONS_PATH}/pause`,
+    );
   });
 
   it("put a show id in the path as one part of it", async () => {
     await muteShow(client, "a/../b?c");
     await unmuteShow(client, "a/../b?c");
 
-    expect(api.post).toHaveBeenCalledWith(
+    expect(api.pluginPost).toHaveBeenCalledWith(
       `${MY_NOTIFICATIONS_PATH}/shows/a%2F..%2Fb%3Fc/mute`,
       undefined,
     );
-    expect(api.delete).toHaveBeenCalledWith(
+    expect(api.pluginDelete).toHaveBeenCalledWith(
       `${MY_NOTIFICATIONS_PATH}/shows/a%2F..%2Fb%3Fc/mute`,
     );
   });
@@ -117,11 +122,11 @@ describe("the plugin's routes for a person's choices", () => {
     await muteShow(client, "bear");
     await unmuteShow(client, "bear");
 
-    expect(api.post).toHaveBeenCalledWith(
+    expect(api.pluginPost).toHaveBeenCalledWith(
       `${MY_NOTIFICATIONS_PATH}/shows/bear/mute`,
       undefined,
     );
-    expect(api.delete).toHaveBeenCalledWith(
+    expect(api.pluginDelete).toHaveBeenCalledWith(
       `${MY_NOTIFICATIONS_PATH}/shows/bear/mute`,
     );
   });

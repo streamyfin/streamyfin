@@ -163,6 +163,8 @@
         "download_live_activity_hint": "잠금 화면과 다이나믹 아일랜드에 다운로드 진행 상황을 표시합니다.",
         "merge_next_up_continue_watching": "[이어보기]와 [다음 보기] 합치기",
         "merge_next_up_continue_watching_hint": "'계속 시청'과 '다음 에피소드'를 홈 화면에서 한 줄로 합칩니다.",
+        "show_upcoming_on_home": "홈에 방영 예정 에피소드 표시",
+        "show_upcoming_on_home_hint": "TV 라이브러리에서 곧 방영될 에피소드를 보여 주는 줄을 홈에 추가합니다.",
         "use_episode_images_next_up": "‘다음 에피소드’ 및 ‘계속 시청’에 에피소드 이미지를 사용",
         "use_episode_images_next_up_hint": "‘다음 에피소드’와 ‘계속 시청’에서 시리즈 이미지 대신 각 에피소드의 썸네일을 표시합니다.",
         "hide_remote_session_button": "원격 세션 버튼 숨기기",
@@ -225,8 +227,11 @@
         "enter_the_quick_connect_code": "퀵 커넥트 코드 입력...",
         "success": "성공",
         "quick_connect_authorized": "퀵 커넥트 승인되었습니다",
+        "quick_connect_authorized_for": "{{username}}에 대해 퀵 커넥트를 승인했습니다",
+        "user": "사용자",
+        "selected_user_unavailable": "선택한 사용자를 더 이상 사용할 수 없습니다",
         "invalid_code": "잘못된 코드입니다",
-        "disabled": "Quick Connect is turned off on this server. An administrator can turn it on in the server's dashboard.",
+        "disabled": "이 서버에서 퀵 커넥트가 꺼져 있습니다. 관리자가 서버 대시보드에서 켤 수 있습니다.",
         "authorize": "승인",
         "paste_code": "코드 붙여넣기"
       },
@@ -389,10 +394,18 @@
         "select_libraries_you_want_to_hide": "라이브러리 탭과 홈 화면에서 숨길 라이브러리를 선택하세요.",
         "disable_haptic_feedback": "햅틱 피드백 끄기",
         "resume_dialog": "이어보기 또는 처음부터 재생할지 묻기",
+        "confirm_before_stopping_playback": "재생을 멈추기 전에 확인",
         "default_quality": "기본 화질",
         "default_playback_speed": "기본 재생 속도",
         "auto_play_next_episode": "다음 에피소드 자동 재생",
-        "max_auto_play_episode_count": "자동 재생할 최대 에피소드 수",
+        "still_watching": "\"아직 보고 계신가요?\" 묻기",
+        "still_watching_hint": "오래 시청한 후 다음 에피소드를 자동 재생하기 전에 아직 누가 보고 있는지 확인합니다.",
+        "still_watching_presets": {
+          "short": "짧게",
+          "default": "기본",
+          "long": "길게",
+          "veryLong": "아주 길게"
+        },
         "segment_skip_settings": "구간 건너뛰기 설정",
         "segment_skip_settings_description": "오프닝, 엔딩 등 영상의 특정 구간을 건너뛰는 방식을 설정합니다",
         "skip_intro": "오프닝 건너뛰기",
@@ -415,6 +428,11 @@
         "playback_title": "재생",
         "playback_description": "음악 재생 방식을 설정합니다.",
         "prefer_downloaded": "다운로드된 음악을 우선합니다",
+        "normalization": "볼륨 평준화",
+        "normalization_hint": "노래를 고른 음량으로 재생합니다.",
+        "normalization_off": "끄기",
+        "normalization_track": "트랙",
+        "normalization_album": "앨범",
         "caching_title": "캐싱",
         "caching_description": "재생 대기열의 곡을 미리 저장합니다. 최대 용량에 도달하면 가장 오래된 곡부터 삭제됩니다.",
         "lookahead_enabled": "미리 보기 캐싱 활성화",
@@ -553,13 +571,93 @@
           "4_hours": "4시간",
           "24_hours": "24시간"
         }
+      },
+      "notifications": {
+        "title": "알림",
+        "save_failed": "알림 설정을 저장하지 못했습니다. 다시 시도하세요.",
+        "channels": {
+          "new_content": "서버의 새 콘텐츠",
+          "requests": "내 요청",
+          "account": "내 계정",
+          "server_alerts": "서버 경고"
+        },
+        "actions": {
+          "pause": "8시간 동안 일시 중지",
+          "mute_show": "이 프로그램 알림 끄기",
+          "paused": "알림이 8시간 동안 일시 중지되었습니다",
+          "muted": "이 프로그램의 알림을 껐습니다"
+        },
+        "unsupported": "서버의 Streamyfin 플러그인이 아직 알림 설정을 제공하지 않습니다.",
+        "load_failed": "알림 설정을 불러오지 못했습니다.",
+        "try_again": "다시 시도",
+        "events": {
+          "item_added": "새 영화와 에피소드",
+          "seerr_requests": "내 요청",
+          "seerr_requests_help": "승인, 거절 또는 시청 가능",
+          "awaited_title": "기다리던 작품이 도착함",
+          "awaited_title_help": "Seerr 페이지에서 알림을 요청한 작품",
+          "user_locked_out": "내 계정이 잠김",
+          "seerr_pending": "새 요청",
+          "seerr_pending_help": "승인 대기 중, 자동 승인 또는 실패",
+          "session_started": "누군가 로그인함",
+          "playback_started": "누군가 재생을 시작함",
+          "sign_in_failed": "로그인 실패",
+          "task_failed": "예약된 작업 실패",
+          "plugin_changed": "플러그인 변경",
+          "plugin_changed_help": "설치, 업데이트 또는 제거됨"
+        },
+        "groups": {
+          "new": "서버의 새 콘텐츠",
+          "follow": "팔로우 중인 프로그램",
+          "muted": "알림을 끈 프로그램",
+          "yours": "내 요청과 계정",
+          "awaited": "기다리는 작품",
+          "server": "서버 경고"
+        },
+        "libraries_footer": "이 라이브러리의 새 영화와 에피소드입니다.",
+        "follow": {
+          "favorites": "즐겨찾는 프로그램",
+          "favorites_help": "즐겨찾기로 표시한 프로그램의 새 에피소드",
+          "started": "시청을 시작한 프로그램",
+          "started_help": "시청을 시작한 프로그램의 새 에피소드",
+          "footer": "새 영화와 에피소드 알림을 꺼도 이 알림은 받습니다."
+        },
+        "muted": {
+          "turn_back_on": "다시 켜기"
+        },
+        "awaited": {
+          "stop": "그만 기다리기",
+          "arrived": "이미 도착했습니다. 일시 중지가 끝나면 알려 드립니다"
+        },
+        "pause": {
+          "title": "알림 일시 중지",
+          "off": "안 함",
+          "one_hour": "1시간",
+          "eight_hours": "8시간",
+          "one_day": "24시간",
+          "until_on": "다시 켤 때까지",
+          "until": "{{when}}까지"
+        },
+        "blocked": {
+          "title": "Streamyfin 알림이 꺼져 있습니다",
+          "body": "아래에서 무엇을 선택하든 휴대폰이 알림을 차단합니다.",
+          "open": "설정 열기"
+        },
+        "sound": {
+          "title": "소리 및 진동",
+          "help": "알림 종류별로 Android 설정에서 변경"
+        },
+        "account_footer": "이 설정은 모든 기기에서 계정에 적용됩니다."
       }
     },
     "sessions": {
       "title": "세션",
       "no_active_sessions": "활성 세션이 없습니다",
       "select_session": "세션 선택",
-      "now_playing": "재생 중:"
+      "now_playing": "재생 중:",
+      "repeat_off": "반복 끄기",
+      "repeat_all": "전체 반복",
+      "repeat_one": "한 항목 반복"
     },
     "downloads": {
       "downloads_title": "다운로드",
@@ -609,7 +707,7 @@
         "all_files_deleted": "모든 다운로드 삭제 완료",
         "files_deleted_by_type": "{{count}}개의 {{type}}이(가) 삭제되었습니다",
         "could_not_get_download_url_for_item": "{{itemName}}의 다운로드 URL을 가져오지 못했습니다",
-        "no_media_source_to_download": "This item cannot be downloaded",
+        "no_media_source_to_download": "이 항목은 다운로드할 수 없습니다",
         "file_deleted": "{{item}} 이(가) 삭제되었습니다"
       }
     }
@@ -625,6 +723,7 @@
     "mark_as_not_played": "미시청으로 표시",
     "none": "없음",
     "track": "트랙",
+    "original_audio": "원본",
     "cancel": "취소",
     "stop": "정지",
     "open_menu": "메뉴 열기",
@@ -685,6 +784,15 @@
   "library": {
     "no_results": "결과 없음",
     "no_libraries_found": "라이브러리를 찾을 수 없습니다",
+    "jump_to_letter": "글자로 이동",
+    "sort": "정렬",
+    "letters": "A–Z",
+    "tabs": {
+      "items": "항목",
+      "collections": "컬렉션",
+      "playlists": "재생 목록"
+    },
+    "play_all": "모두 재생",
     "item_types": {
       "movies": "영화",
       "series": "시리즈",
@@ -710,11 +818,24 @@
       "filter_by": "필터링 기준",
       "sort_order": "정렬순서",
       "tags": "태그",
+      "official_ratings": "관람 등급",
+      "audio_languages": "오디오 언어",
+      "subtitle_languages": "자막 언어",
+      "selected_count": "{{count}}개 선택됨",
       "all": "전체",
+      "title": "필터",
+      "title_count": "필터 · {{count}}",
       "reset": "초기화",
       "asc": "오름차순",
       "desc": "내림차순"
     }
+  },
+  "upcoming": {
+    "title": "방영 예정",
+    "no_episodes": "방영 예정 에피소드가 없습니다",
+    "yesterday": "어제",
+    "today": "오늘",
+    "tomorrow": "내일"
   },
   "favorites": {
     "series": "시리즈",
@@ -728,7 +849,7 @@
   },
   "custom_links": {
     "no_links": "링크 없음",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "이 링크를 열 수 없습니다"
   },
   "player": {
     "live": "라이브",
@@ -757,6 +878,9 @@
       "buffer_seconds": "버퍼: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "드롭: {{count}}프레임",
+      "transcode_progress": "트랜스코딩됨: {{percent}}%",
+      "transcode_speed": "트랜스코딩 속도: {{fps}} fps",
+      "transcode_hardware": "하드웨어 가속: {{type}}",
       "loading": "로딩 중..."
     },
     "mpv_player_title": "MPV 플레이어",
@@ -771,8 +895,11 @@
     "client_error": "클라이언트 오류",
     "could_not_create_stream_for_chromecast": "Chromecast용 스트림을 생성하지 못했습니다",
     "chromecast_playback_failed": "Chromecast에서 이 영상을 재생할 수 없습니다",
+    "chromecast_server_unreachable": "Chromecast가 Jellyfin 서버에 연결하지 못했습니다",
+    "chromecast_did_not_start": "Chromecast에서 재생이 시작되지 않았습니다. Jellyfin 서버에 연결할 수 있는지 확인하세요.",
     "message_from_server": "서버 메시지: {{message}}",
     "next_episode": "다음 에피소드",
+    "up_next": "다음 재생",
     "continue_watching": "이어서 시청",
     "go_back": "돌아가기",
     "downloaded_file_title": "이 파일은 다운로드되어 있습니다",
@@ -844,10 +971,13 @@
     "view_season": "시즌 보기",
     "select_season": "시즌 선택",
     "no_episodes_for_this_season": "이 시즌에는 에피소드가 없습니다",
+    "missing": "누락됨",
+    "not_yet_aired": "아직 방영되지 않음",
     "overview": "개요",
     "more_with": "{{name}}의 다른 작품",
     "similar_items": "비슷한 컨텐츠",
     "no_similar_items_found": "비슷한 컨텐츠 없음",
+    "collections": "컬렉션",
     "video": "비디오",
     "more_details": "상세 정보",
     "media_options": "미디어 옵션",
@@ -861,8 +991,46 @@
     "show_more": "더 보기",
     "show_less": "간략히 보기",
     "left": "남음",
-    "director": "감독",
     "cast": "출연진",
+    "credits": {
+      "Director_one": "감독",
+      "Director_other": "감독",
+      "Writer_one": "각본",
+      "Writer_other": "각본",
+      "Creator_one": "크리에이터",
+      "Creator_other": "크리에이터",
+      "Author_one": "저자",
+      "Author_other": "저자",
+      "Narrator_one": "내레이터",
+      "Narrator_other": "내레이터"
+    },
+    "person_kind": {
+      "Actor": "배우",
+      "Director": "감독",
+      "Composer": "작곡",
+      "Writer": "각본",
+      "GuestStar": "게스트 출연",
+      "Producer": "프로듀서",
+      "Conductor": "지휘",
+      "Lyricist": "작사",
+      "Arranger": "편곡",
+      "Engineer": "사운드 엔지니어",
+      "Mixer": "믹싱 엔지니어",
+      "Remixer": "리믹서",
+      "Creator": "크리에이터",
+      "Artist": "아티스트",
+      "AlbumArtist": "앨범 아티스트",
+      "Author": "저자",
+      "Illustrator": "일러스트레이터",
+      "Penciller": "작화",
+      "Inker": "펜선",
+      "Colorist": "채색",
+      "Letterer": "레터링",
+      "CoverArtist": "표지 아티스트",
+      "Editor": "편집",
+      "Translator": "번역",
+      "Narrator": "내레이터"
+    },
     "technical_details": "기술 정보",
     "appeared_in": "출연작",
     "movies": "영화",
@@ -909,6 +1077,14 @@
     }
   },
   "seerr": {
+    "awaited": {
+      "notify_me": "도착하면 알림 받기",
+      "waiting": "도착하면 알려 드립니다",
+      "stop_hint": "이 작품을 더 이상 기다리지 않습니다",
+      "already_here": "이 작품은 이미 서버에 있습니다",
+      "too_many": "기다릴 수 있는 작품 수가 최대입니다",
+      "failed": "기다리는 작품을 변경하지 못했습니다"
+    },
     "cancel": "취소",
     "whats_wrong": "어떤 문제가 있나요?",
     "issue_type": "문제 유형",
@@ -1185,10 +1361,10 @@
     "pairing_tv_connecting": "TV가 계정에 연결 중입니다",
     "error_title": "인증에 실패했습니다",
     "error_invalid_qr": "잘못된 QR 코드입니다. TV 페어링 코드를 스캔하세요.",
-    "error_old_tv": "This TV runs an older version of Streamyfin. Update it, then try again.",
-    "error_code_not_waiting": "This code is not waiting on {{server}}. Check that the TV uses the same server as this phone, then start Quick Connect again on the TV.",
-    "error_quick_connect_disabled": "Quick Connect is turned off on {{server}}. An administrator can turn it on in the server's dashboard.",
-    "error_other_server": "This TV is connecting to another server, {{server}}. Sign in to that server in this app, then scan again.",
+    "error_old_tv": "이 TV에서 이전 버전의 Streamyfin이 실행 중입니다. 업데이트한 후 다시 시도하세요.",
+    "error_code_not_waiting": "이 코드는 {{server}}에서 대기 중이 아닙니다. TV가 이 휴대폰과 같은 서버를 사용하는지 확인한 다음 TV에서 퀵 커넥트를 다시 시작하세요.",
+    "error_quick_connect_disabled": "{{server}}에서 퀵 커넥트가 꺼져 있습니다. 관리자가 서버 대시보드에서 켤 수 있습니다.",
+    "error_other_server": "이 TV는 다른 서버({{server}})에 연결 중입니다. 이 앱에서 해당 서버에 로그인한 다음 다시 스캔하세요.",
     "error_generic": "문제가 발생했습니다. 다시 시도하세요.",
     "error_permission_denied": "QR 코드를 스캔하려면 카메라 권한이 필요합니다.",
     "login_as": "{{username}} 계정으로 로그인하시겠습니까?",
@@ -1198,11 +1374,11 @@
   "pairing": {
     "pair_with_phone": "휴대폰과 페어링",
     "pair_with_phone_title": "TV에서 로그인",
-    "scan_quick_connect": "Scan the QR code with the Streamyfin app or your phone's camera.",
-    "code_expired": "This code has expired.",
-    "get_new_code": "Get a new code",
-    "scan_with_app": "Scan the QR code with the Streamyfin app on your phone.",
-    "account_that_approves": "The account that approves the code",
+    "scan_quick_connect": "Streamyfin 앱이나 휴대폰 카메라로 QR 코드를 스캔하세요.",
+    "code_expired": "이 코드는 만료되었습니다.",
+    "get_new_code": "새 코드 받기",
+    "scan_with_app": "휴대폰의 Streamyfin 앱으로 QR 코드를 스캔하세요.",
+    "account_that_approves": "코드를 승인하는 계정",
     "logging_in": "로그인 중...",
     "logging_in_description": "서버에 연결 중"
   },
@@ -1234,5 +1410,82 @@
     "header_count_one": "헤더 {{count}}개",
     "header_count_other": "헤더 {{count}}개",
     "header_count": "헤더 {{count}}개"
+  },
+  "syncplay": {
+    "pause": "일시 중지",
+    "play": "재생",
+    "online_video_only": "SyncPlay는 온라인 동영상만 지원합니다. 다운로드한 동영상을 보거나 캐스트하려면 그룹에서 나가세요.",
+    "title": "SyncPlay",
+    "watch": "시청",
+    "new_group": "새 그룹",
+    "new_group_queues": "{{title}}을(를) 대기열에 추가 · 동영상 {{count}}개",
+    "new_group_queues_one": "{{title}}을(를) 대기열에 추가",
+    "new_group_queues_other": "{{title}}을(를) 대기열에 추가 · 동영상 {{count}}개",
+    "groups_on_server": "이 서버의 그룹",
+    "join": "참가",
+    "play_for_everyone": "모두에게 재생",
+    "stop_for_everyone": "모두에게 정지",
+    "back_to_group": "{{name}}(으)로 돌아가기",
+    "how_to_play": "그룹에서는 어떤 동영상이든 재생을 누르면 모두에게 재생됩니다.",
+    "play_next": "다음에 재생",
+    "add_to_queue": "대기열에 추가",
+    "added_to_queue": "그룹 대기열에 추가했습니다",
+    "default_group_name": "{{name}}의 그룹",
+    "switch_group": "다른 그룹으로 전환",
+    "ignore_wait_setting_hint": "참가한 그룹은 이 기기를 기다리지 않고 시작하고 재개합니다. 참가할 때마다 적용되며, 플레이어에서 계속 변경할 수 있습니다.",
+    "description": "같은 서버에서 Jellyfin을 사용하는 친구들과 동시에 시청하세요.",
+    "current_group": "내 그룹",
+    "available_groups": "참가 가능한 그룹",
+    "leave": "그룹 나가기",
+    "refresh": "새로 고침",
+    "retry": "다시 시도",
+    "no_groups": "아직 다른 그룹이 없습니다. 그룹을 만들고 친구를 초대하세요.",
+    "no_participants": "참가자를 기다리는 중",
+    "unavailable": "이 계정에서는 SyncPlay를 사용할 수 없습니다. 서버 관리자에게 활성화를 요청하세요.",
+    "disconnected": "SyncPlay를 사용하려면 서버에 연결하세요. 연결이 복구되면 그룹을 사용할 수 있습니다.",
+    "reconnecting": "다시 연결하는 중…",
+    "error": "SyncPlay가 요청을 완료하지 못했습니다",
+    "states": {
+      "Idle": "시청 준비 완료",
+      "Waiting": "모두를 기다리는 중",
+      "Paused": "일시 중지됨",
+      "Playing": "재생 중"
+    },
+    "errors": {
+      "disconnected": "서버 연결이 끊어졌습니다. 다시 연결하여 함께 시청을 계속하세요.",
+      "request_failed": "요청에 실패했습니다. 다시 시도하세요.",
+      "create_denied": "이 계정에는 SyncPlay 그룹을 만들 권한이 없습니다.",
+      "join_denied": "이 계정에는 이 그룹에 참가할 권한이 없습니다.",
+      "group_missing": "이 그룹은 더 이상 사용할 수 없습니다. 그룹 목록을 새로 고치세요.",
+      "library_denied": "이 계정은 그룹이 선택한 동영상에 접근할 수 없습니다.",
+      "disabled": "이 계정에서 SyncPlay가 비활성화되어 있습니다.",
+      "playback_failed": "그룹 동영상을 재생할 수 없습니다. 다른 동영상을 선택하거나 다시 시도하세요.",
+      "invalid_name": "그룹 이름을 입력하세요.",
+      "timeout": "서버가 제시간에 응답하지 않았습니다. 다시 시도하세요."
+    },
+    "queue": "공유 대기열",
+    "playback_options": "재생 옵션",
+    "repeat": "반복",
+    "repeat_modes": {
+      "RepeatNone": "끄기",
+      "RepeatAll": "모든 동영상",
+      "RepeatOne": "동영상 하나"
+    },
+    "shuffle": "무작위 재생",
+    "ignore_wait": "이 기기를 기다리지 않기",
+    "ignore_wait_hint": "이 기기가 준비될 때까지 기다리지 않고 그룹이 시작하거나 재개할 수 있습니다. 이 설정은 현재 세션에만 적용됩니다.",
+    "on": "켜기",
+    "off": "끄기",
+    "empty_queue": "대기열이 비어 있습니다. 아래에서 동영상을 추가하거나 라이브러리에서 재생하세요.",
+    "unavailable_video": "사용할 수 없는 동영상",
+    "now_playing": "현재 동영상",
+    "move_up": "위로 이동",
+    "move_down": "아래로 이동",
+    "remove": "제거",
+    "clear_upcoming": "현재 동영상만 남기기",
+    "clear_all": "대기열 비우고 정지",
+    "play_now": "지금 재생",
+    "refresh_group": "그룹 새로 고침",
+    "close": "닫기"
   }
 }

@@ -27,8 +27,8 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return {
     apiAtom: atom({
       basePath: "https://jellyfin.example.com",
-      get: (...args: unknown[]) => mockGet(...args),
-      put: (...args: unknown[]) => mockPut(...args),
+      pluginGet: (...args: unknown[]) => mockGet(...args),
+      pluginPut: (...args: unknown[]) => mockPut(...args),
     }),
     userAtom: atom({ Id: "alice" }),
   };
@@ -44,6 +44,11 @@ jest.mock("@sentry/react-native", () => ({
     report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
   captureException: (...args: unknown[]) => mockCapture(...args),
 }));
+// The reporter writes what it keeps from Sentry to the local log, which MMKV backs.
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 
 let client: QueryClient;
 

@@ -1,10 +1,13 @@
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
+  DeviceProfile,
   MediaSourceInfo,
+  PlaybackInfoDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
-import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
@@ -16,6 +19,12 @@ interface StreamResult {
   mediaSource: MediaSourceInfo | undefined;
   requiredHttpHeaders?: Record<string, string>;
 }
+
+/** Retains the existing playback flag omitted from the SDK DTO. */
+type PlaybackInfoRequest = PlaybackInfoDto & {
+  /** Compatibility flag sent by the existing playback/download requests. */
+  isPlayback: boolean;
+};
 
 /**
  * Gets the actual streaming URL - handles both transcoded and direct play logic
@@ -33,11 +42,13 @@ const getPlaybackUrl = (
     maxStreamingBitrate?: number;
     userId: string;
     playSessionId?: string | null;
+    liveStreamId?: string | null;
   },
 ): string => {
   let transcodeUrl = mediaSource?.TranscodingUrl;
 
-  // Handle transcoded URL if available
+  // There is no SDK builder for the server-negotiated HLS/progressive URI.
+  // Keep its query intact apart from the playback-only subtitle override.
   if (transcodeUrl) {
     // For regular streaming, change subtitle method to HLS for transcoded URL
     if (params.subtitleStreamIndex === -1) {
@@ -47,7 +58,7 @@ const getPlaybackUrl = (
       );
     }
 
-    console.log("Video is being transcoded:", transcodeUrl);
+    console.log("Video is being transcoded:", redactCredentials(transcodeUrl));
     return `${api.basePath}${transcodeUrl}`;
   }
 
@@ -58,7 +69,9 @@ const getPlaybackUrl = (
     mediaSource?.Protocol === "Http" &&
     mediaSource?.Path
   ) {
-    console.log("Video is remote stream, using direct Path:", mediaSource.Path);
+    // Not the URL itself: an external stream's credentials can sit in its
+    // userinfo or its path, which redactCredentials does not cover.
+    console.log("Video is remote stream, using its direct Path");
     return mediaSource.Path;
   }
 
@@ -83,10 +96,19 @@ const getPlaybackUrl = (
   if (params.playSessionId) {
     streamParams.append("playSessionId", params.playSessionId);
   }
+  // Without it Jellyfin doesn't use the opened live stream and answers 400.
+  if (params.liveStreamId) {
+    streamParams.append("liveStreamId", params.liveStreamId);
+  }
 
-  const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
+  // SDK video endpoints fetch the file; native players need a URL carrying
+  // the negotiated resume, stream-selection and authentication parameters.
+  const directPlayUrl = api.getUri(`/Videos/${itemId}/stream`, streamParams);
 
-  console.log("Video is being direct played:", directPlayUrl);
+  console.log(
+    "Video is being direct played:",
+    redactCredentials(directPlayUrl),
+  );
   return directPlayUrl;
 };
 
@@ -97,13 +119,14 @@ const getDownloadUrl = (
 ): StreamResult => {
   if (!mediaSource.TranscodingUrl) {
     return {
-      url: `${api.basePath}/Items/${mediaSource.Id}/Download?ApiKey=${api.accessToken}`,
+      url: getLibraryApi(api).getDownloadUrl({ itemId: mediaSource.Id! }),
       sessionId: sessionId || null,
       mediaSource,
     };
   }
 
   return {
+    // Unlike playback, downloads must use the negotiated subtitle method verbatim.
     url: `${api.basePath}${mediaSource.TranscodingUrl}`,
     sessionId: sessionId || null,
     mediaSource,
@@ -129,7 +152,7 @@ export const getStreamUrl = async ({
   startTimeTicks: number;
   maxStreamingBitrate?: number;
   playSessionId?: string | null;
-  deviceProfile: any;
+  deviceProfile: DeviceProfile;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
@@ -163,22 +186,21 @@ export const getStreamUrl = async ({
   // Please do not remove this we need this for live TV to be working correctly.
   if (item.Type === BaseItemKind.Program) {
     console.log("Item is of type program...");
-    const res = await getMediaInfoApi(api).getPlaybackInfo(
+    const res = await getMediaInfoApi(api).getPostedPlaybackInfo(
       {
         userId,
         itemId: item.ChannelId!,
+        startTimeTicks: 0,
+        autoOpenLiveStream: true,
+        maxStreamingBitrate,
+        audioStreamIndex,
+        playbackInfoDto: {
+          DeviceProfile: deviceProfile,
+        },
       },
       {
-        method: "POST",
         params: {
-          startTimeTicks: 0,
           isPlayback: true,
-          autoOpenLiveStream: true,
-          maxStreamingBitrate,
-          audioStreamIndex,
-        },
-        data: {
-          deviceProfile,
         },
       },
     );
@@ -202,6 +224,8 @@ export const getStreamUrl = async ({
       startTimeTicks: 0,
       maxStreamingBitrate,
       userId,
+      playSessionId: sessionId,
+      liveStreamId: mediaSource.LiveStreamId,
     });
 
     return {
@@ -214,25 +238,21 @@ export const getStreamUrl = async ({
     };
   }
 
-  const res = await getMediaInfoApi(api).getPlaybackInfo(
-    {
-      itemId: item.Id!,
-    },
-    {
-      method: "POST",
-      data: {
-        userId,
-        deviceProfile,
-        subtitleStreamIndex,
-        startTimeTicks,
-        isPlayback: true,
-        autoOpenLiveStream: true,
-        maxStreamingBitrate,
-        audioStreamIndex,
-        mediaSourceId,
-      },
-    },
-  );
+  const playbackInfoDto: PlaybackInfoRequest = {
+    UserId: userId,
+    DeviceProfile: deviceProfile,
+    SubtitleStreamIndex: subtitleStreamIndex,
+    StartTimeTicks: startTimeTicks,
+    isPlayback: true,
+    AutoOpenLiveStream: true,
+    MaxStreamingBitrate: maxStreamingBitrate,
+    AudioStreamIndex: audioStreamIndex,
+    MediaSourceId: mediaSourceId,
+  };
+  const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
+    itemId: item.Id,
+    playbackInfoDto,
+  });
 
   if (res.status !== 200) {
     console.error("Error getting playback info:", res.status, res.statusText);
@@ -263,6 +283,7 @@ export const getStreamUrl = async ({
     maxStreamingBitrate,
     userId,
     playSessionId: playSessionId || undefined,
+    liveStreamId: mediaSource.LiveStreamId,
   });
 
   return {
@@ -303,25 +324,21 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  const res = await getMediaInfoApi(api).getPlaybackInfo(
-    {
-      itemId: item.Id!,
-    },
-    {
-      method: "POST",
-      data: {
-        userId,
-        deviceProfile: generateDownloadProfile(audioMode),
-        subtitleStreamIndex,
-        startTimeTicks: 0,
-        isPlayback: true,
-        autoOpenLiveStream: true,
-        maxStreamingBitrate,
-        audioStreamIndex,
-        mediaSourceId,
-      },
-    },
-  );
+  const playbackInfoDto: PlaybackInfoRequest = {
+    UserId: userId,
+    DeviceProfile: generateDownloadProfile(audioMode),
+    SubtitleStreamIndex: subtitleStreamIndex,
+    StartTimeTicks: 0,
+    isPlayback: true,
+    AutoOpenLiveStream: true,
+    MaxStreamingBitrate: maxStreamingBitrate,
+    AudioStreamIndex: audioStreamIndex,
+    MediaSourceId: mediaSourceId,
+  };
+  const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
+    itemId: item.Id,
+    playbackInfoDto,
+  });
 
   if (res.status !== 200) {
     console.error("Error getting playback info:", res.status, res.statusText);

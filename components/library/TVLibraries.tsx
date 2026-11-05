@@ -3,7 +3,11 @@ import type {
   BaseItemDto,
   CollectionType,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getLibraryApi,
+  getLiveTvApi,
+  getUserViewApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,6 +24,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { logAndCaptureError } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 
 const HORIZONTAL_PADDING = scaleSize(80);
@@ -108,6 +113,7 @@ const TVLibraryRow: React.FC<{
       return t("library.item_types.playlists");
     if (library.CollectionType === "music")
       return t("library.item_types.items");
+    if (library.CollectionType === "livetv") return t("live_tv.tabs.channels");
     return t("library.item_types.items");
   }, [library.CollectionType, t]);
 
@@ -251,7 +257,7 @@ export const TVLibraries: React.FC = () => {
   const { data: userViews, isLoading: viewsLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
-      const response = await getUserViewsApi(api!).getUserViews({
+      const response = await getUserViewApi(api!).getUserViews({
         userId: user?.Id,
       });
       return response.data.Items || [];
@@ -275,6 +281,27 @@ export const TVLibraries: React.FC = () => {
     queryFn: async () => {
       const results: LibraryWithPreview[] = await Promise.all(
         libraries.map(async (library) => {
+          // Channels aren't children of the Live TV view, so getItems counts 0,
+          // and the view has no backdrop to preview. A failed count leaves only
+          // this row without one: the other rows don't depend on Live TV.
+          if (library.CollectionType === "livetv") {
+            try {
+              const channels = await getLiveTvApi(api!).getLiveTvChannels({
+                userId: user?.Id,
+                limit: 1,
+                addCurrentProgram: false,
+              });
+              return {
+                ...library,
+                itemCount: channels.data.TotalRecordCount,
+                previewItems: [],
+              };
+            } catch (error) {
+              logAndCaptureError("Failed to count the Live TV channels", error);
+              return { ...library, previewItems: [] };
+            }
+          }
+
           let itemType: string | undefined;
           if (library.CollectionType === "movies") itemType = "Movie";
           else if (library.CollectionType === "tvshows") itemType = "Series";
@@ -285,7 +312,7 @@ export const TVLibraries: React.FC = () => {
           const isPlaylistsLib = library.CollectionType === "playlists";
 
           // Fetch count
-          const countResponse = await getItemsApi(api!).getItems({
+          const countResponse = await getLibraryApi(api!).getItems({
             userId: user?.Id,
             parentId: library.Id,
             recursive: true,
@@ -295,7 +322,7 @@ export const TVLibraries: React.FC = () => {
           });
 
           // Fetch preview items with backdrops
-          const previewResponse = await getItemsApi(api!).getItems({
+          const previewResponse = await getLibraryApi(api!).getItems({
             userId: user?.Id,
             parentId: library.Id,
             recursive: true,

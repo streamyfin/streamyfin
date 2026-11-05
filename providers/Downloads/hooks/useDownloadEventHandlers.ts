@@ -1,6 +1,8 @@
 import { File } from "expo-file-system";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner-native";
+import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -9,7 +11,10 @@ import type {
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
-import { classifyDownloadError } from "../downloadErrors";
+import {
+  classifyDownloadError,
+  downloadFailureReason,
+} from "../downloadErrors";
 import {
   deletePendingDownloadFiles,
   deleteUnclaimedVideo,
@@ -25,7 +30,7 @@ import {
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { filePathToUri } from "../utils";
+import { filePathToUri, getDownloadToastId } from "../utils";
 import {
   addSpeedDataPoint,
   calculateWeightedSpeed,
@@ -234,11 +239,7 @@ export function useDownloadEventHandlers({
             progress: 100,
           });
 
-          const notificationContent = getNotificationContent(
-            record.item,
-            true,
-            t,
-          );
+          const notificationContent = getNotificationContent(record.item, t);
           await sendDownloadNotification(
             notificationContent.title,
             notificationContent.body,
@@ -305,13 +306,28 @@ export function useDownloadEventHandlers({
 
         const notificationContent = getNotificationContent(
           record.item,
-          false,
           t,
+          downloadFailureReason(
+            String(event.error),
+            !!record.mediaSource.TranscodingUrl,
+          ),
         );
-        await sendDownloadNotification(
+        const notified = await sendDownloadNotification(
           notificationContent.title,
           notificationContent.body,
         );
+        // The toast that said the download started is no longer true: the notification takes
+        // over, or, without notification permission, the reason shows in its place.
+        const toastId = getDownloadToastId(itemId);
+        if (notified) {
+          toast.dismiss(toastId);
+        } else {
+          toast.error(notificationContent.title, {
+            id: toastId,
+            description: notificationContent.body,
+            duration: DOWNLOAD_FAILURE_TOAST_DURATION_MS,
+          });
+        }
 
         // Remove process after short delay
         setTimeout(() => {

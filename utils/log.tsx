@@ -1,8 +1,15 @@
 import * as Sentry from "@sentry/react-native";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
+import { useFocusEffect } from "expo-router";
 import type React from "react";
-import { createContext, useContext } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
@@ -11,6 +18,7 @@ import {
   isEnvironmentError,
   isErrorReported,
   isExpectedError,
+  isStaleIdError,
   markErrorReported,
 } from "./errors";
 import { admitHttpFailure } from "./httpFailureGate";
@@ -34,15 +42,25 @@ const _DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useLogProvider() {
+  const [watchers, setWatchers] = useState(0);
+  // gcTime 0 keeps the query out of the persisted cache, and it polls only
+  // while the logs page reads it: every fetch emits a cache event, and the
+  // persister rewrites the whole cache on each one.
   const { data: logs } = useQuery({
     queryKey: ["logs"],
     queryFn: async () => readFromLog(),
     refetchInterval: 1000,
+    gcTime: 0,
+    enabled: watchers > 0,
   });
 
-  return {
-    logs,
-  };
+  // Stable, so a consumer's effect does not re-register on every new log.
+  const watch = useCallback(() => {
+    setWatchers((count) => count + 1);
+    return () => setWatchers((count) => count - 1);
+  }, []);
+
+  return useMemo(() => ({ logs, watch }), [logs, watch]);
 }
 
 // Mirror app logs into Sentry as breadcrumbs so crash reports carry the log
@@ -124,8 +142,10 @@ const reportedNativeFailures = new Set<string>();
  *
  * Every failure reaches the local log. What reaches Sentry is narrower:
  * - expected outcomes, aborted requests and the user's environment (no HTTP
- *   response, a gateway error, a gateway's own refusal) are never sent: an
- *   unreachable server is not an app bug
+ *   response, a gateway error, a gateway's own refusal or page) are never
+ *   sent: an unreachable server is not an app bug
+ * - nor is an id the server no longer has, a library renamed or deleted
+ *   (isStaleIdError)
  * - an error is sent once, however many layers catch and log it
  * - an HTTP failure is sent once per route and status per session, and one
  *   server failing on every route at once is one event (utils/httpFailureGate)
@@ -147,7 +167,8 @@ export const logAndCaptureError = (
   if (
     isExpectedError(error) ||
     isAbortLikeError(error) ||
-    isEnvironmentError(error)
+    isEnvironmentError(error) ||
+    isStaleIdError(error)
   ) {
     return;
   }
@@ -232,7 +253,9 @@ export function useLog() {
   if (context === null) {
     throw new Error("useLog must be used within a LogProvider");
   }
-  return context;
+  const { watch } = context;
+  useFocusEffect(useCallback(() => watch(), [watch]));
+  return { logs: context.logs };
 }
 
 export function LogProvider({ children }: { children: React.ReactNode }) {

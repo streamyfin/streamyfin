@@ -2,7 +2,7 @@ import type {
   BaseItemPerson,
   ItemFields,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -19,7 +19,7 @@ export const useItemPeopleQuery = (
     queryFn: async () => {
       if (!api || !user?.Id || !itemId) return [];
 
-      const response = await getItemsApi(api).getItems({
+      const response = await getLibraryApi(api).getItems({
         ids: [itemId],
         userId: user.Id,
         fields: ["People" satisfies ItemFields],

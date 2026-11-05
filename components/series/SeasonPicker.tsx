@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +20,10 @@ import {
   buildOfflineSeasons,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
-import { replacementSeason } from "@/utils/seasonSelection";
+import {
+  findRememberedSeason,
+  replacementSeason,
+} from "@/utils/seasonSelection";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { buildItemCards, type CardData } from "../cards/CardData";
 import { CardListRow } from "../cards/CardListRow";
@@ -30,6 +33,7 @@ import { Text } from "../common/Text";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
 import { PlayedStatus } from "../PlayedStatus";
+import { episodeRowState } from "./episodeRowState";
 
 type Props = {
   item: BaseItemDto;
@@ -51,7 +55,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     [item, seasonIndexState],
   );
 
-  const { data: seasons } = useQuery({
+  const seasonsQuery = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -59,26 +63,23 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       }
 
       if (!api || !user?.Id || !item.Id) return [];
-      const response = await api.axiosInstance.get(
-        `${api.basePath}/Shows/${item.Id}/Seasons`,
-        {
-          params: {
-            userId: user?.Id,
-            itemId: item.Id,
-            Fields:
-              "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
-          },
-          headers: {
-            Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-          },
-        },
-      );
+      const response = await getShowApi(api).getSeasons({
+        seriesId: item.Id,
+        userId: user.Id,
+        fields: [
+          "ItemCounts",
+          "PrimaryImageAspectRatio",
+          "CanDelete",
+          "MediaSourceCount",
+        ],
+      });
 
-      return response.data.Items;
+      return response.data.Items || [];
     },
     staleTime: isOffline ? Infinity : 60,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
+  const { data: seasons = [] } = seasonsQuery;
 
   // The remembered season can go away under the page: offline, deleting its
   // last downloaded episode removes it from the list. SeasonDropdown only
@@ -91,28 +92,18 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     setSeasonIndexState((prev) => ({ ...prev, [item.Id!]: replacement }));
   }, [item.Id, seasons, seasonIndex, setSeasonIndexState]);
 
-  const selectedSeasonId: string | null = useMemo(() => {
-    const season: BaseItemDto = seasons?.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
-    );
-
-    if (!season?.Id) return null;
-
-    return season.Id!;
-  }, [seasons, seasonIndex]);
+  const selectedSeasonId: string | null = useMemo(
+    () => findRememberedSeason(seasons, seasonIndex)?.Id ?? null,
+    [seasons, seasonIndex],
+  );
 
   // For offline mode, we use season index number instead of ID
   const selectedSeasonNumber = useMemo(() => {
     if (!isOffline) return null;
-    const season = seasons?.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
-    );
-    return season?.IndexNumber ?? null;
+    return findRememberedSeason(seasons, seasonIndex)?.IndexNumber ?? null;
   }, [isOffline, seasons, seasonIndex]);
 
-  const { data: episodes, isPending } = useQuery({
+  const episodesQuery = useQuery({
     queryKey: [
       "episodes",
       item.Id,
@@ -133,7 +124,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         return [];
       }
 
-      const res = await getTvShowsApi(api).getEpisodes({
+      const res = await getShowApi(api).getEpisodes({
         seriesId: item.Id,
         userId: user.Id,
         seasonId: selectedSeasonId,
@@ -154,6 +145,17 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       ? !!item.Id && selectedSeasonNumber !== null
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
+  const { data: episodes } = episodesQuery;
+  // SeasonDropdown picks the default season in an effect, a render after the
+  // seasons arrive: until a season is on screen, its episodes are not asked for.
+  const awaitingSeason =
+    seasons.length > 0 &&
+    (isOffline ? selectedSeasonNumber === null : selectedSeasonId === null);
+  const episodeRow = episodeRowState(
+    seasonsQuery,
+    episodesQuery,
+    awaitingSeason,
+  );
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
@@ -261,8 +263,9 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         ) : null}
       </View>
       <View className='px-4 flex flex-col mt-4'>
-        {isPending ? (
+        {episodeRow === "loading" ? (
           <View
+            testID='season-episodes-loading'
             style={{
               minHeight: 144 * nrOfEpisodes,
             }}
@@ -284,10 +287,12 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             </View>
           ))
         )}
-        {(episodes?.length || 0) === 0 ? (
+        {episodeRow !== "loading" && (episodes?.length || 0) === 0 ? (
           <View className='flex flex-col'>
             <Text className='text-neutral-500'>
-              {t("item_card.no_episodes_for_this_season")}
+              {episodeRow === "failed"
+                ? t("item_card.episodes_load_failed")
+                : t("item_card.no_episodes_for_this_season")}
             </Text>
           </View>
         ) : null}

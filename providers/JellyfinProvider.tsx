@@ -1,9 +1,9 @@
 import "@/augmentations";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { getAuthenticationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
@@ -27,7 +27,10 @@ import {
   PUSH_REGISTRATION_TIMEOUT_MS,
 } from "@/constants/Notifications";
 import useRouter from "@/hooks/useAppRouter";
-import { useInterval } from "@/hooks/useInterval";
+import {
+  type QuickConnectStatus,
+  useQuickConnect,
+} from "@/hooks/useQuickConnect";
 import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
@@ -134,6 +137,7 @@ interface JellyfinContextValue {
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
   stopQuickConnectPolling: () => void;
+  quickConnectStatus: QuickConnectStatus;
   loginWithSavedCredential: (
     serverUrl: string,
     userId: string,
@@ -182,8 +186,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const [api, setApi] = useAtom(apiAtom);
   const [user, setUser] = useAtom(userAtom);
-  const [isPolling, setIsPolling] = useState<boolean>(false);
-  const [secret, setSecret] = useState<string | null>(null);
   const {
     settings,
     setPluginSettings,
@@ -328,7 +330,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [api, handleSessionExpired]);
 
-  const headers = useMemo(() => {
+  const headers = useMemo((): Record<string, string> => {
     if (!deviceId) return {};
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
@@ -337,84 +339,23 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [deviceId]);
 
-  const initiateQuickConnect = useCallback(async () => {
-    if (!api || !deviceId) return;
-    try {
-      const response = await api.axiosInstance.post(
-        `${api.basePath}/QuickConnect/Initiate`,
-        null,
-        {
-          headers,
-        },
-      );
-      if (response?.status === 200) {
-        setSecret(response?.data?.Secret);
-        setIsPolling(true);
-        return response.data?.Code;
-      }
-      throw new Error("Failed to initiate quick connect");
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }, [api, deviceId, headers]);
-
-  const stopQuickConnectPolling = useCallback(() => {
-    setIsPolling(false);
-    setSecret(null);
-  }, []);
-
-  const pollQuickConnect = useCallback(async () => {
-    if (!api || !secret || !jellyfin) return;
-
-    try {
-      const response = await api.axiosInstance.get(
-        `${api.basePath}/QuickConnect/Connect?Secret=${secret}`,
-      );
-
-      if (response.status === 200) {
-        if (response.data.Authenticated) {
-          setIsPolling(false);
-
-          const authResponse = await api.axiosInstance.post(
-            `${api.basePath}/Users/AuthenticateWithQuickConnect`,
-            {
-              secret,
-            },
-            {
-              headers,
-            },
-          );
-
-          const { AccessToken, User } = authResponse.data;
-          setUser(User);
-          setApi(
-            createApiWithCustomHeaders(jellyfin, api.basePath, AccessToken),
-          );
-          storage.set("token", AccessToken);
-          storage.set("user", JSON.stringify(User));
-          // As every other sign-in does: without it the plugin's locks and
-          // Seerr address waited for the next return to the foreground.
-          await refreshStreamyfinPluginSettings();
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        if (error.response?.status === 400 || error.response?.status === 404) {
-          setIsPolling(false);
-          setSecret(null);
-          if (error.response?.status === 400) {
-            throw new Error("The code has expired. Please try again.");
-          }
-          return false;
-        }
-      }
-      console.error("Error polling Quick Connect:", error);
-      throw error;
-    }
-  }, [api, secret, headers, jellyfin, refreshStreamyfinPluginSettings]);
+  const { initiateQuickConnect, stopQuickConnectPolling, quickConnectStatus } =
+    useQuickConnect({
+      api: deviceId && jellyfin ? api : null,
+      headers,
+      onAuthenticated: async ({ AccessToken, User }, sourceApi) => {
+        if (!jellyfin) return;
+        setUser(User);
+        setApi(
+          createApiWithCustomHeaders(jellyfin, sourceApi.basePath, AccessToken),
+        );
+        storage.set("token", AccessToken);
+        storage.set("user", JSON.stringify(User));
+        // As every other sign-in does: without it the plugin's locks and
+        // Seerr address waited for the next return to the foreground.
+        await refreshStreamyfinPluginSettings();
+      },
+    });
 
   useEffect(() => {
     (async () => {
@@ -425,8 +366,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     store.set(apiAtom, api);
   }, [api]);
-
-  useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
   // Refresh plugin settings when the app comes to the foreground. The refresh
   // reads the session when it runs, so the listener is registered once.
@@ -523,7 +462,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
-        const auth = await api.authenticateUserByName(username, password);
+        // Authenticating writes the token into the Api that asked (SDK 1.0),
+        // so sign in on an instance of its own: the one apiAtom holds must not
+        // change before the new session is published below.
+        const loginApi = createApiWithCustomHeaders(jellyfin, api.basePath);
+        const auth = await getAuthenticationApi(
+          loginApi,
+        ).authenticateUserByName({
+          authenticateUserByName: { Username: username, Pw: password },
+        });
 
         if (auth.data.AccessToken && auth.data.User) {
           // Held from before the session is set: SeerrAutoLogin starts as soon
@@ -697,7 +644,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // a registration still on its way, which would otherwise bring the row back.
       if (api) {
         inRegistrationOrder(() =>
-          api.delete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
+          api.pluginDelete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
             timeout: PUSH_REGISTRATION_TIMEOUT_MS,
           }),
         )
@@ -853,8 +800,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       // Authenticate with password
       writeInfoLog(`Login (saved server): authenticating against ${serverUrl}`);
-      const auth = await apiInstance
-        .authenticateUserByName(username, password)
+      const auth = await getAuthenticationApi(apiInstance)
+        .authenticateUserByName({
+          authenticateUserByName: { Username: username, Pw: password },
+        })
         .catch((error) => {
           writeToLog(
             axios.isAxiosError(error) &&
@@ -1134,6 +1083,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
     stopQuickConnectPolling,
+    quickConnectStatus,
     loginWithSavedCredential: (serverUrl, userId) =>
       loginWithSavedCredentialMutation.mutateAsync({ serverUrl, userId }),
     loginWithPassword: (serverUrl, username, password) =>

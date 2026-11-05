@@ -181,7 +181,7 @@ const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
       type === "Episode" ? `tag-thumb-${prefix}-${index}` : undefined,
     ParentIndexNumber: 1,
     IndexNumber: index + 1,
-    UserData: { PlayedPercentage: 40 },
+    UserData: { Key: "", PlayedPercentage: 40 },
   }));
 
 const stubServer = () => {

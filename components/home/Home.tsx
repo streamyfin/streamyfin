@@ -1,14 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import type {
-  BaseItemDto,
-  BaseItemDtoQueryResult,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  getItemsApi,
-  getSuggestionsApi,
-  getTvShowsApi,
-  getUserLibraryApi,
-  getUserViewsApi,
+  getLibraryApi,
+  getShowApi,
+  getSuggestionApi,
+  getUserViewApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useSegments } from "expo-router";
@@ -49,6 +45,7 @@ import {
   userAtom,
 } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { fetchCustomHomeSection } from "@/utils/customHomeSection";
 import { eventBus } from "@/utils/eventBus";
 import { recentlyAddedSeeAllParams } from "@/utils/library/seeAll";
 import { storage } from "@/utils/mmkv";
@@ -191,7 +188,7 @@ const HomeMobile = () => {
         return null;
       }
 
-      const response = await getUserViewsApi(api).getUserViews({
+      const response = await getUserViewApi(api).getUserViews({
         userId: user.Id,
       });
 
@@ -258,7 +255,7 @@ const HomeMobile = () => {
               if (pageParam > 0) return [];
 
               return (
-                await getUserLibraryApi(api).getLatestMedia({
+                await getLibraryApi(api).getLatestMedia({
                   userId: user.Id,
                   parentId: library.Id,
                   limit,
@@ -305,14 +302,14 @@ const HomeMobile = () => {
             queryFn: async ({ pageParam = 0 }) => {
               // Fetch both in parallel
               const [resumeResponse, nextUpResponse] = await Promise.all([
-                getItemsApi(api).getResumeItems({
+                getLibraryApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   includeItemTypes: ["Movie", "Episode"],
                   startIndex: 0,
                   limit: 20,
                 }),
-                getTvShowsApi(api).getNextUp({
+                getShowApi(api).getNextUp({
                   userId: user?.Id,
                   startIndex: 0,
                   limit: 20,
@@ -344,7 +341,7 @@ const HomeMobile = () => {
             queryKey: ["home", "resumeItems"],
             queryFn: async ({ pageParam = 0 }) =>
               (
-                await getItemsApi(api).getResumeItems({
+                await getLibraryApi(api).getResumeItems({
                   userId: user.Id,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   includeItemTypes: ["Movie", "Episode"],
@@ -362,7 +359,7 @@ const HomeMobile = () => {
             queryKey: ["home", "nextUp-all"],
             queryFn: async ({ pageParam = 0 }) =>
               (
-                await getTvShowsApi(api).getNextUp({
+                await getShowApi(api).getNextUp({
                   userId: user?.Id,
                   startIndex: pageParam,
                   limit: 10,
@@ -410,7 +407,7 @@ const HomeMobile = () => {
               queryKey: ["home", "suggestedMovies", user?.Id],
               queryFn: async ({ pageParam = 0 }: { pageParam?: number }) =>
                 (
-                  await getSuggestionsApi(api).getSuggestions({
+                  await getSuggestionApi(api).getSuggestions({
                     userId: user?.Id,
                     startIndex: pageParam,
                     limit: 10,
@@ -446,65 +443,14 @@ const HomeMobile = () => {
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", "custom", String(index), section.title ?? null],
-        queryFn: async ({ pageParam = 0 }) => {
-          if (section.items) {
-            const response = await getItemsApi(api).getItems({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.items?.limit || pageSize,
-              recursive: true,
-              includeItemTypes: section.items?.includeItemTypes,
-              sortBy: section.items?.sortBy,
-              sortOrder: section.items?.sortOrder,
-              filters: section.items?.filters,
-              parentId: section.items?.parentId,
-            });
-            return response.data.Items || [];
-          }
-          if (section.nextUp) {
-            const response = await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.nextUp?.limit || pageSize,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: section.nextUp?.enableResumable,
-              enableRewatching: section.nextUp?.enableRewatching,
-            });
-            return response.data.Items || [];
-          }
-          if (section.latest) {
-            // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
-            const allData =
-              (
-                await getUserLibraryApi(api).getLatestMedia({
-                  userId: user?.Id,
-                  includeItemTypes: section.latest?.includeItemTypes,
-                  limit: section.latest?.limit || 10,
-                  isPlayed: section.latest?.isPlayed,
-                  groupItems: section.latest?.groupItems,
-                })
-              ).data || [];
-
-            // Simulate pagination by slicing
-            return allData.slice(pageParam, pageParam + pageSize);
-          }
-          if (section.custom) {
-            const response = await api.get<BaseItemDtoQueryResult>(
-              section.custom.endpoint,
-              {
-                params: {
-                  ...(section.custom.query || {}),
-                  userId: user?.Id,
-                  startIndex: pageParam,
-                  limit: pageSize,
-                },
-                headers: section.custom.headers || {},
-              },
-            );
-            return response.data.Items || [];
-          }
-          return [];
-        },
+        queryFn: ({ pageParam = 0 }) =>
+          fetchCustomHomeSection(api, {
+            section,
+            index,
+            userId: user?.Id,
+            pageParam,
+            pageSize,
+          }),
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
