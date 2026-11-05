@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
@@ -207,6 +207,22 @@ export const PlaybackControlsSettings: React.FC = () => {
             }
           />
         </ListItem>
+
+        {Platform.OS === "android" && !Platform.isTV && (
+          <ListItem
+            title={t("home.settings.other.audio_only_when_screen_off")}
+            subtitle={t("home.settings.other.audio_only_when_screen_off_hint")}
+            disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
+          >
+            <SettingSwitch
+              value={settings.audioOnlyWhenScreenOff !== false}
+              disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
+              onValueChange={(audioOnlyWhenScreenOff) =>
+                updateSettings({ audioOnlyWhenScreenOff })
+              }
+            />
+          </ListItem>
+        )}
 
         <ListItem
           title={t("home.settings.other.still_watching")}

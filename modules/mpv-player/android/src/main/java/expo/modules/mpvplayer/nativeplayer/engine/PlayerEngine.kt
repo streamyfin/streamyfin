@@ -31,6 +31,8 @@ data class VideoLoadConfig(
      * adaptation fires before the real rate is known.
      */
     val contentFrameRate: Double? = null,
+    /** Stop decoding video while the surface is gone (screen off, background). */
+    val audioOnlyWhenHidden: Boolean = false,
 )
 
 /**

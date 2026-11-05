@@ -501,3 +501,36 @@ describe("the native player's swipe gestures", () => {
     });
   });
 });
+
+describe("the native player's audio only mode", () => {
+  const audioOnly = async (audioOnlyWhenScreenOff: boolean | undefined) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        audioOnlyWhenScreenOff,
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      item,
+    });
+    return built?.config.stream.audioOnlyWhenHidden;
+  };
+
+  // On by default: settings saved before the option existed have no value.
+  test("is asked for unless the setting is off", async () => {
+    expect(await audioOnly(undefined)).toBe(true);
+    expect(await audioOnly(true)).toBe(true);
+    expect(await audioOnly(false)).toBe(false);
+  });
+});
