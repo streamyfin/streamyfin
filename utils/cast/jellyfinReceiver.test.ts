@@ -546,10 +546,12 @@ describe("castToJellyfinReceiver", () => {
     mediaInfo: { customData: { itemId, playSessionId } },
   });
 
-  /** A remote media client whose status updates the test emits. */
+  /** A remote media client whose status updates the test emits, on the double's current session. */
   const makeClient = (current: Status | null = null) => {
     let listener: ((status: Status | null) => void) | undefined;
     return {
+      sessionId: mockCast.session?.id ?? "no-session",
+      stop: jest.fn(async () => {}),
       getMediaStatus: jest.fn(async () => current),
       onMediaStatusUpdated: jest.fn((handler: typeof listener) => {
         listener = handler;
@@ -738,6 +740,36 @@ describe("castToJellyfinReceiver", () => {
     );
 
     expect(await outcome).toEqual({ status: "timed_out" });
+  });
+
+  // A load that did not start in time may still start later, alongside the phone that went on: it is stopped.
+  test("stops a load that did not start in time", async () => {
+    const client = makeClient();
+    const outcome = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [movie] },
+      10,
+    );
+
+    expect(await outcome).toEqual({ status: "timed_out" });
+    expect(client.stop).toHaveBeenCalledTimes(1);
+  });
+
+  // This phone or Stop in the sheet ends the session the load went to: nothing is coming, so it stops waiting.
+  test("stops waiting once its Cast session ends", async () => {
+    const client = makeClient();
+    const outcome = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [movie] },
+      60_000,
+    );
+    await sent();
+
+    emitCastSessionEvent(mockCast, "ended");
+
+    expect(await settledWith(outcome)).toEqual({ status: "superseded" });
   });
 
   /** Holds the next media status read until the test answers it. */

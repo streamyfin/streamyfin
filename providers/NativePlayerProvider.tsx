@@ -76,6 +76,8 @@ import {
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
 import {
+  castClientFor,
+  currentCastSession,
   remoteTarget,
   showExpandedControls,
 } from "@/modules/mpv-player/src/cast";
@@ -2186,7 +2188,7 @@ const NativePlayerProviderInner: React.FC<{
       // closes and the receiver's controls open, or it says why and plays on.
       addNativePlayerListener(
         "onCastHandOffRequested",
-        ({ positionSec, itemId }) => {
+        ({ positionSec, itemId, wasPlaying = true }) => {
           const session = sessionRef.current;
           const currentApi = apiRef.current;
           const userId = userRef.current?.Id;
@@ -2196,6 +2198,7 @@ const NativePlayerProviderInner: React.FC<{
             session,
             inSyncPlay: syncRef.current.enabled,
             receiverConnected: target.state === "connected",
+            wasPlaying,
           };
           if (
             !session ||
@@ -2217,20 +2220,39 @@ const NativePlayerProviderInner: React.FC<{
             // Another item in the player by then, or a group it now plays for: nothing goes to the receiver.
             () => sessionRef.current !== session || syncRef.current.enabled,
           ).then((result) => {
-            if (sessionRef.current !== session) return;
+            const current = sessionRef.current;
+            // The player closed meanwhile: what the receiver plays is the user's.
+            if (!current) return;
             const step = nextStepAfterSend(result, {
               latest: handOff === handOffCountRef.current,
               inSyncPlay: syncRef.current.enabled,
+              wasPlaying,
+              // Another episode, or played here again while the receiver loaded.
+              movedOn: current !== session || session.isPlaying,
             });
-            if (step.kind === "none") return;
-            if (step.kind === "dismiss") {
-              void dismissNativePlayer();
-              void showExpandedControls();
-              return;
+            switch (step.kind) {
+              case "dismiss":
+                void dismissNativePlayer();
+                void showExpandedControls();
+                return;
+              case "notice":
+                void nativePlayerShowNotice(step.message);
+                if (step.resume) void nativePlayerPlay();
+                return;
+              case "resume":
+                void nativePlayerPlay();
+                return;
+              case "stopReceiver": {
+                const cast = currentCastSession();
+                if (cast)
+                  void castClientFor(cast)
+                    .stop()
+                    .catch(() => {});
+                return;
+              }
+              case "none":
+                return;
             }
-            if (step.kind === "notice")
-              void nativePlayerShowNotice(step.message);
-            void nativePlayerPlay();
           });
         },
       ),

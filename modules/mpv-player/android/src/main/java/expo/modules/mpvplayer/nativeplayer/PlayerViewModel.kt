@@ -153,10 +153,15 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun requestCastHandOff() {
         // The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
         if (isTearingDown) return
+        // A video paused before the sheet opened stays paused when the hand-off does not go through.
+        val wasPlaying = isPlaying
         // A group joined while the sheet was open owns playback: JS refuses the hand-off and the group plays on.
         if (!syncPlayActive) pauseLocal()
         // The item played here: in JS, an in-place swap may already hold the next one.
-        emit?.invoke("onCastHandOffRequested", mapOf("positionSec" to authoritativePosition, "itemId" to currentItemId))
+        emit?.invoke(
+            "onCastHandOffRequested",
+            mapOf("positionSec" to authoritativePosition, "itemId" to currentItemId, "wasPlaying" to wasPlaying),
+        )
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

@@ -651,6 +651,7 @@ export const castToJellyfinReceiver = async (
     let settled = false;
     let stopWatchingErrors = () => {};
     let statusUpdates: { remove: () => void } | undefined;
+    let sessionEvents: { remove: () => void } | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const settle = (finish: () => void) => {
@@ -658,6 +659,7 @@ export const castToJellyfinReceiver = async (
       settled = true;
       clearTimeout(timer);
       statusUpdates?.remove();
+      sessionEvents?.remove();
       stopWatchingErrors();
       if (supersedeCurrentCast === supersede) supersedeCurrentCast = null;
       finish();
@@ -673,8 +675,26 @@ export const castToJellyfinReceiver = async (
     statusUpdates = client.onMediaStatusUpdated((status) => {
       if (isThisLoad(status)) settle(() => resolve({ status: "loaded" }));
     });
+    // This phone or Stop in the sheet ends the session the load went to: nothing is coming. Android reports an
+    // ended session without its id.
+    sessionEvents = onCastSessionEvent(({ event, sessionId }) => {
+      if (
+        event === "ended" &&
+        (sessionId === null || sessionId === client.sessionId)
+      ) {
+        settle(() => resolve({ status: "superseded" }));
+      }
+    });
+    // A load that did not start in time may still start later, alongside whatever the caller goes on with: the
+    // receiver stops it.
     timer = setTimeout(
-      () => settle(() => resolve({ status: "timed_out" })),
+      () =>
+        settle(() => {
+          void Promise.resolve()
+            .then(() => client.stop())
+            .catch(() => {});
+          resolve({ status: "timed_out" });
+        }),
       timeoutMs,
     );
 
