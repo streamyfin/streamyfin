@@ -24,7 +24,6 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { scaleSize } from "@/utils/scaleSize";
-import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import type { TvDetails } from "@/utils/seerr/types";
@@ -40,7 +39,6 @@ const TVSeasonEpisodes: React.FC<{
     queryFn: async () => seerrApi?.tvSeason(details.id, seasonNumber),
     enabled: !!seerrApi,
   });
-  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
 
   if (isLoading) return <Loader />;
 
@@ -56,7 +54,7 @@ const TVSeasonEpisodes: React.FC<{
         gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
       }}
       renderItem={({ item: episode }) => {
-        const still = episodeStillUrl(baseUrl, episode.stillPath);
+        const still = seerrApi?.episodeStill(episode.stillPath);
         const card: BaseItemDto = {
           Id: String(episode.id),
           Name: episode.name,
