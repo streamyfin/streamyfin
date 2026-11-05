@@ -54,6 +54,13 @@ export type OptionGroup = {
 
 interface PlatformDropdownProps {
   trigger?: React.ReactNode;
+  /**
+   * iOS: a SwiftUI view from @expo/ui to label the menu with, in place of the
+   * trigger. A React Native trigger inside the Menu is hosted in a view whose
+   * frame both layout engines set; a SwiftUI label has nothing to host. The
+   * trigger still sizes the dropdown, unseen.
+   */
+  nativeLabel?: React.ReactNode;
   title?: string;
   groups: OptionGroup[];
   disabled?: boolean;
@@ -204,6 +211,7 @@ const BottomSheetContent: React.FC<{
 
 const PlatformDropdownComponent = ({
   trigger,
+  nativeLabel,
   title,
   groups,
   disabled: isDisabled,
@@ -258,10 +266,11 @@ const PlatformDropdownComponent = ({
           style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}
           // SwiftUI would otherwise keep the Menu clear of the keyboard, and
           // in a Host this small that leaves it nothing to be tapped on: a
-          // dropdown next to a focused input drew and never opened.
-          ignoreSafeArea='keyboard'
+          // dropdown next to a focused input drew and never opened. Under a
+          // bar it was pushed down the same way, off its trigger's place.
+          ignoreSafeArea='all'
         >
-          <FixedOrderMenu label={trigger}>
+          <FixedOrderMenu label={nativeLabel ?? trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -415,7 +424,8 @@ export const PlatformDropdown = React.memo(
       prevProps.open === nextProps.open &&
       prevProps.disabled === nextProps.disabled &&
       prevProps.groups === nextProps.groups && // Reference equality (works because we memoize groups in caller)
-      prevProps.trigger === nextProps.trigger // Reference equality
+      prevProps.trigger === nextProps.trigger && // Reference equality
+      prevProps.nativeLabel === nextProps.nativeLabel
     );
   },
 );
