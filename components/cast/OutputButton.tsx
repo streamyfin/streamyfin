@@ -33,6 +33,8 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
   variant?: "header" | "inline";
   /** The glyph's color while nothing is connected; white, as the header's icons. */
   idleTint?: ColorValue;
+  /** A header renders outside its page's OfflineModeProvider: the page says whether it is offline. */
+  offline?: boolean;
 };
 
 // One listener at a time, taken again at each opening: whichever button opened the sheet, its remote opens the
@@ -56,11 +58,12 @@ const listenForRemote = () => {
 export function OutputButton({
   variant = "header",
   idleTint,
+  offline: offlinePage = false,
   ...props
 }: Props) {
   const { t } = useTranslation();
   const target = useRemoteTarget();
-  const offline = useOfflineMode();
+  const offline = useOfflineMode() || offlinePage;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const store = useStore();
