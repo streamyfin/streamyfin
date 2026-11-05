@@ -205,21 +205,27 @@ describe("the native player's swipe gestures", () => {
 
   // #2217: the native players scrubbed and changed brightness and volume
   // whatever these switches said, because they never reached them.
-  test("hands each swipe switch to the player", async () => {
-    expect(
-      await swipeOptions({
-        enableHorizontalSwipeSkip: false,
-        enableLeftSideBrightnessSwipe: false,
-      }),
-    ).toEqual({
-      horizontalSwipeSeekEnabled: false,
-      brightnessSwipeEnabled: false,
+  test.each([
+    ["enableHorizontalSwipeSkip", "horizontalSwipeSeekEnabled"],
+    ["enableLeftSideBrightnessSwipe", "brightnessSwipeEnabled"],
+    ["enableRightSideVolumeSwipe", "volumeSwipeEnabled"],
+  ] as const)("turning off %s turns off only %s", async (setting, option) => {
+    expect(await swipeOptions({ [setting]: false })).toEqual({
+      horizontalSwipeSeekEnabled: true,
+      brightnessSwipeEnabled: true,
       volumeSwipeEnabled: true,
+      [option]: false,
     });
   });
 
-  test("keeps every swipe on by default", async () => {
-    expect(await swipeOptions({})).toEqual({
+  test("keeps every swipe on when the settings are unset", async () => {
+    expect(
+      await swipeOptions({
+        enableHorizontalSwipeSkip: undefined,
+        enableLeftSideBrightnessSwipe: undefined,
+        enableRightSideVolumeSwipe: undefined,
+      }),
+    ).toEqual({
       horizontalSwipeSeekEnabled: true,
       brightnessSwipeEnabled: true,
       volumeSwipeEnabled: true,

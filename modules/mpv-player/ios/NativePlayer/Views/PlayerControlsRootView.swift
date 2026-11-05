@@ -241,6 +241,8 @@ struct PlayerControlsRootView: View {
 			)
 		) { _ in
 			viewModel.endHoldSpeed()
+			// A drag the system cancels never reaches onEnded either.
+			dragSuppressed = false
 		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
