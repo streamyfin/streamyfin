@@ -76,6 +76,20 @@ class GoogleCastTargetPortTest {
             watchVolume = { relay -> volumeWatches += relay },
             deviceMuted = { deviceMuted },
         )
+
+        fun report(event: String, device: TargetDevice?, error: String? = null, code: Int? = null) =
+            sessionWatches.last()?.invoke(event, device, error, code)
+    }
+
+    // A launch on its way to the living room: its route selected, the SDK's session still starting.
+    private fun launching(sdk: Sdk, events: Events): GoogleCastTargetPort {
+        sdk.routes = listOf(livingRoom, bedroom)
+        val port = sdk.port()
+        port.start(events)
+        port.connect(livingRoom)
+        sdk.running = RunningSession(livingRoom, connected = false)
+        sdk.report("starting", livingRoom)
+        return port
     }
 
     // Asked back while its session ends, the old route is selected only after the SDK has finished with
@@ -369,6 +383,144 @@ class GoogleCastTargetPortTest {
         assertTrue(sdk.ended.isEmpty())
         assertEquals(1, sdk.unselects)
         assertEquals(listOf(Triple("ended", null, null)), events.sessions)
+    }
+
+    // A Cancel while the receiver app launches. Ending a session still starting lets the launch go on, and the app
+    // stayed open on the TV (bench, 04/11): the session is ended once it is up, which closes the app.
+    @Test
+    fun aCancelBeforeTheSessionIsUpStopsTheReceiverOnceItIs() {
+        val sdk = Sdk()
+        val port = launching(sdk, Events())
+
+        port.disconnect(stopPlayback = true)
+        val atTheCancel = sdk.ended.toList()
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertEquals(emptyList<Boolean>(), atTheCancel)
+        // The route stays selected for the launch to finish: unselected, the SDK would end the session at once.
+        assertEquals(0, sdk.unselects)
+        assertEquals(listOf(true), sdk.ended)
+    }
+
+    // The hub hears the end at once: the rest of that launch is the port's own.
+    @Test
+    fun theCancelledLaunchNeverReachesTheHub() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.disconnect(stopPlayback = true)
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+        sdk.report("ending", livingRoom)
+        sdk.running = null
+        sdk.report("ended", livingRoom)
+
+        assertEquals(listOf(Triple("starting", livingRoom, null), Triple("ended", livingRoom, null)), events.sessions)
+        assertEquals(listOf(true), sdk.ended)
+    }
+
+    // Cancel, then another receiver at once: its route ends the first launch, whose end neither stops nor disturbs
+    // the new connection.
+    @Test
+    fun aConnectionAfterACancelIsNotStopped() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.disconnect(stopPlayback = true)
+        port.connect(bedroom)
+        sdk.report("started", livingRoom)
+        sdk.report("ending", livingRoom)
+        sdk.running = null
+        sdk.report("ended", livingRoom, "Cast session status code 2155 (2155)", 2155)
+        sdk.running = RunningSession(bedroom, connected = false)
+        sdk.report("starting", bedroom)
+        sdk.running = RunningSession(bedroom, connected = true)
+        sdk.report("started", bedroom)
+
+        assertEquals(listOf(livingRoom, bedroom), sdk.selected)
+        assertTrue(sdk.ended.isEmpty())
+        assertEquals(
+            listOf("starting" to livingRoom, "ended" to livingRoom, "starting" to bedroom, "started" to bedroom),
+            events.sessions.map { it.first to it.second },
+        )
+    }
+
+    @Test
+    fun aCancelledLaunchThatFailsLeavesNothingBehind() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.disconnect(stopPlayback = true)
+        sdk.running = null
+        sdk.report("startFailed", livingRoom, "Cast session status code 2005 (2005)", 2005)
+        // A later session on that receiver, from the SDK's own dialog say, is the hub's again, and it stays.
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertTrue(sdk.ended.isEmpty())
+        assertEquals(
+            listOf("starting" to livingRoom, "ended" to livingRoom, "started" to livingRoom),
+            events.sessions.map { it.first to it.second },
+        )
+    }
+
+    // Asked again before it was up, the launch goes on: the hub follows it again and nothing stops it.
+    @Test
+    fun aConnectionBackBeforeTheLaunchIsUpKeepsIt() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.disconnect(stopPlayback = true)
+        port.connect(livingRoom)
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertTrue(sdk.ended.isEmpty())
+        assertEquals(Triple("started", livingRoom, null), events.sessions.last())
+    }
+
+    // Asked again while that session is being ended: its route is selected again after the end, as for a switch
+    // back, and the end itself stays away from the hub.
+    @Test
+    fun aConnectionBackWhileTheCancelledSessionEndsWaitsForItsEnd() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.disconnect(stopPlayback = true)
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+        port.connect(livingRoom)
+        val whileEnding = sdk.selected.toList()
+        sdk.report("ending", livingRoom)
+        sdk.running = null
+        sdk.report("ended", livingRoom)
+        sdk.scheduler.advance(0)
+
+        assertEquals(listOf(livingRoom), whileEnding)
+        assertEquals(listOf(livingRoom, livingRoom), sdk.selected)
+        assertEquals(listOf(Triple("starting", livingRoom, null), Triple("ended", livingRoom, null)), events.sessions)
+    }
+
+    // A disconnect without stop keeps its word once the session is up: an app this launch started closes at the
+    // session's end anyway, one it joined goes on playing.
+    @Test
+    fun aCancelWithoutStopEndsTheSessionWithoutStop() {
+        val sdk = Sdk()
+        val port = launching(sdk, Events())
+
+        port.disconnect(stopPlayback = false)
+        val atTheCancel = sdk.ended.toList()
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertEquals(emptyList<Boolean>(), atTheCancel)
+        assertEquals(listOf(false), sdk.ended)
     }
 
     @Test
