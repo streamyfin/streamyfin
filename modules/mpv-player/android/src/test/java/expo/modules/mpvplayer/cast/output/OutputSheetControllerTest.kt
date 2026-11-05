@@ -36,6 +36,22 @@ class OutputSheetControllerTest {
 
     private fun port() = FakeTargetPort(known = listOf(livingRoom, bedroom), listsOnDiscovery = true)
 
+    // A failure is read once: the sheet that showed it clears it on closing, and the next one opens clean.
+    @Test
+    fun closingTheSheetClearsTheFailureItShowed() {
+        val port = port()
+        val hub = hubWith(port)
+        val sheet = sheet(hub)
+        port.emit("startFailed", bedroom, "timeout")
+        val shown = row(sheet, bedroom).status
+
+        sheet.close()
+
+        assertTrue(shown is DeviceStatus.Failed)
+        assertEquals(null, hub.snapshot.error)
+        assertEquals(DeviceStatus.Idle, row(sheet(hub), bedroom).status)
+    }
+
     @Test
     fun aConnectingTargetShowsItsIndicatorAndCancel() {
         val port = port()
@@ -329,21 +345,4 @@ class OutputSheetControllerTest {
         assertEquals(0, scheduler.pending)
     }
 
-    // Rotating a tablet moves the sheet to a popover and back: what it shows stays as it was.
-    @Test
-    fun theStateSurvivesALayoutChange() {
-        val port = port()
-        val sheet = sheet(hubWith(port))
-        port.emit("started", livingRoom)
-        sheet.change()
-        val before = sheet.state
-
-        sheet.setWidth(720)
-        val wide = sheet.layout
-        sheet.setWidth(400)
-
-        assertEquals(OutputLayout.POPOVER, wide)
-        assertEquals(OutputLayout.SHEET, sheet.layout)
-        assertEquals(before, sheet.state)
-    }
 }

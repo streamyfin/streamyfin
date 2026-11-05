@@ -161,7 +161,14 @@ enum OutputSheetTests {
       )
     }
 
-    check("theLayoutIsAPopoverFrom600dp", outputLayout(widthDp: 599) == .sheet && outputLayout(widthDp: 600) == .popover)
+    // A cause outside the families reads as a failed connection: the SDK's own text, untranslated and with its
+    // code, is for the log.
+    check(
+      "anUnknownCauseReadsAsAFailedConnection",
+      OutputPickerStrings(["failed": "La connexion a échoué"]).cause(.other("com.google.GCKError 5")) == "La connexion a échoué"
+        && OutputPickerStrings().cause(.other("")) == "The connection failed"
+    )
+
   }
 
   static func controllerCases() {
@@ -188,6 +195,28 @@ enum OutputSheetTests {
     func deviceRow(_ sheet: OutputSheetController, _ device: TargetDevice) -> OutputRow {
       rows(sheet.state).first { if case let .device(id, _, _, _) = $0 { return id == device.id } else { return false } }
         ?? .status(.searching)
+    }
+
+    // A failure is read once: the sheet that showed it clears it on closing, and the next one opens clean.
+    do {
+      let port = port()
+      let hub = RemoteTargetHub()
+      hub.install(port)
+      func opened() -> OutputSheetController {
+        let sheet = OutputSheetController(hub: hub, schedule: Clock().schedule)
+        sheet.environment = OutputSheetEnvironment(receiverTitle: nil, receiverPlaying: false)
+        sheet.open()
+        return sheet
+      }
+      let first = opened()
+      port.emit("startFailed", bedroom, error: "timeout")
+      var shown = false
+      if case .failed = status(first.state, bedroom) { shown = true }
+      first.close()
+      check(
+        "closingTheSheetClearsTheFailureItShowed",
+        shown && hub.snapshot.error == nil && status(opened().state, bedroom) == .idle
+      )
     }
 
     do {
@@ -426,17 +455,5 @@ enum OutputSheetTests {
       check("closingTheSheetStopsDiscovery", open && !port.discovering && clock.pending == 0)
     }
 
-    // Rotating a tablet moves the sheet to a popover and back: what it shows stays as it was.
-    do {
-      let port = port()
-      let sheet = sheet(port, clock: Clock())
-      port.emit("started", livingRoom)
-      sheet.change()
-      let before = sheet.state
-      sheet.setWidth(720)
-      let wide = sheet.layout
-      sheet.setWidth(400)
-      check("theStateSurvivesALayoutChange", wide == .popover && sheet.layout == .sheet && sheet.state == before)
-    }
   }
 }

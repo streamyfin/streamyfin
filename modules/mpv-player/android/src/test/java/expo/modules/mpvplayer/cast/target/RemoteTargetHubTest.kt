@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast.target
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,6 +43,35 @@ class RemoteTargetHubTest {
 
         assertEquals(TargetPhase.CONNECTED, hub.snapshot.phase)
         assertEquals(RemoteTarget.cast(livingRoom), hub.snapshot.target)
+    }
+
+    // The sheet reads a cause by its family; the SDK's own text goes to the log.
+    @Test
+    fun aFailureIsLoggedWithItsCause() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+        val lines = mutableListOf<String>()
+        hub.log = { lines += it }
+
+        port.emit("ended", livingRoom, "Cast session status code 2155 (2155)")
+        port.emit("started", livingRoom)
+
+        assertEquals(1, lines.size)
+        assertTrue(lines.single().contains("Cast session status code 2155 (2155)"))
+    }
+
+    @Test
+    fun aClearedFailureIsPublished() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+        port.emit("ended", livingRoom, "lost")
+        val listener = Recording()
+        hub.addListener(listener)
+
+        hub.clearFailure()
+
+        assertEquals(listOf(RemoteTargetSnapshot.NONE), listener.targets)
+        assertNull(hub.snapshot.error)
     }
 
     @Test

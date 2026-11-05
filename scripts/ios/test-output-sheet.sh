@@ -10,6 +10,7 @@ sources=(
   modules/mpv-player/ios/Cast/GoogleCastTargetPort.swift modules/mpv-player/ios/Cast/CastTargetProbe.swift
   modules/mpv-player/ios/Cast/FakeCastDevices.swift modules/mpv-player/ios/Cast/RemoteTargetConstants.swift
   modules/mpv-player/ios/Cast/OutputSheetModel.swift modules/mpv-player/ios/Cast/OutputSheetController.swift
+  modules/mpv-player/ios/Cast/OutputPickerStrings.swift
   tests/native/FakeTargetPort.swift tests/native/OutputSheetTests.swift
 )
 swiftc -module-cache-path "$test_dir/modules" "${sources[@]}" -o "$test_dir/test"

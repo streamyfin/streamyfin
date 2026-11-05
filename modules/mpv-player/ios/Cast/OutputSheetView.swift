@@ -52,7 +52,7 @@ struct OutputSheetView: View {
       .padding(.vertical, 16)
     }
     // A popover takes the ideal width; a sheet, the window's.
-    .frame(idealWidth: 380, maxWidth: .infinity)
+    .frame(idealWidth: RemoteTargetConstants.popoverWidth, maxWidth: .infinity)
     .background(sheetColor.ignoresSafeArea())
     .foregroundStyle(.white)
     .preferredColorScheme(.dark)
@@ -119,6 +119,8 @@ private struct DeviceRowView: View {
         EmptyView()
       }
     }
+    // Cancel is a button inside the row's own, which VoiceOver reads as one element: the row offers it as an action.
+    .modifier(CancelAction(label: status == .connecting ? strings.get("cancel") : nil, cancel: controller.cancel))
   }
 
   private var isFailed: Bool {
@@ -303,6 +305,20 @@ private struct SheetRow<Trailing: View>: View {
     .padding(.vertical, 12)
     .background(RoundedRectangle(cornerRadius: 10).fill(selected ? selectedRowColor : rowColor))
     .contentShape(RoundedRectangle(cornerRadius: 10))
+  }
+}
+
+private struct CancelAction: ViewModifier {
+  let label: String?
+  let cancel: () -> Void
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if let label {
+      content.accessibilityAction(named: Text(label), cancel)
+    } else {
+      content
+    }
   }
 }
 

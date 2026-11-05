@@ -41,7 +41,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerAccentColor
 import kotlin.math.roundToInt
 
@@ -90,7 +91,7 @@ fun OutputSheetHost(
         onDispose { controller.onState = null }
     }
     val widthDp = LocalConfiguration.current.screenWidthDp
-    LaunchedEffect(widthDp) { controller.setWidth(widthDp) }
+    val density = LocalDensity.current.density
 
     when (outputLayout(widthDp)) {
         OutputLayout.SHEET ->
@@ -104,7 +105,7 @@ fun OutputSheetHost(
             }
         OutputLayout.POPOVER ->
             Popup(
-                popupPositionProvider = remember(anchor) { AnchorPosition(anchor) },
+                popupPositionProvider = remember(anchor, density) { AnchorPosition(anchor, density) },
                 onDismissRequest = onDismiss,
                 properties = PopupProperties(focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true),
             ) {
@@ -113,7 +114,7 @@ fun OutputSheetHost(
                     color = SheetColor,
                     contentColor = Color.White,
                     shadowElevation = 12.dp,
-                    modifier = Modifier.widthIn(max = 380.dp),
+                    modifier = Modifier.widthIn(max = RemoteTargetConstants.POPOVER_MAX_WIDTH_DP.dp),
                 ) {
                     OutputSheetContent(state, strings, controller, Modifier.padding(vertical = 8.dp))
                 }
@@ -122,14 +123,14 @@ fun OutputSheetHost(
 }
 
 /** Below the button, its right edges aligned, kept inside the window; centred with no button to point at. */
-private class AnchorPosition(private val anchor: IntRect?) : PopupPositionProvider {
+internal class AnchorPosition(private val anchor: IntRect?, private val density: Float) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
         windowSize: IntSize,
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val margin = 16
+        val margin = (RemoteTargetConstants.POPOVER_MARGIN_DP * density).roundToInt()
         val button = anchor
             ?: return IntOffset((windowSize.width - popupContentSize.width) / 2, (windowSize.height - popupContentSize.height) / 2)
         val maxX = (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)
@@ -366,7 +367,8 @@ private fun SheetRow(
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            caption?.let { Text(it, color = captionColor, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            // A failure says why in full, however large the text: the row grows instead.
+            caption?.let { Text(it, color = captionColor, fontSize = 13.sp) }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { trailing() }
     }

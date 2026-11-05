@@ -62,6 +62,27 @@ enum RemoteTargetTests {
   // The hub holds the target for the whole process and talks to the SDK through a port: the same
   // cases as RemoteTargetHubTest.kt.
   static func hubCases() {
+    // The sheet reads a cause by its family; the SDK's own text goes to the log.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      var lines: [String] = []
+      hub.log = { lines.append($0) }
+      port.emit("ended", livingRoom, error: "com.google.GCKError 5")
+      port.emit("started", livingRoom)
+      check("aFailureIsLoggedWithItsCause", lines.count == 1 && lines[0].contains("com.google.GCKError 5"))
+    }
+
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      port.emit("ended", livingRoom, error: "lost")
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      hub.clearFailure()
+      check("aClearedFailureIsPublished", listener.targets == [.none] && hub.snapshot.error == nil)
+    }
+
     do {
       let hub = RemoteTargetHub()
       hub.install(FakeTargetPort(atStart: [("resumed", livingRoom, nil)]))
@@ -1637,6 +1658,21 @@ enum RemoteTargetTests {
       let machine = connected(to: livingRoom)
       _ = machine.sessionEvent("ended", device: livingRoom, error: nil)
       check("anEndTheUserAskedForNamesNoFailure", machine.snapshot.failedTarget == nil && machine.snapshot.errorCode == nil)
+    }
+
+    // A failure is read once: a sheet that showed it clears it on closing, so it is not drawn again later.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.sessionEvent("ended", device: livingRoom, error: "lost", code: 2155)
+      let cleared = machine.clearFailure()
+      check("aClearedFailureLeavesNoCause", cleared && machine.snapshot == .none && !machine.clearFailure())
+    }
+
+    // A session the SDK kept keeps its cause until it ends: only a failure with nothing held is cleared.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.sessionEvent("endRefused", device: livingRoom, error: "kept")
+      check("aHeldSessionKeepsItsCause", !machine.clearFailure() && machine.snapshot.error == "kept")
     }
 
     do {
