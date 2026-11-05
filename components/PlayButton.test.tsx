@@ -496,3 +496,21 @@ test("a play here while a press waits plays here only", async () => {
   expect(mockPlayMedia).toHaveBeenCalledTimes(1);
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
 });
+
+// Past the wait, the load still reads the receiver before it sends: a play here by then is the last choice too.
+test("a play here while a load to the receiver is on its way keeps it from sending", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  expect(before).toBe(false);
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(isStale?.()).toBe(true);
+});

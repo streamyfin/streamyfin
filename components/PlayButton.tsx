@@ -92,10 +92,14 @@ export const PlayButton: React.FC<Props> = ({
   // The press waiting for a connection: one at a time, dropped with the button.
   const pendingWait = useRef<AbortController | null>(null);
   useEffect(() => () => pendingWait.current?.abort(), []);
-  // A play here is the last choice: the press still waiting for the receiver goes.
-  const dropPendingWait = useCallback(() => {
+  // Bumped by every play here: a load to the receiver sends only while it is still the last choice.
+  const receiverPresses = useRef(0);
+  // A play here is the last choice: the press still waiting for the receiver goes, and so does a load that has
+  // not sent yet.
+  const dropReceiverPress = useCallback(() => {
     pendingWait.current?.abort();
     pendingWait.current = null;
+    receiverPresses.current += 1;
   }, []);
 
   const playRequestFor = useCallback(
@@ -120,6 +124,7 @@ export const PlayButton: React.FC<Props> = ({
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
+      const press = receiverPresses.current;
       // Read now: a press that waited for the connection holds an older render.
       const session = currentCastSession();
       const client = session ? castClientFor(session) : null;
@@ -149,10 +154,11 @@ export const PlayButton: React.FC<Props> = ({
           },
           RECEIVER_LOAD_TIMEOUT_MS,
           // The load reads the receiver before it sends, and the send goes to the current session: another
-          // account or another receiver by then gets nothing sent.
+          // account, another receiver or a play here by then gets nothing sent.
           () =>
             store.get(userAtom)?.Id !== user.Id ||
-            currentCastSession()?.id !== session.id,
+            currentCastSession()?.id !== session.id ||
+            receiverPresses.current !== press,
         );
         const notStarted = castNotStartedMessage(t, outcome);
         if (notStarted) {
@@ -213,7 +219,7 @@ export const PlayButton: React.FC<Props> = ({
         // A connection cancelled from the sheet ends without an error: nothing to say.
         return;
       }
-      dropPendingWait();
+      dropReceiverPress();
       await playMedia(playRequestFor(positionTicks), { item });
     },
     [
@@ -222,7 +228,7 @@ export const PlayButton: React.FC<Props> = ({
       isOffline,
       user,
       store,
-      dropPendingWait,
+      dropReceiverPress,
       playOnTarget,
       playMedia,
       playRequestFor,
@@ -241,7 +247,7 @@ export const PlayButton: React.FC<Props> = ({
 
       // If already in offline mode, play downloaded file directly
       if (isOffline && downloadedItem) {
-        dropPendingWait();
+        dropReceiverPress();
         await playMedia(
           {
             itemId: item.Id!,
@@ -276,7 +282,7 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
-                      dropPendingWait();
+                      dropReceiverPress();
                       void playMedia(
                         {
                           itemId: item.Id!,
@@ -321,7 +327,7 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_yes"),
                 onPress: () => {
-                  dropPendingWait();
+                  dropReceiverPress();
                   void playMedia(
                     {
                       itemId: item.Id!,
@@ -356,7 +362,7 @@ export const PlayButton: React.FC<Props> = ({
       item,
       target,
       isOffline,
-      dropPendingWait,
+      dropReceiverPress,
       handleNormalPlayFlow,
       playMedia,
       t,
