@@ -120,9 +120,11 @@ class RemoteTargetHub {
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 
-        override fun volumeChanged(level: Double, muted: Boolean) {
+        override fun volumeChanged(level: Double, muted: Boolean) = volumeChanged(level, muted, deviceMuted = false)
+
+        override fun volumeChanged(level: Double, muted: Boolean, deviceMuted: Boolean) {
             if (this@RemoteTargetHub.port !== port) return
-            if (machine.volumeChanged(level, muted)) publish()
+            if (machine.volumeChanged(level, muted, deviceMuted)) publish()
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {

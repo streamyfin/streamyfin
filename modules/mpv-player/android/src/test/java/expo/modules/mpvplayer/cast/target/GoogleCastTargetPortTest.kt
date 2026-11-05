@@ -30,8 +30,15 @@ class GoogleCastTargetPortTest {
             codes += code
         }
 
+        val deviceMutes = mutableListOf<Boolean>()
+
         override fun volumeChanged(level: Double, muted: Boolean) {
             volumes += level to muted
+        }
+
+        override fun volumeChanged(level: Double, muted: Boolean, deviceMuted: Boolean) {
+            volumeChanged(level, muted)
+            deviceMutes += deviceMuted
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {
@@ -50,6 +57,7 @@ class GoogleCastTargetPortTest {
         val sessionWatches = mutableListOf<((String, TargetDevice?, String?, Int?) -> Unit)?>()
         val routeWatches = mutableListOf<(() -> Unit)?>()
         var volume: Pair<Double, Boolean>? = null
+        var deviceMuted = false
         val volumesSet = mutableListOf<Double>()
         val mutesSet = mutableListOf<Boolean>()
         val volumeWatches = mutableListOf<((Double, Boolean) -> Unit)?>()
@@ -66,6 +74,7 @@ class GoogleCastTargetPortTest {
             setSessionVolume = { level -> volumesSet += level },
             setSessionMuted = { muted -> mutesSet += muted },
             watchVolume = { relay -> volumeWatches += relay },
+            deviceMuted = { deviceMuted },
         )
     }
 
@@ -148,6 +157,25 @@ class GoogleCastTargetPortTest {
         sdk.volumeWatches.last()?.invoke(0.7, true)
 
         assertEquals(listOf(0.7 to true), events.volumes)
+    }
+
+    // Android only: Google Home can mute the device itself, a mute the app's stream mute cannot lift; the level
+    // carries it apart.
+    @Test
+    fun aDeviceMuteIsReportedApartFromTheStream() {
+        val sdk = Sdk().apply {
+            running = RunningSession(livingRoom, connected = true)
+            volume = 0.5 to true
+            deviceMuted = true
+        }
+        val events = Events()
+        sdk.port().start(events)
+
+        sdk.deviceMuted = false
+        sdk.volumeWatches.last()?.invoke(0.5, false)
+
+        assertEquals(listOf(0.5 to true, 0.5 to false), events.volumes)
+        assertEquals(listOf(true, false), events.deviceMutes)
     }
 
     @Test

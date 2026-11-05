@@ -38,6 +38,8 @@ internal class GoogleCastTargetPort(
     private val setSessionVolume: (Double) -> Unit,
     private val setSessionMuted: (Boolean) -> Unit,
     private val watchVolume: (((Double, Boolean) -> Unit)?) -> Unit,
+    /** The current session's device muted itself, apart from its stream: another sender did it. False without one. */
+    private val deviceMuted: () -> Boolean,
 ) : TargetPort {
     private var events: TargetPortEvents? = null
     private var discovering = false
@@ -56,7 +58,7 @@ internal class GoogleCastTargetPort(
             if (event == "started" || event == "resumed") reportVolume()
             sessionChanged(event, device)
         }
-        watchVolume { level, muted -> this.events?.volumeChanged(level, muted) }
+        watchVolume { level, muted -> this.events?.volumeChanged(level, muted, deviceMuted()) }
         // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
         runningSession()?.let { session ->
             events.sessionEvent(if (session.connected) "resumed" else "resuming", session.device, null)
@@ -65,7 +67,7 @@ internal class GoogleCastTargetPort(
     }
 
     private fun reportVolume() {
-        sessionVolume()?.let { (level, muted) -> events?.volumeChanged(level, muted) }
+        sessionVolume()?.let { (level, muted) -> events?.volumeChanged(level, muted, deviceMuted()) }
     }
 
     override fun setVolume(level: Double) = setSessionVolume(level)
@@ -292,6 +294,7 @@ internal class GoogleCastTargetPort(
                         if (relay != null) listenToVolume(session) else stopListeningToVolume(session)
                     }
                 },
+                deviceMuted = { sessions.currentCastSession?.isMute == true },
             )
         }
 

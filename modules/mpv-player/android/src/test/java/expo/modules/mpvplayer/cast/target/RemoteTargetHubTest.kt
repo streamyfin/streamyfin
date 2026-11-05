@@ -300,6 +300,19 @@ class RemoteTargetHubTest {
         assertTrue(hub.snapshot.muted)
     }
 
+    // Android only: a mute another sender set on the device is one the app's stream mute cannot lift, so the sheet
+    // needs to know.
+    @Test
+    fun theSnapshotKeepsTheDeviceMute() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = connected(port)
+
+        port.events?.volumeChanged(0.5, true, deviceMuted = true)
+
+        assertTrue(hub.snapshot.deviceMuted)
+        assertTrue(hub.snapshot.muted)
+    }
+
     @Test
     fun onlyChangesReachTheListeners() {
         val hub = RemoteTargetHub()
