@@ -1,8 +1,12 @@
-/** One of the `menuLinks` the server's admin lists in the web config. */
+/**
+ * One of the `menuLinks` the server's admin lists in the web config. The config
+ * is JSON the admin edits by hand and `isMenuLink` only checks the name, so the
+ * other fields stay unknown until something reads them.
+ */
 export interface MenuLink {
   name: string;
-  url: string;
-  icon: string;
+  url?: unknown;
+  icon?: unknown;
 }
 
 /**
