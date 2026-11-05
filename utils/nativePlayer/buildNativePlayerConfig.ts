@@ -42,6 +42,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
+import { resolvePlayerGestures } from "@/utils/playerGestures";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
 import {
@@ -526,6 +527,7 @@ export async function buildNativePlayerConfig(params: {
     if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
+  const gestures = resolvePlayerGestures(settings);
   const config: NativePlayerConfig = {
     stream: {
       url: stream.url,
@@ -610,11 +612,16 @@ export async function buildNativePlayerConfig(params: {
       hapticsEnabled: !Platform.isTV && !settings.disableHapticFeedback,
       showVolumeSlider: !Platform.isTV && !settings.hideVolumeSlider,
       showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
-      // Touch gestures — no equivalent on the Siri remote.
-      holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
+      // Touch gestures — no equivalent on the Siri remote. Resolved with the
+      // master switch, as the JS player does.
+      horizontalSwipeSeekEnabled:
+        !Platform.isTV && gestures.horizontalSwipeSkip,
+      brightnessSwipeEnabled: !Platform.isTV && gestures.brightnessSwipe,
+      volumeSwipeEnabled: !Platform.isTV && gestures.volumeSwipe,
+      holdToSpeedEnabled: !Platform.isTV && gestures.holdToSpeed,
       holdToSpeedRate: settings.holdToSpeedRate,
-      pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
-      doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
+      pinchToZoomEnabled: !Platform.isTV && gestures.pinchToZoom,
+      doubleTapToSeekEnabled: !Platform.isTV && gestures.doubleTapToSeek,
       confirmExitEnabled: settings.confirmBeforeStoppingPlayback,
       // Server search needs connectivity; the OpenSubtitles fallback needs
       // the network either way — offline sessions hide the entry.

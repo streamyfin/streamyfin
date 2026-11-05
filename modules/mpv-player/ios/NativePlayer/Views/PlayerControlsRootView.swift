@@ -241,6 +241,19 @@ struct PlayerControlsRootView: View {
 			)
 		) { _ in
 			viewModel.endHoldSpeed()
+			// A drag the system cancels never reaches onEnded either: undo
+			// what it started, or the next drag keeps its axis (and could
+			// seek although that swipe is off) or stays ignored.
+			if dragAxis == .horizontal { viewModel.cancelScrub() }
+			if dragAxis == .vertical {
+				if dragOnLeftHalf {
+					viewModel.brightnessController.isUserInteracting = false
+				} else {
+					viewModel.volumeController.isUserInteracting = false
+				}
+			}
+			dragAxis = nil
+			dragSuppressed = false
 		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
@@ -340,7 +353,18 @@ struct PlayerControlsRootView: View {
 				}
 
 				if dragAxis == nil {
-					if abs(value.translation.width) >= abs(value.translation.height) {
+					let horizontal = abs(value.translation.width) >= abs(value.translation.height)
+					let onLeftHalf = value.startLocation.x < size.width / 2
+					let allowed = horizontal
+						? viewModel.horizontalSwipeSeekEnabled
+						: (onLeftHalf ? viewModel.brightnessSwipeEnabled : viewModel.volumeSwipeEnabled)
+					// A drag whose gesture is switched off does nothing until the
+					// finger lifts, rather than switching axis or side mid-drag.
+					if !allowed {
+						dragSuppressed = true
+						return
+					}
+					if horizontal {
 						dragAxis = .horizontal
 						if viewModel.duration > 0 {
 							viewModel.showControls()
@@ -349,7 +373,7 @@ struct PlayerControlsRootView: View {
 						}
 					} else {
 						dragAxis = .vertical
-						dragOnLeftHalf = value.startLocation.x < size.width / 2
+						dragOnLeftHalf = onLeftHalf
 						if dragOnLeftHalf {
 							dragStartLevel = viewModel.brightnessController.brightness
 							viewModel.brightnessController.isUserInteracting = true

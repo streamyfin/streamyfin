@@ -140,7 +140,18 @@ fun GesturePlane(
                                 } else {
                                     DragAxis.VERTICAL
                                 }
-                                if (dragAxis == DragAxis.HORIZONTAL) {
+                                // A drag whose gesture is switched off does
+                                // nothing until the finger lifts.
+                                val options = viewModel.uiOptions
+                                val allowed = when {
+                                    dragAxis == DragAxis.HORIZONTAL -> options.horizontalSwipeSeekEnabled
+                                    dragOnLeftHalf -> options.brightnessSwipeEnabled
+                                    else -> options.volumeSwipeEnabled
+                                }
+                                if (!allowed) {
+                                    dragAxis = null
+                                    dragSuppressed = true
+                                } else if (dragAxis == DragAxis.HORIZONTAL) {
                                     viewModel.startScrubbing()
                                 } else {
                                     if (dragOnLeftHalf) {

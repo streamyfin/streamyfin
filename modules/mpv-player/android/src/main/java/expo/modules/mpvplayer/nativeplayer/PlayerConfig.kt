@@ -155,6 +155,9 @@ class UIOptionsRecord : Record {
     @Field var hapticsEnabled: Boolean = true
     @Field var showVolumeSlider: Boolean = true
     @Field var showBrightnessSlider: Boolean = true
+    @Field var horizontalSwipeSeekEnabled: Boolean = true
+    @Field var brightnessSwipeEnabled: Boolean = true
+    @Field var volumeSwipeEnabled: Boolean = true
     @Field var holdToSpeedEnabled: Boolean = true
     @Field var holdToSpeedRate: Double = 2.0
     @Field var pinchToZoomEnabled: Boolean = true
