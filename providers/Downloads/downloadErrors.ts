@@ -12,10 +12,11 @@ export type DownloadErrorClass =
 
 // Native error payloads are plain strings, so user-environment failures are
 // told by keyword: connectivity (walking out of Wi-Fi range is the normal
-// downloads scenario), a full disk, and a TLS connection that broke under the
-// transfer ("Read error: ssl=…: Failure in SSL library, usually a protocol
-// error" is Android's wording for a connection cut mid-read; a certificate
-// the device does not trust is the server's setup either way).
+// downloads scenario), a full disk (NO_SPACE_PATTERN), and a TLS connection
+// that broke under the transfer ("Read error: ssl=…: Failure in SSL library,
+// usually a protocol error" is Android's wording for a connection cut
+// mid-read; a certificate the device does not trust is the server's setup
+// either way).
 //
 // A transfer cut on the way carries none of those words: "stream was reset:
 // INTERNAL_ERROR" (Android, the peer or a proxy resetting the HTTP/2 stream),
@@ -26,7 +27,10 @@ export type DownloadErrorClass =
 // la risposta"), which no list of words covers: only the English wording is
 // known here.
 const ENVIRONMENT_PATTERN =
-  /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|no space|enospc|disk full|not enough (?:free )?space|insufficient storage|\bssl\b|\btls\b|handshake|certificate|stream was reset|unexpected end of stream|cannot parse response/i;
+  /connect|network|internet|offline|time.?out|timed out|unreachable|resolve|dns|route|\bssl\b|\btls\b|handshake|certificate|stream was reset|unexpected end of stream|cannot parse response/i;
+
+const NO_SPACE_PATTERN =
+  /no space|enospc|disk full|not enough (?:free )?space|insufficient storage/i;
 
 // The status the server refused the download with: "HTTP error: 500 Internal
 // Server Error" on Android, "HTTP error: 500" and "Server responded with HTTP
@@ -50,6 +54,44 @@ export const classifyDownloadError = (error: string): DownloadErrorClass => {
     }
     return { kind: "report", detail: `HTTP error: ${status}` };
   }
-  if (ENVIRONMENT_PATTERN.test(error)) return { kind: "environment" };
+  if (ENVIRONMENT_PATTERN.test(error) || NO_SPACE_PATTERN.test(error)) {
+    return { kind: "environment" };
+  }
   return { kind: "report", detail: error };
+};
+
+/** Why a download failed, as the user is told: a sentence of home.downloads.failure. */
+export type DownloadFailureReason = {
+  kind: "conversion" | "refused" | "no_space" | "connection" | "other";
+  /** The status the server refused the download with. */
+  status?: number;
+};
+
+/**
+ * Reads a native download error for the user. A gateway status is the server out of reach, like
+ * a dropped connection. A transcoded download the server answers with any other 5xx is one it
+ * could not convert (an encoder it lacks, a codec its GPU cannot write), and the original file at
+ * Max quality downloads all the same.
+ */
+export const downloadFailureReason = (
+  error: string,
+  transcoded: boolean,
+): DownloadFailureReason => {
+  const status = Number(HTTP_STATUS_PATTERN.exec(error)?.[1]);
+  if (status) {
+    if (isGatewayStatus(status)) {
+      return { kind: "connection" };
+    }
+    if (transcoded && status >= 500) {
+      return { kind: "conversion" };
+    }
+    return { kind: "refused", status };
+  }
+  if (NO_SPACE_PATTERN.test(error)) {
+    return { kind: "no_space" };
+  }
+  if (ENVIRONMENT_PATTERN.test(error)) {
+    return { kind: "connection" };
+  }
+  return { kind: "other" };
 };
