@@ -28,7 +28,7 @@ export const buildOutputPickerStrings = (t: TFunction): OutputPickerStrings => {
     volume: t("cast.output.volume"),
     remote: t("cast.output.remote"),
     // The receiver's name goes in natively, where the panel knows it.
-    playOn: t("cast.output.play_on", { name: "{{name}}" }),
+    playOn: t("player.play_on", { name: "{{name}}" }),
     stopPlayback: t("player.stopPlayback"),
     disconnect: t("cast.output.disconnect"),
     deviceGone: t("cast.output.device_gone"),

@@ -61,6 +61,7 @@ struct CastGlyph: Shape {
 	}
 }
 
-/// The app's accent, as the output sheet draws it: a connected receiver tints the glyph.
-let castConnectedTint = Color(red: 147 / 255, green: 51 / 255, blue: 233 / 255)
+/// The app's accent (#9334E9, Colors.primary): a connected receiver tints the glyph, and the output sheet draws
+/// with it.
+let castConnectedTint = Color(red: 147 / 255, green: 52 / 255, blue: 233 / 255)
 #endif

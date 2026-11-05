@@ -484,11 +484,12 @@ export type NativePlayerEvents = {
   }) => void;
   /**
    * The output sheet handed the video off to the connected receiver: the player paused at `positionSec`, and JS
-   * sends the item there, then closes the player, or says why and plays on.
+   * sends the item there, then closes the player, or says why and plays on if it was playing. `itemId`: the item
+   * the player played when its sheet handed it off. `wasPlaying`: whether it played before this pause.
    */
-  /** `itemId`: the item the player played when its sheet handed it off. */
   onCastHandOffRequested: (payload: {
     positionSec: number;
     itemId?: string;
+    wasPlaying?: boolean;
   }) => void;
 };

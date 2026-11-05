@@ -54,12 +54,14 @@ that picks the Jellyfin device profile. Consequences:
 - What the phone chrome offers comes from `ChromeCapabilities` (2026-11-04),
   a pure policy on each platform (`nativeplayer/ChromeCapabilities.kt`,
   `NativePlayer/ChromeCapabilities.swift`, both under test): picture in
-  picture, zoom, brightness, decoder settings, technical info and speed. An
-  engine is remote when it has no rendering face (`ChromeEngine.isRemote`,
-  `isRemoteEngine(_:)`), and a remote engine gets none of the first five;
-  speed follows `canChangeSpeed` on the transport face, true by default. The
-  Android view model holds them as Compose state, set by the session once per
-  presentation (`applyCapabilities`); the iOS one computes them. The view
+  picture, zoom, brightness, decoder settings, technical info, speed and the
+  Cast button (2026-11-05). An engine is remote when it has no rendering face
+  (`ChromeEngine.isRemote`, `isRemoteEngine(_:)`), and a remote engine gets
+  none of the first five, nor the Cast button, which also needs the config's
+  `allowCast` (online, Cast available); speed follows `canChangeSpeed` on the
+  transport face, true by default. The Android view model holds them as
+  Compose state, set by the session at each presentation and each config
+  loaded in place (`applyCapabilities`); the iOS one computes them. The view
   models guard speed, the hold to speed up and zoom on both platforms, so every
   entry point is covered, JS calls included; the pinch and the brightness reveal
   are guarded in the iOS view model, and in the gesture plane on Android. The TV

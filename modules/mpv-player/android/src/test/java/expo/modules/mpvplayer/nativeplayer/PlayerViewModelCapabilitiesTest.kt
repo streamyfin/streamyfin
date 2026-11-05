@@ -129,14 +129,30 @@ class PlayerViewModelCapabilitiesTest {
         viewModel.emit = { name, payload -> events += name to payload }
         // The engine's last tick, the position the dismiss that follows reports.
         viewModel.onPositionChanged(position = 61.5, duration = 600.0, cacheSeconds = 0.0)
+        viewModel.onPauseChanged(isPaused = false)
 
         viewModel.requestCastHandOff()
 
         assertEquals(1, engine.pauses)
         assertEquals(
-            listOf("onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5, "itemId" to null)),
+            listOf(
+                "onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5, "itemId" to null, "wasPlaying" to true),
+            ),
             events.filter { it.first == "onCastHandOffRequested" },
         )
+    }
+
+    // A video paused before the sheet opened stays paused if the hand-off does not go through: JS is told.
+    @Test
+    fun aHandOffSaysThePlayerWasPaused() {
+        val viewModel = PlayerViewModel().also { it.engine = RecordingLocalEngine() }
+        val events = mutableListOf<Map<String, Any?>>()
+        viewModel.emit = { name, payload -> if (name == "onCastHandOffRequested") events += payload }
+        viewModel.onPauseChanged(isPaused = true)
+
+        viewModel.requestCastHandOff()
+
+        assertEquals(false, events.single()["wasPlaying"])
     }
 
     // A group joined while the sheet was open plays the player: the hand-off JS refuses leaves its playback alone.

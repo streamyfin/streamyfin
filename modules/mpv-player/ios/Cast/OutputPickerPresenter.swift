@@ -28,6 +28,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   private var onPlayHere: (() -> Void)?
   private var anchored = false
   private var removeTargetWatch: (() -> Void)?
+  // A hand-off whose sheet closed before its receiver connected: it goes once the receiver is connected.
+  private var handOffWatch: HandOffWatch?
   private let airPlayRoute = AirPlayRouteObserver()
 
   var isPresented: Bool { hosting != nil }
@@ -42,6 +44,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     anchor: CGRect?, anchorView: UIView? = nil, playingHere: String?, handOff: Bool = false,
     onHandOff: (() -> Void)? = nil, onPlayHere: (() -> Void)? = nil, onRemote: @escaping () -> Void
   ) -> Bool {
+    // A new sheet takes over a hand-off the last one left waiting.
+    stopHandOffWatch()
     // Taken down with the screen that presented it, the sheet heard no dismissal: it is gone all the same.
     if let hosting, hosting.presentingViewController == nil, !hosting.isBeingPresented { finish() }
     if let controller {
@@ -153,8 +157,27 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     hosting.dismiss(animated: true, completion: next)
   }
 
-  private func finish() {
+  /// A player opens over the app's sheet (a remote Play): the sheet goes first, without animation, so the player is
+  /// presented from the screen under it and its own Cast button opens a sheet of its own.
+  func dismissForPlayer() {
+    guard let hosting else { return }
+    finish(keepHandOff: false)
+    hosting.dismiss(animated: false)
+  }
+
+  /// The player that opened the sheet closes and takes its sheet down with it, which UIKit does not report: the sheet
+  /// lets go of discovery and its callbacks, and of a hand-off still waiting for a receiver.
+  func releasePlayerSheet() {
+    stopHandOffWatch()
+    guard controller?.environment.handOff == true else { return }
+    finish(keepHandOff: false)
+  }
+
+  private func finish(keepHandOff: Bool = true) {
     guard hosting != nil else { return }
+    // The player's sheet closed while the receiver it asked for connects: the video still goes once it is.
+    let awaited = keepHandOff && controller?.environment.handOff == true ? controller?.awaitedReceiver : nil
+    let handOff = onHandOff
     hosting = nil
     removeTargetWatch?()
     removeTargetWatch = nil
@@ -166,6 +189,22 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     onPlayHere = nil
     airPlayRoute.stop()
     onDismissed?()
+    if let awaited, let handOff { followHandOff(awaited, handOff) }
+  }
+
+  private func followHandOff(_ deviceId: String, _ handOff: @escaping () -> Void) {
+    stopHandOffWatch()
+    let watch = HandOffWatch(deviceId: deviceId) { [weak self] connected in
+      self?.stopHandOffWatch()
+      if connected { handOff() }
+    }
+    watch.remove = RemoteTargetHub.shared.addListener(watch)
+    handOffWatch = watch
+  }
+
+  private func stopHandOffWatch() {
+    handOffWatch?.remove?()
+    handOffWatch = nil
   }
 
   private func handle(_ output: OutputSheetOutput) {
@@ -201,6 +240,28 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
 }
 
 // A session that ends or starts changes what the receiver plays before any media status says so.
+/// Waits for the receiver a closed sheet asked for: connected, it settles with true; gone or refused, with false.
+private final class HandOffWatch: RemoteTargetListener {
+  let deviceId: String
+  let settle: (Bool) -> Void
+  var remove: (() -> Void)?
+
+  init(deviceId: String, settle: @escaping (Bool) -> Void) {
+    self.deviceId = deviceId
+    self.settle = settle
+  }
+
+  func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+    if snapshot.phase == .connected, snapshot.target?.id == deviceId {
+      settle(true)
+    } else if snapshot.phase == .none || snapshot.failedTarget?.id == deviceId {
+      settle(false)
+    }
+  }
+
+  func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {}
+}
+
 extension OutputPickerPresenter: RemoteTargetListener {
   func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
     refresh()

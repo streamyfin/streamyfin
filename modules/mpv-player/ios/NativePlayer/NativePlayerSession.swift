@@ -62,6 +62,9 @@ final class NativePlayerSession {
 	// MARK: - Presentation
 
 	func present(config: PlayerPresentConfigRecord, promise: Promise) throws {
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.dismissForPlayer()
+		#endif
 		guard let presenter = resolvePresenter() else {
 			throw NoPresenterException()
 		}
@@ -278,6 +281,10 @@ final class NativePlayerSession {
 		isDismissing = true
 
 		viewModel.willTeardown()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// The player's dismissal takes the sheet it opened down too, without telling the sheet.
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
 		rendering?.setPictureInPictureAutoStartEnabled(false)
 		if rendering?.isPictureInPictureActive() == true {
 			rendering?.stopPictureInPicture()
@@ -334,6 +341,9 @@ final class NativePlayerSession {
 		guard !isDismissing else { return }
 		isDismissing = true
 		viewModel.willTeardown()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
 		let presenter = viewController?.presentingViewController
 		presenter?.dismiss(animated: false)
 		#if os(iOS)

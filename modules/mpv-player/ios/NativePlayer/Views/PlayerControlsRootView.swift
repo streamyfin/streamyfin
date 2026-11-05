@@ -58,7 +58,9 @@ struct PlayerControlsRootView: View {
 				// middle isn't tappable.
 				topChrome(
 					compact: size.width < 500,
+					// The fold makes room for the Cast button: without it the row fits.
 					foldsPictureInPicture: size.width < PlayerTopBar.pictureInPictureFoldWidth
+						&& viewModel.capabilities.cast && !viewModel.isSyncPlayActive
 				)
 					.transition(.opacity)
 					.zIndex(1)

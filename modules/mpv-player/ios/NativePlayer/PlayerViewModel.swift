@@ -80,10 +80,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func requestCastHandOff() {
 		// The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
 		guard !isTearingDown else { return }
+		// A video paused before the sheet opened stays paused when the hand-off does not go through.
+		let wasPlaying = isPlaying
 		// A group joined while the sheet was open owns playback: JS refuses the hand-off and the group plays on.
 		if !isSyncPlayActive { engine?.pause() }
 		// The item played here: in JS, an in-place swap may already hold the next one.
-		var payload: [String: Any] = ["positionSec": position]
+		var payload: [String: Any] = ["positionSec": position, "wasPlaying": wasPlaying]
 		if let currentItemId { payload["itemId"] = currentItemId }
 		emit?("onCastHandOffRequested", payload)
 	}
@@ -1937,7 +1939,8 @@ extension PlayerViewModel: PlayerEngineDelegate {
 // The Cast button's glyph follows the receiver's connection.
 extension PlayerViewModel: RemoteTargetListener {
 	func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
-		castPhase = snapshot.phase
+		// Only a new phase: a volume change republishes the snapshot, and a rebuild under an open Menu greys it out.
+		if castPhase != snapshot.phase { castPhase = snapshot.phase }
 	}
 
 	func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {}

@@ -24,6 +24,19 @@ test("the hand-off sends the session's streams at the position", () => {
   });
 });
 
+// A live channel has no position to go on from: the receiver joins it live, as the item page's Play sends it.
+test("a live channel goes to the receiver live", () => {
+  expect(
+    resolveCastHandOff(
+      {
+        ...session,
+        item: { Id: "channel-1", Name: "News", Type: "TvChannel" } as never,
+      },
+      125,
+    ).positionTicks,
+  ).toBe(0);
+});
+
 // Subtitles turned off stay off on the receiver.
 test("subtitles turned off stay off", () => {
   expect(
@@ -50,10 +63,41 @@ test("a loaded hand-off closes the player", () => {
 test("a refused hand-off keeps the player and says why", () => {
   expect(
     nextStepAfterSend({ status: "notStarted", message: "It did not start" }),
-  ).toEqual({ kind: "notice", message: "It did not start" });
+  ).toEqual({ kind: "notice", message: "It did not start", resume: true });
   expect(
     nextStepAfterSend({ status: "failed", message: "The connection failed" }),
-  ).toEqual({ kind: "notice", message: "The connection failed" });
+  ).toEqual({ kind: "notice", message: "The connection failed", resume: true });
+});
+
+// A video paused before the sheet opened stays paused: the notice still says why.
+test("a hand-off of a paused player that does not go through leaves it paused", () => {
+  expect(
+    nextStepAfterSend(
+      { status: "failed", message: "The connection failed" },
+      { wasPlaying: false },
+    ),
+  ).toEqual({
+    kind: "notice",
+    message: "The connection failed",
+    resume: false,
+  });
+  expect(
+    nextStepAfterSend({ status: "superseded" }, { wasPlaying: false }),
+  ).toEqual({ kind: "none" });
+});
+
+// The player went on with another episode, or played here again, while the receiver loaded: the receiver stops
+// the item the player left, and the player is left alone.
+test("a receiver that loads after the player moved on is stopped there", () => {
+  expect(nextStepAfterSend({ status: "loaded" }, { movedOn: true })).toEqual({
+    kind: "stopReceiver",
+  });
+  expect(
+    nextStepAfterSend(
+      { status: "failed", message: "The connection failed" },
+      { movedOn: true },
+    ),
+  ).toEqual({ kind: "none" });
 });
 
 // Another send replaced this one: nothing to say, the player plays on.
@@ -94,6 +138,7 @@ const request = {
   session,
   inSyncPlay: false,
   receiverConnected: true,
+  wasPlaying: true,
 };
 
 test("a connected receiver takes the item the player plays", () => {
@@ -127,4 +172,15 @@ test("a hand-off refused in a SyncPlay group leaves the player to the group", ()
   expect(stepAfterRefusal({ ...request, inSyncPlay: true })).toEqual({
     kind: "none",
   });
+});
+
+// A video paused before the sheet opened stays paused when its hand-off goes nowhere.
+test("a refused hand-off of a paused player leaves it paused", () => {
+  expect(
+    stepAfterRefusal({
+      ...request,
+      receiverConnected: false,
+      wasPlaying: false,
+    }),
+  ).toEqual({ kind: "none" });
 });
