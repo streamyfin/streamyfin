@@ -21,6 +21,7 @@ import {
   PERSISTED_QUERY_FAMILIES,
   UNTRIMMED_INFINITE_FAMILIES,
 } from "@/constants/QueryPersistence";
+import { save, sessionCache } from "@/test-utils/tvSessionCache";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -343,6 +344,26 @@ describe("infinite queries", () => {
     const [query] = dehydrate(client, queryDehydrateOptions).queries;
 
     expect(query.state.data).toEqual(list);
+  });
+});
+
+describe("the size of what is written", () => {
+  // What the app wrote before only the launch and offline families were kept.
+  const everythingSuccessful: DehydrateOptions = {
+    shouldDehydrateQuery: (query) =>
+      query.state.status === "success" && query.options.gcTime !== 0,
+  };
+
+  // The size is what a launch parses. Not a perf scenario: the baseline runs
+  // those against the base branch's policy, where both sizes are the same.
+  test("the allowlist leaves a fraction of a TV session's cache", () => {
+    const client = sessionCache();
+    clients.push(client);
+
+    const before = save(client, everythingSuccessful).length;
+    const after = save(client, queryDehydrateOptions).length;
+
+    expect(after).toBeLessThan(before / 2);
   });
 });
 
