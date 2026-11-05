@@ -102,6 +102,16 @@ class OutputSheetModelTest {
         assertEquals(FailureCause.Other("Cast session status code 2100 (2100)"), failureCause("Cast session status code 2100 (2100)", 2100))
     }
 
+    // A cause outside the families reads as a failed connection: the SDK's own text, untranslated and with its
+    // code, is for the log.
+    @Test
+    fun anUnknownCauseReadsAsAFailedConnection() {
+        val strings = OutputPickerStrings(mapOf("failed" to "La connexion a échoué"))
+
+        assertEquals("La connexion a échoué", strings.cause(FailureCause.Other("Cast session status code 2100 (2100)")))
+        assertEquals("The connection failed", OutputPickerStrings().cause(FailureCause.Other("")))
+    }
+
     // A speaker draws as one: the panel takes the receiver's screen from discovery's record of it, and a
     // receiver discovery dropped draws as a TV.
     @Test

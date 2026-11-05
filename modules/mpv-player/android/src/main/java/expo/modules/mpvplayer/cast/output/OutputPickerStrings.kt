@@ -12,7 +12,8 @@ class OutputPickerStrings(private val strings: Map<String, String> = emptyMap())
             FailureCause.DeviceGone -> get("deviceGone")
             FailureCause.ReceiverUnavailable -> get("receiverUnavailable")
             FailureCause.Network -> get("network")
-            is FailureCause.Other -> cause.message.ifBlank { get("failed") }
+            // The SDK's own text, untranslated and with its code, goes to the log (RemoteTargetHub).
+            is FailureCause.Other -> get("failed")
         }
 
     companion object {

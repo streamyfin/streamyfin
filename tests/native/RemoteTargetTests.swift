@@ -62,6 +62,17 @@ enum RemoteTargetTests {
   // The hub holds the target for the whole process and talks to the SDK through a port: the same
   // cases as RemoteTargetHubTest.kt.
   static func hubCases() {
+    // The sheet reads a cause by its family; the SDK's own text goes to the log.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      var lines: [String] = []
+      hub.log = { lines.append($0) }
+      port.emit("ended", livingRoom, error: "com.google.GCKError 5")
+      port.emit("started", livingRoom)
+      check("aFailureIsLoggedWithItsCause", lines.count == 1 && lines[0].contains("com.google.GCKError 5"))
+    }
+
     do {
       let port = FakeTargetPort(known: [livingRoom])
       let hub = connectedHub(port)

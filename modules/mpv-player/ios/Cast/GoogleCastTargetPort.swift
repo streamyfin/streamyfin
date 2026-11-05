@@ -263,6 +263,7 @@ extension RemoteTargets {
   static func installDefault(hub: RemoteTargetHub = .shared) {
     guard !installed else { return }
     installed = true
+    hub.log = { Logger.shared.log($0, type: "RemoteTargets") }
     hub.install(
       portFor(fake: fakeDevices, real: { GoogleCastTargetPort.make() }, schedule: mainQueueSchedule) {
         Logger.shared.log($0, type: "RemoteTargets")

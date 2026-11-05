@@ -36,6 +36,22 @@ class OutputSheetControllerTest {
 
     private fun port() = FakeTargetPort(known = listOf(livingRoom, bedroom), listsOnDiscovery = true)
 
+    // A failure is read once: the sheet that showed it clears it on closing, and the next one opens clean.
+    @Test
+    fun closingTheSheetClearsTheFailureItShowed() {
+        val port = port()
+        val hub = hubWith(port)
+        val sheet = sheet(hub)
+        port.emit("startFailed", bedroom, "timeout")
+        val shown = row(sheet, bedroom).status
+
+        sheet.close()
+
+        assertTrue(shown is DeviceStatus.Failed)
+        assertEquals(null, hub.snapshot.error)
+        assertEquals(DeviceStatus.Idle, row(sheet(hub), bedroom).status)
+    }
+
     @Test
     fun aConnectingTargetShowsItsIndicatorAndCancel() {
         val port = port()

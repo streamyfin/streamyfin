@@ -77,6 +77,8 @@ final class OutputSheetController: RemoteTargetListener {
     removeListener?()
     removeListener = nil
     hub.stopDiscovery(owner: RemoteTargetHub.sheetDiscovery)
+    // The sheet showed the last failure while it was open: the next opening starts clean.
+    hub.clearFailure()
     showingList = false
     dragged = nil
     held = nil

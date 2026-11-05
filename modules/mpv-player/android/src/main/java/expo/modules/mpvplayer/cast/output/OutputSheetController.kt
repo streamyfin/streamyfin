@@ -85,6 +85,8 @@ class OutputSheetController(
         removeListener?.invoke()
         removeListener = null
         hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
+        // The sheet showed the last failure while it was open: the next opening starts clean.
+        hub.clearFailure()
         discoveryPaused = false
         showingList = false
         dragged = null
