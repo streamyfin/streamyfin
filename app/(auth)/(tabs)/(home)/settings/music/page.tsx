@@ -10,7 +10,10 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { MUSIC_NORMALIZATION_MODES } from "@/constants/Music";
+import {
+  MUSIC_LOOKAHEAD_COUNTS,
+  MUSIC_NORMALIZATION_MODES,
+} from "@/constants/Music";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import {
@@ -33,13 +36,6 @@ const NORMALIZATION_LABEL_KEYS = {
   track: "home.settings.music.normalization_track",
   album: "home.settings.music.normalization_album",
 } as const;
-
-const LOOKAHEAD_COUNT_OPTIONS = [
-  { label: "1 song", value: 1 },
-  { label: "2 songs", value: 2 },
-  { label: "3 songs", value: 3 },
-  { label: "5 songs", value: 5 },
-];
 
 export default function MusicSettingsPage() {
   const insets = useSafeAreaInsets();
@@ -122,22 +118,21 @@ export default function MusicSettingsPage() {
   const lookaheadCountOptions = useMemo(
     () => [
       {
-        options: LOOKAHEAD_COUNT_OPTIONS.map((option) => ({
+        options: MUSIC_LOOKAHEAD_COUNTS.map((count) => ({
           type: "radio" as const,
-          label: option.label,
-          value: String(option.value),
-          selected: option.value === settings?.audioLookaheadCount,
-          onPress: () => updateSettings({ audioLookaheadCount: option.value }),
+          label: t("home.settings.music.lookahead_songs", { count }),
+          value: String(count),
+          selected: count === settings?.audioLookaheadCount,
+          onPress: () => updateSettings({ audioLookaheadCount: count }),
         })),
       },
     ],
-    [settings?.audioLookaheadCount, updateSettings],
+    [settings?.audioLookaheadCount, updateSettings, t],
   );
 
-  const currentLookaheadLabel =
-    LOOKAHEAD_COUNT_OPTIONS.find(
-      (o) => o.value === settings?.audioLookaheadCount,
-    )?.label ?? `${settings?.audioLookaheadCount} songs`;
+  const currentLookaheadLabel = t("home.settings.music.lookahead_songs", {
+    count: settings?.audioLookaheadCount,
+  });
 
   return (
     <ScrollView

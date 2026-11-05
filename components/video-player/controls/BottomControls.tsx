@@ -17,6 +17,7 @@ import {
   chapterNameAt,
   hasChapterMarkers,
 } from "@/utils/chapters";
+import { episodeSubtitle } from "@/utils/episodeLabel";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
@@ -148,9 +149,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
           pointerEvents={showControls ? "box-none" : "none"}
         >
           {item?.Type === "Episode" && (
-            <Text className='opacity-50'>
-              {`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}
-            </Text>
+            <Text className='opacity-50'>{episodeSubtitle(t, item)}</Text>
           )}
           <Text className='font-bold text-xl'>{item?.Name}</Text>
           {item?.Type === "Movie" && (
