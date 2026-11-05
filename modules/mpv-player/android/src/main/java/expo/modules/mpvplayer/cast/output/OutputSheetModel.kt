@@ -112,9 +112,9 @@ fun outputLayout(widthDp: Int) = if (widthDp >= RemoteTargetConstants.REGULAR_WI
 class LastHeardStatus<T : Any> {
     private var held: T? = null
 
-    /** The session is suspended with this last status. */
+    /** The session is suspended with this last status; none keeps the one an earlier suspension held. */
     fun hold(last: T?) {
-        held = last
+        held = last ?: held
     }
 
     fun read(live: T?): T? = live ?: held

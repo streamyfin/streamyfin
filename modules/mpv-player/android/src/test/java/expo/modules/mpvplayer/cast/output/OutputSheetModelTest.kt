@@ -199,6 +199,18 @@ class OutputSheetModelTest {
         assertEquals(null, heard.read(null))
     }
 
+    // Resumed, the client may not have reported when the session is suspended again: the status from the first
+    // suspension still stands.
+    @Test
+    fun aSecondSuspensionBeforeAnyReportKeepsTheStatus() {
+        val heard = LastHeardStatus<String>()
+
+        heard.hold("playing")
+        heard.hold(null)
+
+        assertEquals("playing", heard.read(null))
+    }
+
     @Test
     fun theLayoutIsAPopoverFrom600dp() {
         assertEquals(OutputLayout.SHEET, outputLayout(599))

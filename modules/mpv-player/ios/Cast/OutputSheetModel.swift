@@ -92,9 +92,9 @@ enum OutputSheetState: Equatable {
 struct LastHeardStatus<T> {
   private var held: T?
 
-  /// The session is suspended with this last status.
+  /// The session is suspended with this last status; none keeps the one an earlier suspension held.
   mutating func hold(_ last: T?) {
-    held = last
+    held = last ?? held
   }
 
   func read(_ live: T?) -> T? {
