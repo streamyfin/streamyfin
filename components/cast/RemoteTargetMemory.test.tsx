@@ -66,3 +66,28 @@ test("the latest receiver again changes nothing", async () => {
   await render(<RemoteTargetMemory />);
   expect(mockUpdateSettings).not.toHaveBeenCalled();
 });
+
+// Forget this device works on the connected receiver too: a connection remembers, a settings change does not.
+test("a receiver forgotten while connected stays forgotten", async () => {
+  mockTarget = { ...mockNone, state: "connected", target: mockSalon };
+  mockQuality = {
+    ...NO_REMOTE_QUALITY,
+    known: [{ id: "device-a", name: "Salon", kind: "cast" }],
+  };
+  const view = await render(<RemoteTargetMemory />);
+  mockQuality = NO_REMOTE_QUALITY;
+  await view.rerender(<RemoteTargetMemory />);
+  expect(mockUpdateSettings).not.toHaveBeenCalled();
+});
+
+// Connected again later, under the same name, the receiver is remembered again.
+test("a forgotten receiver comes back with its next connection", async () => {
+  mockTarget = { ...mockNone, state: "connected", target: mockSalon };
+  const view = await render(<RemoteTargetMemory />);
+  mockUpdateSettings.mockClear();
+  mockTarget = mockNone;
+  await view.rerender(<RemoteTargetMemory />);
+  mockTarget = { ...mockNone, state: "connected", target: mockSalon };
+  await view.rerender(<RemoteTargetMemory />);
+  expect(mockUpdateSettings).toHaveBeenCalledTimes(1);
+});

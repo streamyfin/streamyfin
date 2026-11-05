@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRemoteTarget } from "@/modules/mpv-player/src/cast";
 import { useSettings } from "@/utils/atoms/settings";
 import { NO_REMOTE_QUALITY, rememberTarget } from "@/utils/cast/remoteQuality";
@@ -10,18 +10,25 @@ import { NO_REMOTE_QUALITY, rememberTarget } from "@/utils/cast/remoteQuality";
 export function RemoteTargetMemory() {
   const target = useRemoteTarget();
   const { settings, updateSettings } = useSettings();
-  const quality = settings?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
   const connected = target.state === "connected" ? target.target : null;
+  // Read when a connection comes, not followed: a settings change, Forget this device among them, writes
+  // nothing back for the receiver still connected.
+  const latest = useRef({ connected, settings });
+  latest.current = { connected, settings };
+  const id = connected?.id;
+  const name = connected?.name;
 
   useEffect(() => {
-    if (!connected) return;
-    const latest = quality.known[0];
+    const { connected, settings } = latest.current;
+    if (!connected || id === undefined) return;
+    const quality = settings?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
+    const first = quality.known[0];
     // The receiver already first, under the same name: nothing to write.
-    if (latest?.id === connected.id && latest.name === connected.name) return;
+    if (first?.id === id && first.name === name) return;
     updateSettings({
       remotePlaybackQuality: rememberTarget(quality, connected),
     });
-  }, [connected, quality, updateSettings]);
+  }, [id, name, updateSettings]);
 
   return null;
 }
