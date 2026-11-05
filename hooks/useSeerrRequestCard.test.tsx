@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type React from "react";
+import { SEERR_CARD_BACKDROP_SIZE } from "@/constants/Seerr";
 import {
   type DownloadingItem,
   type MediaRequest,
@@ -11,12 +12,17 @@ import {
 import { useSeerrRequestCard } from "./useSeerrRequestCard";
 
 const mockGetRequest = jest.fn();
+const mockImageProxy = jest.fn((path?: string | null, size?: string) =>
+  path ? `${size}${path}` : "",
+);
+const mockDetails: { data?: object } = {};
 
 jest.mock("@/hooks/useSeerr", () => ({
   useSeerr: () => ({
     seerrApi: {
       getRequest: mockGetRequest,
-      imageProxy: () => "",
+      imageProxy: (path?: string | null, size?: string) =>
+        mockImageProxy(path, size),
       axios: { defaults: { baseURL: "" } },
     },
     seerrUser: { id: 1, permissions: 0 },
@@ -28,7 +34,7 @@ jest.mock("@/hooks/useSeerrCanRequest", () => ({
   useSeerrCanRequest: () => [false],
 }));
 jest.mock("@/hooks/useSeerrDiscoverData", () => ({
-  useSeerrTitleDetails: () => ({ data: undefined }),
+  useSeerrTitleDetails: () => mockDetails,
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -70,11 +76,31 @@ const renderCard = (request: MediaRequest, client = newClient()) => {
   return renderHook(() => useSeerrRequestCard(request), { wrapper });
 };
 
-beforeEach(() => mockGetRequest.mockReset());
+beforeEach(() => {
+  mockGetRequest.mockReset();
+  mockDetails.data = undefined;
+});
 
 // The recent requests are asked again on each visit: a card asks Seerr for
 // its request again only to follow a download, which the list does not.
 describe("useSeerrRequestCard", () => {
+  // The card draws its backdrop under a fade, 320 points wide on a phone and 640 on a TV: a crop
+  // at least as wide as the 640 pixels Seerr's resizer sent, where Seerr's web size weighs five
+  // times as much.
+  test("asks for the card's backdrop at a card's size", async () => {
+    mockDetails.data = {
+      posterPath: "/poster.jpg",
+      backdropPath: "/backdrop.jpg",
+    };
+
+    const { result } = await renderCard(listed([]));
+
+    expect(result.current.backdropSrc).toBe(
+      `${SEERR_CARD_BACKDROP_SIZE}/backdrop.jpg`,
+    );
+    expect(SEERR_CARD_BACKDROP_SIZE).toBe("w710_and_h400_multi_faces");
+  });
+
   test("asks Seerr nothing for a request without a download", async () => {
     await renderCard(listed([]));
     await act(async () => {});
