@@ -60,10 +60,26 @@ jest.mock("../cards/CardListRow", () => ({
 }));
 jest.mock("../DownloadItem", () => ({
   DownloadItems: ({
+    items,
     DownloadedIconComponent,
+    MissingDownloadIconComponent,
   }: {
+    items: BaseItemDto[];
     DownloadedIconComponent: React.ComponentType;
-  }) => (mockTrackIcon ? <DownloadedIconComponent /> : null),
+    MissingDownloadIconComponent: React.ComponentType;
+  }) => {
+    if (!mockTrackIcon) return null;
+    const allDownloaded =
+      items.length > 0 &&
+      items.every((item) =>
+        mockDownloads.some((download) => download.item.Id === item.Id),
+      );
+    return allDownloaded ? (
+      <DownloadedIconComponent />
+    ) : (
+      <MissingDownloadIconComponent />
+    );
+  },
   DownloadSingleItem: () => null,
 }));
 jest.mock("@/components/common/HeaderIcon", () => ({
@@ -303,7 +319,7 @@ describe("SeasonPicker online", () => {
     mockTrackIcon = true;
     mockShowApi.getEpisodes.mockResolvedValue({
       data: {
-        Items: [{ Id: "episode-1", Name: "Pilot", ParentIndexNumber: 1 }],
+        Items: [mockDownloads[0].item],
         TotalRecordCount: 1,
       },
     });
