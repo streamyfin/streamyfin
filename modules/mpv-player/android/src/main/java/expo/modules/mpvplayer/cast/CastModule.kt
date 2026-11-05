@@ -11,6 +11,7 @@ import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.MediaRouteControllerDialog
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastSession
@@ -23,6 +24,7 @@ import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.cast.output.LastHeardStatus
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
@@ -65,6 +67,8 @@ class CastModule : Module() {
     )
     private var removeTargetRelay: (() -> Unit)? = null
     private var mediaClient: RemoteMediaClient? = null
+    // What the output sheet reads of the receiver through a suspension, which drops the media client.
+    private val heardStatus = LastHeardStatus<MediaStatus>()
     // The hub holds the SDK registration of each namespace and outlives the module; the module only
     // keeps what JS asked to hear, so that a reload or a session end lets go of exactly that.
     private val hub = ReceiverChannelHub.shared
@@ -85,13 +89,17 @@ class CastModule : Module() {
 
     private val mediaCallback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() {
+            heardStatus.forget()
             sendEvent("onMediaStatusChanged", mapOf("status" to CastRecords.mediaStatus(mediaClient?.mediaStatus)))
             OutputPickerPresenter.refresh()
         }
     }
 
     private val sessionListener = object : SessionManagerListener<CastSession> {
-        override fun onSessionStarting(session: CastSession) = emitSession("starting", session, null)
+        override fun onSessionStarting(session: CastSession) {
+            heardStatus.forget()
+            emitSession("starting", session, null)
+        }
 
         override fun onSessionStarted(session: CastSession, sessionId: String) {
             attachMedia(session)
@@ -103,6 +111,8 @@ class CastModule : Module() {
             emitSession("startFailed", session, endError(error))
 
         override fun onSessionSuspended(session: CastSession, reason: Int) {
+            // Before the client goes: the sheet keeps what the receiver plays until it reports again.
+            heardStatus.hold(mediaClient?.mediaStatus)
             detachMedia()
             emitSession("suspended", session, null)
         }
@@ -115,12 +125,15 @@ class CastModule : Module() {
             emitSession("resumed", session, null)
         }
 
-        override fun onSessionResumeFailed(session: CastSession, error: Int) =
+        override fun onSessionResumeFailed(session: CastSession, error: Int) {
+            heardStatus.forget()
             emitSession("startFailed", session, endError(error))
+        }
 
         override fun onSessionEnding(session: CastSession) = emitSession("ending", session, null)
 
         override fun onSessionEnded(session: CastSession, error: Int) {
+            heardStatus.forget()
             detachMedia()
             // The JS side opens its channels again on the next session's first command.
             removeJsSubscriptions()
@@ -146,11 +159,13 @@ class CastModule : Module() {
         OnCreate {
             // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
             OutputPickerPresenter.receiverTitle = {
-                mediaClient?.mediaStatus?.let { status ->
+                heardStatus.read(mediaClient?.mediaStatus)?.let { status ->
                     CastMapping.playingTitle(status.playerState, status.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE))
                 }
             }
-            OutputPickerPresenter.receiverPlaying = { mediaClient?.mediaStatus?.let { CastMapping.isPlaying(it.playerState) } == true }
+            OutputPickerPresenter.receiverPlaying = {
+                heardStatus.read(mediaClient?.mediaStatus)?.let { CastMapping.isPlaying(it.playerState) } == true
+            }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
             // Installed from the sheet: the context the module could not start before starts now.

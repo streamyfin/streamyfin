@@ -18,6 +18,8 @@ public class CastModule: Module {
   private var cachedState: String?
   private var cachedSession: [String: Any?]?
   private var observedClient: GCKRemoteMediaClient?
+  // What the output sheet reads of the receiver through a suspension, which drops the media client.
+  private var heardStatus = LastHeardStatus<GCKMediaStatus>()
   // The target hub outlives the module, like the channel hub: it holds the port, the devices and the
   // target state, and holds the module's relay weakly.
   private let remoteTargets = RemoteTargetHub.shared
@@ -41,13 +43,13 @@ public class CastModule: Module {
       // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
       let presenter = OutputPickerPresenter.shared
       presenter.receiverTitle = {
-        guard let status = self?.observedClient?.mediaStatus else { return nil }
+        guard let status = self?.heardMediaStatus() else { return nil }
         return CastMapping.playingTitle(
           status.playerState.rawValue, title: status.mediaInformation?.metadata?.string(forKey: kGCKMetadataKeyTitle)
         )
       }
       presenter.receiverPlaying = {
-        CastMapping.isPlaying(self?.observedClient?.mediaStatus?.playerState.rawValue ?? 0)
+        CastMapping.isPlaying(self?.heardMediaStatus()?.playerState.rawValue ?? 0)
       }
       presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
     }
@@ -284,7 +286,22 @@ public class CastModule: Module {
     observedClient = nil
   }
 
+  fileprivate func suspended() {
+    // Before the client goes: the sheet keeps what the receiver plays until it reports again.
+    heardStatus.hold(observedClient?.mediaStatus)
+    stopObserving()
+  }
+
+  fileprivate func forgetHeardStatus() {
+    heardStatus.forget()
+  }
+
+  private func heardMediaStatus() -> GCKMediaStatus? {
+    heardStatus.read(observedClient?.mediaStatus)
+  }
+
   fileprivate func sessionEnded() {
+    heardStatus.forget()
     stopObserving()
     // The JS side opens its channels again on the next session's first command.
     jsChannels.values.forEach { $0.subscription.remove() }
@@ -293,6 +310,7 @@ public class CastModule: Module {
   }
 
   fileprivate func emitMediaStatus(_ status: GCKMediaStatus?) {
+    heardStatus.forget()
     sendEvent("onMediaStatusChanged", ["status": CastRecords.mediaStatus(status)])
     OutputPickerPresenter.shared.refresh()
   }
@@ -359,6 +377,7 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
   }
 
   func sessionManager(_ sessionManager: GCKSessionManager, willStart session: GCKSession) {
+    module?.forgetHeardStatus()
     module?.emitSession("starting", session, error: nil)
   }
 
@@ -375,7 +394,7 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
   }
 
   func sessionManager(_ sessionManager: GCKSessionManager, didSuspend session: GCKSession, with reason: GCKConnectionSuspendReason) {
-    module?.stopObserving()
+    module?.suspended()
     module?.emitSession("suspended", session, error: nil)
   }
 

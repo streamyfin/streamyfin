@@ -279,7 +279,7 @@ private fun ConnectedPanelContent(
         }
         TextButton(onClick = { controller.change() }) { Text(strings.get("change"), color = PlayerAccentColor) }
     }
-    if (panel.canSetVolume) VolumeRow(panel, strings, controller)
+    if (panel.showsVolume) VolumeRow(panel, strings, controller)
     if (panel.canStop) {
         SheetRow(
             icon = Icons.Filled.SettingsRemote,
@@ -326,6 +326,7 @@ private fun VolumeRow(panel: OutputSheetState.Connected, strings: OutputPickerSt
                 dragged?.let { controller.releaseVolume(it.toDouble()) }
                 dragged = null
             },
+            enabled = panel.canSetVolume,
             colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = PlayerAccentColor),
             modifier = Modifier
                 .weight(1f)
