@@ -117,7 +117,9 @@ export function OutputButton({
     accessibilityValue: {
       text: connected
         ? t("accessibility.cast_connected")
-        : t("accessibility.cast_not_connected"),
+        : target.state === "connecting"
+          ? t("cast.output.connecting")
+          : t("accessibility.cast_not_connected"),
     },
   };
 

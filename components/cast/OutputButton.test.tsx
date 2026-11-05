@@ -182,6 +182,17 @@ test("shows the indicator while connecting", async () => {
   expect(mockIcons.at(-1)?.name).toBe("castConnected");
 });
 
+// A screen reader hears the connection under way, as the indicator shows it.
+test("says it is connecting while it connects", async () => {
+  await render(<OutputButton />);
+  await act(async () =>
+    emitRemoteTarget(mockCast, castDoubleTarget("connecting")),
+  );
+  expect(screen.getByLabelText(LABEL).props.accessibilityValue).toEqual({
+    text: "cast.output.connecting",
+  });
+});
+
 test("passes its window position as the anchor", async () => {
   await render(<OutputButton />);
   await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
