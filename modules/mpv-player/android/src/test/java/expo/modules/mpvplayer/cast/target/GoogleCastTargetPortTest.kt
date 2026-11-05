@@ -508,6 +508,24 @@ class GoogleCastTargetPortTest {
         assertEquals(listOf(Triple("starting", livingRoom, null), Triple("ended", livingRoom, null)), events.sessions)
     }
 
+    // A receiver whose route is refused selects nothing, so nothing ends the cancelled launch either: its stop stays due.
+    @Test
+    fun aRefusedReceiverAfterACancelLeavesTheStopDue() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+        sdk.disabled = setOf(bedroom.id)
+
+        port.disconnect(stopPlayback = true)
+        port.connect(bedroom)
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertEquals(listOf(livingRoom), sdk.selected)
+        assertEquals(Triple("startFailed", bedroom, GoogleCastTargetPort.RECEIVER_BUSY), events.sessions.last())
+        assertEquals(listOf(true), sdk.ended)
+    }
+
     // A disconnect without stop keeps its word once the session is up: an app this launch started closes at the
     // session's end anyway, one it joined goes on playing.
     @Test
