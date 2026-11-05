@@ -81,8 +81,10 @@ export function OutputButton({
         measureInWindow(anchor.current),
         musicPlayingHere(),
       ]);
-      // A sign-out can land during the reads, and this button is gone with it: the store says so.
-      if (!store.get(apiAtom) || !store.get(userAtom)) return;
+      // A sign-out can land during the reads, or the page can go with this button: the store and the ref say so.
+      if (!anchor.current || !store.get(apiAtom) || !store.get(userAtom)) {
+        return;
+      }
       await presentOutputPicker({
         strings: buildOutputPickerStrings(t),
         anchor: frame,

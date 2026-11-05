@@ -94,7 +94,6 @@ test("hidden on Catalyst", async () => {
   expect(screen.queryByLabelText(LABEL)).toBeNull();
 });
 
-// Without a server there is nothing to play anywhere: no button, so no sheet.
 // A sign-out can land while the button measures itself: the sheet then stays closed.
 test("a sign-out while it opens shows no sheet", async () => {
   let measured: (frame: typeof mockAnchor) => void = () => undefined;
@@ -115,6 +114,31 @@ test("a sign-out while it opens shows no sheet", async () => {
   expect(mockCast.outputPickerCalls).toHaveLength(0);
 });
 
+// The page can go while the button measures itself, the button with it: the sheet stays closed rather than open
+// over the next screen.
+test("a button gone while it opens shows no sheet", async () => {
+  let measured: (frame: typeof mockAnchor) => void = () => undefined;
+  (measureInWindow as jest.Mock).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        measured = resolve;
+      }),
+  );
+  const { unmount } = await render(<OutputButton />);
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(LABEL));
+  });
+  // The navigation commits first; the native read answers after.
+  await act(async () => {
+    unmount();
+  });
+  await act(async () => {
+    measured(mockAnchor);
+  });
+  expect(mockCast.outputPickerCalls).toHaveLength(0);
+});
+
+// Without a server there is nothing to play anywhere: no button, so no sheet.
 test("hidden without a server session", async () => {
   getDefaultStore().set(apiAtom, null as never);
   await render(<OutputButton />);
