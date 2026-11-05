@@ -411,6 +411,8 @@ class MPVLayerRenderer(
         // Released by the teardown below, once mpv no longer renders into it.
         val sink = offscreenSink
         offscreenSink = null
+        // A failed sink is retried by the next session, not by every detach.
+        offscreenSinkUnavailable = false
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return

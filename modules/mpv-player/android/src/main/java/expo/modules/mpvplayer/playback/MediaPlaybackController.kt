@@ -306,6 +306,9 @@ class MediaPlaybackController(
                 conn.connectTimeout = ARTWORK_TIMEOUT_MS
                 conn.readTimeout = ARTWORK_TIMEOUT_MS
                 headers?.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+                // A redirect would carry these headers to wherever it points,
+                // past the origin check that chose them.
+                if (!headers.isNullOrEmpty()) conn.instanceFollowRedirects = false
                 try {
                     if (conn.responseCode !in 200..299) return null
                     if (conn.contentLengthLong > ARTWORK_MAX_BYTES) return null
