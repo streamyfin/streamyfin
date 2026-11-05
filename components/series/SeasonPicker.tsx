@@ -5,13 +5,11 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
-import { Colors } from "@/constants/Colors";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -30,6 +28,10 @@ import { buildItemCards, type CardData } from "../cards/CardData";
 import { CardListRow } from "../cards/CardListRow";
 import { CardPill } from "../cards/CardPill";
 import { useItemCardBehavior } from "../cards/useItemCardBehavior";
+import {
+  SeasonDownloadedIcon,
+  SeasonDownloadIcon,
+} from "../common/DownloadIcons";
 import { Text } from "../common/Text";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
@@ -252,16 +254,8 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
               title={t("item_card.download.download_season")}
               className='ml-2'
               items={episodes || []}
-              MissingDownloadIconComponent={() => (
-                <HeaderIcon name='downloads' size={18} />
-              )}
-              DownloadedIconComponent={() => (
-                <HeaderIcon
-                  name='downloaded'
-                  tintColor={Colors.primary}
-                  size={18}
-                />
-              )}
+              MissingDownloadIconComponent={SeasonDownloadIcon}
+              DownloadedIconComponent={SeasonDownloadedIcon}
             />
             <PlayedStatus items={episodes || []} />
             <SyncPlayQueueButton items={episodes || []} variant='icon' />
