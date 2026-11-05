@@ -12,14 +12,14 @@ export function RemoteTargetMemory() {
   const { settings, updateSettings } = useSettings();
   const connected = target.state === "connected" ? target.target : null;
   // Read when a connection comes, not followed: a settings change, Forget this device among them, writes
-  // nothing back for the receiver still connected.
-  const latest = useRef({ connected, settings });
-  latest.current = { connected, settings };
+  // nothing back for the receiver still connected. updateSettings is a new function at every render.
+  const latest = useRef({ connected, settings, updateSettings });
+  latest.current = { connected, settings, updateSettings };
   const id = connected?.id;
   const name = connected?.name;
 
   useEffect(() => {
-    const { connected, settings } = latest.current;
+    const { connected, settings, updateSettings } = latest.current;
     if (!connected || id === undefined) return;
     const quality = settings?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
     const first = quality.known[0];
@@ -28,7 +28,7 @@ export function RemoteTargetMemory() {
     updateSettings({
       remotePlaybackQuality: rememberTarget(quality, connected),
     });
-  }, [id, name, updateSettings]);
+  }, [id, name]);
 
   return null;
 }

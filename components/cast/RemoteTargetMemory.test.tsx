@@ -25,10 +25,11 @@ const mockUpdateSettings = jest.fn();
 jest.mock("@/modules/mpv-player/src/cast", () => ({
   useRemoteTarget: () => mockTarget,
 }));
+// A new updateSettings at each render, as the real hook makes one.
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({
     settings: { remotePlaybackQuality: mockQuality },
-    updateSettings: mockUpdateSettings,
+    updateSettings: (update: object) => mockUpdateSettings(update),
   }),
 }));
 
