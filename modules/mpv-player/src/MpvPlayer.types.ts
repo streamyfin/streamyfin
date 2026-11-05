@@ -79,6 +79,8 @@ export type VideoSource = {
   };
   /** MPV video output driver (Android only) */
   voDriver?: "gpu-next" | "gpu";
+  /** Stop decoding video while the screen is off or the app hidden (Android only). */
+  audioOnlyWhenHidden?: boolean;
 };
 
 export type MpvPlayerViewProps = {

@@ -23,6 +23,8 @@ data class VideoLoadConfig(
     val cacheSeconds: Int? = null,
     val demuxerMaxBytes: Int? = null,
     val demuxerMaxBackBytes: Int? = null,
+    /** Stop decoding video while the surface is gone (screen off, background). */
+    val audioOnlyWhenHidden: Boolean = false,
 )
 
 /**

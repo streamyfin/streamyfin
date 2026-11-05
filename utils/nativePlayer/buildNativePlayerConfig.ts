@@ -545,6 +545,7 @@ export async function buildNativePlayerConfig(params: {
       },
       videoWidth: videoDimensions.width,
       videoHeight: videoDimensions.height,
+      audioOnlyWhenHidden: settings.audioOnlyWhenScreenOff !== false,
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.
