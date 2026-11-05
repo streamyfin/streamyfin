@@ -31,6 +31,12 @@ the real surface, so the VO and the video track survive and the only seek is a
 short hop near the position. The sink is kept until `stop()`: closing it right
 after the real surface returns could pull it away under a frame in flight.
 
+Turning the track off on purpose is different: `vid=no` set while the VO is
+healthy deselects the stream with no seek at all, and setting the id back costs
+only a short hop near the position (measured on the same file, 2h52 in). That is
+what the "Audio only when screen is off" setting does, a few seconds after the
+surface goes; it is the VO failure, not the deselect itself, that seeks.
+
 ## Symptom pattern
 
 Background audio stops (AudioTrack `state:paused`, not muted, the foreground
