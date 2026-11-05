@@ -138,6 +138,7 @@ import {
   mayHandOff,
   nextStepAfterSend,
   resolveCastHandOff,
+  stepAfterRefusal,
 } from "@/utils/nativePlayer/resolveCastHandOff";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
@@ -2190,19 +2191,21 @@ const NativePlayerProviderInner: React.FC<{
           const currentApi = apiRef.current;
           const userId = userRef.current?.Id;
           const target = remoteTarget();
+          const request = {
+            itemId,
+            session,
+            inSyncPlay: syncRef.current.enabled,
+            receiverConnected: target.state === "connected",
+          };
           if (
             !session ||
             !currentApi ||
             !userId ||
             !target.target ||
-            !mayHandOff({
-              itemId,
-              session,
-              inSyncPlay: syncRef.current.enabled,
-              receiverConnected: target.state === "connected",
-            })
+            !mayHandOff(request)
           ) {
-            void nativePlayerPlay();
+            if (stepAfterRefusal(request).kind === "resume")
+              void nativePlayerPlay();
             return;
           }
           // A later hand-off, to another receiver say, owns the player once it starts.
@@ -2211,14 +2214,14 @@ const NativePlayerProviderInner: React.FC<{
             { api: currentApi, userId, store, t },
             resolveCastHandOff(session, positionSec),
             target.target,
-            // Another item in the player by then: nothing goes to the receiver.
-            () => sessionRef.current !== session,
+            // Another item in the player by then, or a group it now plays for: nothing goes to the receiver.
+            () => sessionRef.current !== session || syncRef.current.enabled,
           ).then((result) => {
             if (sessionRef.current !== session) return;
-            const step = nextStepAfterSend(
-              result,
-              handOff === handOffCountRef.current,
-            );
+            const step = nextStepAfterSend(result, {
+              latest: handOff === handOffCountRef.current,
+              inSyncPlay: syncRef.current.enabled,
+            });
             if (step.kind === "none") return;
             if (step.kind === "dismiss") {
               void dismissNativePlayer();

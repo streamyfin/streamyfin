@@ -3,6 +3,7 @@ import {
   mayHandOff,
   nextStepAfterSend,
   resolveCastHandOff,
+  stepAfterRefusal,
 } from "./resolveCastHandOff";
 
 const item = { Id: "item-1", Name: "Film", Type: "Movie" } as never;
@@ -69,7 +70,22 @@ test("a hand-off a newer one replaced leaves the player alone", () => {
     { status: "loaded" },
     { status: "failed", message: "The connection failed" },
   ] as const) {
-    expect(nextStepAfterSend(result, false)).toEqual({ kind: "none" });
+    expect(nextStepAfterSend(result, { latest: false })).toEqual({
+      kind: "none",
+    });
+  }
+});
+
+// A group joined while the receiver loaded owns the player now: it neither closes nor plays on its own.
+test("a hand-off a SyncPlay join overtook leaves the player to the group", () => {
+  for (const result of [
+    { status: "loaded" },
+    { status: "superseded" },
+    { status: "notStarted", message: "It did not start" },
+  ] as const) {
+    expect(nextStepAfterSend(result, { inSyncPlay: true })).toEqual({
+      kind: "none",
+    });
   }
 });
 
@@ -97,4 +113,18 @@ test("a hand-off for another item than the session's goes nowhere", () => {
 test("nothing goes without a connected receiver or a session", () => {
   expect(mayHandOff({ ...request, receiverConnected: false })).toBe(false);
   expect(mayHandOff({ ...request, session: null })).toBe(false);
+});
+
+// The player paused for the hand-off: refused, it plays on.
+test("a refused hand-off plays on", () => {
+  expect(stepAfterRefusal({ ...request, receiverConnected: false })).toEqual({
+    kind: "resume",
+  });
+});
+
+// A group member plays on the group's command only, so its player stays paused until the group's next one.
+test("a hand-off refused in a SyncPlay group leaves the player to the group", () => {
+  expect(stepAfterRefusal({ ...request, inSyncPlay: true })).toEqual({
+    kind: "none",
+  });
 });
