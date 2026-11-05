@@ -14,8 +14,12 @@ import {
 } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Colors } from "@/constants/Colors";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
   type CastSubscription,
+  castClientFor,
+  currentCastSession,
+  disconnectRemoteTarget,
   onOutputPickerAction,
   presentOutputPicker,
   showExpandedControls,
@@ -26,6 +30,8 @@ import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { measureInWindow, nativeTagOf } from "@/utils/cast/measureInWindow";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
 import { musicPlayingHere } from "@/utils/cast/playingHere";
+import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { logAndCaptureError } from "@/utils/log";
 
 type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
@@ -37,13 +43,45 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
   offline?: boolean;
 };
 
-// One listener at a time, taken again at each opening: whichever button opened the sheet, its remote opens the
-// expanded controls once.
-let remoteListener: CastSubscription | null = null;
-const listenForRemote = () => {
-  remoteListener?.remove();
-  remoteListener = onOutputPickerAction((action) => {
-    if (action !== "remote") return;
+type Store = ReturnType<typeof useStore>;
+type PlayMedia = ReturnType<typeof usePlayMedia>;
+
+/**
+ * This device chosen while the receiver plays. The receiver forgets its item once stopped, so it is read first,
+ * then stopped, and its video goes on here from where it was. An item this server does not know, and music, whose
+ * queue comes back with B4, only stop.
+ */
+const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
+  const session = currentCastSession();
+  const status = session
+    ? await castClientFor(session)
+        .getMediaStatus()
+        .catch(() => null)
+    : null;
+  const request = playRequestFromReceiver(status);
+  await disconnectRemoteTarget({ stopPlayback: true });
+  if (!request) return;
+  const item = await getUserItemData({
+    api: store.get(apiAtom),
+    itemId: request.itemId,
+    userId: store.get(userAtom)?.Id,
+  }).catch(() => null);
+  if (!item || item.MediaType === "Audio") return;
+  await playMedia({ ...request, offline: false }, { item });
+};
+
+// One listener at a time, taken again at each opening: whichever button opened the sheet answers its actions once,
+// the remote with the expanded controls, this device with the receiver's video.
+let actionListener: CastSubscription | null = null;
+const listenForActions = (continueHere: () => Promise<void>) => {
+  actionListener?.remove();
+  actionListener = onOutputPickerAction((action) => {
+    if (action === "playHere") {
+      continueHere().catch((error) => {
+        logAndCaptureError("The receiver's video failed to go on here", error);
+      });
+      return;
+    }
     showExpandedControls().catch((error) => {
       logAndCaptureError("The Cast expanded controls failed to open", error);
     });
@@ -67,6 +105,7 @@ export function OutputButton({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const store = useStore();
+  const playMedia = usePlayMedia();
   const anchor = useRef<View>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
@@ -75,7 +114,7 @@ export function OutputButton({
 
   const connected = target.state === "connected";
   const open = async () => {
-    listenForRemote();
+    listenForActions(() => continueReceiverHere(store, playMedia));
     try {
       const [frame, playingHere] = await Promise.all([
         measureInWindow(anchor.current),

@@ -135,7 +135,9 @@ public class CastModule: Module {
       }
       // Held by the presenter only while the sheet is up.
       return presenter.present(
-        anchor: Self.anchorRect(options["anchor"]), anchorView: anchorView, playingHere: options["playingHere"] as? String
+        anchor: Self.anchorRect(options["anchor"]), anchorView: anchorView,
+        playingHere: options["playingHere"] as? String,
+        onPlayHere: { self.sendEvent("onOutputPickerAction", ["action": "playHere"]) }
       ) {
         self.sendEvent("onOutputPickerAction", ["action": "remote"])
       }

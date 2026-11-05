@@ -159,6 +159,26 @@ enum OutputSheetTests {
       )
     }
 
+    // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
+    do {
+      let connected = RemoteTargetSnapshot(
+        phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
+      )
+      func continueHere(playing: Bool, handOff: Bool) -> Bool? {
+        var list = input(snapshot: connected)
+        list.receiverPlaying = playing
+        list.showingList = true
+        list.handOff = handOff
+        if case let .thisDevice(_, _, continueHere) = rows(outputSheetState(list)).first { return continueHere }
+        return nil
+      }
+      check(
+        "thisDeviceOffersToContinueWhileTheReceiverPlays",
+        continueHere(playing: true, handOff: false) == true && continueHere(playing: false, handOff: false) == false
+          && continueHere(playing: true, handOff: true) == false
+      )
+    }
+
     // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
     do {
       let reconnecting = RemoteTargetSnapshot(
@@ -543,6 +563,8 @@ enum OutputSheetTests {
       check("withNothingOnTheReceiverTheEndActionDisconnects", canStop == false && port.disconnects == [true])
     }
 
+    // While the receiver plays, outside the player, this phone takes its video over where it is: JS reads the
+    // receiver before it stops it, so the sheet stops nothing itself.
     do {
       let port = port()
       var outputs: [OutputSheetOutput] = []
@@ -550,7 +572,29 @@ enum OutputSheetTests {
       port.emit("started", livingRoom)
       sheet.change()
       if let first = rows(sheet.state).first { sheet.tap(first) }
-      check("thisDeviceChosenWhileCastingStopsTheTarget", port.disconnects == [true] && outputs == [.dismiss])
+      check("thisDeviceWhileTheReceiverPlaysContinuesHere", port.disconnects.isEmpty && outputs == [.playHere])
+    }
+
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock(), receiverTitle: nil) { outputs.append($0) }
+      port.emit("started", livingRoom)
+      sheet.change()
+      if let first = rows(sheet.state).first { sheet.tap(first) }
+      check("thisDeviceWithNothingOnTheReceiverStopsIt", port.disconnects == [true] && outputs == [.dismiss])
+    }
+
+    // In the player, the phone already has its video: this phone stops the receiver, as before.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      sheet.environment.handOff = true
+      port.emit("started", livingRoom)
+      sheet.change()
+      if let first = rows(sheet.state).first { sheet.tap(first) }
+      check("inThePlayerThisDeviceStillStopsTheReceiver", port.disconnects == [true] && outputs == [.dismiss])
     }
 
     do {

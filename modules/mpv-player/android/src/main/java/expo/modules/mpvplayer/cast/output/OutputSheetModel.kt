@@ -67,7 +67,8 @@ sealed interface DeviceStatus {
 enum class SheetStatus { SEARCHING, NO_DEVICES, PLAY_SERVICES_MISSING, PLAY_SERVICES_UPDATE }
 
 sealed interface OutputRow {
-    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?) : OutputRow
+    /** [continueHere]: the receiver plays, outside the player, and a tap takes its video over on this device. */
+    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?, val continueHere: Boolean = false) : OutputRow
 
     data class Device(val id: String, val name: String, val videoOut: Boolean, val status: DeviceStatus) : OutputRow
 
@@ -170,7 +171,9 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             canHandOff = input.handOff && snapshot.phase == TargetPhase.CONNECTED,
         )
     }
-    val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere))
+    // In the player the phone already has its video: there this row stops the receiver, as before.
+    val continueHere = !input.handOff && snapshot.phase == TargetPhase.CONNECTED && input.receiverPlaying
+    val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere, continueHere))
     when (input.playServices) {
         PlayServicesStatus.MISSING -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING)
         PlayServicesStatus.UPDATE_REQUIRED -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_UPDATE)

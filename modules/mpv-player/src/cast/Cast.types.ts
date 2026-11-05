@@ -180,6 +180,7 @@ export type OutputPickerStringKey =
   | "thisPhone"
   | "thisTablet"
   | "playing"
+  | "continueHere"
   | "castCaption"
   | "searching"
   | "noDevices"
@@ -229,8 +230,11 @@ export interface OutputPickerOptions {
   playingHere?: string | null;
 }
 
-/** Asked from the sheet's panel, after the sheet has closed. */
-export type OutputPickerAction = "remote";
+/**
+ * Asked from the sheet, after it has closed: the panel's remote, or this device chosen while the receiver plays,
+ * which takes the receiver's video over here.
+ */
+export type OutputPickerAction = "remote" | "playHere";
 
 export type CastNativeEvents = {
   onCastStateChanged: (payload: { state: CastStateValue }) => void;

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Platform, type PlatformIOSStatic } from "react-native";
 import { Colors } from "@/constants/Colors";
+import type { CastMediaStatus } from "@/modules/mpv-player/src/cast";
 import {
   type CastDoubleState,
   castDoubleTarget,
@@ -43,6 +44,14 @@ jest.mock("@/utils/cast/measureInWindow", () => ({
   measureInWindow: jest.fn(async () => mockAnchor),
   nativeTagOf: jest.fn(() => MOCK_TAG),
 }));
+const mockPlayMedia = jest.fn(async (..._args: unknown[]) => undefined);
+jest.mock("@/hooks/usePlayMedia", () => ({
+  usePlayMedia: () => mockPlayMedia,
+}));
+const mockGetUserItemData = jest.fn();
+jest.mock("@/utils/jellyfin/user-library/getUserItemData", () => ({
+  getUserItemData: (...args: unknown[]) => mockGetUserItemData(...args),
+}));
 /** The glyphs the button drew, latest last. */
 const mockIcons: { name: string; tintColor?: string }[] = [];
 jest.mock("@/components/common/HeaderIcon", () => ({
@@ -60,6 +69,8 @@ beforeEach(() => {
   mockOffline = false;
   mockPlayingHere = null;
   mockIcons.length = 0;
+  mockPlayMedia.mockClear();
+  mockGetUserItemData.mockReset();
   getDefaultStore().set(apiAtom, session as never);
   getDefaultStore().set(userAtom, { Id: "user-1" } as never);
 });
@@ -228,6 +239,94 @@ test("remote opens the expanded controls", async () => {
     emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" }),
   );
   expect(mockCast.dialogs).toEqual(["expandedControls"]);
+});
+
+const receiverPlaying = (
+  customData: Record<string, unknown>,
+): CastMediaStatus => ({
+  playerState: "playing",
+  currentItemId: 1,
+  streamPosition: 125.5,
+  playbackRate: 1,
+  volume: 1,
+  isMuted: false,
+  mediaInfo: { contentId: null, customData, metadata: null },
+  customData: null,
+});
+
+const continueHereFromTheSheet = async () => {
+  await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  await act(async () =>
+    emitCastEvent(mockCast, "onOutputPickerAction", { action: "playHere" }),
+  );
+};
+
+// The receiver forgets its item once stopped: it is read first, then stopped, and the phone plays it from there.
+test("continue here stops the receiver, then plays here where it was", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    mediaSourceId: "source-1",
+    audioStreamIndex: 2,
+    subtitleStreamIndex: 3,
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockResolvedValue({
+    Id: "item-1",
+    Type: "Episode",
+    MediaType: "Video",
+  });
+  const stopsBeforePlay: number[] = [];
+  mockPlayMedia.mockImplementationOnce(async () => {
+    stopsBeforePlay.push(mockCast.disconnectCalls.length);
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(stopsBeforePlay).toEqual([1]);
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    {
+      itemId: "item-1",
+      mediaSourceId: "source-1",
+      audioIndex: 2,
+      subtitleIndex: 3,
+      playbackPositionTicks: 1_255_000_000,
+      offline: false,
+    },
+    { item: expect.objectContaining({ Id: "item-1" }) },
+  );
+});
+
+test("an item this server does not know only stops the receiver", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "elsewhere-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockRejectedValue(new Error("Request failed with 404"));
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// Music comes back to the phone with its queue in B4: until then the receiver only stops.
+test("music on the receiver only stops it", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "track-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockResolvedValue({
+    Id: "track-1",
+    Type: "Audio",
+    MediaType: "Audio",
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
 });
 
 // The sheet starts discovery when it opens; a button on screen costs no scan.

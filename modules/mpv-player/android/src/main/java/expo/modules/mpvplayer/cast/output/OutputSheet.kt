@@ -180,7 +180,7 @@ private fun OutputList(rows: List<OutputRow>, strings: OutputPickerStrings, cont
                 SheetRow(
                     icon = if (row.kind == ThisDeviceKind.TABLET) Icons.Filled.TabletAndroid else Icons.Filled.PhoneAndroid,
                     title = strings.get(if (row.kind == ThisDeviceKind.TABLET) "thisTablet" else "thisPhone"),
-                    caption = row.playing?.let { strings.get("playing") },
+                    caption = if (row.continueHere) strings.get("continueHere") else row.playing?.let { strings.get("playing") },
                     onClick = { controller.tap(row) },
                 )
             is OutputRow.Device -> DeviceRow(row, strings, controller)

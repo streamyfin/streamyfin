@@ -57,7 +57,8 @@ enum SheetStatus: Equatable {
 }
 
 enum OutputRow: Equatable {
-  case thisDevice(kind: ThisDeviceKind, playing: String?)
+  /// `continueHere`: the receiver plays, outside the player, and a tap takes its video over on this device.
+  case thisDevice(kind: ThisDeviceKind, playing: String?, continueHere: Bool = false)
   case device(id: String, name: String, videoOut: Bool, status: DeviceStatus)
   case airPlay(activeRoute: String?)
   case status(SheetStatus)
@@ -143,7 +144,9 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
       )
     )
   }
-  var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere)]
+  // In the player the phone already has its video: there this row stops the receiver, as before.
+  let continueHere = !input.handOff && snapshot.phase == .connected && input.receiverPlaying
+  var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere)]
   switch input.playServices {
   case .missing:
     rows.append(.status(.playServicesMissing))

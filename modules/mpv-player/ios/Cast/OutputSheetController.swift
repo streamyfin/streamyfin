@@ -3,7 +3,7 @@ import Foundation
 /// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
 /// player's video handed off to the receiver.
 enum OutputSheetOutput: Equatable {
-  case openAirPlay, resolvePlayServices, remote, dismiss, handOff
+  case openAirPlay, resolvePlayServices, remote, dismiss, handOff, playHere
 }
 
 /// What the screen that opened the sheet knows, and the hub does not.
@@ -93,8 +93,13 @@ final class OutputSheetController: RemoteTargetListener {
     switch row {
     case let .device(id, _, _, _):
       connect(id)
-    case .thisDevice:
-      // Playback comes back to this phone: the target stops (the hand-off at the position comes with B4).
+    case let .thisDevice(_, _, continueHere):
+      // The receiver's video goes on here: JS reads where the receiver is before it stops it.
+      if continueHere {
+        onOutput?(.playHere)
+        return
+      }
+      // Playback comes back to this phone: the target stops (music comes back with its queue in B4).
       if hub.snapshot.phase != .none { hub.disconnect(stopPlayback: true) }
       onOutput?(.dismiss)
     case .airPlay:

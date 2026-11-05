@@ -23,6 +23,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   private var store: OutputSheetStore?
   private var onRemote: (() -> Void)?
   private var onHandOff: (() -> Void)?
+  private var onPlayHere: (() -> Void)?
   private var anchored = false
   private var removeTargetWatch: (() -> Void)?
   private let airPlayRoute = AirPlayRouteObserver()
@@ -33,16 +34,18 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   /// `anchorView` is the button's own view, which the popover follows when the window turns or resizes;
   /// `anchor`, its frame in window points as JS measures it, is the fallback without it. `handOff` is the player's:
   /// a receiver connected from the sheet, or its panel's "Play on", closes the sheet and then calls `onHandOff`.
+  /// Elsewhere, this device chosen while the receiver plays closes the sheet and then calls `onPlayHere`.
   @discardableResult
   func present(
     anchor: CGRect?, anchorView: UIView? = nil, playingHere: String?, handOff: Bool = false,
-    onHandOff: (() -> Void)? = nil, onRemote: @escaping () -> Void
+    onHandOff: (() -> Void)? = nil, onPlayHere: (() -> Void)? = nil, onRemote: @escaping () -> Void
   ) -> Bool {
     // Taken down with the screen that presented it, the sheet heard no dismissal: it is gone all the same.
     if let hosting, hosting.presentingViewController == nil, !hosting.isBeingPresented { finish() }
     if let controller {
       self.onRemote = onRemote
       self.onHandOff = onHandOff
+      self.onPlayHere = onPlayHere
       controller.environment.handOff = handOff
       controller.environment.playingHere = playingHere
       controller.environment.receiverTitle = receiverTitle()
@@ -53,6 +56,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     guard let top = Self.topViewController() else { return false }
     self.onRemote = onRemote
     self.onHandOff = onHandOff
+    self.onPlayHere = onPlayHere
     let sheet = OutputSheetController(hub: .shared, schedule: mainQueueSchedule)
     sheet.environment = OutputSheetEnvironment(
       playServices: .available,
@@ -148,6 +152,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     store = nil
     onRemote = nil
     onHandOff = nil
+    onPlayHere = nil
     airPlayRoute.stop()
     onDismissed?()
   }
@@ -161,6 +166,9 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     // The same way: the player hands its video off once the sheet is gone.
     case .handOff:
       dismiss(then: onHandOff)
+    // And this device takes the receiver's video once the sheet is gone.
+    case .playHere:
+      dismiss(then: onPlayHere)
     case .dismiss:
       dismiss()
     case .openAirPlay, .resolvePlayServices:

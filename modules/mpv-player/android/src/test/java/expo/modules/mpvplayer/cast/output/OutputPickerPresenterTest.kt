@@ -92,6 +92,23 @@ class OutputPickerPresenterTest {
         assertEquals(false, presentedAtTheHandOff)
     }
 
+    // This phone takes the receiver's video once the sheet is gone, as the remote opens.
+    @Test
+    fun aPlayHereClosesTheSheetThenCallsBack() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var presentedAtThePlayHere: Boolean? = null
+        OutputPickerPresenter.present(
+            screen.get(),
+            anchor = null,
+            playingHere = null,
+            onPlayHere = { presentedAtThePlayHere = OutputPickerPresenter.isPresented },
+        ) {}
+
+        OutputPickerPresenter.presentedController?.onOutput?.invoke(OutputSheetOutput.PLAY_HERE)
+
+        assertEquals(false, presentedAtThePlayHere)
+    }
+
     // The probe's sheet never takes over one the app opened: the app's remote still answers, and its track stays.
     @Test
     fun theProbeLeavesASheetTheAppOpened() {

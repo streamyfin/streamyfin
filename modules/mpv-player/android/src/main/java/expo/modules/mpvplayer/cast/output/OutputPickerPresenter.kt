@@ -42,6 +42,7 @@ object OutputPickerPresenter {
     private var controller: OutputSheetController? = null
     private var onRemote: (() -> Unit)? = null
     private var onHandOff: (() -> Unit)? = null
+    private var onPlayHere: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
     // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
     private val anchorBounds = mutableStateOf<IntRect?>(null)
@@ -130,7 +131,8 @@ object OutputPickerPresenter {
 
     /**
      * False on a TV, which has no sheet; true once presented, or already there. [handOff] is the player's: a receiver
-     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff].
+     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff]. Elsewhere, this
+     * device chosen while the receiver plays closes the sheet and then calls [onPlayHere].
      */
     @MainThread
     fun present(
@@ -140,11 +142,13 @@ object OutputPickerPresenter {
         anchorView: View? = null,
         handOff: Boolean = false,
         onHandOff: (() -> Unit)? = null,
+        onPlayHere: (() -> Unit)? = null,
         onRemote: () -> Unit,
     ): Boolean {
         if (DeviceKind.isTelevision(activity)) return false
         this.onRemote = onRemote
         this.onHandOff = onHandOff
+        this.onPlayHere = onPlayHere
         controller?.let { sheet ->
             sheet.environment =
                 sheet.environment.copy(
@@ -200,6 +204,7 @@ object OutputPickerPresenter {
         controller = null
         onRemote = null
         onHandOff = null
+        onPlayHere = null
         anchorView?.viewTreeObserver?.removeOnGlobalLayoutListener(anchorWatcher)
         anchorView = null
         anchorBounds.value = null
@@ -236,6 +241,12 @@ object OutputPickerPresenter {
                 val handOff = onHandOff
                 dismiss()
                 handOff?.invoke()
+            }
+            // And this device takes the receiver's video once the sheet is gone.
+            OutputSheetOutput.PLAY_HERE -> {
+                val playHere = onPlayHere
+                dismiss()
+                playHere?.invoke()
             }
             OutputSheetOutput.DISMISS -> dismiss()
             // Its first step is the check below, which can throw the same way.

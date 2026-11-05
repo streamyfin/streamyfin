@@ -363,10 +363,40 @@ class OutputSheetControllerTest {
         assertEquals(listOf(true), port.disconnects)
     }
 
+    // While the receiver plays, outside the player, this phone takes its video over where it is: JS reads the
+    // receiver before it stops it, so the sheet stops nothing itself.
     @Test
-    fun thisDeviceChosenWhileCastingStopsTheTarget() {
+    fun thisDeviceWhileTheReceiverPlaysContinuesHere() {
         val port = port()
         val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(emptyList<Boolean>(), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.PLAY_HERE), outputs)
+    }
+
+    @Test
+    fun thisDeviceWithNothingOnTheReceiverStopsIt() {
+        val port = port()
+        val sheet = sheet(hubWith(port), receiverTitle = null)
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.DISMISS), outputs)
+    }
+
+    // In the player, the phone already has its video: this phone stops the receiver, as before.
+    @Test
+    fun inThePlayerThisDeviceStillStopsTheReceiver() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        sheet.environment = sheet.environment.copy(handOff = true)
         port.emit("started", livingRoom)
         sheet.change()
 

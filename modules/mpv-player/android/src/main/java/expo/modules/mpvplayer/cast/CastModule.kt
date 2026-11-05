@@ -264,7 +264,13 @@ class CastModule : Module() {
             OutputPickerPresenter.strings = OutputPickerStrings(strings.toMap())
             // The button's own view, which the popover follows across a rotation; its frame is the fallback.
             val anchorView = (options["anchorTag"] as? Number)?.let { tag -> appContext.findView<View>(tag.toInt()) }
-            OutputPickerPresenter.present(activity, anchorRect(options["anchor"], activity), options["playingHere"] as? String, anchorView) {
+            OutputPickerPresenter.present(
+                activity,
+                anchorRect(options["anchor"], activity),
+                options["playingHere"] as? String,
+                anchorView,
+                onPlayHere = { if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "playHere")) },
+            ) {
                 if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "remote"))
             }
         }.runOnQueue(Queues.MAIN)

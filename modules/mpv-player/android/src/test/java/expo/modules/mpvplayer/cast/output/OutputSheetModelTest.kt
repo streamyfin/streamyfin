@@ -26,6 +26,7 @@ class OutputSheetModelTest {
         receiverTitle: String? = null,
         receiverPlaying: Boolean = receiverTitle != null,
         handOff: Boolean = false,
+        showingList: Boolean = false,
     ) = OutputSheetInput(
         snapshot = snapshot,
         devices = devices,
@@ -37,7 +38,7 @@ class OutputSheetModelTest {
         playingHere = playingHere,
         receiverTitle = receiverTitle,
         receiverPlaying = receiverPlaying,
-        showingList = false,
+        showingList = showingList,
         draggedVolume = null,
         handOff = handOff,
     )
@@ -199,6 +200,23 @@ class OutputSheetModelTest {
         assertEquals(true, panel.showsVolume)
         assertEquals(false, panel.canSetVolume)
         assertEquals(false, panel.canMute)
+    }
+
+    // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
+    @Test
+    fun thisDeviceOffersToContinueWhileTheReceiverPlays() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        fun thisDevice(state: OutputSheetState) = rows(state).first() as OutputRow.ThisDevice
+        val playing = thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true)))
+        val idle = thisDevice(outputSheetState(input(snapshot = connected, showingList = true)))
+        val inThePlayer =
+            thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true, handOff = true)))
+
+        assertEquals(true, playing.continueHere)
+        assertEquals(false, idle.continueHere)
+        assertEquals(false, inThePlayer.continueHere)
     }
 
     // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
