@@ -77,10 +77,29 @@ jobs:
         id: hash
         # fingerprint.config.js keeps the per-build metadata out of the hash.
         run: |
-          echo "ios=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android_tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          # The fingerprint drops a source it fails to read without a word, and
+          # a hash without the Expo config would match builds it should not.
+          # A failed hash fails the job, and every build then runs in full.
+          # The hash goes to HASH, so the error annotation reaches the log.
+          hash() {
+            local out
+            out=$(EXPO_TV="$1" bunx @expo/fingerprint fingerprint:generate --platform "$2" "${@:3}")
+            if ! jq -e 'any(.sources[]; .id == "expoConfig")' <<<"$out" >/dev/null; then
+              echo "::error::The $2 fingerprint has no Expo config, so no earlier build is reused."
+              return 1
+            fi
+            HASH=$(jq -r .hash <<<"$out")
+          }
+          hash 0 ios; ios=$HASH
+          hash 1 ios; tv=$HASH
+          hash 0 android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*'; android=$HASH
+          hash 1 android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*'; android_tv=$HASH
+          {
+            echo "ios=$ios"
+            echo "tv=$tv"
+            echo "android=$android"
+            echo "android_tv=$android_tv"
+          } >> "$GITHUB_OUTPUT"
 
       - name: 🔎 Find an earlier build to repack
         id: find
@@ -118,6 +137,8 @@ jobs:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.android_phone_source != '' }}
     runs-on: ubuntu-26.04
+    # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
+    timeout-minutes: 15
     name: 🤖 Repack Android APK (Phone)
     permissions:
       contents: read
@@ -301,6 +322,8 @@ jobs:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.android_tv_source != '' }}
     runs-on: ubuntu-26.04
+    # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
+    timeout-minutes: 15
     name: 🤖 Repack Android APK (TV)
     permissions:
       contents: read
@@ -483,6 +506,8 @@ jobs:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_source != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
     runs-on: ubuntu-26.04
+    # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
+    timeout-minutes: 15
     name: 🍎 Repack iOS IPA (Phone)
     permissions:
       contents: read
@@ -631,6 +656,8 @@ jobs:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_unsigned_source != '' }}
     runs-on: ubuntu-26.04
+    # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
+    timeout-minutes: 15
     name: 🍎 Repack iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
@@ -765,6 +792,8 @@ jobs:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_tv_unsigned_source != '' }}
     runs-on: ubuntu-26.04
+    # A repack takes 2 to 3 minutes; a hung one fails here and the build runs.
+    timeout-minutes: 15
     name: 🍎 Repack tvOS IPA (Unsigned)
     permissions:
       contents: read
