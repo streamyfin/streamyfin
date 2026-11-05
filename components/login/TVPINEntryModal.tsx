@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { tvSheetBacking } from "@/components/tv/tvSheetBacking";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
@@ -298,7 +299,8 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
             trapFocusDown
             trapFocusLeft
             trapFocusRight
-            style={styles.content}
+            testID='tv-pin-panel'
+            style={[styles.content, tvSheetBacking()]}
           >
             {/* Header */}
             <Text style={[styles.title, { fontSize: typography.body }]}>

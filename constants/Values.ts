@@ -14,6 +14,15 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 export const POSTER_ASPECT_RATIO = 10 / 15;
 
 /**
+ * The row at the top of the Search screen on iOS: the Library and Discover
+ * buttons, and the sort button, each in a SwiftUI host this high.
+ */
+export const SEARCH_TAB_ROW_HEIGHT = 40;
+
+/** Room for the sort button's host, beside the tabs. */
+export const SEARCH_SORT_BUTTON_WIDTH = 50;
+
+/**
  * MMKV key for the collection type and server of each hidden singleton view
  * (Live TV, Collections, Playlists), which is what carries a hidden view over
  * when Jellyfin 12 changes its id.
