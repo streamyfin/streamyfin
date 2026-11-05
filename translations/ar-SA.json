@@ -437,6 +437,9 @@
         "caching_description": "تخزين أغاني قائمة الانتظار القادمة مسبقًا. تتم إزالة الأقدم عند الوصول إلى حد الحجم.",
         "lookahead_enabled": "تفعيل التخزين المؤقت الاستباقي",
         "lookahead_count": "عدد الأغاني المراد تخزينها مسبقاً",
+        "lookahead_songs_one": "{{count}} song",
+        "lookahead_songs_other": "{{count}} songs",
+        "lookahead_songs": "{{count}} songs",
         "max_cache_size": "الحد الأقصى لحجم التخزين المؤقت"
       },
       "plugins": {
@@ -699,7 +702,6 @@
         "could_not_delete_download": "تعذر حذف التنزيل",
         "download_completed": "اكتمل التنزيل",
         "download_failed": "فشل التنزيل",
-        "download_failed_for_item": "فشل تنزيل {{item}} - {{error}}",
         "download_completed_for_item": "اكتمل تنزيل {{item}}",
         "download_started_for_item": "بدأ التنزيل لـ{{item}}",
         "failed_to_start_download": "فشل في بدء التنزيل",
@@ -709,6 +711,13 @@
         "could_not_get_download_url_for_item": "تعذر الحصول على عنوان URL للتنزيل لـ{{itemName}}",
         "no_media_source_to_download": "لا يمكن تنزيل هذا العنصر",
         "file_deleted": "تم حذف {{item}}"
+      },
+      "failure": {
+        "conversion": "The server could not convert {{item}} for download. Try again, or download it at Max quality.",
+        "refused": "The server refused to send {{item}} (HTTP {{status}}).",
+        "no_space": "There is not enough free space on this device for {{item}}.",
+        "connection": "The connection to the server dropped while downloading {{item}}.",
+        "other": "Something went wrong while downloading {{item}}. The app logs have the details."
       }
     }
   },
@@ -779,7 +788,14 @@
     "tmdb_studio": "الاستوديو TMDB",
     "tmdb_network": "شبكة TMDB",
     "tmdb_movie_streaming_services": "منصات مشاهدة الفلم (من TMDB)",
-    "tmdb_tv_streaming_services": "منصات مشاهدة المسلسل (من TMDB)"
+    "tmdb_tv_streaming_services": "منصات مشاهدة المسلسل (من TMDB)",
+    "library_sort": {
+      "Relevance": "Relevance",
+      "Name": "Name",
+      "CommunityRating": "Rating",
+      "ProductionYear": "Year",
+      "DateCreated": "Date added"
+    }
   },
   "library": {
     "no_results": "لا توجد نتائج",
@@ -964,13 +980,14 @@
     "cast_and_crew": "طاقم العمل",
     "series": "مسلسلات",
     "seasons": "مواسم",
-    "season": "موسم",
+    "episode_number": "Episode {{episode_number}}",
     "from_this_series": "من هذا المسلسل",
     "more_from_this_season": "المزيد من هذا الموسم",
     "view_series": "عرض المسلسل",
     "view_season": "عرض الموسم",
     "select_season": "اختيار الموسم",
     "no_episodes_for_this_season": "لا توجد حلقات لهذا الموسم",
+    "episodes_load_failed": "Couldn't load the episodes.",
     "missing": "مفقود",
     "not_yet_aired": "لم يُعرض بعد",
     "overview": "نظرة عامة",
@@ -1128,6 +1145,7 @@
     "advanced": "متقدم",
     "request_as": "طلب باسم",
     "tags": "الوسوم",
+    "no_tags": "No tags",
     "quality_profile": "إعداد الجودة",
     "root_folder": "المجلد الرئيسي",
     "season_all": "الموسم (الكل)",
@@ -1311,7 +1329,15 @@
     "is_public_label": "قائمة مشاهدة عامة",
     "is_public_description": "السماح للآخرين بعرض قائمة المشاهدة هذه",
     "allowed_type_label": "نوع المحتوى",
+    "all_types": "All types",
+    "movies_only": "Movies only",
+    "series_only": "Series only",
+    "episodes_only": "Episodes only",
     "sort_order_label": "الترتيب الافتراضي",
+    "sort_custom": "Custom order",
+    "sort_name": "Name",
+    "sort_date_added": "Date added",
+    "sort_release_date": "Release date",
     "empty_title": "لا توجد قوائم مشاهدة",
     "empty_description": "أنشئ قائمة مشاهدة لتجميع الأشياء التي تريد مشاهدتها",
     "empty_watchlist": "قائمة المشاهدة هذه فارغة",
@@ -1319,12 +1345,15 @@
     "not_configured_title": "لم يتم ضبط Streamystats",
     "not_configured_description": "اضبط Streamystats في الإعدادات لاستخدام قوائم المشاهدة",
     "go_to_settings": "الذهاب إلى الإعدادات",
+    "load_failed_title": "Couldn't load your watchlists",
+    "load_failed_description": "The Streamystats server couldn't be reached or answered with an error. Try again.",
     "add_to_watchlist": "إضافة إلى قائمة المشاهدة",
     "remove_from_watchlist": "إزالة من قائمة المشاهدة",
     "select_watchlist": "تحديد قائمة المشاهدة",
     "create_new": "إنشاء قائمة مشاهدة جديدة",
-    "item": "عنصر",
-    "items": "عناصر",
+    "item_count_one": "{{count}} item",
+    "item_count_other": "{{count}} items",
+    "item_count": "{{count}} items",
     "public": "عامة",
     "private": "خاصة",
     "you": "أنت",
@@ -1336,7 +1365,21 @@
     "remove_item_message": "إزالة \"{{name}}\" من قائمة المشاهدة هذه؟",
     "loading": "تحميل قوائم المشاهدة...",
     "no_compatible_watchlists": "لا توجد قوائم مشاهدة متوافقة",
-    "create_one_first": "إنشاء قائمة مشاهدة تقبل نوع المحتوى هذا"
+    "create_one_first": "إنشاء قائمة مشاهدة تقبل نوع المحتوى هذا",
+    "toasts": {
+      "created": "Watchlist created",
+      "updated": "Watchlist updated",
+      "deleted": "Watchlist deleted",
+      "added_to": "Added to {{name}}",
+      "added": "Added to the watchlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from the watchlist",
+      "create_failed": "Could not create the watchlist",
+      "update_failed": "Could not save the watchlist",
+      "delete_failed": "Could not delete the watchlist",
+      "add_failed": "Could not add it to the watchlist",
+      "remove_failed": "Could not remove it from the watchlist"
+    }
   },
   "playback_speed": {
     "title": "سرعة التشغيل",
