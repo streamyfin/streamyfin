@@ -53,6 +53,10 @@ class OutputSheetController(
     private var requestedId: String? = null
     // The receiver whose connection brings the panel back over the list "Change" opened.
     private var panelOn: String? = null
+
+    /** The receiver the sheet asked for and waits to see connected, if any. */
+    val awaitedReceiver: String?
+        get() = panelOn
     private var removeListener: (() -> Unit)? = null
     private var cancelSearch: (() -> Unit)? = null
     private var cancelSettle: (() -> Unit)? = null

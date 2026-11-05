@@ -41,6 +41,8 @@ final class OutputSheetController: RemoteTargetListener {
   private var requestedId: String?
   /// The receiver whose connection brings the panel back over the list "Change" opened.
   private var panelOn: String?
+  /// The receiver the sheet asked for and waits to see connected, if any.
+  var awaitedReceiver: String? { panelOn }
   private var removeListener: (() -> Void)?
   private var cancelSearch: (() -> Void)?
   private var cancelSettle: (() -> Void)?

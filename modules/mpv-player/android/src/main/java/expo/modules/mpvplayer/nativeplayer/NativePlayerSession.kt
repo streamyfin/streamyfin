@@ -19,6 +19,7 @@ import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -396,6 +397,7 @@ class NativePlayerSession(
         }
 
         // Add overlay to activity window
+        hideAppFromAccessibility(activity)
         activity.addContentView(
             container,
             ViewGroup.LayoutParams(
@@ -820,6 +822,25 @@ class NativePlayerSession(
         }
     }
 
+    // The app under the player stays in the accessibility tree otherwise: TalkBack and uiautomator would reach its
+    // hidden buttons, the header's Cast button among them, named as the player's. Views added later, the output
+    // sheet's, stay reachable.
+    private val hiddenFromAccessibility = mutableListOf<Pair<View, Int>>()
+
+    private fun hideAppFromAccessibility(activity: Activity) {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
+        for (index in 0 until content.childCount) {
+            val view = content.getChildAt(index)
+            hiddenFromAccessibility += view to view.importantForAccessibility
+            view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+    }
+
+    private fun restoreAppAccessibility() {
+        for ((view, importance) in hiddenFromAccessibility) view.importantForAccessibility = importance
+        hiddenFromAccessibility.clear()
+    }
+
     // MARK: - Teardown
     fun dismiss(reason: String, completion: (() -> Unit)? = null) {
         if (isDismissing) {
@@ -831,6 +852,8 @@ class NativePlayerSession(
         val activity = hostActivity
         val dismissAction = {
             viewModel.willTeardown()
+            // The sheet the player opened goes with it: left over the app, its hand-off would reach a closed player.
+            OutputPickerPresenter.dismissPlayerSheet()
 
             if (activity != null) {
                 unregisterPiPReceiver(activity)
@@ -866,6 +889,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
 
             // Restore window state
             if (activity != null) {
@@ -915,6 +939,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
             activity?.let { unregisterPiPReceiver(it) }
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()
