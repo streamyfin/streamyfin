@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import {
   type DehydrateOptions,
@@ -14,6 +16,12 @@ import {
   persistQueryClientRestore,
   persistQueryClientSave,
 } from "@tanstack/react-query-persist-client";
+import {
+  MAX_PERSISTED_PAGES,
+  PERSISTED_QUERY_FAMILIES,
+  UNTRIMMED_INFINITE_FAMILIES,
+} from "@/constants/QueryPersistence";
+import { save, sessionCache } from "@/test-utils/tvSessionCache";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
@@ -145,26 +153,28 @@ describe("queryDehydrateOptions", () => {
 
   test("a successful query is persisted", () => {
     const client = newClient();
-    client.setQueryData(["item", "1"], { Name: "Alien" });
+    client.setQueryData(["home", "resumeItems"], { Name: "Alien" });
 
     expect(
       dehydrate(client, queryDehydrateOptions).queries.map(
         (query) => query.queryKey,
       ),
-    ).toEqual([["item", "1"]]);
+    ).toEqual([["home", "resumeItems"]]);
   });
 
   test("a query that opted out with gcTime 0 is not persisted", async () => {
     const client = newClient();
     // Mounted like a useQuery, or a gcTime of 0 collects it before the check.
     const unsubscribe = new QueryObserver(client, {
-      queryKey: ["stream-url"],
+      queryKey: ["home", "stream-url"],
       queryFn: async () => "https://example.com/stream",
       gcTime: 0,
     }).subscribe(() => {});
     await flush();
 
-    expect(client.getQueryState(["stream-url"])?.status).toBe("success");
+    expect(client.getQueryState(["home", "stream-url"])?.status).toBe(
+      "success",
+    );
     expect(dehydrate(client, queryDehydrateOptions).queries).toEqual([]);
     unsubscribe();
   });
@@ -173,17 +183,230 @@ describe("queryDehydrateOptions", () => {
     const client = newClient();
     await client
       .fetchQuery({
-        queryKey: ["failed"],
+        queryKey: ["home", "failed"],
         queryFn: async () => {
           throw new Error("boom");
         },
       })
       .catch(() => {});
-    new QueryObserver(client, { queryKey: ["not-loaded"], enabled: false });
+    new QueryObserver(client, {
+      queryKey: ["home", "not-loaded"],
+      enabled: false,
+    });
 
-    expect(client.getQueryState(["failed"])?.status).toBe("error");
-    expect(client.getQueryState(["not-loaded"])?.status).toBe("pending");
+    expect(client.getQueryState(["home", "failed"])?.status).toBe("error");
+    expect(client.getQueryState(["home", "not-loaded"])?.status).toBe(
+      "pending",
+    );
     expect(dehydrate(client, queryDehydrateOptions).queries).toEqual([]);
+  });
+});
+
+const persistedKeys = (client: QueryClient) =>
+  dehydrate(client, queryDehydrateOptions).queries.map(
+    (query) => query.queryKey[0],
+  );
+
+describe("which query families are persisted", () => {
+  // What launch and offline browsing read: Home, the library list, music.
+  test.each([
+    ["Home's sections", ["home", "userViews", "user-1"]],
+    ["Home's hero", ["home", "heroItems", "user-1"]],
+    ["the Libraries tab", ["user-views", "user-1"]],
+    ["a library's header", ["library", "lib-1"]],
+    ["a library card's count", ["library-count", "lib-1"]],
+    ["the server info Streamystats rows wait for", ["jellyfin", "serverInfo"]],
+    ["a Streamystats row on Home", ["streamystats", "watchlists", "url", "u"]],
+    ["music suggestions", ["music-latest", "lib-1", "user-1"]],
+    ["music artists", ["music-artists", "lib-1", "user-1"]],
+    ["a music album", ["music-album-tracks", "album-1", "user-1"]],
+    ["a music playlist", ["music-playlist-tracks", "pl-1", "user-1"]],
+    ["a playlist card's download badge", ["playlist-tracks-status", "pl-1"]],
+    // Settings > Audio & Subtitles keeps its language pickers disabled until
+    // both answer.
+    ["the server's language preferences", ["authUser"]],
+    ["the languages to pick from", ["cultures"]],
+  ])("%s is persisted", (_name, queryKey) => {
+    const client = newClient();
+    client.setQueryData(queryKey, { Name: "Alien" });
+
+    expect(persistedKeys(client)).toEqual([queryKey[0]]);
+  });
+
+  // None of these is needed to launch or to browse without a connection, and
+  // each one grows the blob that is parsed on every launch.
+  test.each([
+    ["search results", ["search", "movies", "alien"]],
+    ["an item's detail page", ["item", "item-1", ["Overview"]]],
+    ["a library's pages", ["library-items", "lib-1", "items"]],
+    ["the episodes of a season", ["episodes", "season-1", false]],
+    ["the segments of a stream", ["segments", "item-1", false]],
+    ["the sessions of the server", ["sessions"]],
+    ["Seerr", ["seerr", "discover", "trending"]],
+    ["Live TV", ["livetv", "channels"]],
+    ["a query nobody opted in", ["brand-new-feature", "data"]],
+  ])("%s is not persisted", (_name, queryKey) => {
+    const client = newClient();
+    client.setQueryData(queryKey, { Name: "Alien" });
+
+    expect(persistedKeys(client)).toEqual([]);
+  });
+
+  // Dropping a family here empties a screen the first time it is opened
+  // without a connection. The keys are read from the screens themselves, so
+  // a renamed key fails here instead of going unpersisted.
+  test.each([
+    "components/home/Home.tsx",
+    "components/home/Home.tv.tsx",
+    "components/home/HomeHeroCarousel.tsx",
+    "components/library/Libraries.tsx",
+    "components/library/LibraryItemCard.tsx",
+    "app/(auth)/(tabs)/(libraries)/music/[libraryId]/suggestions.tsx",
+    "app/(auth)/(tabs)/(libraries)/music/[libraryId]/artists.tsx",
+    "app/(auth)/(tabs)/(libraries)/music/[libraryId]/albums.tsx",
+    "app/(auth)/(tabs)/(libraries)/music/[libraryId]/playlists.tsx",
+    // The download badge of each playlist card.
+    "components/music/MusicPlaylistCard.tsx",
+    // Settings > Audio & Subtitles, mobile and TV.
+    "hooks/useMediaPreferences.ts",
+  ])("%s only reads persisted query families", (file) => {
+    // An invalidation names a key without reading it.
+    const source = readFileSync(join(__dirname, "..", file), "utf8").replace(
+      /\.(invalidateQueries|refetchQueries|removeQueries|cancelQueries|resetQueries)\(\{[^}]*\}\)/g,
+      "",
+    );
+    const families = [...source.matchAll(/queryKey: *\[\s*"([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+
+    expect(families.length).toBeGreaterThan(0);
+    for (const family of families) {
+      expect(PERSISTED_QUERY_FAMILIES).toContain(family);
+    }
+  });
+});
+
+describe("infinite queries", () => {
+  const pages = (count: number) => ({
+    pages: Array.from({ length: count }, (_, page) => ({ page })),
+    pageParams: Array.from({ length: count }, (_, page) => page * 40),
+  });
+
+  test("only the first pages are written", () => {
+    const client = newClient();
+    client.setQueryData(["home", "latest", "user-1"], pages(30));
+
+    const [query] = dehydrate(client, queryDehydrateOptions).queries;
+    const data = query.state.data as ReturnType<typeof pages>;
+
+    expect(data.pages).toHaveLength(MAX_PERSISTED_PAGES);
+    expect(data.pageParams).toHaveLength(MAX_PERSISTED_PAGES);
+    expect(data.pages[0]).toEqual({ page: 0 });
+  });
+
+  // The cache is the only offline source for music: a 500 album library at 40
+  // a page is 13 pages, and an album past the third would be unreachable.
+  test.each(UNTRIMMED_INFINITE_FAMILIES)(
+    "a %s list is written with every page",
+    (family) => {
+      const client = newClient();
+      client.setQueryData([family, "lib-1", "user-1"], pages(13));
+
+      const [query] = dehydrate(client, queryDehydrateOptions).queries;
+      const data = query.state.data as ReturnType<typeof pages>;
+
+      expect(data.pages).toHaveLength(13);
+      expect(data.pageParams).toEqual(pages(13).pageParams);
+    },
+  );
+
+  test("only persisted music lists are exempt from the trim", () => {
+    for (const family of UNTRIMMED_INFINITE_FAMILIES) {
+      expect(PERSISTED_QUERY_FAMILIES).toContain(family);
+    }
+  });
+
+  test("the query in memory keeps every page", () => {
+    const client = newClient();
+    client.setQueryData(["home", "latest", "user-1"], pages(30));
+    dehydrate(client, queryDehydrateOptions);
+
+    expect(
+      (client.getQueryData(["home", "latest", "user-1"]) as any).pages,
+    ).toHaveLength(30);
+  });
+
+  test("a list that is not paged is written whole", () => {
+    const client = newClient();
+    const list = Array.from({ length: 50 }, (_, index) => ({ index }));
+    client.setQueryData(["home", "userViews", "user-1"], list);
+
+    const [query] = dehydrate(client, queryDehydrateOptions).queries;
+
+    expect(query.state.data).toEqual(list);
+  });
+});
+
+describe("the size of what is written", () => {
+  // What the app wrote before only the launch and offline families were kept.
+  const everythingSuccessful: DehydrateOptions = {
+    shouldDehydrateQuery: (query) =>
+      query.state.status === "success" && query.options.gcTime !== 0,
+  };
+
+  // The size is what a launch parses. Not a perf scenario: the baseline runs
+  // those against the base branch's policy, where both sizes are the same.
+  test("the allowlist leaves a fraction of a TV session's cache", () => {
+    const client = sessionCache();
+    clients.push(client);
+
+    const before = save(client, everythingSuccessful).length;
+    const after = save(client, queryDehydrateOptions).length;
+
+    expect(after).toBeLessThan(before / 2);
+  });
+});
+
+describe("the cache written before the allowlist", () => {
+  // A blob from 0.55.x holds every query the user ever opened.
+  const oldBlob = async () => {
+    const disk = newDisk();
+    const client = newClient();
+    client.setQueryData(["home", "resumeItems"], { Name: "Alien" });
+    client.setQueryData(["music-albums", "lib-1", "user-1"], { Name: "Abbey" });
+    client.setQueryData(["search", "movies", "alien"], { Name: "Aliens" });
+    client.setQueryData(["item", "item-1", []], { Name: "Alien" });
+    await quit(client, disk, {
+      shouldDehydrateQuery: (query) => query.state.status === "success",
+    });
+    return disk;
+  };
+
+  test("the first launch still has what the offline screens read", async () => {
+    const client = await relaunch(await oldBlob());
+
+    expect(client.getQueryData(["home", "resumeItems"])).toEqual({
+      Name: "Alien",
+    });
+    expect(client.getQueryData(["music-albums", "lib-1", "user-1"])).toEqual({
+      Name: "Abbey",
+    });
+  });
+
+  test("the first write after it drops the families that are no longer persisted", async () => {
+    const disk = await oldBlob();
+    const client = await relaunch(disk);
+    await quit(client, disk, queryDehydrateOptions);
+
+    const restored = await relaunch(disk);
+
+    expect(
+      restored
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.queryKey[0])
+        .sort(),
+    ).toEqual(["home", "music-albums"]);
   });
 });
 
@@ -196,7 +419,7 @@ describe("withoutPersistedMutations", () => {
   const cacheWrittenBy0550 = async () => {
     const disk = newDisk();
     const client = newClient();
-    client.setQueryData(["item", "1"], { Name: "Alien" });
+    client.setQueryData(["home", "resumeItems"], { Name: "Alien" });
     mutateWhileOffline(client);
     await flush();
     await quit(client, disk, releasedDehydrateOptions);
@@ -216,7 +439,9 @@ describe("withoutPersistedMutations", () => {
   test("the queries in that cache are still restored", async () => {
     const client = await relaunch(await cacheWrittenBy0550());
 
-    expect(client.getQueryData(["item", "1"])).toEqual({ Name: "Alien" });
+    expect(client.getQueryData(["home", "resumeItems"])).toEqual({
+      Name: "Alien",
+    });
   });
 
   test("saving and clearing still reach a persister that keeps its methods on a prototype", async () => {
@@ -235,7 +460,7 @@ describe("withoutPersistedMutations", () => {
     const memory = new MemoryPersister();
     const persister = withoutPersistedMutations(memory);
     const client = newClient();
-    client.setQueryData(["item", "1"], { Name: "Alien" });
+    client.setQueryData(["home", "resumeItems"], { Name: "Alien" });
 
     await persistQueryClientSave({
       queryClient: client,
