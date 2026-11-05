@@ -58,3 +58,23 @@ export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
 
 /** How often, in ms, that wait checks whether the closing player is gone. */
 export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
+
+/**
+ * The query families that show watch progress, refetched after the server's
+ * played state changed under them: by a stop report, a pull to refresh, or
+ * offline progress being pushed once the connection is back.
+ */
+export const PLAYBACK_PROGRESS_QUERY_KEYS: readonly (readonly string[])[] = [
+  ["item"],
+  ["resumeItems"],
+  ["continueWatching"],
+  ["nextUp-all"],
+  ["nextUp"],
+  ["episodes"],
+  ["seasons"],
+  ["home"],
+  ["downloadedItems"],
+  // A similar-items row shows each poster's watched state, and its list
+  // never goes stale by itself.
+  ["similarItems"],
+];

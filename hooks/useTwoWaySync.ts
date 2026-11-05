@@ -10,6 +10,13 @@ import { useNetworkStatus } from "./useNetworkStatus";
  * This hook is used to sync the playback state of a downloaded item with the server
  * when the application comes back online after being used offline.
  */
+/**
+ * How one item's playback state was reconciled: the local state was sent to
+ * the server, the server's was taken, both already agreed, or it could not be
+ * settled (offline, the request failed).
+ */
+export type PlaybackSyncResult = "pushed" | "pulled" | "unchanged" | "failed";
+
 export const useTwoWaySync = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
@@ -22,14 +29,16 @@ export const useTwoWaySync = () => {
    *
    * @returns A Promise<boolean> indicating whether a server update was made (true) or not (false).
    */
-  const syncPlaybackState = async (itemId: string): Promise<boolean> => {
+  const syncPlaybackStateDetailed = async (
+    itemId: string,
+  ): Promise<PlaybackSyncResult> => {
     if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
-      return false;
+      return "failed";
     }
 
     const localItem = getDownloadedItemById(itemId);
-    if (!localItem) return false;
+    if (!localItem) return "unchanged";
 
     const fetchRemoteItem = async (): Promise<
       (typeof localItem)["item"] | undefined
@@ -50,7 +59,7 @@ export const useTwoWaySync = () => {
       }
     };
     const remoteItem = await fetchRemoteItem();
-    if (!remoteItem) return false;
+    if (!remoteItem) return "failed";
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
@@ -78,7 +87,7 @@ export const useTwoWaySync = () => {
           },
         },
       });
-      return false;
+      return "pulled";
     } else if (remoteLastPlayed < localLastPlayed) {
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
@@ -102,12 +111,16 @@ export const useTwoWaySync = () => {
         );
         // The write never reached the server, so the caller must not treat
         // this as a successful update.
-        return false;
+        return "failed";
       }
-      return true;
+      return "pushed";
     }
-    return false;
+    return "unchanged";
   };
 
-  return { syncPlaybackState };
+  /** Whether the server's state was updated. */
+  const syncPlaybackState = async (itemId: string): Promise<boolean> =>
+    (await syncPlaybackStateDetailed(itemId)) === "pushed";
+
+  return { syncPlaybackState, syncPlaybackStateDetailed };
 };

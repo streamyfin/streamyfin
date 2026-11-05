@@ -14,6 +14,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { markOfflineProgress } from "@/utils/offlineProgressQueue";
 import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
@@ -74,7 +75,7 @@ export const usePlaybackManager = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const shuffleQueue = useAtomValue(shuffleQueueAtom);
-  const { isConnected } = useNetworkStatus();
+  const { isConnected, serverConnected } = useNetworkStatus();
   const queryClient = useQueryClient();
   const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
     useDownload();
@@ -240,6 +241,11 @@ export const usePlaybackManager = ({
           },
         },
       });
+      // Saved where the server cannot see it: queue it for the sync that
+      // runs once the server answers again (useOfflineProgressSync).
+      if (user?.Id && (!isOnline || serverConnected !== true)) {
+        markOfflineProgress(user.Id, itemId);
+      }
       // Force invalidate queries so they refetch from updated local database
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["episodes"] });
@@ -259,6 +265,11 @@ export const usePlaybackManager = ({
         );
       } catch (error) {
         console.error("Failed to report playback progress", error);
+        // A downloaded item's progress is still on the device: queue it.
+        const itemId = playbackProgressInfo.ItemId;
+        if (user?.Id && itemId && getDownloadedItemById(itemId)) {
+          markOfflineProgress(user.Id, itemId);
+        }
       }
     }
   };

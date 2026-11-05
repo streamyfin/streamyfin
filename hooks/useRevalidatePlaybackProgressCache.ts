@@ -1,3 +1,4 @@
+import { PLAYBACK_PROGRESS_QUERY_KEYS } from "@/constants/Playback";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useTwoWaySync } from "./useTwoWaySync";
@@ -11,21 +12,9 @@ export function useInvalidatePlaybackProgressCache() {
   const { syncPlaybackState } = useTwoWaySync();
 
   const revalidate = async () => {
-    // List of all the queries to invalidate
-    const queriesToInvalidate = [
-      ["item"],
-      ["resumeItems"],
-      ["continueWatching"],
-      ["nextUp-all"],
-      ["nextUp"],
-      ["episodes"],
-      ["seasons"],
-      ["home"],
-      ["downloadedItems"],
-      // A similar-items row shows each poster's watched state, and its list
-      // never goes stale by itself.
-      ["similarItems"],
-    ];
+    const queriesToInvalidate = PLAYBACK_PROGRESS_QUERY_KEYS.map((key) => [
+      ...key,
+    ]);
 
     // We Invalidate all the queries to the latest server versions
     await Promise.all(
