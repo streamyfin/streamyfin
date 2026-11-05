@@ -314,6 +314,23 @@ test("a press while connecting casts once connected", async () => {
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
 });
 
+// A switch while the press waits is the user's own choice of output: the press plays there, which the
+// button names by then, as YouTube and Spotify follow the output.
+test("a press waiting for one receiver plays on the one the output switched to", async () => {
+  const bedroom = { ...mockSalon, id: "device-b", name: "Bedroom" };
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  // A switch ends the old session first, then connects the asked receiver.
+  await act(async () =>
+    emitTarget({ ...connectingTo(mockSalon), state: "ending" }),
+  );
+  await act(async () => emitTarget(connectingTo(bedroom)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  await act(async () => emitTarget(connectedTo(bedroom)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
 // One wait at a time: a second press while it runs adds no second load.
 test("a second press while waiting starts nothing more", async () => {
   mockTarget = connectingTo(mockSalon);
