@@ -8,6 +8,7 @@ import { OverviewText } from "@/components/OverviewText";
 import SeerrPoster from "@/components/posters/SeerrPoster";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
 import { TVSeerrPersonPage } from "@/components/seerr/tv/TVSeerrPersonPage";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPerson } from "@/hooks/useSeerrPerson";
 import { seerrLocaleTag } from "@/utils/seerr/dates";
@@ -30,7 +31,7 @@ function MobilePersonPage({ personId }: { personId: string }) {
     () =>
       seerrApi
         ? castedRoles.map((c) =>
-            seerrApi.imageProxy(c.backdropPath, "w1920_and_h800_multi_faces"),
+            seerrApi.imageProxy(c.backdropPath, SEERR_BACKDROP_SIZE),
           )
         : [],
     [seerrApi, castedRoles],

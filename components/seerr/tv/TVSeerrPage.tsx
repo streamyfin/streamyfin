@@ -24,6 +24,7 @@ import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { BACKGROUND_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
@@ -258,9 +259,7 @@ export const TVSeerrPage: React.FC = () => {
   // Backdrop URL
   const backdropUrl = useMemo(() => {
     const path = details?.backdropPath || result.backdropPath;
-    return path
-      ? seerrApi?.imageProxy(path, "w1920_and_h800_multi_faces")
-      : null;
+    return path ? seerrApi?.imageProxy(path, SEERR_BACKDROP_SIZE) : null;
   }, [details, result.backdropPath, seerrApi]);
 
   // Poster URL
