@@ -139,6 +139,19 @@ class PlayerViewModelCapabilitiesTest {
         )
     }
 
+    // A group joined while the sheet was open plays the player: the hand-off JS refuses leaves its playback alone.
+    @Test
+    fun aHandOffInASyncPlayGroupDoesNotPause() {
+        val engine = RecordingLocalEngine()
+        val viewModel = PlayerViewModel().also { it.engine = engine }
+        viewModel.emit = { _, _ -> }
+        viewModel.updateSyncPlay(SyncPlayStateRecord().apply { groupId = "group" })
+
+        viewModel.requestCastHandOff()
+
+        assertEquals(0, engine.pauses)
+    }
+
     // The Cast button reads as the header's does: its name, then whether a receiver is connected.
     @Test
     fun theCastButtonSaysItsState() {
