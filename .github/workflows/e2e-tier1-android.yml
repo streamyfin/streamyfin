@@ -63,7 +63,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cast == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
