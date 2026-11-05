@@ -86,7 +86,10 @@ export function buildOfflineSeasons(
     return {
       Id: `offline-season-${seasonNum}`,
       IndexNumber: seasonNum,
-      Name: firstEpisode?.SeasonName || `Season ${seasonNum}`,
+      // The pages name a season without one at render time (seasonLabel), in
+      // the app's language: written here, it would outlive a language change in
+      // the seasons query's cache.
+      Name: firstEpisode?.SeasonName,
       SeriesId: seriesId,
     } as BaseItemDto;
   });

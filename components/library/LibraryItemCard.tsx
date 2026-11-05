@@ -4,7 +4,7 @@ import type {
   BaseItemKind,
   CollectionType,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
@@ -81,6 +81,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       nameStr = t("library.item_types.series");
     } else if (library.CollectionType === "boxsets") {
       nameStr = t("library.item_types.boxsets");
+    } else if (library.CollectionType === "livetv") {
+      nameStr = t("live_tv.tabs.channels");
     } else {
       nameStr = t("library.item_types.items");
     }
@@ -92,6 +94,16 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     queryKey: ["library-count", library.Id],
     queryFn: async () => {
       if (!api) return null;
+      // Channels aren't children of the Live TV view, so getItems counts 0.
+      // Jellyfin 12 treats limit 0 as no limit, so ask for one channel.
+      if (library.CollectionType === "livetv") {
+        const response = await getLiveTvApi(api).getLiveTvChannels({
+          userId: user?.Id,
+          limit: 1,
+          addCurrentProgram: false,
+        });
+        return response.data.TotalRecordCount;
+      }
       const response = await getLibraryApi(api).getItems({
         userId: user?.Id,
         parentId: library.Id,
