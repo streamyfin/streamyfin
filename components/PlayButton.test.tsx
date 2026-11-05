@@ -8,7 +8,7 @@ import {
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { PlayButton } from "./PlayButton";
 
@@ -133,8 +133,10 @@ const mockSettings = {
     known: [],
   },
 };
+// The user's own settings, and the effective ones with the admin's locks: two values, so a test can tell them apart.
 jest.mock("@/utils/atoms/settings", () => ({
   settingsAtom: jest.requireActual("jotai").atom(null),
+  effectiveSettingsAtom: jest.requireActual("jotai").atom(null),
   useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
@@ -168,6 +170,7 @@ beforeEach(() => {
   mockTargetListeners.clear();
   getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
   getDefaultStore().set(settingsAtom as never, mockSettings as never);
+  getDefaultStore().set(effectiveSettingsAtom as never, mockSettings as never);
   (castToJellyfinReceiver as jest.Mock).mockClear();
 });
 
@@ -329,7 +332,7 @@ test("a press waiting for the receiver plays at the quality saved meanwhile", as
   await press();
   await act(async () =>
     getDefaultStore().set(
-      settingsAtom as never,
+      effectiveSettingsAtom as never,
       {
         ...mockSettings,
         remotePlaybackQuality: {
@@ -340,6 +343,30 @@ test("a press waiting for the receiver plays at the quality saved meanwhile", as
     ),
   );
   await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ maxBitrate: 1_000_000 }),
+    expect.anything(),
+    expect.anything(),
+    expect.any(Function),
+  );
+});
+
+// The settings page shows the admin's quality: the receiver gets that one, whatever the user had saved.
+test("a remote quality the admin locked is the one the receiver gets", async () => {
+  getDefaultStore().set(
+    effectiveSettingsAtom as never,
+    {
+      ...mockSettings,
+      remotePlaybackQuality: {
+        byKind: { cast: "1 Mb/s" },
+        byTarget: {},
+        known: [],
+      },
+    } as never,
+  );
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
   expect(castToJellyfinReceiver).toHaveBeenCalledWith(
     expect.anything(),
     expect.objectContaining({ maxBitrate: 1_000_000 }),

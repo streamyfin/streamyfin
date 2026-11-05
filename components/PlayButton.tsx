@@ -34,7 +34,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { settingsAtom, useSettings } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
@@ -145,10 +145,10 @@ export const PlayButton: React.FC<Props> = ({
             userId: user.Id,
             receiverName: (await currentReceiverName()) ?? remote.name,
             // The item page's quality is this device's: a receiver plays at the remote one, read now as the
-            // session is.
+            // session is, with the admin's lock as the settings page shows it.
             maxBitrate: maxBitrateFor(
               remote,
-              store.get(settingsAtom)?.remotePlaybackQuality,
+              store.get(effectiveSettingsAtom).remotePlaybackQuality,
             ),
           },
           {

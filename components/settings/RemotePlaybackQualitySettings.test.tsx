@@ -14,6 +14,8 @@ type Option = { label: string; selected?: boolean; onPress: () => void };
 
 const mockUpdateSettings = jest.fn();
 let mockQuality: RemotePlaybackQuality = NO_REMOTE_QUALITY;
+// The admin's settings from the plugin, a value and a lock per setting.
+let mockPluginSettings: object | undefined;
 // The options each dropdown rendered first, as the Android sheet keeps the ones it opened with.
 let mockSheets: Record<string, Option[]> = {};
 
@@ -29,6 +31,7 @@ jest.mock("@/utils/atoms/settings", () => {
     useSettings: () => ({
       settings: useAtomValue(settingsAtom),
       updateSettings: mockUpdateSettings,
+      pluginSettings: mockPluginSettings,
     }),
   };
 });
@@ -78,7 +81,17 @@ const stored = (quality: RemotePlaybackQuality) => {
 beforeEach(() => {
   stored({ ...NO_REMOTE_QUALITY, known: [salon, bedroom] });
   mockSheets = {};
+  mockPluginSettings = undefined;
   mockUpdateSettings.mockClear();
+});
+
+// As every other section: a locked setting shows the admin's value and takes no change.
+test("a remote quality the admin locked takes no change here", async () => {
+  mockPluginSettings = {
+    remotePlaybackQuality: { locked: true, value: NO_REMOTE_QUALITY },
+  };
+  await render(<RemotePlaybackQualitySettings />);
+  expect(screen.getByText("Disabled by admin")).toBeTruthy();
 });
 
 test("lists Chromecast, then each receiver the app connected to", async () => {
