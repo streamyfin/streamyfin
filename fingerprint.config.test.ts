@@ -29,7 +29,7 @@ describe("fingerprint.config.js", () => {
   });
 
   it.each(["android", "android_tv"])(
-    "excludes iOS scripts from the %s CI fingerprint",
+    "excludes iOS-only sources from the %s CI fingerprint",
     (output) => {
       const workflow = readFileSync(
         path.join(__dirname, ".github/workflows/build-apps.yml"),
@@ -40,6 +40,9 @@ describe("fingerprint.config.js", () => {
         .find((line) => line.includes(`echo "${output}=`));
 
       expect(command).toContain("--ignore-path 'scripts/ios/**/*'");
+      // targets/ holds iOS and tvOS extension sources only; hashing them would
+      // stop an Android binary from being reused for a Swift-only change.
+      expect(command).toContain("--ignore-path 'targets/**/*'");
     },
   );
 

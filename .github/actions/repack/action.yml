@@ -46,7 +46,13 @@ runs:
         ARTIFACT_NAME: ${{ inputs.artifact-name }}
         EXTENSION: ${{ inputs.platform == 'ios' && 'ipa' || 'apk' }}
       run: |
-        gh run download "$SOURCE_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$ARTIFACT_NAME" -D "$RUNNER_TEMP/source"
+        # A flake or a just-expired artifact must not fail the job at once: the
+        # caller falls back to a full build on a real failure.
+        for attempt in 1 2 3; do
+          gh run download "$SOURCE_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$ARTIFACT_NAME" -D "$RUNNER_TEMP/source" && break
+          [ "$attempt" = 3 ] && exit 1
+          sleep 10
+        done
         find "$RUNNER_TEMP/source" -name "*.$EXTENSION" -print -quit | xargs -I{} mv {} "$RUNNER_TEMP/source.$EXTENSION"
 
     - name: 🔏 Fetch the signing files from EAS

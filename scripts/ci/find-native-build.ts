@@ -11,7 +11,9 @@
  * build this run would trust with its own native code may be a source: a run
  * on `develop` in this repository, or an earlier run of the same pull request.
  * A binary from another pull request must never be used, because anyone can
- * open one from a fork and name an artifact after any fingerprint.
+ * open one from a fork and name an artifact after any fingerprint. A branch
+ * name does not identify a pull request — a closed one's branch can be reused —
+ * so a run counts as this pull request's only when the run itself names it.
  */
 import { appendFileSync } from "node:fs";
 
@@ -33,11 +35,15 @@ export interface Artifact {
 
 export interface RunContext {
   repositoryId: number;
-  /** Set on a `pull_request` run: the branch and repository the PR comes from. */
-  pullRequest?: { headRef: string; headRepositoryId: number };
+  /** Set on a `pull_request` run: the number, branch and repository it comes from. */
+  pullRequest?: {
+    number: number;
+    headRef: string;
+    headRepositoryId: number;
+  };
 }
 
-const isFromThisPullRequest = (artifact: Artifact, ctx: RunContext) =>
+const couldBeFromThisPullRequest = (artifact: Artifact, ctx: RunContext) =>
   ctx.pullRequest !== undefined &&
   artifact.workflow_run.head_branch === ctx.pullRequest.headRef &&
   artifact.workflow_run.head_repository_id === ctx.pullRequest.headRepositoryId;
@@ -49,28 +55,29 @@ const isFromTrustedBranch = (artifact: Artifact, ctx: RunContext) =>
 /**
  * Picks the artifact to repack: the newest one from this pull request, else
  * the newest one from `develop`. Returns undefined when neither exists.
+ *
+ * `pullRequestsOfRun` reports the pull request numbers a run belongs to; a
+ * branch-match candidate is used only when its run lists this pull request.
  */
-export const pickSource = (
+export const pickSource = async (
   artifacts: Artifact[],
   ctx: RunContext,
-): Artifact | undefined => {
+  pullRequestsOfRun: (runId: number) => Promise<number[]>,
+): Promise<Artifact | undefined> => {
   const usable = artifacts
     .filter(
       (a) => !a.expired && a.workflow_run.repository_id === ctx.repositoryId,
     )
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return (
-    usable.find((a) => isFromThisPullRequest(a, ctx)) ??
-    usable.find((a) => isFromTrustedBranch(a, ctx))
-  );
+  for (const candidate of usable) {
+    if (!couldBeFromThisPullRequest(candidate, ctx)) continue;
+    const runs = await pullRequestsOfRun(candidate.workflow_run.id);
+    if (runs.includes(ctx.pullRequest?.number ?? -1)) return candidate;
+  }
+  return usable.find((a) => isFromTrustedBranch(a, ctx));
 };
 
-const fetchArtifacts = async (
-  repository: string,
-  name: string,
-  token: string,
-): Promise<Artifact[]> => {
-  const url = `https://api.github.com/repos/${repository}/actions/artifacts?name=${encodeURIComponent(name)}&per_page=100`;
+const github = async <T>(url: string, token: string): Promise<T> => {
   const response = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -79,10 +86,42 @@ const fetchArtifacts = async (
     },
   });
   if (!response.ok) {
-    throw new Error(`GitHub answered ${response.status} for artifact ${name}`);
+    throw new Error(`GitHub answered ${response.status} for ${url}`);
   }
-  const body = (await response.json()) as { artifacts: Artifact[] };
-  return body.artifacts;
+  return (await response.json()) as T;
+};
+
+const fetchArtifacts = async (
+  repository: string,
+  name: string,
+  token: string,
+): Promise<Artifact[]> => {
+  const artifacts: Artifact[] = [];
+  let page = 1;
+  let total = Number.POSITIVE_INFINITY;
+  while (artifacts.length < total) {
+    const body = await github<{ total_count: number; artifacts: Artifact[] }>(
+      `https://api.github.com/repos/${repository}/actions/artifacts?name=${encodeURIComponent(name)}&per_page=100&page=${page}`,
+      token,
+    );
+    total = body.total_count;
+    artifacts.push(...body.artifacts);
+    if (body.artifacts.length < 100) break;
+    page += 1;
+  }
+  return artifacts;
+};
+
+const fetchRunPullRequests = async (
+  repository: string,
+  runId: number,
+  token: string,
+): Promise<number[]> => {
+  const run = await github<{ pull_requests?: { number: number }[] }>(
+    `https://api.github.com/repos/${repository}/actions/runs/${runId}`,
+    token,
+  );
+  return (run.pull_requests ?? []).map((pr) => pr.number);
 };
 
 /**
@@ -90,7 +129,8 @@ const fetchArtifacts = async (
  *
  * Writes `<output>=<run id>` to `$GITHUB_OUTPUT` for each pair, with an empty
  * run id when no build is usable. Reads `GITHUB_TOKEN`, `GITHUB_REPOSITORY`,
- * `REPOSITORY_ID`, and on a pull request `PR_HEAD_REF` and `PR_HEAD_REPO_ID`.
+ * `REPOSITORY_ID`, and on a pull request `PR_NUMBER`, `PR_HEAD_REF` and
+ * `PR_HEAD_REPO_ID`.
  */
 const main = async () => {
   const env = process.env;
@@ -100,6 +140,7 @@ const main = async () => {
     repositoryId: Number(env.REPOSITORY_ID),
     pullRequest: env.PR_HEAD_REF
       ? {
+          number: Number(env.PR_NUMBER),
           headRef: env.PR_HEAD_REF,
           headRepositoryId: Number(env.PR_HEAD_REPO_ID),
         }
@@ -107,9 +148,10 @@ const main = async () => {
   };
   for (const pair of process.argv.slice(2)) {
     const [output, name] = pair.split("=");
-    const source = pickSource(
+    const source = await pickSource(
       await fetchArtifacts(repository, name, token),
       ctx,
+      (runId) => fetchRunPullRequests(repository, runId, token),
     );
     const runId = source ? String(source.workflow_run.id) : "";
     console.log(

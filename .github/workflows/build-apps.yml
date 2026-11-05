@@ -78,14 +78,15 @@ jobs:
         run: |
           echo "ios=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
           echo "tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android_tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          echo "android=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          echo "android_tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' --ignore-path 'targets/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
 
       - name: 🔎 Find an earlier build to repack
         id: find
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY_ID: ${{ github.repository_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_HEAD_REPO_ID: ${{ github.event.pull_request.head.repo.id }}
           IOS: ${{ steps.hash.outputs.ios }}
@@ -134,19 +135,6 @@ jobs:
           show-progress: false
 
       - parallel:
-          - name: 🗑️ Free Disk Space
-            if: env.REPACK_SOURCE == ''
-            uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
-            with:
-              tool-cache: false
-              mandb: true
-              android: false
-              dotnet: true
-              haskell: true
-              large-packages: false
-              docker-images: true
-              swap-storage: false
-
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -163,36 +151,67 @@ jobs:
               distribution: temurin
               java-version: "17"
 
-      - parallel:
-          - name: 💾 Cache Bun dependencies
-            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-            with:
-              path: ~/.bun/install/cache
-              key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
-              restore-keys: |
-                ${{ runner.os }}-${{ runner.arch }}-bun-
-
-          - name: 💾 Cache Gradle global
-            if: env.REPACK_SOURCE == ''
-            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-            with:
-              path: |
-                ~/.gradle/caches/modules-2
-                ~/.gradle/wrapper
-              key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-              restore-keys: |
-                ${{ runner.os }}-${{ runner.arch }}-gradle-
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
 
-      - name: 🛠️ Generate project files
-        if: env.REPACK_SOURCE == ''
+      # The repack runs first so a failed download or repack still gets the full
+      # build below: every Gradle step runs when there is no source or the
+      # repack failed.
+      - name: 📦 Repack the earlier APK
+        id: repack
+        if: env.REPACK_SOURCE != ''
+        uses: ./.github/actions/repack
+        continue-on-error: true
+        with:
+          platform: android
+          source-run-id: ${{ env.REPACK_SOURCE }}
+          artifact-name: streamyfin-android-phone-apk-fp-${{ env.FINGERPRINT }}
+          output: android/app/build/outputs/apk/release/app-release.apk
+          tv: "0"
+
+      - name: ⚠️ Fall back to the full build
+        if: steps.repack.outcome == 'failure'
+        run: echo "::warning::Repacking the earlier APK failed; running the full Gradle build."
+
+      - name: 🗑️ Free Disk Space
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: 💾 Cache Gradle global
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-gradle-
+
+      - name: ️ Generate project files
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        if: env.REPACK_SOURCE == ''
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
@@ -200,7 +219,7 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop
 
       - name: 🚀 Build APK
-        if: env.REPACK_SOURCE == ''
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         env:
           EXPO_TV: 0
           # CI artifact ships arm64 only (phones; emulators/Chromebooks not a
@@ -208,16 +227,6 @@ jobs:
           # so local `bun run android` (x86_64 emulator) is unaffected.
           ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
         run: bun run build:android:local
-
-      - name: 📦 Repack the earlier APK
-        if: env.REPACK_SOURCE != ''
-        uses: ./.github/actions/repack
-        with:
-          platform: android
-          source-run-id: ${{ env.REPACK_SOURCE }}
-          artifact-name: streamyfin-android-phone-apk-fp-${{ env.FINGERPRINT }}
-          output: android/app/build/outputs/apk/release/app-release.apk
-          tv: "0"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -256,19 +265,6 @@ jobs:
           show-progress: false
 
       - parallel:
-          - name: 🗑️ Free Disk Space
-            if: env.REPACK_SOURCE == ''
-            uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
-            with:
-              tool-cache: false
-              mandb: true
-              android: false
-              dotnet: true
-              haskell: true
-              large-packages: false
-              docker-images: true
-              swap-storage: false
-
           - name: 🍞 Setup Bun
             uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
             with:
@@ -285,36 +281,67 @@ jobs:
               distribution: temurin
               java-version: "17"
 
-      - parallel:
-          - name: 💾 Cache Bun dependencies
-            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-            with:
-              path: ~/.bun/install/cache
-              key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
-              restore-keys: |
-                ${{ runner.os }}-${{ runner.arch }}-bun-
-
-          - name: 💾 Cache Gradle global
-            if: env.REPACK_SOURCE == ''
-            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-            with:
-              path: |
-                ~/.gradle/caches/modules-2
-                ~/.gradle/wrapper
-              key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-              restore-keys: |
-                ${{ runner.os }}-${{ runner.arch }}-gradle-
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
 
+      # The repack runs first so a failed download or repack still gets the full
+      # build below: every Gradle step runs when there is no source or the
+      # repack failed.
+      - name: 📦 Repack the earlier APK
+        id: repack
+        if: env.REPACK_SOURCE != ''
+        uses: ./.github/actions/repack
+        continue-on-error: true
+        with:
+          platform: android
+          source-run-id: ${{ env.REPACK_SOURCE }}
+          artifact-name: streamyfin-android-tv-apk-fp-${{ env.FINGERPRINT }}
+          output: android/app/build/outputs/apk/release/app-release.apk
+          tv: "1"
+
+      - name: ⚠️ Fall back to the full build
+        if: steps.repack.outcome == 'failure'
+        run: echo "::warning::Repacking the earlier APK failed; running the full Gradle build."
+
+      - name: 🗑️ Free Disk Space
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: 💾 Cache Gradle global
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-gradle-
+
       - name: 🛠️ Generate project files
-        if: env.REPACK_SOURCE == ''
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        if: env.REPACK_SOURCE == ''
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
@@ -322,23 +349,13 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop
 
       - name: 🚀 Build APK
-        if: env.REPACK_SOURCE == ''
+        if: env.REPACK_SOURCE == '' || steps.repack.outcome == 'failure'
         env:
           EXPO_TV: 1
           # TV artifact keeps armeabi-v7a too: many older/cheap Android TV boxes
           # and sticks are still 32-bit ARM. Drops only x86_64. CI build only.
           ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,armeabi-v7a
         run: bun run build:android:local
-
-      - name: 📦 Repack the earlier APK
-        if: env.REPACK_SOURCE != ''
-        uses: ./.github/actions/repack
-        with:
-          platform: android
-          source-run-id: ${{ env.REPACK_SOURCE }}
-          artifact-name: streamyfin-android-tv-apk-fp-${{ env.FINGERPRINT }}
-          output: android/app/build/outputs/apk/release/app-release.apk
-          tv: "1"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -356,19 +373,81 @@ jobs:
       - name: 🔄 Refresh PR build comment
         uses: ./.github/actions/refresh-pr-comment
 
-  build-ios-phone:
+  # Repacks the earlier signed IPA on Linux, freeing the scarce macOS runner.
+  # Runs only when the fingerprint job found a source; anything else goes to
+  # the macOS build below, which also catches a failed repack.
+  repack-ios-phone:
     needs: fingerprint
-    # !cancelled() keeps a failed fingerprint job from skipping this required
-    # check, which would count as a pass. Its outputs are then empty, so the
-    # job falls back to the full macOS build.
-    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
-    runs-on: ${{ needs.fingerprint.outputs.ios_phone_source != '' && 'ubuntu-26.04' || 'macos-26' }}
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_source != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') }}
+    runs-on: ubuntu-26.04
+    name: 🍎 Repack iOS IPA (Phone)
+    permissions:
+      contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies
+        run: |
+          bun install --frozen-lockfile
+
+      - name: 📦 Repack the earlier IPA
+        uses: ./.github/actions/repack
+        with:
+          platform: ios
+          source-run-id: ${{ needs.fingerprint.outputs.ios_phone_source }}
+          artifact-name: streamyfin-ios-phone-ipa-fp-${{ env.FINGERPRINT }}
+          output: build/Streamyfin.ipa
+          tv: "0"
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          # The app and every extension it embeds; each needs its own profile.
+          bundle-identifiers: com.fredrikburmester.streamyfin com.fredrikburmester.streamyfin.downloadactivity
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: streamyfin-ios-phone-ipa-fp-${{ env.FINGERPRINT }}
+          path: build/*.ipa
+          retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
+  build-ios-phone:
+    needs: [fingerprint, repack-ios-phone]
+    # always() keeps a skipped repack job from skipping this required check,
+    # which would count as a pass. The full build runs when no earlier IPA can
+    # be repacked or the repack job did not succeed.
+    if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
+    runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
     env:
-      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_phone_source }}
       FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
 
     steps:
@@ -387,14 +466,12 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
-            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
               xcode-version: "26.6"
 
           - name: 🏗️ Setup EAS
-            if: env.REPACK_SOURCE == ''
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
             with:
               eas-version: latest
@@ -414,29 +491,14 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
-        if: env.REPACK_SOURCE == ''
         run: bun run prebuild
 
       - name: 🚀 Build iOS app
-        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 0
         # `ci` profile (extends production, autoIncrement off): keeps CI builds out of
         # the production version tier and stops them inflating the store build counter.
         run: eas build -p ios --local --non-interactive --profile ci
-
-      - name: 📦 Repack the earlier IPA
-        if: env.REPACK_SOURCE != ''
-        uses: ./.github/actions/repack
-        with:
-          platform: ios
-          source-run-id: ${{ env.REPACK_SOURCE }}
-          artifact-name: streamyfin-ios-phone-ipa-fp-${{ env.FINGERPRINT }}
-          output: build/Streamyfin.ipa
-          tv: "0"
-          expo-token: ${{ secrets.EXPO_TOKEN }}
-          # The app and every extension it embeds; each needs its own profile.
-          bundle-identifiers: com.fredrikburmester.streamyfin com.fredrikburmester.streamyfin.downloadactivity
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -455,16 +517,75 @@ jobs:
       - name: 🔄 Refresh PR build comment
         uses: ./.github/actions/refresh-pr-comment
 
-  build-ios-phone-unsigned:
+  repack-ios-phone-unsigned:
     needs: fingerprint
-    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') }}
-    runs-on: ${{ needs.fingerprint.outputs.ios_phone_unsigned_source != '' && 'ubuntu-26.04' || 'macos-26' }}
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_phone_unsigned_source != '' }}
+    runs-on: ubuntu-26.04
+    name: 🍎 Repack iOS IPA (Phone - Unsigned)
+    permissions:
+      contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies
+        run: |
+          bun install --frozen-lockfile
+
+      - name: 📦 Repack the earlier IPA
+        uses: ./.github/actions/repack
+        with:
+          platform: ios
+          source-run-id: ${{ needs.fingerprint.outputs.ios_phone_unsigned_source }}
+          artifact-name: streamyfin-ios-phone-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          output: build/Streamyfin.ipa
+          tv: "0"
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: streamyfin-ios-phone-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          path: build/*.ipa
+          retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
+  build-ios-phone-unsigned:
+    needs: [fingerprint, repack-ios-phone-unsigned]
+    # always() keeps a skipped repack job from skipping this required check,
+    # which would count as a pass. The full build runs when no earlier IPA can
+    # be repacked or the repack job did not succeed.
+    if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_phone_unsigned_source == '' || needs.repack-ios-phone-unsigned.result != 'success') }}
+    runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
     env:
-      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_phone_unsigned_source }}
       FINGERPRINT: ${{ needs.fingerprint.outputs.ios_hash }}
 
     steps:
@@ -483,7 +604,6 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
-            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
@@ -502,24 +622,12 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
-        if: env.REPACK_SOURCE == ''
         run: bun run prebuild
 
       - name: 🚀 Build iOS app
-        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 0
         run: bun run ios:unsigned-build
-
-      - name: 📦 Repack the earlier IPA
-        if: env.REPACK_SOURCE != ''
-        uses: ./.github/actions/repack
-        with:
-          platform: ios
-          source-run-id: ${{ env.REPACK_SOURCE }}
-          artifact-name: streamyfin-ios-phone-unsigned-ipa-fp-${{ env.FINGERPRINT }}
-          output: build/Streamyfin.ipa
-          tv: "0"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -606,19 +714,78 @@ jobs:
           path: build-*.ipa
           retention-days: 7
 
+  repack-ios-tv-unsigned:
+    needs: fingerprint
+    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_tv_unsigned_source != '' }}
+    runs-on: ubuntu-26.04
+    name: 🍎 Repack tvOS IPA (Unsigned)
+    permissions:
+      contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
+    env:
+      FINGERPRINT: ${{ needs.fingerprint.outputs.tv_hash }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies
+        run: |
+          bun install --frozen-lockfile
+
+      - name: 📦 Repack the earlier IPA
+        uses: ./.github/actions/repack
+        with:
+          platform: ios
+          source-run-id: ${{ needs.fingerprint.outputs.ios_tv_unsigned_source }}
+          artifact-name: streamyfin-ios-tv-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          output: build/Streamyfin.ipa
+          tv: "1"
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Named after the fingerprint, so a later run with the same native
+          # code can find this IPA and repack it.
+          name: streamyfin-ios-tv-unsigned-ipa-fp-${{ env.FINGERPRINT }}
+          path: build/*.ipa
+          retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-ios-tv-unsigned:
     # Unsigned tvOS build is enabled (compiles without Apple credentials).
     # The signed tvOS job above stays disabled until tvOS provisioning
     # profiles are set up in EAS (app + TopShelf targets).
-    needs: fingerprint
-    if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') }}
-    runs-on: ${{ needs.fingerprint.outputs.ios_tv_unsigned_source != '' && 'ubuntu-26.04' || 'macos-26' }}
+    # always() keeps a skipped repack job from skipping this required check,
+    # which would count as a pass. The full build runs when no earlier IPA can
+    # be repacked or the repack job did not succeed.
+    needs: [fingerprint, repack-ios-tv-unsigned]
+    if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_tv_unsigned_source == '' || needs.repack-ios-tv-unsigned.result != 'success') }}
+    runs-on: macos-26
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
     env:
-      REPACK_SOURCE: ${{ needs.fingerprint.outputs.ios_tv_unsigned_source }}
       FINGERPRINT: ${{ needs.fingerprint.outputs.tv_hash }}
 
     steps:
@@ -637,7 +804,6 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🔧 Setup Xcode
-            if: env.REPACK_SOURCE == ''
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
@@ -656,24 +822,12 @@ jobs:
           bun install --frozen-lockfile
 
       - name: 🛠️ Generate project files
-        if: env.REPACK_SOURCE == ''
         run: bun run prebuild:tv
 
       - name: 🚀 Build iOS app
-        if: env.REPACK_SOURCE == ''
         env:
           EXPO_TV: 1
         run: bun run ios:unsigned-build:tv
-
-      - name: 📦 Repack the earlier IPA
-        if: env.REPACK_SOURCE != ''
-        uses: ./.github/actions/repack
-        with:
-          platform: ios
-          source-run-id: ${{ env.REPACK_SOURCE }}
-          artifact-name: streamyfin-ios-tv-unsigned-ipa-fp-${{ env.FINGERPRINT }}
-          output: build/Streamyfin.ipa
-          tv: "1"
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
