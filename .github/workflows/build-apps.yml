@@ -591,7 +591,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
@@ -613,12 +613,6 @@ jobs:
             with:
               # renovate: datasource=npm depName=bun
               bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
 
           - name: 🏗️ Setup EAS
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
@@ -738,7 +732,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_phone_unsigned_source == '' || needs.repack-ios-phone-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
@@ -754,18 +748,11 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - parallel:
-          - name: 🍞 Setup Bun
-            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-            with:
-              # renovate: datasource=npm depName=bun
-              bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -876,7 +863,7 @@ jobs:
     # be repacked or the repack job did not succeed.
     needs: [fingerprint, repack-ios-tv-unsigned]
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_tv_unsigned_source == '' || needs.repack-ios-tv-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
@@ -892,18 +879,11 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - parallel:
-          - name: 🍞 Setup Bun
-            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-            with:
-              # renovate: datasource=npm depName=bun
-              bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
