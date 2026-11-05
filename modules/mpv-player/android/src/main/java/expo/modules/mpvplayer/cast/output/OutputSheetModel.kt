@@ -119,7 +119,10 @@ fun failureCause(error: String?, code: Int?): FailureCause =
 fun outputSheetState(input: OutputSheetInput): OutputSheetState {
     val snapshot = input.snapshot
     val target = snapshot.target
-    if (snapshot.phase == TargetPhase.CONNECTED && target != null && !input.showingList) {
+    // A suspended session stays the receiver's while the SDK reaches it again: its panel reads Reconnecting.
+    val held =
+        snapshot.phase == TargetPhase.CONNECTED || (snapshot.phase == TargetPhase.CONNECTING && snapshot.reconnecting)
+    if (held && target != null && !input.showingList) {
         return OutputSheetState.Connected(
             target = target,
             videoOut = input.devices.firstOrNull { it.id == target.id }?.videoOut ?: true,
