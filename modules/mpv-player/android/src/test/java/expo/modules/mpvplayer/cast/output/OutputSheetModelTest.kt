@@ -155,6 +155,22 @@ class OutputSheetModelTest {
         assertEquals(null, playing.receiverTitle)
     }
 
+    // Android only: a mute set on the device by another sender (Google Home) is one the app's stream mute cannot
+    // lift. The button shows it, held still, instead of offering an unmute that does nothing.
+    @Test
+    fun aMuteSetOnTheDeviceCannotBeLiftedHere() {
+        val deviceMuted = RemoteTargetSnapshot(
+            TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5,
+            muted = true, deviceMuted = true,
+        )
+
+        val panel = outputSheetState(input(snapshot = deviceMuted, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(true, panel.showsVolume)
+        assertEquals(true, panel.muted)
+        assertEquals(false, panel.canMute)
+    }
+
     // A suspended session is still the receiver's: its panel stays, reading Reconnecting, while the SDK reaches
     // it again, instead of a list whose Cancel would end it (bench 05/11, iOS back from the background).
     @Test
