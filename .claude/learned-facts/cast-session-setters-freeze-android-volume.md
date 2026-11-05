@@ -21,9 +21,12 @@ setting the level through it does not freeze the session:
   the old session ends; `volumeMax` steps (20 on a Chromecast), none on a route with no maximum. The Cast dialog's slider and the system Output Switcher
   do the same. The published level is still the session's, which keeps its full precision.
 - **Mute**: there is no route mute. The app mutes the playing stream,
-  `RemoteMediaClient.setStreamMute`, as the SDK's expanded controls do. It silences the media
-  without muting the device (`media muted=True`, `device muted=False` on the receiver), needs a
-  media session, and the published mute is the device's or the stream's.
+  `RemoteMediaClient.setStreamMute`. It silences the media without muting the device
+  (`media muted=True`, `device muted=False` on the receiver), needs a media session, and the
+  published mute is the device's or the stream's. The SDK's own mute toggle
+  (`UIMediaController.bindImageViewToMuteToggle`, in its expanded controls) mutes the device
+  volume instead, as its reference says; on the bench of 2026-11-05 it lifted a device mute
+  another sender had set. A device mute set elsewhere is one the stream mute cannot lift.
 
 iOS has no such freeze: `GCKCastSession.setDeviceVolume` and `setDeviceMuted` keep the session
 following outside changes, so iOS sets the device's level and mute.
