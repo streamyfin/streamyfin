@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.ComposeView
 import com.google.android.gms.common.ConnectionResult
 import expo.modules.mpvplayer.cast.target.FakeTargetPort
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.TargetDevice
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +25,8 @@ import org.robolectric.Shadows.shadowOf
 // version, so the services check throws here as it can on a device: the sheet still opens.
 @RunWith(RobolectricTestRunner::class)
 class OutputPickerPresenterTest {
+    private val livingRoom = TargetDevice("device-a", "Living room")
+
     @After
     fun dismissLeftovers() {
         OutputPickerPresenter.dismiss()
@@ -31,6 +34,9 @@ class OutputPickerPresenterTest {
         OutputPickerPresenter.currentActivity = { null }
         OutputPickerPresenter.checkPlayServices = OutputPickerPresenter.defaultCheckPlayServices
         OutputPickerPresenter.resolvePlayServices = OutputPickerPresenter.defaultResolvePlayServices
+        OutputPickerPresenter.receiverTitle = { null }
+        OutputPickerPresenter.receiverPlaying = { false }
+        OutputPickerPresenter.onPlayServicesAvailable = {}
     }
 
     private fun sheetIn(activity: ComponentActivity): Boolean {
@@ -113,6 +119,44 @@ class OutputPickerPresenterTest {
 
         assertEquals(PlayServicesStatus.MISSING, before)
         assertEquals(PlayServicesStatus.AVAILABLE, OutputPickerPresenter.presentedController?.environment?.playServices)
+    }
+
+    // Installed from the sheet, the services start no Cast context on their own: the module starts it, and the
+    // open sheet finds the receivers without being opened again.
+    @Test
+    fun servicesThatCameBackStartTheCastContext() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var started = 0
+        OutputPickerPresenter.onPlayServicesAvailable = { started++ }
+        OutputPickerPresenter.checkPlayServices = { ConnectionResult.SERVICE_MISSING }
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+
+        screen.pause().resume()
+        OutputPickerPresenter.checkPlayServices = { ConnectionResult.SUCCESS }
+        screen.pause().resume()
+        screen.pause().resume()
+
+        assertEquals(1, started)
+    }
+
+    // A session that ends, or starts, changes what the receiver plays before any media status says so: the open
+    // panel reads it again, instead of offering to stop what the receiver no longer plays.
+    @Test
+    fun aSessionEndReadsWhatTheReceiverPlaysAgain() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        RemoteTargetHub.shared.install(port)
+        port.emit("started", livingRoom)
+        var title: String? = "Big Buck Bunny"
+        OutputPickerPresenter.receiverTitle = { title }
+        OutputPickerPresenter.receiverPlaying = { title != null }
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+
+        title = null
+        port.emit("ended", livingRoom)
+
+        assertEquals(null, OutputPickerPresenter.presentedController?.environment?.receiverTitle)
+        assertEquals(false, OutputPickerPresenter.presentedController?.environment?.receiverPlaying)
     }
 
     // The services' dialog runs the same check, which throws where the manifest lacks their version.

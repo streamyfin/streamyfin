@@ -153,6 +153,8 @@ class CastModule : Module() {
             OutputPickerPresenter.receiverPlaying = { mediaClient?.mediaStatus?.let { CastMapping.isPlaying(it.playerState) } == true }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
+            // Installed from the sheet: the context the module could not start before starts now.
+            OutputPickerPresenter.onPlayServicesAvailable = { if (!destroyed) ensureContext() }
         }
 
         OnStartObserving {

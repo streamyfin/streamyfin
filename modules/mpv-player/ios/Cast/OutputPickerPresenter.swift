@@ -23,6 +23,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   private var store: OutputSheetStore?
   private var onRemote: (() -> Void)?
   private var anchored = false
+  private var removeTargetWatch: (() -> Void)?
   private let airPlayRoute = AirPlayRouteObserver()
 
   var isPresented: Bool { hosting != nil }
@@ -32,6 +33,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   /// `anchor`, its frame in window points as JS measures it, is the fallback without it.
   @discardableResult
   func present(anchor: CGRect?, anchorView: UIView? = nil, playingHere: String?, onRemote: @escaping () -> Void) -> Bool {
+    // Taken down with the screen that presented it, the sheet heard no dismissal: it is gone all the same.
+    if let hosting, hosting.presentingViewController == nil, !hosting.isBeingPresented { finish() }
     if let controller {
       self.onRemote = onRemote
       controller.environment.playingHere = playingHere
@@ -81,6 +84,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     self.hosting = hosting
     self.controller = sheet
     self.store = store
+    removeTargetWatch = RemoteTargetHub.shared.addListener(self)
     sheet.open()
     top.present(hosting, animated: true)
     return true
@@ -128,6 +132,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   private func finish() {
     guard hosting != nil else { return }
     hosting = nil
+    removeTargetWatch?()
+    removeTargetWatch = nil
     controller?.close()
     controller = nil
     store = nil
@@ -160,5 +166,14 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     }
     return top
   }
+}
+
+// A session that ends or starts changes what the receiver plays before any media status says so.
+extension OutputPickerPresenter: RemoteTargetListener {
+  func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+    refresh()
+  }
+
+  func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {}
 }
 #endif
