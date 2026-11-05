@@ -10,7 +10,12 @@ interface Options {
    * user's language. Left off, such a person has no role.
    */
   labelRoles?: boolean;
+  /** Keep at most this many people, counted after the merge. */
+  limit?: number;
 }
+
+/** A merged person: always has an `Id`, so it can be opened and keyed on. */
+export type CastCrewPerson = BaseItemPerson & { Id: string };
 
 /**
  * What one credit says about a person: the role when there is one, otherwise
@@ -18,11 +23,11 @@ interface Options {
  */
 const creditText = (
   person: BaseItemPerson,
-  kindLabel: (kind: string) => string,
+  kindLabel: ((kind: string) => string) | undefined,
 ): string | undefined => {
   const role = person.Role?.trim();
   if (role) return role;
-  if (!person.Type || person.Type === "Unknown") return undefined;
+  if (!kindLabel || !person.Type || person.Type === "Unknown") return undefined;
   return kindLabel(person.Type).trim() || undefined;
 };
 
@@ -35,8 +40,8 @@ const creditText = (
  */
 const mergePeopleById = (
   people: BaseItemPerson[] | null | undefined,
-  kindLabel: (kind: string) => string,
-): BaseItemPerson[] => {
+  kindLabel: ((kind: string) => string) | undefined,
+): CastCrewPerson[] => {
   const merged = new Map<string, { person: BaseItemPerson; roles: string[] }>();
 
   for (const person of people ?? []) {
@@ -52,8 +57,9 @@ const mergePeopleById = (
     if (text && !entry.roles.includes(text)) entry.roles.push(text);
   }
 
-  return [...merged.values()].map(({ person, roles }) => ({
+  return [...merged].map(([id, { person, roles }]) => ({
     ...person,
+    Id: id,
     Role: roles.length > 0 ? roles.join(", ") : null,
   }));
 };
@@ -68,8 +74,8 @@ const mergePeopleById = (
  */
 export const useCastCrew = (
   people: BaseItemPerson[] | null | undefined,
-  { kind, labelRoles = false }: Options = {},
-): BaseItemPerson[] => {
+  { kind, labelRoles = false, limit }: Options = {},
+): CastCrewPerson[] => {
   const { t } = useTranslation();
 
   return useMemo(
@@ -80,9 +86,9 @@ export const useCastCrew = (
         // which is what a kind newer than the catalogue shows as.
         labelRoles
           ? (k) => t(`item_card.person_kind.${k}`, { defaultValue: k })
-          : () => "",
-      ),
-    [people, kind, labelRoles, t],
+          : undefined,
+      ).slice(0, limit),
+    [people, kind, labelRoles, limit, t],
   );
 };
 

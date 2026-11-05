@@ -10,6 +10,14 @@ import { pendingIdleCallbacks } from "@/test-utils/idleCallback";
 const mockPeopleByItem: Record<string, BaseItemPerson[]> = {
   "movie-1": [{ Id: "person-1", Name: "Ada Actor", Type: "Actor" }],
   "movie-2": [{ Id: "person-2", Name: "Bea Actor", Type: "Actor" }],
+  "movie-3": [
+    { Id: "director", Name: "Director", Type: "Director" },
+    { Id: "a", Name: "Ana", Type: "Actor", Role: "Hero" },
+    { Id: "a", Name: "Ana", Type: "Actor", Role: "Mother" },
+    { Id: "b", Name: "Ben", Type: "Actor" },
+    { Id: "c", Name: "Cy", Type: "Actor" },
+    { Id: "d", Name: "Dee", Type: "Actor" },
+  ],
 };
 let mockOffline = false;
 /** Whether the page asked the server for its people. */
@@ -35,12 +43,22 @@ const MockCastAndCrew = ({ item }: { item: BaseItemDto }) => (
 jest.mock("@/components/series/CastAndCrew", () => ({
   CastAndCrew: (props: { item: BaseItemDto }) => MockCastAndCrew(props),
 }));
+// Labelled apart from the names the cast row shows, so each section is found
+// on its own.
+const MockMoreMoviesWithActor = ({ actorName }: { actorName: string }) => (
+  <Text>{`More with ${actorName}`}</Text>
+);
 jest.mock("@/components/MoreMoviesWithActor", () => ({
-  MoreMoviesWithActor: () => null,
+  MoreMoviesWithActor: (props: { actorName: string }) =>
+    MockMoreMoviesWithActor(props),
+}));
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 const item = { Id: "movie-1", Name: "Movie" } as BaseItemDto;
 const otherItem = { Id: "movie-2", Name: "Other movie" } as BaseItemDto;
+const crewedItem = { Id: "movie-3", Name: "Crewed movie" } as BaseItemDto;
 
 describe("ItemPeopleSections", () => {
   beforeEach(() => {
@@ -123,5 +141,18 @@ describe("ItemPeopleSections", () => {
 
     await view.unmount();
     expect(pendingIdleCallbacks()).toBe(0);
+  });
+
+  test("actor sections skip crew and count each actor once", async () => {
+    await render(<ItemPeopleSections item={crewedItem} />);
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(screen.getByText("More with Ana")).toBeTruthy();
+    expect(screen.getByText("More with Ben")).toBeTruthy();
+    expect(screen.getByText("More with Cy")).toBeTruthy();
+    expect(screen.queryByText("More with Director")).toBeNull();
+    expect(screen.queryByText("More with Dee")).toBeNull();
   });
 });
