@@ -25,6 +25,7 @@ class OutputSheetModelTest {
         playingHere: String? = null,
         receiverTitle: String? = null,
         receiverPlaying: Boolean = receiverTitle != null,
+        receiverGoesOnHere: Boolean = receiverPlaying,
         handOff: Boolean = false,
         showingList: Boolean = false,
     ) = OutputSheetInput(
@@ -38,6 +39,7 @@ class OutputSheetModelTest {
         playingHere = playingHere,
         receiverTitle = receiverTitle,
         receiverPlaying = receiverPlaying,
+        receiverGoesOnHere = receiverGoesOnHere,
         showingList = showingList,
         draggedVolume = null,
         handOff = handOff,
@@ -217,6 +219,19 @@ class OutputSheetModelTest {
         assertEquals(true, playing.continueHere)
         assertEquals(false, idle.continueHere)
         assertEquals(false, inThePlayer.continueHere)
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: the row offers nothing to take over.
+    @Test
+    fun thisDeviceOffersNothingOfWhatStaysOnTheReceiver() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val music =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = true, receiverGoesOnHere = false, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, music.continueHere)
     }
 
     // The hand-off waits for the session to be back: a reconnecting receiver takes no item.

@@ -164,9 +164,10 @@ enum OutputSheetTests {
       let connected = RemoteTargetSnapshot(
         phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
       )
-      func continueHere(playing: Bool, handOff: Bool) -> Bool? {
+      func continueHere(playing: Bool, handOff: Bool, goesOnHere: Bool? = nil) -> Bool? {
         var list = input(snapshot: connected)
         list.receiverPlaying = playing
+        list.receiverGoesOnHere = goesOnHere ?? playing
         list.showingList = true
         list.handOff = handOff
         if case let .thisDevice(_, _, continueHere) = rows(outputSheetState(list)).first { return continueHere }
@@ -176,6 +177,11 @@ enum OutputSheetTests {
         "thisDeviceOffersToContinueWhileTheReceiverPlays",
         continueHere(playing: true, handOff: false) == true && continueHere(playing: false, handOff: false) == false
           && continueHere(playing: true, handOff: true) == false
+      )
+      // Music, live TV and media another sender loaded stay on the receiver: the row offers nothing to take over.
+      check(
+        "thisDeviceOffersNothingOfWhatStaysOnTheReceiver",
+        continueHere(playing: true, handOff: false, goesOnHere: false) == false
       )
     }
 
@@ -271,8 +277,9 @@ enum OutputSheetTests {
       let hub = RemoteTargetHub()
       hub.install(port)
       let sheet = OutputSheetController(hub: hub, schedule: clock.schedule)
+      let playing = receiverPlaying ?? (receiverTitle != nil)
       sheet.environment = OutputSheetEnvironment(
-        receiverTitle: receiverTitle, receiverPlaying: receiverPlaying ?? (receiverTitle != nil)
+        receiverTitle: receiverTitle, receiverPlaying: playing, receiverGoesOnHere: playing
       )
       sheet.onOutput = outputs
       sheet.open()
@@ -583,6 +590,18 @@ enum OutputSheetTests {
       sheet.change()
       if let first = rows(sheet.state).first { sheet.tap(first) }
       check("thisDeviceWithNothingOnTheReceiverStopsIt", port.disconnects == [true] && outputs == [.dismiss])
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: this phone stops it, as before.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      sheet.environment.receiverGoesOnHere = false
+      port.emit("started", livingRoom)
+      sheet.change()
+      if let first = rows(sheet.state).first { sheet.tap(first) }
+      check("thisDeviceWithMusicOnTheReceiverStopsIt", port.disconnects == [true] && outputs == [.dismiss])
     }
 
     // In the player, the phone already has its video: this phone stops the receiver, as before.

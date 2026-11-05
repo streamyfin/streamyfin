@@ -15,6 +15,8 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   var receiverTitle: () -> String? = { nil }
   /// Whether something plays on the receiver, with a title or without.
   var receiverPlaying: () -> Bool = { false }
+  /// Whether what the receiver plays can go on on this device, which "Continue here" offers.
+  var receiverGoesOnHere: () -> Bool = { false }
   /// Called once the sheet is gone, whichever way it went.
   var onDismissed: (() -> Void)?
 
@@ -50,6 +52,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       controller.environment.playingHere = playingHere
       controller.environment.receiverTitle = receiverTitle()
       controller.environment.receiverPlaying = receiverPlaying()
+      controller.environment.receiverGoesOnHere = receiverGoesOnHere()
       return true
     }
     // A sheet that cannot show keeps no callback, which would hold the module.
@@ -65,6 +68,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       playingHere: playingHere,
       receiverTitle: receiverTitle(),
       receiverPlaying: receiverPlaying(),
+      receiverGoesOnHere: receiverGoesOnHere(),
       handOff: handOff
     )
     sheet.onOutput = { [weak self] output in self?.handle(output) }
@@ -111,6 +115,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   func refresh() {
     controller?.environment.receiverTitle = receiverTitle()
     controller?.environment.receiverPlaying = receiverPlaying()
+    controller?.environment.receiverGoesOnHere = receiverGoesOnHere()
   }
 
   /// The debug probe's sheet, for its screenshots: over whatever the app shows, and never in place of the app's.

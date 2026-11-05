@@ -25,6 +25,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.cast.output.LastHeardStatus
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.output.OutputPickerStrings
+import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.RemoteTargetListener
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
@@ -164,6 +165,12 @@ class CastModule : Module() {
             }
             OutputPickerPresenter.receiverPlaying = {
                 heardStatus.read(mediaClient?.mediaStatus)?.let { CastMapping.isPlaying(it.playerState) } == true
+            }
+            OutputPickerPresenter.receiverGoesOnHere = {
+                heardStatus.read(mediaClient?.mediaStatus)?.mediaInfo?.let { media ->
+                    val data = ReceiverProtocol.parseCustomData(media.customData)
+                    CastMapping.goesOnHere(media.metadata?.mediaType, data.itemId, data.liveStreamId)
+                } == true
             }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }

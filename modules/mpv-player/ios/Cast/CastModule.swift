@@ -61,6 +61,13 @@ public class CastModule: Module {
       presenter.receiverPlaying = {
         CastMapping.isPlaying(self?.heardMediaStatus()?.playerState.rawValue ?? 0)
       }
+      presenter.receiverGoesOnHere = {
+        guard let media = self?.heardMediaStatus()?.mediaInformation else { return false }
+        let data = ReceiverProtocol.parseCustomData(media.customData as? [String: Any])
+        return CastMapping.goesOnHere(
+          metadataType: media.metadata?.metadataType.rawValue, itemId: data.itemId, liveStreamId: data.liveStreamId
+        )
+      }
       presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
     }
 

@@ -22,6 +22,7 @@ data class OutputSheetEnvironment(
     val playingHere: String? = null,
     val receiverTitle: String? = null,
     val receiverPlaying: Boolean = false,
+    val receiverGoesOnHere: Boolean = false,
     /** Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel. */
     val handOff: Boolean = false,
 )
@@ -261,6 +262,7 @@ class OutputSheetController(
             playingHere = environment.playingHere,
             receiverTitle = environment.receiverTitle,
             receiverPlaying = environment.receiverPlaying,
+            receiverGoesOnHere = environment.receiverGoesOnHere,
             showingList = showingList,
             draggedVolume = dragged ?: held,
             requestedId = requestedId,

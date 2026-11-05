@@ -14,6 +14,7 @@ struct OutputSheetEnvironment {
   var playingHere: String?
   var receiverTitle: String?
   var receiverPlaying = false
+  var receiverGoesOnHere = false
   /// Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel.
   var handOff = false
 }
@@ -238,7 +239,8 @@ final class OutputSheetController: RemoteTargetListener {
       snapshot: hub.snapshot, devices: hub.devices, discovering: isOpen, searchTimedOut: searchTimedOut,
       playServices: environment.playServices, airPlay: environment.airPlay, thisDevice: environment.thisDevice,
       playingHere: environment.playingHere, receiverTitle: environment.receiverTitle,
-      receiverPlaying: environment.receiverPlaying, showingList: showingList,
+      receiverPlaying: environment.receiverPlaying, receiverGoesOnHere: environment.receiverGoesOnHere,
+      showingList: showingList,
       draggedVolume: dragged ?? held, requestedId: requestedId, handOff: environment.handOff
     )
   }

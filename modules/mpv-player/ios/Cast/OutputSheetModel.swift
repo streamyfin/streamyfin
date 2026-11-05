@@ -32,6 +32,8 @@ struct OutputSheetInput {
   var receiverTitle: String?
   /// Something plays on the receiver, with a title or without.
   var receiverPlaying = false
+  /// What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor music.
+  var receiverGoesOnHere = false
   /// "Change" asked for the list over a connected target.
   var showingList: Bool
   /// The level under the finger, or the one sent until the receiver echoes it.
@@ -145,7 +147,8 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
     )
   }
   // In the player the phone already has its video: there this row stops the receiver, as before.
-  let continueHere = !input.handOff && snapshot.phase == .connected && input.receiverPlaying
+  let continueHere =
+    !input.handOff && snapshot.phase == .connected && input.receiverPlaying && input.receiverGoesOnHere
   var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere)]
   switch input.playServices {
   case .missing:

@@ -96,6 +96,9 @@ object OutputPickerPresenter {
     /** Whether something plays on the receiver, with a title or without. */
     var receiverPlaying: () -> Boolean = { false }
 
+    /** Whether what the receiver plays can go on on this device, which "Continue here" offers. */
+    var receiverGoesOnHere: () -> Boolean = { false }
+
     /** Called once the sheet is gone, whichever way it went. */
     var onDismissed: (() -> Unit)? = null
 
@@ -155,6 +158,7 @@ object OutputPickerPresenter {
                     playingHere = playingHere,
                     receiverTitle = receiverTitle(),
                     receiverPlaying = receiverPlaying(),
+                    receiverGoesOnHere = receiverGoesOnHere(),
                     handOff = handOff,
                 )
             return true
@@ -167,6 +171,7 @@ object OutputPickerPresenter {
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
                 receiverPlaying = receiverPlaying(),
+                receiverGoesOnHere = receiverGoesOnHere(),
                 handOff = handOff,
             )
         sheet.onOutput = { output -> handle(activity, output) }
@@ -216,7 +221,12 @@ object OutputPickerPresenter {
     @MainThread
     fun refresh() {
         controller?.let { sheet ->
-            sheet.environment = sheet.environment.copy(receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
+            sheet.environment =
+                sheet.environment.copy(
+                    receiverTitle = receiverTitle(),
+                    receiverPlaying = receiverPlaying(),
+                    receiverGoesOnHere = receiverGoesOnHere(),
+                )
         }
     }
 

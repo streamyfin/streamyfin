@@ -22,7 +22,12 @@ class OutputSheetControllerTest {
 
     private fun sheet(hub: RemoteTargetHub, receiverTitle: String? = "Big Buck Bunny") =
         OutputSheetController(hub, scheduler.schedule).also {
-            it.environment = OutputSheetEnvironment(receiverTitle = receiverTitle, receiverPlaying = receiverTitle != null)
+            it.environment =
+                OutputSheetEnvironment(
+                    receiverTitle = receiverTitle,
+                    receiverPlaying = receiverTitle != null,
+                    receiverGoesOnHere = receiverTitle != null,
+                )
             it.onOutput = { output -> outputs += output }
             it.open()
         }
@@ -382,6 +387,21 @@ class OutputSheetControllerTest {
     fun thisDeviceWithNothingOnTheReceiverStopsIt() {
         val port = port()
         val sheet = sheet(hubWith(port), receiverTitle = null)
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.DISMISS), outputs)
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: this phone stops it, as before.
+    @Test
+    fun thisDeviceWithMusicOnTheReceiverStopsIt() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        sheet.environment = sheet.environment.copy(receiverGoesOnHere = false)
         port.emit("started", livingRoom)
         sheet.change()
 
