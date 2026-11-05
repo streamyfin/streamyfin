@@ -107,7 +107,10 @@ jobs:
           if [ "$CAN_SIGN" = "true" ]; then
             names+=("ios_phone=streamyfin-ios-phone-ipa-fp-$IOS")
           fi
-          bun scripts/ci/find-native-build.ts "${names[@]}"
+          # A failed lookup only means no earlier build is known: the outputs it
+          # did not write stay empty, and those jobs build in full.
+          bun scripts/ci/find-native-build.ts "${names[@]}" ||
+            echo "::warning::The lookup for an earlier build failed; the jobs without a source build in full."
 
   # Repacks an earlier APK on Linux when the fingerprint job found a source;
   # the Gradle build below runs when it did not succeed.

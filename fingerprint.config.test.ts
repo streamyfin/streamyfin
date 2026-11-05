@@ -28,6 +28,11 @@ describe("fingerprint.config.js", () => {
     );
   });
 
+  it("hashes the build workflow, which sets native build options", () => {
+    // The ABIs and the Xcode version live there, out of the project's sight.
+    expect(hashed.has(".github/workflows/build-apps.yml")).toBe(true);
+  });
+
   it.each(["android", "android_tv"])(
     "excludes iOS-only sources from the %s CI fingerprint",
     (output) => {

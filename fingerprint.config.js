@@ -11,6 +11,10 @@
 // - Files passed as config plugin options in `app.json`: the tvOS icons and
 //   Top Shelf images, the fonts, the splash image, the notification icon. The
 //   fingerprint hashes plugin options as text, not the files they point to.
+// - The build workflow, which sets native build options the project does not:
+//   the Android ABIs, the Xcode and Java versions. A repack re-uploads the
+//   binary it started from, so without this a changed option would never
+//   reach the artifacts.
 const { existsSync, readFileSync } = require("node:fs");
 
 const pluginOptionFiles = () => {
@@ -45,6 +49,11 @@ module.exports = {
       type: "dir",
       filePath: "scripts/ios",
       reasons: ["Native iOS and tvOS build scripts"],
+    },
+    {
+      type: "file",
+      filePath: ".github/workflows/build-apps.yml",
+      reasons: ["Native build options set by the CI workflow"],
     },
     ...pluginOptionFiles().map((filePath) => ({
       type: "file",
