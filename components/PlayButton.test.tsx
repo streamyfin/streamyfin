@@ -418,3 +418,18 @@ test("the load to the receiver goes stale with the account that pressed", async 
   expect(before).toBe(false);
   expect(isStale?.()).toBe(true);
 });
+
+// The last choice wins: a play here while a press still waits for the receiver plays here only.
+test("a play here while a press waits plays here only", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});

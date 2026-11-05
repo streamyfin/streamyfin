@@ -92,6 +92,11 @@ export const PlayButton: React.FC<Props> = ({
   // The press waiting for a connection: one at a time, dropped with the button.
   const pendingWait = useRef<AbortController | null>(null);
   useEffect(() => () => pendingWait.current?.abort(), []);
+  // A play here is the last choice: the press still waiting for the receiver goes.
+  const dropPendingWait = useCallback(() => {
+    pendingWait.current?.abort();
+    pendingWait.current = null;
+  }, []);
 
   const playRequestFor = useCallback(
     (positionTicks: number): PlayRequest => ({
@@ -205,6 +210,7 @@ export const PlayButton: React.FC<Props> = ({
         // A connection cancelled from the sheet ends without an error: nothing to say.
         return;
       }
+      dropPendingWait();
       await playMedia(playRequestFor(positionTicks), { item });
     },
     [
@@ -213,6 +219,7 @@ export const PlayButton: React.FC<Props> = ({
       isOffline,
       user,
       store,
+      dropPendingWait,
       playOnTarget,
       playMedia,
       playRequestFor,
@@ -231,6 +238,7 @@ export const PlayButton: React.FC<Props> = ({
 
       // If already in offline mode, play downloaded file directly
       if (isOffline && downloadedItem) {
+        dropPendingWait();
         await playMedia(
           {
             itemId: item.Id!,
@@ -265,6 +273,7 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
+                      dropPendingWait();
                       void playMedia(
                         {
                           itemId: item.Id!,
@@ -309,6 +318,7 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_yes"),
                 onPress: () => {
+                  dropPendingWait();
                   void playMedia(
                     {
                       itemId: item.Id!,
@@ -343,6 +353,7 @@ export const PlayButton: React.FC<Props> = ({
       item,
       target,
       isOffline,
+      dropPendingWait,
       handleNormalPlayFlow,
       playMedia,
       t,
