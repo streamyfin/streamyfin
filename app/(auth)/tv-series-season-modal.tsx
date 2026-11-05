@@ -12,11 +12,15 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVCancelButton, TVOptionCard } from "@/components/tv";
+import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
+// Spec: hooks/useTVSeriesSeasonModal.test.tsx. It cannot sit next to this file,
+// Expo Router turns everything under app/ into a route.
 export default function TVSeriesSeasonModalPage() {
   const typography = useScaledTVTypography();
   const router = useRouter();
@@ -28,6 +32,10 @@ export default function TVSeriesSeasonModalPage() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  // Android TV can deliver one remote select twice in the same JS batch
+  // (react-native-tvos#110/#138, see useAppRouter): the sheet closes once, or
+  // the second router.back() pops the screen under it as well.
+  const submission = useRef(createSubmission()).current;
 
   const initialSelectedIndex = useMemo(() => {
     if (!modalState?.seasons) return 0;
@@ -37,50 +45,60 @@ export default function TVSeriesSeasonModalPage() {
 
   // Animate in on mount
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
 
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 250,
+        duration: TVSheetTiming.fadeInMs,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
         toValue: 0,
-        duration: 300,
+        duration: TVSheetTiming.slideInMs,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
-    const timer = setTimeout(() => setIsReady(true), 100);
+    const timer = setTimeout(
+      () => setIsReady(true),
+      TVSheetTiming.contentDelayMs,
+    );
     return () => {
       clearTimeout(timer);
+      submission.dismiss();
       store.set(tvSeriesSeasonModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   // Focus on the selected card when ready
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
         (firstCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
+      }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }
   }, [isReady]);
 
-  const handleSelect = (seasonIndex: number) => {
-    if (modalState?.onSeasonSelect) {
-      modalState.onSeasonSelect(seasonIndex);
-    }
+  const close = () => {
+    store.set(tvSeriesSeasonModalAtom, null);
     router.back();
   };
 
+  const handleSelect = (seasonIndex: number) => {
+    if (!modalState || !submission.dismiss()) return;
+    modalState.onSeasonSelect(seasonIndex);
+    close();
+  };
+
   const handleCancel = () => {
-    router.back();
+    if (!submission.dismiss()) return;
+    close();
   };
 
   if (!modalState) {
