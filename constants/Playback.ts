@@ -62,3 +62,15 @@ export const REMOTE_VOLUME_STEP_SETTLE_MS = 1000;
  * it ends.
  */
 export const VOLUME_SWIPE_INDICATOR_RELEASE_MS = 500;
+
+/**
+ * How long, in ms, a new native player waits for one that is closing to be
+ * gone. iOS refuses to present a player until the previous one's
+ * cross-dissolve has ended, a few hundred ms after it emitted onDismiss, and
+ * a play request can land in between (Sentry REACT-NATIVE-BR). Past this,
+ * the present goes ahead and its refusal is reported.
+ */
+export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
+
+/** How often, in ms, that wait checks whether the closing player is gone. */
+export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
