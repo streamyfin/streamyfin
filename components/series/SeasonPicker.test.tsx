@@ -225,6 +225,34 @@ describe("SeasonPicker online", () => {
     ).toBeNull();
   });
 
+  // Online, each episode that finished downloading changed the queries' keys:
+  // the list went blank and was fetched again, once per episode, so a series
+  // download flashed the page (seen on Android, 2026-11-05).
+  test("keeps the episodes on screen as downloads finish", async () => {
+    mockDownloads = [];
+    mockShowApi.getEpisodes.mockResolvedValue({
+      data: {
+        Items: [{ Id: "episode-1", Name: "Pilot", ParentIndexNumber: 1 }],
+        TotalRecordCount: 1,
+      },
+    });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    mockShowApi.getSeasons.mockClear();
+    mockShowApi.getEpisodes.mockClear();
+
+    mockDownloads = [episode(1, "Pilot")];
+    await view.rerender(tree());
+
+    expect(screen.getByText("Pilot")).toBeTruthy();
+    expect(mockShowApi.getSeasons).not.toHaveBeenCalled();
+    expect(mockShowApi.getEpisodes).not.toHaveBeenCalled();
+  });
+
   test("episodes that failed to load say so, not an empty season", async () => {
     mockShowApi.getEpisodes.mockRejectedValue(new Error("503"));
     const store = createStore();
