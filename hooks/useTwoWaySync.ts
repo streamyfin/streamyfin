@@ -10,6 +10,19 @@ import { useNetworkStatus } from "./useNetworkStatus";
  * This hook is used to sync the playback state of a downloaded item with the server
  * when the application comes back online after being used offline.
  */
+/**
+ * How one item's playback state was reconciled: the local state was sent to
+ * the server, the server's was taken, both already agreed, the item no longer
+ * exists on the server, or it could not be settled (offline, the request
+ * failed).
+ */
+export type PlaybackSyncResult =
+  | "pushed"
+  | "pulled"
+  | "unchanged"
+  | "missing"
+  | "failed";
+
 export const useTwoWaySync = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
@@ -22,17 +35,19 @@ export const useTwoWaySync = () => {
    *
    * @returns A Promise<boolean> indicating whether a server update was made (true) or not (false).
    */
-  const syncPlaybackState = async (itemId: string): Promise<boolean> => {
+  const syncPlaybackStateDetailed = async (
+    itemId: string,
+  ): Promise<PlaybackSyncResult> => {
     if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
-      return false;
+      return "failed";
     }
 
     const localItem = getDownloadedItemById(itemId);
-    if (!localItem) return false;
+    if (!localItem) return "unchanged";
 
     const fetchRemoteItem = async (): Promise<
-      (typeof localItem)["item"] | undefined
+      (typeof localItem)["item"] | "missing" | undefined
     > => {
       try {
         return (await getLibraryApi(api).getItem({ itemId, userId: user.Id }))
@@ -40,17 +55,19 @@ export const useTwoWaySync = () => {
       } catch (error) {
         // A 404 means the item was deleted server-side while still downloaded
         // locally, there is nothing to sync and no error worth surfacing.
-        if (!(error instanceof AxiosError && error.response?.status === 404)) {
-          logAndCaptureError(
-            "Fetching remote item during playback sync failed",
-            error,
-          );
+        if (error instanceof AxiosError && error.response?.status === 404) {
+          return "missing";
         }
+        logAndCaptureError(
+          "Fetching remote item during playback sync failed",
+          error,
+        );
         return undefined;
       }
     };
     const remoteItem = await fetchRemoteItem();
-    if (!remoteItem) return false;
+    if (remoteItem === "missing") return "missing";
+    if (!remoteItem) return "failed";
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
@@ -78,7 +95,7 @@ export const useTwoWaySync = () => {
           },
         },
       });
-      return false;
+      return "pulled";
     } else if (remoteLastPlayed < localLastPlayed) {
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
@@ -102,12 +119,16 @@ export const useTwoWaySync = () => {
         );
         // The write never reached the server, so the caller must not treat
         // this as a successful update.
-        return false;
+        return "failed";
       }
-      return true;
+      return "pushed";
     }
-    return false;
+    return "unchanged";
   };
 
-  return { syncPlaybackState };
+  /** Whether the server's state was updated. */
+  const syncPlaybackState = async (itemId: string): Promise<boolean> =>
+    (await syncPlaybackStateDetailed(itemId)) === "pushed";
+
+  return { syncPlaybackState, syncPlaybackStateDetailed };
 };
