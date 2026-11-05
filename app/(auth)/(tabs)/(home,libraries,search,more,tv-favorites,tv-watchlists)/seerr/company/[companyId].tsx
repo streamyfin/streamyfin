@@ -6,6 +6,7 @@ import SeerrPoster from "@/components/posters/SeerrPoster";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
 import { TVSeerrTitlesHeading } from "@/components/seerr/tv/TVSeerrTitlesHeading";
 import { TVSeerrTitlesPage } from "@/components/seerr/tv/TVSeerrTitlesPage";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrDiscoverTitles } from "@/hooks/useSeerrDiscoverTitles";
 import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/seerr/data";
@@ -57,7 +58,7 @@ function MobileCompanyPage() {
         ? flatData.map((r) =>
             seerrApi.imageProxy(
               (r as TvResult | MovieResult).backdropPath,
-              "w1920_and_h800_multi_faces",
+              SEERR_BACKDROP_SIZE,
             ),
           )
         : [],
