@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv/TVOptionCard";
+import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import type {
@@ -29,7 +30,6 @@ const OPTION_CARD = { width: scaleSize(160), height: scaleSize(75) };
 const GROUP_CARD = { width: scaleSize(260), height: scaleSize(96) };
 const COMPACT_CARD = { width: scaleSize(72), height: scaleSize(64) };
 const ROW_HEIGHT = scaleSize(72);
-const PANEL_BACKING = "rgba(18, 18, 20, 0.96)";
 
 type Card = {
   key: string;
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     flex: 1,
     // Android TV does not blur what is behind a BlurView, it only tints it:
     // without a backing of its own the posters show through the rows.
-    backgroundColor: PANEL_BACKING,
+    backgroundColor: TV_PANEL_BACKING,
     paddingTop: scaleSize(60),
     paddingBottom: scaleSize(40),
     overflow: "visible",

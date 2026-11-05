@@ -1,4 +1,3 @@
-import { orderBy } from "lodash";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +7,11 @@ import {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import {
+  SeerrSearchSort,
+  type SortOrder,
+  sortSeerrResults,
+} from "@/components/search/searchSort";
 import Discover from "@/components/seerr/discover/Discover";
 import { useSeerr } from "@/hooks/useSeerr";
 import { searchSeerr } from "@/utils/seerr/search";
@@ -21,16 +25,14 @@ import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 
+// The sort moved next to the search screen's other sorts; its importers keep
+// finding it here.
+export { SeerrSearchSort };
+
 interface Props extends ViewProps {
   searchQuery: string;
   sortType?: SeerrSearchSort;
-  order?: "asc" | "desc";
-}
-
-export enum SeerrSearchSort {
-  DEFAULT = 0,
-  VOTE_COUNT_AND_AVERAGE = 1,
-  POPULARITY = 2,
+  order?: SortOrder;
 }
 
 export const SeerrIndexPage: React.FC<Props> = ({
@@ -75,54 +77,42 @@ export const SeerrIndexPage: React.FC<Props> = ({
     },
   );
 
-  const sortingType = useMemo(() => {
-    if (!sortType) return;
-    switch (Number(SeerrSearchSort[sortType])) {
-      case SeerrSearchSort.VOTE_COUNT_AND_AVERAGE:
-        return ["voteCount", "voteAverage"];
-      case SeerrSearchSort.POPULARITY:
-        return ["voteCount", "popularity"];
-      default:
-        return undefined;
-    }
-  }, [sortType, order]);
-
   const seerrMovieResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrResults?.filter(
           (r) => r.mediaType === MediaType.MOVIE,
         ) as MovieResult[],
-        sortingType || [
-          (m) => m.title.toLowerCase() === searchQuery.toLowerCase(),
-        ],
-        order || "desc",
+        sortType,
+        order,
+        (m) => m.title,
+        searchQuery,
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortType, order, searchQuery],
   );
 
   const seerrTvResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
-        sortingType || [
-          (t) => t.name.toLowerCase() === searchQuery.toLowerCase(),
-        ],
-        order || "desc",
+        sortType,
+        order,
+        (t) => t.name,
+        searchQuery,
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortType, order, searchQuery],
   );
 
   const seerrPersonResults = useMemo(
     () =>
-      orderBy(
+      sortSeerrResults(
         seerrResults?.filter((r) => r.mediaType === "person") as PersonResult[],
-        sortingType || [
-          (p) => p.name.toLowerCase() === searchQuery.toLowerCase(),
-        ],
-        order || "desc",
+        sortType,
+        order,
+        (p) => p.name,
+        searchQuery,
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortType, order, searchQuery],
   );
 
   if (!searchQuery.length)
