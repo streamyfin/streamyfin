@@ -179,11 +179,12 @@
       ["./plugins/withTVOSTopShelf.ts"],
       ["./plugins/withDownloadLiveActivity.ts"],
       ["./plugins/withTVXcodeEnv.ts"],
+      ["./plugins/withSpatialAudioCore.ts"],
       [
         "./plugins/withGitPod.ts",
         {
           "podName": "MPVKit",
-          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.41.0-av5/MPVKit.podspec"
+          "podspecUrl": "https://raw.githubusercontent.com/kristofferR/MPVKit/0.41.0-av5-sab4/MPVKit.podspec"
         }
       ]
     ],
