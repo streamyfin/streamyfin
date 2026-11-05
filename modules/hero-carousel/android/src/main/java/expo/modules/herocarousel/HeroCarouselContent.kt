@@ -53,6 +53,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -108,6 +110,13 @@ private object HeroLayout {
   val DotsArea = 24.dp
   val CardElevation = 12.dp
   val PanelBlur = 24.dp
+  /**
+   * Largest system font scale the cards follow. Their panels have a fixed
+   * height, so past it a larger font clips the title and synopsis and swells
+   * the badges instead of making them easier to read. Same cap as the
+   * SwiftUI side's `maxDynamicTypeSize`.
+   */
+  const val MaxFontScale = 1.3f
 }
 
 /**
@@ -158,11 +167,18 @@ internal fun HeroCarouselRoot(
         // hero will appear.
         HeroSkeleton()
       } else {
-        HeroPager(
-          items = payload.items,
-          headers = payload.imageHeaders,
-          onItemPress = onItemPress
-        )
+        // The cards cap the font scale; the filter menu keeps the system's.
+        val density = LocalDensity.current
+        val cardDensity = remember(density) {
+          Density(density.density, density.fontScale.coerceAtMost(HeroLayout.MaxFontScale))
+        }
+        CompositionLocalProvider(LocalDensity provides cardDensity) {
+          HeroPager(
+            items = payload.items,
+            headers = payload.imageHeaders,
+            onItemPress = onItemPress
+          )
+        }
       }
 
       // Overlaid here rather than inside a card for two reasons: neighbour

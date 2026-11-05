@@ -32,6 +32,9 @@ struct HeroCarouselRootView: View {
         )
       }
     }
+    // The cards cap Dynamic Type; the filter menu, overlaid after, keeps the
+    // system's.
+    .dynamicTypeSize(...HeroLayout.maxDynamicTypeSize)
     // Overlaid here rather than inside a card for two reasons: neighbour
     // cards peek in at the edges, so a per-card button would show a second
     // half-clipped copy in the slivers; and filtering down to zero items
@@ -75,6 +78,11 @@ private enum HeroLayout {
   static let parallaxAmount: CGFloat = 36
   /// Vertical space reserved under the cards for the page dots.
   static let dotsArea: CGFloat = 24
+  /// Largest Dynamic Type size the cards follow. Their panels have a fixed
+  /// height, so past it a larger size clips the title and synopsis and swells
+  /// the badges instead of making them easier to read. About the Compose
+  /// side's `MaxFontScale` (1.3).
+  static let maxDynamicTypeSize: DynamicTypeSize = .xxxLarge
 }
 
 // MARK: - Filter
