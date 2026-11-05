@@ -33,7 +33,7 @@ import { isSeerrQuery, touchedByRequest } from "@/utils/seerr/queries";
 import { endsSeerrSession, sendSeerrRequest } from "@/utils/seerr/requestFlow";
 import { seerrQueryString } from "@/utils/seerr/search";
 import { rememberSeerrSession } from "@/utils/seerr/session";
-import { slidersOf } from "@/utils/seerr/sliders";
+import { genresOf, slidersOf } from "@/utils/seerr/sliders";
 import type {
   CombinedCredit,
   DiscoverSlider,
@@ -361,19 +361,26 @@ export class SeerrApi {
       .then(({ data }) => data);
   }
 
+  /**
+   * The genres of a genres row, none when what answered is not a list of
+   * them (genresOf), with the body kept in the local log as for the sliders.
+   */
   async getGenreSliders(
     endpoint: Endpoints.TV | Endpoints.MOVIE,
     params: any = undefined,
   ): Promise<GenreSliderItem[]> {
-    return this.axios
-      ?.get<GenreSliderItem[]>(
-        Endpoints.API_V1 +
-          Endpoints.DISCOVER +
-          Endpoints.GENRE_SLIDER +
-          endpoint,
-        { params },
-      )
-      .then(({ data }) => data);
+    const { data } = await this.axios.get<unknown>(
+      Endpoints.API_V1 + Endpoints.DISCOVER + Endpoints.GENRE_SLIDER + endpoint,
+      { params },
+    );
+    if (!Array.isArray(data)) {
+      writeToLog(
+        "WARN",
+        "Seerr genre sliders are not a list",
+        truncateForLog(data),
+      );
+    }
+    return genresOf(data);
   }
 
   /** What the server makes public: whether it shows specials, takes partial requests. */
