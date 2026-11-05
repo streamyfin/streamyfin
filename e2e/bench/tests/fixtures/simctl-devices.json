@@ -1,0 +1,39 @@
+{
+  "devices": {
+    "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [
+      {
+        "lastBootedAt": "2026-10-27T20:00:00Z",
+        "dataPath": "/tmp/x",
+        "udid": "AAAA-1111",
+        "isAvailable": true,
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+        "state": "Booted",
+        "name": "iPhone 17 Pro"
+      },
+      {
+        "udid": "BBBB-2222",
+        "isAvailable": true,
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
+        "state": "Shutdown",
+        "name": "iPhone Duo"
+      },
+      {
+        "udid": "CCCC-3333",
+        "isAvailable": false,
+        "availabilityError": "runtime profile not found",
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5",
+        "state": "Shutdown",
+        "name": "iPad Pro 13-inch (M5)"
+      }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.tvOS-27-0": [
+      {
+        "udid": "DDDD-4444",
+        "isAvailable": true,
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K",
+        "state": "Shutdown",
+        "name": "Apple TV 4K (3rd generation)"
+      }
+    ]
+  }
+}

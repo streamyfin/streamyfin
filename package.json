@@ -25,6 +25,8 @@
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test:unit": "jest",
     "test:coverage": "jest --coverage",
+    "e2e:smoke": "python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml",
+    "e2e:bench:test": "python3 -m unittest discover -s e2e -t e2e",
     "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "seerr:types": "bun run scripts/seerr/generate-types.ts",
     "seerr:capture": "bun run scripts/seerr/capture.ts",
