@@ -4,8 +4,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # A push to develop must finish: its iOS artifacts are the binaries that pull
   # requests and merge queue entries repack (see the fingerprint job). So must
-  # the weekly full build, which shares develop's group.
-  cancel-in-progress: ${{ !contains(fromJSON('["push", "schedule"]'), github.event_name) }}
+  # the weekly full build and a manual run, which share develop's group.
+  cancel-in-progress: ${{ !contains(fromJSON('["push", "schedule", "workflow_dispatch"]'), github.event_name) }}
 
 on:
   workflow_dispatch:
