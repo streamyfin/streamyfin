@@ -169,6 +169,36 @@ class OutputSheetModelTest {
         assertEquals(true, panel.canStop)
     }
 
+    // The hub sends no volume or mute until the session is back: the row stays, held still, so the panel keeps its
+    // height and offers nothing that would do nothing.
+    @Test
+    fun aReconnectingPanelHoldsItsVolumeStill() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val panel = outputSheetState(input(snapshot = reconnecting, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(true, panel.showsVolume)
+        assertEquals(false, panel.canSetVolume)
+        assertEquals(false, panel.canMute)
+    }
+
+    // A suspended session loses its media client until it resumes, and the resumed client reports nothing until the
+    // receiver sends: the last status heard stands in meanwhile, until the receiver reports again or the session ends.
+    @Test
+    fun aSuspendedSessionReadsItsLastStatusUntilTheReceiverReports() {
+        val heard = LastHeardStatus<String>()
+
+        heard.hold("playing")
+        val suspended = heard.read(null)
+        val reported = heard.read("paused")
+        heard.forget()
+
+        assertEquals("playing", suspended)
+        assertEquals("paused", reported)
+        assertEquals(null, heard.read(null))
+    }
+
     @Test
     fun theLayoutIsAPopoverFrom600dp() {
         assertEquals(OutputLayout.SHEET, outputLayout(599))

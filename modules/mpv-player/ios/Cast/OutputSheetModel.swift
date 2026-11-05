@@ -67,6 +67,9 @@ struct ConnectedPanel: Equatable {
   let videoOut: Bool
   let volume: Double?
   let muted: Bool
+  /// The receiver has a level to set: the volume row is drawn.
+  let showsVolume: Bool
+  /// The row takes a change: not while the session reconnects, as the hub sends none until it is back.
   let canSetVolume: Bool
   /// iOS mutes the receiver itself, which takes nothing playing; Android waits for a stream to mute.
   let canMute: Bool
@@ -81,6 +84,27 @@ struct ConnectedPanel: Equatable {
 enum OutputSheetState: Equatable {
   case list([OutputRow])
   case connected(ConnectedPanel)
+}
+
+/// The receiver's media status as the sheet reads it. A suspended session loses its media client until it resumes,
+/// and the resumed client reports nothing until the receiver sends: the last status heard stands in meanwhile, so the
+/// panel keeps what the receiver plays. Main thread only, like the module that holds it.
+struct LastHeardStatus<T> {
+  private var held: T?
+
+  /// The session is suspended with this last status.
+  mutating func hold(_ last: T?) {
+    held = last
+  }
+
+  func read(_ live: T?) -> T? {
+    live ?? held
+  }
+
+  /// The receiver reported again, or the session ended or gave way to another.
+  mutating func forget() {
+    held = nil
+  }
 }
 
 // GCKErrorCode, from the google-cast-sdk reference: network, timeout, device not connected, network not
@@ -104,13 +128,13 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
   // A suspended session stays the receiver's while the SDK reaches it again: its panel reads Reconnecting.
   let held = snapshot.phase == .connected || (snapshot.phase == .connecting && snapshot.reconnecting)
   if held, let target = snapshot.target, !input.showingList {
+    let showsVolume = target.volume && snapshot.volume != nil
     return .connected(
       ConnectedPanel(
         target: target, videoOut: input.devices.first(where: { $0.id == target.id })?.videoOut ?? true,
-        volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted,
-        canSetVolume: target.volume && snapshot.volume != nil,
-        canMute: target.volume && snapshot.volume != nil, reconnecting: snapshot.reconnecting,
-        receiverTitle: input.receiverTitle, canStop: input.receiverPlaying
+        volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted, showsVolume: showsVolume,
+        canSetVolume: showsVolume && !snapshot.reconnecting, canMute: showsVolume && !snapshot.reconnecting,
+        reconnecting: snapshot.reconnecting, receiverTitle: input.receiverTitle, canStop: input.receiverPlaying
       )
     )
   }
