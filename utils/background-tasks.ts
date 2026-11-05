@@ -60,7 +60,16 @@ export async function unregisterBackgroundFetchAsync(): Promise<boolean> {
   }
 }
 
-export async function unregisterBackgroundFetchAsyncSessions(): Promise<boolean> {
+// Registration and unregistration must not interleave: a slow earlier call
+// would otherwise land after a later one decided the opposite.
+let sessionsTaskChain: Promise<unknown> = Promise.resolve();
+const enqueueSessionsTask = (op: () => Promise<boolean>): Promise<boolean> => {
+  const next = sessionsTaskChain.then(op);
+  sessionsTaskChain = next.catch(() => {});
+  return next;
+};
+
+async function unregisterBackgroundFetchAsyncSessionsNow(): Promise<boolean> {
   if (!BackgroundTaskModule) return false;
   try {
     await BackgroundTaskModule!.unregisterTaskAsync(
@@ -77,7 +86,7 @@ export async function unregisterBackgroundFetchAsyncSessions(): Promise<boolean>
   }
 }
 
-export async function registerBackgroundFetchAsyncSessions(): Promise<boolean> {
+async function registerBackgroundFetchAsyncSessionsNow(): Promise<boolean> {
   if (!BackgroundTaskModule) {
     console.log(
       "BackgroundTask module not available (TV platform or not supported)",
@@ -119,3 +128,8 @@ export async function registerBackgroundFetchAsyncSessions(): Promise<boolean> {
     return false;
   }
 }
+
+export const registerBackgroundFetchAsyncSessions = () =>
+  enqueueSessionsTask(registerBackgroundFetchAsyncSessionsNow);
+export const unregisterBackgroundFetchAsyncSessions = () =>
+  enqueueSessionsTask(unregisterBackgroundFetchAsyncSessionsNow);
