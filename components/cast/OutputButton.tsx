@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -63,6 +63,7 @@ export function OutputButton({
   const offline = useOfflineMode();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const store = useStore();
   const anchor = useRef<View>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
@@ -77,6 +78,8 @@ export function OutputButton({
         measureInWindow(anchor.current),
         musicPlayingHere(),
       ]);
+      // A sign-out can land during the reads, and this button is gone with it: the store says so.
+      if (!store.get(apiAtom) || !store.get(userAtom)) return;
       await presentOutputPicker({
         strings: buildOutputPickerStrings(t),
         anchor: frame,
