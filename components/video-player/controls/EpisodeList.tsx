@@ -74,11 +74,11 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           getDownloadedItems(),
           item.SeriesId,
         );
-        // Create fake season objects
+        // Fake season objects, unnamed: SeasonDropdown names them in the
+        // app's language, which a name cached here would not follow.
         return seasonNumbers.map((seasonNumber) => ({
           Id: seasonNumber?.toString(),
           IndexNumber: seasonNumber,
-          Name: `Season ${seasonNumber}`,
           SeriesId: item.SeriesId,
         }));
       }
