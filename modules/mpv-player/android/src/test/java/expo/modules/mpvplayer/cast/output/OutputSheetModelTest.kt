@@ -128,8 +128,8 @@ class OutputSheetModelTest {
         assertEquals(true, unlisted.videoOut)
     }
 
-    // Android mutes the playing stream, as the SDK's expanded controls do: with nothing playing the button
-    // would do nothing, so it waits for something to play.
+    // Android mutes the playing stream, as the device's mute through the session would freeze it: with nothing
+    // playing the button would do nothing, so it waits for something to play.
     @Test
     fun theMuteWaitsForSomethingToPlay() {
         val connected =
