@@ -8,6 +8,7 @@ import {
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { settingsAtom } from "@/utils/atoms/settings";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { PlayButton } from "./PlayButton";
 
@@ -123,18 +124,18 @@ jest.mock("@/utils/atoms/primaryColor", () => ({
     .requireActual("jotai")
     .atom({ primary: "#FFFFFF", text: "#000000" }),
 }));
+// The stored settings: Bedroom has a quality of its own, so a load shows which receiver it was made for.
+const mockSettings = {
+  showResumeDialog: true,
+  remotePlaybackQuality: {
+    byKind: { cast: "4 Mb/s" },
+    byTarget: { "device-b": "2 Mb/s" },
+    known: [],
+  },
+};
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({
-    settings: {
-      showResumeDialog: true,
-      // Bedroom has a quality of its own, so a load shows which receiver it was made for.
-      remotePlaybackQuality: {
-        byKind: { cast: "4 Mb/s" },
-        byTarget: { "device-b": "2 Mb/s" },
-        known: [],
-      },
-    },
-  }),
+  settingsAtom: jest.requireActual("jotai").atom(null),
+  useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   castToJellyfinReceiver: jest.fn(async () => ({ status: "loaded" })),
@@ -166,6 +167,7 @@ beforeEach(() => {
   mockInGroup = false;
   mockTargetListeners.clear();
   getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+  getDefaultStore().set(settingsAtom as never, mockSettings as never);
   (castToJellyfinReceiver as jest.Mock).mockClear();
 });
 
@@ -318,6 +320,33 @@ test("a press while connecting casts once connected", async () => {
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
   await act(async () => emitTarget(connectedTo(mockSalon)));
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// The quality is read when the load goes: one saved while the press waited is the one the receiver gets.
+test("a press waiting for the receiver plays at the quality saved meanwhile", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    getDefaultStore().set(
+      settingsAtom as never,
+      {
+        ...mockSettings,
+        remotePlaybackQuality: {
+          ...mockSettings.remotePlaybackQuality,
+          byTarget: { "device-a": "1 Mb/s" },
+        },
+      } as never,
+    ),
+  );
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ maxBitrate: 1_000_000 }),
+    expect.anything(),
+    expect.anything(),
+    expect.any(Function),
+  );
 });
 
 // A switch while the press waits is the user's own choice of output: the press plays there, which the

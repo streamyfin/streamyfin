@@ -34,7 +34,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
@@ -144,8 +144,12 @@ export const PlayButton: React.FC<Props> = ({
             api,
             userId: user.Id,
             receiverName: (await currentReceiverName()) ?? remote.name,
-            // The item page's quality is this device's: a receiver plays at the remote one.
-            maxBitrate: maxBitrateFor(remote, settings.remotePlaybackQuality),
+            // The item page's quality is this device's: a receiver plays at the remote one, read now as the
+            // session is.
+            maxBitrate: maxBitrateFor(
+              remote,
+              store.get(settingsAtom)?.remotePlaybackQuality,
+            ),
           },
           {
             items: [item],
@@ -181,7 +185,7 @@ export const PlayButton: React.FC<Props> = ({
         );
       }
     },
-    [api, user, store, item, mediaStatus, selectedOptions, settings, t],
+    [api, user, store, item, mediaStatus, selectedOptions, t],
   );
 
   // One Play action: the target when one is connected, this device otherwise or
