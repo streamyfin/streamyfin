@@ -19,4 +19,7 @@ object RemoteTargetConstants {
     const val VOLUME_ECHO_TOLERANCE = 0.05
     // From this width the sheet opens as a popover (tablets, foldables, landscape phones).
     const val REGULAR_WIDTH_DP = 600
+    // The popover's width at most, and its margin to the window's edges (half of it to the button), in dp.
+    const val POPOVER_MAX_WIDTH_DP = 380
+    const val POPOVER_MARGIN_DP = 16
 }

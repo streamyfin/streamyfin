@@ -52,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerAccentColor
 import kotlin.math.roundToInt
 
@@ -90,6 +92,7 @@ fun OutputSheetHost(
         onDispose { controller.onState = null }
     }
     val widthDp = LocalConfiguration.current.screenWidthDp
+    val density = LocalDensity.current.density
     LaunchedEffect(widthDp) { controller.setWidth(widthDp) }
 
     when (outputLayout(widthDp)) {
@@ -104,7 +107,7 @@ fun OutputSheetHost(
             }
         OutputLayout.POPOVER ->
             Popup(
-                popupPositionProvider = remember(anchor) { AnchorPosition(anchor) },
+                popupPositionProvider = remember(anchor, density) { AnchorPosition(anchor, density) },
                 onDismissRequest = onDismiss,
                 properties = PopupProperties(focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true),
             ) {
@@ -113,7 +116,7 @@ fun OutputSheetHost(
                     color = SheetColor,
                     contentColor = Color.White,
                     shadowElevation = 12.dp,
-                    modifier = Modifier.widthIn(max = 380.dp),
+                    modifier = Modifier.widthIn(max = RemoteTargetConstants.POPOVER_MAX_WIDTH_DP.dp),
                 ) {
                     OutputSheetContent(state, strings, controller, Modifier.padding(vertical = 8.dp))
                 }
@@ -122,14 +125,14 @@ fun OutputSheetHost(
 }
 
 /** Below the button, its right edges aligned, kept inside the window; centred with no button to point at. */
-private class AnchorPosition(private val anchor: IntRect?) : PopupPositionProvider {
+internal class AnchorPosition(private val anchor: IntRect?, private val density: Float) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
         windowSize: IntSize,
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val margin = 16
+        val margin = (RemoteTargetConstants.POPOVER_MARGIN_DP * density).roundToInt()
         val button = anchor
             ?: return IntOffset((windowSize.width - popupContentSize.width) / 2, (windowSize.height - popupContentSize.height) / 2)
         val maxX = (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)

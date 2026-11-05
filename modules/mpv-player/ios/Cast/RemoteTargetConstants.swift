@@ -19,4 +19,6 @@ enum RemoteTargetConstants {
   static let volumeEchoTolerance = 0.05
   /// From this width the sheet opens as a popover (tablets, landscape phones).
   static let regularWidthDp = 600
+  /// The popover's width, in points, as on Android.
+  static let popoverWidth: CGFloat = 380
 }

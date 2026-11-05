@@ -52,7 +52,7 @@ struct OutputSheetView: View {
       .padding(.vertical, 16)
     }
     // A popover takes the ideal width; a sheet, the window's.
-    .frame(idealWidth: 380, maxWidth: .infinity)
+    .frame(idealWidth: RemoteTargetConstants.popoverWidth, maxWidth: .infinity)
     .background(sheetColor.ignoresSafeArea())
     .foregroundStyle(.white)
     .preferredColorScheme(.dark)
