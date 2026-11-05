@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+} from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
@@ -235,6 +241,17 @@ test("without a target a press plays here and a long press offers nothing", asyn
   expect(mockShowActionSheet).not.toHaveBeenCalled();
   expect(mockPlayMedia).toHaveBeenCalledTimes(1);
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// A press held long is a press when there is nothing else to offer: with a long press handler, the touchable
+// would hand it to that handler instead, and nothing would play.
+test("without a target a held press plays, as a tap does", async () => {
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await userEvent
+    .setup()
+    .longPress(screen.getByLabelText("accessibility.play_button"));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
 });
 
 test("while connecting the button says so", async () => {

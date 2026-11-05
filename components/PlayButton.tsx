@@ -542,7 +542,8 @@ export const PlayButton: React.FC<Props> = ({
           if (event.nativeEvent.actionName === "longpress") onLongPress();
         }}
         onPress={onPress}
-        onLongPress={onLongPress}
+        // Without a target a held press is a press: a long press handler would take it and play nothing.
+        onLongPress={destination.where === "here" ? undefined : onLongPress}
         className={"relative"}
       >
         <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
