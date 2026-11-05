@@ -71,6 +71,34 @@ describe.each([
   });
 });
 
+/** The ProGuard rules the resolved config adds to a release build. */
+const extraProguardRules = (tv: boolean): string[] =>
+  resolvedPlugins(tv)
+    .filter(
+      (
+        plugin,
+      ): plugin is [string, { android?: { extraProguardRules?: string } }] =>
+        Array.isArray(plugin) && plugin[0] === "expo-build-properties",
+    )
+    .flatMap(([, options]) =>
+      (options?.android?.extraProguardRules ?? "").split("\n"),
+    );
+
+// With R8 on, Media3's exceptions are renamed, so the class name the players
+// add to a playback error's message came out as a letter or two in the logs
+// and in Sentry, which maps stack traces back but not message text.
+test.each([
+  ["phone", false],
+  ["TV", true],
+] as const)(
+  "keeps the class names of exceptions in a %s release build",
+  (_, tv) => {
+    expect(extraProguardRules(tv)).toContain(
+      "-keepnames class * extends java.lang.Throwable",
+    );
+  },
+);
+
 // Mods run in reverse order of registration. Registered after
 // react-native-google-cast, the edit ran before that plugin wrote the cast
 // options and found nothing to change, so iOS kept the TV playing again

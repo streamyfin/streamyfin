@@ -96,7 +96,13 @@
         {
           "organization": "streamyfin",
           "project": "react-native",
-          "url": "https://sentry.io/"
+          "url": "https://sentry.io/",
+          "experimental_android": {
+            "enableAndroidGradlePlugin": true,
+            "uploadNativeSymbols": false,
+            "autoUploadNativeSymbols": false,
+            "includeNativeSources": false
+          }
         }
       ],
       "./plugins/withExcludeMedia3Dash.ts",
@@ -122,6 +128,9 @@
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.1.20",
             "minSdkVersion": 26,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# expo-modules-core loads its headless app loader by name, from its manifest. Before SDK 58, R8 removes it (expo/expo#52250).\n-keep class expo.modules.adapters.react.apploader.RNHeadlessAppLoader { *; }\n# The players put the class name of the exception behind a playback error in its message (describePlaybackError). That text reaches the logs and Sentry as is, where no R8 mapping restores a renamed class.\n-keepnames class * extends java.lang.Throwable",
             "usesCleartextTraffic": true,
             "packagingOptions": {
               "jniLibs": {
