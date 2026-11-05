@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { InteractionManager, View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { useCastCrew } from "@/hooks/useCastCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
@@ -37,20 +38,9 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
     return { ...item, People: people } as BaseItemDto;
   }, [item, people]);
 
-  // Jellyfin can list the same person several times (e.g. an actor also
-  // credited as writer). Dedupe by Id so the same actor section isn't rendered
-  // twice and we still surface 3 distinct people.
-  const topPeople = useMemo(() => {
-    const seen = new Set<string>();
-    const unique: BaseItemPerson[] = [];
-    for (const person of people) {
-      if (!person.Id || seen.has(person.Id)) continue;
-      seen.add(person.Id);
-      unique.push(person);
-      if (unique.length >= 3) break;
-    }
-    return unique;
-  }, [people]);
+  // The first 3 distinct people get an actor section of their own.
+  const distinctPeople = useCastCrew(people);
+  const topPeople = useMemo(() => distinctPeople.slice(0, 3), [distinctPeople]);
 
   const renderActorSection = useCallback(
     (person: BaseItemPerson, idx: number, total: number) => {
