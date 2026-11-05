@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { PlayButton } from "./PlayButton";
 
@@ -20,6 +21,8 @@ const mockNoTarget = {
 };
 let mockTarget: object = mockNoTarget;
 let mockOffline = false;
+let mockDownloaded: object | undefined;
+const mockShowModal = jest.fn();
 const mockPlayMedia = jest.fn(async () => undefined);
 const mockShowActionSheet = jest.fn();
 const connectedTo = (target: object) => ({
@@ -76,10 +79,10 @@ jest.mock("@/modules/mpv-player/src/cast", () => {
   };
 });
 jest.mock("@/providers/Downloads/database", () => ({
-  getDownloadedItemById: () => undefined,
+  getDownloadedItemById: () => mockDownloaded,
 }));
 jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: jest.fn(), hideModal: jest.fn() }),
+  useGlobalModal: () => ({ showModal: mockShowModal, hideModal: jest.fn() }),
 }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest
@@ -131,6 +134,9 @@ const selectedOptions = {} as never;
 beforeEach(() => {
   mockTarget = connectedTo(mockSalon);
   mockOffline = false;
+  mockDownloaded = undefined;
+  mockShowModal.mockClear();
+  jest.spyOn(Alert, "alert").mockClear();
   mockPlayMedia.mockClear();
   mockShowActionSheet.mockClear();
   (castToJellyfinReceiver as jest.Mock).mockClear();
@@ -226,4 +232,33 @@ test("a download with a target plays here and says why", async () => {
   mockOffline = true;
   await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
   expect(screen.getByText("player.download_plays_here")).toBeTruthy();
+});
+
+// The button announces the target, so the phone's copy of the item does not
+// turn the press into a question: only a play here can use it.
+test("a downloaded item opened online plays on the target without asking", async () => {
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(mockShowModal).not.toHaveBeenCalled();
+});
+
+test("a play here of a downloaded item still asks which copy to play", async () => {
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "player.downloaded_file_title",
+    "player.downloaded_file_message",
+    expect.anything(),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
 });

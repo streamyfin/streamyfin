@@ -213,8 +213,12 @@ export const PlayButton: React.FC<Props> = ({
         return;
       }
 
+      // The button announces the target: the phone's copy matters only to a play here.
+      const playsHere =
+        resolvePlay({ target, offline: isOffline, longPress }).where === "here";
+
       // If online but file is downloaded, ask user which version to play
-      if (downloadedItem) {
+      if (downloadedItem && playsHere) {
         if (Platform.OS === "android") {
           // Show bottom sheet for Android
           showModal(
@@ -306,7 +310,16 @@ export const PlayButton: React.FC<Props> = ({
       // If not downloaded, proceed with normal flow
       handleNormalPlayFlow(positionTicks, longPress);
     },
-    [item, isOffline, handleNormalPlayFlow, playMedia, t, showModal, hideModal],
+    [
+      item,
+      target,
+      isOffline,
+      handleNormalPlayFlow,
+      playMedia,
+      t,
+      showModal,
+      hideModal,
+    ],
   );
 
   const play = useCallback(
