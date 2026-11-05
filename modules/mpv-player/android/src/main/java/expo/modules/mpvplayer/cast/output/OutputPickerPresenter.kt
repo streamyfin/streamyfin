@@ -25,6 +25,9 @@ import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
 import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.RemoteTargetListener
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.TargetDevice
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 
 /**
@@ -42,6 +45,15 @@ object OutputPickerPresenter {
     // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
     private val anchorBounds = mutableStateOf<IntRect?>(null)
     private var anchorView: View? = null
+    private var removeTargetWatch: (() -> Unit)? = null
+
+    // A session that ends or starts changes what the receiver plays before any media status says so.
+    private val targetWatcher =
+        object : RemoteTargetListener {
+            override fun targetChanged(snapshot: RemoteTargetSnapshot) = refresh()
+
+            override fun devicesChanged(devices: List<TargetDevice>) = Unit
+        }
 
     // A rotation lays the screen out again and moves the button: the popover goes with it.
     private val anchorWatcher =
@@ -61,7 +73,13 @@ object OutputPickerPresenter {
                 // Back from the Play Store, the services may be there now.
                 Lifecycle.Event.ON_RESUME ->
                     (source as? Activity)?.let { activity ->
-                        controller?.let { sheet -> sheet.environment = sheet.environment.copy(playServices = playServicesStatus(activity)) }
+                        controller?.let { sheet ->
+                            val status = playServicesStatus(activity)
+                            // Installed from the sheet, the services start no Cast context on their own.
+                            val cameBack = status == PlayServicesStatus.AVAILABLE && sheet.environment.playServices != status
+                            sheet.environment = sheet.environment.copy(playServices = status)
+                            if (cameBack) onPlayServicesAvailable()
+                        }
                     }
                 else -> Unit
             }
@@ -78,6 +96,9 @@ object OutputPickerPresenter {
 
     /** Called once the sheet is gone, whichever way it went. */
     var onDismissed: (() -> Unit)? = null
+
+    /** Called when the services come back with the sheet open, for the module to start its Cast context. */
+    var onPlayServicesAvailable: () -> Unit = {}
 
     /** The activity the module runs in, for the debug probe, which has none of its own. */
     var currentActivity: () -> Activity? = { null }
@@ -143,6 +164,7 @@ object OutputPickerPresenter {
         host = view
         controller = sheet
         hostLifecycle = (activity as? LifecycleOwner)?.lifecycle?.also { it.addObserver(hostWatcher) }
+        removeTargetWatch = RemoteTargetHub.shared.addListener(targetWatcher)
         sheet.open()
         return true
     }
@@ -153,6 +175,8 @@ object OutputPickerPresenter {
         host = null
         hostLifecycle?.removeObserver(hostWatcher)
         hostLifecycle = null
+        removeTargetWatch?.invoke()
+        removeTargetWatch = null
         controller?.close()
         controller = null
         onRemote = null

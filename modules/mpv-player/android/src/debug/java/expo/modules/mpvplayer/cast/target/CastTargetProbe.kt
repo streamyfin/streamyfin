@@ -23,7 +23,10 @@ internal class CastTargetProbe(
     private val holdMs: Long,
     /** Asks the receiver held at the start again right after the switch request: the switch asked back. */
     private val back: Boolean,
-    /** False ends the session and leaves the receiver playing, as the output sheet's Disconnect does. */
+    /**
+     * False ends the session asking to leave the receiver playing; only a session that joined the receiver
+     * leaves it so, the one that launched it stops it whatever it asks (bench, 04/11). The sheet always stops.
+     */
     private val stop: Boolean,
     /** A level, 0 to 1, set once connected; the receiver's report of it is logged. */
     private val volume: Double?,

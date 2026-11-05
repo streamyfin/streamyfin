@@ -18,7 +18,8 @@ struct OutputPickerStrings {
     case .deviceGone: return get("deviceGone")
     case .receiverUnavailable: return get("receiverUnavailable")
     case .network: return get("network")
-    case let .other(message): return message.isEmpty ? get("failed") : message
+    // The SDK's own text, untranslated and with its code, goes to the log (RemoteTargetHub).
+    case .other: return get("failed")
     }
   }
 

@@ -76,6 +76,7 @@ final class RemoteTargetHub {
   /// marks the end it brings. The receiver keeps playing only when this session joined it: the session that
   /// launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
   private(set) var disconnectedWithoutStop = false
+  var log: (String) -> Void = { _ in }
 
   /// The same port again does nothing, so every JS reload can install it.
   func install(_ port: TargetPort) {
@@ -133,6 +134,10 @@ final class RemoteTargetHub {
     port?.setMuted(muted)
   }
 
+  func clearFailure() {
+    if machine.clearFailure() { publish() }
+  }
+
   /// `owner` names who asks (`appDiscovery`, `probeDiscovery`); asking twice still takes one stop.
   func startDiscovery(owner: String) {
     if discoveryOwners.insert(owner).inserted, discoveryOwners.count == 1 { port?.startDiscovery() }
@@ -144,6 +149,8 @@ final class RemoteTargetHub {
 
   fileprivate func sessionEvent(from port: TargetPort, _ event: String, device: TargetDevice?, error: String?, code: Int?) {
     guard port === self.port else { return }
+    // The sheet reads a cause by its family; the SDK's own text is for the log.
+    if let error { log("Cast session \(event): \(error)") }
     // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
     // kept, or one that came back, is no end of that disconnect any more.
     if event == "starting" || event == "endRefused" || event == "resumed" { disconnectedWithoutStop = false }

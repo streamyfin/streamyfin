@@ -36,8 +36,6 @@ class OutputSheetController(
         }
     var onState: ((OutputSheetState) -> Unit)? = null
     var onOutput: ((OutputSheetOutput) -> Unit)? = null
-    var layout = OutputLayout.SHEET
-        private set
 
     private var open = false
     private var searchTimedOut = false
@@ -85,6 +83,8 @@ class OutputSheetController(
         removeListener?.invoke()
         removeListener = null
         hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
+        // The sheet showed the last failure while it was open: the next opening starts clean.
+        hub.clearFailure()
         discoveryPaused = false
         showingList = false
         dragged = null
@@ -183,11 +183,6 @@ class OutputSheetController(
     }
 
     fun remote() = onOutput?.invoke(OutputSheetOutput.REMOTE)
-
-    /** A rotation moves the sheet to a popover and back; what it shows stays as it was. */
-    fun setWidth(widthDp: Int) {
-        layout = outputLayout(widthDp)
-    }
 
     override fun targetChanged(snapshot: RemoteTargetSnapshot) {
         val sent = held
