@@ -121,18 +121,20 @@ describe("pickSource", () => {
     ).toBeUndefined();
   });
 
-  it("lets a fork pull request reuse its own earlier build", () => {
-    // The run's pull_requests stays empty for a fork pull request, so the
-    // commit match is what identifies it.
+  // A fork pull request runs its own copy of the workflow: an earlier commit
+  // could upload any binary under the next commit's fingerprint and the next
+  // commit revert that, leaving a binary no reviewed diff contains.
+  it("never lets a fork pull request reuse its own earlier build", () => {
+    const develop = artifact("develop", "2026-11-03T12:00:00Z");
     const own = artifact("feat/thing", "2026-11-04T12:00:00Z", {
       headRepositoryId: FORK,
     });
     expect(
       pickSource(
-        [own],
+        [develop, own],
         onPullRequest("feat/thing", [own.workflow_run.head_sha], FORK),
       ),
-    ).toBe(own);
+    ).toBe(develop);
   });
 
   it("skips expired artifacts", () => {

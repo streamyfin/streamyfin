@@ -9,13 +9,16 @@
  *
  * A repacked binary keeps the native code of the build it came from, so only a
  * build this run would trust with its own native code may be a source: a run
- * on `develop` in this repository, or an earlier run of the same pull request.
- * A binary from another pull request must never be used, because anyone can
- * open one from a fork and name an artifact after any fingerprint. A branch
- * name does not identify a pull request — a closed one's branch can be reused —
- * so a run counts as this pull request's only when its head commit is one of
- * the pull request's commits. (`pull_requests` on the run would say the same,
- * but GitHub leaves it empty for fork pull requests.)
+ * on `develop` in this repository, or an earlier run of the same pull request
+ * when that pull request comes from this repository. A binary from another
+ * pull request must never be used, because anyone can open one from a fork and
+ * name an artifact after any fingerprint. A fork pull request's own builds are
+ * left out too: its runs follow its own copy of the workflow, so one commit
+ * could upload any binary under the next commit's fingerprint and the next
+ * revert that, leaving a binary no reviewed diff contains. A branch name does
+ * not identify a pull request — a closed one's branch can be reused — so a run
+ * counts as this pull request's only when its head commit is one of the pull
+ * request's commits.
  */
 import { appendFileSync } from "node:fs";
 
@@ -51,6 +54,7 @@ export interface RunContext {
 
 const isFromThisPullRequest = (artifact: Artifact, ctx: RunContext) =>
   ctx.pullRequest !== undefined &&
+  ctx.pullRequest.headRepositoryId === ctx.repositoryId &&
   artifact.workflow_run.head_branch === ctx.pullRequest.headRef &&
   artifact.workflow_run.head_repository_id ===
     ctx.pullRequest.headRepositoryId &&
