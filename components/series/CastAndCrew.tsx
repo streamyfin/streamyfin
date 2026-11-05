@@ -7,9 +7,9 @@ import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
+import { useCastCrew } from "@/hooks/useCastCrew";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { mergePeopleById } from "@/utils/jellyfin/people";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -23,15 +23,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const router = useRouter();
   const from = (segments as string[])[2];
 
-  // A missing kind label falls back to the server's own word for it, which is
-  // what a kind newer than the catalogue shows as.
-  const destinctPeople = useMemo(
-    () =>
-      mergePeopleById(item?.People, (kind) =>
-        t(`item_card.person_kind.${kind}`, { defaultValue: kind }),
-      ),
-    [item?.People, t],
-  );
+  const destinctPeople = useCastCrew(item?.People, { labelRoles: true });
 
   // People aren't BaseItemDto, so the cards are built here rather than by
   // CardRow's item mapping.

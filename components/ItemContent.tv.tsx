@@ -53,6 +53,7 @@ import {
 import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useCastCrew } from "@/hooks/useCastCrew";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useItemCollections } from "@/hooks/useItemCollections";
@@ -573,15 +574,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // Get cast (first 3 for text display)
-    const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
-
-    // Get full cast for visual display (up to 10 actors)
-    const fullCast = useMemo(() => {
-      return (
-        item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 10) ?? []
-      );
-    }, [item?.People]);
+    // First 3 actors for the text line, up to 10 for the visual cards
+    const actors = useCastCrew(item?.People, { kind: "Actor" });
+    const cast = useMemo(() => actors.slice(0, 3), [actors]);
+    const fullCast = useMemo(() => actors.slice(0, 10), [actors]);
 
     // Whether to show visual cast section
     const showVisualCast =

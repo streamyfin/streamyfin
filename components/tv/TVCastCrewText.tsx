@@ -1,10 +1,10 @@
 import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { TVFocusGuideView, View, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { getCreditLines } from "@/utils/jellyfin/people";
+import { useCreditLines } from "@/hooks/useCastCrew";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVFilterButton } from "./TVFilterButton";
 
@@ -36,7 +36,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
   }) => {
     const typography = useScaledTVTypography();
     const { t } = useTranslation();
-    const credits = useMemo(() => getCreditLines(people), [people]);
+    const credits = useCreditLines(people);
     const showCast = !hideCast && cast && cast.length > 0;
     const hasLinks =
       !!onPersonPress &&
