@@ -41,6 +41,11 @@ module.exports = {
       filePath: "targets",
       reasons: ["App extension sources copied in by config plugins"],
     },
+    {
+      type: "dir",
+      filePath: "scripts/ios",
+      reasons: ["Native iOS and tvOS build scripts"],
+    },
     ...pluginOptionFiles().map((filePath) => ({
       type: "file",
       filePath,

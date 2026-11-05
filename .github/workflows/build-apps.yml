@@ -78,8 +78,8 @@ jobs:
         run: |
           echo "ios=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
           echo "tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform ios | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform android | jq -r .hash)" >> "$GITHUB_OUTPUT"
-          echo "android_tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform android | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          echo "android=$(EXPO_TV=0 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
+          echo "android_tv=$(EXPO_TV=1 bunx @expo/fingerprint fingerprint:generate --platform android --ignore-path 'scripts/ios/**/*' | jq -r .hash)" >> "$GITHUB_OUTPUT"
 
       - name: 🔎 Find an earlier build to repack
         id: find

@@ -19,6 +19,30 @@ describe("fingerprint.config.js", () => {
     expect(hashed.has("targets")).toBe(true);
   });
 
+  it("hashes the entire iOS scripts directory", () => {
+    expect(config.extraSources).toContainEqual(
+      expect.objectContaining({
+        type: "dir",
+        filePath: "scripts/ios",
+      }),
+    );
+  });
+
+  it.each(["android", "android_tv"])(
+    "excludes iOS scripts from the %s CI fingerprint",
+    (output) => {
+      const workflow = readFileSync(
+        path.join(__dirname, ".github/workflows/build-apps.yml"),
+        "utf8",
+      );
+      const command = workflow
+        .split("\n")
+        .find((line) => line.includes(`echo "${output}=`));
+
+      expect(command).toContain("--ignore-path 'scripts/ios/**/*'");
+    },
+  );
+
   it("hashes every file passed as a config plugin option", () => {
     // The tvOS icons once missed this: a new icon would have shipped in a
     // repacked IPA with the old one still inside.
