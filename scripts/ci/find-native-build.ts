@@ -13,7 +13,9 @@
  * A binary from another pull request must never be used, because anyone can
  * open one from a fork and name an artifact after any fingerprint. A branch
  * name does not identify a pull request — a closed one's branch can be reused —
- * so a run counts as this pull request's only when the run itself names it.
+ * so a run counts as this pull request's only when its head commit is one of
+ * the pull request's commits. (`pull_requests` on the run would say the same,
+ * but GitHub leaves it empty for fork pull requests.)
  */
 import { appendFileSync } from "node:fs";
 
@@ -29,24 +31,30 @@ export interface Artifact {
     id: number;
     head_branch: string;
     head_repository_id: number;
+    head_sha: string;
     repository_id: number;
   };
 }
 
 export interface RunContext {
   repositoryId: number;
-  /** Set on a `pull_request` run: the number, branch and repository it comes from. */
+  /**
+   * Set on a `pull_request` run: the branch and repository it comes from, and
+   * the commit SHAs `/pulls/{number}/commits` reports for it.
+   */
   pullRequest?: {
-    number: number;
     headRef: string;
     headRepositoryId: number;
+    commits: ReadonlySet<string>;
   };
 }
 
-const couldBeFromThisPullRequest = (artifact: Artifact, ctx: RunContext) =>
+const isFromThisPullRequest = (artifact: Artifact, ctx: RunContext) =>
   ctx.pullRequest !== undefined &&
   artifact.workflow_run.head_branch === ctx.pullRequest.headRef &&
-  artifact.workflow_run.head_repository_id === ctx.pullRequest.headRepositoryId;
+  artifact.workflow_run.head_repository_id ===
+    ctx.pullRequest.headRepositoryId &&
+  ctx.pullRequest.commits.has(artifact.workflow_run.head_sha);
 
 const isFromTrustedBranch = (artifact: Artifact, ctx: RunContext) =>
   artifact.workflow_run.head_branch === TRUSTED_BRANCH &&
@@ -55,26 +63,20 @@ const isFromTrustedBranch = (artifact: Artifact, ctx: RunContext) =>
 /**
  * Picks the artifact to repack: the newest one from this pull request, else
  * the newest one from `develop`. Returns undefined when neither exists.
- *
- * `pullRequestsOfRun` reports the pull request numbers a run belongs to; a
- * branch-match candidate is used only when its run lists this pull request.
  */
-export const pickSource = async (
+export const pickSource = (
   artifacts: Artifact[],
   ctx: RunContext,
-  pullRequestsOfRun: (runId: number) => Promise<number[]>,
-): Promise<Artifact | undefined> => {
+): Artifact | undefined => {
   const usable = artifacts
     .filter(
       (a) => !a.expired && a.workflow_run.repository_id === ctx.repositoryId,
     )
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  for (const candidate of usable) {
-    if (!couldBeFromThisPullRequest(candidate, ctx)) continue;
-    const runs = await pullRequestsOfRun(candidate.workflow_run.id);
-    if (runs.includes(ctx.pullRequest?.number ?? -1)) return candidate;
-  }
-  return usable.find((a) => isFromTrustedBranch(a, ctx));
+  return (
+    usable.find((a) => isFromThisPullRequest(a, ctx)) ??
+    usable.find((a) => isFromTrustedBranch(a, ctx))
+  );
 };
 
 const github = async <T>(url: string, token: string): Promise<T> => {
@@ -112,16 +114,22 @@ const fetchArtifacts = async (
   return artifacts;
 };
 
-const fetchRunPullRequests = async (
+const fetchPullRequestCommits = async (
   repository: string,
-  runId: number,
+  prNumber: number,
   token: string,
-): Promise<number[]> => {
-  const run = await github<{ pull_requests?: { number: number }[] }>(
-    `https://api.github.com/repos/${repository}/actions/runs/${runId}`,
-    token,
-  );
-  return (run.pull_requests ?? []).map((pr) => pr.number);
+): Promise<Set<string>> => {
+  const commits = new Set<string>();
+  let page = 1;
+  for (;;) {
+    const body = await github<{ sha: string }[]>(
+      `https://api.github.com/repos/${repository}/pulls/${prNumber}/commits?per_page=100&page=${page}`,
+      token,
+    );
+    for (const commit of body) commits.add(commit.sha);
+    if (body.length < 100) return commits;
+    page += 1;
+  }
 };
 
 /**
@@ -140,18 +148,21 @@ const main = async () => {
     repositoryId: Number(env.REPOSITORY_ID),
     pullRequest: env.PR_HEAD_REF
       ? {
-          number: Number(env.PR_NUMBER),
           headRef: env.PR_HEAD_REF,
           headRepositoryId: Number(env.PR_HEAD_REPO_ID),
+          commits: await fetchPullRequestCommits(
+            repository,
+            Number(env.PR_NUMBER),
+            token,
+          ),
         }
       : undefined,
   };
   for (const pair of process.argv.slice(2)) {
     const [output, name] = pair.split("=");
-    const source = await pickSource(
+    const source = pickSource(
       await fetchArtifacts(repository, name, token),
       ctx,
-      (runId) => fetchRunPullRequests(repository, runId, token),
     );
     const runId = source ? String(source.workflow_run.id) : "";
     console.log(
