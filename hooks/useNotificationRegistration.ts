@@ -231,7 +231,7 @@ export const useNotificationRegistration = (): ExpoPushToken | undefined => {
             // newer than the one this fetch was started with.
             if (tokenFetch.current === "done") return;
             if (token) {
-              console.log("Expo push token obtained:", token.data);
+              console.log("Expo push token obtained");
               tokenFetch.current = "done";
               setExpoPushToken(token);
             } else {
