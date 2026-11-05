@@ -52,13 +52,14 @@ export const sendToReceiver = async (
   remote: RemoteTarget,
   isStale: () => boolean,
 ): Promise<SendResult> => {
-  // Read now: a press that waited for the connection holds an older render.
-  const session = currentCastSession();
-  const client = session ? castClientFor(session) : null;
-  if (!session || !client) {
-    return { status: "failed", message: deps.t("cast.output.failed") };
-  }
   try {
+    // Read now: a press that waited for the connection holds an older render. The read can throw on Android once the
+    // module lost its React context, which the catch below reports like a failed load.
+    const session = currentCastSession();
+    const client = session ? castClientFor(session) : null;
+    if (!session || !client) {
+      return { status: "failed", message: deps.t("cast.output.failed") };
+    }
     const outcome = await castToJellyfinReceiver(
       client,
       {
