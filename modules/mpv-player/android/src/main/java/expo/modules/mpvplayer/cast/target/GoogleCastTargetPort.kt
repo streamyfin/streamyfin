@@ -185,9 +185,9 @@ internal class GoogleCastTargetPort(
             var routerCallback: MediaRouter.Callback? = null
             var volumeRelay: ((Double, Boolean) -> Unit)? = null
             // The session's own setters are not used: after CastSession.setVolume or setMute the session no longer
-            // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). Google's Android
-            // surfaces do the same: the Cast dialog's slider sets the selected route's volume, the SDK's expanded
-            // controls mute the stream.
+            // follows the receiver, a level or a mute set elsewhere never reaches it (bench, 04/11). The level goes
+            // through the route, as the Cast dialog's slider does; the app mutes the stream, as the route has no mute.
+            // The SDK's own mute toggle, in its expanded controls, mutes the device instead (reference and bench, 05/11).
             // MediaRouter selects a switch's next route before the old session has ended: the level goes to the
             // route of the session's own receiver.
             fun sessionCastRoute(): MediaRouter.RouteInfo? {
