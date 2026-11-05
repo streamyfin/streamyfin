@@ -1,3 +1,4 @@
+import { PLAY_TARGET_WAIT_MS } from "@/constants/Cast";
 import {
   onRemoteTargetChanged,
   remoteTarget,
@@ -39,23 +40,41 @@ export const resolvePlay = ({
 
 /**
  * Waits out the connection a press landed in: resolves with the connected state, or with the one that ended
- * the wait instead, no target and why.
+ * the wait instead, no target and why (no error for a connection cancelled from the sheet). "timeout" once
+ * `timeoutMs` passes without either, "aborted" once `signal` fires.
  */
 export const waitForTarget = (
   read: () => RemoteTargetState = remoteTarget,
   listen: (listener: (state: RemoteTargetState) => void) => {
     remove(): void;
   } = onRemoteTargetChanged,
-): Promise<RemoteTargetState> =>
+  {
+    timeoutMs = PLAY_TARGET_WAIT_MS,
+    signal,
+  }: { timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<RemoteTargetState | "timeout" | "aborted"> =>
   new Promise((resolve) => {
     let settled = false;
-    const settle = (state: RemoteTargetState) => {
-      if (settled || state.state === "connecting") return;
+    let subscription: { remove(): void } | undefined;
+    const finish = (outcome: RemoteTargetState | "timeout" | "aborted") => {
+      if (settled) return;
       settled = true;
-      subscription.remove();
-      resolve(state);
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      subscription?.remove();
+      resolve(outcome);
     };
+    // A cancel goes through ending on its way to none: the wait ends with the end.
+    const settle = (state: RemoteTargetState) => {
+      if (state.state !== "connecting" && state.state !== "ending")
+        finish(state);
+    };
+    const onAbort = () => finish("aborted");
+    const timer = setTimeout(() => finish("timeout"), timeoutMs);
+    signal?.addEventListener("abort", onAbort);
     // Listener first, then the read: a change landing in between would be missed.
-    const subscription = listen(settle);
-    settle(read());
+    subscription = listen(settle);
+    if (settled) subscription.remove();
+    else if (signal?.aborted) finish("aborted");
+    else settle(read());
   });

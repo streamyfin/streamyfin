@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { PlayButton } from "./PlayButton";
 
@@ -20,6 +22,13 @@ const mockNoTarget = {
   failedTarget: null,
 };
 let mockTarget: object = mockNoTarget;
+let mockInGroup = false;
+const mockTargetListeners = new Set<(state: object) => void>();
+// The module's target changes, as onRemoteTargetChanged reports them.
+const emitTarget = (state: object) => {
+  mockTarget = state;
+  for (const listener of [...mockTargetListeners]) listener(state);
+};
 let mockOffline = false;
 let mockDownloaded: object | undefined;
 const mockShowModal = jest.fn();
@@ -71,7 +80,10 @@ jest.mock("@/modules/mpv-player/src/cast", () => {
   return {
     castClientFor: () => ({ id: "client-1" }),
     currentCastSession: () => ({ id: "session-1" }),
-    onRemoteTargetChanged: () => ({ remove: jest.fn() }),
+    onRemoteTargetChanged: (listener: (state: object) => void) => {
+      mockTargetListeners.add(listener);
+      return { remove: () => mockTargetListeners.delete(listener) };
+    },
     remoteTarget: () => mockTarget,
     showExpandedControls: jest.fn(),
     useCastMediaStatus: () => null,
@@ -94,7 +106,7 @@ jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,
 }));
 jest.mock("@/providers/SyncPlayProvider", () => ({
-  useSyncPlay: () => ({ enabled: false }),
+  useSyncPlay: () => ({ enabled: mockInGroup }),
 }));
 jest.mock("@/utils/atoms/primaryColor", () => ({
   itemThemeColorAtom: jest
@@ -139,6 +151,9 @@ beforeEach(() => {
   jest.spyOn(Alert, "alert").mockClear();
   mockPlayMedia.mockClear();
   mockShowActionSheet.mockClear();
+  mockInGroup = false;
+  mockTargetListeners.clear();
+  getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
   (castToJellyfinReceiver as jest.Mock).mockClear();
 });
 
@@ -258,6 +273,131 @@ test("a play here of a downloaded item still asks which copy to play", async () 
   expect(Alert.alert).toHaveBeenCalledWith(
     "player.downloaded_file_title",
     "player.downloaded_file_message",
+    expect.anything(),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+const connectingTo = (target: object) => ({
+  ...connectedTo(target),
+  state: "connecting",
+});
+const press = () =>
+  act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+
+test("a press while connecting casts once connected", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// One wait at a time: a second press while it runs adds no second load.
+test("a second press while waiting starts nothing more", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await press();
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// Gone back from the item page: the connection that lands later casts nothing from it.
+test("a wait dropped with its button casts nothing", async () => {
+  mockTarget = connectingTo(mockSalon);
+  const view = await render(
+    <PlayButton item={item} selectedOptions={selectedOptions} />,
+  );
+  await press();
+  await act(async () => view.unmount());
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// Cancel from the sheet ends the connection without an error: nothing plays, and nothing to say.
+test("a connection cancelled from the sheet plays nothing and says nothing", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    emitTarget({ ...connectingTo(mockSalon), state: "ending" }),
+  );
+  await act(async () => emitTarget(mockNoTarget));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalled();
+});
+
+test("a connection that fails says so", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    emitTarget({ ...mockNoTarget, error: "lost", failedTarget: mockSalon }),
+  );
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "player.client_error",
+    "cast.output.failed",
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The account that pressed Play is the one whose item and token the receiver gets.
+test("a sign-out while waiting plays nothing on the receiver", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    getDefaultStore().set(userAtom as never, null as never),
+  );
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The label stays the button's; its value says where a press plays.
+test("a target names itself to screen readers", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(
+    screen.getByLabelText("accessibility.play_button").props.accessibilityValue,
+  ).toEqual({ text: "player.play_on" });
+});
+
+test("a screen reader reaches Play here", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(
+      screen.getByLabelText("accessibility.play_button"),
+      "accessibilityAction",
+      { nativeEvent: { actionName: "longpress" } },
+    ),
+  );
+  expect(mockShowActionSheet.mock.calls[0][0].options).toEqual([
+    "player.play_here",
+    "common.cancel",
+  ]);
+});
+
+// A press that goes to the target leaves the group alone: the group's glyph is for a play here.
+test("in a group, a press for the target shows no group glyph", async () => {
+  mockInGroup = true;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.queryByTestId("play-button-syncplay")).toBeNull();
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByTestId("play-button-syncplay")).toBeTruthy();
+});
+
+test("a download played from the downloads never casts", async () => {
+  mockOffline = true;
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ offline: true }),
     expect.anything(),
   );
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();

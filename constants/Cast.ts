@@ -45,6 +45,13 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
+ * How long a Play pressed while a receiver connects waits for the connection.
+ * Connections took a few seconds on the bench; past this the press gives up and
+ * says the connection failed, instead of starting much later on its own.
+ */
+export const PLAY_TARGET_WAIT_MS = 20_000;
+
+/**
  * Tries at opening the receiver channel before a command gives up. A session
  * that changes again on every try is a device the sender cannot hold on to,
  * and giving up beats looping on it.

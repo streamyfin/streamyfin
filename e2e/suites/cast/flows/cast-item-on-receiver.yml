@@ -26,8 +26,9 @@ appId: com.fredrikburmester.streamyfin
     timeout: 30000
 - tapOn:
     point: "18%,29%"
+# The button names where it plays in its value, which Android joins to its label: matched as a prefix.
 - extendedWaitUntil:
-    visible: "Play button"
+    visible: "Play button.*"
     timeout: 30000
 # The header Cast button opens the output sheet, which starts the discovery; its panel replaces the list once
 # the receiver is connected, and back closes it.
@@ -50,10 +51,10 @@ appId: com.fredrikburmester.streamyfin
 - takeScreenshot: cast-connected
 # Play goes to the connected receiver, which the button names; there is no choice to make any more.
 - assertVisible: "Play on ${CAST_NAME}"
-- tapOn: "Play button"
+- tapOn: "Play button.*"
 # The SDK expanded controls cover the item page; their toolbar Cast button is the way to stop casting.
 - extendedWaitUntil:
-    notVisible: "Play button"
+    notVisible: "Play button.*"
     timeout: 30000
 - takeScreenshot: cast-expanded-controls
 - tapOn: "Cast. Connected"
@@ -62,6 +63,6 @@ appId: com.fredrikburmester.streamyfin
     timeout: 15000
 - tapOn: "Stop casting"
 - extendedWaitUntil:
-    visible: "Play button"
+    visible: "Play button.*"
     timeout: 30000
 - takeScreenshot: cast-stopped

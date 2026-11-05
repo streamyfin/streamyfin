@@ -105,3 +105,48 @@ test("aTargetConnectedBeforeTheWaitResolvesAtOnce", async () => {
   );
   expect(bus.remove).toHaveBeenCalled();
 });
+
+// A connection that never lands ends the wait: the press does not stay pending for good.
+test("aWaitGivesUpAfterItsLimit", async () => {
+  jest.useFakeTimers();
+  try {
+    const bus = listening();
+    const wait = waitForTarget(() => connecting, bus.listen, {
+      timeoutMs: 1_000,
+    });
+    jest.advanceTimersByTime(1_000);
+    await expect(wait).resolves.toBe("timeout");
+    expect(bus.remove).toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+// The button that waited went away: the wait ends and hears nothing more.
+test("anAbortedWaitEndsWithoutAState", async () => {
+  const bus = listening();
+  const abort = new AbortController();
+  const wait = waitForTarget(() => connecting, bus.listen, {
+    signal: abort.signal,
+  });
+  abort.abort();
+  bus.emit(connected);
+  await expect(wait).resolves.toBe("aborted");
+  expect(bus.remove).toHaveBeenCalled();
+});
+
+// Cancel from the sheet goes through ending: the wait ends with the end, not on its way there.
+test("aCancelledConnectionWaitsOutItsEnd", async () => {
+  const bus = listening();
+  let result: unknown;
+  const wait = waitForTarget(() => connecting, bus.listen).then((settled) => {
+    result = settled;
+    return settled;
+  });
+  bus.emit({ ...connecting, state: "ending" });
+  await Promise.resolve();
+  const whileEnding = result;
+  bus.emit(NO_REMOTE_TARGET);
+  await expect(wait).resolves.toEqual(NO_REMOTE_TARGET);
+  expect(whileEnding).toBeUndefined();
+});

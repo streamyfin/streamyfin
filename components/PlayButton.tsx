@@ -2,8 +2,8 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect } from "react";
+import { useAtom, useAtomValue, useStore } from "jotai";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import Animated, {
@@ -88,6 +88,10 @@ export const PlayButton: React.FC<Props> = ({
   const lightHapticFeedback = useHaptic("light");
   const playMedia = usePlayMedia();
   const { enabled: inSyncPlayGroup } = useSyncPlay();
+  const store = useStore();
+  // The press waiting for a connection: one at a time, dropped with the button.
+  const pendingWait = useRef<AbortController | null>(null);
+  useEffect(() => () => pendingWait.current?.abort(), []);
 
   const playRequestFor = useCallback(
     (positionTicks: number): PlayRequest => ({
@@ -177,18 +181,41 @@ export const PlayButton: React.FC<Props> = ({
         return;
       }
       if (destination.where === "waitForTarget") {
-        const settled = await waitForTarget();
-        if (settled.state === "connected" && settled.target) {
-          await playOnTarget(positionTicks, settled.target);
-        } else {
+        // A second press while one waits adds nothing: the first plays once connected.
+        if (pendingWait.current) return;
+        const wait = new AbortController();
+        pendingWait.current = wait;
+        const pressedBy = user?.Id;
+        const settled = await waitForTarget(undefined, undefined, {
+          signal: wait.signal,
+        });
+        if (pendingWait.current === wait) pendingWait.current = null;
+        // Gone with its button, or another account since the press: the receiver would get its item.
+        if (settled === "aborted" || store.get(userAtom)?.Id !== pressedBy) {
+          return;
+        }
+        if (settled !== "timeout" && settled.state === "connected") {
+          if (settled.target) await playOnTarget(positionTicks, settled.target);
+        } else if (settled === "timeout" || settled.error) {
           // Nothing plays: the connection the press waited for did not come.
           Alert.alert(t("player.client_error"), t("cast.output.failed"));
         }
+        // A connection cancelled from the sheet ends without an error: nothing to say.
         return;
       }
       await playMedia(playRequestFor(positionTicks), { item });
     },
-    [item, target, isOffline, playOnTarget, playMedia, playRequestFor, t],
+    [
+      item,
+      target,
+      isOffline,
+      user,
+      store,
+      playOnTarget,
+      playMedia,
+      playRequestFor,
+      t,
+    ],
   );
 
   const startPlayback = useCallback(
@@ -490,6 +517,17 @@ export const PlayButton: React.FC<Props> = ({
         disabled={!item || !!disabled}
         accessibilityLabel={t("accessibility.play_button")}
         accessibilityHint={t("accessibility.play_hint")}
+        // Where a press plays, for screen readers. Always a value: React Native Android clears the whole
+        // content description, label included, once it turns undefined.
+        accessibilityValue={{ text: targetLabel ?? "" }}
+        accessibilityActions={
+          targetLabel
+            ? [{ name: "longpress", label: t("player.play_here") }]
+            : undefined
+        }
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "longpress") onLongPress();
+        }}
         onPress={onPress}
         onLongPress={onLongPress}
         className={"relative"}
@@ -541,9 +579,10 @@ export const PlayButton: React.FC<Props> = ({
                 <Feather name='cast' size={22} />
               </Animated.Text>
             )}
-            {/* In a group this button plays for everyone in it. Downloads
-              stay solo, so they keep the plain button. */}
-            {inSyncPlayGroup && !isOffline && (
+            {/* In a group a play here is for everyone in it. Downloads stay
+              solo, and a press for a target leaves the group alone, so
+              both keep the plain button. */}
+            {inSyncPlayGroup && !isOffline && !targetLabel && (
               <Animated.Text
                 testID='play-button-syncplay'
                 style={animatedTextStyle}
