@@ -173,6 +173,15 @@ enum OutputSheetTests {
       )
     }
 
+    // Resumed, the client may not have reported when the session is suspended again: the status from the first
+    // suspension still stands.
+    do {
+      var heard = LastHeardStatus<String>()
+      heard.hold("playing")
+      heard.hold(nil)
+      check("aSecondSuspensionBeforeAnyReportKeepsTheStatus", heard.read(nil) == "playing")
+    }
+
     do {
       let missing = rows(outputSheetState(input(devices: [], playServices: .missing)))
       let outdated = rows(outputSheetState(input(devices: [], playServices: .updateRequired)))
