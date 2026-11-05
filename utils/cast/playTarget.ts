@@ -5,6 +5,21 @@ import {
 } from "@/modules/mpv-player/src/cast";
 import type { RemoteTargetState } from "@/modules/mpv-player/src/cast/Cast.types";
 
+let playChoice = 0;
+
+/**
+ * Records a play choice from any Play button, here or on the receiver, and returns its number. A page left
+ * under another stays mounted: a receiver load sends only while its choice is the latest.
+ */
+export const choosePlay = (): number => {
+  playChoice += 1;
+  return playChoice;
+};
+
+/** True while no play choice came after this one. */
+export const isLatestPlayChoice = (choice: number): boolean =>
+  choice === playChoice;
+
 /** Where the Play button sends playback. */
 export type PlayDestination =
   | { where: "target"; name: string }

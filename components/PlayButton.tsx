@@ -39,7 +39,12 @@ import {
   castToJellyfinReceiver,
   currentReceiverName,
 } from "@/utils/cast/jellyfinReceiver";
-import { resolvePlay, waitForTarget } from "@/utils/cast/playTarget";
+import {
+  choosePlay,
+  isLatestPlayChoice,
+  resolvePlay,
+  waitForTarget,
+} from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { maxBitrateFor } from "@/utils/cast/remoteQuality";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
@@ -92,14 +97,12 @@ export const PlayButton: React.FC<Props> = ({
   // The press waiting for a connection: one at a time, dropped with the button.
   const pendingWait = useRef<AbortController | null>(null);
   useEffect(() => () => pendingWait.current?.abort(), []);
-  // Bumped by every play here: a load to the receiver sends only while it is still the last choice.
-  const receiverPresses = useRef(0);
   // A play here is the last choice: the press still waiting for the receiver goes, and so does a load that has
-  // not sent yet.
+  // not sent yet, from this page or one left under it.
   const dropReceiverPress = useCallback(() => {
     pendingWait.current?.abort();
     pendingWait.current = null;
-    receiverPresses.current += 1;
+    choosePlay();
   }, []);
 
   const playRequestFor = useCallback(
@@ -119,12 +122,11 @@ export const PlayButton: React.FC<Props> = ({
   // the item plus the chosen streams and runs PlaybackInfo itself, which is what
   // opens a real Jellyfin session and makes the cast visible in the dashboard.
   const playOnTarget = useCallback(
-    async (positionTicks: number, remote: RemoteTarget) => {
+    async (positionTicks: number, remote: RemoteTarget, choice: number) => {
       if (!api || !user?.Id || !item?.Id) {
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
-      const press = receiverPresses.current;
       // Read now: a press that waited for the connection holds an older render.
       const session = currentCastSession();
       const client = session ? castClientFor(session) : null;
@@ -154,11 +156,11 @@ export const PlayButton: React.FC<Props> = ({
           },
           RECEIVER_LOAD_TIMEOUT_MS,
           // The load reads the receiver before it sends, and the send goes to the current session: another
-          // account, another receiver or a play here by then gets nothing sent.
+          // account, another receiver or a later play choice by then gets nothing sent.
           () =>
             store.get(userAtom)?.Id !== user.Id ||
             currentCastSession()?.id !== session.id ||
-            receiverPresses.current !== press,
+            !isLatestPlayChoice(choice),
         );
         const notStarted = castNotStartedMessage(t, outcome);
         if (notStarted) {
@@ -193,12 +195,13 @@ export const PlayButton: React.FC<Props> = ({
         longPress,
       });
       if (destination.where === "target" && target.target) {
-        await playOnTarget(positionTicks, target.target);
+        await playOnTarget(positionTicks, target.target, choosePlay());
         return;
       }
       if (destination.where === "waitForTarget") {
         // A second press while one waits adds nothing: the first plays once connected.
         if (pendingWait.current) return;
+        const choice = choosePlay();
         const wait = new AbortController();
         pendingWait.current = wait;
         const pressedBy = user?.Id;
@@ -206,12 +209,19 @@ export const PlayButton: React.FC<Props> = ({
           signal: wait.signal,
         });
         if (pendingWait.current === wait) pendingWait.current = null;
-        // Gone with its button, or another account since the press: the receiver would get its item.
-        if (settled === "aborted" || store.get(userAtom)?.Id !== pressedBy) {
+        // Gone with its button, another account since the press, or a later choice on another page: the
+        // receiver would get an item no one asked for any more.
+        if (
+          settled === "aborted" ||
+          store.get(userAtom)?.Id !== pressedBy ||
+          !isLatestPlayChoice(choice)
+        ) {
           return;
         }
         if (settled !== "timeout" && settled.state === "connected") {
-          if (settled.target) await playOnTarget(positionTicks, settled.target);
+          if (settled.target) {
+            await playOnTarget(positionTicks, settled.target, choice);
+          }
         } else if (settled === "timeout" || settled.error) {
           // Nothing plays: the connection the press waited for did not come.
           Alert.alert(t("player.client_error"), t("cast.output.failed"));

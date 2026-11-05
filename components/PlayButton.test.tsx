@@ -514,3 +514,42 @@ test("a play here while a load to the receiver is on its way keeps it from sendi
   expect(mockPlayMedia).toHaveBeenCalledTimes(1);
   expect(isStale?.()).toBe(true);
 });
+
+// An item page left under another stays mounted, its press still waiting: the choice made on top is the last one.
+const other = { ...(item as object), Id: "item-2", Name: "Other" } as never;
+const twoPages = () =>
+  render(
+    <>
+      <PlayButton item={item} selectedOptions={selectedOptions} />
+      <PlayButton item={other} selectedOptions={selectedOptions} />
+    </>,
+  );
+const playButtons = () => screen.getAllByLabelText("accessibility.play_button");
+
+test("a play here on another item's page keeps a press waiting here from casting", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await twoPages();
+  await act(async () => fireEvent.press(playButtons()[0]));
+  await act(async () => fireEvent(playButtons()[1], "longPress"));
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+test("of two pages waiting for the receiver, the last press plays", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await twoPages();
+  await act(async () => fireEvent.press(playButtons()[0]));
+  await act(async () => fireEvent.press(playButtons()[1]));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.anything(),
+    expect.objectContaining({ items: [other] }),
+    expect.anything(),
+    expect.any(Function),
+  );
+});

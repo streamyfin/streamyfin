@@ -2,7 +2,12 @@ import {
   NO_REMOTE_TARGET,
   type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
-import { resolvePlay, waitForTarget } from "./playTarget";
+import {
+  choosePlay,
+  isLatestPlayChoice,
+  resolvePlay,
+  waitForTarget,
+} from "./playTarget";
 
 const salon = {
   kind: "cast" as const,
@@ -149,4 +154,14 @@ test("aCancelledConnectionWaitsOutItsEnd", async () => {
   bus.emit(NO_REMOTE_TARGET);
   await expect(wait).resolves.toEqual(NO_REMOTE_TARGET);
   expect(whileEnding).toBeUndefined();
+});
+
+// Shared by every Play button: a page left under another stays mounted, and its press must not outlive a later
+// choice made on top of it.
+test("aLaterPlayChoiceMakesTheEarlierOneStale", () => {
+  const first = choosePlay();
+  expect(isLatestPlayChoice(first)).toBe(true);
+  const second = choosePlay();
+  expect(isLatestPlayChoice(first)).toBe(false);
+  expect(isLatestPlayChoice(second)).toBe(true);
 });
