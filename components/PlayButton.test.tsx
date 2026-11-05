@@ -35,6 +35,8 @@ const emitTarget = (state: object) => {
   mockTarget = state;
   for (const listener of [...mockTargetListeners]) listener(state);
 };
+// The receiver's Cast session, which a switch replaces.
+let mockSession: { id: string } | null = { id: "session-1" };
 let mockOffline = false;
 let mockDownloaded: object | undefined;
 const mockShowModal = jest.fn();
@@ -84,8 +86,10 @@ jest.mock("@/hooks/usePlayMedia", () => ({
 }));
 jest.mock("@/modules/mpv-player/src/cast", () => {
   return {
-    castClientFor: () => ({ id: "client-1" }),
-    currentCastSession: () => ({ id: "session-1" }),
+    castClientFor: (session: { id: string }) => ({
+      id: `client-of-${session.id}`,
+    }),
+    currentCastSession: () => mockSession,
     onRemoteTargetChanged: (listener: (state: object) => void) => {
       mockTargetListeners.add(listener);
       return { remove: () => mockTargetListeners.delete(listener) };
@@ -123,9 +127,10 @@ jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({
     settings: {
       showResumeDialog: true,
+      // Bedroom has a quality of its own, so a load shows which receiver it was made for.
       remotePlaybackQuality: {
         byKind: { cast: "4 Mb/s" },
-        byTarget: {},
+        byTarget: { "device-b": "2 Mb/s" },
         known: [],
       },
     },
@@ -151,6 +156,7 @@ const selectedOptions = {} as never;
 
 beforeEach(() => {
   mockTarget = connectedTo(mockSalon);
+  mockSession = { id: "session-1" };
   mockOffline = false;
   mockDownloaded = undefined;
   mockShowModal.mockClear();
@@ -327,8 +333,17 @@ test("a press waiting for one receiver plays on the one the output switched to",
   );
   await act(async () => emitTarget(connectingTo(bedroom)));
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  mockSession = { id: "session-bedroom" };
   await act(async () => emitTarget(connectedTo(bedroom)));
+  // Bedroom's session, at Bedroom's own quality.
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    { id: "client-of-session-bedroom" },
+    expect.objectContaining({ maxBitrate: 2_000_000 }),
+    expect.anything(),
+    expect.anything(),
+    expect.any(Function),
+  );
 });
 
 // One wait at a time: a second press while it runs adds no second load.
@@ -449,6 +464,20 @@ test("the load to the receiver goes stale with the account that pressed", async 
   await act(async () =>
     getDefaultStore().set(userAtom as never, null as never),
   );
+  expect(before).toBe(false);
+  expect(isStale?.()).toBe(true);
+});
+
+// The send follows the current Cast session: a switch while the load reads the receiver would hand the item to
+// the next receiver, at the quality and under the name of this one, and its client would never hear it start.
+test("the load to the receiver goes stale with the Cast session it was made for", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  mockSession = { id: "session-2" };
   expect(before).toBe(false);
   expect(isStale?.()).toBe(true);
 });

@@ -123,7 +123,7 @@ export const PlayButton: React.FC<Props> = ({
       // Read now: a press that waited for the connection holds an older render.
       const session = currentCastSession();
       const client = session ? castClientFor(session) : null;
-      if (!client) {
+      if (!session || !client) {
         Alert.alert(t("player.client_error"), t("cast.output.failed"));
         return;
       }
@@ -148,8 +148,11 @@ export const PlayButton: React.FC<Props> = ({
             subtitleStreamIndex: selectedOptions.subtitleIndex,
           },
           RECEIVER_LOAD_TIMEOUT_MS,
-          // The load reads the receiver before it sends: another account by then gets nothing sent.
-          () => store.get(userAtom)?.Id !== user.Id,
+          // The load reads the receiver before it sends, and the send goes to the current session: another
+          // account or another receiver by then gets nothing sent.
+          () =>
+            store.get(userAtom)?.Id !== user.Id ||
+            currentCastSession()?.id !== session.id,
         );
         const notStarted = castNotStartedMessage(t, outcome);
         if (notStarted) {
