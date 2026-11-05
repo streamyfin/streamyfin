@@ -1,4 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
@@ -13,6 +15,20 @@ import type {
 } from "@/utils/streamystats/types";
 
 /**
+ * What a failed call says to the user: the server's own message when it sent
+ * one, else `fallback`, in the app's language. Axios rejects an HTTP error
+ * with an English message of its own, which is not the server's.
+ */
+const errorMessage = (error: Error, fallback: string): string => {
+  if (isAxiosError(error)) {
+    const sent = (error.response?.data as { error?: unknown } | undefined)
+      ?.error;
+    return typeof sent === "string" && sent ? sent : fallback;
+  }
+  return error.message || fallback;
+};
+
+/**
  * Hook to create a new watchlist
  */
 export const useCreateWatchlist = () => {
@@ -25,7 +41,7 @@ export const useCreateWatchlist = () => {
       data: CreateWatchlistRequest,
     ): Promise<StreamystatsWatchlist> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
-        throw new Error("Streamystats not configured");
+        throw new Error(t("watchlists.not_configured_title"));
       }
 
       const streamystatsApi = createStreamystatsApi({
@@ -43,10 +59,10 @@ export const useCreateWatchlist = () => {
       queryClient.invalidateQueries({
         queryKey: ["streamystats", "watchlists"],
       });
-      toast.success("Watchlist created");
+      toast.success(t("watchlists.toasts.created"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create watchlist");
+      toast.error(errorMessage(error, t("watchlists.toasts.create_failed")));
     },
   });
 
@@ -70,7 +86,7 @@ export const useUpdateWatchlist = () => {
       data: UpdateWatchlistRequest;
     }): Promise<StreamystatsWatchlist> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
-        throw new Error("Streamystats not configured");
+        throw new Error(t("watchlists.not_configured_title"));
       }
 
       const streamystatsApi = createStreamystatsApi({
@@ -91,10 +107,10 @@ export const useUpdateWatchlist = () => {
       queryClient.invalidateQueries({
         queryKey: ["streamystats", "watchlist", variables.watchlistId],
       });
-      toast.success("Watchlist updated");
+      toast.success(t("watchlists.toasts.updated"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update watchlist");
+      toast.error(errorMessage(error, t("watchlists.toasts.update_failed")));
     },
   });
 
@@ -112,7 +128,7 @@ export const useDeleteWatchlist = () => {
   const mutation = useMutation({
     mutationFn: async (watchlistId: number): Promise<void> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
-        throw new Error("Streamystats not configured");
+        throw new Error(t("watchlists.not_configured_title"));
       }
 
       const streamystatsApi = createStreamystatsApi({
@@ -132,10 +148,10 @@ export const useDeleteWatchlist = () => {
       queryClient.removeQueries({
         queryKey: ["streamystats", "watchlist", watchlistId],
       });
-      toast.success("Watchlist deleted");
+      toast.success(t("watchlists.toasts.deleted"));
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete watchlist");
+      toast.error(errorMessage(error, t("watchlists.toasts.delete_failed")));
     },
   });
 
@@ -160,7 +176,7 @@ export const useAddToWatchlist = () => {
       watchlistName?: string;
     }): Promise<void> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
-        throw new Error("Streamystats not configured");
+        throw new Error(t("watchlists.not_configured_title"));
       }
 
       const streamystatsApi = createStreamystatsApi({
@@ -190,13 +206,15 @@ export const useAddToWatchlist = () => {
         queryKey: ["streamystats", "itemInWatchlists", variables.itemId],
       });
       if (variables.watchlistName) {
-        toast.success(`Added to ${variables.watchlistName}`);
+        toast.success(
+          t("watchlists.toasts.added_to", { name: variables.watchlistName }),
+        );
       } else {
-        toast.success("Added to watchlist");
+        toast.success(t("watchlists.toasts.added"));
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to add to watchlist");
+      toast.error(errorMessage(error, t("watchlists.toasts.add_failed")));
     },
   });
 
@@ -221,7 +239,7 @@ export const useRemoveFromWatchlist = () => {
       watchlistName?: string;
     }): Promise<void> => {
       if (!settings?.streamyStatsServerUrl || !api?.accessToken) {
-        throw new Error("Streamystats not configured");
+        throw new Error(t("watchlists.not_configured_title"));
       }
 
       const streamystatsApi = createStreamystatsApi({
@@ -251,13 +269,17 @@ export const useRemoveFromWatchlist = () => {
         queryKey: ["streamystats", "itemInWatchlists", variables.itemId],
       });
       if (variables.watchlistName) {
-        toast.success(`Removed from ${variables.watchlistName}`);
+        toast.success(
+          t("watchlists.toasts.removed_from", {
+            name: variables.watchlistName,
+          }),
+        );
       } else {
-        toast.success("Removed from watchlist");
+        toast.success(t("watchlists.toasts.removed"));
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to remove from watchlist");
+      toast.error(errorMessage(error, t("watchlists.toasts.remove_failed")));
     },
   });
 
