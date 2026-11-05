@@ -277,8 +277,8 @@ import { apiAtom } from "@/utils/atoms/api";
 ## Coding standards
 
 - TypeScript everywhere. The only exceptions are the config files whose loaders cannot
-  parse TypeScript: `babel.config.js`, `jest.perf.config.js`, `metro.config.js`, `react-native.config.js`,
-  `tailwind.config.js`.
+  parse TypeScript: `babel.config.js`, `fingerprint.config.js`, `jest.perf.config.js`, `metro.config.js`,
+  `react-native.config.js`, `tailwind.config.js`.
 - Functional components with hooks.
 - Biome formatting: two space indent, semicolons, LF endings.
 - Reuse the existing atoms, hooks and utilities before adding new ones.
