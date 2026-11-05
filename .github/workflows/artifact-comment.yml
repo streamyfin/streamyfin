@@ -405,10 +405,13 @@ jobs:
                   run_id: refRun.id
                 });
 
-                for (const [platform, jobNames] of Object.entries(jobMappings)) {
-                  const job = findJobForTarget(refJobs.jobs, jobNames);
-                  if (job && job.conclusion === 'success' && job.started_at && job.completed_at) {
-                    referenceDurations[platform] = new Date(job.completed_at) - new Date(job.started_at);
+                // Keyed by job name, not platform: a repack takes minutes where
+                // a full build takes much longer, so an ETA must come from the
+                // same kind of job that is running.
+                const mappedNames = new Set(Object.values(jobMappings).flat());
+                for (const job of refJobs.jobs) {
+                  if (mappedNames.has(job.name) && job.conclusion === 'success' && job.started_at && job.completed_at) {
+                    referenceDurations[job.name] = new Date(job.completed_at) - new Date(job.started_at);
                   }
                 }
                 console.log(`Reference durations from develop run ${refRun.id}:`,
@@ -481,13 +484,13 @@ jobs:
                   downloadLink = '*Build cancelled*';
                 } else if (matchingStatus.status === 'in_progress') {
                   status = `🔄 [Building...](${matchingStatus.url})`;
-                  const ref = referenceDurations[target.statusKey];
+                  const ref = referenceDurations[matchingStatus.name];
                   downloadLink = ref
                     ? `*Building… ~${fmtDuration(ref)} (avg on develop)*`
                     : '*Build in progress...*';
                 } else if (matchingStatus.status === 'queued') {
                   status = `⏳ [Queued](${matchingStatus.url})`;
-                  const ref = referenceDurations[target.statusKey];
+                  const ref = referenceDurations[matchingStatus.name];
                   downloadLink = ref
                     ? `*Waiting to start… ~${fmtDuration(ref)} once running (avg on develop)*`
                     : '*Waiting to start...*';
