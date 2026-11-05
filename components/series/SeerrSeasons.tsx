@@ -20,10 +20,10 @@ import Animated, {
   useDerivedValue,
 } from "react-native-reanimated";
 import { scheduleOnUI } from "react-native-worklets";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollContext } from "@/components/ParallaxPage";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
+import { SeerrEpisodeRow } from "@/components/series/SeerrEpisodeRow";
 import { ParallaxPageColors, SheetColors } from "@/constants/Colors";
 import {
   SEERR_SEASON_BAND_FADE,
@@ -33,19 +33,15 @@ import {
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { formatSeerrDate, seerrLocaleTag } from "@/utils/seerr/dates";
-import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import type {
   MediaRequestBody,
   MovieDetails,
-  SeasonWithEpisodes,
   TvDetails,
 } from "@/utils/seerr/types";
 import { MediaType } from "@/utils/seerr/types";
 import { stickyHeaderOffset } from "@/utils/stickyHeader";
 import { Loader } from "../Loader";
-
-type Episode = NonNullable<SeasonWithEpisodes["episodes"]>[number];
 
 // The header of an open season while it is not pinned: one object, so the
 // style is not sent again on every frame of the scroll.
@@ -73,7 +69,6 @@ const SeasonEpisodes: React.FC<{
 
   if (isLoading) return <Loader />;
 
-  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
   const tag = seerrLocaleTag(locale, region);
 
   return (
@@ -85,83 +80,13 @@ const SeasonEpisodes: React.FC<{
               style={{ height: 1, backgroundColor: SheetColors.separator }}
             />
           )}
-          <EpisodeRow
+          <SeerrEpisodeRow
             episode={episode}
-            still={episodeStillUrl(baseUrl, episode.stillPath)}
+            still={seerrApi?.episodeStill(episode.stillPath)}
             airDate={formatSeerrDate(episode.airDate, tag)}
           />
         </View>
       ))}
-    </View>
-  );
-};
-
-const EpisodeRow: React.FC<{
-  episode: Episode;
-  still?: string;
-  airDate?: string;
-}> = ({ episode, still, airDate }) => {
-  const [imageError, setImageError] = useState(false);
-
-  return (
-    <View style={{ paddingVertical: 12, gap: 8 }}>
-      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-        <View
-          style={{
-            width: 128,
-            aspectRatio: 16 / 9,
-            borderRadius: 8,
-            overflow: "hidden",
-            backgroundColor: SheetColors.group,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {still && !imageError ? (
-            <Image
-              source={{ uri: still }}
-              cachePolicy='memory-disk'
-              contentFit='cover'
-              style={{ width: "100%", height: "100%" }}
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <Ionicons
-              name='image-outline'
-              size={22}
-              color='white'
-              style={{ opacity: 0.4 }}
-            />
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: "600" }} numberOfLines={2}>
-            {`${episode.episodeNumber}. ${episode.name}`}
-          </Text>
-          {airDate && (
-            <Text
-              style={{
-                fontSize: 13,
-                marginTop: 2,
-                color: SheetColors.secondaryText,
-              }}
-            >
-              {airDate}
-            </Text>
-          )}
-        </View>
-      </View>
-      {!!episode.overview && (
-        <Text
-          style={{
-            fontSize: 13,
-            lineHeight: 18,
-            color: SheetColors.secondaryText,
-          }}
-        >
-          {episode.overview}
-        </Text>
-      )}
     </View>
   );
 };
