@@ -34,6 +34,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
 
   const disabled = useMemo(
     () =>
+      pluginSettings?.enablePlayerGestures?.locked === true &&
       pluginSettings?.enableHorizontalSwipeSkip?.locked === true &&
       pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true &&
       pluginSettings?.enableRightSideVolumeSwipe?.locked === true &&
@@ -63,21 +64,47 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
 
   if (!settings) return null;
 
+  // With the master switch off every gesture row below is moot: shown, so
+  // what comes back on is visible, but not editable.
+  const gesturesOff = settings.enablePlayerGestures === false;
+
   return (
     <DisabledSetting disabled={disabled} {...props}>
       <ListGroup
         title={t("home.settings.gesture_controls.gesture_controls_title")}
       >
         <ListItem
+          title={t("home.settings.gesture_controls.player_gestures")}
+          subtitle={t(
+            "home.settings.gesture_controls.player_gestures_description",
+          )}
+          disabled={pluginSettings?.enablePlayerGestures?.locked === true}
+        >
+          <SettingSwitch
+            value={settings.enablePlayerGestures !== false}
+            disabled={pluginSettings?.enablePlayerGestures?.locked === true}
+            onValueChange={(enablePlayerGestures) =>
+              updateSettings({ enablePlayerGestures })
+            }
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.gesture_controls.horizontal_swipe_skip")}
           subtitle={t(
             "home.settings.gesture_controls.horizontal_swipe_skip_description",
           )}
-          disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
+          disabled={
+            gesturesOff ||
+            pluginSettings?.enableHorizontalSwipeSkip?.locked === true
+          }
         >
           <SettingSwitch
             value={settings.enableHorizontalSwipeSkip}
-            disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
+            disabled={
+              gesturesOff ||
+              pluginSettings?.enableHorizontalSwipeSkip?.locked === true
+            }
             onValueChange={(enableHorizontalSwipeSkip) =>
               updateSettings({ enableHorizontalSwipeSkip })
             }
@@ -89,11 +116,17 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           subtitle={t(
             "home.settings.gesture_controls.left_side_brightness_description",
           )}
-          disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
+          disabled={
+            gesturesOff ||
+            pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true
+          }
         >
           <SettingSwitch
             value={settings.enableLeftSideBrightnessSwipe}
-            disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
+            disabled={
+              gesturesOff ||
+              pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true
+            }
             onValueChange={(enableLeftSideBrightnessSwipe) =>
               updateSettings({ enableLeftSideBrightnessSwipe })
             }
@@ -105,11 +138,17 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           subtitle={t(
             "home.settings.gesture_controls.right_side_volume_description",
           )}
-          disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
+          disabled={
+            gesturesOff ||
+            pluginSettings?.enableRightSideVolumeSwipe?.locked === true
+          }
         >
           <SettingSwitch
             value={settings.enableRightSideVolumeSwipe}
-            disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
+            disabled={
+              gesturesOff ||
+              pluginSettings?.enableRightSideVolumeSwipe?.locked === true
+            }
             onValueChange={(enableRightSideVolumeSwipe) =>
               updateSettings({ enableRightSideVolumeSwipe })
             }
@@ -127,11 +166,16 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             subtitle={t(
               "home.settings.gesture_controls.hold_to_speed_description",
             )}
-            disabled={pluginSettings?.enableHoldToSpeed?.locked}
+            disabled={
+              gesturesOff || pluginSettings?.enableHoldToSpeed?.locked === true
+            }
           >
             <SettingSwitch
               value={settings.enableHoldToSpeed}
-              disabled={pluginSettings?.enableHoldToSpeed?.locked}
+              disabled={
+                gesturesOff ||
+                pluginSettings?.enableHoldToSpeed?.locked === true
+              }
               onValueChange={(enableHoldToSpeed) =>
                 updateSettings({ enableHoldToSpeed })
               }
@@ -142,6 +186,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         {!Platform.isTV && (
           <DisabledSetting
             disabled={
+              gesturesOff ||
               !settings.enableHoldToSpeed ||
               pluginSettings?.holdToSpeedRate?.locked === true
             }
@@ -149,7 +194,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           >
             <ListItem
               title={t("home.settings.gesture_controls.hold_to_speed_rate")}
-              disabled={pluginSettings?.holdToSpeedRate?.locked}
+              disabled={pluginSettings?.holdToSpeedRate?.locked === true}
             >
               <PlatformDropdown
                 groups={holdToSpeedRateOptions}
@@ -179,11 +224,16 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             subtitle={t(
               "home.settings.gesture_controls.pinch_to_zoom_description",
             )}
-            disabled={pluginSettings?.enablePinchToZoom?.locked}
+            disabled={
+              gesturesOff || pluginSettings?.enablePinchToZoom?.locked === true
+            }
           >
             <SettingSwitch
               value={settings.enablePinchToZoom}
-              disabled={pluginSettings?.enablePinchToZoom?.locked}
+              disabled={
+                gesturesOff ||
+                pluginSettings?.enablePinchToZoom?.locked === true
+              }
               onValueChange={(enablePinchToZoom) =>
                 updateSettings({ enablePinchToZoom })
               }
@@ -197,11 +247,17 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             subtitle={t(
               "home.settings.gesture_controls.double_tap_to_seek_description",
             )}
-            disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
+            disabled={
+              gesturesOff ||
+              pluginSettings?.enableDoubleTapToSeek?.locked === true
+            }
           >
             <SettingSwitch
               value={settings.enableDoubleTapToSeek}
-              disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
+              disabled={
+                gesturesOff ||
+                pluginSettings?.enableDoubleTapToSeek?.locked === true
+              }
               onValueChange={(enableDoubleTapToSeek) =>
                 updateSettings({ enableDoubleTapToSeek })
               }
