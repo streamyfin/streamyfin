@@ -196,7 +196,8 @@ class GoogleCastTargetPortTest {
         assertEquals(null, GoogleCastTargetPort.sessionRoute(null, routes))
     }
 
-    // The app mutes the playing stream, as the SDK's expanded controls do; another sender may mute the device.
+    // The app mutes the playing stream, as the device's mute through the session would freeze it. Another sender may
+    // mute the device.
     @Test
     fun aMutedStreamOrDeviceMutesTheReceiver() {
         assertTrue(GoogleCastTargetPort.receiverMuted(device = false, stream = true))
