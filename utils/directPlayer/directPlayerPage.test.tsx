@@ -1,15 +1,18 @@
 // Spec for app/(auth)/player/direct-player.tsx. It lives here rather than next
 // to the page because Expo Router turns every file under app/ into a route.
+
+import type { MediaStream } from "@jellyfin/sdk/lib/generated-client";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import i18next from "i18next";
 import DirectPlayerPage from "@/app/(auth)/player/direct-player";
-import type { MpvPlayerViewProps } from "@/modules";
+import type { MpvAudioTrack, MpvPlayerViewProps } from "@/modules";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 import {
   holdSharedValueWrites,
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/utils/jellyfin/subtitleUtils";
 
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
@@ -35,8 +38,12 @@ const mockNavigation = {
 };
 const mockRouter = { setParams: jest.fn(), replace: jest.fn() };
 const mockReportProgress = jest.fn(async (_info: unknown) => {});
+/** The audio tracks mpv finds in the file once it is open. */
+let mockAudioTracks: MpvAudioTrack[] = [];
 const mockPlayer = {
   destroy: jest.fn(async () => {}),
+  getAudioTracks: jest.fn(async () => mockAudioTracks),
+  setAudioTrack: jest.fn(async () => {}),
   seekTo: jest.fn(),
   play: jest.fn(),
   pause: jest.fn(async () => {}),
@@ -60,6 +67,10 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** The streams the server lists for the source. */
+let mockServerStreams: MediaStream[] = [];
+/** What the page last handed the automatic subtitle. */
+let mockAutoSubtitle: { audioLanguage?: string | null } | null = null;
 const mockSettings = {};
 const mockNoop = () => {};
 
@@ -158,7 +169,7 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: async ({ item }: { item: { Id: string } }) => ({
     mediaSource: {
       Id: "source-1",
-      MediaStreams: [],
+      MediaStreams: mockServerStreams,
       TranscodingUrl: mockTranscodingUrl,
     },
     sessionId: `session-${item.Id}`,
@@ -201,7 +212,10 @@ jest.mock("@/components/video-player/controls/contexts/VideoContext", () => ({
   VideoProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 jest.mock("@/components/video-player/controls/hooks", () => ({
-  useAutoSubtitlesOnMute: () => ({ notice: null, clearNotice: mockNoop }),
+  useAutoSubtitlesOnMute: (options: { audioLanguage?: string | null }) => {
+    mockAutoSubtitle = options;
+    return { notice: null, clearNotice: mockNoop };
+  },
   useMuteState: () => ({
     isMuted: false,
     toggleMute: mockNoop,
@@ -325,6 +339,11 @@ describe("direct player stop report", () => {
     mockControlsProps = null;
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
+    mockServerStreams = [];
+    mockAudioTracks = [];
+    mockAutoSubtitle = null;
+    mockPlayer.getAudioTracks.mockClear();
+    mockPlayer.setAudioTrack.mockClear();
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
@@ -548,6 +567,63 @@ describe("direct player stop report", () => {
       await act(async () => mockControlsProps?.onBitrateChange?.(4_000_000));
 
       expect(restartPosition()).toBe("12000000000");
+    });
+  });
+
+  // A server that names tracks from the file name (AIOStreams serving a debrid
+  // link) lists one audio stream for a MULTi release; mpv finds them all once
+  // the file is open.
+  describe("on TV, when mpv finds audio tracks the server does not list", () => {
+    beforeEach(() => {
+      stubReactNative({ isTV: true });
+      mockServerStreams = [
+        { Type: "Video", Index: 0 },
+        { Type: "Audio", Index: 1, Language: "fre" },
+      ] as MediaStream[];
+      mockAudioTracks = [
+        { id: 1, lang: "fre" },
+        { id: 2, lang: "eng" },
+      ];
+    });
+    afterEach(() => stubReactNative());
+
+    /** What the native view sends once mpv has read the file's track list. */
+    const tracksReady = async () => {
+      await act(async () => {
+        mockPlayerProps?.onTracksReady?.({ nativeEvent: {} } as Parameters<
+          NonNullable<MpvPlayerViewProps["onTracksReady"]>
+        >[0]);
+      });
+      await waitFor(() => expect(mockPlayer.getAudioTracks).toHaveBeenCalled());
+    };
+
+    test("switches mpv to a track only it found and hands its language to the automatic subtitle, without a reload", async () => {
+      await openPlayer();
+      await tracksReady();
+      await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("fre"));
+
+      await act(async () =>
+        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+      );
+
+      expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("eng"));
+    });
+
+    test("reports no audio index to the server for a track only mpv found", async () => {
+      await openPlayer();
+      await tracksReady();
+      await act(async () =>
+        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+      );
+      await announcePlaying();
+
+      expect(mockReportProgress).toHaveBeenCalled();
+      expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
+        "AudioStreamIndex",
+        undefined,
+      );
     });
   });
 
