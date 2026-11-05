@@ -158,7 +158,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: 🚀 Repack the earlier APK
+      - name: 📦 Repack the earlier APK
         uses: ./.github/actions/repack
         with:
           platform: android
@@ -341,7 +341,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: 🚀 Repack the earlier APK
+      - name: 📦 Repack the earlier APK
         uses: ./.github/actions/repack
         with:
           platform: android
@@ -516,7 +516,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: 🚀 Repack the earlier IPA
+      - name: 📦 Repack the earlier IPA
         uses: ./.github/actions/repack
         with:
           platform: ios
@@ -664,7 +664,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: 🚀 Repack the earlier IPA
+      - name: 📦 Repack the earlier IPA
         uses: ./.github/actions/repack
         with:
           platform: ios
@@ -798,7 +798,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
 
-      - name: 🚀 Repack the earlier IPA
+      - name: 📦 Repack the earlier IPA
         uses: ./.github/actions/repack
         with:
           platform: ios
