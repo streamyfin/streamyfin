@@ -115,3 +115,16 @@ export function buildOfflineSeriesFromEpisodes(
     Overview: firstEpisode.SeriesName,
   } as BaseItemDto;
 }
+
+/**
+ * The part of a series query's key that follows the downloads. Offline, the
+ * page is built from the downloaded episodes, so it must refetch when they
+ * change. Online, the downloads play no part in the answer: a new key there
+ * blanks the page and fetches it again for every episode that finishes.
+ */
+export function downloadsKeyPart(
+  isOffline: boolean,
+  downloadedItems: DownloadedItem[],
+): number | null {
+  return isOffline ? downloadedItems.length : null;
+}

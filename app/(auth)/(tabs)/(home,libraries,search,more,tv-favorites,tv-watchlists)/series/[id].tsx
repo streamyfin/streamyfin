@@ -33,6 +33,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import {
   buildOfflineSeriesFromEpisodes,
+  downloadsKeyPart,
   getDownloadedEpisodesForSeries,
 } from "@/utils/downloads/offline-series";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -76,9 +77,13 @@ const page: React.FC = () => {
   const { startShuffle } = useShuffleQueue();
 
   // For offline mode, construct series data from downloaded episodes
-  // Include downloadedItems.length so query refetches when items are deleted
   const { data: item } = useQuery({
-    queryKey: ["series", seriesId, isOffline, downloadedItems.length],
+    queryKey: [
+      "series",
+      seriesId,
+      isOffline,
+      downloadsKeyPart(isOffline, downloadedItems),
+    ],
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeriesFromEpisodes(getDownloadedItems(), seriesId);
@@ -135,7 +140,12 @@ const page: React.FC = () => {
   }, [isOffline, api, item]);
 
   const { data: allEpisodes, isLoading } = useQuery({
-    queryKey: ["AllEpisodes", seriesId, isOffline, downloadedItems.length],
+    queryKey: [
+      "AllEpisodes",
+      seriesId,
+      isOffline,
+      downloadsKeyPart(isOffline, downloadedItems),
+    ],
     queryFn: async () => {
       if (isOffline) {
         return getDownloadedEpisodesForSeries(getDownloadedItems(), seriesId);

@@ -18,6 +18,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import {
   buildOfflineSeasons,
+  downloadsKeyPart,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import {
@@ -56,7 +57,12 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   );
 
   const seasonsQuery = useQuery({
-    queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
+    queryKey: [
+      "seasons",
+      item.Id,
+      isOffline,
+      downloadsKeyPart(isOffline, downloadedItems),
+    ],
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeasons(getDownloadedItems(), item.Id!);
@@ -109,7 +115,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       item.Id,
       isOffline ? selectedSeasonNumber : selectedSeasonId,
       isOffline,
-      downloadedItems.length,
+      downloadsKeyPart(isOffline, downloadedItems),
     ],
     queryFn: async () => {
       if (isOffline) {
