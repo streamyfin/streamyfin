@@ -355,6 +355,7 @@ final class NativePlayerViewController: UIViewController {
 		engine.setPictureInPictureHostVisible(true)
 		UIApplication.shared.isIdleTimerDisabled = viewModel.isPlaying
 		#if os(iOS)
+		becomeFirstResponder()
 		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
 		#endif
 		#if os(tvOS)
@@ -364,6 +365,59 @@ final class NativePlayerViewController: UIViewController {
 		focusCoordinator.refresh()
 		#endif
 	}
+
+	#if os(iOS)
+	// MARK: - Hardware keyboard (iPad)
+
+	// Key commands and key presses only reach this controller while it is in
+	// the responder chain, so it claims first responder once on screen.
+	override var canBecomeFirstResponder: Bool { true }
+
+	override var keyCommands: [UIKeyCommand]? {
+		// The arrows repeat while held, so holding one keeps seeking. The space
+		// bar is not a key command: a command repeats too and a held space bar
+		// would flip play and pause, a press fires once.
+		// With an overlay up the commands are withdrawn: a command with priority
+		// swallows the arrow before the focus system sees it, and the overlays
+		// are navigated with Full Keyboard Access.
+		guard keyboardInputAllowed else { return [] }
+		let commands = [
+			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowKey)),
+			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowKey)),
+		]
+		for command in commands { command.wantsPriorityOverSystemBehavior = true }
+		return commands
+	}
+
+	override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		// Anything not ours goes up the chain, space included while an overlay
+		// is up, so it can still activate the focused button there.
+		guard presses.contains(where: { $0.key?.keyCode == .keyboardSpacebar }), keyboardInputAllowed else {
+			super.pressesBegan(presses, with: event)
+			return
+		}
+		viewModel.showControls()
+		viewModel.togglePlayPause()
+	}
+
+	/// The prompts and the lock mode own the input, same as the touch controls:
+	/// nothing may resume or move playback under them.
+	private var keyboardInputAllowed: Bool {
+		!viewModel.showStillWatching && !viewModel.showEpisodeList && !viewModel.controlsLocked
+	}
+
+	@objc private func handleLeftArrowKey() {
+		guard keyboardInputAllowed else { return }
+		viewModel.showControls()
+		viewModel.seekBackward()
+	}
+
+	@objc private func handleRightArrowKey() {
+		guard keyboardInputAllowed else { return }
+		viewModel.showControls()
+		viewModel.seekForward()
+	}
+	#endif
 
 	override func viewWillDisappear(_ animated: Bool) {
 		super.viewWillDisappear(animated)
