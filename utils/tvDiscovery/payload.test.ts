@@ -1,6 +1,21 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import i18next from "i18next";
 import { buildTVDiscoveryPayload, type TVDiscoveryItem } from "./payload";
+
+beforeAll(() =>
+  i18next.init({
+    lng: "fr",
+    resources: {
+      fr: {
+        translation: {
+          seerr: { season_number: "Saison {{season_number}}" },
+          item_card: { episode_number: "Épisode {{episode_number}}" },
+        },
+      },
+    },
+  }),
+);
 
 const api = { basePath: "https://jellyfin.example" } as Api;
 
@@ -117,5 +132,28 @@ describe("buildTVDiscoveryPayload: what Play does on a tile", () => {
       `${DETAILS}?id=series-1&type=Series`,
       `${PLAY}?id=movie-1`,
     ]);
+  });
+});
+
+describe("buildTVDiscoveryPayload: the title of an episode's tile", () => {
+  // The launcher read "Season 2" in English on a French TV.
+  test("an episode known by its season or by its number alone reads in the app's language", () => {
+    const bySeason = tileFor({
+      Id: "ep-1",
+      Name: "Rose",
+      Type: "Episode",
+      SeriesName: "Doctor Who",
+      ParentIndexNumber: 2,
+    });
+    const byNumber = tileFor({
+      Id: "ep-2",
+      Name: "Rose",
+      Type: "Episode",
+      SeriesName: "Doctor Who",
+      IndexNumber: 3,
+    });
+
+    expect(bySeason.title).toBe("Doctor Who - Saison 2");
+    expect(byNumber.title).toBe("Doctor Who - Épisode 3");
   });
 });
