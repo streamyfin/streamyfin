@@ -16,6 +16,9 @@ jest.mock(
 );
 // Only the layout's stand-in renders here; these would load the providers.
 jest.mock("@/components/tv/TVNavBar", () => ({ TVNavBar: () => null }));
+// The unit config maps expo-router to a stub with no navigators, and this
+// spec renders real routes: it takes the package itself, which loads in Jest.
+jest.mock("expo-router", () => jest.requireActual("expo-router/build/index"));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));

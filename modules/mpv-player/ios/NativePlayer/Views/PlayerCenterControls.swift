@@ -84,11 +84,7 @@ struct PlayerCenterControls: View {
 				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 			}
 
-			controlButton(
-				systemName: seekSymbol(prefix: "gobackward", seconds: viewModel.seekBackwardSec),
-				iconSize: m.seekIconSize,
-				frame: m.sideButton
-			) {
+			seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
 				viewModel.seekBackward()
 			}
 
@@ -119,11 +115,7 @@ struct PlayerCenterControls: View {
 				.disabled(!viewModel.hasNextChapter)
 			}
 
-			controlButton(
-				systemName: seekSymbol(prefix: "goforward", seconds: viewModel.seekForwardSec),
-				iconSize: m.seekIconSize,
-				frame: m.sideButton
-			) {
+			seekButton(prefix: "goforward", seconds: viewModel.seekForwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
 				viewModel.seekForward()
 			}
 
@@ -137,8 +129,20 @@ struct PlayerCenterControls: View {
 		}
 	}
 
-	// seekSymbol lives in Views/TimeFormatting.swift (shared with the
-	// double-tap seek feedback pill).
+	private func seekButton(
+		prefix: String,
+		seconds: Double,
+		iconSize: CGFloat,
+		frame: CGFloat,
+		action: @escaping () -> Void
+	) -> some View {
+		Button(action: action) {
+			SeekGlyph(prefix: prefix, seconds: seconds, size: iconSize)
+				.foregroundStyle(.white)
+				.frame(width: frame, height: frame)
+				.contentShape(Rectangle())
+		}
+	}
 
 	private func controlButton(
 		systemName: String,

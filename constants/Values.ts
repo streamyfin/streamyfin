@@ -21,6 +21,15 @@ export const MEDIA_OPTIONS_BUTTON_SIZE = 48;
 export const MEDIA_OPTIONS_BUTTON_FILL_OPACITY = 0.7;
 
 /**
+ * The row at the top of the Search screen on iOS: the Library and Discover
+ * buttons, and the sort button, each in a SwiftUI host this high.
+ */
+export const SEARCH_TAB_ROW_HEIGHT = 40;
+
+/** Room for the sort button's host, beside the tabs. */
+export const SEARCH_SORT_BUTTON_WIDTH = 50;
+
+/**
  * MMKV key for the collection type and server of each hidden singleton view
  * (Live TV, Collections, Playlists), which is what carries a hidden view over
  * when Jellyfin 12 changes its id.
