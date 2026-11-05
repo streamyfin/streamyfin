@@ -447,7 +447,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
           fontWeight: "700",
         }}
       >
-        Now Playing
+        {t("player.now_playing")}
       </Text>
     </View>
   ) : null;
