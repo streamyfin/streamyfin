@@ -26,7 +26,8 @@ appId: com.fredrikburmester.streamyfin
 - tapOn:
     id: "login-password"
 - inputText: ${PASSWORD}
-- hideKeyboard
+# Enter closes the keyboard by blurring the field; hideKeyboard would press back with none open, and leave the screen.
+- pressKey: Enter
 - tapOn:
     id: "login-submit"
 # The intro opens over Home a second after the first sign in; its button closes it, at the end of its list.
