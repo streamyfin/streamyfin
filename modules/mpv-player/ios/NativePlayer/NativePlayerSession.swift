@@ -181,6 +181,10 @@ final class NativePlayerSession {
 	func load(config: PlayerPresentConfigRecord) {
 		viewModel.prepareForReload()
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// A stream that brings the Cast button needs its sheet: a player presented with a downloaded file had none.
+		if viewModel.capabilities.cast && viewModel.onOutputSheetRequested == nil { followCast() }
+		#endif
 		startStream(config: config, force: true)
 	}
 

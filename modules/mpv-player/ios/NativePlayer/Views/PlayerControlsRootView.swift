@@ -56,7 +56,10 @@ struct PlayerControlsRootView: View {
 				// and must cover the play/skip buttons in landscape, not duck
 				// under them. Hit-testing is unaffected — the layer's empty
 				// middle isn't tappable.
-				topChrome(compact: size.width < 500)
+				topChrome(
+					compact: size.width < 500,
+					foldsPictureInPicture: size.width < PlayerTopBar.pictureInPictureFoldWidth
+				)
 					.transition(.opacity)
 					.zIndex(1)
 			}
@@ -423,9 +426,9 @@ struct PlayerControlsRootView: View {
 		viewModel.scheduleAutoHide()
 	}
 
-	private func topChrome(compact: Bool) -> some View {
+	private func topChrome(compact: Bool, foldsPictureInPicture: Bool) -> some View {
 		VStack(spacing: 0) {
-			PlayerTopBar(viewModel: viewModel, compact: compact)
+			PlayerTopBar(viewModel: viewModel, compact: compact, foldsPictureInPicture: foldsPictureInPicture)
 			Spacer()
 		}
 		.padding(.horizontal, 24)

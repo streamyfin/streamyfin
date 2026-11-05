@@ -135,6 +135,7 @@ import {
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
 import {
+  mayHandOff,
   nextStepAfterSend,
   resolveCastHandOff,
 } from "@/utils/nativePlayer/resolveCastHandOff";
@@ -443,6 +444,8 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // Counts the player's hand-offs: only the latest closes or resumes the player.
+  const handOffCountRef = useRef(0);
   const reportQueue = useRef(new NativePlaybackReportQueue()).current;
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
@@ -961,7 +964,6 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
         item: options.item,
-        syncPlay: syncRef.current.enabled,
         outputPickerStrings: buildOutputPickerStrings(t),
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
@@ -2181,39 +2183,54 @@ const NativePlayerProviderInner: React.FC<{
       }),
       // The output sheet handed the video off: the receiver gets the item where the player paused, then the player
       // closes and the receiver's controls open, or it says why and plays on.
-      addNativePlayerListener("onCastHandOffRequested", ({ positionSec }) => {
-        const session = sessionRef.current;
-        const currentApi = apiRef.current;
-        const userId = userRef.current?.Id;
-        const target = remoteTarget();
-        if (
-          !session ||
-          !currentApi ||
-          !userId ||
-          target.state !== "connected" ||
-          !target.target
-        ) {
-          void nativePlayerPlay();
-          return;
-        }
-        void sendToReceiver(
-          { api: currentApi, userId, store, t },
-          resolveCastHandOff(session, positionSec),
-          target.target,
-          // Another item in the player by then: nothing goes to the receiver.
-          () => sessionRef.current !== session,
-        ).then((result) => {
-          if (sessionRef.current !== session) return;
-          const step = nextStepAfterSend(result);
-          if (step.kind === "dismiss") {
-            void dismissNativePlayer();
-            void showExpandedControls();
+      addNativePlayerListener(
+        "onCastHandOffRequested",
+        ({ positionSec, itemId }) => {
+          const session = sessionRef.current;
+          const currentApi = apiRef.current;
+          const userId = userRef.current?.Id;
+          const target = remoteTarget();
+          if (
+            !session ||
+            !currentApi ||
+            !userId ||
+            !target.target ||
+            !mayHandOff({
+              itemId,
+              session,
+              inSyncPlay: syncRef.current.enabled,
+              receiverConnected: target.state === "connected",
+            })
+          ) {
+            void nativePlayerPlay();
             return;
           }
-          if (step.kind === "notice") void nativePlayerShowNotice(step.message);
-          void nativePlayerPlay();
-        });
-      }),
+          // A later hand-off, to another receiver say, owns the player once it starts.
+          const handOff = ++handOffCountRef.current;
+          void sendToReceiver(
+            { api: currentApi, userId, store, t },
+            resolveCastHandOff(session, positionSec),
+            target.target,
+            // Another item in the player by then: nothing goes to the receiver.
+            () => sessionRef.current !== session,
+          ).then((result) => {
+            if (sessionRef.current !== session) return;
+            const step = nextStepAfterSend(
+              result,
+              handOff === handOffCountRef.current,
+            );
+            if (step.kind === "none") return;
+            if (step.kind === "dismiss") {
+              void dismissNativePlayer();
+              void showExpandedControls();
+              return;
+            }
+            if (step.kind === "notice")
+              void nativePlayerShowNotice(step.message);
+            void nativePlayerPlay();
+          });
+        },
+      ),
     ];
 
     return () => {

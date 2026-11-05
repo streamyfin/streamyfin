@@ -11,6 +11,13 @@ struct PlayerTopBar: View {
 	/// the whole overlay — so zoom + speed fold into the More menu and the
 	/// buttons tighten.
 	var compact = false
+	/// Narrower still (an iPhone SE or 13 mini in portrait): with the Cast button, the compact row outgrows the side
+	/// padding, so picture in picture folds into More too.
+	var foldsPictureInPicture = false
+
+	/// The window width under which picture in picture folds into More: the compact row with every button, Cast
+	/// included, needs about 332 pt, and a 375 pt screen leaves 327 inside the 24 pt side padding.
+	static let pictureInPictureFoldWidth: CGFloat = 380
 
 	private var buttonSize: CGFloat { compact ? 40 : 44 }
 
@@ -54,7 +61,7 @@ struct PlayerTopBar: View {
 				CastBarButton(viewModel: viewModel, size: buttonSize)
 			}
 
-			if viewModel.capabilities.pictureInPicture {
+			if viewModel.capabilities.pictureInPicture && !foldsPictureInPicture {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
 					viewModel.togglePictureInPicture()
 				}
@@ -263,6 +270,16 @@ struct PlayerTopBar: View {
 
 	private var moreMenu: some View {
 		Menu {
+			if foldsPictureInPicture && viewModel.capabilities.pictureInPicture {
+				Button {
+					viewModel.togglePictureInPicture()
+				} label: {
+					Label(
+						viewModel.str("pictureInPicture", "Picture in picture"),
+						systemImage: viewModel.isPipActive ? "pip.exit" : "pip.enter"
+					)
+				}
+			}
 			if compact {
 				if viewModel.capabilities.zoom {
 					Button {

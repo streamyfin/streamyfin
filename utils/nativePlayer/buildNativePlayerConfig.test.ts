@@ -174,11 +174,10 @@ describe("the native player's exit confirmation", () => {
   });
 });
 
-// The player's Cast button hands the video off to a receiver: only online, outside a SyncPlay group, and with Cast.
+// The player's Cast button hands the video off to a receiver: only online and with Cast; the player hides it in a
+// SyncPlay group.
 describe("the native player's Cast button", () => {
-  const castButton = async (
-    options: { offline?: boolean; syncPlay?: boolean } = {},
-  ) => {
+  const castButton = async (options: { offline?: boolean } = {}) => {
     jest.mocked(getStreamUrl).mockResolvedValue({
       url: `${SERVER}/Videos/1/stream.mkv`,
       sessionId: "session-1",
@@ -203,7 +202,6 @@ describe("the native player's Cast button", () => {
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
       item,
-      syncPlay: options.syncPlay ?? false,
       outputPickerStrings: { title: "Play on" } as never,
     });
     return built?.config.ui;
@@ -213,7 +211,7 @@ describe("the native player's Cast button", () => {
     mockCastAvailable = true;
   });
 
-  test("is offered online outside SyncPlay, with the sheet's texts", async () => {
+  test("is offered online, with the sheet's texts", async () => {
     const ui = await castButton();
 
     expect(ui?.allowCast).toBe(true);
@@ -222,10 +220,6 @@ describe("the native player's Cast button", () => {
 
   test("is not offered offline", async () => {
     expect((await castButton({ offline: true }))?.allowCast).toBe(false);
-  });
-
-  test("is not offered in SyncPlay", async () => {
-    expect((await castButton({ syncPlay: true }))?.allowCast).toBe(false);
   });
 
   test("is not offered without the Cast module", async () => {

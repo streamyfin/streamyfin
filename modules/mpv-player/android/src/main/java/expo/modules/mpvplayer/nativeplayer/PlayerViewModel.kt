@@ -96,8 +96,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
     )
         private set
 
+    private var pictureInPictureSupported = false
+
     /** Only the session knows whether the device floats a picture, and JS whether to cast; the rest is the engine's. */
     fun applyCapabilities(pictureInPictureSupported: Boolean, allowCast: Boolean = false) {
+        this.pictureInPictureSupported = pictureInPictureSupported
         val held = engine
         capabilities = ChromeCapabilities.of(
             isRemote = held?.isRemote ?: false,
@@ -148,8 +151,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
      * the dismiss that follows reads it, so the stop it reports is at that same position.
      */
     fun requestCastHandOff() {
+        // The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
+        if (isTearingDown) return
         pauseLocal()
-        emit?.invoke("onCastHandOffRequested", mapOf("positionSec" to authoritativePosition))
+        // The item played here: in JS, an in-place swap may already hold the next one.
+        emit?.invoke("onCastHandOffRequested", mapOf("positionSec" to authoritativePosition, "itemId" to currentItemId))
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -471,6 +477,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
         qualityMenu = config.tracks?.quality ?: emptyList()
         trickplay = config.trickplay?.let { TrickplayProvider(it) }
         uiOptions = config.ui
+        // A stream loaded in place brings its own Cast rule: a downloaded file swapped for a stream, or back.
+        applyCapabilities(pictureInPictureSupported, config.ui.allowCast)
         strings = PlayerStrings(config.ui.strings)
         subtitleScale = config.subtitleStyle?.scale ?: 1.0
         subtitleScaleMultiplier = config.subtitleStyle?.renderScaleMultiplier ?: 1.0

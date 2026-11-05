@@ -228,6 +228,7 @@ export type NativePlayerStrings = Partial<
     | "goBack"
     | "endsAt"
     | "zoomToFill"
+    | "pictureInPicture"
     | "stop"
     | "stopPlayback"
     | "stopPlayingTitle"
@@ -485,5 +486,9 @@ export type NativePlayerEvents = {
    * The output sheet handed the video off to the connected receiver: the player paused at `positionSec`, and JS
    * sends the item there, then closes the player, or says why and plays on.
    */
-  onCastHandOffRequested: (payload: { positionSec: number }) => void;
+  /** `itemId`: the item the player played when its sheet handed it off. */
+  onCastHandOffRequested: (payload: {
+    positionSec: number;
+    itemId?: string;
+  }) => void;
 };
