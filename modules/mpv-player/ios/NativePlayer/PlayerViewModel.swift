@@ -78,8 +78,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// The sheet handed the video off: paused here, JS sends the item to the receiver where the player is, read as
 	/// the dismiss that follows reads it, so the stop it reports is at that same position.
 	func requestCastHandOff() {
+		// The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
+		guard !isTearingDown else { return }
 		engine?.pause()
-		emit?("onCastHandOffRequested", ["positionSec": position])
+		// The item played here: in JS, an in-place swap may already hold the next one.
+		var payload: [String: Any] = ["positionSec": position]
+		if let currentItemId { payload["itemId"] = currentItemId }
+		emit?("onCastHandOffRequested", payload)
 	}
 
 	/// What the technical info overlay shows: empty for an engine without a screen.

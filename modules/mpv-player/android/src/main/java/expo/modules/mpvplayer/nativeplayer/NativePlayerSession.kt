@@ -177,7 +177,7 @@ class NativePlayerSession(
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
                 viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported(), allowCast = config.ui.allowCast)
-                if (viewModel.capabilities.cast) followCastFrom(activity, config.ui.outputPickerStrings)
+                followCastIfAllowed(activity, config)
                 // The menus follow the engine built here: a later load never swaps it.
                 viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
@@ -230,6 +230,7 @@ class NativePlayerSession(
                     val configToLoad = pendingConfig ?: config
                     pendingConfig = null
                     viewModel.apply(configToLoad)
+                    followCastIfAllowed(activity, configToLoad)
                     startStream(configToLoad)
                 }
 
@@ -677,6 +678,7 @@ class NativePlayerSession(
                 playbackStarted = false
                 viewModel.prepareForReload()
                 viewModel.apply(config)
+                followCastIfAllowed(activity, config)
                 startStream(config)
             }
         }
@@ -788,6 +790,13 @@ class NativePlayerSession(
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
         rendering?.detachSurface()
+    }
+
+    // A config that allows Cast needs the button's sheet, once: a player presented with a downloaded file, then given
+    // a stream in place, had none.
+    private fun followCastIfAllowed(activity: Activity?, config: PlayerPresentConfigRecord) {
+        if (activity == null || !viewModel.capabilities.cast || viewModel.onOutputSheetRequested != null) return
+        followCastFrom(activity, config.ui.outputPickerStrings)
     }
 
     // The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view

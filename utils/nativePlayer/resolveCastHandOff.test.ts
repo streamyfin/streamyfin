@@ -1,5 +1,9 @@
 import { localSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
-import { nextStepAfterSend, resolveCastHandOff } from "./resolveCastHandOff";
+import {
+  mayHandOff,
+  nextStepAfterSend,
+  resolveCastHandOff,
+} from "./resolveCastHandOff";
 
 const item = { Id: "item-1", Name: "Film", Type: "Movie" } as never;
 const session = {
@@ -56,4 +60,41 @@ test("a superseded hand-off only resumes", () => {
   expect(nextStepAfterSend({ status: "superseded" })).toEqual({
     kind: "resume",
   });
+});
+
+// A newer hand-off started while this one waited: the player is the newer one's to close or to resume.
+test("a hand-off a newer one replaced leaves the player alone", () => {
+  for (const result of [
+    { status: "superseded" },
+    { status: "loaded" },
+    { status: "failed", message: "The connection failed" },
+  ] as const) {
+    expect(nextStepAfterSend(result, false)).toEqual({ kind: "none" });
+  }
+});
+
+const request = {
+  itemId: "item-1",
+  session,
+  inSyncPlay: false,
+  receiverConnected: true,
+};
+
+test("a connected receiver takes the item the player plays", () => {
+  expect(mayHandOff(request)).toBe(true);
+});
+
+// A group joined while the sheet was open: the player plays for the group, here.
+test("a group member's player keeps playing here", () => {
+  expect(mayHandOff({ ...request, inSyncPlay: true })).toBe(false);
+});
+
+// An in-place swap holds the next item already while the player still shows the one it hands off.
+test("a hand-off for another item than the session's goes nowhere", () => {
+  expect(mayHandOff({ ...request, itemId: "item-2" })).toBe(false);
+});
+
+test("nothing goes without a connected receiver or a session", () => {
+  expect(mayHandOff({ ...request, receiverConnected: false })).toBe(false);
+  expect(mayHandOff({ ...request, session: null })).toBe(false);
 });

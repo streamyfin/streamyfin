@@ -76,6 +76,50 @@ class PlayerViewModelCapabilitiesTest {
         assertFalse(viewModel.capabilities.cast)
     }
 
+    // A stream loaded in place carries its own config: a downloaded file swapped for a stream brings the button, and
+    // the other way round takes it away.
+    @Test
+    fun aLoadedStreamBringsTheCastButtonItAllows() {
+        val viewModel = PlayerViewModel().also { it.engine = RecordingLocalEngine() }
+        viewModel.applyCapabilities(pictureInPictureSupported = true, allowCast = false)
+
+        viewModel.apply(PlayerPresentConfigRecord().also { it.ui.allowCast = true })
+        val online = viewModel.capabilities.cast
+        viewModel.apply(PlayerPresentConfigRecord().also { it.ui.allowCast = false })
+
+        assertTrue(online)
+        assertFalse(viewModel.capabilities.cast)
+        assertTrue(viewModel.capabilities.pictureInPicture)
+    }
+
+    // The sheet keeps the hand-off until it closes: a player already torn down sends nothing.
+    @Test
+    fun aHandOffAfterTheTeardownSendsNothing() {
+        val engine = RecordingLocalEngine()
+        val viewModel = PlayerViewModel().also { it.engine = engine }
+        val events = mutableListOf<String>()
+        viewModel.emit = { name, _ -> events += name }
+        viewModel.willTeardown()
+
+        viewModel.requestCastHandOff()
+
+        assertEquals(0, engine.pauses)
+        assertEquals(emptyList<String>(), events.filter { it == "onCastHandOffRequested" })
+    }
+
+    // The hand-off names the item the player played, which an in-place swap may already have replaced in JS.
+    @Test
+    fun aHandOffNamesTheItemThePlayerPlayed() {
+        val viewModel = PlayerViewModel().also { it.engine = RecordingLocalEngine() }
+        val events = mutableListOf<Map<String, Any?>>()
+        viewModel.emit = { name, payload -> if (name == "onCastHandOffRequested") events += payload }
+        viewModel.apply(PlayerPresentConfigRecord().also { it.metadata = MetadataRecord().apply { itemId = "item-1" } })
+
+        viewModel.requestCastHandOff()
+
+        assertEquals("item-1", events.single()["itemId"])
+    }
+
     // The hand-off pauses here and asks JS to send the item at the position the player is at.
     @Test
     fun aHandOffPausesAndAsksAtThePosition() {
@@ -90,7 +134,7 @@ class PlayerViewModelCapabilitiesTest {
 
         assertEquals(1, engine.pauses)
         assertEquals(
-            listOf("onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5)),
+            listOf("onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5, "itemId" to null)),
             events.filter { it.first == "onCastHandOffRequested" },
         )
     }

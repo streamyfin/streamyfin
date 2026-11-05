@@ -120,6 +120,7 @@ export const buildNativePlayerStrings = (
   quality: t("player.menu.quality"),
   subtitleSize: t("player.menu.subtitle_scale"),
   zoomToFill: t("player.zoom_to_fill"),
+  pictureInPicture: t("player.picture_in_picture"),
   subtitleSync: t("player.subtitle_sync"),
   audioSync: t("player.audio_sync"),
   volumeBoost: t("player.volume_boost"),
@@ -411,8 +412,6 @@ export async function buildNativePlayerConfig(params: {
   originalLabel: string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
-  /** In a SyncPlay group: the group plays here, and nothing hands it off. */
-  syncPlay?: boolean;
   /** The output sheet's texts, for the player's Cast button. */
   outputPickerStrings?: Partial<OutputPickerStrings>;
 }): Promise<{
@@ -539,11 +538,11 @@ export async function buildNativePlayerConfig(params: {
     if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
-  // The Cast button hands the video off to a receiver: online, outside a SyncPlay group, where Cast and the output
-  // sheet exist (neither a TV nor a Mac).
+  // The Cast button hands the video off to a receiver: online, where Cast and the output sheet exist (neither a TV
+  // nor a Mac). Not tied to SyncPlay: the player hides it while it plays for a group, and shows it once the group is
+  // left, which this config, built once, could not follow.
   const castAllowed =
     !offline &&
-    !params.syncPlay &&
     !Platform.isTV &&
     !(Platform.OS === "ios" && Platform.isMacCatalyst) &&
     isCastAvailable();
