@@ -55,15 +55,25 @@ export const resolveCastHandOff = (
 });
 
 /**
+ * The player paused for a hand-off that goes nowhere: it plays on, unless it plays for a SyncPlay group, whose next
+ * command plays it.
+ */
+export const stepAfterRefusal = (request: HandOffRequest): HandOffStep =>
+  request.inSyncPlay ? { kind: "none" } : { kind: "resume" };
+
+/**
  * Loaded, the player closes and the receiver's controls open; refused, the player stays, says why and plays on;
  * replaced by another send, it plays on without a word. A hand-off a newer one replaced (`latest` false) leaves the
- * player to the newer one.
+ * player to the newer one, and one a SyncPlay join overtook (`inSyncPlay`) leaves it to the group.
  */
 export const nextStepAfterSend = (
   result: SendResult,
-  latest = true,
+  {
+    latest = true,
+    inSyncPlay = false,
+  }: { latest?: boolean; inSyncPlay?: boolean } = {},
 ): HandOffStep => {
-  if (!latest) return { kind: "none" };
+  if (!latest || inSyncPlay) return { kind: "none" };
   switch (result.status) {
     case "loaded":
       return { kind: "dismiss" };
