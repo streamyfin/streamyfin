@@ -132,7 +132,7 @@
     "@types/bun": "1.4.4",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.27",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.2.17",
     "axios-mock-adapter": "2.1.0",
     "cross-env": "10.1.0",
