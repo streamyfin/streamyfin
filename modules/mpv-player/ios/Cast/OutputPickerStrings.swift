@@ -33,6 +33,7 @@ struct OutputPickerStrings {
     "thisPhone": "This iPhone",
     "thisTablet": "This iPad",
     "playing": "Playing",
+    "continueHere": "Continue here",
     "castCaption": "Chromecast",
     "searching": "Looking for devices",
     "noDevices": "No devices found",

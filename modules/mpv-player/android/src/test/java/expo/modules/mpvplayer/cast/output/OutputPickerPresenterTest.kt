@@ -36,6 +36,7 @@ class OutputPickerPresenterTest {
         OutputPickerPresenter.resolvePlayServices = OutputPickerPresenter.defaultResolvePlayServices
         OutputPickerPresenter.receiverTitle = { null }
         OutputPickerPresenter.receiverPlaying = { false }
+        OutputPickerPresenter.receiverGoesOnHere = { false }
         OutputPickerPresenter.onPlayServicesAvailable = {}
     }
 
@@ -90,6 +91,23 @@ class OutputPickerPresenterTest {
 
         assertEquals(true, handOff)
         assertEquals(false, presentedAtTheHandOff)
+    }
+
+    // This phone takes the receiver's video once the sheet is gone, as the remote opens.
+    @Test
+    fun aPlayHereClosesTheSheetThenCallsBack() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var presentedAtThePlayHere: Boolean? = null
+        OutputPickerPresenter.present(
+            screen.get(),
+            anchor = null,
+            playingHere = null,
+            onPlayHere = { presentedAtThePlayHere = OutputPickerPresenter.isPresented },
+        ) {}
+
+        OutputPickerPresenter.presentedController?.onOutput?.invoke(OutputSheetOutput.PLAY_HERE)
+
+        assertEquals(false, presentedAtThePlayHere)
     }
 
     // The probe's sheet never takes over one the app opened: the app's remote still answers, and its track stays.
@@ -169,14 +187,18 @@ class OutputPickerPresenterTest {
         var title: String? = "Big Buck Bunny"
         OutputPickerPresenter.receiverTitle = { title }
         OutputPickerPresenter.receiverPlaying = { title != null }
+        OutputPickerPresenter.receiverGoesOnHere = { title != null }
         val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
         OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+        val before = OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere
 
         title = null
         port.emit("ended", livingRoom)
 
+        assertEquals(true, before)
         assertEquals(null, OutputPickerPresenter.presentedController?.environment?.receiverTitle)
         assertEquals(false, OutputPickerPresenter.presentedController?.environment?.receiverPlaying)
+        assertEquals(false, OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere)
     }
 
     // The services' dialog runs the same check, which throws where the manifest lacks their version.

@@ -26,6 +26,7 @@ class OutputPickerStrings(private val strings: Map<String, String> = emptyMap())
                 "thisPhone" to "This phone",
                 "thisTablet" to "This tablet",
                 "playing" to "Playing",
+                "continueHere" to "Continue here",
                 "castCaption" to "Chromecast",
                 "searching" to "Looking for devices",
                 "noDevices" to "No devices found",

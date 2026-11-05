@@ -57,6 +57,14 @@ enum CastMappingTests {
         precondition(CastMapping.playingTitle(1, title: "Big Buck Bunny") == nil)
         precondition(CastMapping.playingTitle(0, title: "Big Buck Bunny") == nil)
 
-        print("PASS: Cast state, player state, idle reason, text tracks, session end error, receiver id, expanded controls and playing title")
+        // Only a Jellyfin item goes on on this phone: not media another sender loaded, live TV, nor a music track
+        // (B4). GCKMediaMetadataType: generic 0, movie 1, TV show 2, music track 3.
+        precondition(CastMapping.goesOnHere(metadataType: 2, itemId: "item-1", liveStreamId: nil))
+        precondition(CastMapping.goesOnHere(metadataType: nil, itemId: "item-1", liveStreamId: nil))
+        precondition(!CastMapping.goesOnHere(metadataType: 1, itemId: nil, liveStreamId: nil))
+        precondition(!CastMapping.goesOnHere(metadataType: 0, itemId: "item-1", liveStreamId: "live-1"))
+        precondition(!CastMapping.goesOnHere(metadataType: 3, itemId: "item-1", liveStreamId: nil))
+
+        print("PASS: Cast state, player state, idle reason, text tracks, session end error, receiver id, expanded controls, playing title and what goes on here")
     }
 }

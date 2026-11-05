@@ -11,6 +11,7 @@ export const buildOutputPickerStrings = (t: TFunction): OutputPickerStrings => {
     thisPhone: ios ? t("cast.output.this_iphone") : t("cast.output.this_phone"),
     thisTablet: ios ? t("cast.output.this_ipad") : t("cast.output.this_tablet"),
     playing: t("cast.output.playing"),
+    continueHere: t("cast.output.continue_here"),
     castCaption: t("cast.output.cast_caption"),
     searching: t("cast.output.searching"),
     noDevices: t("cast.output.no_devices"),

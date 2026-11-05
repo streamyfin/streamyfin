@@ -45,6 +45,13 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
+ * How long a status asked of the receiver is waited for before the one held
+ * stands in. The receiver reports on events only, so "Continue here" asks it
+ * where it is; it answers in well under a second on a home network.
+ */
+export const RECEIVER_STATUS_TIMEOUT_MS = 2_000;
+
+/**
  * How long a Play pressed while a receiver connects waits for the connection.
  * Connections took a few seconds on the bench; past this the press gives up and
  * says the connection failed, instead of starting much later on its own.

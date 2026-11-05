@@ -9,10 +9,10 @@ import expo.modules.mpvplayer.cast.target.TargetPhase
 import kotlin.math.abs
 
 /**
- * What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
- * player's video handed off to the receiver.
+ * What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, the
+ * player's video handed off to the receiver, and the receiver's video taken over on this device.
  */
-enum class OutputSheetOutput { OPEN_AIRPLAY, RESOLVE_PLAY_SERVICES, REMOTE, DISMISS, HAND_OFF }
+enum class OutputSheetOutput { OPEN_AIRPLAY, RESOLVE_PLAY_SERVICES, REMOTE, DISMISS, HAND_OFF, PLAY_HERE }
 
 /** What the screen that opened the sheet knows, and the hub does not. */
 data class OutputSheetEnvironment(
@@ -22,6 +22,7 @@ data class OutputSheetEnvironment(
     val playingHere: String? = null,
     val receiverTitle: String? = null,
     val receiverPlaying: Boolean = false,
+    val receiverGoesOnHere: Boolean = false,
     /** Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel. */
     val handOff: Boolean = false,
 )
@@ -118,8 +119,13 @@ class OutputSheetController(
     fun tap(row: OutputRow) {
         when (row) {
             is OutputRow.Device -> connect(row.id)
-            // Playback comes back to this phone: the target stops (the hand-off at the position comes with B4).
             is OutputRow.ThisDevice -> {
+                // The receiver's video goes on here: JS reads where the receiver is before it stops it.
+                if (row.continueHere) {
+                    onOutput?.invoke(OutputSheetOutput.PLAY_HERE)
+                    return
+                }
+                // Playback comes back to this phone: the target stops (music comes back with its queue in B4).
                 if (hub.snapshot.phase != TargetPhase.NONE) hub.disconnect(stopPlayback = true)
                 onOutput?.invoke(OutputSheetOutput.DISMISS)
             }
@@ -256,6 +262,7 @@ class OutputSheetController(
             playingHere = environment.playingHere,
             receiverTitle = environment.receiverTitle,
             receiverPlaying = environment.receiverPlaying,
+            receiverGoesOnHere = environment.receiverGoesOnHere,
             showingList = showingList,
             draggedVolume = dragged ?: held,
             requestedId = requestedId,

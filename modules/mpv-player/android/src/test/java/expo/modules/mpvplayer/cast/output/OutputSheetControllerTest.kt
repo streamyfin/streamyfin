@@ -22,7 +22,12 @@ class OutputSheetControllerTest {
 
     private fun sheet(hub: RemoteTargetHub, receiverTitle: String? = "Big Buck Bunny") =
         OutputSheetController(hub, scheduler.schedule).also {
-            it.environment = OutputSheetEnvironment(receiverTitle = receiverTitle, receiverPlaying = receiverTitle != null)
+            it.environment =
+                OutputSheetEnvironment(
+                    receiverTitle = receiverTitle,
+                    receiverPlaying = receiverTitle != null,
+                    receiverGoesOnHere = receiverTitle != null,
+                )
             it.onOutput = { output -> outputs += output }
             it.open()
         }
@@ -363,10 +368,55 @@ class OutputSheetControllerTest {
         assertEquals(listOf(true), port.disconnects)
     }
 
+    // While the receiver plays, outside the player, this phone takes its video over where it is: JS reads the
+    // receiver before it stops it, so the sheet stops nothing itself.
     @Test
-    fun thisDeviceChosenWhileCastingStopsTheTarget() {
+    fun thisDeviceWhileTheReceiverPlaysContinuesHere() {
         val port = port()
         val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(emptyList<Boolean>(), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.PLAY_HERE), outputs)
+    }
+
+    @Test
+    fun thisDeviceWithNothingOnTheReceiverStopsIt() {
+        val port = port()
+        val sheet = sheet(hubWith(port), receiverTitle = null)
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.DISMISS), outputs)
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: this phone stops it, as before.
+    @Test
+    fun thisDeviceWithMusicOnTheReceiverStopsIt() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        sheet.environment = sheet.environment.copy(receiverGoesOnHere = false)
+        port.emit("started", livingRoom)
+        sheet.change()
+
+        sheet.tap(rows(sheet).first())
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.DISMISS), outputs)
+    }
+
+    // In the player, the phone already has its video: this phone stops the receiver, as before.
+    @Test
+    fun inThePlayerThisDeviceStillStopsTheReceiver() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        sheet.environment = sheet.environment.copy(handOff = true)
         port.emit("started", livingRoom)
         sheet.change()
 

@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.cast
 
 import com.google.android.gms.cast.CastStatusCodes
+import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastReasonCodes
@@ -76,6 +77,16 @@ class CastMappingTest {
         assertTrue(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_LOADING))
         assertFalse(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_IDLE))
         assertFalse(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_UNKNOWN))
+    }
+
+    // Only a Jellyfin item goes on on this phone: not media another sender loaded, live TV, nor a music track (B4).
+    @Test
+    fun onlyAJellyfinItemOtherThanMusicGoesOnHere() {
+        assertTrue(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_TV_SHOW, "item-1", null))
+        assertTrue(CastMapping.goesOnHere(null, "item-1", null))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MOVIE, null, null))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_GENERIC, "item-1", "live-1"))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK, "item-1", null))
     }
 
     // A stop from the TV leaves the idle media with its metadata: the sheet must not offer to stop it again.

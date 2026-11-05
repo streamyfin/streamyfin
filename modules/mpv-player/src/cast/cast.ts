@@ -249,6 +249,8 @@ export const castClientFor = (session: CastSessionInfo): CastClient => {
     sessionId: session.id,
     getMediaStatus: () =>
       own()?.getMediaStatus(session.id) ?? Promise.resolve(null),
+    requestMediaStatus: (timeoutMs) =>
+      own()?.requestMediaStatus(session.id, timeoutMs) ?? Promise.resolve(null),
     onMediaStatusUpdated: (listener) =>
       onCastMediaStatusChanged((status) => {
         if (own()) listener(status);

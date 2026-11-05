@@ -5,6 +5,7 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastSession
 import expo.modules.mpvplayer.cast.target.GoogleCastTargetPort
 import org.json.JSONArray
@@ -31,6 +32,8 @@ object CastRecords {
             "isMuted" to it.isMute,
             "mediaInfo" to mediaInfo(it.mediaInfo),
             "customData" to json(it.customData),
+            // A track switched on the receiver (its captions) changes these and not the custom data.
+            "activeTrackIds" to (it.activeTrackIds?.toList() ?: emptyList()),
         )
     }
 
@@ -39,6 +42,7 @@ object CastRecords {
             "contentId" to it.contentId,
             "customData" to json(it.customData),
             "metadata" to metadata(it.metadata),
+            "textTrackIds" to (it.mediaTracks?.filter { track -> track.type == MediaTrack.TYPE_TEXT }?.map { track -> track.id } ?: emptyList()),
         )
     }
 

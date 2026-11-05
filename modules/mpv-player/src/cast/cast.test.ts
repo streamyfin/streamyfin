@@ -143,6 +143,27 @@ test("sendMessage stringifies an object once and sends a string as is", async ()
   await channel.remove();
 });
 
+// The receiver reports on events only: a status asked of it now says where it is, within the wait given.
+test("castClientFor asks its own session's receiver for a fresh status", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  mockCast.mediaStatus = status("playing");
+  mockCast.freshMediaStatus = status("paused");
+  const client = castClientFor(mockCast.session!);
+
+  await expect(client.requestMediaStatus(2_000)).resolves.toEqual(
+    status("paused"),
+  );
+  expect(native.requestMediaStatus).toHaveBeenLastCalledWith(
+    "session-1",
+    2_000,
+  );
+
+  mockCast.session = { id: "session-2", device: castDoubleDevice() };
+  await expect(client.requestMediaStatus(2_000)).resolves.toBeNull();
+});
+
 test("castClientFor reads and follows the media status of its session", async () => {
   mockCast.mediaStatus = status("playing");
   const client = castClientFor(mockCast.session!);

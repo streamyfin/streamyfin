@@ -84,17 +84,27 @@ export interface CastMediaInfo {
   /** What the receiver put on its media: item id, play session, play method. */
   customData: Record<string, unknown> | null;
   metadata: CastMediaMetadata | null;
+  /** The ids of the media's text tracks; the Jellyfin receiver names each by its subtitle stream index. */
+  textTrackIds?: number[];
 }
 
 export interface CastMediaStatus {
   playerState: CastMediaPlayerStateValue;
   currentItemId: number | null;
+  /** The position at the receiver's last report, which comes on events only (a seek, a pause, a buffer). */
   streamPosition: number;
+  /**
+   * Where the receiver is now, as the SDK estimates it from its last report, rate and time since. Only a
+   * `getMediaStatus` read carries it.
+   */
+  approximateStreamPosition?: number;
   playbackRate: number;
   volume: number;
   isMuted: boolean;
   mediaInfo: CastMediaInfo | null;
   customData: Record<string, unknown> | null;
+  /** The tracks the receiver shows. A track switched there (its captions) changes these, not the custom data. */
+  activeTrackIds?: number[];
 }
 
 export type ReceiverMessage = Record<string, unknown> | string;
@@ -110,7 +120,13 @@ export interface CastChannel {
 /** What a screen needs from the session it casts to. */
 export interface CastClient {
   sessionId: string;
+  /** The status held: the receiver's last report, which comes on events only. */
   getMediaStatus(): Promise<CastMediaStatus | null>;
+  /**
+   * A status asked of the receiver now, which says where it is; the one held
+   * when it does not answer within `timeoutMs`.
+   */
+  requestMediaStatus(timeoutMs: number): Promise<CastMediaStatus | null>;
   onMediaStatusUpdated(
     listener: (status: CastMediaStatus | null) => void,
   ): CastSubscription;
@@ -180,6 +196,7 @@ export type OutputPickerStringKey =
   | "thisPhone"
   | "thisTablet"
   | "playing"
+  | "continueHere"
   | "castCaption"
   | "searching"
   | "noDevices"
@@ -229,8 +246,11 @@ export interface OutputPickerOptions {
   playingHere?: string | null;
 }
 
-/** Asked from the sheet's panel, after the sheet has closed. */
-export type OutputPickerAction = "remote";
+/**
+ * Asked from the sheet, after it has closed: the panel's remote, or this device chosen while the receiver plays,
+ * which takes the receiver's video over here.
+ */
+export type OutputPickerAction = "remote" | "playHere";
 
 export type CastNativeEvents = {
   onCastStateChanged: (payload: { state: CastStateValue }) => void;
