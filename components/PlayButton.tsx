@@ -21,13 +21,11 @@ import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
-  PlayServicesState,
-  playServicesState,
+  castClientFor,
+  currentCastSession,
   showExpandedControls,
-  showPlayServicesErrorDialog,
-  useCastClient,
-  useCastDevice,
   useCastMediaStatus,
+  useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -39,8 +37,8 @@ import { useSettings } from "@/utils/atoms/settings";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
-  receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
+import { resolvePlay, waitForTarget } from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
@@ -66,8 +64,7 @@ export const PlayButton: React.FC<Props> = ({
 }: Props) => {
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
-  const client = useCastClient();
-  const castDevice = useCastDevice();
+  const target = useRemoteTarget();
   const mediaStatus = useCastMediaStatus();
   const { t } = useTranslation();
   const { showModal, hideModal } = useGlobalModal();
@@ -90,148 +87,109 @@ export const PlayButton: React.FC<Props> = ({
   const playMedia = usePlayMedia();
   const { enabled: inSyncPlayGroup } = useSyncPlay();
 
-  const handleNormalPlayFlow = useCallback(
-    async (positionTicks: number) => {
-      if (!item) return;
+  const playRequestFor = useCallback(
+    (positionTicks: number): PlayRequest => ({
+      itemId: item.Id!,
+      audioIndex: selectedOptions.audioIndex,
+      subtitleIndex: selectedOptions.subtitleIndex,
+      mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+      bitrateValue: selectedOptions.bitrate?.value,
+      offline: isOffline,
+      playbackPositionTicks: positionTicks,
+    }),
+    [item, selectedOptions, isOffline],
+  );
 
-      const playRequest: PlayRequest = {
-        itemId: item.Id!,
-        audioIndex: selectedOptions.audioIndex,
-        subtitleIndex: selectedOptions.subtitleIndex,
-        mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-        bitrateValue: selectedOptions.bitrate?.value,
-        offline: isOffline,
-        playbackPositionTicks: positionTicks,
-      };
-
-      if (!client) {
-        await playMedia(playRequest, { item });
+  // The official Jellyfin receiver negotiates playback on its own: it is handed
+  // the item plus the chosen streams and runs PlaybackInfo itself, which is what
+  // opens a real Jellyfin session and makes the cast visible in the dashboard.
+  const playOnTarget = useCallback(
+    async (positionTicks: number, targetName: string) => {
+      if (!api || !user?.Id || !item?.Id) {
+        Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
-
-      const options = ["Chromecast", "Device", "Cancel"];
-      const cancelButtonIndex = 2;
-      showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex,
-        },
-        async (selectedIndex: number | undefined) => {
-          if (!api) return;
-          const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
-          const isOpeningCurrentlyPlayingMedia =
-            currentTitle && currentTitle === item?.Name;
-
-          switch (selectedIndex) {
-            case 0:
-              await Promise.resolve(playServicesState()).then(async (state) => {
-                if (state && state !== PlayServicesState.SUCCESS) {
-                  showPlayServicesErrorDialog(state);
-                } else {
-                  // Validate required parameters before casting
-                  if (!api) {
-                    console.warn("API not available for Chromecast streaming");
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.missing_parameters"),
-                    );
-                    return;
-                  }
-                  if (!user?.Id) {
-                    console.warn(
-                      "User not authenticated for Chromecast streaming",
-                    );
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.missing_parameters"),
-                    );
-                    return;
-                  }
-                  if (!item?.Id) {
-                    console.warn("Item not available for Chromecast streaming");
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.missing_parameters"),
-                    );
-                    return;
-                  }
-
-                  // The official Jellyfin receiver negotiates playback on its
-                  // own: it is handed the item plus the chosen streams and runs
-                  // PlaybackInfo itself, which is what opens a real Jellyfin
-                  // session and makes the cast visible in the dashboard. No
-                  // stream URL, device profile or sidecar subtitle track is
-                  // built here any more -- the receiver handles all of it.
-                  if (!client) return;
-                  try {
-                    const outcome = await castToJellyfinReceiver(
-                      client,
-                      {
-                        api,
-                        userId: user.Id,
-                        receiverName:
-                          (await currentReceiverName()) ??
-                          receiverNameFor(castDevice),
-                        maxBitrate: selectedOptions.bitrate?.value,
-                      },
-                      {
-                        items: [item],
-                        startPositionTicks: positionTicks,
-                        mediaSourceId:
-                          selectedOptions.mediaSource?.Id ?? undefined,
-                        audioStreamIndex: selectedOptions.audioIndex,
-                        subtitleStreamIndex: selectedOptions.subtitleIndex,
-                      },
-                      RECEIVER_LOAD_TIMEOUT_MS,
-                    );
-
-                    const notStarted = castNotStartedMessage(t, outcome);
-                    if (notStarted) {
-                      writeErrorLog("Chromecast did not start", outcome);
-                      Alert.alert(t("player.client_error"), notStarted);
-                    } else if (
-                      outcome.status === "loaded" &&
-                      // state is already set when reopening current media, so skip it here.
-                      !isOpeningCurrentlyPlayingMedia
-                    ) {
-                      showExpandedControls();
-                    }
-                  } catch (e) {
-                    logAndCaptureError("Chromecast playback failed", e);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.chromecast_playback_failed"),
-                    );
-                  }
-                }
-              });
-              break;
-            case 1:
-              await playMedia(playRequest, { item });
-              break;
-            case cancelButtonIndex:
-              break;
-          }
-        },
-      );
+      // Read now: a press that waited for the connection holds an older render.
+      const session = currentCastSession();
+      const client = session ? castClientFor(session) : null;
+      if (!client) {
+        Alert.alert(t("player.client_error"), t("cast.output.failed"));
+        return;
+      }
+      const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
+      const isOpeningCurrentlyPlayingMedia =
+        currentTitle && currentTitle === item.Name;
+      try {
+        const outcome = await castToJellyfinReceiver(
+          client,
+          {
+            api,
+            userId: user.Id,
+            receiverName: (await currentReceiverName()) ?? targetName,
+            maxBitrate: selectedOptions.bitrate?.value,
+          },
+          {
+            items: [item],
+            startPositionTicks: positionTicks,
+            mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+            audioStreamIndex: selectedOptions.audioIndex,
+            subtitleStreamIndex: selectedOptions.subtitleIndex,
+          },
+          RECEIVER_LOAD_TIMEOUT_MS,
+        );
+        const notStarted = castNotStartedMessage(t, outcome);
+        if (notStarted) {
+          writeErrorLog("Chromecast did not start", outcome);
+          Alert.alert(t("player.client_error"), notStarted);
+        } else if (
+          outcome.status === "loaded" &&
+          // state is already set when reopening current media, so skip it here.
+          !isOpeningCurrentlyPlayingMedia
+        ) {
+          showExpandedControls();
+        }
+      } catch (e) {
+        logAndCaptureError("Chromecast playback failed", e);
+        Alert.alert(
+          t("player.client_error"),
+          t("player.chromecast_playback_failed"),
+        );
+      }
     },
-    [
-      item,
-      client,
-      castDevice,
-      api,
-      user,
-      showActionSheetWithOptions,
-      mediaStatus,
-      selectedOptions,
-      playMedia,
-      isOffline,
-      t,
-    ],
+    [api, user, item, mediaStatus, selectedOptions, t],
+  );
+
+  // One Play action: the target when one is connected, this device otherwise or
+  // when asked by a long press. A press while connecting waits for the target.
+  const handleNormalPlayFlow = useCallback(
+    async (positionTicks: number, longPress = false) => {
+      if (!item) return;
+      const destination = resolvePlay({
+        target,
+        offline: isOffline,
+        longPress,
+      });
+      if (destination.where === "target") {
+        await playOnTarget(positionTicks, destination.name);
+        return;
+      }
+      if (destination.where === "waitForTarget") {
+        const settled = await waitForTarget();
+        if (settled.state === "connected" && settled.target) {
+          await playOnTarget(positionTicks, settled.target.name);
+        } else {
+          // Nothing plays: the connection the press waited for did not come.
+          Alert.alert(t("player.client_error"), t("cast.output.failed"));
+        }
+        return;
+      }
+      await playMedia(playRequestFor(positionTicks), { item });
+    },
+    [item, target, isOffline, playOnTarget, playMedia, playRequestFor, t],
   );
 
   const startPlayback = useCallback(
-    async (positionTicks: number) => {
+    async (positionTicks: number, longPress = false) => {
       if (!item) return;
 
       // Check if item is downloaded
@@ -289,7 +247,7 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
-                      handleNormalPlayFlow(positionTicks);
+                      handleNormalPlayFlow(positionTicks, longPress);
                     }}
                     color='white'
                     variant='border'
@@ -329,7 +287,7 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_no"),
                 onPress: () => {
-                  handleNormalPlayFlow(positionTicks);
+                  handleNormalPlayFlow(positionTicks, longPress);
                 },
               },
               {
@@ -343,51 +301,86 @@ export const PlayButton: React.FC<Props> = ({
       }
 
       // If not downloaded, proceed with normal flow
-      handleNormalPlayFlow(positionTicks);
+      handleNormalPlayFlow(positionTicks, longPress);
     },
     [item, isOffline, handleNormalPlayFlow, playMedia, t, showModal, hideModal],
   );
 
-  const onPress = useCallback(() => {
-    if (!item) return;
+  const play = useCallback(
+    (longPress: boolean) => {
+      if (!item) return;
 
-    lightHapticFeedback();
+      lightHapticFeedback();
 
-    // Same prompt the TV item page shows: an in-progress item asks whether
-    // to resume or restart instead of silently resuming. Users can turn the
-    // prompt off in settings, in which case playback resumes right away.
-    const progressTicks = item.UserData?.PlaybackPositionTicks ?? 0;
-    if (progressTicks > 0 && !settings.showResumeDialog) {
-      void startPlayback(progressTicks);
-      return;
-    }
-    if (progressTicks > 0) {
-      Alert.alert(
-        t("item_card.resume_playback"),
-        t("item_card.resume_playback_description"),
-        [
-          {
-            text: t("common.cancel"),
-            style: "cancel",
-          },
-          {
-            text: t("item_card.play_from_start"),
-            onPress: () => void startPlayback(0),
-          },
-          {
-            text: t("item_card.continue_from", {
-              time: formatDuration(progressTicks),
-            }),
-            onPress: () => void startPlayback(progressTicks),
-            isPreferred: true,
-          },
-        ],
-      );
-      return;
-    }
+      // Same prompt the TV item page shows: an in-progress item asks whether
+      // to resume or restart instead of silently resuming. Users can turn the
+      // prompt off in settings, in which case playback resumes right away.
+      const progressTicks = item.UserData?.PlaybackPositionTicks ?? 0;
+      if (progressTicks > 0 && !settings.showResumeDialog) {
+        void startPlayback(progressTicks, longPress);
+        return;
+      }
+      if (progressTicks > 0) {
+        Alert.alert(
+          t("item_card.resume_playback"),
+          t("item_card.resume_playback_description"),
+          [
+            {
+              text: t("common.cancel"),
+              style: "cancel",
+            },
+            {
+              text: t("item_card.play_from_start"),
+              onPress: () => void startPlayback(0, longPress),
+            },
+            {
+              text: t("item_card.continue_from", {
+                time: formatDuration(progressTicks),
+              }),
+              onPress: () => void startPlayback(progressTicks, longPress),
+              isPreferred: true,
+            },
+          ],
+        );
+        return;
+      }
 
-    void startPlayback(0);
-  }, [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog]);
+      void startPlayback(0, longPress);
+    },
+    [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog],
+  );
+
+  const onPress = useCallback(() => play(false), [play]);
+
+  const destination = resolvePlay({
+    target,
+    offline: isOffline,
+    longPress: false,
+  });
+
+  // With a target the long press offers this device; without one there is
+  // nothing else to offer.
+  const onLongPress = useCallback(() => {
+    if (destination.where === "here") return;
+    showActionSheetWithOptions(
+      {
+        options: [t("player.play_here"), t("common.cancel")],
+        cancelButtonIndex: 1,
+      },
+      (selectedIndex) => {
+        if (selectedIndex === 0) play(true);
+      },
+    );
+  }, [destination.where, showActionSheetWithOptions, play, t]);
+
+  const targetLabel =
+    destination.where === "target"
+      ? t("player.play_on", { name: destination.name })
+      : destination.where === "waitForTarget"
+        ? t("player.connecting_to", { name: destination.name })
+        : null;
+  const downloadHere =
+    destination.where === "here" && destination.reason === "download";
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item?.RunTimeTicks) return 0;
@@ -476,65 +469,80 @@ export const PlayButton: React.FC<Props> = ({
   }));
 
   return (
-    <TouchableOpacity
-      disabled={!item || !!disabled}
-      accessibilityLabel={t("accessibility.play_button")}
-      accessibilityHint={t("accessibility.play_hint")}
-      onPress={onPress}
-      className={"relative flex-1"}
-    >
-      <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
-        <Animated.View
-          style={[
-            animatedPrimaryStyle,
-            animatedWidthStyle,
-            {
-              height: "100%",
-            },
-          ]}
-        />
-      </View>
-
-      <Animated.View
-        style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className='absolute w-full h-full top-0 left-0 rounded-full'
-      />
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: effectiveColors.primary,
-          borderStyle: "solid",
-        }}
-        className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
+    <View className='flex-1'>
+      <TouchableOpacity
+        disabled={!item || !!disabled}
+        accessibilityLabel={t("accessibility.play_button")}
+        accessibilityHint={t("accessibility.play_hint")}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        className={"relative"}
       >
-        <View className='flex flex-row items-center space-x-2'>
-          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-            {runtimeTicksToMinutes(
-              (item?.RunTimeTicks || 0) -
-                (item?.UserData?.PlaybackPositionTicks || 0),
-            )}
-            {(item?.UserData?.PlaybackPositionTicks || 0) > 0 && " left"}
-          </Animated.Text>
-          <Animated.Text style={animatedTextStyle}>
-            <Ionicons name='play-circle' size={24} />
-          </Animated.Text>
-          {client && (
-            <Animated.Text testID='play-button-cast' style={animatedTextStyle}>
-              <Feather name='cast' size={22} />
-            </Animated.Text>
-          )}
-          {/* In a group this button plays for everyone in it. Downloads
-              stay solo, so they keep the plain button. */}
-          {inSyncPlayGroup && !isOffline && (
-            <Animated.Text
-              testID='play-button-syncplay'
-              style={animatedTextStyle}
-            >
-              <Ionicons name='people' size={22} />
-            </Animated.Text>
-          )}
+        <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
+          <Animated.View
+            style={[
+              animatedPrimaryStyle,
+              animatedWidthStyle,
+              {
+                height: "100%",
+              },
+            ]}
+          />
         </View>
-      </View>
-    </TouchableOpacity>
+
+        <Animated.View
+          style={[animatedAverageStyle, { opacity: 0.5 }]}
+          className='absolute w-full h-full top-0 left-0 rounded-full'
+        />
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: effectiveColors.primary,
+            borderStyle: "solid",
+          }}
+          className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
+        >
+          <View className='flex flex-row items-center space-x-2'>
+            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+              {targetLabel ?? (
+                <>
+                  {runtimeTicksToMinutes(
+                    (item?.RunTimeTicks || 0) -
+                      (item?.UserData?.PlaybackPositionTicks || 0),
+                  )}
+                  {(item?.UserData?.PlaybackPositionTicks || 0) > 0 && " left"}
+                </>
+              )}
+            </Animated.Text>
+            <Animated.Text style={animatedTextStyle}>
+              <Ionicons name='play-circle' size={24} />
+            </Animated.Text>
+            {targetLabel && (
+              <Animated.Text
+                testID='play-button-cast'
+                style={animatedTextStyle}
+              >
+                <Feather name='cast' size={22} />
+              </Animated.Text>
+            )}
+            {/* In a group this button plays for everyone in it. Downloads
+              stay solo, so they keep the plain button. */}
+            {inSyncPlayGroup && !isOffline && (
+              <Animated.Text
+                testID='play-button-syncplay'
+                style={animatedTextStyle}
+              >
+                <Ionicons name='people' size={22} />
+              </Animated.Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+      {downloadHere && (
+        <Text className='text-xs text-neutral-400 text-center mt-1'>
+          {t("player.download_plays_here")}
+        </Text>
+      )}
+    </View>
   );
 };

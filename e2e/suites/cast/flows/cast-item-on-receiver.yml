@@ -48,11 +48,9 @@ appId: com.fredrikburmester.streamyfin
       id: "play-button-cast"
     timeout: 45000
 - takeScreenshot: cast-connected
+# Play goes to the connected receiver, which the button names; there is no choice to make any more.
+- assertVisible: "Play on ${CAST_NAME}"
 - tapOn: "Play button"
-- extendedWaitUntil:
-    visible: "Chromecast"
-    timeout: 10000
-- tapOn: "Chromecast"
 # The SDK expanded controls cover the item page; their toolbar Cast button is the way to stop casting.
 - extendedWaitUntil:
     notVisible: "Play button"
