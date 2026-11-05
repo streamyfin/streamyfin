@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtomValue } from "jotai";
 import { useAtom } from "jotai/index";
@@ -5,7 +6,7 @@ import inRange from "lodash/inRange";
 import { Image } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
-  SEERR_IMAGE_QUALITY,
+  SEERR_PUBLIC_SETTINGS_STALE_MS,
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
 import { storage } from "@/utils/mmkv";
@@ -22,7 +23,7 @@ import {
 } from "@/utils/customHeaders";
 import { logAndCaptureError, writeErrorLog, writeToLog } from "@/utils/log";
 import { settleSeerrFailure } from "@/utils/seerr/errorReporting";
-import { tmdbImageUrl } from "@/utils/seerr/images";
+import { episodeStillUrl, tmdbImageUrl } from "@/utils/seerr/images";
 import {
   isMovieOrTvResult,
   mediaTypeOf,
@@ -151,6 +152,11 @@ export class SeerrApi {
    * of the signed-in user to be attributed to them.
    */
   actAsUserId?: number;
+  /**
+   * Whether the server keeps an image cache (cacheImages, in its public settings): its images
+   * then load through it, as in Seerr's own app. See withImageCache.
+   */
+  cacheImages = false;
 
   constructor(
     baseUrl: string,
@@ -540,18 +546,36 @@ export class SeerrApi {
       .then(({ data }) => data.results);
   }
 
-  imageProxy(
-    path?: string | null,
-    filter = "original",
-    width = 1920,
-    quality = SEERR_IMAGE_QUALITY,
-  ) {
+  /** A TMDB image at one of TMDB's sizes, or the placeholder poster without a path. */
+  imageProxy(path: string | null | undefined, size: string) {
     return (
-      tmdbImageUrl(this.axios.defaults.baseURL ?? "", path, {
-        filter,
-        width,
-        quality,
-      }) ?? POSTER_PLACEHOLDER
+      tmdbImageUrl(
+        this.axios.defaults.baseURL ?? "",
+        path,
+        size,
+        this.cacheImages,
+      ) ?? POSTER_PLACEHOLDER
+    );
+  }
+
+  /** This client, loading its images through the server's image cache. */
+  withImageCache(): SeerrApi {
+    const api = new SeerrApi(
+      this.axios.defaults.baseURL ?? "",
+      this.customHeaders,
+      this.apiKey,
+    );
+    api.actAsUserId = this.actAsUserId;
+    api.cacheImages = true;
+    return api;
+  }
+
+  /** An episode still, at a thumbnail's size. */
+  episodeStill(still: string | null | undefined) {
+    return episodeStillUrl(
+      this.axios.defaults.baseURL ?? "",
+      still,
+      this.cacheImages,
     );
   }
 
@@ -675,13 +699,36 @@ export class SeerrApi {
 
 const seerrUserAtom = atom(storage.get<SeerrUser>(SEERR_USER_STORAGE_KEY));
 
+/** The server's public settings, one query for every reader. */
+export const seerrPublicSettingsQuery = (seerrApi: SeerrApi | undefined) => ({
+  // Per server: after signing in to another one, its own settings apply.
+  queryKey: ["seerr", "settings", "public", seerrApi?.axios.defaults.baseURL],
+  queryFn: async () => (await seerrApi?.publicSettings()) ?? null,
+  enabled: !!seerrApi,
+  staleTime: SEERR_PUBLIC_SETTINGS_STALE_MS,
+});
+
+/**
+ * The client with the server's image cache applied once its public settings are in. Until
+ * then its images load from TMDB, Seerr's default. Another client then, so that the readers
+ * that keep an image URL until the client changes build it again.
+ */
+export const useSeerrImageCache = (client: SeerrApi | undefined) => {
+  const { data } = useQuery(seerrPublicSettingsQuery(client));
+  const cacheImages = data?.cacheImages ?? false;
+  return useMemo(
+    () => (client && cacheImages ? client.withImageCache() : client),
+    [client, cacheImages],
+  );
+};
+
 export const useSeerr = () => {
   const { settings, updateSettings } = useSettings();
   const [seerrUser, setSeerrUser] = useAtom(seerrUserAtom);
   const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const queryClient = useNetworkAwareQueryClient();
 
-  const seerrApi = useMemo(() => {
+  const client = useMemo(() => {
     const cookies = storage.get<string[]>(SEERR_COOKIES_STORAGE_KEY);
     const apiKey = settings?.seerrApiKey;
     if (settings?.seerrServerUrl && seerrUser && (cookies || apiKey)) {
@@ -701,6 +748,7 @@ export const useSeerr = () => {
     seerrUser,
     customHeadersVersion,
   ]);
+  const seerrApi = useSeerrImageCache(client);
 
   const clearAllSeerrData = useCallback(async () => {
     clearSeerrStorageData();
