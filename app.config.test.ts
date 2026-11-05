@@ -150,3 +150,30 @@ test("loading the config leaves Node's module loader alone", () => {
   });
   expect({ ...handlers }).toEqual(before);
 });
+
+// A repack rewrites the build number of the app and its extensions from the
+// config, "1" when it has none: an EAS build's number would be lost, and with
+// it the release Sentry files the build's crashes under.
+test("takes the build number of the IPA a repack starts from", () => {
+  const previous = process.env.REPACK_IOS_BUILD_NUMBER;
+  process.env.REPACK_IOS_BUILD_NUMBER = "309";
+  try {
+    const resolved = resolveConfig({
+      config: structuredClone(appJson.expo),
+    } as ConfigContext);
+    expect(resolved.ios?.buildNumber).toBe("309");
+    expect(resolved.ios?.bundleIdentifier).toBe(
+      appJson.expo.ios.bundleIdentifier,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.REPACK_IOS_BUILD_NUMBER;
+    else process.env.REPACK_IOS_BUILD_NUMBER = previous;
+  }
+});
+
+test("leaves the build number alone outside a repack", () => {
+  const resolved = resolveConfig({
+    config: structuredClone(appJson.expo),
+  } as ConfigContext);
+  expect(resolved.ios?.buildNumber).toBe(appJson.expo.ios?.buildNumber);
+});

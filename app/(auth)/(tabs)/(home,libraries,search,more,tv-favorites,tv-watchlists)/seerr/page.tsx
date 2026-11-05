@@ -32,6 +32,7 @@ import { TVSeerrPage } from "@/components/seerr/tv";
 import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import { SeerrIssueColors, SheetColors } from "@/constants/Colors";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import {
   BACKGROUND_IMAGE_TRANSITION,
   POSTER_ASPECT_RATIO,
@@ -292,7 +293,7 @@ const MobilePage: React.FC = () => {
                 source={{
                   uri: seerrApi?.imageProxy(
                     result.backdropPath,
-                    "w1920_and_h800_multi_faces",
+                    SEERR_BACKDROP_SIZE,
                   ),
                 }}
               />

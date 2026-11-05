@@ -187,20 +187,32 @@ jobs:
             // Map our build targets to their job display names. Exact name is
             // tried first so a signed target never collides with its
             // "(Unsigned)" sibling (whose name contains the signed name).
+            // Each target lists the repack job beside the build job: either may
+            // hold the artifact while the other sits skipped.
             const jobMappings = {
-              'Android Phone': ['🤖 Build Android APK (Phone)'],
-              'Android TV': ['🤖 Build Android APK (TV)'],
-              'iOS': ['🍎 Build iOS IPA (Phone)'],
-              'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)'],
-              'tvOS': ['🍎 Build tvOS IPA'],
-              'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)']
+              'Android Phone': ['🤖 Build Android APK (Phone)', '🤖 Repack Android APK (Phone)'],
+              'Android TV': ['🤖 Build Android APK (TV)', '🤖 Repack Android APK (TV)'],
+              'iOS': ['🍎 Build iOS IPA (Phone)', '🍎 Repack iOS IPA (Phone)'],
+              'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', '🍎 Repack iOS IPA (Phone - Unsigned)'],
+              'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', '🍎 Repack tvOS IPA (Unsigned)']
             };
 
             // Prefer an exact name match over a substring match so
-            // '...(Phone)' doesn't swallow '...(Phone - Unsigned)'.
-            const findJobForTarget = (jobs, jobNames) =>
-              jobs.find(j => jobNames.some(name => j.name === name)) ||
-              jobs.find(j => jobNames.some(name => j.name.includes(name)));
+            // '...(Phone)' doesn't swallow '...(Phone - Unsigned)'. A target
+            // with two jobs prefers the live one, then the successful one, so
+            // a skipped job never stands in for the repack that ran.
+            const findJobForTarget = (jobs, jobNames) => {
+              const exact = jobs.filter(j => jobNames.some(name => j.name === name));
+              const pool = exact.length
+                ? exact
+                : jobs.filter(j => jobNames.some(name => j.name.includes(name)));
+              return (
+                pool.find(j => j.status !== 'completed') ??
+                pool.find(j => j.conclusion === 'success') ??
+                pool.find(j => j.conclusion !== 'skipped') ??
+                pool[0]
+              );
+            };
 
             // Format a millisecond duration as "Xm Ys".
             const fmtDuration = (ms) => {
@@ -392,10 +404,13 @@ jobs:
                   run_id: refRun.id
                 });
 
-                for (const [platform, jobNames] of Object.entries(jobMappings)) {
-                  const job = findJobForTarget(refJobs.jobs, jobNames);
-                  if (job && job.conclusion === 'success' && job.started_at && job.completed_at) {
-                    referenceDurations[platform] = new Date(job.completed_at) - new Date(job.started_at);
+                // Keyed by job name, not platform: a repack takes minutes where
+                // a full build takes much longer, so an ETA must come from the
+                // same kind of job that is running.
+                const mappedNames = new Set(Object.values(jobMappings).flat());
+                for (const job of refJobs.jobs) {
+                  if (mappedNames.has(job.name) && job.conclusion === 'success' && job.started_at && job.completed_at) {
+                    referenceDurations[job.name] = new Date(job.completed_at) - new Date(job.started_at);
                   }
                 }
                 console.log(`Reference durations from develop run ${refRun.id}:`,
@@ -420,7 +435,6 @@ jobs:
               { name: 'Android TV', platform: '🤖', device: '📺 TV', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
               { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS', artifactPattern: /^(?!.*unsigned).*ios.*phone.*ipa/i },
               { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
-              { name: 'tvOS', platform: '🍎', device: '📺 TV', statusKey: 'tvOS', artifactPattern: /^(?!.*unsigned).*ios.*tv.*ipa/i },
               { name: 'tvOS Unsigned', platform: '🍎', device: '📺 TV Unsigned', statusKey: 'tvOS Unsigned', artifactPattern: /ios.*tv.*unsigned/i }
             ];
 
@@ -436,13 +450,7 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              // Signed tvOS stays disabled until EAS has tvOS provisioning
-              // profiles (app + TopShelf targets); non-interactive builds can't
-              // create them. Unsigned tvOS builds, so it flows through normally.
-              if (target.name === 'tvOS') {
-                status = '💤 Disabled';
-                downloadLink = '*Disabled — signed tvOS needs EAS provisioning profiles*';
-              } else if (matchingStatus) {
+              if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;
@@ -468,13 +476,13 @@ jobs:
                   downloadLink = '*Build cancelled*';
                 } else if (matchingStatus.status === 'in_progress') {
                   status = `🔄 [Building...](${matchingStatus.url})`;
-                  const ref = referenceDurations[target.statusKey];
+                  const ref = referenceDurations[matchingStatus.name];
                   downloadLink = ref
                     ? `*Building… ~${fmtDuration(ref)} (avg on develop)*`
                     : '*Build in progress...*';
                 } else if (matchingStatus.status === 'queued') {
                   status = `⏳ [Queued](${matchingStatus.url})`;
-                  const ref = referenceDurations[target.statusKey];
+                  const ref = referenceDurations[matchingStatus.name];
                   downloadLink = ref
                     ? `*Waiting to start… ~${fmtDuration(ref)} once running (avg on develop)*`
                     : '*Waiting to start...*';
