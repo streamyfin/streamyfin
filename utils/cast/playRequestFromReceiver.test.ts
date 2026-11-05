@@ -84,3 +84,32 @@ test("a receiver that stopped gives nothing", () => {
     playRequestFromReceiver(status({ itemId: "item-1" }, 0, "idle")),
   ).toBeNull();
 });
+
+// Subtitles picked on the receiver (the Cast controls' captions) switch its text track and leave the custom data at
+// the index it was loaded with; the Jellyfin receiver names each text track by its stream index (bench, 05/11:
+// tracks 3 and 4, 4 active, custom data still 3).
+const withTracks = (activeTrackIds: number[], textTrackIds: number[]) => {
+  const loaded = status({ itemId: "item-1", subtitleStreamIndex: 3 });
+  return {
+    ...loaded,
+    activeTrackIds,
+    mediaInfo: loaded.mediaInfo && { ...loaded.mediaInfo, textTrackIds },
+  };
+};
+
+test("subtitles picked on the receiver go on here, not the ones it was loaded with", () => {
+  expect(playRequestFromReceiver(withTracks([4], [3, 4]))?.subtitleIndex).toBe(
+    4,
+  );
+});
+
+test("subtitles turned off on the receiver stay off here", () => {
+  expect(playRequestFromReceiver(withTracks([], [3, 4]))?.subtitleIndex).toBe(
+    -1,
+  );
+});
+
+// Without text tracks the receiver burned the subtitles in at the load, which the custom data names.
+test("burned-in subtitles go on as the receiver was loaded with them", () => {
+  expect(playRequestFromReceiver(withTracks([], []))?.subtitleIndex).toBe(3);
+});

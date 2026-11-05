@@ -84,6 +84,8 @@ export interface CastMediaInfo {
   /** What the receiver put on its media: item id, play session, play method. */
   customData: Record<string, unknown> | null;
   metadata: CastMediaMetadata | null;
+  /** The ids of the media's text tracks; the Jellyfin receiver names each by its subtitle stream index. */
+  textTrackIds?: number[];
 }
 
 export interface CastMediaStatus {
@@ -101,6 +103,8 @@ export interface CastMediaStatus {
   isMuted: boolean;
   mediaInfo: CastMediaInfo | null;
   customData: Record<string, unknown> | null;
+  /** The tracks the receiver shows. A track switched there (its captions) changes these, not the custom data. */
+  activeTrackIds?: number[];
 }
 
 export type ReceiverMessage = Record<string, unknown> | string;
