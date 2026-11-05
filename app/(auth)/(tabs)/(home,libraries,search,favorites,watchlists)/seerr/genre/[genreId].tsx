@@ -7,6 +7,7 @@ import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
 import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
 import { TVSeerrTitlesHeading } from "@/components/seerr/tv/TVSeerrTitlesHeading";
 import { TVSeerrTitlesPage } from "@/components/seerr/tv/TVSeerrTitlesPage";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrDiscoverTitles } from "@/hooks/useSeerrDiscoverTitles";
 import { DiscoverSliderType } from "@/utils/seerr/types";
@@ -49,7 +50,7 @@ function MobileGenrePage() {
     () =>
       seerrApi
         ? flatData.map((r) =>
-            seerrApi.imageProxy(r.backdropPath, "w1920_and_h800_multi_faces"),
+            seerrApi.imageProxy(r.backdropPath, SEERR_BACKDROP_SIZE),
           )
         : [],
     [seerrApi, flatData],
