@@ -369,7 +369,8 @@ private fun SheetRow(
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            caption?.let { Text(it, color = captionColor, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            // A failure says why in full, however large the text: the row grows instead.
+            caption?.let { Text(it, color = captionColor, fontSize = 13.sp) }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) { trailing() }
     }
