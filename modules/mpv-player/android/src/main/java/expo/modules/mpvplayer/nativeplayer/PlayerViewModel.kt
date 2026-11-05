@@ -153,7 +153,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun requestCastHandOff() {
         // The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
         if (isTearingDown) return
-        pauseLocal()
+        // A group joined while the sheet was open owns playback: JS refuses the hand-off and the group plays on.
+        if (!syncPlayActive) pauseLocal()
         // The item played here: in JS, an in-place swap may already hold the next one.
         emit?.invoke("onCastHandOffRequested", mapOf("positionSec" to authoritativePosition, "itemId" to currentItemId))
     }

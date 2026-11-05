@@ -80,7 +80,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func requestCastHandOff() {
 		// The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
 		guard !isTearingDown else { return }
-		engine?.pause()
+		// A group joined while the sheet was open owns playback: JS refuses the hand-off and the group plays on.
+		if !isSyncPlayActive { engine?.pause() }
 		// The item played here: in JS, an in-place swap may already hold the next one.
 		var payload: [String: Any] = ["positionSec": position]
 		if let currentItemId { payload["itemId"] = currentItemId }

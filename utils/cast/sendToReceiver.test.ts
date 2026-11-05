@@ -4,12 +4,16 @@ import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { sendToReceiver } from "./sendToReceiver";
 
 let mockSession: { id: string } | null = { id: "session-1" };
+let mockSessionError: Error | null = null;
 
 jest.mock("@/modules/mpv-player/src/cast", () => ({
   castClientFor: (session: { id: string }) => ({
     id: `client-of-${session.id}`,
   }),
-  currentCastSession: () => mockSession,
+  currentCastSession: () => {
+    if (mockSessionError) throw mockSessionError;
+    return mockSession;
+  },
 }));
 jest.mock("@/utils/atoms/settings", () => ({
   effectiveSettingsAtom: jest.requireActual("jotai").atom(null),
@@ -48,6 +52,7 @@ const load = castToJellyfinReceiver as jest.Mock;
 
 beforeEach(() => {
   mockSession = { id: "session-1" };
+  mockSessionError = null;
   load.mockReset();
   load.mockImplementation(async () => ({ status: "loaded" }));
   store.set(
@@ -133,6 +138,19 @@ test("says why without a Cast session", async () => {
   const result = await sendToReceiver(deps, play, livingRoom, () => false);
 
   expect(result).toEqual({ status: "failed", message: "cast.output.failed" });
+  expect(load).not.toHaveBeenCalled();
+});
+
+// On Android the Cast module throws once it lost its React context: the send says why instead of rejecting.
+test("says why when the Cast session cannot be read", async () => {
+  mockSessionError = new Error("The React context is gone");
+
+  const result = await sendToReceiver(deps, play, livingRoom, () => false);
+
+  expect(result).toEqual({
+    status: "failed",
+    message: "player.chromecast_playback_failed",
+  });
   expect(load).not.toHaveBeenCalled();
 });
 
