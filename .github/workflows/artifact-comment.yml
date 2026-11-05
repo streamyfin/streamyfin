@@ -187,20 +187,33 @@ jobs:
             // Map our build targets to their job display names. Exact name is
             // tried first so a signed target never collides with its
             // "(Unsigned)" sibling (whose name contains the signed name).
+            // iOS targets list the repack job beside the build job: either may
+            // hold the artifact while the other sits skipped.
             const jobMappings = {
               'Android Phone': ['🤖 Build Android APK (Phone)'],
               'Android TV': ['🤖 Build Android APK (TV)'],
-              'iOS': ['🍎 Build iOS IPA (Phone)'],
-              'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)'],
+              'iOS': ['🍎 Build iOS IPA (Phone)', '🍎 Repack iOS IPA (Phone)'],
+              'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', '🍎 Repack iOS IPA (Phone - Unsigned)'],
               'tvOS': ['🍎 Build tvOS IPA'],
-              'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)']
+              'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', '🍎 Repack tvOS IPA (Unsigned)']
             };
 
             // Prefer an exact name match over a substring match so
-            // '...(Phone)' doesn't swallow '...(Phone - Unsigned)'.
-            const findJobForTarget = (jobs, jobNames) =>
-              jobs.find(j => jobNames.some(name => j.name === name)) ||
-              jobs.find(j => jobNames.some(name => j.name.includes(name)));
+            // '...(Phone)' doesn't swallow '...(Phone - Unsigned)'. A target
+            // with two jobs prefers the live one, then the successful one, so
+            // a skipped job never stands in for the repack that ran.
+            const findJobForTarget = (jobs, jobNames) => {
+              const exact = jobs.filter(j => jobNames.some(name => j.name === name));
+              const pool = exact.length
+                ? exact
+                : jobs.filter(j => jobNames.some(name => j.name.includes(name)));
+              return (
+                pool.find(j => j.status !== 'completed') ??
+                pool.find(j => j.conclusion === 'success') ??
+                pool.find(j => j.conclusion !== 'skipped') ??
+                pool[0]
+              );
+            };
 
             // Format a millisecond duration as "Xm Ys".
             const fmtDuration = (ms) => {
