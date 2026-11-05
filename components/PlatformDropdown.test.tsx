@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import type React from "react";
-import { Text } from "react-native";
+import { Platform, Text } from "react-native";
 import { PlatformDropdown } from "./PlatformDropdown";
 
 const mockHost = jest.fn();
+const mockMenu = jest.fn();
 
 // The SwiftUI views are native. Each stands in as what it carries: the Host
 // records its props, the Menu is its label and its items, a Button a row.
@@ -14,18 +15,15 @@ jest.mock("@expo/ui/swift-ui", () => {
       mockHost(props);
       return <Box>{props.children}</Box>;
     },
-    Menu: ({
-      label,
-      children,
-    }: {
-      label: React.ReactNode;
-      children: React.ReactNode;
-    }) => (
-      <Box>
-        {label}
-        {children}
-      </Box>
-    ),
+    Menu: (props: { label: React.ReactNode; children: React.ReactNode }) => {
+      mockMenu(props);
+      return (
+        <Box>
+          {props.label}
+          {props.children}
+        </Box>
+      );
+    },
     Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
       <Row accessibilityRole='menuitem' onPress={onPress}>
         {label}
@@ -33,7 +31,11 @@ jest.mock("@expo/ui/swift-ui", () => {
     ),
   };
 });
-jest.mock("@expo/ui/swift-ui/modifiers", () => ({ disabled: jest.fn() }));
+jest.mock("@expo/ui/swift-ui/modifiers", () => ({
+  disabled: jest.fn(),
+  accessibilityLabel: (label: string) => ({ accessibilityLabel: label }),
+  accessibilityValue: (value: string) => ({ accessibilityValue: value }),
+}));
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
@@ -102,5 +104,47 @@ describe("PlatformDropdown on iOS", () => {
 
     expect(onPickSecond).toHaveBeenCalledTimes(1);
     expect(onOptionSelect).toHaveBeenCalledWith(2);
+  });
+
+  // The trigger's text never reaches VoiceOver through the SwiftUI Menu: it announced a bare pop-up button.
+  test("names its control and its value to screen readers", async () => {
+    await render(
+      <PlatformDropdown
+        groups={groups}
+        trigger={<Text>Pick</Text>}
+        accessibilityLabel='Salon'
+        accessibilityValue='First'
+      />,
+    );
+
+    expect(mockMenu).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modifiers: [
+          { accessibilityLabel: "Salon" },
+          { accessibilityValue: "First" },
+        ],
+      }),
+    );
+  });
+});
+
+describe("PlatformDropdown on Android", () => {
+  beforeEach(() => jest.replaceProperty(Platform, "OS", "android"));
+  afterEach(() => jest.restoreAllMocks());
+
+  // Several rows can share a value: the control names what it sets, not only its value.
+  test("names its control and its value to screen readers", async () => {
+    await render(
+      <PlatformDropdown
+        groups={groups}
+        trigger={<Text>Pick</Text>}
+        accessibilityLabel='Salon'
+        accessibilityValue='First'
+      />,
+    );
+
+    expect(screen.getByLabelText("Salon").props.accessibilityValue).toEqual({
+      text: "First",
+    });
   });
 });

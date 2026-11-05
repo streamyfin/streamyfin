@@ -15,7 +15,9 @@ type Option = { label: string; selected?: boolean; onPress: () => void };
 const mockUpdateSettings = jest.fn();
 let mockQuality: RemotePlaybackQuality = NO_REMOTE_QUALITY;
 // The admin's settings from the plugin, a value and a lock per setting.
-let mockPluginSettings: object | undefined;
+let mockPluginSettings:
+  | { remotePlaybackQuality?: { locked: boolean; value: unknown } }
+  | undefined;
 // The options each dropdown rendered first, as the Android sheet keeps the ones it opened with.
 let mockSheets: Record<string, Option[]> = {};
 
@@ -28,11 +30,18 @@ jest.mock("@/utils/atoms/settings", () => {
   const settingsAtom = atom(null);
   return {
     settingsAtom,
-    useSettings: () => ({
-      settings: useAtomValue(settingsAtom),
-      updateSettings: mockUpdateSettings,
-      pluginSettings: mockPluginSettings,
-    }),
+    // The effective settings, as the hook returns them: a locked value from the admin wins over the stored one.
+    useSettings: () => {
+      const stored = useAtomValue(settingsAtom);
+      const lock = mockPluginSettings?.remotePlaybackQuality;
+      return {
+        settings: lock?.locked
+          ? { ...stored, remotePlaybackQuality: lock.value }
+          : stored,
+        updateSettings: mockUpdateSettings,
+        pluginSettings: mockPluginSettings,
+      };
+    },
   };
 });
 // Each option a pressable row named after its dropdown, so a test picks one.
@@ -43,16 +52,25 @@ jest.mock("@/components/PlatformDropdown", () => {
       title,
       trigger,
       groups,
+      accessibilityLabel,
+      accessibilityValue,
     }: {
       title: string;
       trigger: React.ReactNode;
       groups: { options: Option[] }[];
+      accessibilityLabel?: string;
+      accessibilityValue?: string;
     }) => {
       const options = groups.flatMap((group) => group.options);
       mockSheets[title] ??= options;
       return (
         <View>
-          {trigger}
+          <View
+            accessibilityLabel={accessibilityLabel}
+            accessibilityValue={{ text: accessibilityValue }}
+          >
+            {trigger}
+          </View>
           {options.map((option) => (
             <TouchableOpacity
               key={option.label}
@@ -88,10 +106,40 @@ beforeEach(() => {
 // As every other section: a locked setting shows the admin's value and takes no change.
 test("a remote quality the admin locked takes no change here", async () => {
   mockPluginSettings = {
-    remotePlaybackQuality: { locked: true, value: NO_REMOTE_QUALITY },
+    remotePlaybackQuality: {
+      locked: true,
+      value: { ...mockQuality, byKind: { cast: "1 Mb/s" } },
+    },
   };
   await render(<RemotePlaybackQualitySettings />);
   expect(screen.getByText("Disabled by admin")).toBeTruthy();
+  expect(
+    screen.getByLabelText(
+      "home.settings.remote_quality.chromecast / 1 Mb/s (selected)",
+    ),
+  ).toBeTruthy();
+  await act(async () =>
+    fireEvent.press(
+      screen.getByLabelText("home.settings.remote_quality.chromecast / 2 Mb/s"),
+    ),
+  );
+  expect(mockUpdateSettings).not.toHaveBeenCalled();
+});
+
+// Several receivers can share a quality: each control names its receiver, not only what it is set to.
+test("each quality control names its receiver and its quality to screen readers", async () => {
+  stored({ ...mockQuality, byTarget: { "device-b": "2 Mb/s" } });
+  await render(<RemotePlaybackQualitySettings />);
+  expect(
+    screen.getByLabelText("home.settings.remote_quality.chromecast").props
+      .accessibilityValue,
+  ).toEqual({ text: "Max" });
+  expect(screen.getByLabelText("Salon").props.accessibilityValue).toEqual({
+    text: "home.settings.remote_quality.same_as_chromecast",
+  });
+  expect(screen.getByLabelText("Bedroom").props.accessibilityValue).toEqual({
+    text: "2 Mb/s",
+  });
 });
 
 test("lists Chromecast, then each receiver the app connected to", async () => {

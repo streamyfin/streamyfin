@@ -58,6 +58,8 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
           <PlatformDropdown
             title={chromecast}
             trigger={<Trigger label={castKey} />}
+            accessibilityLabel={chromecast}
+            accessibilityValue={castKey}
             groups={[
               {
                 options: BITRATES.map((bitrate) => ({
@@ -85,6 +87,9 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
               <PlatformDropdown
                 title={known.name}
                 trigger={<Trigger label={own ?? sameAsChromecast} />}
+                // Several receivers can share a quality: the control names its receiver too.
+                accessibilityLabel={known.name}
+                accessibilityValue={own ?? sameAsChromecast}
                 groups={[
                   {
                     options: [
