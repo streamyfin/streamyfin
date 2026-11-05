@@ -12,14 +12,23 @@ import type { DownloadedItem } from "../types";
  */
 export const useDownloadedItems = (refreshKey: number): DownloadedItem[] => {
   const [downloadedItems, setDownloadedItems] = useState<DownloadedItem[]>([]);
+  const [readError, setReadError] = useState<{ error: unknown } | null>(null);
 
   useEffect(() => {
     if (Platform.isTV) return;
     const timer = setTimeout(() => {
-      setDownloadedItems(getAllDownloadedItems());
+      try {
+        setDownloadedItems(getAllDownloadedItems());
+      } catch (error) {
+        setReadError({ error });
+      }
     }, 0);
     return () => clearTimeout(timer);
   }, [refreshKey]);
+
+  // A damaged index must reach the root error boundary as it did when the read
+  // ran in render. Thrown from the timer, it bypasses every boundary.
+  if (readError) throw readError.error;
 
   return downloadedItems;
 };

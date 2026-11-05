@@ -118,13 +118,15 @@ export function buildOfflineSeriesFromEpisodes(
 
 /**
  * The part of a series query's key that follows the downloads. Offline, the
- * page is built from the downloaded episodes, so it must refetch when they
- * change. Online, the downloads play no part in the answer: a new key there
- * blanks the page and fetches it again for every episode that finishes.
+ * page is built from the downloaded episodes, so it must refetch whenever they
+ * change. It follows the provider's `refreshKey`, not the item count: a delete
+ * and a finished download in one refresh leave the count unchanged. Online,
+ * the downloads play no part in the answer: a new key there blanks the page
+ * and fetches it again for every episode that finishes.
  */
 export function downloadsKeyPart(
   isOffline: boolean,
-  downloadedItems: DownloadedItem[],
+  refreshKey: number,
 ): number | null {
-  return isOffline ? downloadedItems.length : null;
+  return isOffline ? refreshKey : null;
 }

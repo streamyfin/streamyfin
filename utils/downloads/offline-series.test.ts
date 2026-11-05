@@ -43,15 +43,15 @@ describe("buildOfflineSeasons", () => {
 });
 
 describe("downloadsKeyPart", () => {
-  test("follows the downloaded episodes offline", () => {
-    expect(downloadsKeyPart(true, [])).toBe(0);
-    expect(downloadsKeyPart(true, [episode(1), episode(2)])).toBe(2);
+  // A delete and a finished download in one refresh leave the item count
+  // unchanged, so a count-based key kept the deleted episode on screen.
+  test("follows the downloads refresh offline", () => {
+    expect(downloadsKeyPart(true, 3)).toBe(3);
+    expect(downloadsKeyPart(true, 4)).not.toBe(downloadsKeyPart(true, 3));
   });
 
   // A changed key online blanked the series page once per finished episode.
-  test("stays the same online however many episodes are downloaded", () => {
-    expect(downloadsKeyPart(false, [])).toBe(
-      downloadsKeyPart(false, [episode(1), episode(2)]),
-    );
+  test("stays the same online however often the downloads refresh", () => {
+    expect(downloadsKeyPart(false, 0)).toBe(downloadsKeyPart(false, 5));
   });
 });

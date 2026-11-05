@@ -73,7 +73,7 @@ const page: React.FC = () => {
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { getDownloadedItems, refreshKey } = useDownload();
   const { startShuffle } = useShuffleQueue();
 
   // For offline mode, construct series data from downloaded episodes
@@ -82,7 +82,7 @@ const page: React.FC = () => {
       "series",
       seriesId,
       isOffline,
-      downloadsKeyPart(isOffline, downloadedItems),
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {
@@ -144,7 +144,7 @@ const page: React.FC = () => {
       "AllEpisodes",
       seriesId,
       isOffline,
-      downloadsKeyPart(isOffline, downloadedItems),
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {
