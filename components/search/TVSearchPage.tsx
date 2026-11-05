@@ -6,6 +6,7 @@ import { Platform, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/seerr/discover/TVDiscover";
+import { TV_SKELETON } from "@/constants/Colors";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
@@ -19,7 +20,10 @@ import type {
   TvResult,
 } from "@/utils/seerr/types";
 import { TVSearchSection } from "./TVSearchSection";
-import { TVSearchTabBadges } from "./TVSearchTabBadges";
+import {
+  type TVSearchSortButtons,
+  TVSearchTabBadges,
+} from "./TVSearchTabBadges";
 import { TVSeerrSearchResults } from "./TVSeerrSearchResults";
 
 const TOP_PADDING = 100;
@@ -45,7 +49,7 @@ const TVLoadingSkeleton: React.FC = () => {
         style={{
           width: itemWidth,
           height: typography.heading,
-          backgroundColor: "#262626",
+          backgroundColor: TV_SKELETON,
           borderRadius: 8,
           marginBottom: 20,
           marginLeft: sizes.padding.horizontal,
@@ -63,7 +67,7 @@ const TVLoadingSkeleton: React.FC = () => {
           <View key={i} style={{ width: itemWidth }}>
             <View
               style={{
-                backgroundColor: "#262626",
+                backgroundColor: TV_SKELETON,
                 width: itemWidth,
                 aspectRatio: 10 / 15,
                 borderRadius: scaleSize(24),
@@ -79,8 +83,8 @@ const TVLoadingSkeleton: React.FC = () => {
             >
               <Text
                 style={{
-                  color: "#262626",
-                  backgroundColor: "#262626",
+                  color: TV_SKELETON,
+                  backgroundColor: TV_SKELETON,
                   borderRadius: 6,
                   fontSize: typography.callout,
                 }}
@@ -121,6 +125,8 @@ interface TVSearchPageProps {
   searchType: SearchType;
   setSearchType: (type: SearchType) => void;
   showDiscover: boolean;
+  /** The sort of the results, given once something is typed. */
+  sortButtons?: TVSearchSortButtons;
   seerrMovies?: MovieResult[];
   seerrTv?: TvResult[];
   seerrPersons?: PersonResult[];
@@ -153,6 +159,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   searchType,
   setSearchType,
   showDiscover,
+  sortButtons,
   seerrMovies = [],
   seerrTv = [],
   seerrPersons = [],
@@ -292,13 +299,14 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           paddingBottom: insets.bottom + 60,
         }}
       >
-        {/* Search Type Tab Badges */}
-        {showDiscover && (
+        {/* Search type tabs, and the sort of the results */}
+        {(showDiscover || sortButtons) && (
           <View style={{ marginHorizontal: sizes.padding.horizontal }}>
             <TVSearchTabBadges
               searchType={searchType}
               setSearchType={setSearchType}
               showDiscover={showDiscover}
+              sortButtons={sortButtons}
             />
           </View>
         )}
