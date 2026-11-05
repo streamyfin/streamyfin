@@ -60,6 +60,8 @@ export interface CastDoubleState {
   holdAdd: Promise<void> | null;
   /** When true, `addChannel` moves the session on, as a Cast session change would. */
   renewSessionOnAdd: boolean;
+  /** When true, `requestMediaStatus` moves the session on while the receiver answers. */
+  renewSessionOnStatusRequest: boolean;
   /** What `getRemoteTarget()` answers; none until a test sets it, whatever the session says. */
   remoteTarget: RemoteTargetState;
   /** What `connectToDevice` answers: false is a device discovery does not know. */
@@ -105,6 +107,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   connectOnAdd: true,
   holdAdd: null,
   renewSessionOnAdd: false,
+  renewSessionOnStatusRequest: false,
   remoteTarget: NO_REMOTE_TARGET,
   connectAnswer: true,
   connectRequests: [],
@@ -302,11 +305,18 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   getMediaStatus: jest.fn(async (sessionId?: string) =>
     sessionId && state().session?.id !== sessionId ? null : state().mediaStatus,
   ),
-  requestMediaStatus: jest.fn(async (sessionId: string, _timeoutMs: number) =>
-    state().session?.id !== sessionId
-      ? null
-      : (state().freshMediaStatus ?? state().mediaStatus),
-  ),
+  requestMediaStatus: jest.fn(async (sessionId: string, _timeoutMs: number) => {
+    const current = state();
+    if (current.session?.id !== sessionId) return null;
+    const answer = current.freshMediaStatus ?? current.mediaStatus;
+    if (current.renewSessionOnStatusRequest && current.session) {
+      current.session = {
+        ...current.session,
+        id: `${current.session.id}-renewed`,
+      };
+    }
+    return answer;
+  }),
   play: jest.fn(async (_sessionId?: string) => {}),
   pause: jest.fn(async (_sessionId?: string) => {}),
   stop: jest.fn(async (_sessionId?: string) => {}),

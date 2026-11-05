@@ -52,7 +52,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       controller.environment.playingHere = playingHere
       controller.environment.receiverTitle = receiverTitle()
       controller.environment.receiverPlaying = receiverPlaying()
-      controller.environment.receiverGoesOnHere = receiverGoesOnHere()
+      controller.environment.receiverGoesOnHere = goesOnHere()
       return true
     }
     // A sheet that cannot show keeps no callback, which would hold the module.
@@ -68,7 +68,7 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       playingHere: playingHere,
       receiverTitle: receiverTitle(),
       receiverPlaying: receiverPlaying(),
-      receiverGoesOnHere: receiverGoesOnHere(),
+      receiverGoesOnHere: goesOnHere(),
       handOff: handOff
     )
     sheet.onOutput = { [weak self] output in self?.handle(output) }
@@ -115,7 +115,13 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   func refresh() {
     controller?.environment.receiverTitle = receiverTitle()
     controller?.environment.receiverPlaying = receiverPlaying()
-    controller?.environment.receiverGoesOnHere = receiverGoesOnHere()
+    controller?.environment.receiverGoesOnHere = goesOnHere()
+  }
+
+  // Continue here needs someone to take the video over: a sheet opened without onPlayHere (the probe, a SyncPlay
+  // member) offers none, and this device only stops the receiver.
+  private func goesOnHere() -> Bool {
+    onPlayHere != nil && receiverGoesOnHere()
   }
 
   /// The debug probe's sheet, for its screenshots: over whatever the app shows, and never in place of the app's.

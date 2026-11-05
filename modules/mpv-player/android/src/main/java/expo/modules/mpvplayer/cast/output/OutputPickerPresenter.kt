@@ -158,7 +158,7 @@ object OutputPickerPresenter {
                     playingHere = playingHere,
                     receiverTitle = receiverTitle(),
                     receiverPlaying = receiverPlaying(),
-                    receiverGoesOnHere = receiverGoesOnHere(),
+                    receiverGoesOnHere = goesOnHere(),
                     handOff = handOff,
                 )
             return true
@@ -171,7 +171,7 @@ object OutputPickerPresenter {
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
                 receiverPlaying = receiverPlaying(),
-                receiverGoesOnHere = receiverGoesOnHere(),
+                receiverGoesOnHere = goesOnHere(),
                 handOff = handOff,
             )
         sheet.onOutput = { output -> handle(activity, output) }
@@ -217,6 +217,10 @@ object OutputPickerPresenter {
         onDismissed?.invoke()
     }
 
+    // Continue here needs someone to take the video over: a sheet opened without onPlayHere (the probe, a SyncPlay
+    // member) offers none, and this device only stops the receiver.
+    private fun goesOnHere() = onPlayHere != null && receiverGoesOnHere()
+
     /** The receiver started or changed what it plays: the panel's remote row follows. */
     @MainThread
     fun refresh() {
@@ -225,7 +229,7 @@ object OutputPickerPresenter {
                 sheet.environment.copy(
                     receiverTitle = receiverTitle(),
                     receiverPlaying = receiverPlaying(),
-                    receiverGoesOnHere = receiverGoesOnHere(),
+                    receiverGoesOnHere = goesOnHere(),
                 )
         }
     }

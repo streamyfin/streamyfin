@@ -277,7 +277,13 @@ class CastModule : Module() {
                 anchorRect(options["anchor"], activity),
                 options["playingHere"] as? String,
                 anchorView,
-                onPlayHere = { if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "playHere")) },
+                // JS leaves this device out (a SyncPlay member): it only stops the receiver then.
+                onPlayHere =
+                    if (options["playHere"] == false) {
+                        null
+                    } else {
+                        { if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "playHere")) }
+                    },
             ) {
                 if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "remote"))
             }

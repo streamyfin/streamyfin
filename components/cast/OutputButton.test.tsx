@@ -12,6 +12,7 @@ import {
 } from "@/test-utils/cast";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { measureInWindow } from "@/utils/cast/measureInWindow";
+import { logAndCaptureError } from "@/utils/log";
 import { OutputButton } from "./OutputButton";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -30,6 +31,10 @@ jest.mock("@/utils/atoms/api", () => {
   };
 });
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
+let mockSyncPlayEnabled = false;
+jest.mock("@/providers/SyncPlayProvider", () => ({
+  useSyncPlay: () => ({ enabled: mockSyncPlayEnabled }),
+}));
 let mockOffline = false;
 jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,
@@ -67,10 +72,12 @@ const session = { basePath: "http://server" };
 beforeEach(() => {
   mockCast = createCastDoubleState();
   mockOffline = false;
+  mockSyncPlayEnabled = false;
   mockPlayingHere = null;
   mockIcons.length = 0;
   mockPlayMedia.mockClear();
   mockGetUserItemData.mockReset();
+  jest.mocked(logAndCaptureError).mockClear();
   getDefaultStore().set(apiAtom, session as never);
   getDefaultStore().set(userAtom, { Id: "user-1" } as never);
 });
@@ -328,12 +335,80 @@ test("an item this server does not know only stops the receiver", async () => {
     itemId: "elsewhere-1",
     canClientSeek: true,
   });
-  mockGetUserItemData.mockRejectedValue(new Error("Request failed with 404"));
+  mockGetUserItemData.mockRejectedValue(
+    Object.assign(new Error("Request failed with status code 404"), {
+      response: { status: 404 },
+    }),
+  );
 
   await continueHereFromTheSheet();
 
   expect(mockCast.disconnectCalls).toEqual([true]);
   expect(mockPlayMedia).not.toHaveBeenCalled();
+  expect(logAndCaptureError).not.toHaveBeenCalled();
+});
+
+// A lookup that fails otherwise (a timeout, a server error) leaves nothing playing: it is reported.
+test("an item lookup that fails is reported", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockRejectedValue(
+    Object.assign(new Error("Request failed with status code 503"), {
+      response: { status: 503 },
+    }),
+  );
+
+  await continueHereFromTheSheet();
+
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+  expect(logAndCaptureError).toHaveBeenCalledTimes(1);
+});
+
+// The tap was for the receiver that was asked: another one by its answer is neither stopped nor played here.
+test("a receiver switched while it was asked is left alone", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockCast.renewSessionOnStatusRequest = true;
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// The receiver's item belonged to the account that asked: another one by the end of the lookup plays nothing.
+test("an account switched during the lookup plays nothing here", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockImplementation(async () => {
+    getDefaultStore().set(userAtom, { Id: "user-2" } as never);
+    return { Id: "item-1", Type: "Episode", MediaType: "Video" };
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// A SyncPlay member plays the group's video: the sheet offers no Continue here, and this device only stops the
+// receiver.
+test("the sheet offers Continue here outside a SyncPlay group only", async () => {
+  const view = await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  mockSyncPlayEnabled = true;
+  await view.rerender(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+
+  expect(mockCast.outputPickerCalls.map((call) => call.playHere)).toEqual([
+    true,
+    false,
+  ]);
 });
 
 // Music comes back to the phone with its queue in B4: until then the receiver only stops.

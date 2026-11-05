@@ -27,6 +27,7 @@ import {
   useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { measureInWindow, nativeTagOf } from "@/utils/cast/measureInWindow";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
@@ -34,6 +35,7 @@ import { musicPlayingHere } from "@/utils/cast/playingHere";
 import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { logAndCaptureError } from "@/utils/log";
+import { isNotFound } from "@/utils/pluginReads";
 
 type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
   /** A header bar button, or a plain one among a screen's own controls, as the music player's. */
@@ -54,21 +56,31 @@ type PlayMedia = ReturnType<typeof usePlayMedia>;
  */
 const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
   const session = currentCastSession();
+  const user = store.get(userAtom);
   // The status held is the receiver's last report, which falls behind while it plays on: it is asked where it is.
   const status = session
     ? await castClientFor(session)
         .requestMediaStatus(RECEIVER_STATUS_TIMEOUT_MS)
         .catch(() => null)
     : null;
+  // Another receiver by its answer: the tap was for the one asked, so nothing is stopped or played.
+  if (session && currentCastSession()?.id !== session.id) return;
   const request = playRequestFromReceiver(status);
   await disconnectRemoteTarget({ stopPlayback: true });
   if (!request) return;
   const item = await getUserItemData({
     api: store.get(apiAtom),
     itemId: request.itemId,
-    userId: store.get(userAtom)?.Id,
-  }).catch(() => null);
+    userId: user?.Id,
+  }).catch((error) => {
+    // Another server's item only stops the receiver; any other failure is reported by the caller.
+    if (isNotFound(error)) return null;
+    throw error;
+  });
   if (!item || item.MediaType === "Audio") return;
+  // Another account or server by now: the receiver's item belonged to the one that asked.
+  const now = store.get(userAtom);
+  if (now?.Id !== user?.Id || now?.ServerId !== user?.ServerId) return;
   await playMedia({ ...request, offline: false }, { item });
 };
 
@@ -108,6 +120,7 @@ export function OutputButton({
   const user = useAtomValue(userAtom);
   const store = useStore();
   const playMedia = usePlayMedia();
+  const syncPlay = useSyncPlay();
   const anchor = useRef<View>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
@@ -131,6 +144,8 @@ export function OutputButton({
         anchor: frame,
         anchorTag: nativeTagOf(anchor.current),
         playingHere,
+        // A SyncPlay member plays the group's video: this device only stops the receiver.
+        playHere: !syncPlay.enabled,
       });
     } catch (error) {
       logAndCaptureError("The output sheet failed to open", error);

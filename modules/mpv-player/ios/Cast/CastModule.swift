@@ -150,11 +150,14 @@ public class CastModule: Module {
       let anchorView = (options["anchorTag"] as? NSNumber).flatMap {
         self.appContext?.findView(withTag: $0.intValue, ofType: UIView.self)
       }
+      // JS leaves this device out (a SyncPlay member): it only stops the receiver then.
+      let onPlayHere: (() -> Void)? =
+        (options["playHere"] as? Bool) == false ? nil : { self.sendEvent("onOutputPickerAction", ["action": "playHere"]) }
       // Held by the presenter only while the sheet is up.
       return presenter.present(
         anchor: Self.anchorRect(options["anchor"]), anchorView: anchorView,
         playingHere: options["playingHere"] as? String,
-        onPlayHere: { self.sendEvent("onOutputPickerAction", ["action": "playHere"]) }
+        onPlayHere: onPlayHere
       ) {
         self.sendEvent("onOutputPickerAction", ["action": "remote"])
       }

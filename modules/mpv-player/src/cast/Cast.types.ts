@@ -244,6 +244,11 @@ export interface OutputPickerOptions {
   anchorTag?: number | null;
   /** What plays on this device, for its row; null when nothing does. */
   playingHere?: string | null;
+  /**
+   * Whether this device can take the receiver's video over ("Continue here"); without it this device only stops the
+   * receiver. Left out, it can.
+   */
+  playHere?: boolean;
 }
 
 /**
