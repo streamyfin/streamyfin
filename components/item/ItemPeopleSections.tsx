@@ -1,13 +1,11 @@
-import type {
-  BaseItemDto,
-  BaseItemPerson,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InteractionManager, View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
-import { useCastCrew } from "@/hooks/useCastCrew";
+import { MORE_MOVIES_ACTORS_LIMIT } from "@/constants/CastCrew";
+import { type CastCrewPerson, useCastCrew } from "@/hooks/useCastCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
@@ -38,14 +36,14 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
     return { ...item, People: people } as BaseItemDto;
   }, [item, people]);
 
-  // The first 3 distinct people get an actor section of their own.
-  const distinctPeople = useCastCrew(people);
-  const topPeople = useMemo(() => distinctPeople.slice(0, 3), [distinctPeople]);
+  // The first distinct actors get a "more movies with" section of their own.
+  const topActors = useCastCrew(people, {
+    kind: "Actor",
+    limit: MORE_MOVIES_ACTORS_LIMIT,
+  });
 
   const renderActorSection = useCallback(
-    (person: BaseItemPerson, idx: number, total: number) => {
-      if (!person.Id) return null;
-
+    (person: CastCrewPerson, idx: number, total: number) => {
       const spacingClassName = idx === total - 1 ? undefined : "mb-2";
 
       return (
@@ -63,17 +61,15 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
 
   if (isOffline || !enabled) return null;
 
-  const shouldSpaceCastAndCrew = topPeople.length > 0;
-
   return (
     <View {...props}>
       <CastAndCrew
         item={itemWithPeople}
         loading={isLoading}
-        className={shouldSpaceCastAndCrew ? "mb-2" : undefined}
+        className={topActors.length > 0 ? "mb-2" : undefined}
       />
-      {topPeople.map((person, idx) =>
-        renderActorSection(person, idx, topPeople.length),
+      {topActors.map((person, idx) =>
+        renderActorSection(person, idx, topActors.length),
       )}
     </View>
   );

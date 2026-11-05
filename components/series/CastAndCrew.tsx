@@ -23,25 +23,19 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const router = useRouter();
   const from = (segments as string[])[2];
 
-  const destinctPeople = useCastCrew(item?.People, { labelRoles: true });
+  const distinctPeople = useCastCrew(item?.People, { labelRoles: true });
 
   // People aren't BaseItemDto, so the cards are built here rather than by
   // CardRow's item mapping.
   const cards = useMemo(
     () =>
-      destinctPeople.flatMap((person) =>
-        person.Id
-          ? [
-              {
-                id: person.Id,
-                title: person.Name ?? "",
-                subtitle: person.Role ?? null,
-                imageUrl: getPrimaryImageUrl({ api, item: person }),
-              },
-            ]
-          : [],
-      ),
-    [api, destinctPeople],
+      distinctPeople.map((person) => ({
+        id: person.Id,
+        title: person.Name ?? "",
+        subtitle: person.Role ?? null,
+        imageUrl: getPrimaryImageUrl({ api, item: person }),
+      })),
+    [api, distinctPeople],
   );
 
   const openPerson = useCallback(

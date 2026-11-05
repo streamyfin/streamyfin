@@ -3,8 +3,9 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { TVFocusGuideView, View, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TV_CAST_TEXT_LIMIT } from "@/constants/CastCrew";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { useCreditLines } from "@/hooks/useCastCrew";
+import { useCastCrew, useCreditLines } from "@/hooks/useCastCrew";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVFilterButton } from "./TVFilterButton";
 
@@ -20,29 +21,25 @@ export interface TVCastCrewTextProps {
   /** Keeps the remote off the names, as while a modal covers the page. */
   disabled?: boolean;
   style?: ViewStyle;
-  cast?: BaseItemPerson[];
-  /** Hide the cast section (e.g., when visual cast section is shown) */
-  hideCast?: boolean;
+  /** Show the cast text line when visual cast cards are not shown. */
+  showCast?: boolean;
 }
 
 export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
-  ({
-    people,
-    onPersonPress,
-    disabled = false,
-    style,
-    cast,
-    hideCast = false,
-  }) => {
+  ({ people, onPersonPress, disabled = false, style, showCast = false }) => {
     const typography = useScaledTVTypography();
     const { t } = useTranslation();
     const credits = useCreditLines(people);
-    const showCast = !hideCast && cast && cast.length > 0;
+    const cast = useCastCrew(showCast ? people : undefined, {
+      kind: "Actor",
+      limit: TV_CAST_TEXT_LIMIT,
+    });
+    const showCastLine = cast.length > 0;
     const hasLinks =
       !!onPersonPress &&
       credits.some((line) => line.people.some((person) => person.id));
 
-    if (credits.length === 0 && !showCast) {
+    if (credits.length === 0 && !showCastLine) {
       return null;
     }
 
@@ -109,7 +106,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
             )}
           </View>
         ))}
-        {showCast && (
+        {showCastLine && (
           // A basis rather than flex: 1, which on a wrapping row would squeeze
           // the names into whatever sliver the credits lines leave over.
           <View
@@ -121,7 +118,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
           >
             <Text style={labelStyle}>{t("item_card.cast")}</Text>
             <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
-              {cast.map((c) => c.Name).join(", ")}
+              {cast.map((person) => person.Name).join(", ")}
             </Text>
           </View>
         )}

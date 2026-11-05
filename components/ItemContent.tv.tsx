@@ -45,6 +45,7 @@ import {
   TVTechnicalDetails,
 } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
+import { TV_CAST_CARD_LIMIT } from "@/constants/CastCrew";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useCastCrew } from "@/hooks/useCastCrew";
@@ -568,10 +569,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // First 3 actors for the text line, up to 10 for the visual cards
-    const actors = useCastCrew(item?.People, { kind: "Actor" });
-    const cast = useMemo(() => actors.slice(0, 3), [actors]);
-    const fullCast = useMemo(() => actors.slice(0, 10), [actors]);
+    // The text line selects its own actors.
+    const fullCast = useCastCrew(item?.People, {
+      kind: "Actor",
+      limit: TV_CAST_CARD_LIMIT,
+    });
 
     // Whether to show visual cast section
     const showVisualCast =
@@ -1068,8 +1070,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             <TVCastCrewText
               people={item.People}
               onPersonPress={isOffline ? undefined : handleActorPress}
-              cast={cast}
-              hideCast={showVisualCast}
+              showCast={!showVisualCast}
             />
 
             {/* Technical details */}

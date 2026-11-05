@@ -73,11 +73,19 @@ describe("useCastCrew", () => {
     expect(result.current).toEqual([]);
   });
 
-  // Callers slice the result inside their own `useMemo`, and hand it to
-  // memoized children: a new array every render would defeat both.
+  test("limit counts people, not credits", async () => {
+    const { result } = await renderHook(() =>
+      useCastCrew(PEOPLE, { kind: "Actor", limit: 1 }),
+    );
+
+    expect(result.current.map((p) => p.Id)).toEqual(["a"]);
+  });
+
+  // Callers hand the result to memoized children: a new array every render,
+  // the limited cut included, would defeat them.
   test("the result keeps its identity while the people do", async () => {
     const { result, rerender } = await renderHook(() =>
-      useCastCrew(PEOPLE, { kind: "Actor" }),
+      useCastCrew(PEOPLE, { kind: "Actor", limit: 2 }),
     );
     const first = result.current;
 
