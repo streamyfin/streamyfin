@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -10,6 +11,11 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.RemoteTargetListener
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.TargetDevice
+import expo.modules.mpvplayer.cast.target.TargetPhase
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
@@ -90,14 +96,50 @@ class PlayerViewModel : PlayerEngine.Delegate {
     )
         private set
 
-    /** Only the session knows whether the device floats a picture; the rest comes from the engine. */
-    fun applyCapabilities(pictureInPictureSupported: Boolean) {
+    /** Only the session knows whether the device floats a picture, and JS whether to cast; the rest is the engine's. */
+    fun applyCapabilities(pictureInPictureSupported: Boolean, allowCast: Boolean = false) {
         val held = engine
         capabilities = ChromeCapabilities.of(
             isRemote = held?.isRemote ?: false,
             pictureInPictureSupported = pictureInPictureSupported,
             canChangeSpeed = held?.canChangeSpeed ?: true,
+            allowCast = allowCast,
         )
+    }
+
+    // MARK: - Cast hand-off
+
+    /** The receiver's connection, for the Cast button's glyph: followed while the player is up. */
+    var castPhase by mutableStateOf(TargetPhase.NONE)
+        private set
+    private var unfollowCast: (() -> Unit)? = null
+
+    /** The Cast button: the session opens the output sheet over the player, from [anchor] in window pixels. */
+    var onOutputSheetRequested: ((Rect) -> Unit)? = null
+
+    fun followCast(hub: RemoteTargetHub = RemoteTargetHub.shared) {
+        unfollowCast?.invoke()
+        castPhase = hub.snapshot.phase
+        unfollowCast = hub.addListener(object : RemoteTargetListener {
+            override fun targetChanged(snapshot: RemoteTargetSnapshot) {
+                castPhase = snapshot.phase
+            }
+
+            override fun devicesChanged(devices: List<TargetDevice>) = Unit
+        })
+    }
+
+    fun openOutputSheet(anchor: Rect) {
+        onOutputSheetRequested?.invoke(anchor)
+    }
+
+    /**
+     * The sheet handed the video off: paused here, JS sends the item to the receiver where the player is, read as
+     * the dismiss that follows reads it, so the stop it reports is at that same position.
+     */
+    fun requestCastHandOff() {
+        pauseLocal()
+        emit?.invoke("onCastHandOffRequested", mapOf("positionSec" to authoritativePosition))
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -1301,6 +1343,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun willTeardown() {
         isTearingDown = true
+        unfollowCast?.invoke()
+        unfollowCast = null
+        onOutputSheetRequested = null
         cancelSyncPlayCommands()
         autoHideJob?.cancel()
         countdownJob?.cancel()

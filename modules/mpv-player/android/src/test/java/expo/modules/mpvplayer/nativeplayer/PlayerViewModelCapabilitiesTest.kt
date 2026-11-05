@@ -59,4 +59,36 @@ class PlayerViewModelCapabilitiesTest {
         viewModel.setSpeed(1.5)
         assertEquals(listOf("setSpeed 1.0", "setSpeed 1.0"), engine.speeds)
     }
+
+    // The Cast button comes with the config JS sent, on a local engine only.
+    @Test
+    fun theCastButtonFollowsTheConfig() {
+        val viewModel = PlayerViewModel().also { it.engine = RecordingLocalEngine() }
+        viewModel.applyCapabilities(pictureInPictureSupported = true, allowCast = true)
+        val local = viewModel.capabilities.cast
+        viewModel.engine = RemoteOnlyEngine()
+        viewModel.applyCapabilities(pictureInPictureSupported = true, allowCast = true)
+
+        assertTrue(local)
+        assertFalse(viewModel.capabilities.cast)
+    }
+
+    // The hand-off pauses here and asks JS to send the item at the position the player is at.
+    @Test
+    fun aHandOffPausesAndAsksAtThePosition() {
+        val engine = RecordingLocalEngine()
+        val viewModel = PlayerViewModel().also { it.engine = engine }
+        val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+        viewModel.emit = { name, payload -> events += name to payload }
+        // The engine's last tick, the position the dismiss that follows reports.
+        viewModel.onPositionChanged(position = 61.5, duration = 600.0, cacheSeconds = 0.0)
+
+        viewModel.requestCastHandOff()
+
+        assertEquals(1, engine.pauses)
+        assertEquals(
+            listOf("onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5)),
+            events.filter { it.first == "onCastHandOffRequested" },
+        )
+    }
 }

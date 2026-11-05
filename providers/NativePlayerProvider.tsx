@@ -11,7 +11,7 @@ import {
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -75,6 +75,10 @@ import {
   updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
+import {
+  remoteTarget,
+  showExpandedControls,
+} from "@/modules/mpv-player/src/cast";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -97,6 +101,8 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
+import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
+import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -128,6 +134,10 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import {
+  nextStepAfterSend,
+  resolveCastHandOff,
+} from "@/utils/nativePlayer/resolveCastHandOff";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
@@ -376,6 +386,7 @@ const NativePlayerProviderInner: React.FC<{
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
+  const store = useStore();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
@@ -950,6 +961,8 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
         item: options.item,
+        syncPlay: syncRef.current.enabled,
+        outputPickerStrings: buildOutputPickerStrings(t),
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,
@@ -2166,6 +2179,41 @@ const NativePlayerProviderInner: React.FC<{
           void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
+      // The output sheet handed the video off: the receiver gets the item where the player paused, then the player
+      // closes and the receiver's controls open, or it says why and plays on.
+      addNativePlayerListener("onCastHandOffRequested", ({ positionSec }) => {
+        const session = sessionRef.current;
+        const currentApi = apiRef.current;
+        const userId = userRef.current?.Id;
+        const target = remoteTarget();
+        if (
+          !session ||
+          !currentApi ||
+          !userId ||
+          target.state !== "connected" ||
+          !target.target
+        ) {
+          void nativePlayerPlay();
+          return;
+        }
+        void sendToReceiver(
+          { api: currentApi, userId, store, t },
+          resolveCastHandOff(session, positionSec),
+          target.target,
+          // Another item in the player by then: nothing goes to the receiver.
+          () => sessionRef.current !== session,
+        ).then((result) => {
+          if (sessionRef.current !== session) return;
+          const step = nextStepAfterSend(result);
+          if (step.kind === "dismiss") {
+            void dismissNativePlayer();
+            void showExpandedControls();
+            return;
+          }
+          if (step.kind === "notice") void nativePlayerShowNotice(step.message);
+          void nativePlayerPlay();
+        });
+      }),
     ];
 
     return () => {
@@ -2192,6 +2240,8 @@ const NativePlayerProviderInner: React.FC<{
     updateSettings,
     lockOrientation,
     syncBufferingReporter,
+    store,
+    t,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)

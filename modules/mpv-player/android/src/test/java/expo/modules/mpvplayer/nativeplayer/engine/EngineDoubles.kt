@@ -15,6 +15,7 @@ internal open class RemoteOnlyEngine : ChromeEngine {
     override var duration = 0.0
     override val isTv = false
     var played = 0
+    var pauses = 0
     val seeks = mutableListOf<String>()
     /** What the engine says of speed; the chrome offers none when it is false. */
     var speedAllowed = true
@@ -25,7 +26,7 @@ internal open class RemoteOnlyEngine : ChromeEngine {
     override fun load(config: VideoLoadConfig) {}
     override fun reloadCurrentItem() {}
     override fun play() { played += 1 }
-    override fun pause() {}
+    override fun pause() { pauses += 1 }
     override fun togglePause() {}
     override fun seekTo(seconds: Double) { seeks += "seekTo $seconds" }
     // Recorded, then left to the interface default, which goes through seekTo.

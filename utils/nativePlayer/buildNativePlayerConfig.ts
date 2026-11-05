@@ -19,6 +19,10 @@ import type {
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level value import crashes on
 // launch (the type-only import above is erased at build time).
+import {
+  isCastAvailable,
+  type OutputPickerStrings,
+} from "@/modules/mpv-player/src/cast";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
@@ -402,6 +406,10 @@ export async function buildNativePlayerConfig(params: {
   originalLabel: string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
+  /** In a SyncPlay group: the group plays here, and nothing hands it off. */
+  syncPlay?: boolean;
+  /** The output sheet's texts, for the player's Cast button. */
+  outputPickerStrings?: Partial<OutputPickerStrings>;
 }): Promise<{
   config: NativePlayerConfig;
   seed: NativePlayerSessionSeed;
@@ -526,6 +534,15 @@ export async function buildNativePlayerConfig(params: {
     if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
+  // The Cast button hands the video off to a receiver: online, outside a SyncPlay group, where Cast and the output
+  // sheet exist (neither a TV nor a Mac).
+  const castAllowed =
+    !offline &&
+    !params.syncPlay &&
+    !Platform.isTV &&
+    !(Platform.OS === "ios" && Platform.isMacCatalyst) &&
+    isCastAvailable();
+
   const config: NativePlayerConfig = {
     stream: {
       url: stream.url,
@@ -630,6 +647,8 @@ export async function buildNativePlayerConfig(params: {
         return ISO_639_2_T_TO_B[raw] ?? raw;
       })(),
       strings,
+      allowCast: castAllowed,
+      outputPickerStrings: castAllowed ? params.outputPickerStrings : undefined,
     },
   };
 

@@ -179,6 +179,9 @@ struct UIOptionsRecord: Record {
 	/// stopPlayingTitle a %TITLE% placeholder). Native falls
 	/// back to English for missing keys.
 	@Field var strings: [String: String] = [:]
+	/// The Cast button, and the texts of the output sheet it opens (JS: buildNativePlayerConfig).
+	@Field var allowCast: Bool = false
+	@Field var outputPickerStrings: [String: String] = [:]
 }
 
 struct SyncPlayPlaylistItemRecord: Record {

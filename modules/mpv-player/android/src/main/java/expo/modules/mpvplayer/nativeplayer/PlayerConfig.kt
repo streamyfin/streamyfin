@@ -164,6 +164,9 @@ class UIOptionsRecord : Record {
     @Field var subtitleSearchLanguages: List<SubtitleSearchLanguageRecord> = emptyList()
     @Field var subtitleSearchDefaultLanguage: String = "eng"
     @Field var strings: Map<String, String> = emptyMap()
+    // The Cast button, and the texts of the output sheet it opens (JS: buildNativePlayerConfig).
+    @Field var allowCast: Boolean = false
+    @Field var outputPickerStrings: Map<String, String> = emptyMap()
 }
 
 class PlayerPresentConfigRecord : Record {
