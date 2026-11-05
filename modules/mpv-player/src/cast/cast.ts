@@ -83,7 +83,8 @@ export const setRemoteTargetVolume = (level: number): Promise<void> =>
 
 /**
  * Mutes the connected receiver: the device on iOS, the playing stream on
- * Android, as the SDK's expanded controls do there, which needs media loaded.
+ * Android, where the device's mute through the session would stop it following
+ * the receiver. The stream's needs media loaded.
  */
 export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
   native()?.setTargetMuted(muted) ?? Promise.resolve();
