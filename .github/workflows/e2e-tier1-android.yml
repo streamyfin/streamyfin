@@ -49,6 +49,8 @@ jobs:
               - 'hooks/useMusicCast.ts'
               - 'hooks/useMusicCastRemote.ts'
               - 'providers/MusicPlayerProvider.tsx'
+              - 'providers/NativePlayerProvider.tsx'
+              - 'utils/nativePlayer/buildNativePlayerConfig.ts'
               - 'app/(auth)/now-playing.tsx'
               # The screens the flows find by their test ids.
               - 'components/login/Login.tsx'
