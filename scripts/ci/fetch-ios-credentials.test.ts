@@ -1,5 +1,6 @@
 import {
   assertOneCertificate,
+  assertProfileValid,
   parseBuildCredentials,
   type TargetCredentials,
 } from "./fetch-ios-credentials";
@@ -137,5 +138,40 @@ describe("assertOneCertificate", () => {
         target("com.example.app.widget", "cert-2"),
       ]),
     ).toThrow(/2 distribution certificates/);
+  });
+});
+
+// A provisioning profile is a signed message whose plist is plain text.
+const profileWith = (expiration: string) =>
+  Buffer.from(
+    `0\u0082signed<?xml version="1.0"?><plist version="1.0"><dict><key>ExpirationDate</key><date>${expiration}</date></dict></plist>signature`,
+    "latin1",
+  ).toString("base64");
+
+describe("assertProfileValid", () => {
+  const now = new Date("2026-11-05T12:00:00Z");
+
+  it("accepts a profile that expires later", () => {
+    expect(() =>
+      assertProfileValid("com.app", profileWith("2027-04-12T16:49:13Z"), now),
+    ).not.toThrow();
+  });
+
+  // zsign checks only the key and the team: an expired profile would sign an
+  // IPA that installs nowhere, and the job would pass.
+  it("refuses an expired profile", () => {
+    expect(() =>
+      assertProfileValid("com.app", profileWith("2026-11-01T00:00:00Z"), now),
+    ).toThrow(/expired/);
+  });
+
+  it("refuses a profile it cannot read a date from", () => {
+    expect(() =>
+      assertProfileValid(
+        "com.app",
+        Buffer.from("not a profile").toString("base64"),
+        now,
+      ),
+    ).toThrow(/expiration date/);
   });
 });

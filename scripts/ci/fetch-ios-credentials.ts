@@ -2,8 +2,9 @@
  * Downloads the App Store signing files for a repacked IPA from EAS, the way
  * `eas build --local` does, so no copy of them lives in GitHub secrets.
  *
- * EAS renews the provisioning profiles it stores. A copy kept anywhere else
- * goes stale when a profile expires, so the files must be fetched per run.
+ * EAS renews a stored provisioning profile when `eas build` signs with it, so
+ * a copy kept anywhere else goes stale: the files are fetched per run, and an
+ * expired profile fails the job, which hands the IPA to the full build.
  *
  * This uses the GraphQL queries of eas-cli itself
  * (`credentials/ios/api/graphql/queries/` in the `eas-cli` package). They are
@@ -94,6 +95,32 @@ export const parseBuildCredentials = (
 };
 
 /**
+ * Fails on a provisioning profile that has expired, or whose date cannot be
+ * read. zsign checks only the key and the team, so it would sign an IPA that
+ * installs nowhere and the job would pass; only `eas build` renews a profile.
+ */
+export const assertProfileValid = (
+  bundleIdentifier: string,
+  profileBase64: string,
+  now = new Date(),
+) => {
+  // The profile is a signed message whose plist is plain text.
+  const text = Buffer.from(profileBase64, "base64").toString("latin1");
+  const match = /<key>ExpirationDate<\/key>\s*<date>([^<]+)<\/date>/.exec(text);
+  const expires = match ? new Date(match[1]) : undefined;
+  if (!expires || Number.isNaN(expires.getTime())) {
+    throw new Error(
+      `The ${DISTRIBUTION} profile for ${bundleIdentifier} has no readable expiration date.`,
+    );
+  }
+  if (expires <= now) {
+    throw new Error(
+      `The ${DISTRIBUTION} profile for ${bundleIdentifier} expired on ${expires.toISOString()}; a full build renews it.`,
+    );
+  }
+};
+
+/**
  * Checks that every target is signed by one certificate, because zsign signs
  * the app and its extensions with a single identity.
  */
@@ -171,7 +198,9 @@ const main = async () => {
         iosDistributionType: DISTRIBUTION,
       },
     );
-    targets.push(parseBuildCredentials(bundleIdentifier, data));
+    const credentials = parseBuildCredentials(bundleIdentifier, data);
+    assertProfileValid(bundleIdentifier, credentials.provisioningProfile);
+    targets.push(credentials);
   }
   assertOneCertificate(targets);
 
