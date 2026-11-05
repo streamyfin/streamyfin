@@ -143,6 +143,8 @@ export const PlayButton: React.FC<Props> = ({
             subtitleStreamIndex: selectedOptions.subtitleIndex,
           },
           RECEIVER_LOAD_TIMEOUT_MS,
+          // The load reads the receiver before it sends: another account by then gets nothing sent.
+          () => store.get(userAtom)?.Id !== user.Id,
         );
         const notStarted = castNotStartedMessage(t, outcome);
         if (notStarted) {
@@ -163,7 +165,7 @@ export const PlayButton: React.FC<Props> = ({
         );
       }
     },
-    [api, user, item, mediaStatus, selectedOptions, settings, t],
+    [api, user, store, item, mediaStatus, selectedOptions, settings, t],
   );
 
   // One Play action: the target when one is connected, this device otherwise or

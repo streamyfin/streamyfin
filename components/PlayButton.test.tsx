@@ -206,6 +206,7 @@ test("PlayButton sends the remote quality", async () => {
     expect.objectContaining({ maxBitrate: 4_000_000 }),
     expect.anything(),
     expect.anything(),
+    expect.any(Function),
   );
 });
 
@@ -401,4 +402,19 @@ test("a download played from the downloads never casts", async () => {
     expect.anything(),
   );
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The load reads the receiver before it sends: a sign-out in between sends nothing.
+test("the load to the receiver goes stale with the account that pressed", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  await act(async () =>
+    getDefaultStore().set(userAtom as never, null as never),
+  );
+  expect(before).toBe(false);
+  expect(isStale?.()).toBe(true);
 });
