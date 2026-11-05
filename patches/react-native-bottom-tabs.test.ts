@@ -40,3 +40,41 @@ test("keeps hidden tabs out of the SwiftUI ForEach that builds the tab bar", () 
   );
   expect(renderedChildren).toMatch(/else \{\s*return nil\s*\}\s*return child/);
 });
+
+// Android, half a screen of content on every tab until a rotation (upstream
+// #1477): edge to edge, a keyboard pads the tab bar instead of shrinking the
+// window, so the content holder changes size while the outer view does not.
+// The tab view used to report the holder's size only when the outer size
+// changed, so a size taken while a keyboard was up (the app opened from a
+// keyboard search) stuck after it closed. Our patch reports the holder's own
+// size changes; this fails if a regenerated patch or a version bump drops it.
+test("reports the tab content size whenever the holder itself resizes", () => {
+  const source = readFileSync(
+    join(
+      __dirname,
+      "..",
+      "node_modules",
+      "react-native-bottom-tabs",
+      "android",
+      "src",
+      "main",
+      "java",
+      "com",
+      "rcttabview",
+      "RCTTabView.kt",
+    ),
+    "utf8",
+  );
+  expect(source).toContain("layoutHolder.addOnLayoutChangeListener");
+  const report =
+    source.match(/private fun reportHolderSize\(\) \{[\s\S]*?\n {2}\}/)?.[0] ??
+    "";
+  // Compared and remembered by the holder's size, the one that is sent.
+  expect(report).toContain(
+    "holderWidth == lastReportedSize?.width && holderHeight == lastReportedSize?.height",
+  );
+  expect(report).toContain(
+    "lastReportedSize = Size(holderWidth, holderHeight)",
+  );
+  expect(report).toContain("onNativeLayoutListener?.invoke(dpWidth, dpHeight)");
+});
