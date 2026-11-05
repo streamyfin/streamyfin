@@ -423,7 +423,8 @@ private struct CastBarButton: View {
 					.onChange(of: proxy.frame(in: .global)) { frame = $0 }
 			}
 		)
-		.accessibilityLabel(viewModel.str("castButton", "Cast button"))
+		.accessibilityLabel(viewModel.castButtonLabel)
+		.accessibilityValue(viewModel.castButtonState)
 	}
 }
 #endif

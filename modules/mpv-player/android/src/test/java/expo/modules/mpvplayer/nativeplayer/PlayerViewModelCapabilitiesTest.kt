@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import expo.modules.mpvplayer.cast.target.FakeTargetPort
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.TargetDevice
 import expo.modules.mpvplayer.nativeplayer.engine.RecordingLocalEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteOnlyEngine
 import org.junit.Assert.assertEquals
@@ -90,5 +93,23 @@ class PlayerViewModelCapabilitiesTest {
             listOf("onCastHandOffRequested" to mapOf<String, Any?>("positionSec" to 61.5)),
             events.filter { it.first == "onCastHandOffRequested" },
         )
+    }
+
+    // The Cast button reads as the header's does: its name, then whether a receiver is connected.
+    @Test
+    fun theCastButtonSaysItsState() {
+        val livingRoom = TargetDevice("device-a", "Living room")
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        val hub = RemoteTargetHub().also { it.install(port) }
+        val viewModel = PlayerViewModel()
+        viewModel.followCast(hub)
+
+        val idle = viewModel.castButtonState
+        hub.connect(livingRoom.id)
+        val connecting = viewModel.castButtonState
+        port.emit("started", livingRoom)
+
+        assertEquals("Cast button", viewModel.castButtonLabel)
+        assertEquals(listOf("Not connected", "Connecting", "Connected"), listOf(idle, connecting, viewModel.castButtonState))
     }
 }

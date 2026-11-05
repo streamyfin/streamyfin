@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -699,11 +701,12 @@ private fun CastButton(viewModel: PlayerViewModel) {
                 .onGloballyPositioned { coordinates ->
                     val bounds = coordinates.boundsInWindow()
                     anchor = Rect(bounds.left.roundToInt(), bounds.top.roundToInt(), bounds.right.roundToInt(), bounds.bottom.roundToInt())
-                },
+                }
+                .semantics { stateDescription = viewModel.castButtonState },
         ) {
             Icon(
                 imageVector = if (connected) Icons.Default.CastConnected else Icons.Default.Cast,
-                contentDescription = viewModel.strings.get("castButton", "Cast button"),
+                contentDescription = viewModel.castButtonLabel,
                 tint = if (connected) PlayerAccentColor else Color.White,
             )
         }

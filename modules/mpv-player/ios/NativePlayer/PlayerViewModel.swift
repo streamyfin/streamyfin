@@ -55,6 +55,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// The Cast button: the session opens the output sheet over the player, from `anchor` in window points.
 	var onOutputSheetRequested: ((CGRect) -> Void)?
 
+	/// The Cast button's name and state, as the header button's: VoiceOver reads "Cast button, Connected".
+	var castButtonLabel: String { str("castButton", "Cast button") }
+	var castButtonState: String {
+		switch castPhase {
+		case .connected: return str("castConnected", "Connected")
+		case .connecting: return str("castConnecting", "Connecting")
+		default: return str("castNotConnected", "Not connected")
+		}
+	}
+
 	func followCast(_ hub: RemoteTargetHub = .shared) {
 		unfollowCast?()
 		castPhase = hub.snapshot.phase

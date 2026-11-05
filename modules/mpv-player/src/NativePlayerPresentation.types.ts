@@ -237,7 +237,11 @@ export type NativePlayerStrings = Partial<
     | "searchSubtitles"
     | "searchFailed"
     | "noSubtitlesFound"
-    | "nowPlaying",
+    | "nowPlaying"
+    | "castButton"
+    | "castConnected"
+    | "castNotConnected"
+    | "castConnecting",
     string
   >
 >;

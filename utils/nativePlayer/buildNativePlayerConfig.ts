@@ -133,6 +133,11 @@ export const buildNativePlayerStrings = (
   searchFailed: t("player.search_failed"),
   noSubtitlesFound: t("player.no_subtitles_found"),
   nowPlaying: t("player.now_playing"),
+  // The Cast button reads as the header's: its name, then whether a receiver is connected.
+  castButton: t("accessibility.cast_button"),
+  castConnected: t("accessibility.cast_connected"),
+  castNotConnected: t("accessibility.cast_not_connected"),
+  castConnecting: t("cast.output.connecting"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),

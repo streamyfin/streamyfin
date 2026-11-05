@@ -117,6 +117,16 @@ class PlayerViewModel : PlayerEngine.Delegate {
     /** The Cast button: the session opens the output sheet over the player, from [anchor] in window pixels. */
     var onOutputSheetRequested: ((Rect) -> Unit)? = null
 
+    /** The Cast button's name and state, as the header button's: TalkBack reads "Cast button, Connected". */
+    val castButtonLabel: String
+        get() = strings.get("castButton", "Cast button")
+    val castButtonState: String
+        get() = when (castPhase) {
+            TargetPhase.CONNECTED -> strings.get("castConnected", "Connected")
+            TargetPhase.CONNECTING -> strings.get("castConnecting", "Connecting")
+            else -> strings.get("castNotConnected", "Not connected")
+        }
+
     fun followCast(hub: RemoteTargetHub = RemoteTargetHub.shared) {
         unfollowCast?.invoke()
         castPhase = hub.snapshot.phase
