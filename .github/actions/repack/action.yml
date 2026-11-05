@@ -55,6 +55,15 @@ runs:
         done
         find "$RUNNER_TEMP/source" -name "*.$EXTENSION" -print -quit | xargs -I{} mv {} "$RUNNER_TEMP/source.$EXTENSION"
 
+    - name: 🛑 Refuse to sign without a token
+      # The signed job passes its bundle identifiers: without the EAS token it
+      # would upload an unsigned IPA under the signed artifact's name.
+      if: inputs.platform == 'ios' && inputs.bundle-identifiers != '' && inputs.expo-token == ''
+      shell: bash
+      run: |
+        echo "::error::A signed repack needs expo-token; the full build signs this IPA instead."
+        exit 1
+
     - name: 🔏 Fetch the signing files from EAS
       if: inputs.platform == 'ios' && inputs.expo-token != ''
       shell: bash
