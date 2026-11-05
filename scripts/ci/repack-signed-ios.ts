@@ -7,6 +7,11 @@
  * every group the profile allows (a wildcard keychain group, the Top Shelf's
  * app group) and not the ones the app was built with. A keychain group that
  * changes can hide what the app stored in the keychain.
+ *
+ * One difference with the EAS build remains: useAppEntitlements keeps a
+ * bundle's own groups but adds the profile's to a bundle that had none, so
+ * the download activity extension gets the wildcard keychain group
+ * (TEAM_ID.*). The extension does not use the keychain; checked in #2430.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
