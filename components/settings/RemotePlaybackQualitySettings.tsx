@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useStore } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { BITRATES } from "@/constants/Playback";
-import { useSettings } from "@/utils/atoms/settings";
+import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   forgetTarget,
   NO_REMOTE_QUALITY,
@@ -29,7 +30,12 @@ const Trigger: React.FC<{ label: string }> = ({ label }) => (
 export const RemotePlaybackQualitySettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateSettings } = useSettings();
+  const store = useStore();
   const quality = settings?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
+  // Read at the press: the Android sheet keeps the options it opened with, and a receiver remembered since
+  // would be dropped by writing back this render's list.
+  const latest = () =>
+    store.get(settingsAtom)?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
   const castKey = quality.byKind.cast ?? BITRATES[0].key;
   const chromecast = t("home.settings.remote_quality.chromecast");
   const sameAsChromecast = t("home.settings.remote_quality.same_as_chromecast");
@@ -58,7 +64,7 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
                 onPress: () =>
                   updateSettings({
                     remotePlaybackQuality: setKindQuality(
-                      quality,
+                      latest(),
                       "cast",
                       bitrate.key,
                     ),
@@ -86,7 +92,7 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
                       onPress: () =>
                         updateSettings({
                           remotePlaybackQuality: setTargetQuality(
-                            quality,
+                            latest(),
                             known.id,
                             undefined,
                           ),
@@ -100,7 +106,7 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
                       onPress: () =>
                         updateSettings({
                           remotePlaybackQuality: setTargetQuality(
-                            quality,
+                            latest(),
                             known.id,
                             bitrate.key,
                           ),
@@ -116,7 +122,7 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
                       onPress: () =>
                         updateSettings({
                           remotePlaybackQuality: forgetTarget(
-                            quality,
+                            latest(),
                             known.id,
                           ),
                         }),
