@@ -52,6 +52,50 @@ class OutputSheetControllerTest {
         assertEquals(DeviceStatus.Idle, row(sheet(hub), bedroom).status)
     }
 
+    // Opened from the player, the connection the sheet asks for hands the video off, once, instead of drawing the panel.
+    @Test
+    fun aConnectionMadeFromThePlayerHandsOff() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        sheet.environment = sheet.environment.copy(handOff = true)
+
+        sheet.tap(row(sheet, livingRoom))
+        port.emit("started", livingRoom)
+        port.events?.volumeChanged(0.5, false)
+
+        assertEquals(listOf(OutputSheetOutput.HAND_OFF), outputs)
+    }
+
+    // Opened from the player over a receiver already connected, the panel offers to play there.
+    @Test
+    fun aConnectedTargetOffersTheHandOffInThePanel() {
+        val port = port()
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val sheet = sheet(hub)
+        sheet.environment = sheet.environment.copy(handOff = true)
+
+        val offered = panel(sheet).canHandOff
+        sheet.handOff()
+
+        assertTrue(offered)
+        assertEquals(listOf(OutputSheetOutput.HAND_OFF), outputs)
+    }
+
+    // Opened anywhere else, the same connection draws the panel and hands nothing off.
+    @Test
+    fun outsideThePlayerNothingHandsOff() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+
+        sheet.tap(row(sheet, livingRoom))
+        port.emit("started", livingRoom)
+
+        assertEquals("device-a", panel(sheet).target.id)
+        assertFalse(panel(sheet).canHandOff)
+        assertTrue(outputs.isEmpty())
+    }
+
     @Test
     fun aConnectingTargetShowsItsIndicatorAndCancel() {
         val port = port()

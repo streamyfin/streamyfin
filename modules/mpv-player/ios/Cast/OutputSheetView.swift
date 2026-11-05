@@ -201,6 +201,12 @@ private struct ConnectedPanelView: View {
     if panel.showsVolume {
       VolumeRowView(panel: panel, strings: strings, controller: controller)
     }
+    if panel.canHandOff {
+      SheetRow(
+        icon: panel.videoOut ? "tv" : "hifispeaker", title: strings.playOn(panel.target.name), caption: nil,
+        action: { controller.handOff() }
+      )
+    }
     if panel.canStop {
       SheetRow(
         icon: "appletvremote.gen4.fill", title: strings.get("remote"), caption: panel.receiverTitle,

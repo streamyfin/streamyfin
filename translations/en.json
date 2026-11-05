@@ -1246,6 +1246,7 @@
       "unmute": "Unmute",
       "volume": "Volume",
       "remote": "Remote",
+      "play_on": "Play on {{name}}",
       "disconnect": "Disconnect",
       "device_gone": "This device is no longer on the network",
       "receiver_unavailable": "The Jellyfin receiver could not start on this device",

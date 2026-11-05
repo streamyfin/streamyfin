@@ -41,6 +41,7 @@ object OutputPickerPresenter {
     private var host: ComposeView? = null
     private var controller: OutputSheetController? = null
     private var onRemote: (() -> Unit)? = null
+    private var onHandOff: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
     // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
     private val anchorBounds = mutableStateOf<IntRect?>(null)
@@ -127,14 +128,31 @@ object OutputPickerPresenter {
     @VisibleForTesting
     internal var resolvePlayServices = defaultResolvePlayServices
 
-    /** False on a TV, which has no sheet; true once presented, or already there. */
+    /**
+     * False on a TV, which has no sheet; true once presented, or already there. [handOff] is the player's: a receiver
+     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff].
+     */
     @MainThread
-    fun present(activity: Activity, anchor: Rect?, playingHere: String?, anchorView: View? = null, onRemote: () -> Unit): Boolean {
+    fun present(
+        activity: Activity,
+        anchor: Rect?,
+        playingHere: String?,
+        anchorView: View? = null,
+        handOff: Boolean = false,
+        onHandOff: (() -> Unit)? = null,
+        onRemote: () -> Unit,
+    ): Boolean {
         if (DeviceKind.isTelevision(activity)) return false
         this.onRemote = onRemote
+        this.onHandOff = onHandOff
         controller?.let { sheet ->
             sheet.environment =
-                sheet.environment.copy(playingHere = playingHere, receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
+                sheet.environment.copy(
+                    playingHere = playingHere,
+                    receiverTitle = receiverTitle(),
+                    receiverPlaying = receiverPlaying(),
+                    handOff = handOff,
+                )
             return true
         }
         val sheet = OutputSheetController(RemoteTargetHub.shared, mainLooperSchedule())
@@ -145,6 +163,7 @@ object OutputPickerPresenter {
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
                 receiverPlaying = receiverPlaying(),
+                handOff = handOff,
             )
         sheet.onOutput = { output -> handle(activity, output) }
         anchorBounds.value = anchorView?.let(::windowBounds) ?: anchor?.let { IntRect(it.left, it.top, it.right, it.bottom) }
@@ -180,6 +199,7 @@ object OutputPickerPresenter {
         controller?.close()
         controller = null
         onRemote = null
+        onHandOff = null
         anchorView?.viewTreeObserver?.removeOnGlobalLayoutListener(anchorWatcher)
         anchorView = null
         anchorBounds.value = null
@@ -210,6 +230,12 @@ object OutputPickerPresenter {
                 val remote = onRemote
                 dismiss()
                 remote?.invoke()
+            }
+            // The same way: the player hands its video off once the sheet is gone.
+            OutputSheetOutput.HAND_OFF -> {
+                val handOff = onHandOff
+                dismiss()
+                handOff?.invoke()
             }
             OutputSheetOutput.DISMISS -> dismiss()
             // Its first step is the check below, which can throw the same way.

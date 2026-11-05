@@ -38,6 +38,8 @@ struct OutputSheetInput {
   var draggedVolume: Double?
   /// The receiver tapped while another holds the session: the hub starts it once that session ends.
   var requestedId: String?
+  /// Opened from the player, whose video the receiver can take.
+  var handOff = false
 }
 
 enum FailureCause: Equatable {
@@ -79,6 +81,8 @@ struct ConnectedPanel: Equatable {
   /// Otherwise it reads "Disconnect"; both close the receiver app, which the session that launched it
   /// does at its end whatever it asks.
   let canStop: Bool
+  /// Opened from the player, over a connected receiver: "Play on" hands the video off. Not while reconnecting.
+  let canHandOff: Bool
 }
 
 enum OutputSheetState: Equatable {
@@ -134,7 +138,8 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
         target: target, videoOut: input.devices.first(where: { $0.id == target.id })?.videoOut ?? true,
         volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted, showsVolume: showsVolume,
         canSetVolume: showsVolume && !snapshot.reconnecting, canMute: showsVolume && !snapshot.reconnecting,
-        reconnecting: snapshot.reconnecting, receiverTitle: input.receiverTitle, canStop: input.receiverPlaying
+        reconnecting: snapshot.reconnecting, receiverTitle: input.receiverTitle, canStop: input.receiverPlaying,
+        canHandOff: input.handOff && snapshot.phase == .connected
       )
     )
   }
