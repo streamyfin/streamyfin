@@ -1,6 +1,6 @@
 import i18next from "i18next";
 import type { DownloadedItem } from "@/providers/Downloads/types";
-import { buildOfflineSeasons } from "./offline-series";
+import { buildOfflineSeasons, downloadsKeyPart } from "./offline-series";
 
 beforeAll(() =>
   i18next.init({
@@ -39,5 +39,19 @@ describe("buildOfflineSeasons", () => {
     expect(
       buildOfflineSeasons([episode(1, "Saison 1")], "series-1")[0].Name,
     ).toBe("Saison 1");
+  });
+});
+
+describe("downloadsKeyPart", () => {
+  // A delete and a finished download in one refresh leave the item count
+  // unchanged, so a count-based key kept the deleted episode on screen.
+  test("follows the downloads refresh offline", () => {
+    expect(downloadsKeyPart(true, 3)).toBe(3);
+    expect(downloadsKeyPart(true, 4)).not.toBe(downloadsKeyPart(true, 3));
+  });
+
+  // A changed key online blanked the series page once per finished episode.
+  test("stays the same online however often the downloads refresh", () => {
+    expect(downloadsKeyPart(false, 0)).toBe(downloadsKeyPart(false, 5));
   });
 });

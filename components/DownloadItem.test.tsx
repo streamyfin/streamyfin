@@ -8,6 +8,7 @@ import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
+let mockIconMounts: Record<string, number> = {};
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -68,7 +69,15 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetBackdrop: () => null,
   };
 });
-jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
+jest.mock("@/components/common/HeaderIcon", () => ({
+  HeaderIcon: ({ name }: { name: string }) => {
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      mockIconMounts[name] = (mockIconMounts[name] ?? 0) + 1;
+    }, []);
+    return null;
+  },
+}));
 // Lists the options instead of a menu to open, so a spec can see what a
 // selector offers and pick from it.
 jest.mock("./PlatformDropdown", () => {
@@ -148,6 +157,7 @@ beforeEach(() => {
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
   mockDownloadedItems = [];
+  mockIconMounts = {};
 });
 
 afterEach(() => {
@@ -155,6 +165,25 @@ afterEach(() => {
 });
 
 describe("DownloadSingleItem", () => {
+  test.each([
+    ["downloads", false],
+    ["downloaded", true],
+  ])(
+    "keeps the %s icon mounted when another episode finishes",
+    async (name, isDownloaded) => {
+      const item = episode(1);
+      mockDownloadedItems = isDownloaded ? [{ item }] : [];
+      const view = await render(<DownloadSingleItem item={item} />);
+      const mountsBeforeDownload = mockIconMounts[name] ?? 0;
+      expect(mountsBeforeDownload).toBeGreaterThan(0);
+
+      mockDownloadedItems = [...mockDownloadedItems, { item: episode(2) }];
+      await view.rerender(<DownloadSingleItem item={item} />);
+
+      expect(mockIconMounts[name]).toBe(mountsBeforeDownload);
+    },
+  );
+
   // Sentry REACT-NATIVE-FX: the item page shows the download button for an
   // item the server lists no media source for. Confirming the sheet threw "No
   // api or user or item" where nobody caught it, so the user saw nothing

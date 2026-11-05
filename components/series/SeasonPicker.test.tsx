@@ -7,7 +7,11 @@ import { userAtom } from "@/providers/JellyfinProvider";
 import { SeasonPicker, seasonIndexAtom } from "./SeasonPicker";
 
 let mockDownloads: DownloadedItem[] = [];
+let mockRefreshKey = 0;
 let mockOffline = true;
+let mockTrackIcon = false;
+let mockIconMounts = 0;
+let mockLiveIcons = 0;
 /** What the show API answers online: a season, and episodes held until released. */
 const mockShowApi = {
   getSeasons: jest.fn(),
@@ -20,7 +24,7 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
-    downloadedItems: mockDownloads,
+    refreshKey: mockRefreshKey,
     getDownloadedItems: () => mockDownloads,
   }),
 }));
@@ -55,8 +59,42 @@ jest.mock("../cards/CardListRow", () => ({
   },
 }));
 jest.mock("../DownloadItem", () => ({
-  DownloadItems: () => null,
+  DownloadItems: ({
+    items,
+    DownloadedIconComponent,
+    MissingDownloadIconComponent,
+  }: {
+    items: BaseItemDto[];
+    DownloadedIconComponent: React.ComponentType;
+    MissingDownloadIconComponent: React.ComponentType;
+  }) => {
+    if (!mockTrackIcon) return null;
+    const allDownloaded =
+      items.length > 0 &&
+      items.every((item) =>
+        mockDownloads.some((download) => download.item.Id === item.Id),
+      );
+    return allDownloaded ? (
+      <DownloadedIconComponent />
+    ) : (
+      <MissingDownloadIconComponent />
+    );
+  },
   DownloadSingleItem: () => null,
+}));
+jest.mock("@/components/common/HeaderIcon", () => ({
+  HeaderIcon: ({ name }: { name: string }) => {
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      if (name !== "downloaded") return;
+      mockIconMounts++;
+      mockLiveIcons++;
+      return () => {
+        mockLiveIcons--;
+      };
+    }, []);
+    return null;
+  },
 }));
 jest.mock("../PlayedStatus", () => ({ PlayedStatus: () => null }));
 jest.mock("@/components/syncplay/SyncPlayQueueButton", () => ({
@@ -111,16 +149,38 @@ describe("SeasonPicker offline", () => {
     await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
 
     mockDownloads = [episode(2, "Return")];
+    mockRefreshKey++;
     await view.rerender(tree());
 
     await waitFor(() => expect(screen.getByText("Return")).toBeTruthy());
     expect(screen.queryByText("Pilot")).toBeNull();
     expect(store.get(seasonIndexAtom)[SERIES.Id!]).toBe(2);
   });
+
+  // A delete and a finished download in one refresh leave the count the same.
+  // Keyed on the count, the page kept the deleted episode and missed the new.
+  test("shows a swapped episode when the download count stays the same", async () => {
+    mockDownloads = [episode(1, "Pilot")];
+    const store = createStore();
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+
+    mockDownloads = [episode(1, "Second")];
+    mockRefreshKey++;
+    await view.rerender(tree());
+
+    await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
+    expect(screen.queryByText("Pilot")).toBeNull();
+  });
 });
 
 describe("SeasonPicker online", () => {
   beforeEach(() => {
+    mockTrackIcon = false;
+    mockIconMounts = 0;
+    mockLiveIcons = 0;
     mockOffline = false;
     mockShowApi.getSeasons.mockResolvedValue({
       data: { Items: [{ Id: "season-1", IndexNumber: 1, Name: "Season 1" }] },
@@ -223,6 +283,61 @@ describe("SeasonPicker online", () => {
     expect(
       screen.queryByText("item_card.no_episodes_for_this_season"),
     ).toBeNull();
+  });
+
+  // Online, each episode that finished downloading changed the queries' keys:
+  // the list went blank and was fetched again, once per episode, so a series
+  // download flashed the page (seen on Android, 2026-11-05).
+  test("keeps the episodes on screen as downloads finish", async () => {
+    mockDownloads = [];
+    mockShowApi.getEpisodes.mockResolvedValue({
+      data: {
+        Items: [{ Id: "episode-1", Name: "Pilot", ParentIndexNumber: 1 }],
+        TotalRecordCount: 1,
+      },
+    });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    mockShowApi.getSeasons.mockClear();
+    mockShowApi.getEpisodes.mockClear();
+
+    mockDownloads = [episode(1, "Pilot")];
+    mockRefreshKey++;
+    await view.rerender(tree());
+
+    expect(screen.getByText("Pilot")).toBeTruthy();
+    expect(mockShowApi.getSeasons).not.toHaveBeenCalled();
+    expect(mockShowApi.getEpisodes).not.toHaveBeenCalled();
+  });
+
+  test("keeps the season download icon mounted as downloads finish", async () => {
+    mockDownloads = [episode(1, "Pilot")];
+    mockTrackIcon = true;
+    mockShowApi.getEpisodes.mockResolvedValue({
+      data: {
+        Items: [mockDownloads[0].item],
+        TotalRecordCount: 1,
+      },
+    });
+    const store = createStore();
+    store.set(userAtom, { Id: "user" });
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    const mountsBeforeDownload = mockIconMounts;
+    expect(mockLiveIcons).toBe(1);
+
+    mockDownloads = [episode(1, "Pilot"), episode(2, "Return")];
+    mockRefreshKey++;
+    await view.rerender(tree());
+
+    expect(mockIconMounts).toBe(mountsBeforeDownload);
+    expect(mockLiveIcons).toBe(1);
   });
 
   test("episodes that failed to load say so, not an empty season", async () => {
