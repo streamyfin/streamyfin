@@ -145,6 +145,18 @@ class OutputPickerPresenterTest {
         assertTrue(OutputPickerPresenter.isPresented)
     }
 
+    // A player opening over the app's sheet (a remote Play) takes it down: left above the player, the sheet would
+    // connect a receiver without handing the video off.
+    @Test
+    fun aPlayerOpeningOverTheAppsSheetClosesIt() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+
+        OutputPickerPresenter.dismissForPlayer()
+
+        assertFalse(OutputPickerPresenter.isPresented)
+    }
+
     // The probe's sheet never takes over one the app opened: the app's remote still answers, and its track stays.
     @Test
     fun theProbeLeavesASheetTheAppOpened() {

@@ -174,6 +174,8 @@ class NativePlayerSession(
 
         activity.runOnUiThread {
             try {
+                // A remote Play can open the player over the app's sheet: the sheet goes first, as on iOS.
+                OutputPickerPresenter.dismissForPlayer()
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine

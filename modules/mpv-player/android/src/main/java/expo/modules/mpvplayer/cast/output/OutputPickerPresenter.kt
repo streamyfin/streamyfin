@@ -206,6 +206,13 @@ object OutputPickerPresenter {
         if (controller?.environment?.handOff == true) dismiss(keepHandOff = false)
     }
 
+    /**
+     * A player opens over the app's sheet (a remote Play): the sheet goes first, or it would stay above the player and
+     * connect a receiver without handing the video off. The player's own Cast button opens a sheet of its own.
+     */
+    @MainThread
+    fun dismissForPlayer() = dismiss(keepHandOff = false)
+
     private fun dismiss(keepHandOff: Boolean) {
         val view = host ?: return
         // The player's sheet closed while the receiver it asked for connects: the video still goes once it is.
