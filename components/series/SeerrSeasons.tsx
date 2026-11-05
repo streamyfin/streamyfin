@@ -349,7 +349,11 @@ const SeerrSeasons: React.FC<{
         if (hasAdvancedRequest) {
           return onAdvancedRequest?.(body);
         }
-        requestMedia(`${details.name}, Season ${seasonNumber}`, body, refetch);
+        requestMedia(
+          `${details.name}, ${t("seerr.season_number", { season_number: seasonNumber })}`,
+          body,
+          refetch,
+        );
       }
     },
     [requestMedia, hasAdvancedRequest, onAdvancedRequest, refetch, details],

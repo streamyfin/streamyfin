@@ -15,6 +15,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
 import { TVOptionCard, useTVFocusAnimation } from "@/components/tv";
+import { tvSheetBacking } from "@/components/tv/tvSheetBacking";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
@@ -297,7 +298,8 @@ export const TVSaveAccountModal: React.FC<TVSaveAccountModalProps> = ({
             trapFocusDown
             trapFocusLeft
             trapFocusRight
-            style={styles.content}
+            testID='tv-save-account-panel'
+            style={[styles.content, tvSheetBacking()]}
           >
             {/* Header */}
             <View style={styles.header}>

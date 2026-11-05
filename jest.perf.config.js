@@ -1,7 +1,14 @@
 const { jest: base } = require("./package.json");
 
+// The expo-router stub in the unit config is for specs that opt in with an
+// explicit jest.mock; mapping it globally here rewires the auto-mocks these
+// scenarios already use.
+const { "^expo-router$": _expoRouter, ...moduleNameMapper } =
+  base.moduleNameMapper;
+
 module.exports = {
   ...base,
+  moduleNameMapper,
   // The base setup files stay, the asset registry fix among them: without it
   // every rendered icon throws.
   setupFilesAfterEnv: [
