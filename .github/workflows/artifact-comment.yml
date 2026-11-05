@@ -194,7 +194,6 @@ jobs:
               'Android TV': ['🤖 Build Android APK (TV)', '🤖 Repack Android APK (TV)'],
               'iOS': ['🍎 Build iOS IPA (Phone)', '🍎 Repack iOS IPA (Phone)'],
               'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', '🍎 Repack iOS IPA (Phone - Unsigned)'],
-              'tvOS': ['🍎 Build tvOS IPA'],
               'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', '🍎 Repack tvOS IPA (Unsigned)']
             };
 
@@ -436,7 +435,6 @@ jobs:
               { name: 'Android TV', platform: '🤖', device: '📺 TV', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
               { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS', artifactPattern: /^(?!.*unsigned).*ios.*phone.*ipa/i },
               { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
-              { name: 'tvOS', platform: '🍎', device: '📺 TV', statusKey: 'tvOS', artifactPattern: /^(?!.*unsigned).*ios.*tv.*ipa/i },
               { name: 'tvOS Unsigned', platform: '🍎', device: '📺 TV Unsigned', statusKey: 'tvOS Unsigned', artifactPattern: /ios.*tv.*unsigned/i }
             ];
 
@@ -452,13 +450,7 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              // Signed tvOS stays disabled until EAS has tvOS provisioning
-              // profiles (app + TopShelf targets); non-interactive builds can't
-              // create them. Unsigned tvOS builds, so it flows through normally.
-              if (target.name === 'tvOS') {
-                status = '💤 Disabled';
-                downloadLink = '*Disabled — signed tvOS needs EAS provisioning profiles*';
-              } else if (matchingStatus) {
+              if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;

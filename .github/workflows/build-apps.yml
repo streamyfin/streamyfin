@@ -758,76 +758,6 @@ jobs:
       - name: 🔄 Refresh PR build comment
         uses: ./.github/actions/refresh-pr-comment
 
-  build-ios-tv:
-    # Disabled: EAS has no provisioning profiles / distribution cert for the tvOS
-    # targets (app + StreamyfinTopShelf extension), so non-interactive signed
-    # builds fail. Set up tvOS credentials in EAS (`eas credentials`), then remove
-    # the `false &&` prefix below. Unsigned tvOS builds run (see job below).
-    if: false && (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-    runs-on: macos-26
-    name: 🍎 Build tvOS IPA
-    permissions:
-      contents: read
-      actions: write # dispatch artifact-comment.yml to refresh the PR comment
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          show-progress: false
-
-      - parallel:
-          - name: 🍞 Setup Bun
-            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-            with:
-              # renovate: datasource=npm depName=bun
-              bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
-
-          - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
-            with:
-              eas-version: latest
-              token: ${{ secrets.EXPO_TOKEN }}
-              eas-cache: true
-
-      - name: 💾 Cache Bun dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-
-
-      - name: 📦 Install dependencies
-        run: |
-          bun install --frozen-lockfile
-
-      - name: 🛠️ Generate project files
-        run: bun run prebuild:tv
-
-      - name: 🚀 Build iOS app
-        env:
-          EXPO_TV: 1
-        run: eas build -p ios --local --non-interactive --profile ci_tv
-
-      - name: 📅 Set date tag
-        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
-
-      - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: streamyfin-ios-tv-ipa-${{ env.DATE_TAG }}
-          path: build-*.ipa
-          retention-days: 7
-
   repack-ios-tv-unsigned:
     needs: fingerprint
     if: ${{ !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && needs.fingerprint.outputs.ios_tv_unsigned_source != '' }}
@@ -891,9 +821,8 @@ jobs:
         uses: ./.github/actions/refresh-pr-comment
 
   build-ios-tv-unsigned:
-    # Unsigned tvOS build is enabled (compiles without Apple credentials).
-    # The signed tvOS job above stays disabled until tvOS provisioning
-    # profiles are set up in EAS (app + TopShelf targets).
+    # The only tvOS build in CI: it needs no Apple credentials. Signed tvOS
+    # builds come from release.yml, which holds the tvOS signing files.
     # always() keeps a skipped repack job from skipping this required check,
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
