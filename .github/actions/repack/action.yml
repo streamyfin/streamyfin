@@ -31,7 +31,14 @@ inputs:
   bundle-identifiers:
     description: >-
       iOS only. The bundle identifiers to sign, separated by spaces: the app
-      and each extension it embeds. Read only when `expo-token` is set.
+      and each extension it embeds. Read only when `expo-token` is set, and
+      checked against the bundles the source IPA embeds.
+    required: false
+    default: ""
+  build-profile:
+    description: >-
+      The EAS build profile the source app was built with, written into the
+      repacked app's build metadata as an EAS build writes it.
     required: false
     default: ""
 
@@ -54,6 +61,32 @@ runs:
           sleep 10
         done
         find "$RUNNER_TEMP/source" -name "*.$EXTENSION" -print -quit | xargs -I{} mv {} "$RUNNER_TEMP/source.$EXTENSION"
+
+    - name: 🔍 Read the source app
+      id: source
+      if: inputs.platform == 'ios'
+      shell: bash
+      env:
+        BUNDLE_IDENTIFIERS: ${{ inputs.expo-token != '' && inputs.bundle-identifiers || '' }}
+      # The build number goes on to the repack, which writes the config's or
+      # "1" otherwise. A signed repack also checks that each embedded bundle
+      # has a profile: zsign signs a bundle without one with the app's.
+      run: |
+        python3 - "$RUNNER_TEMP/source.ipa" "$BUNDLE_IDENTIFIERS" >> "$GITHUB_OUTPUT" <<'PY'
+        import plistlib, re, sys, zipfile
+        ipa, wanted = sys.argv[1], set(sys.argv[2].split())
+        with zipfile.ZipFile(ipa) as z:
+            names = z.namelist()
+            app = [n for n in names if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", n)]
+            plugins = [n for n in names if re.fullmatch(r"Payload/[^/]+\.app/PlugIns/[^/]+\.appex/Info\.plist", n)]
+            if len(app) != 1:
+                sys.exit(f"Expected one app in the source IPA, found {len(app)}")
+            info = plistlib.loads(z.read(app[0]))
+            ids = {info["CFBundleIdentifier"]} | {plistlib.loads(z.read(n))["CFBundleIdentifier"] for n in plugins}
+        if wanted and ids != wanted:
+            sys.exit(f"The source IPA embeds {sorted(ids)}, profiles are fetched for {sorted(wanted)}")
+        print(f"build_number={info['CFBundleVersion']}")
+        PY
 
     - name: 🛑 Refuse to sign without a token
       # The signed job passes its bundle identifiers: without the EAS token it
@@ -85,15 +118,18 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         OUTPUT: ${{ inputs.output }}
         SIGNED: ${{ inputs.platform == 'ios' && inputs.expo-token != '' }}
+        REPACK_IOS_BUILD_NUMBER: ${{ steps.source.outputs.build_number }}
+        EAS_BUILD_PROFILE: ${{ inputs.build-profile }}
       run: |
         mkdir -p "$(dirname "$OUTPUT")"
+        if [ "$SIGNED" = "true" ]; then
+          # Through repack-app's API, which keeps the app's entitlements; zsign
+          # signs in process, with no Xcode.
+          bun scripts/ci/repack-signed-ios.ts "$RUNNER_TEMP/source.ipa" "$RUNNER_TEMP/signing" "$OUTPUT" "$RUNNER_TEMP/repack"
+          exit 0
+        fi
         if [ "$PLATFORM" = "ios" ]; then
           args=(-p ios --source-app "$RUNNER_TEMP/source.ipa")
-          if [ "$SIGNED" = "true" ]; then
-            # With --certificate, repack-app signs with zsign, which needs no Xcode.
-            args+=(--certificate "$RUNNER_TEMP/signing/identity.p12" --key-password "$(cat "$RUNNER_TEMP/signing/password")"
-              --provisioning-profile "$(cat "$RUNNER_TEMP/signing/profiles.json")")
-          fi
         else
           # With no keystore, repack-app signs with the standard React Native
           # debug key, the key the Gradle release build signs with. A different

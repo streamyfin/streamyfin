@@ -566,6 +566,8 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           # The app and every extension it embeds; each needs its own profile.
           bundle-identifiers: com.fredrikburmester.streamyfin com.fredrikburmester.streamyfin.downloadactivity
+          # The macOS job below builds with eas build --profile ci.
+          build-profile: ci
 
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
