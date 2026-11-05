@@ -3,7 +3,7 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, {
@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { watchlistTypeLabel } from "@/components/watchlists/watchlistOptions";
 import useRouter from "@/hooks/useAppRouter";
 import {
   useAddToWatchlist,
@@ -46,13 +47,14 @@ interface WatchlistRowProps {
   isLoading: boolean;
 }
 
-const WatchlistRow: React.FC<WatchlistRowProps> = ({
+export const WatchlistRow: React.FC<WatchlistRowProps> = ({
   watchlist,
   isInWatchlist,
   isCompatible,
   onToggle,
   isLoading,
 }) => {
+  const { t } = useTranslation();
   const disabled = !isCompatible && !isInWatchlist;
 
   return (
@@ -70,18 +72,18 @@ const WatchlistRow: React.FC<WatchlistRowProps> = ({
           {watchlist.allowedItemType && (
             <View className='bg-neutral-700 px-1.5 py-0.5 rounded'>
               <Text className='text-xs text-neutral-400'>
-                {watchlist.allowedItemType}
+                {watchlistTypeLabel(t, watchlist.allowedItemType)}
               </Text>
             </View>
           )}
         </View>
         {watchlist.description && (
-          <Text className='text-sm text-neutral-400 mt-0.5' numberOfLines={1}>
+          <Text className='text-sm text-neutral-400 mt-0.5' numberOfLines={2}>
             {watchlist.description}
           </Text>
         )}
         <Text className='text-xs text-neutral-500 mt-1'>
-          {watchlist.itemCount ?? 0} items
+          {t("watchlists.item_count", { count: watchlist.itemCount ?? 0 })}
         </Text>
       </View>
       <View className='w-8 h-8 items-center justify-center'>
@@ -307,11 +309,15 @@ export const WatchlistSheet = forwardRef<WatchlistSheetRef, object>(
           backgroundColor: "#171717",
         }}
       >
-        <BottomSheetView style={{ paddingBottom: insets.bottom }}>
+        {/* Rows can outgrow the sheet's height, two lines of description
+            each: past it, the list scrolls. */}
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
+        >
           {currentItem && (
             <WatchlistSheetContent item={currentItem} onClose={handleClose} />
           )}
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheetModal>
     );
   },
