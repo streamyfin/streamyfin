@@ -114,6 +114,14 @@ final class RemoteTargetMachine {
     switchingTo = nil
   }
 
+  /// Drops the cause of the last end once a sheet has shown it, so it is not drawn again later. A session the
+  /// SDK kept keeps its cause: only a failure with nothing held is cleared.
+  func clearFailure() -> Bool {
+    guard snapshot.phase == .none, snapshot.error != nil else { return false }
+    snapshot = .none
+    return true
+  }
+
   /// The receiver's volume, as the SDK reports it: held only for a session connecting or connected.
   func volumeChanged(level: Double, muted: Bool) -> Bool {
     guard snapshot.phase == .connecting || snapshot.phase == .connected else { return false }

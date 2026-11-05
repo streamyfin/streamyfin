@@ -96,6 +96,16 @@ class RemoteTargetMachine {
         switchingTo = null
     }
 
+    /**
+     * Drops the cause of the last end once a sheet has shown it, so it is not drawn again later. A session the
+     * SDK kept keeps its cause: only a failure with nothing held is cleared.
+     */
+    fun clearFailure(): Boolean {
+        if (snapshot.phase != TargetPhase.NONE || snapshot.error == null) return false
+        snapshot = RemoteTargetSnapshot.NONE
+        return true
+    }
+
     /** The receiver's volume, as the SDK reports it: held only for a session connecting or connected. */
     fun volumeChanged(level: Double, muted: Boolean): Boolean {
         if (snapshot.phase != TargetPhase.CONNECTING && snapshot.phase != TargetPhase.CONNECTED) return false
