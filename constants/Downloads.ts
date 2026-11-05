@@ -11,3 +11,7 @@ export const DOWNLOAD_TRICKPLAY_DIR_SUFFIX = "_trickplay";
 // Android stages the transfer in `<destination>.part` and renames it once it is complete
 // (OkHttpDownloadManager.kt). The native side owns the value; this mirrors it.
 export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
+
+// A failed download's toast says why and what to do in two or three lines, more than the four
+// seconds the Toaster gives a toast leave time to read.
+export const DOWNLOAD_FAILURE_TOAST_DURATION_MS = 8000;

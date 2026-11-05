@@ -40,7 +40,7 @@ const LIBRARY: BaseItemDto = {
   ImageTags: { Primary: "tag" },
 };
 
-const renderCard = async () => {
+const renderCard = async (library: BaseItemDto = LIBRARY) => {
   /** What the app's own query cache would have handed to Sentry. */
   const errors: Error[] = [];
   // No garbage collection timer nor retry: either keeps Jest from exiting.
@@ -54,7 +54,7 @@ const renderCard = async () => {
   await render(
     <QueryClientProvider client={client}>
       <JotaiProvider store={store}>
-        <LibraryItemCard library={LIBRARY} />
+        <LibraryItemCard library={library} />
       </JotaiProvider>
     </QueryClientProvider>,
   );
@@ -94,6 +94,33 @@ describe("LibraryItemCard", () => {
       recursive: "true",
       limit: "0",
       includeItemTypes: "Movie",
+    });
+    expect(errors).toEqual([]);
+  });
+
+  test("counts the channels of the Live TV view", async () => {
+    const api = makeApi();
+    api.mock
+      .onGet(/\/LiveTv\/Channels\?/)
+      .reply(200, { Items: [], TotalRecordCount: 42 });
+    const { store, errors } = await renderCard({
+      Id: "livetv-1",
+      Name: "Live TV",
+      CollectionType: "livetv",
+      ImageTags: { Primary: "tag" },
+    });
+
+    await act(async () => store.set(apiAtom, api));
+
+    await waitFor(() =>
+      expect(screen.getByText("42 live_tv.tabs.channels")).toBeTruthy(),
+    );
+    expect(api.mock.history.get).toHaveLength(1);
+    const query = new URL(api.mock.history.get[0].url ?? "").searchParams;
+    expect(Object.fromEntries(query)).toEqual({
+      userId: "user-1",
+      limit: "1",
+      addCurrentProgram: "false",
     });
     expect(errors).toEqual([]);
   });
