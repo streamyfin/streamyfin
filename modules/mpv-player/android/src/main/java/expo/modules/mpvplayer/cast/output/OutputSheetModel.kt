@@ -87,7 +87,10 @@ sealed interface OutputSheetState {
         val showsVolume: Boolean,
         /** The row takes a change: not while the session reconnects, as the hub sends none until it is back. */
         val canSetVolume: Boolean,
-        /** Android mutes the playing stream, as the SDK's expanded controls do: none while the receiver plays nothing. */
+        /**
+         * Android mutes the playing stream, as the SDK's expanded controls do: none while the receiver plays nothing,
+         * nor over a mute set on the device itself, which the stream's cannot lift.
+         */
         val canMute: Boolean,
         val reconnecting: Boolean,
         val receiverTitle: String?,
@@ -155,7 +158,7 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             muted = snapshot.muted,
             showsVolume = showsVolume,
             canSetVolume = showsVolume && !snapshot.reconnecting,
-            canMute = showsVolume && input.receiverPlaying && !snapshot.reconnecting,
+            canMute = showsVolume && input.receiverPlaying && !snapshot.reconnecting && !snapshot.deviceMuted,
             reconnecting = snapshot.reconnecting,
             receiverTitle = input.receiverTitle,
             canStop = input.receiverPlaying,

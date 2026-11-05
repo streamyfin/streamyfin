@@ -38,6 +38,8 @@ internal class GoogleCastTargetPort(
     private val setSessionVolume: (Double) -> Unit,
     private val setSessionMuted: (Boolean) -> Unit,
     private val watchVolume: (((Double, Boolean) -> Unit)?) -> Unit,
+    /** The current session's device muted itself, apart from its stream: another sender did it. False without one. */
+    private val deviceMuted: () -> Boolean,
 ) : TargetPort {
     private var events: TargetPortEvents? = null
     private var discovering = false
@@ -47,16 +49,25 @@ internal class GoogleCastTargetPort(
     // moment, after the listeners have run, so a route selected before, or inside the callback, lost to it.
     private var leaving: TargetDevice? = null
     private var afterLeaving: TargetDevice? = null
+    // A launch cancelled before its session was up, which the hub was told ended at once. Ending a session still
+    // starting lets the launch go on and leaves the receiver app open on the TV (bench, 04/11): the session is
+    // ended once it is up instead, which closes the app. Its events stay away from the hub until that end.
+    private var cancelled: CancelledLaunch? = null
+
+    /** [stopWhenUp] is the stop asked, null once none is due: sent already, or another route ends the session. */
+    private class CancelledLaunch(val device: TargetDevice, var stopWhenUp: Boolean?)
 
     override fun start(events: TargetPortEvents) {
         this.events = events
         watchSessions { event, device, error, code ->
-            this.events?.sessionEvent(event, device, error, code)
-            // A session's volume is the receiver's: read once it is up, then followed.
-            if (event == "started" || event == "resumed") reportVolume()
+            if (!cancelledLaunchEvent(event, device)) {
+                this.events?.sessionEvent(event, device, error, code)
+                // A session's volume is the receiver's: read once it is up, then followed.
+                if (event == "started" || event == "resumed") reportVolume()
+            }
             sessionChanged(event, device)
         }
-        watchVolume { level, muted -> this.events?.volumeChanged(level, muted) }
+        watchVolume { level, muted -> this.events?.volumeChanged(level, muted, deviceMuted()) }
         // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
         runningSession()?.let { session ->
             events.sessionEvent(if (session.connected) "resumed" else "resuming", session.device, null)
@@ -65,7 +76,7 @@ internal class GoogleCastTargetPort(
     }
 
     private fun reportVolume() {
-        sessionVolume()?.let { (level, muted) -> events?.volumeChanged(level, muted) }
+        sessionVolume()?.let { (level, muted) -> events?.volumeChanged(level, muted, deviceMuted()) }
     }
 
     override fun setVolume(level: Double) = setSessionVolume(level)
@@ -75,6 +86,7 @@ internal class GoogleCastTargetPort(
     override fun stop() {
         leaving = null
         afterLeaving = null
+        cancelled = null
         stopDiscovery()
         watchSessions(null)
         watchVolume(null)
@@ -97,6 +109,16 @@ internal class GoogleCastTargetPort(
     }
 
     override fun connect(device: TargetDevice) {
+        cancelled?.let { launch ->
+            when {
+                // Asked again before it was up: the launch goes on, and the hub follows it again.
+                launch.device.id == device.id && launch.stopWhenUp != null -> cancelled = null
+                // Asked again while that session is being ended: selected again once it has, as for a switch back.
+                launch.device.id == device.id -> leaving = launch.device
+                // Another receiver's route ends that launch: no stop is due, and its end still stays away from the hub.
+                else -> launch.stopWhenUp = null
+            }
+        }
         if (device.id == leaving?.id) {
             afterLeaving = device
             return
@@ -123,13 +145,35 @@ internal class GoogleCastTargetPort(
 
     override fun disconnect(stopPlayback: Boolean) {
         afterLeaving = null
-        if (runningSession() != null) {
+        val session = runningSession()
+        val launching = session?.device?.takeIf { !session.connected }
+        if (launching != null) {
+            cancelled = CancelledLaunch(launching, stopPlayback)
+            events?.sessionEvent("ended", launching, null)
+            return
+        }
+        if (session != null) {
             endSession(stopPlayback)
             return
         }
         // Asked before the SDK started a session: nothing would end, so the request ends here.
         unselectRoute()
         events?.sessionEvent("ended", null, null)
+    }
+
+    // Whether the event is the cancelled launch's, which the hub no longer follows; once that session is up, it is
+    // ended with the stop asked.
+    private fun cancelledLaunchEvent(event: String, device: TargetDevice?): Boolean {
+        val launch = cancelled ?: return false
+        if (device != null && device.id != launch.device.id) return false
+        when (event) {
+            "started", "resumed" -> launch.stopWhenUp?.let { stop ->
+                launch.stopWhenUp = null
+                endSession(stop)
+            }
+            "ended", "startFailed" -> cancelled = null
+        }
+        return true
     }
 
     private fun sessionChanged(event: String, device: TargetDevice?) {
@@ -292,6 +336,7 @@ internal class GoogleCastTargetPort(
                         if (relay != null) listenToVolume(session) else stopListeningToVolume(session)
                     }
                 },
+                deviceMuted = { sessions.currentCastSession?.isMute == true },
             )
         }
 

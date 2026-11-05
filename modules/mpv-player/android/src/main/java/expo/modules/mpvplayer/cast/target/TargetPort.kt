@@ -11,6 +11,9 @@ interface TargetPortEvents {
 
     /** The receiver's volume, 0 to 1, and its mute, as the SDK reports them for the current session. */
     fun volumeChanged(level: Double, muted: Boolean) = Unit
+
+    /** The same, with the device's own mute apart: Android mutes the stream, which cannot lift that one. */
+    fun volumeChanged(level: Double, muted: Boolean, deviceMuted: Boolean) = volumeChanged(level, muted)
 }
 
 /**
