@@ -552,6 +552,8 @@ export interface TmdbRelease {
  * settings a server makes public. Typed here are the ones the app reads.
  */
 export type PublicSettings = Schemas["PublicSettings"] & {
+  /** Whether the server keeps an image cache, which its images then load through. */
+  cacheImages?: boolean;
   /** Whether the specials count as a season that can be requested. */
   enableSpecialEpisodes?: boolean;
   /** Whether a series can be requested a season at a time. */
