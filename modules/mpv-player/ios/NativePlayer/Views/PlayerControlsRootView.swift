@@ -241,7 +241,18 @@ struct PlayerControlsRootView: View {
 			)
 		) { _ in
 			viewModel.endHoldSpeed()
-			// A drag the system cancels never reaches onEnded either.
+			// A drag the system cancels never reaches onEnded either: undo
+			// what it started, or the next drag keeps its axis (and could
+			// seek although that swipe is off) or stays ignored.
+			if dragAxis == .horizontal { viewModel.cancelScrub() }
+			if dragAxis == .vertical {
+				if dragOnLeftHalf {
+					viewModel.brightnessController.isUserInteracting = false
+				} else {
+					viewModel.volumeController.isUserInteracting = false
+				}
+			}
+			dragAxis = nil
 			dragSuppressed = false
 		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
