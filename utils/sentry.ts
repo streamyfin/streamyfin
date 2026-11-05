@@ -9,6 +9,7 @@ import {
   isAbortLikeError,
   isEnvironmentError,
   isExpectedError,
+  isStaleIdError,
 } from "@/utils/errors";
 import { redactCredentials } from "@/utils/redactCredentials";
 import {
@@ -307,8 +308,8 @@ const isCastNoSessionRejection = (
  * events carry no app frames and none of the route identity the data-layer
  * and logAndCaptureError paths attach, so every such failure — any endpoint,
  * any status — regroups into one stackless issue. Apply the same rules here:
- * environment/aborted/expected failures never leave the app, and the rest
- * are fingerprinted by route and status.
+ * environment/aborted/expected failures and ids the server no longer has
+ * never leave the app, and the rest are fingerprinted by route and status.
  *
  * It is also where a rejection inside a dependency is dropped when no call
  * site of the app's could have caught it. Exported for tests.
@@ -324,7 +325,8 @@ export const classifyOutgoingEvent = (
   if (
     isAbortLikeError(cause) ||
     isEnvironmentError(cause) ||
-    isExpectedError(cause)
+    isExpectedError(cause) ||
+    isStaleIdError(cause)
   ) {
     return null;
   }
