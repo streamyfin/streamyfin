@@ -83,6 +83,9 @@ sealed interface OutputSheetState {
         val videoOut: Boolean,
         val volume: Double?,
         val muted: Boolean,
+        /** The receiver has a level to set: the volume row is drawn. */
+        val showsVolume: Boolean,
+        /** The row takes a change: not while the session reconnects, as the hub sends none until it is back. */
         val canSetVolume: Boolean,
         /** Android mutes the playing stream, as the SDK's expanded controls do: none while the receiver plays nothing. */
         val canMute: Boolean,
@@ -100,6 +103,27 @@ sealed interface OutputSheetState {
 enum class OutputLayout { SHEET, POPOVER }
 
 fun outputLayout(widthDp: Int) = if (widthDp >= RemoteTargetConstants.REGULAR_WIDTH_DP) OutputLayout.POPOVER else OutputLayout.SHEET
+
+/**
+ * The receiver's media status as the sheet reads it. A suspended session loses its media client until it resumes,
+ * and the resumed client reports nothing until the receiver sends: the last status heard stands in meanwhile, so the
+ * panel keeps what the receiver plays. Main thread only, like the module that holds it.
+ */
+class LastHeardStatus<T : Any> {
+    private var held: T? = null
+
+    /** The session is suspended with this last status. */
+    fun hold(last: T?) {
+        held = last
+    }
+
+    fun read(live: T?): T? = live ?: held
+
+    /** The receiver reported again, or the session ended or gave way to another. */
+    fun forget() {
+        held = null
+    }
+}
 
 // CastStatusCodes, from the play-services-cast reference. 2155 is not documented: the SDK ends a session
 // with it on a network loss, and on a switch, which the machine never shows as a failure (bench, 04/11).
@@ -123,13 +147,15 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
     val held =
         snapshot.phase == TargetPhase.CONNECTED || (snapshot.phase == TargetPhase.CONNECTING && snapshot.reconnecting)
     if (held && target != null && !input.showingList) {
+        val showsVolume = target.volume && snapshot.volume != null
         return OutputSheetState.Connected(
             target = target,
             videoOut = input.devices.firstOrNull { it.id == target.id }?.videoOut ?: true,
             volume = input.draggedVolume ?: snapshot.volume,
             muted = snapshot.muted,
-            canSetVolume = target.volume && snapshot.volume != null,
-            canMute = target.volume && snapshot.volume != null && input.receiverPlaying,
+            showsVolume = showsVolume,
+            canSetVolume = showsVolume && !snapshot.reconnecting,
+            canMute = showsVolume && input.receiverPlaying && !snapshot.reconnecting,
             reconnecting = snapshot.reconnecting,
             receiverTitle = input.receiverTitle,
             canStop = input.receiverPlaying,

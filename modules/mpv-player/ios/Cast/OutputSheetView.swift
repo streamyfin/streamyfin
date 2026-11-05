@@ -198,7 +198,7 @@ private struct ConnectedPanelView: View {
         .foregroundStyle(accent)
         .fixedSize()
     }
-    if panel.canSetVolume {
+    if panel.showsVolume {
       VolumeRowView(panel: panel, strings: strings, controller: controller)
     }
     if panel.canStop {
@@ -249,6 +249,7 @@ private struct VolumeRowView: View {
         }
       }
       .tint(accent)
+      .disabled(!panel.canSetVolume)
       .accessibilityLabel(strings.get("volume"))
       // Wide enough for "100" at the default size, so the slider holds still while it moves.
       Text("\(Int((level * 100).rounded()))")

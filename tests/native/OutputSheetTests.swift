@@ -146,6 +146,33 @@ enum OutputSheetTests {
       )
     }
 
+    // The hub sends no volume or mute until the session is back: the row stays, held still, so the panel keeps its
+    // height and offers nothing that would do nothing.
+    do {
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      let shown = panel(outputSheetState(input(snapshot: reconnecting)))
+      check(
+        "aReconnectingPanelHoldsItsVolumeStill",
+        shown?.showsVolume == true && shown?.canSetVolume == false && shown?.canMute == false
+      )
+    }
+
+    // A suspended session loses its media client until it resumes, and the resumed client reports nothing until the
+    // receiver sends: the last status heard stands in meanwhile, until the receiver reports again or the session ends.
+    do {
+      var heard = LastHeardStatus<String>()
+      heard.hold("playing")
+      let suspended = heard.read(nil)
+      let reported = heard.read("paused")
+      heard.forget()
+      check(
+        "aSuspendedSessionReadsItsLastStatusUntilTheReceiverReports",
+        suspended == "playing" && reported == "paused" && heard.read(nil) == nil
+      )
+    }
+
     do {
       let missing = rows(outputSheetState(input(devices: [], playServices: .missing)))
       let outdated = rows(outputSheetState(input(devices: [], playServices: .updateRequired)))
