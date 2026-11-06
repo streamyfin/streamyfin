@@ -411,6 +411,30 @@ test("the sheet offers Continue here outside a SyncPlay group only", async () =>
   ]);
 });
 
+// A group joined while the sheet was open (a SyncPlay rejoin): its Continue here only stops the receiver, as a
+// member's row does, and nothing plays here outside the group.
+test("a group joined while the sheet is open only stops the receiver", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockResolvedValue({
+    Id: "item-1",
+    Type: "Episode",
+    MediaType: "Video",
+  });
+  const view = await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  mockSyncPlayEnabled = true;
+  await view.rerender(<OutputButton />);
+  await act(async () =>
+    emitCastEvent(mockCast, "onOutputPickerAction", { action: "playHere" }),
+  );
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
 // Music comes back to the phone with its queue in B4: until then the receiver only stops.
 test("music on the receiver only stops it", async () => {
   mockCast.mediaStatus = receiverPlaying({

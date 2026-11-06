@@ -54,7 +54,11 @@ type PlayMedia = ReturnType<typeof usePlayMedia>;
  * then stopped, and its video goes on here from where it was. An item this server does not know only stops, and so
  * does audio, whose queue comes back with B4 (the sheet offers it no Continue here).
  */
-const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
+const continueReceiverHere = async (
+  store: Store,
+  playMedia: PlayMedia,
+  inGroup: () => boolean,
+) => {
   const session = currentCastSession();
   const user = store.get(userAtom);
   // The status held is the receiver's last report, which falls behind while it plays on: it is asked where it is.
@@ -81,6 +85,8 @@ const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
   // Another account or server by now: the receiver's item belonged to the one that asked.
   const now = store.get(userAtom);
   if (now?.Id !== user?.Id || now?.ServerId !== user?.ServerId) return;
+  // A member plays the group's video: a group joined while the sheet was open leaves the tap a stop.
+  if (inGroup()) return;
   await playMedia({ ...request, offline: false }, { item });
 };
 
@@ -121,6 +127,9 @@ export function OutputButton({
   const store = useStore();
   const playMedia = usePlayMedia();
   const syncPlay = useSyncPlay();
+  // Read when the sheet answers: a group joined while it was open (a SyncPlay rejoin) counts then.
+  const inGroup = useRef(syncPlay.enabled);
+  inGroup.current = syncPlay.enabled;
   const anchor = useRef<View>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
@@ -129,7 +138,9 @@ export function OutputButton({
 
   const connected = target.state === "connected";
   const open = async () => {
-    listenForActions(() => continueReceiverHere(store, playMedia));
+    listenForActions(() =>
+      continueReceiverHere(store, playMedia, () => inGroup.current),
+    );
     try {
       const [frame, playingHere] = await Promise.all([
         measureInWindow(anchor.current),
