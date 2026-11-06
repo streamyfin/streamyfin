@@ -1,11 +1,14 @@
 package expo.modules.mpvplayer
 
-// The parameters utils/redactCredentials.ts masks for the JS side. A release build still writes
+// The parameters utils/redactCredentials.ts masks for the JS side, plus the userinfo of a URL that carries credentials before its host. A release build still writes
 // Log.d to logcat, and an external subtitle URL carries the session's token in its query.
+private val USERINFO = Regex("([a-z][a-z0-9+.-]*://)[^\\s:@/]+:[^\\s:@/]+@")
 private val CREDENTIAL_PARAM = Regex(
     "([?&](?:api_key|apikey|x-emby-token|access_token|token|userid|deviceid)=)[^&\\s\"']+",
     RegexOption.IGNORE_CASE
 )
 
 internal fun redactCredentials(value: String): String =
-    value.replace(CREDENTIAL_PARAM, "\$1[redacted]")
+    value
+        .replace(USERINFO, "$1[redacted]@")
+        .replace(CREDENTIAL_PARAM, "$1[redacted]")
