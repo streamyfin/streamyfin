@@ -30,13 +30,9 @@ jest.mock("@gorhom/bottom-sheet", () => {
   };
 });
 jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+  "@/hooks/useHaptic",
+  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
 );
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 jest.mock("sonner-native", () => ({ toast: { success: jest.fn() } }));
 
 describe("QuickConnectCodeModal", () => {

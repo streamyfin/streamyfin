@@ -14,19 +14,12 @@ jest.mock("react-native-reanimated", () => {
     withTiming: (value: number) => value,
   };
 });
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("@/hooks/useControlsSafeAreaInsets", () => ({
   useControlsSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ body: 20, callout: 18 }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 // The transcode progress is polled from the server through the provider tree,
 // and has its own spec in hooks/useTranscodingProgress.test.tsx.
 jest.mock("@/hooks/useTranscodingProgress", () => ({

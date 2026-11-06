@@ -10,9 +10,6 @@ import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 let mockWatchlists: StreamystatsWatchlist[] = [];
 jest.mock("@/hooks/useWatchlists", () => ({
   useItemInWatchlists: () => ({ data: [] }),

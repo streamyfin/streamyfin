@@ -16,16 +16,9 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { hiddenLibraries: [] } }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 // The real log writes to MMKV, which no test environment has.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));

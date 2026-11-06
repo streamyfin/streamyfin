@@ -205,7 +205,9 @@
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
       "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts",
-      "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts"
+      "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts",
+      "^react-i18next$": "<rootDir>/test-utils/i18nextModule.ts",
+      "^react-native-safe-area-context$": "<rootDir>/test-utils/safeAreaModule.ts"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg))"

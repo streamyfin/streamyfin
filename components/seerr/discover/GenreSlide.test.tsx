@@ -41,10 +41,6 @@ jest.mock("@shopify/flash-list", () => ({
 }));
 // The rows' headings, by their keys: the TV's through the hook, the phone's
 // through i18next itself.
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("i18next", () => ({
   ...jest.requireActual("i18next"),
   t: (key: string) => key,

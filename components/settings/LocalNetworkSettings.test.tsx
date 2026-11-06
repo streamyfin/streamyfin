@@ -18,10 +18,6 @@ const mockRefreshUrlState = jest.fn();
 // The saved-server store imports the log module, which loads Sentry and its
 // timers. Nothing on the path under test logs.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("sonner-native", () => ({
   toast: {
     error: (message: string) => mockToastError(message),
@@ -29,7 +25,10 @@ jest.mock("sonner-native", () => ({
     success: () => {},
   },
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
+jest.mock(
+  "@/hooks/useHaptic",
+  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
+);
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
 jest.mock("@/constants/TVTypography", () => ({

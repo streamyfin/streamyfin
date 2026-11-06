@@ -6,10 +6,6 @@ import {
 } from "@testing-library/react-native";
 import { SyncPlayOptions, SyncPlayPlayback } from "./SyncPlayControls";
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => ({

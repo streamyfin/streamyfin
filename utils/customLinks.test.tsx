@@ -13,15 +13,8 @@ const mockMenuLinks = jest.fn<MenuLink[], []>();
 const mockOpenBrowser = jest.fn<Promise<{ type: string }>, [string]>();
 const mockToastError = jest.fn();
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("sonner-native", () => ({
   toast: { error: (message: string) => mockToastError(message) },
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),

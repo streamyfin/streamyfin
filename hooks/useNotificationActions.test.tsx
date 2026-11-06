@@ -43,10 +43,6 @@ jest.mock("sonner-native", () => ({
     error: (...args: unknown[]) => mockError(...args),
   },
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 
 const response = (actionIdentifier: string) => ({
   actionIdentifier,

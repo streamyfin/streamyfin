@@ -4,10 +4,6 @@ import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { TVPasswordEntryModal } from "./TVPasswordEntryModal";
 import { TVPINEntryModal } from "./TVPINEntryModal";
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 // The blur is drawn natively; here it only holds its content.
 jest.mock("expo-blur", () => ({

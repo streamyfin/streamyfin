@@ -22,10 +22,6 @@ jest.mock("@/utils/atoms/settings", () => ({
     settings: { libraryOptions: { display: "row", showStats: true } },
   }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 // The row layout these specs render draws no image.
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // Navigation is not what is under test; the card shows up as its content.

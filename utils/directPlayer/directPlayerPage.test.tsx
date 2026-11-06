@@ -67,10 +67,6 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useNavigation: () => mockNavigation,
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
   useAnimatedReaction: (_prepare: unknown, react: typeof mockSeekReaction) => {

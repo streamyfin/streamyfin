@@ -80,9 +80,9 @@ Three rules keep mocks from becoming the thing that breaks:
 - `mmkvModule` stands for `react-native-mmkv`, backed by one map per spec file;
   `clearMmkv()` empties it between tests. `moduleNameMapper` wires it for every
   spec through `test-utils/mmkvModule.ts`, so it needs no `jest.mock` of its own.
-- `identityTranslationModule` stands for `react-i18next` when a spec only needs
-  `t` to return its key. A spec asserting on interpolation, a language or the
-  calls `t` receives keeps its own factory.
+- `react-i18next` is wired for every spec: `useTranslation` returns a `t` that returns its
+  key, and the rest of the package is real. A spec asserting on interpolation, a language
+  or the calls `t` receives mocks it with `@/test-utils/realI18next` or its own factory.
 - `silentLogModule` stands for `@/utils/log` when a spec only needs the log
   silenced. A spec that records or asserts on log calls keeps its own factory.
 - `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
@@ -93,6 +93,9 @@ Three rules keep mocks from becoming the thing that breaks:
   path exists once `fakeFiles.add()` puts it there, or a download lands on it, and until
   something deletes it. `fakeFiles.clear()` empties the disk, `fakeFiles.remaining()`,
   `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
+- `react-native-safe-area-context` is wired for every spec: `useSafeAreaInsets` reports
+  no insets, the rest is real. `silentHapticModule` stands for `@/hooks/useHaptic` when a
+  haptic should be a no-op.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
@@ -111,8 +114,8 @@ jest.mock(
 );
 ```
 
-`react-native-mmkv` is the exception: `moduleNameMapper` wires it for every
-spec, so nothing declares it.
+`react-native-mmkv`, `react-i18next` and `react-native-safe-area-context` are the
+exceptions: `moduleNameMapper` wires them for every spec, so nothing declares them.
 
 ## React Native components
 

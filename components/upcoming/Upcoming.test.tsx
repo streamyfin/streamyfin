@@ -27,9 +27,6 @@ jest.mock("react-i18next", () => ({
     i18n: { language: "en-US" },
   }),
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ title: 1, heading: 1, body: 1, callout: 1 }),
 }));

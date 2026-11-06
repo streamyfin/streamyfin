@@ -2,11 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ALPHABET } from "@/utils/jellyfin/alphabetJump";
 import { AlphabetRail } from "./AlphabetRail";
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
-
 const LETTER_HEIGHT = 10;
 const RAIL_TOP = 200;
 const offsetOf = (letter: string) =>

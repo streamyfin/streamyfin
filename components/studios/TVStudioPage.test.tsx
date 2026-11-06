@@ -36,13 +36,6 @@ jest.mock("@/constants/TVSizes", () => ({
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ title: 40, body: 24 }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 
 const SCREEN_HEIGHT = 1080;
 

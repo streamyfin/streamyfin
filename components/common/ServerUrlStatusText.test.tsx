@@ -3,11 +3,6 @@ import { StyleSheet } from "react-native";
 import type { ServerUrlResolverState } from "@/hooks/useServerUrlResolver";
 import { ServerUrlStatusText } from "./ServerUrlStatusText";
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
-
 const unreachable: ServerUrlResolverState = {
   status: "error",
   reason: "unreachable",

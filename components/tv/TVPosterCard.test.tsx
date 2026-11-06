@@ -1,10 +1,6 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVPosterCard } from "./TVPosterCard";
 
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/components/WatchedIndicator", () => ({

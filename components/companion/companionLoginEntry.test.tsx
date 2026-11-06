@@ -18,9 +18,6 @@ jest.mock("expo-router", () => ({
   useNavigation: () => ({ setOptions: () => {} }),
 }));
 jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 // The other sections of the screen have nothing to do with the entry.
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,

@@ -49,10 +49,6 @@ jest.mock("@expo/ui/swift-ui/modifiers", () => ({
   pickerStyle: (style: string) => ({ pickerStyle: style }),
   tag: (value: string) => ({ tag: value }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 
 // iOS draws the system's segmented control, Android the app's own. Both are
 // the same tabs to whoever uses them.

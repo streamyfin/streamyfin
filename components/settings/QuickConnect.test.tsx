@@ -71,7 +71,10 @@ jest.mock("@gorhom/bottom-sheet", () => {
 jest.mock("react-native-gesture-handler", () => ({
   Pressable: jest.requireActual("react-native").Pressable,
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
+jest.mock(
+  "@/hooks/useHaptic",
+  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
+);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     // The interpolated values ride along, so a test can tell who a message

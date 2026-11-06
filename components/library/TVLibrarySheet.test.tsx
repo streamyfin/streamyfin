@@ -18,10 +18,6 @@ jest.mock("@/providers/InactivityProvider", () => ({
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 18 }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 
 const group = (
   overrides: Partial<TVLibrarySheetGroup> & { key: string },

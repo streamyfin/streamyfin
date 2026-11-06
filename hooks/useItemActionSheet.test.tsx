@@ -16,10 +16,6 @@ const mockMarkAsPlayed = jest.fn(async (_played: boolean) => {});
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("@/hooks/useMarkAsPlayed", () => ({
   useMarkAsPlayed: () => mockMarkAsPlayed,
 }));

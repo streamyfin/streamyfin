@@ -9,9 +9,6 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");

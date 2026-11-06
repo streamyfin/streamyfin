@@ -22,10 +22,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return { apiAtom: atom(null), userAtom: atom(null) };
 });
 jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 // The TV sizes read the type scale from the settings, and its enum with it.
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
@@ -38,9 +34,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 }));
 jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: jest.fn() }),
 }));

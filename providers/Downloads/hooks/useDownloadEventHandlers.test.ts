@@ -57,10 +57,6 @@ jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeToLog: jest.fn(),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 
 import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";

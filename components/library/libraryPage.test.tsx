@@ -70,13 +70,6 @@ jest.mock("@/utils/log", () => ({
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 // The list renders its header, where the phone keeps the filter bar, and
 // what it shows when empty.
 jest.mock("@shopify/flash-list", () => ({

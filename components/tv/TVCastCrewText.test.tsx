@@ -9,10 +9,6 @@ jest.mock("@/providers/InactivityProvider", () => ({
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({}),
 }));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 
 const PEOPLE: BaseItemPerson[] = [
   { Id: "gilligan", Name: "Vince Gilligan", Type: "Creator" },

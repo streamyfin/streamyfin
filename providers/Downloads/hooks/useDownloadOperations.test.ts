@@ -44,10 +44,6 @@ jest.mock("@/utils/customHeaders", () => ({
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("react-native-device-info", () => ({}));
-jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
-);
 jest.mock("sonner-native", () => ({
   toast: { info: jest.fn(), success: jest.fn(), error: jest.fn() },
 }));

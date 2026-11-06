@@ -6,9 +6,6 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => ({ width: 430, height: 932, scale: 3, fontScale: 1 }),
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom({ basePath: "http://server" }) };

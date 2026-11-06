@@ -40,12 +40,11 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock(
-  "react-i18next",
-  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+  "@/hooks/useHaptic",
+  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
 );
+jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
 // The sheet is always open here: what is under test is what confirming it
 // does, not how it is presented.

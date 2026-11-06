@@ -8,6 +8,10 @@ import "@/augmentations/number";
 import MusicSettingsPage from "@/app/(auth)/(tabs)/(home)/settings/music/page";
 import en from "@/translations/en.json";
 
+jest.mock("react-i18next", () =>
+  jest.requireActual("@/test-utils/realI18next"),
+);
+
 const mockSettings = {
   audioLookaheadCount: 3,
   audioMaxCacheSizeMB: 500,
@@ -31,9 +35,6 @@ jest.mock("sonner-native", () => ({
 }));
 jest.mock("@/hooks/useNetworkAwareQueryClient", () => ({
   useNetworkAwareQueryClient: () => ({ invalidateQueries: jest.fn() }),
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 // The dropdown shows its trigger and every option's label.
 jest.mock("@/components/PlatformDropdown", () => ({
