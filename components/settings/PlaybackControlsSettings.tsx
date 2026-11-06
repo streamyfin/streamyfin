@@ -23,12 +23,19 @@ export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
 
+  // Needs the offscreen sink, which needs Android 10 (API 29).
+  const showAudioOnly =
+    Platform.OS === "android" && !Platform.isTV && Platform.Version >= 29;
+
+  // The group is greyed out only when every row in it is locked.
   const disabled = useMemo(
     () =>
       pluginSettings?.defaultVideoOrientation?.locked === true &&
       pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
-      pluginSettings?.disableHapticFeedback?.locked === true,
-    [pluginSettings],
+      pluginSettings?.disableHapticFeedback?.locked === true &&
+      (!showAudioOnly ||
+        pluginSettings?.audioOnlyWhenScreenOff?.locked === true),
+    [pluginSettings, showAudioOnly],
   );
 
   const orientations = [
@@ -246,28 +253,21 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
 
-        {/* Needs the offscreen sink, which needs Android 10 (API 29). */}
-        {Platform.OS === "android" &&
-          !Platform.isTV &&
-          Platform.Version >= 29 && (
-            <ListItem
-              title={t("home.settings.other.audio_only_when_screen_off")}
-              subtitle={t(
-                "home.settings.other.audio_only_when_screen_off_hint",
-              )}
+        {showAudioOnly && (
+          <ListItem
+            title={t("home.settings.other.audio_only_when_screen_off")}
+            subtitle={t("home.settings.other.audio_only_when_screen_off_hint")}
+            disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
+          >
+            <SettingSwitch
+              value={settings.audioOnlyWhenScreenOff !== false}
               disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
-            >
-              <SettingSwitch
-                value={settings.audioOnlyWhenScreenOff !== false}
-                disabled={
-                  pluginSettings?.audioOnlyWhenScreenOff?.locked === true
-                }
-                onValueChange={(audioOnlyWhenScreenOff) =>
-                  updateSettings({ audioOnlyWhenScreenOff })
-                }
-              />
-            </ListItem>
-          )}
+              onValueChange={(audioOnlyWhenScreenOff) =>
+                updateSettings({ audioOnlyWhenScreenOff })
+              }
+            />
+          </ListItem>
+        )}
 
         <ListItem
           title={t("home.settings.other.still_watching")}
