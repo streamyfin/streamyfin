@@ -22,6 +22,13 @@ export const warmUpcomingSubtitles = async (params: {
   userId?: string;
   /** Same profile inputs the swap's negotiation uses, so DeliveryUrls agree. */
   deviceProfile: ReturnType<typeof generateDeviceProfile>;
+  /**
+   * The version the swap would pick (jellyfin-androidtv-style name match).
+   * Without it the negotiation answers with the server's default version and
+   * a multi-version item warms subtitles for the wrong one — harmless (the
+   * swap's cache key carries the source id), just wasted.
+   */
+  mediaSourceId?: string | null;
 }): Promise<void> => {
   if (!params.item.Id) return;
   try {
@@ -34,6 +41,7 @@ export const warmUpcomingSubtitles = async (params: {
       userId: params.userId,
       audioStreamIndex: 0,
       deviceProfile: params.deviceProfile,
+      mediaSourceId: params.mediaSourceId ?? undefined,
     });
     if (!res?.mediaSource) return;
     await prefetchExternalSubtitles({

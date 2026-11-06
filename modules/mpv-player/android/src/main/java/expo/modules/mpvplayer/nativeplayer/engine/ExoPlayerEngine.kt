@@ -143,9 +143,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // playing with an (almost) empty forward buffer for this long means the
         // source stopped answering (dead connection, wedged proxy path) —
         // reload the same URL at the current position with fresh connections.
-        // Converts a minutes-long spinner into a same-spot hiccup. Cap per
-        // load-episode; the counter resets on STATE_READY, so a path that
-        // heals mid-stall still gets further reloads.
+        // Converts a minutes-long spinner into a same-spot hiccup. The cap is
+        // five recoveries per load: the watchdog's own reloads spend the
+        // budget, and only a genuinely new load (force == false) earns a
+        // fresh set — a STATE_READY does not re-arm it.
         private const val STALL_RELOAD_AFTER_MS = 10_000L
         private const val MAX_STALL_RELOADS_PER_EPISODE = 5
     }
@@ -1375,7 +1376,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " + error.message,
+                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " +
+                        redactCredentials(error.message ?: "unknown"),
             )
         }
     }

@@ -37,6 +37,7 @@ const deviceProfile = generateDeviceProfile({ player: "mpv" });
 
 const mediaSourceWithExternalSub = (): MediaSourceInfo =>
   ({
+    Id: "ms-1",
     MediaStreams: [
       { Type: "Video", Index: 0 },
       {
@@ -61,19 +62,29 @@ test("negotiates the item and prefetches its subtitles into the cache", async ()
     mediaSource: mediaSourceWithExternalSub(),
   } as Awaited<ReturnType<typeof getStreamUrl>>);
 
-  await warmUpcomingSubtitles({ api, item, deviceProfile });
-
-  expect(jest.mocked(getStreamUrl).mock.calls[0]?.[0]?.deviceProfile).toBe(
+  await warmUpcomingSubtitles({
+    api,
+    item,
     deviceProfile,
-  );
-  // The download lands on the .part staging name and is moved into place.
+    mediaSourceId: "ms-1",
+  });
+
+  const negotiated = jest.mocked(getStreamUrl).mock.calls[0]?.[0];
+  expect(negotiated?.deviceProfile).toBe(deviceProfile);
+  // The version the swap would pick, so both negotiations land on the same
+  // source and the warm warms the right subtitles.
+  expect(negotiated?.mediaSourceId).toBe("ms-1");
+  // The download lands on an attempt-unique .part staging name and is moved
+  // into place.
   expect(fakeFiles.downloads()).toEqual([
     {
       url: "https://jf.example/Videos/next-1/1/Subtitles/3/0/Stream.srt",
-      destination: `${CACHE}/subtitles/next-1-3.srt.part`,
+      destination: `${CACHE}/subtitles/next-1-ms-1-3.srt.1.part`,
     },
   ]);
-  expect(fakeFiles.remaining()).toContain(`${CACHE}/subtitles/next-1-3.srt`);
+  expect(fakeFiles.remaining()).toContain(
+    `${CACHE}/subtitles/next-1-ms-1-3.srt`,
+  );
 });
 
 test("a failed negotiation is swallowed — the warm is best effort", async () => {

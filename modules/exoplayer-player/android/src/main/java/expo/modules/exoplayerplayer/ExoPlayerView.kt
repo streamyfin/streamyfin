@@ -267,7 +267,8 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " + error.message,
+                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " +
+                        redactCredentials(error.message ?: "unknown"),
             )
         }
     }

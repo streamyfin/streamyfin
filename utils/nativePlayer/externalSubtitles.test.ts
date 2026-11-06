@@ -35,6 +35,10 @@ const REMOTE_URL =
   "https://jf.example/Videos/item-1/88794ff6/Subtitles/3/0/Stream.srt?ApiKey=k";
 const MEDIA_SOURCE_ID = "ms-1";
 const FINAL_URI = `${CACHE}/subtitles/item-1-${MEDIA_SOURCE_ID}-3.srt`;
+// Staging names carry an attempt-unique suffix: an abandoned transfer keeps
+// writing its `.part` after the timeout, so attempts never share a path.
+const isStagingOf = (path: string) =>
+  path.startsWith(`${FINAL_URI}.`) && path.endsWith(".part");
 
 const externalSub = (over: Partial<MediaStream> = {}): MediaStream =>
   ({
@@ -64,14 +68,15 @@ test("downloads the subtitle into the cache and points DeliveryUrl at it", async
 
   await prefetchExternalSubtitles({ mediaSource, item, api });
 
-  // The download lands on the .part staging name and is moved into place.
-  expect(fakeFiles.downloads()).toEqual([
-    { url: REMOTE_URL, destination: `${FINAL_URI}.part` },
-  ]);
+  // The download lands on an attempt-unique .part staging name and is moved
+  // into place.
+  expect(fakeFiles.downloads()).toHaveLength(1);
+  expect(fakeFiles.downloads()[0]!.url).toBe(REMOTE_URL);
+  expect(isStagingOf(fakeFiles.downloads()[0]!.destination)).toBe(true);
   expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
   expect(fakeFiles.remaining()).toContain(FINAL_URI);
   // The .part staging file never survives a completed download.
-  expect(fakeFiles.remaining()).not.toContain(`${FINAL_URI}.part`);
+  expect(fakeFiles.remaining().some(isStagingOf)).toBe(false);
 });
 
 test("reuses an existing cache file without a download", async () => {
@@ -93,10 +98,10 @@ test("undelivers a subtitle whose download fails and cleans the part file", asyn
   await prefetchExternalSubtitles({ mediaSource, item, api });
 
   expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBeUndefined();
-  // Neither the final file nor the .part staging file may be left behind.
+  // Neither the final file nor any .part staging file may be left behind.
   // (The cache directory itself stays, as it would on disk.)
   expect(fakeFiles.remaining()).not.toContain(FINAL_URI);
-  expect(fakeFiles.remaining()).not.toContain(`${FINAL_URI}.part`);
+  expect(fakeFiles.remaining().some(isStagingOf)).toBe(false);
 });
 
 test("undelivers every remote subtitle once the budget is spent", async () => {
@@ -177,7 +182,8 @@ test("a concurrent prefetch awaits the in-flight download instead of duplicating
   await Promise.resolve();
   await Promise.resolve();
 
-  expect(destinations).toEqual([`${FINAL_URI}.part`]);
+  expect(destinations).toHaveLength(1);
+  expect(isStagingOf(destinations[0]!)).toBe(true);
 
   release();
   await Promise.all([first, second]);
