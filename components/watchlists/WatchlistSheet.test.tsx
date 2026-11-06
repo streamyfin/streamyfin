@@ -19,10 +19,10 @@ jest.mock("@/hooks/useWatchlistMutations", () => ({
   useAddToWatchlist: () => ({ mutateAsync: jest.fn() }),
   useRemoveFromWatchlist: () => ({ mutateAsync: jest.fn() }),
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 // The key, and its values when there are some, stand for the translation.
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({

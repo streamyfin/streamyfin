@@ -67,9 +67,10 @@ jest.mock("@/utils/log", () => ({
 }));
 // The settings only read its table of bitrates. The component pulls in the
 // bottom sheet, which needs the native worklets.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
 // The list renders its header, where the phone keeps the filter bar, and
 // what it shows when empty.
 jest.mock("@shopify/flash-list", () => ({

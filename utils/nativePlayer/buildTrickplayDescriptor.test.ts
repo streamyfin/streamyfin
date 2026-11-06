@@ -6,9 +6,10 @@ jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom(null) };
 });
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
 jest.mock(
   "@/utils/log",
   () => jest.requireActual("@/test-utils/log").silentLogModule,

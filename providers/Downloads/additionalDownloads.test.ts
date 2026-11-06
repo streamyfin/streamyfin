@@ -7,10 +7,10 @@ import { stubReactNative } from "@/test-utils/reactNative";
 
 // --- Module-boundary stubs: keep the native surface out of this spec ---
 stubReactNative();
-jest.mock("expo", () => ({
-  // codecSupport probes the native MPV module, which no test environment has.
-  requireOptionalNativeModule: () => null,
-}));
+jest.mock(
+  "expo",
+  () => jest.requireActual("@/test-utils/stubModules").expoWithoutNativeModule,
+);
 jest.mock("@/components/BitrateSelector", () => ({}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),

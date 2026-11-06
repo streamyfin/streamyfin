@@ -36,10 +36,10 @@ jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeToLog: jest.fn(),
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock(
   "@/hooks/useHaptic",
   () => jest.requireActual("@/test-utils/haptic").silentHapticModule,

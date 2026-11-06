@@ -18,10 +18,10 @@ jest.mock("@/components/tv/TVPosterCard", () => ({
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: () => "/",
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: jest.fn() }),
 }));

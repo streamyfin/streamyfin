@@ -17,9 +17,10 @@ import { useShuffleQueue } from "./useShuffleQueue";
 const mockPlayMedia = jest.fn();
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
 // A new function on every render, as the real hook hands out.
 jest.mock("@/hooks/usePlayMedia", () => ({
   usePlayMedia:

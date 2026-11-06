@@ -12,9 +12,10 @@ jest.mock("@/hooks/useTVBackPress", () => ({
     mockBackPress = handler;
   },
 }));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
+jest.mock(
+  "@/providers/InactivityProvider",
+  () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
+);
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 18 }),
 }));

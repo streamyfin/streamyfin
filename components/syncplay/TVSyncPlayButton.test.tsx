@@ -10,9 +10,10 @@ jest.mock("@expo/vector-icons", () => ({
     return <Text>{name}</Text>;
   },
 }));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
+jest.mock(
+  "@/providers/InactivityProvider",
+  () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
+);
 jest.mock("@/hooks/useSyncPlaySheet", () => ({
   useSyncPlaySheet: () => mockOpen,
 }));

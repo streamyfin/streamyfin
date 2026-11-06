@@ -16,10 +16,10 @@ jest.mock("@/hooks/useWatchlists", () => ({
   useStreamystatsEnabled: () => true,
   useWatchlistsQuery: () => mockQuery,
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Id: "user" }),
 }));

@@ -16,10 +16,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { hiddenLibraries: [] } }),
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 // The real log writes to MMKV, which no test environment has.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The real scale reads the settings enum the mock above leaves out.

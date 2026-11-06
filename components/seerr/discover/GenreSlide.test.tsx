@@ -27,10 +27,10 @@ jest.mock("@/hooks/useSeerr", () => ({
   ...jest.requireActual("@/hooks/useSeerr"),
   useSeerr: () => ({ seerrApi: mockSeerrApi }),
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // FlashList ships as ES modules, which Jest does not load. FlatList reads the
