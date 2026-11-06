@@ -848,10 +848,17 @@ const NativePlayerProviderInner: React.FC<{
         !warmedSubtitleItemIdsRef.current.has(next.Id)
       ) {
         warmedSubtitleItemIdsRef.current.add(next.Id);
+        // The version the swap's own resolution would pick, so the warm and
+        // the swap negotiate the same source.
+        const nextSource = getDefaultPlaySettings(
+          next,
+          currentSettings,
+        ).mediaSource;
         void warmUpcomingSubtitles({
           api,
           item: next,
           userId: userRef.current?.Id,
+          mediaSourceId: nextSource?.Id,
           deviceProfile: generateDeviceProfile({
             player: getActivePlayerType(currentSettings),
             audioMode: currentSettings?.audioTranscodeMode,
@@ -1605,6 +1612,9 @@ const NativePlayerProviderInner: React.FC<{
 
       session.currentSubtitleIndex = jellyfinIndex;
       const result = await applySubtitleSelection(session, jellyfinIndex);
+      // The native round trip is not session-bound: a swap landing during it
+      // makes `session` the outgoing one.
+      if (sessionRef.current !== session) return;
       if (result.kind === "notFound" || result.kind === "burnedIn") {
         // An external subtitle the prefetch could not deliver has no track
         // for the player to select; renegotiating with the same index would
@@ -2044,6 +2054,9 @@ const NativePlayerProviderInner: React.FC<{
               session,
               session.currentSubtitleIndex,
             );
+            // The native round trip is not session-bound: a swap landing
+            // during it makes `session` the outgoing one.
+            if (sessionRef.current !== session) return;
             // An external subtitle the prefetch could not deliver (its URL
             // was swept) resolves to notFound on every tracksReady. Leaving
             // the index set keeps the failed row checked and renegotiates the

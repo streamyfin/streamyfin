@@ -109,6 +109,11 @@ const mockNegotiation = {
   live: false,
 };
 
+// The warm negotiates the next episode in the background; its import chain
+// reaches the custom-header store (MMKV), which this spec does not mount.
+jest.mock("@/utils/nativePlayer/warmUpcomingSubtitles", () => ({
+  warmUpcomingSubtitles: jest.fn(),
+}));
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
   buildTrackMenus: () => ({}),
@@ -250,6 +255,8 @@ jest.mock("@/utils/atoms/settings", () => ({
   isNativePlayerSupportedTV: false,
   isNativePlayerSupportedAndroidTV: false,
   isNativeChromeActive: () => true,
+  // The next-episode warm builds the device profile from the engine.
+  getActivePlayerType: () => "mpv",
   useSettings: () => ({
     settings: mockSettings,
     updateSettings: mockUpdateSettings,
