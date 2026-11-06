@@ -2,6 +2,7 @@ import { CollectionType } from "@jellyfin/sdk/lib/generated-client/models";
 import { SortByOption, sortOptions } from "@/utils/atoms/filters";
 import { getLanguageFilterItemTypes } from "@/utils/jellyfin/languageFilters";
 import {
+  collectionSortOptionsFor,
   effectiveSelection,
   type FilterGroupKey,
   filterByOptionsFor,
@@ -158,15 +159,40 @@ describe("the per type sets", () => {
   });
 
   // The collections screen writes PremiereDate as the default sort of a box
-  // set or playlist with no DisplayOrder of its own.
-  test.each(["boxsets", "playlists"] as const)(
-    "%s keep the collections screen's default sort",
+  // set, playlist or library view with no DisplayOrder of its own.
+  test.each(ALL_KINDS)(
+    "%s keeps the collections screen's default sort",
     (kind) => {
       expect(
-        resolveSortKey(SortByOption.PremiereDate, sortOptionsFor(kind)),
+        resolveSortKey(
+          SortByOption.PremiereDate,
+          collectionSortOptionsFor(kind),
+        ),
       ).toBe(SortByOption.PremiereDate);
     },
   );
+
+  test("a movies or shows view on the collections screen offers the premiere date", () => {
+    for (const kind of ["movies", "tvshows"] as const) {
+      const options = collectionSortOptionsFor(kind);
+      expect(options.map((o) => o.key)).toEqual([
+        ...keysOf(kind),
+        SortByOption.PremiereDate,
+      ]);
+      expect(
+        options.find((o) => o.key === SortByOption.PremiereDate)?.value,
+      ).toBe("Premiere Date");
+      // The library screen keeps the jellyfin-web list.
+      expect(keysOf(kind)).not.toContain(SortByOption.PremiereDate);
+    }
+  });
+
+  test("a kind that already offers the premiere date gets its library list", () => {
+    for (const kind of ALL_KINDS) {
+      if (!keysOf(kind).includes(SortByOption.PremiereDate)) continue;
+      expect(collectionSortOptionsFor(kind)).toBe(sortOptionsFor(kind));
+    }
+  });
 
   test("a mixed library gets the web list, container date included", () => {
     expect(keysOf("mixed")).toContain(SortByOption.DateLastContentAdded);
@@ -209,6 +235,9 @@ describe("the per type sets", () => {
   test("hands back the same list on every call", () => {
     for (const kind of ALL_KINDS) {
       expect(sortOptionsFor(kind)).toBe(sortOptionsFor(kind));
+      expect(collectionSortOptionsFor(kind)).toBe(
+        collectionSortOptionsFor(kind),
+      );
     }
   });
 

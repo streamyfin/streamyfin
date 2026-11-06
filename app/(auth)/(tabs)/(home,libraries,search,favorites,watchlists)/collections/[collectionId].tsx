@@ -48,8 +48,8 @@ import {
 } from "@/utils/atoms/filters";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import {
+  collectionSortOptionsFor,
   libraryKindFor,
-  sortOptionsFor,
 } from "@/utils/library/libraryFilterSets";
 import { serverSortBy } from "@/utils/library/libraryItemsQuery";
 import { resolveSortKey } from "@/utils/library/sortOption";
@@ -110,7 +110,7 @@ const page: React.FC = () => {
   // Covered by utils/library/sortOption.test.ts; the server key the request
   // sends (serverSortBy) by utils/library/libraryItemsQuery.test.ts.
   const kind = libraryKindFor(collection);
-  const sortOptions = sortOptionsFor(kind);
+  const sortOptions = collectionSortOptionsFor(kind);
   const activeSortBy = resolveSortKey(sortBy[0], sortOptions);
   const activeSortByValues = useMemo(() => [activeSortBy], [activeSortBy]);
 

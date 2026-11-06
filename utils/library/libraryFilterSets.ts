@@ -231,6 +231,25 @@ const SORT_OPTIONS = Object.fromEntries(
 export const sortOptionsFor = (kind: LibraryKind): SortOption[] =>
   SORT_OPTIONS[kind] ?? SORT_OPTIONS.mixed;
 
+// The collections screen also opens library views (a Movies or Shows view) and
+// defaults to the premiere date, which their lists leave out; a default the
+// list lacks would resolve to Name. Built once like the library lists.
+const COLLECTION_SORT_OPTIONS = Object.fromEntries(
+  (Object.keys(SORT_OPTIONS) as LibraryKind[]).map((kind) => {
+    const list = SORT_OPTIONS[kind];
+    return [
+      kind,
+      list.some((o) => o.key === S.PremiereDate)
+        ? list
+        : [...list, { key: S.PremiereDate, value: label(S.PremiereDate) }],
+    ];
+  }),
+) as Record<LibraryKind, SortOption[]>;
+
+/** The collections screen's sort choices: the kind's list plus its premiere date default. */
+export const collectionSortOptionsFor = (kind: LibraryKind): SortOption[] =>
+  COLLECTION_SORT_OPTIONS[kind] ?? COLLECTION_SORT_OPTIONS.mixed;
+
 export const filterGroupsFor = (kind: LibraryKind): readonly FilterGroupKey[] =>
   libraryFilterSetFor(kind).groups;
 
