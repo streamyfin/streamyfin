@@ -5,7 +5,7 @@ import { atom } from "jotai";
  * Writes are dropped.
  */
 export const makeSettingsModule = (overrides: Record<string, unknown> = {}) => {
-  // `moduleNameMapper` swaps this module for the double, so the real one is
+  // `test-utils/unitSetup.ts` swaps this module for the double, so the real one is
   // asked for by path.
   const { defaultValues, TVTypographyScale } = jest.requireActual(
     "../utils/atoms/settings",

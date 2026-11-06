@@ -28,10 +28,6 @@ jest.mock("@/hooks/usePlayMedia", () => ({
     (...args: unknown[]) =>
       mockPlayMedia(...args),
 }));
-jest.mock(
-  "@/hooks/useNetworkStatus",
-  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
-);
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     getDownloadedItemById: () => undefined,

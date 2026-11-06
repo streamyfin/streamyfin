@@ -16,6 +16,9 @@ import {
   SETTINGS_KEY,
 } from "@/utils/storedSettings";
 
+// This spec is about the real settings, not the double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/atoms/settings");
+
 // BitrateSelector is a React component module; only the BITRATES table matters.
 jest.mock(
   "@/components/BitrateSelector",

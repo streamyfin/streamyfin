@@ -74,11 +74,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 
-jest.mock(
-  "@/hooks/useNetworkStatus",
-  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
-);
-
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) =>

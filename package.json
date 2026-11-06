@@ -202,6 +202,9 @@
   "jest": {
     "preset": "jest-expo",
     "globalSetup": "<rootDir>/test-utils/timeZone.ts",
+    "setupFilesAfterEnv": [
+      "<rootDir>/test-utils/unitSetup.ts"
+    ],
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
       "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts",
@@ -209,8 +212,6 @@
       "^react-i18next$": "<rootDir>/test-utils/i18nextModule.ts",
       "^@gorhom/bottom-sheet$": "<rootDir>/test-utils/bottomSheetModule.ts",
       "^react-native-device-info$": "<rootDir>/node_modules/react-native-device-info/jest/react-native-device-info-mock.js",
-      "^@/utils/atoms/settings$": "<rootDir>/test-utils/settingsModule.ts",
-      "^@/components/common/ServerImage$": "<rootDir>/test-utils/serverImageMapped.tsx",
       "^react-native-safe-area-context$": "<rootDir>/test-utils/safeAreaModule.ts"
     },
     "transformIgnorePatterns": [

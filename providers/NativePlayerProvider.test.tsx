@@ -222,10 +222,6 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 jest.mock("@/providers/WebSocketProvider", () => ({
   useWebSocketContext: () => mockSocket,
 }));
-jest.mock(
-  "@/hooks/useNetworkStatus",
-  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
-);
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
 }));

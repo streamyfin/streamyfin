@@ -1,15 +1,11 @@
 const { jest: base } = require("./package.json");
 
-// These stand-ins in the unit config are for specs that want a cheap double.
-// The scenarios measure the real thing, or rewire the auto-mocks they already
-// use: `expo-router` is mocked explicitly, `react-i18next` must translate for
-// real, the settings atoms must cost what they cost in the app, and a scenario that
-// does not mock `ServerImage` measures the real one.
+// `expo-router` is mocked explicitly by the scenarios, and `react-i18next` must
+// translate for real. The unit setup file (settings, `ServerImage`, network
+// status) is replaced below, so the scenarios measure the real modules.
 const {
   "^expo-router$": _expoRouter,
   "^react-i18next$": _i18next,
-  "^@/utils/atoms/settings$": _settings,
-  "^@/components/common/ServerImage$": _serverImage,
   ...moduleNameMapper
 } = base.moduleNameMapper;
 

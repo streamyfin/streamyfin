@@ -120,18 +120,21 @@ jest.mock(
 );
 ```
 
-`react-native-mmkv`, `react-i18next`, `react-native-safe-area-context`,
-`@gorhom/bottom-sheet`, `react-native-device-info`, `@/utils/atoms/settings` and
-`@/components/common/ServerImage` (a `View` named after its URL) are the exceptions:
-`moduleNameMapper` wires them for every spec, so nothing declares them. The bottom sheet
-and device info use the libraries' own Jest mocks, which is what lets `makeSettingsModule()` load the
-real settings module in any spec. `@/utils/atoms/settings` itself is the default settings
-plus `TVTypographyScale`; a spec that needs other values mocks it with
-`makeSettingsModule({ ... })`, or its own factory when it asserts on the calls.
+Packages are wired for every spec through `moduleNameMapper`: `react-native-mmkv`,
+`react-i18next`, `react-native-safe-area-context`, `@gorhom/bottom-sheet` and
+`react-native-device-info`. The bottom sheet and device info use the libraries' own Jest
+mocks. A mapper entry matches the import specifier only, so it cannot stand for an app
+module that is also imported relatively.
 
-The perf config (`jest.perf.config.js`) inherits these mappings, except `expo-router`,
-`react-i18next`, `@/utils/atoms/settings` and `@/components/common/ServerImage`: a
-scenario measures the real translation, settings and image cost, and `test-utils/perfSetup.ts` mocks the rest itself.
+App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/settings`
+(`makeSettingsModule()`), `@/components/common/ServerImage` (a `View` named after its
+URL) and `@/hooks/useNetworkStatus`. A spec that needs other values declares its own
+`jest.mock`, e.g. `makeSettingsModule({ ... })`; a spec about the real module calls
+`jest.unmock`.
+
+The perf config (`jest.perf.config.js`) inherits the package mappings except `expo-router`
+and `react-i18next`, and replaces the unit setup file with `test-utils/perfSetup.ts`: a
+scenario measures the real translation, settings, image and network cost.
 
 ## React Native components
 

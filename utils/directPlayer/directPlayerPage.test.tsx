@@ -104,10 +104,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   default: () => mockRouter,
 }));
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => mockNoop }));
-jest.mock(
-  "@/hooks/useNetworkStatus",
-  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
-);
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => ({
     lockOrientation: mockNoop,
