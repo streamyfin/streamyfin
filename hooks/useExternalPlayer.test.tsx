@@ -7,21 +7,25 @@ import {
 const mockStartActivity = jest.fn();
 const mockSaveLocal = jest.fn();
 const mockMarkPlayed = jest.fn();
-const mockReportStopped = jest.fn();
+const mockUpdateUserData = jest.fn();
 let mockUri: string | null = "content://provider/movie.mkv";
 let mockSubtitles: { uris: string[]; selected?: string } = { uris: [] };
 let mockSubtitlesError: Error | null = null;
 let mockConnected = true;
 const mockApi = { basePath: "https://jf.example", accessToken: "token" };
+const mockUser = { Id: "user-1" };
 
 jest.mock("expo-intent-launcher", () => ({
   startActivityAsync: (...args: unknown[]) => mockStartActivity(...args),
 }));
 jest.mock("jotai", () => ({
   ...jest.requireActual("jotai"),
-  useAtomValue: () => mockApi,
+  useAtomValue: (atom: string) => (atom === "userAtom" ? mockUser : mockApi),
 }));
-jest.mock("@/utils/atoms/api", () => ({ apiAtom: {} }));
+jest.mock("@/utils/atoms/api", () => ({
+  apiAtom: "apiAtom",
+  userAtom: "userAtom",
+}));
 jest.mock("@/hooks/useNetworkStatus", () => ({
   useNetworkStatus: () => ({ isConnected: mockConnected }),
 }));
@@ -32,7 +36,7 @@ jest.mock("@/hooks/usePlaybackManager", () => ({
   }),
 }));
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
-  getSessionApi: () => ({ reportPlaybackStopped: mockReportStopped }),
+  getUserDataApi: () => ({ updateItemUserData: mockUpdateUserData }),
 }));
 jest.mock("@/utils/externalPlayer", () => ({
   ...jest.requireActual("@/utils/externalPlayer"),
@@ -75,7 +79,7 @@ describe("useExternalPlayer", () => {
     mockStartActivity.mockReset();
     mockSaveLocal.mockReset();
     mockMarkPlayed.mockReset().mockResolvedValue(undefined);
-    mockReportStopped.mockReset().mockResolvedValue(undefined);
+    mockUpdateUserData.mockReset().mockResolvedValue(undefined);
     mockUri = "content://provider/movie.mkv";
     mockSubtitles = { uris: [] };
     mockSubtitlesError = null;
@@ -145,11 +149,11 @@ describe("useExternalPlayer", () => {
       ItemId: "movie-1",
       PositionTicks: 900_000_000,
     });
-    expect(mockReportStopped).toHaveBeenCalledWith({
-      playbackStopInfo: {
-        ItemId: "movie-1",
-        MediaSourceId: "source-1",
-        PositionTicks: 900_000_000,
+    expect(mockUpdateUserData).toHaveBeenCalledWith({
+      itemId: "movie-1",
+      userId: "user-1",
+      updateUserItemDataDto: {
+        PlaybackPositionTicks: 900_000_000,
       },
     });
   });
@@ -160,7 +164,7 @@ describe("useExternalPlayer", () => {
     await playReturning({ position: 90_000 });
 
     expect(mockSaveLocal).toHaveBeenCalled();
-    expect(mockReportStopped).not.toHaveBeenCalled();
+    expect(mockUpdateUserData).not.toHaveBeenCalled();
   });
 
   test("marks a video that ran to its end as played", async () => {
@@ -175,7 +179,7 @@ describe("useExternalPlayer", () => {
     expect(await playReturning({ some_player_time: 90_000 })).toBe(true);
 
     expect(mockSaveLocal).not.toHaveBeenCalled();
-    expect(mockReportStopped).not.toHaveBeenCalled();
+    expect(mockUpdateUserData).not.toHaveBeenCalled();
     expect(mockMarkPlayed).not.toHaveBeenCalled();
   });
 
@@ -207,7 +211,7 @@ describe("useExternalPlayer", () => {
   });
 
   test("still counts as played in the other app when the report fails", async () => {
-    mockReportStopped.mockRejectedValue(new Error("offline"));
+    mockUpdateUserData.mockRejectedValue(new Error("offline"));
 
     expect(await playReturning({ position: 90_000 })).toBe(true);
   });

@@ -2,14 +2,14 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { startActivityAsync } from "expo-intent-launcher";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
-import { apiAtom } from "@/utils/atoms/api";
+import { apiAtom, userAtom } from "@/utils/atoms/api";
 import {
   buildExternalPlayerLaunchParams,
   buildExternalPlayerSubtitleExtras,
@@ -44,6 +44,7 @@ export interface ExternalPlayerOptions {
  */
 export const useExternalPlayer = () => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const { isConnected } = useNetworkStatus();
   const { saveLocalPlaybackProgress, markItemPlayed } = usePlaybackManager();
   const { t } = useTranslation();
@@ -95,14 +96,16 @@ export const useExternalPlayer = () => {
           ItemId: req.itemId,
           PositionTicks: result.positionTicks,
         });
-        // A stop report, not a progress one: the server only applies its
-        // played threshold when a session stops.
-        if (api && isConnected) {
-          await getSessionApi(api).reportPlaybackStopped({
-            playbackStopInfo: {
-              ItemId: req.itemId,
-              MediaSourceId: req.mediaSourceId,
-              PositionTicks: result.positionTicks,
+        // No session was ever started for the other app's playback, so a
+        // session-scoped stop report has nothing to attach the position to.
+        // Writing it directly onto the item's user data works whether or
+        // not a session exists.
+        if (api && user?.Id && isConnected) {
+          await getUserDataApi(api).updateItemUserData({
+            itemId: req.itemId,
+            userId: user.Id,
+            updateUserItemDataDto: {
+              PlaybackPositionTicks: result.positionTicks,
             },
           });
         }
@@ -114,6 +117,6 @@ export const useExternalPlayer = () => {
       }
       return true;
     },
-    [api, isConnected, saveLocalPlaybackProgress, markItemPlayed, t],
+    [api, user?.Id, isConnected, saveLocalPlaybackProgress, markItemPlayed, t],
   );
 };
