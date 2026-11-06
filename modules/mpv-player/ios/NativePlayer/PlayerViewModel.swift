@@ -1278,13 +1278,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	/// Localized pill label for a segment type, e.g. "Skip intro".
 	func skipLabel(for type: String) -> String {
-		switch type {
-		case "Outro": return str("skipCredits", "Skip Outro")
-		case "Recap": return str("skipRecap", "Skip Recap")
-		case "Commercial": return str("skipCommercial", "Skip Commercial")
-		case "Preview": return str("skipPreview", "Skip Preview")
-		default: return str("skipIntro", "Skip Intro")
-		}
+		segmentSkipLabel(for: type) { str($0, $1) }
 	}
 
 	/// "… skipped" notice for a segment type. Whole sentences rather than a
