@@ -22,15 +22,9 @@ jest.mock("@/providers/JellyfinProvider", () =>
 );
 jest.mock("i18next", () => ({ t: (key: string) => key }));
 // The TV sizes read the type scale from the settings, and its enum with it.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
 jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useTVItemActionModal", () => ({

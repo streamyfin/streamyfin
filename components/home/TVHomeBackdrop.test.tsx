@@ -21,15 +21,9 @@ jest.mock(
 jest.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 // TVSizes reads the typography scale from the settings, which pull in the
 // whole settings UI; the backdrop only needs its timings.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-  useSettings: () => ({ settings: {} }),
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
 
 const item = (id: string): BaseItemDto => ({
   Id: id,

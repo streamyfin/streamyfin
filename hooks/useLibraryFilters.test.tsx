@@ -18,9 +18,9 @@ import {
 import { useLibraryFilters } from "./useLibraryFilters";
 
 // settings.ts drags in the provider stack, and nothing here reads a setting.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
 
 const MOVIES = "f137a2dd21bbc1b99aa5c0f6bf02a805";
 const SHOWS = "a656b907eb3a73532e40e44b968d0225";

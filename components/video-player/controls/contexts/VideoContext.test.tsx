@@ -60,9 +60,9 @@ jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => false,
 }));
 // The real settings atom loads the screens that edit it.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
+);
 jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
   getSubtitlesForItem: () => [],
 }));

@@ -99,8 +99,8 @@ Three rules keep mocks from becoming the thing that breaks:
 - `stubModules` holds one-line stand-ins repeated across specs: `bitrateSelectorModule`,
   `appRouterModule`, `inactivityModule` and `expoWithoutNativeModule`.
 - `makeJellyfinAtomsModule(api, user)` stands for `@/providers/JellyfinProvider` when a
-  spec only reads the api and user atoms. `makeSettingsModule()` loads the real settings
-  module, so a spec whose module graph cannot afford that keeps a hand written factory.
+  spec only reads the api and user atoms. `makeSettingsModule()` stands for
+  `@/utils/atoms/settings` with the default settings plus overrides.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component
@@ -119,8 +119,11 @@ jest.mock(
 );
 ```
 
-`react-native-mmkv`, `react-i18next` and `react-native-safe-area-context` are the
-exceptions: `moduleNameMapper` wires them for every spec, so nothing declares them.
+`react-native-mmkv`, `react-i18next`, `react-native-safe-area-context`,
+`@gorhom/bottom-sheet` and `react-native-device-info` are the exceptions:
+`moduleNameMapper` wires them for every spec, so nothing declares them. The last two
+use the libraries' own Jest mocks, which is what lets `makeSettingsModule()` load the
+real settings module in any spec.
 
 ## React Native components
 
