@@ -330,29 +330,25 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  const res = await getMediaInfoApi(api).getPlaybackInfo(
-    {
-      itemId: item.Id!,
-    },
-    {
-      method: "POST",
-      data: {
-        userId,
-        deviceProfile: generateDownloadProfile(audioMode, videoCodec),
-        subtitleStreamIndex,
-        startTimeTicks: 0,
-        isPlayback: true,
-        autoOpenLiveStream: true,
-        maxStreamingBitrate,
-        audioStreamIndex,
-        mediaSourceId,
-        ...(mode === "transcode" && {
-          enableDirectPlay: false,
-          enableDirectStream: false,
-        }),
-      },
-    },
-  );
+  const playbackInfoDto: PlaybackInfoRequest = {
+    UserId: userId,
+    DeviceProfile: generateDownloadProfile(audioMode, videoCodec),
+    SubtitleStreamIndex: subtitleStreamIndex,
+    StartTimeTicks: 0,
+    isPlayback: true,
+    AutoOpenLiveStream: true,
+    MaxStreamingBitrate: maxStreamingBitrate,
+    AudioStreamIndex: audioStreamIndex,
+    MediaSourceId: mediaSourceId,
+    ...(mode === "transcode" && {
+      EnableDirectPlay: false,
+      EnableDirectStream: false,
+    }),
+  };
+  const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
+    itemId: item.Id,
+    playbackInfoDto,
+  });
 
   if (res.status !== 200) {
     console.error("Error getting playback info:", res.status, res.statusText);

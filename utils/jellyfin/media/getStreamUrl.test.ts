@@ -318,7 +318,7 @@ describe("getDownloadStreamUrl", () => {
     api.mock
       .onPost(
         "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
-        bodyContaining({ enableDirectPlay: false, enableDirectStream: false }),
+        bodyContaining({ EnableDirectPlay: false, EnableDirectStream: false }),
       )
       .reply(200, {
         PlaySessionId: "session-1",
