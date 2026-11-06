@@ -1606,6 +1606,21 @@ const NativePlayerProviderInner: React.FC<{
       session.currentSubtitleIndex = jellyfinIndex;
       const result = await applySubtitleSelection(session, jellyfinIndex);
       if (result.kind === "notFound" || result.kind === "burnedIn") {
+        // An external subtitle the prefetch could not deliver has no track
+        // for the player to select; renegotiating with the same index would
+        // fail the same way and reload the stream for it. Turn subtitles off
+        // instead — the row stays in the menu, unchecked.
+        if (
+          result.kind === "notFound" &&
+          !session.offline &&
+          target?.DeliveryMethod === "External" &&
+          !target.DeliveryUrl
+        ) {
+          session.currentSubtitleIndex = SUBTITLES_OFF;
+          await applySubtitleSelection(session, SUBTITLES_OFF);
+          pushTrackMenus(session);
+          return;
+        }
         await replaceStream(session, {
           subtitleIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -2024,7 +2039,34 @@ const NativePlayerProviderInner: React.FC<{
           // Jellyfin-index resolver knows nothing about.
           void applyLocalSubtitleSelection(session);
         } else {
-          void applySubtitleSelection(session, session.currentSubtitleIndex);
+          void (async () => {
+            const result = await applySubtitleSelection(
+              session,
+              session.currentSubtitleIndex,
+            );
+            // An external subtitle the prefetch could not deliver (its URL
+            // was swept) resolves to notFound on every tracksReady. Leaving
+            // the index set keeps the failed row checked and renegotiates the
+            // stream for an index that can never resolve; turn it off and
+            // refresh the menus instead.
+            if (
+              result.kind === "notFound" &&
+              !session.offline &&
+              session.currentSubtitleIndex !== SUBTITLES_OFF
+            ) {
+              const target = session.stream.mediaSource.MediaStreams?.find(
+                (s) => s.Index === session.currentSubtitleIndex,
+              );
+              if (
+                target?.DeliveryMethod === "External" &&
+                !target.DeliveryUrl
+              ) {
+                session.currentSubtitleIndex = SUBTITLES_OFF;
+                await applySubtitleSelection(session, SUBTITLES_OFF);
+                pushTrackMenus(session);
+              }
+            }
+          })();
         }
         // Mirror of the JS player, which waits for tracksReady before letting
         // the automation act: a track picked before mpv has enumerated them

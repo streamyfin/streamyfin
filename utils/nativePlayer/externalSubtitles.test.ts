@@ -33,7 +33,8 @@ const api = {
 
 const REMOTE_URL =
   "https://jf.example/Videos/item-1/88794ff6/Subtitles/3/0/Stream.srt?ApiKey=k";
-const FINAL_URI = `${CACHE}/subtitles/item-1-3.srt`;
+const MEDIA_SOURCE_ID = "ms-1";
+const FINAL_URI = `${CACHE}/subtitles/item-1-${MEDIA_SOURCE_ID}-3.srt`;
 
 const externalSub = (over: Partial<MediaStream> = {}): MediaStream =>
   ({
@@ -46,7 +47,10 @@ const externalSub = (over: Partial<MediaStream> = {}): MediaStream =>
   }) as unknown as MediaStream;
 
 const mediaSourceWith = (subs: MediaStream[]): MediaSourceInfo =>
-  ({ MediaStreams: [{ Type: "Video", Index: 0 }, ...subs] }) as MediaSourceInfo;
+  ({
+    Id: MEDIA_SOURCE_ID,
+    MediaStreams: [{ Type: "Video", Index: 0 }, ...subs],
+  }) as MediaSourceInfo;
 
 const streamsOf = (mediaSource: MediaSourceInfo): MediaStream[] =>
   mediaSource.MediaStreams as MediaStream[];
@@ -149,36 +153,81 @@ test("does nothing when the media source has no external subtitles", async () =>
   expect(fakeFiles.downloads()).toEqual([]);
 });
 
+test("a concurrent prefetch awaits the in-flight download instead of duplicating it", async () => {
+  // The next-episode warm and the swap both call this for the same file. A
+  // second native download to the same .part name rejects, and its catch
+  // deletes the staging file the first one is moving — the subtitle is lost.
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const destinations: string[] = [];
+  const impl = (_url: string, destination: { uri: string }) => {
+    destinations.push(destination.uri);
+    return gate.then(() => destination);
+  };
+  jest
+    .spyOn(File, "downloadFileAsync")
+    .mockImplementation(impl as unknown as typeof File.downloadFileAsync);
+  const mediaSource = mediaSourceWith([externalSub()]);
+
+  const first = prefetchExternalSubtitles({ mediaSource, item, api });
+  await Promise.resolve();
+  const second = prefetchExternalSubtitles({ mediaSource, item, api });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(destinations).toEqual([`${FINAL_URI}.part`]);
+
+  release();
+  await Promise.all([first, second]);
+  expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
+  expect(fakeFiles.remaining()).toContain(FINAL_URI);
+});
+
 describe("localSubtitleFileName", () => {
   test("keeps the extension the server URL carries", () => {
-    expect(localSubtitleFileName(item, externalSub(), `${REMOTE_URL}`)).toBe(
-      "item-1-3.srt",
-    );
+    expect(
+      localSubtitleFileName(item, MEDIA_SOURCE_ID, externalSub(), REMOTE_URL),
+    ).toBe("item-1-ms-1-3.srt");
   });
 
   test("an extensionless URL falls back to the stream's codec", () => {
     expect(
       localSubtitleFileName(
         item,
+        MEDIA_SOURCE_ID,
         externalSub({ Codec: "vtt" }),
         "https://subs.example/3/Stream",
       ),
-    ).toBe("item-1-3.vtt");
+    ).toBe("item-1-ms-1-3.vtt");
   });
 
   test("the subrip codec name becomes the srt extension", () => {
     expect(
       localSubtitleFileName(
         item,
+        MEDIA_SOURCE_ID,
         externalSub({ Codec: "subrip" }),
         "https://subs.example/3/Stream",
       ),
-    ).toBe("item-1-3.srt");
+    ).toBe("item-1-ms-1-3.srt");
+  });
+
+  test("two versions of one item get different files", () => {
+    expect(
+      localSubtitleFileName(item, "ms-1", externalSub(), REMOTE_URL),
+    ).not.toBe(localSubtitleFileName(item, "ms-2", externalSub(), REMOTE_URL));
   });
 
   test("neither extension nor codec names a format → srt", () => {
     expect(
-      localSubtitleFileName(item, externalSub(), "https://subs.example/3"),
-    ).toBe("item-1-3.srt");
+      localSubtitleFileName(
+        item,
+        MEDIA_SOURCE_ID,
+        externalSub(),
+        "https://subs.example/3",
+      ),
+    ).toBe("item-1-ms-1-3.srt");
   });
 });
