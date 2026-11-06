@@ -76,12 +76,15 @@ test("negotiates the item and prefetches its subtitles into the cache", async ()
   expect(negotiated?.mediaSourceId).toBe("ms-1");
   // The download lands on an attempt-unique .part staging name and is moved
   // into place.
-  expect(fakeFiles.downloads()).toEqual([
-    {
-      url: "https://jf.example/Videos/next-1/1/Subtitles/3/0/Stream.srt",
-      destination: `${CACHE}/subtitles/next-1-ms-1-3.srt.1.part`,
-    },
-  ]);
+  expect(fakeFiles.downloads()).toHaveLength(1);
+  expect(fakeFiles.downloads()[0]!.url).toBe(
+    "https://jf.example/Videos/next-1/1/Subtitles/3/0/Stream.srt",
+  );
+  expect(
+    fakeFiles
+      .downloads()[0]!
+      .destination.startsWith(`${CACHE}/subtitles/next-1-ms-1-3.srt.`),
+  ).toBe(true);
   expect(fakeFiles.remaining()).toContain(
     `${CACHE}/subtitles/next-1-ms-1-3.srt`,
   );

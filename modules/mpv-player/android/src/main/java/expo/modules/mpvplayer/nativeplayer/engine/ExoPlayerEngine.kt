@@ -402,6 +402,24 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         ensurePlayer()
         loadInternal(config)
+        // A fresh ExoPlayer starts paused — media3 initializes playWhenReady
+        // to false — so an autoplay=false load never fires
+        // onPlayWhenReadyChanged, and the outgoing player's last "playing"
+        // would survive onto this load (chrome, PiP, JS state). Deliver the
+        // fresh paused state; an autoplay=true load delivers its own
+        // false→true transition when play() runs right after.
+        cachedPlayWhenReady = false
+        MpvPauseReport(
+            paused = true,
+            position = null,
+            duration = cachedDurationSec,
+            cacheSeconds = 0.0,
+        ).deliver(
+            onProgress = { position, duration, cache ->
+                delegate?.onPositionChanged(position, duration, cache)
+            },
+            onPause = { isPaused -> delegate?.onPauseChanged(isPaused) },
+        )
     }
 
     private fun releasePlayer() {

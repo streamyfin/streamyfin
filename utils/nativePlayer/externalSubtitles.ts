@@ -32,10 +32,12 @@ const CACHE_SUBDIR = "subtitles";
 // had time to settle.
 const LATE_STAGING_SWEEP_MS = 60_000;
 
-// Attempt-unique suffix for staging names: an abandoned transfer keeps
-// writing its `.part` after the timeout, so a later attempt must not reuse —
-// or be swept by — the same path.
-let stagingAttempt = 0;
+// Attempt-unique staging name: an abandoned transfer keeps writing its
+// `.part` after the timeout, so a later attempt must not reuse — or be swept
+// by — the same path. Timestamp + random: unique across attempts AND across
+// app restarts, so a leftover file from a crashed run is never adopted.
+const stagingName = (fileName: string): string =>
+  `${fileName}.${Date.now()}-${Math.random().toString(36).slice(2, 8)}.part`;
 
 /** The engines sniff the MIME from the extension; keep the served one. */
 const extensionFromUrl = (url: string, codec?: string | null): string => {
@@ -167,7 +169,7 @@ export const prefetchExternalSubtitles = async (params: {
       continue;
     }
 
-    const pending = new File(cacheDir, `${fileName}.${++stagingAttempt}.part`);
+    const pending = new File(cacheDir, stagingName(fileName));
     // No Jellyfin credentials on a URL the server does not host.
     const proxyHeaders = getJellyfinHeadersForUrl(url, params.api.basePath);
     const headers = sub.IsExternalUrl
