@@ -101,47 +101,42 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             }.isSuccess
         }
 
-        // LoadControl. Named so the deferred upgrades are one-line edits
-        // (full recipe in
-        // .claude/learned-facts/exoplayer-loadcontrol-time-not-bytes.md):
-        // if dip-driven buffering resurfaces, a heap-safe byte pool is
-        // TARGET_BUFFER_BYTES = 100663296 (96 MiB) with MIN_BUFFER_MS = 5_000
-        // and MAX_BUFFER_MS = 30_000 — min < max lets the byte target bind
-        // as a total-memory cap under prioritize=true — plus a 10s HTTP read
-        // timeout for faster dead-socket recovery after pause. The pool must
-        // stay well under the 256 MB heap: the allocator shares it with
-        // React Native.
-        //
-        // The values below are the original mapping's effective defaults
-        // (what ran before the fix), minus the starvation — see
-        // buildLoadControl for the one line that matters — and with the
-        // back buffer shortened because the old byte target was the only
-        // thing capping total allocator memory.
+        // LoadControl: a BOUND byte pool. 2026-11-05, a ~100+ Mbps Dolby
+        // Vision remux filled the 256 MB Java heap with the allocator's
+        // 64 KiB segments — ~19 MB/s of live heap at playback start, 235 MB
+        // of LOS freed on player release; the loader OOM'd into
+        // ERROR_CODE_IO_UNSPECIFIED, and on another run an unrelated React
+        // Native thread OOM'd inside WebView's cookie manager and killed the
+        // process. Under the previous min == max = 10s with no byte target,
+        // total allocator memory was ≈ bitrate × 20s — anything ≳100 Mbps
+        // needs more heap than the box has. The pool must stay well under
+        // the 256 MB heap: the allocator shares it with React Native. Full
+        // recipe and history in
+        // .claude/learned-facts/exoplayer-loadcontrol-time-not-bytes.md.
         //
         // ⚠ TWIN: modules/exoplayer-player/.../ExoPlayerView.kt carries the
         // same mapping for the JS-route view — these were duplicated, not
         // shared, because the Kotlin modules are independent. Keep them in
         // lockstep; this divergence is how the bug survived in one engine
         // after being fixed in the other.
-        private const val MIN_BUFFER_MS = 10_000
-        private const val MAX_BUFFER_MS = 10_000
+        private const val MIN_BUFFER_MS = 5_000
+        private const val MAX_BUFFER_MS = 30_000
         private const val BUFFER_FOR_PLAYBACK_MS = 2_500
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
-        // 10s of retained back buffer. The buffer allocator's byte[] segments
-        // live in the app's Java heap (256 MB growth limit here), and BOTH
-        // buffers draw on it: total allocator memory ≈ bitrate × (forward +
-        // back). The old prioritize=false byte target — besides causing the
-        // starvation — was silently capping that total at ~75/150 MB; with
-        // prioritize=true only this duration caps the back buffer, so it
-        // stays short: at 64 Mbps, 10s forward + 10s back ≈ 160 MB. The 50s
-        // this replaced OOM'd the heap (~337 MB at 45 Mbps) a couple of
-        // minutes into playback. Longer backwards seeks re-fetch over the
-        // LAN.
-        private const val BACK_BUFFER_MS = 10_000
-        // Inert as is: under prioritize=true with min == max there is no
-        // (min, max) window for a byte target to stop loading in. UNSET
-        // lets media3 auto-derive from the selected tracks.
-        private val TARGET_BUFFER_BYTES: Int = C.LENGTH_UNSET
+        // Back-buffer retention is time-gated only — the byte target does NOT
+        // cap it — so on a fast file every retained back-second costs
+        // bitrate/8 MB of heap: 10s held ~120-190 MB on the ~100-150 Mbps
+        // remux above. 3s keeps the worst case ≈ 36-56 MB; longer backwards
+        // seeks re-fetch over the LAN. Worst-case allocator memory is now
+        // ≈ bitrate × (back + min) — ≈150 MB even at 150 Mbps, and under the
+        // byte target for anything up to ~96 Mbps. The 50s an earlier
+        // mapping used OOM'd the heap (~337 MB at 45 Mbps); the 10s that
+        // replaced it still OOM'd at remux bitrates.
+        private const val BACK_BUFFER_MS = 3_000
+        // Binding byte pool: caps the allocator's total high-water. Loading
+        // stops in the (min, max) band once reached; the forced below-min
+        // load ignores it, which is what keeps starvation impossible.
+        private const val TARGET_BUFFER_BYTES = 100663296
 
         // Stall watchdog: once media has flowed for this load, buffering while
         // playing with an (almost) empty forward buffer for this long means the
@@ -423,7 +418,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // bytes and lifted the veto (media3 logs "Target buffer size reached
         // with less than 500ms of buffered media data" in exactly that
         // state). Under true, loading below min never stops, so that state is
-        // impossible. See the companion constants for the deferred pool.
+        // impossible. See the companion constants for the pool.
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 /* minBufferMs = */ MIN_BUFFER_MS,

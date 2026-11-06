@@ -1,6 +1,6 @@
 # ExoPlayer LoadControl: the veto fix, the heap it shares, and the pool recipe
 
-**Date**: 2026-10-02
+**Date**: 2026-10-02 (updated 2026-11-05: OOM rerun evidence, pool shipped)
 **Category**: native-modules
 **Key files**: `modules/exoplayer-player/android/src/main/java/expo/modules/exoplayerplayer/ExoPlayerView.kt`, `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/nativeplayer/engine/ExoPlayerEngine.kt`
 
@@ -36,17 +36,48 @@ back buffer is now `BACK_BUFFER_MS = 10_000` (10s forward + 10s back ≈
 160 MB at 64 Mbps worst case). Never lengthen it without a binding byte
 target.
 
-**Deferred recipe** if dip-driven buffering resurfaces (buffered≈0 at speed
-1.0 in the logs, recovering on its own after refills): a binding byte pool —
-`TARGET_BUFFER_BYTES = 100663296` (96 MiB), `MIN_BUFFER_MS = 5_000`,
-`MAX_BUFFER_MS = 30_000`. min < max lets the byte target stop loading in
-the (min, max) band under prioritize=true, bounding TOTAL allocator memory
-≈ 96 MB + floor overshoot while the below-min forced load keeps starvation
-impossible. Size the pool ≤ ~40% of the heap growth limit (the allocator
-shares the heap with React Native). Also: a 10s `DefaultHttpDataSource`
-read timeout (8s default is too eager; a >10s silent gap on LAN means a
-dead connection — tear down and re-open with Range). 128 MiB was tried and
-rejected: half the heap.
+**Shipped 2026-11-05** — the deferred pool went in after the OOM came back
+with evidence that pins it. Values: `TARGET_BUFFER_BYTES = 100663296`
+(96 MiB), `MIN_BUFFER_MS = 5_000`, `MAX_BUFFER_MS = 30_000`,
+`BACK_BUFFER_MS = 3_000`.
+
+Evidence (logcat, ~100-150 Mbps Dolby Vision remux, direct play through the
+reverse proxy): heap filled 35 → 255 MB in the first ~12 s of playback
+(~19 MB/s of LIVE heap — each GC freed only KBs), then every thread OOM'd.
+The failing allocations were `65548` bytes — exactly a DefaultAllocator
+64 KiB segment — and on player release one GC freed `3550(235MB) LOS
+objects`: the allocator pool was ~92% of the whole heap. With
+min == max = 10s and no byte target, allocator memory ≈ bitrate × 20s, so
+anything ≳100 Mbps needs more heap than the 256 MB limit.
+
+Two failure surfaces for the same disease:
+- Loader thread OOM → Loader wraps it in `UnexpectedLoaderException` →
+  ExoPlaybackException SOURCE error → JS sees `error_code_io_unspecified`;
+  playback dies, process survives (allocator freed on release).
+- Any OTHER thread OOMs first (observed: RN's OkHttp dispatcher inside
+  WebView's `ForwardingCookieHandler.get` — RN routes every fetch's cookies
+  through the WebView CookieManager) → uncaught OOM → Chromium's
+  `JniAndroid.handleException` rethrows → `FATAL EXCEPTION` → process
+  killed. An app crash whose only stack is `GURL.<init>` / cookie code is a
+  heap-exhaustion symptom, not a WebView bug.
+
+Why `BACK_BUFFER_MS = 3_000` and not the 10s the first fix shipped with:
+the byte target only gates NEW loads; back-buffer RETENTION is purely
+time-gated in media3 (SampleQueue back policy), so at 10s the retained back
+buffer alone was ~120-190 MB on this file and no byte target capped it.
+Worst case now ≈ bitrate × (back 3s + min floor 5s): ~150 MB at 150 Mbps,
+and under the 96 MiB target for anything up to ~96 Mbps. Longer backwards
+seeks re-fetch over the LAN.
+
+Known trade: where the byte target binds in-band, the forward buffer saws
+between ~min and the byte ceiling (buffered≈0 dips at speed 1.0 that
+recover on their own) — accepted over OOM; revisit only if dips become
+visible stalls.
+
+Still open from the deferred list: a 10s `DefaultHttpDataSource` read
+timeout (8s default is too eager; a >10s silent gap on LAN means a dead
+connection — tear down and re-open with Range). 128 MiB pool was tried
+earlier and rejected: half the heap.
 
 Crash triage: `logcat -b crash` is often EMPTY after a reboot even when
 crashes happened — `adb shell dumpsys dropbox --print data_app_crash`
