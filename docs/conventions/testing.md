@@ -120,10 +120,13 @@ jest.mock(
 ```
 
 `react-native-mmkv`, `react-i18next`, `react-native-safe-area-context`,
-`@gorhom/bottom-sheet` and `react-native-device-info` are the exceptions:
-`moduleNameMapper` wires them for every spec, so nothing declares them. The last two
-use the libraries' own Jest mocks, which is what lets `makeSettingsModule()` load the
-real settings module in any spec.
+`@gorhom/bottom-sheet`, `react-native-device-info` and `@/utils/atoms/settings` are the
+exceptions:
+`moduleNameMapper` wires them for every spec, so nothing declares them. The bottom sheet
+and device info use the libraries' own Jest mocks, which is what lets `makeSettingsModule()` load the
+real settings module in any spec. `@/utils/atoms/settings` itself is the default settings
+plus `TVTypographyScale`; a spec that needs other values mocks it with
+`makeSettingsModule({ ... })`, or its own factory when it asserts on the calls.
 
 ## React Native components
 

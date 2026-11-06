@@ -23,9 +23,6 @@ jest.mock("@/hooks/useItemActionSheet", () => ({
   useItemActionSheet: () => ({}),
 }));
 // The TV sizes read the type scale from the settings, and its enum with it.
-jest.mock("@/utils/atoms/settings", () =>
-  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
-);
 // The poster itself is not under test: a pressable carrying the item's name
 // stands for it, with the handlers the row gives it.
 jest.mock("@/components/tv/TVPosterCard", () => {

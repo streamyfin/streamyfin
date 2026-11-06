@@ -17,10 +17,6 @@ jest.mock("@/utils/log", () => ({
 }));
 // The settings atom imports the screens that edit it. The TV row only reads
 // the typography scale, and the Seerr client nothing.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: { Default: "default" },
-  useSettings: () => ({ settings: { tvTypographyScale: "default" } }),
-}));
 // The real client, answering what the test says, behind the hook the slides
 // read it from.
 jest.mock("@/hooks/useSeerr", () => ({

@@ -2,7 +2,6 @@ import { SortByOption, sortOptionsFor } from "@/utils/atoms/filters";
 import { resolveSortKey } from "./sortOption";
 
 // settings.ts drags in the provider stack; only the sort constants are used.
-jest.mock("@/utils/atoms/settings", () => ({}));
 
 describe("resolveSortKey", () => {
   test("keeps a key the shown list offers", () => {

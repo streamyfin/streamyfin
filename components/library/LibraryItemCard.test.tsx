@@ -15,11 +15,11 @@ jest.mock("@/providers/JellyfinProvider", () =>
     .requireActual("@/test-utils/jellyfinProvider")
     .makeJellyfinAtomsModule(null, { Id: "user-1" }),
 );
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({
-    settings: { libraryOptions: { display: "row", showStats: true } },
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule({
+    libraryOptions: { display: "row", showStats: true },
   }),
-}));
+);
 // The row layout these specs render draws no image.
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // Navigation is not what is under test; the card shows up as its content.

@@ -26,9 +26,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     }),
   };
 });
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: null }),
-}));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));

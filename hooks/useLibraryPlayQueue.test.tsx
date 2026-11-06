@@ -41,9 +41,6 @@ jest.mock("@/providers/DownloadProvider", () => ({
 jest.mock("@/providers/JellyfinProvider", () =>
   jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
 );
-jest.mock("@/utils/atoms/settings", () =>
-  jest.requireActual("@/test-utils/settings").makeSettingsModule(),
-);
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test.
 jest.mock("@/utils/log", () => ({ writeErrorLog: () => undefined }));

@@ -209,6 +209,7 @@
       "^react-i18next$": "<rootDir>/test-utils/i18nextModule.ts",
       "^@gorhom/bottom-sheet$": "<rootDir>/test-utils/bottomSheetModule.ts",
       "^react-native-device-info$": "<rootDir>/node_modules/react-native-device-info/jest/react-native-device-info-mock.js",
+      "^@/utils/atoms/settings$": "<rootDir>/test-utils/settingsModule.ts",
       "^react-native-safe-area-context$": "<rootDir>/test-utils/safeAreaModule.ts"
     },
     "transformIgnorePatterns": [

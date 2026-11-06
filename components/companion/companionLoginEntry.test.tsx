@@ -40,9 +40,6 @@ jest.mock("@/hooks/useMyNotifications", () => ({
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({ available: false }),
 }));
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {}, updateSettings: () => undefined }),
-}));
 
 describe("Settings, Log in on TV", () => {
   // The entry was hidden on iOS while pairing went through a UDP broadcast.

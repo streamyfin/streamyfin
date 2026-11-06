@@ -2,7 +2,6 @@ import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { recentlyAddedSeeAllParams } from "./seeAll";
 
 // settings.ts drags in the provider stack; only the sort constants are used.
-jest.mock("@/utils/atoms/settings", () => ({}));
 
 describe("recentlyAddedSeeAllParams", () => {
   test("sorts a Shows row by its newest episode", () => {

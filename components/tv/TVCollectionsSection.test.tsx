@@ -3,10 +3,6 @@ import { TVCollectionsSection } from "./TVCollectionsSection";
 
 // The TV size hooks only read the typography scale; the real module pulls in
 // the settings UI with it.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: { Default: "default" },
-  useSettings: () => ({ settings: { tvTypographyScale: "default" } }),
-}));
 // The poster artwork is not what this spec is about, and the real component
 // brings the proxy-header machinery along.
 jest.mock("@/components/common/ServerImage", () => ({

@@ -7,15 +7,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return { apiAtom: atom({ basePath: "http://server" }) };
 });
 // The real module drags the whole settings UI in; the TV sizes only read this.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-  useSettings: () => ({ settings: { tvTypographyScale: "default" } }),
-}));
 // A poster is its name and its two presses here; its artwork, its glass and
 // its focus animation need the native side.
 jest.mock("@/components/tv/TVPosterCard", () => {

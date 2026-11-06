@@ -24,7 +24,6 @@ jest.mock("@/utils/log", () => ({
   writeErrorLog: jest.fn(),
 }));
 // The settings atom imports the screens that edit it; the client reads none.
-jest.mock("@/utils/atoms/settings", () => ({ useSettings: () => ({}) }));
 
 const mockWriteToLog = jest.fn();
 const mockToastError = jest.fn();

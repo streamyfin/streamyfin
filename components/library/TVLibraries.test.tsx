@@ -11,19 +11,17 @@ jest.mock("@/providers/JellyfinProvider", () =>
     .requireActual("@/test-utils/jellyfinProvider")
     .makeJellyfinAtomsModule(null, { Id: "user-1" }),
 );
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { hiddenLibraries: [] } }),
-}));
+jest.mock("@/utils/atoms/settings", () =>
+  jest
+    .requireActual("@/test-utils/settings")
+    .makeSettingsModule({ hiddenLibraries: [] }),
+);
 jest.mock(
   "@/hooks/useAppRouter",
   () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
 );
 // The real log writes to MMKV, which no test environment has.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-// The real scale reads the settings enum the mock above leaves out.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => new Proxy({}, { get: () => 16 }),
-}));
 // The rows draw a backdrop only when a preview item has one.
 jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 
