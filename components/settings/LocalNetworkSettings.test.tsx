@@ -31,9 +31,10 @@ jest.mock(
 );
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 jest.mock("@/hooks/useWifiSSID", () => ({
   useWifiSSID: () => ({
     permissionStatus: "granted",

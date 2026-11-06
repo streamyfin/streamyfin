@@ -97,7 +97,8 @@ Three rules keep mocks from becoming the thing that breaks:
   no insets, the rest is real. `silentHapticModule` stands for `@/hooks/useHaptic` when a
   haptic should be a no-op.
 - `stubModules` holds one-line stand-ins repeated across specs: `bitrateSelectorModule`,
-  `appRouterModule`, `inactivityModule` and `expoWithoutNativeModule`.
+  `appRouterModule`, `inactivityModule`, `expoWithoutNativeModule`, `onlineModule`,
+  `emptyTVTypographyModule` and `blankIconsModule`.
 - `makeJellyfinAtomsModule(api, user)` stands for `@/providers/JellyfinProvider` when a
   spec only reads the api and user atoms. `makeSettingsModule()` stands for
   `@/utils/atoms/settings` with the default settings plus overrides.
@@ -127,6 +128,10 @@ and device info use the libraries' own Jest mocks, which is what lets `makeSetti
 real settings module in any spec. `@/utils/atoms/settings` itself is the default settings
 plus `TVTypographyScale`; a spec that needs other values mocks it with
 `makeSettingsModule({ ... })`, or its own factory when it asserts on the calls.
+
+The perf config (`jest.perf.config.js`) inherits these mappings, except `expo-router`,
+`react-i18next` and `@/utils/atoms/settings`: a scenario measures the real translation
+and settings cost, and `test-utils/perfSetup.ts` mocks the rest itself.
 
 ## React Native components
 

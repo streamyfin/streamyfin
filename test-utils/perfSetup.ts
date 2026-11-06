@@ -16,10 +16,6 @@ beforeAll(() => {
   require("@/i18n");
 });
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Loading the real module logs an Expo Go push warning on import.
 jest.mock("expo-notifications", () => ({
   scheduleNotificationAsync: jest.fn(),
@@ -39,9 +35,6 @@ jest.mock("react-native-device-info", () => ({
   getFreeDiskStorage: async () => 10_000_000_000,
   getTotalDiskCapacity: async () => 64_000_000_000,
 }));
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
 jest.mock(
   "@/providers/JellyfinProvider",
   () =>

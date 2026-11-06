@@ -56,9 +56,10 @@ jest.mock("@/hooks/useAppRouter", () => ({
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://server" }),
 }));
-jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
-}));
+jest.mock(
+  "@/providers/OfflineModeProvider",
+  () => jest.requireActual("@/test-utils/stubModules").onlineModule,
+);
 // The real settings atom loads the screens that edit it.
 jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
   getSubtitlesForItem: () => [],

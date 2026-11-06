@@ -18,3 +18,12 @@ export const inactivityModule = {
 export const expoWithoutNativeModule = {
   requireOptionalNativeModule: () => null,
 };
+
+/** `@/providers/OfflineModeProvider` reporting online. */
+export const onlineModule = { useOfflineMode: () => false };
+
+/** `@/constants/TVTypography` with no sizes, for specs that render no TV text. */
+export const emptyTVTypographyModule = { useScaledTVTypography: () => ({}) };
+
+/** `@expo/vector-icons` drawing nothing. */
+export const blankIconsModule = { Ionicons: () => null };

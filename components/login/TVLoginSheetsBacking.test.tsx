@@ -4,7 +4,10 @@ import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { TVPasswordEntryModal } from "./TVPasswordEntryModal";
 import { TVPINEntryModal } from "./TVPINEntryModal";
 
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+jest.mock(
+  "@expo/vector-icons",
+  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
+);
 // The blur is drawn natively; here it only holds its content.
 jest.mock("expo-blur", () => ({
   BlurView: ({ children }: { children: React.ReactNode }) => children,

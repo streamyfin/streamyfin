@@ -1,10 +1,15 @@
 const { jest: base } = require("./package.json");
 
-// The expo-router stub in the unit config is for specs that opt in with an
-// explicit jest.mock; mapping it globally here rewires the auto-mocks these
-// scenarios already use.
-const { "^expo-router$": _expoRouter, ...moduleNameMapper } =
-  base.moduleNameMapper;
+// These stand-ins in the unit config are for specs that want a cheap double.
+// The scenarios measure the real thing, or rewire the auto-mocks they already
+// use: `expo-router` is mocked explicitly, `react-i18next` must translate for
+// real, and the settings atoms must cost what they cost in the app.
+const {
+  "^expo-router$": _expoRouter,
+  "^react-i18next$": _i18next,
+  "^@/utils/atoms/settings$": _settings,
+  ...moduleNameMapper
+} = base.moduleNameMapper;
 
 module.exports = {
   ...base,

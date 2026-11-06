@@ -7,9 +7,10 @@ jest.mock(
   () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
 );
 // The real hook reads the settings atom, whose module graph is the whole app.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 
 const PEOPLE: BaseItemPerson[] = [
   { Id: "gilligan", Name: "Vince Gilligan", Type: "Creator" },

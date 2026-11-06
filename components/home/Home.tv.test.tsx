@@ -74,14 +74,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({

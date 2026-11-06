@@ -25,9 +25,10 @@ jest.mock("@/hooks/useFavorite", () => ({
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({ deleteFile: () => {} }),
 }));
-jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
-}));
+jest.mock(
+  "@/providers/OfflineModeProvider",
+  () => jest.requireActual("@/test-utils/stubModules").onlineModule,
+);
 
 // Hands the "sheet closed" promise back inside an object: returned bare,
 // awaiting the render would also wait for a sheet nobody has answered yet.
