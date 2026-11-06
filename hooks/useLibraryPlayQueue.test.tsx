@@ -38,10 +38,9 @@ jest.mock("@/providers/DownloadProvider", () => ({
     updateDownloadedItem: () => {},
   }),
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
-});
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
+);
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));

@@ -6,13 +6,11 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 import { logAndCaptureError } from "@/utils/log";
 import { TVLibraries } from "./TVLibraries";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { hiddenLibraries: [] } }),
 }));

@@ -13,13 +13,11 @@ import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,favorite
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
 jest.mock("@/components/common/ItemImage", () => ({ ItemImage: () => null }));
 // The row layout is not what is under test; a channel shows up as the names
 // of its programs.

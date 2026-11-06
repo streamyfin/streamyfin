@@ -96,6 +96,11 @@ Three rules keep mocks from becoming the thing that breaks:
 - `react-native-safe-area-context` is wired for every spec: `useSafeAreaInsets` reports
   no insets, the rest is real. `silentHapticModule` stands for `@/hooks/useHaptic` when a
   haptic should be a no-op.
+- `stubModules` holds one-line stand-ins repeated across specs: `bitrateSelectorModule`,
+  `appRouterModule`, `inactivityModule` and `expoWithoutNativeModule`.
+- `makeJellyfinAtomsModule(api, user)` stands for `@/providers/JellyfinProvider` when a
+  spec only reads the api and user atoms. `makeSettingsModule()` loads the real settings
+  module, so a spec whose module graph cannot afford that keeps a hand written factory.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
 - `reanimatedModule` stands for `react-native-reanimated` when a spec renders a component

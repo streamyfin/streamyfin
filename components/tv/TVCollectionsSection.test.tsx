@@ -12,10 +12,9 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/components/common/ServerImage", () => ({
   Image: () => null,
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
-});
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
+);
 
 const trilogy = {
   Id: "boxset-1",
