@@ -441,6 +441,7 @@ export default function DirectPlayerPage() {
       // by the progress report below: left as-is, the new item is reported at
       // the previous one's position before its own playback has even started.
       setHasPlaybackStarted(false);
+      hasPlaybackStartedRef.current = false;
       progress.set(0);
       livePositionStreamRef.current = null;
       fetchItemData();
@@ -466,7 +467,9 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
-  const isLiveStream = !!stream?.mediaSource?.LiveStreamId;
+  // A channel whose source needs no opening comes back without a LiveStreamId.
+  const isLiveStream =
+    item?.Type === "TvChannel" || !!stream?.mediaSource?.LiveStreamId;
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,

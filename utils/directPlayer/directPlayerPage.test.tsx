@@ -68,6 +68,7 @@ type ControlsProps = {
   onAudioIndexChange?: (index: number) => void;
   onRefreshSubtitleTracks?: () => Promise<unknown>;
   onSubtitleIndexChange?: (index: number) => void;
+  isBuffering?: boolean;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -327,6 +328,17 @@ const announcePlaying = async () => {
   await act(async () => {
     await mockPlayerProps?.onPlaybackStateChange?.({
       nativeEvent: { isPaused: false, isPlaying: true },
+    } as Parameters<
+      NonNullable<MpvPlayerViewProps["onPlaybackStateChange"]>
+    >[0]);
+  });
+};
+
+/** What the native view sends when MPV starts or stops waiting for data. */
+const announceLoading = async (isLoading: boolean) => {
+  await act(async () => {
+    await mockPlayerProps?.onPlaybackStateChange?.({
+      nativeEvent: { isPaused: false, isPlaying: false, isLoading },
     } as Parameters<
       NonNullable<MpvPlayerViewProps["onPlaybackStateChange"]>
     >[0]);
@@ -728,6 +740,66 @@ describe("direct player stop report", () => {
       for (const key of ["forwardSkipTime", "rewindSkipTime"])
         delete (mockSettings as Record<string, unknown>)[key];
     }
+  });
+
+  // A live channel keeps fetching segments, and MPV reports each fetch as
+  // loading: once the channel plays, that must not bring the spinner back.
+  describe("live TV buffering", () => {
+    beforeEach(() => {
+      for (const id of ["channel-1", "channel-2"]) {
+        api.mock
+          .onGet(new RegExp(`/Items/${id}`))
+          .reply(200, { Id: id, Type: "TvChannel" });
+      }
+      mockParams.itemId = "channel-1";
+      mockParams.playbackPosition = "";
+    });
+
+    afterEach(() => {
+      mockParams.itemId = "item-1";
+      mockParams.playbackPosition = String(RESUME_TICKS);
+    });
+
+    test("keeps the spinner off for a channel the server opened a live stream for", async () => {
+      mockStreamHold.liveStreamId = "live-1";
+      api.mock.onPost(/\/LiveStreams\/Close/).reply(204);
+      await openPlayer();
+      await announcePlaying();
+      await announceLoading(true);
+
+      expect(mockControlsProps?.isBuffering).toBe(false);
+    });
+
+    // A source that does not require opening comes back without a LiveStreamId.
+    test("keeps the spinner off for a channel streamed without opening", async () => {
+      await openPlayer();
+      await announcePlaying();
+      await announceLoading(true);
+
+      expect(mockControlsProps?.isBuffering).toBe(false);
+    });
+
+    test("shows the spinner while the next channel starts", async () => {
+      mockStreamHold.liveStreamId = "live-1";
+      api.mock.onPost(/\/LiveStreams\/Close/).reply(204);
+      await openPlayer();
+      await announcePlaying();
+
+      mockParams.itemId = "channel-2";
+      await screen.rerender(<DirectPlayerPage />);
+      await waitFor(() => expect(mockPlayerMounts).toBe(2));
+      await waitFor(() => expect(startReports()).toHaveLength(2));
+      await announceLoading(true);
+
+      expect(mockControlsProps?.isBuffering).toBe(true);
+    });
+
+    test("shows the spinner while a channel starts", async () => {
+      await openPlayer();
+      await announceLoading(true);
+
+      expect(mockControlsProps?.isBuffering).toBe(true);
+    });
   });
 
   describe("on TV, where the controls re-negotiate the stream through the page", () => {
