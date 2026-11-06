@@ -33,13 +33,14 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
+import { isExternalPlayerSupported, useSettings } from "@/utils/atoms/settings";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
   receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { shouldUseExternalPlayer } from "@/utils/externalPlayer";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -52,6 +53,9 @@ interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   selectedOptions: SelectedOptions;
   colors?: ThemeColors;
 }
+
+/** A row of the sheet that asks where the item plays. */
+type PlayerChoice = "cast" | "device" | "otherApp" | "chooseApp" | "cancel";
 
 const ANIMATION_DURATION = 500;
 const MIN_PLAYBACK_WIDTH = 15;
@@ -88,40 +92,50 @@ export const PlayButton: React.FC<Props> = ({
   const playMedia = usePlayMedia();
   const { enabled: inSyncPlayGroup } = useSyncPlay();
 
-  const handleNormalPlayFlow = useCallback(
-    async (positionTicks: number) => {
+  /** Asks where to play when there is a choice (a cast device, or `askPlayer`). */
+  const choosePlayerAndPlay = useCallback(
+    async (playRequest: PlayRequest, askPlayer: boolean) => {
       if (!item) return;
+      // The version being played, for the subtitles another app is handed.
+      const playOptions = { item, mediaSource: selectedOptions.mediaSource };
 
-      const playRequest: PlayRequest = {
-        itemId: item.Id!,
-        audioIndex: selectedOptions.audioIndex,
-        subtitleIndex: selectedOptions.subtitleIndex,
-        mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-        bitrateValue: selectedOptions.bitrate?.value,
-        offline: isOffline,
-        playbackPositionTicks: positionTicks,
-      };
-
-      if (!client) {
-        await playMedia(playRequest, { item });
+      // A downloaded file plays from this device, so only a stream is cast.
+      const canCast = !!client && !playRequest.offline;
+      if (!canCast && !askPlayer) {
+        await playMedia(playRequest, playOptions);
         return;
       }
 
-      const options = ["Chromecast", "Device", "Cancel"];
-      const cancelButtonIndex = 2;
+      // Unless asked, the cast sheet stays as it was: "Device" plays where the
+      // setting says. Asked, it lists the other players and "Device" means
+      // Streamyfin.
+      const choices: PlayerChoice[] = [
+        ...(canCast ? (["cast"] as const) : []),
+        "device",
+        ...(askPlayer ? (["otherApp", "chooseApp"] as const) : []),
+        "cancel",
+      ];
+      const labels: Record<PlayerChoice, string> = {
+        cast: "Chromecast",
+        device: "Device",
+        otherApp: t("player.play_in_other_app"),
+        chooseApp: t("player.choose_app"),
+        cancel: "Cancel",
+      };
       showActionSheetWithOptions(
         {
-          options,
-          cancelButtonIndex,
+          options: choices.map((choice) => labels[choice]),
+          cancelButtonIndex: choices.length - 1,
         },
         async (selectedIndex: number | undefined) => {
-          if (!api) return;
           const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
           const isOpeningCurrentlyPlayingMedia =
             currentTitle && currentTitle === item?.Name;
 
-          switch (selectedIndex) {
-            case 0:
+          switch (
+            selectedIndex === undefined ? undefined : choices[selectedIndex]
+          ) {
+            case "cast":
               await CastContext.getPlayServicesState().then(async (state) => {
                 if (state && state !== PlayServicesState.SUCCESS) {
                   CastContext.showPlayServicesErrorDialog(state);
@@ -174,7 +188,8 @@ export const PlayButton: React.FC<Props> = ({
                       },
                       {
                         items: [item],
-                        startPositionTicks: positionTicks,
+                        startPositionTicks:
+                          playRequest.playbackPositionTicks ?? 0,
                         mediaSourceId:
                           selectedOptions.mediaSource?.Id ?? undefined,
                         audioStreamIndex: selectedOptions.audioIndex,
@@ -204,10 +219,24 @@ export const PlayButton: React.FC<Props> = ({
                 }
               });
               break;
-            case 1:
-              await playMedia(playRequest, { item });
+            case "device":
+              await playMedia(playRequest, {
+                ...playOptions,
+                externalPlayer: askPlayer ? false : undefined,
+              });
               break;
-            case cancelButtonIndex:
+            case "otherApp":
+              await playMedia(playRequest, {
+                ...playOptions,
+                externalPlayer: true,
+              });
+              break;
+            case "chooseApp":
+              await playMedia(playRequest, {
+                ...playOptions,
+                externalPlayer: true,
+                chooseApp: true,
+              });
               break;
           }
         },
@@ -223,13 +252,32 @@ export const PlayButton: React.FC<Props> = ({
       mediaStatus,
       selectedOptions,
       playMedia,
-      isOffline,
       t,
     ],
   );
 
+  const handleNormalPlayFlow = useCallback(
+    async (positionTicks: number, askPlayer: boolean) => {
+      if (!item) return;
+
+      await choosePlayerAndPlay(
+        {
+          itemId: item.Id!,
+          audioIndex: selectedOptions.audioIndex,
+          subtitleIndex: selectedOptions.subtitleIndex,
+          mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+          bitrateValue: selectedOptions.bitrate?.value,
+          offline: isOffline,
+          playbackPositionTicks: positionTicks,
+        },
+        askPlayer,
+      );
+    },
+    [item, selectedOptions, isOffline, choosePlayerAndPlay],
+  );
+
   const startPlayback = useCallback(
-    async (positionTicks: number) => {
+    async (positionTicks: number, askPlayer: boolean) => {
       if (!item) return;
 
       // Check if item is downloaded
@@ -239,13 +287,13 @@ export const PlayButton: React.FC<Props> = ({
 
       // If already in offline mode, play downloaded file directly
       if (isOffline && downloadedItem) {
-        await playMedia(
+        await choosePlayerAndPlay(
           {
             itemId: item.Id!,
             offline: true,
             playbackPositionTicks: positionTicks,
           },
-          { item },
+          askPlayer,
         );
         return;
       }
@@ -269,13 +317,13 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
-                      void playMedia(
+                      void choosePlayerAndPlay(
                         {
                           itemId: item.Id!,
                           offline: true,
                           playbackPositionTicks: positionTicks,
                         },
-                        { item },
+                        askPlayer,
                       );
                     }}
                     color='purple'
@@ -287,7 +335,7 @@ export const PlayButton: React.FC<Props> = ({
                   <Button
                     onPress={() => {
                       hideModal();
-                      handleNormalPlayFlow(positionTicks);
+                      handleNormalPlayFlow(positionTicks, askPlayer);
                     }}
                     color='white'
                     variant='border'
@@ -313,13 +361,13 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_yes"),
                 onPress: () => {
-                  void playMedia(
+                  void choosePlayerAndPlay(
                     {
                       itemId: item.Id!,
                       offline: true,
                       playbackPositionTicks: positionTicks,
                     },
-                    { item },
+                    askPlayer,
                   );
                 },
                 isPreferred: true,
@@ -327,7 +375,7 @@ export const PlayButton: React.FC<Props> = ({
               {
                 text: t("player.downloaded_file_no"),
                 onPress: () => {
-                  handleNormalPlayFlow(positionTicks);
+                  handleNormalPlayFlow(positionTicks, askPlayer);
                 },
               },
               {
@@ -341,51 +389,77 @@ export const PlayButton: React.FC<Props> = ({
       }
 
       // If not downloaded, proceed with normal flow
-      handleNormalPlayFlow(positionTicks);
+      handleNormalPlayFlow(positionTicks, askPlayer);
     },
-    [item, isOffline, handleNormalPlayFlow, playMedia, t, showModal, hideModal],
+    [
+      item,
+      isOffline,
+      handleNormalPlayFlow,
+      choosePlayerAndPlay,
+      t,
+      showModal,
+      hideModal,
+    ],
   );
 
-  const onPress = useCallback(() => {
-    if (!item) return;
+  const onPress = useCallback(
+    (askPlayer: boolean) => {
+      if (!item) return;
 
-    lightHapticFeedback();
+      lightHapticFeedback();
 
-    // Same prompt the TV item page shows: an in-progress item asks whether
-    // to resume or restart instead of silently resuming. Users can turn the
-    // prompt off in settings, in which case playback resumes right away.
-    const progressTicks = item.UserData?.PlaybackPositionTicks ?? 0;
-    if (progressTicks > 0 && !settings.showResumeDialog) {
-      void startPlayback(progressTicks);
-      return;
-    }
-    if (progressTicks > 0) {
-      Alert.alert(
-        t("item_card.resume_playback"),
-        t("item_card.resume_playback_description"),
-        [
-          {
-            text: t("common.cancel"),
-            style: "cancel",
-          },
-          {
-            text: t("item_card.play_from_start"),
-            onPress: () => void startPlayback(0),
-          },
-          {
-            text: t("item_card.continue_from", {
-              time: formatDuration(progressTicks),
-            }),
-            onPress: () => void startPlayback(progressTicks),
-            isPreferred: true,
-          },
-        ],
-      );
-      return;
-    }
+      // Same prompt the TV item page shows: an in-progress item asks whether
+      // to resume or restart instead of silently resuming. Users can turn the
+      // prompt off in settings, in which case playback resumes right away.
+      const progressTicks = item.UserData?.PlaybackPositionTicks ?? 0;
+      if (progressTicks > 0 && !settings.showResumeDialog) {
+        void startPlayback(progressTicks, askPlayer);
+        return;
+      }
+      if (progressTicks > 0) {
+        Alert.alert(
+          t("item_card.resume_playback"),
+          t("item_card.resume_playback_description"),
+          [
+            {
+              text: t("common.cancel"),
+              style: "cancel",
+            },
+            {
+              text: t("item_card.play_from_start"),
+              onPress: () => void startPlayback(0, askPlayer),
+            },
+            {
+              text: t("item_card.continue_from", {
+                time: formatDuration(progressTicks),
+              }),
+              onPress: () => void startPlayback(progressTicks, askPlayer),
+              isPreferred: true,
+            },
+          ],
+        );
+        return;
+      }
 
-    void startPlayback(0);
-  }, [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog]);
+      void startPlayback(0, askPlayer);
+    },
+    [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog],
+  );
+
+  // "ask" asks on every tap. "askOnLongPress" and "external" ask on a long
+  // press, for "external" the way back to Streamyfin and the chooser. Never
+  // for what cannot go to another app (Live TV, a SyncPlay group): a long
+  // press then plays as a tap.
+  const externalPlayerMode = isExternalPlayerSupported
+    ? settings.externalPlayerMode
+    : "off";
+  const canAskPlayer =
+    !inSyncPlayGroup && shouldUseExternalPlayer(externalPlayerMode, item, true);
+  const askPlayerOnTap = canAskPlayer && externalPlayerMode === "ask";
+  const askPlayerOnLongPress =
+    canAskPlayer &&
+    (externalPlayerMode === "askOnLongPress" ||
+      externalPlayerMode === "external");
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item?.RunTimeTicks) return 0;
@@ -478,7 +552,8 @@ export const PlayButton: React.FC<Props> = ({
       disabled={!item || !!disabled}
       accessibilityLabel={t("accessibility.play_button")}
       accessibilityHint={t("accessibility.play_hint")}
-      onPress={onPress}
+      onPress={() => onPress(askPlayerOnTap)}
+      onLongPress={askPlayerOnLongPress ? () => onPress(true) : undefined}
       className={"relative flex-1"}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
