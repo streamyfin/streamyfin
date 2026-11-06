@@ -22,4 +22,20 @@ class LogRedactionTest {
 
         assertEquals(url, redactCredentials(url))
     }
+
+    @Test
+    fun redactsUrlUserinfo() {
+        assertEquals(
+            "https://[redacted]@proxy.example.com/stream?token=[redacted]",
+            redactCredentials("https://user:secret@proxy.example.com/stream?token=s1"),
+        )
+    }
+
+    @Test
+    fun leavesAUrlWithoutUserinfoAsItIs() {
+        assertEquals(
+            "https://proxy.example.com/stream?keep=1",
+            redactCredentials("https://proxy.example.com/stream?keep=1"),
+        )
+    }
 }

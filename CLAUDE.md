@@ -73,12 +73,15 @@ State and data:
 - `polling-query-rewrites-persisted-cache` | a persisted query with `refetchInterval` re-serializes the whole persisted cache every tick, even when its data never changes (`withoutRedundantSaves` only skips the ticks of queries that are not persisted); enable it only while a consumer is focused, with `gcTime: 0`
 
 Native modules:
+- `exoplayer-loadcontrol-time-not-bytes` | prioritize=true is the stuck-buffer fix; the 256MB heap needs the allocator bounded: byte pool 96MiB (min 5s/max 30s) + 3s back buffer — a ~100Mbps DV remux filled bitrate × 20s and OOM'd (loader → error_code_io_unspecified, or an unrelated thread kills the process); constants duplicated in ExoPlayerView.kt AND ExoPlayerEngine.kt — keep in lockstep
+- `exo-chrome-rebuilds-player-per-load` | the chrome's ExoPlayerEngine releases and rebuilds the player on every accepted load; preparing a new source on the instance that just hit STATE_ENDED stalled the next-episode swap for minutes; ExoPlayerView.kt deliberately keeps one instance (onTracksReady is once-per-view)
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
 - `mpv-tvos-player-exit-freeze` | mpv_terminate_destroy deadlocks main thread; use DispatchQueue.global()
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
 - `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
+- `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
@@ -96,6 +99,7 @@ TV platform:
 - `platform-specific-file-suffix-does-not-work` | .tv.* only resolves under EXPO_TV=1; require the TV file explicitly behind Platform.isTV
 - `tvfocusguideview-ignores-display-style` | TVFocusGuideView sets its own display last, so `display: "none"` in its style is ignored; hide it with `enabled={false}`
 - `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
+- `amlogic-fra-fires-before-real-framerate` | the vendor HDMI frame-rate adaptation switches on the codec's 30fps default, before MKV's real rate is known, and never corrects; app-side preferredDisplayModeId matching (matchRefreshRate setting) is the fix
 
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
