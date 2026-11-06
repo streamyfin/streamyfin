@@ -28,10 +28,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: mockPush }),
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { userAtom: atom(null) };
-});
 jest.mock("@/utils/background-tasks", () => ({
   registerBackgroundFetchAsyncSessions: jest.fn(async () => {}),
   unregisterBackgroundFetchAsyncSessions: jest.fn(async () => {}),

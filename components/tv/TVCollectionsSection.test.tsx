@@ -1,13 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { TVCollectionsSection } from "./TVCollectionsSection";
-
 // The TV size hooks only read the typography scale; the real module pulls in
 // the settings UI with it.
 // The poster artwork is not what this spec is about, and the real component
 // brings the proxy-header machinery along.
-jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
-);
+import { TVCollectionsSection } from "./TVCollectionsSection";
 
 const trilogy = {
   Id: "boxset-1",

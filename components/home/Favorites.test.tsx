@@ -17,9 +17,6 @@ import { Favorites as PhoneFavorites } from "./Favorites";
 // The TV row's sort options sit next to filter atoms stored in MMKV.
 import { Favorites as TVFavorites } from "./Favorites.tv";
 
-jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
-);
 jest.mock("i18next", () => ({ t: (key: string) => key }));
 // The TV sizes read the type scale from the settings, and its enum with it.
 jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));

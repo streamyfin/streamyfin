@@ -13,9 +13,6 @@ jest.mock("@/modules/glass-poster", () => ({
   GlassPosterView: () => null,
   isGlassEffectAvailable: () => false,
 }));
-jest.mock("@/providers/JellyfinProvider", () => ({
-  apiAtom: jest.requireActual("jotai").atom(null),
-}));
 jest.mock("@/constants/TVPosterSizes", () => ({
   useScaledTVPosterSizes: () => ({ poster: 200, episode: 300 }),
 }));

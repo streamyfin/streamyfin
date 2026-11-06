@@ -45,9 +45,6 @@ jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom({ Id: "user-1" }) };
 });
-jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireMock("@/utils/atoms/api"),
-);
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
 }));

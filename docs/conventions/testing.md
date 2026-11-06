@@ -100,7 +100,8 @@ Three rules keep mocks from becoming the thing that breaks:
   `appRouterModule`, `inactivityModule`, `expoWithoutNativeModule`, `onlineModule`,
   `emptyTVTypographyModule` and `blankIconsModule`.
 - `makeJellyfinAtomsModule(api, user)` stands for `@/providers/JellyfinProvider` when a
-  spec only reads the api and user atoms. `makeSettingsModule()` stands for
+  spec needs the api and user atoms to hold a session of its own; the unit default
+  re-exports the real `apiAtom` and `userAtom`. `makeSettingsModule()` stands for
   `@/utils/atoms/settings` with the default settings plus overrides.
 - `customHeadersModule()` stands for the `@/utils/customHeaders` barrel, with the pure
   helpers for real and the native side stubbed; `setJellyfinHeaders()` sets what it reports.
@@ -128,12 +129,16 @@ module that is also imported relatively.
 
 App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/settings`
 (`makeSettingsModule()`), `@/components/common/ServerImage` (a `View` named after its
-URL) and `@/hooks/useNetworkStatus`. A spec that needs other values declares its own
-`jest.mock`, e.g. `makeSettingsModule({ ... })`; a spec about the real module calls
-`jest.unmock`.
+URL), `@/hooks/useNetworkStatus` and `@/providers/JellyfinProvider`. The provider is
+imported relatively by sibling modules, so it cannot go through `moduleNameMapper`; its
+unit default re-exports the real `apiAtom` and `userAtom`, so code reading either module
+shares the atoms. A spec that needs `useJellyfin`, another provider export or a session
+of its own declares its own `jest.mock`, e.g. `makeSettingsModule({ ... })`; a spec
+about the real module calls `jest.unmock`.
 
 The perf config (`jest.perf.config.js`) inherits the package mappings except `expo-router`
-and `react-i18next`, and replaces the unit setup file with `test-utils/perfSetup.ts`: a
+and `react-i18next`, and replaces the unit setup file with `test-utils/perfSetup.ts`,
+which supplies the signed-in JellyfinProvider double over the shared api atoms: a
 scenario measures the real translation, settings, image and network cost.
 
 ## React Native components

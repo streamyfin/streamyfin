@@ -6,9 +6,6 @@ import { stubReactNative } from "@/test-utils/reactNative";
 jest.mock("expo-notifications", () => {
   throw new Error("expo-notifications is left out of TV builds");
 });
-jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
-);
 jest.mock("sonner-native", () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));

@@ -17,3 +17,6 @@ jest.mock(
   "@/hooks/useNetworkStatus",
   () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
 );
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
