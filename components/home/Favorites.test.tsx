@@ -32,7 +32,6 @@ jest.mock("@/hooks/useTVItemActionModal", () => ({
 jest.mock("@/hooks/useItemActionSheet", () => ({
   useItemActionSheet: () => ({}),
 }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // The cards are not under test: each row draws the names of the items it was
 // handed, and the rows themselves are the real ones, queries included.
 jest.mock("@/components/cards/CardRow", () => {

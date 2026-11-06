@@ -10,10 +10,6 @@ import {
 import { TVHomeBackdrop, type TVHomeBackdropRef } from "./TVHomeBackdrop";
 
 jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
-jest.mock(
   "@/providers/JellyfinProvider",
   () =>
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,

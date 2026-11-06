@@ -5,9 +5,6 @@ import { TVCollectionsSection } from "./TVCollectionsSection";
 // the settings UI with it.
 // The poster artwork is not what this spec is about, and the real component
 // brings the proxy-header machinery along.
-jest.mock("@/components/common/ServerImage", () => ({
-  Image: () => null,
-}));
 jest.mock("@/providers/JellyfinProvider", () =>
   jest.requireActual("@/test-utils/jellyfinProvider").makeJellyfinAtomsModule(),
 );

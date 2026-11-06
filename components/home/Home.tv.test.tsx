@@ -124,11 +124,6 @@ jest.mock("@/utils/tvDiscovery/sync", () => ({
   updateTVDiscovery: () => {},
 }));
 
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
-
 // A plain child of Home: it renders exactly when Home does, which makes it
 // the test's measure of Home's own renders.
 let mockStreamystatsRenders = 0;

@@ -21,7 +21,6 @@ jest.mock("@/utils/atoms/settings", () =>
   }),
 );
 // The row layout these specs render draws no image.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // Navigation is not what is under test; the card shows up as its content.
 jest.mock("../common/TouchableItemRouter", () => ({
   TouchableItemRouter: ({ children }: { children: React.ReactNode }) =>

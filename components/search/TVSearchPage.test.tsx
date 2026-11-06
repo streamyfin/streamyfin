@@ -19,7 +19,6 @@ jest.mock("@/components/tv/TVPosterCard", () => {
     ),
   };
 });
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // The native search field and the Discover rows are not what is under test.
 jest.mock("@/modules/tv-search", () => ({ TvSearchView: () => null }));
 jest.mock("@/components/seerr/discover/TVDiscover", () => ({

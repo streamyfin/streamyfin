@@ -5,7 +5,6 @@ jest.mock(
   "@expo/vector-icons",
   () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
 );
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/components/WatchedIndicator", () => ({
   UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,

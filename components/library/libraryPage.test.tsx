@@ -124,7 +124,6 @@ jest.mock("@/components/common/TouchableItemRouter", () => ({
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,
 }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/components/filters/ResetFiltersButton", () => ({
   ResetFiltersButton: () => null,
 }));

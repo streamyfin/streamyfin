@@ -23,7 +23,6 @@ jest.mock(
 // The real log writes to MMKV, which no test environment has.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The rows draw a backdrop only when a preview item has one.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 
 const LIVE_TV = { Id: "livetv-1", Name: "Live TV", CollectionType: "livetv" };
 const MOVIES = { Id: "movies-1", Name: "Movies", CollectionType: "movies" };

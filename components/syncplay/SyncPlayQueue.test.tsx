@@ -49,7 +49,6 @@ jest.mock(
   "@expo/vector-icons",
   () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
 );
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://host" }),
 }));

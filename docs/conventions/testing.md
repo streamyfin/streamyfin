@@ -121,8 +121,8 @@ jest.mock(
 ```
 
 `react-native-mmkv`, `react-i18next`, `react-native-safe-area-context`,
-`@gorhom/bottom-sheet`, `react-native-device-info` and `@/utils/atoms/settings` are the
-exceptions:
+`@gorhom/bottom-sheet`, `react-native-device-info`, `@/utils/atoms/settings` and
+`@/components/common/ServerImage` (a `View` named after its URL) are the exceptions:
 `moduleNameMapper` wires them for every spec, so nothing declares them. The bottom sheet
 and device info use the libraries' own Jest mocks, which is what lets `makeSettingsModule()` load the
 real settings module in any spec. `@/utils/atoms/settings` itself is the default settings
@@ -130,8 +130,8 @@ plus `TVTypographyScale`; a spec that needs other values mocks it with
 `makeSettingsModule({ ... })`, or its own factory when it asserts on the calls.
 
 The perf config (`jest.perf.config.js`) inherits these mappings, except `expo-router`,
-`react-i18next` and `@/utils/atoms/settings`: a scenario measures the real translation
-and settings cost, and `test-utils/perfSetup.ts` mocks the rest itself.
+`react-i18next`, `@/utils/atoms/settings` and `@/components/common/ServerImage`: a
+scenario measures the real translation, settings and image cost, and `test-utils/perfSetup.ts` mocks the rest itself.
 
 ## React Native components
 

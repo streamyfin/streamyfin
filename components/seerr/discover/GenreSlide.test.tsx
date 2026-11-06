@@ -28,7 +28,6 @@ jest.mock(
   () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
 );
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // FlashList ships as ES modules, which Jest does not load. FlatList reads the
 // row the same way: as many items as `data.length`, each through
 // `keyExtractor(data[index])`, which is where the phone's row crashed.
