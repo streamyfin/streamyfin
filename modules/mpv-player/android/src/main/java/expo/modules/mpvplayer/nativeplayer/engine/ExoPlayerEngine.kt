@@ -45,6 +45,7 @@ import java.io.IOException
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import expo.modules.mpvplayer.DeviceKind
+import expo.modules.mpvplayer.redactCredentials
 import expo.modules.mpvplayer.MpvPauseReport
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 
@@ -353,7 +354,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         Log.i(
             TAG,
-            "load: url=" + redactUrl(config.url) +
+            "load: url=" + redactCredentials(config.url) +
                 " startPosition=" + config.startPosition +
                 " force=" + force +
                 " priorState=" + player?.playbackState,
@@ -693,13 +694,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         val cause = error.cause?.javaClass?.simpleName
         return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
     }
-
-    /**
-     * Stream and subtitle URLs carry the server's ApiKey; logcat outlives the
-     * session and ends up in bug reports, so the token never goes in a log line.
-     */
-    private fun redactUrl(url: String): String =
-        url.replace(Regex("([?&]ApiKey=)[^&]*", RegexOption.IGNORE_CASE), "$1***")
 
     override fun reloadCurrentItem() {
         val url = currentUrl ?: return
@@ -1376,7 +1370,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactUrl(loadEventInfo.uri.toString()) + ": " + error.message,
+                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " + error.message,
             )
         }
     }
