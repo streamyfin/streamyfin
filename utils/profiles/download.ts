@@ -4,8 +4,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
+import type { DownloadVideoCodec } from "@/constants/Downloads";
 import { type AudioTranscodeModeType, generateDeviceProfile } from "./native";
 import { getSubtitleProfiles } from "./subtitles";
+
+// H.264 backs up HEVC, whose encoding is off on a server until its admin enables it.
+const TRANSCODE_VIDEO_CODECS: Record<DownloadVideoCodec, string | undefined> = {
+  auto: undefined,
+  h264: "h264",
+  hevc: "hevc,h264",
+};
 
 /**
  * Generates a device profile optimized for downloads.
@@ -13,6 +21,7 @@ import { getSubtitleProfiles } from "./subtitles";
  */
 export const generateDownloadProfile = (
   audioMode: AudioTranscodeModeType = "auto",
+  videoCodec: DownloadVideoCodec = "auto",
 ): DeviceProfile => {
   // Get the base profile with proper audio codec configuration
   const baseProfile = generateDeviceProfile({ audioMode });
@@ -33,6 +42,7 @@ export const generateDownloadProfile = (
           ...profile,
           Protocol: "http" as const,
           Container: "mp4",
+          VideoCodec: TRANSCODE_VIDEO_CODECS[videoCodec] ?? profile.VideoCodec,
           AudioCodec: "aac,mp3,ac3,eac3",
           CopyTimestamps: false,
         };

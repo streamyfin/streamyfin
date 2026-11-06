@@ -1,13 +1,16 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { toast } from "sonner-native";
+import type { Settings } from "@/utils/atoms/settings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { BITRATES } from "./BitrateSelector";
 import { DownloadItems, DownloadSingleItem } from "./DownloadItem";
 import type { OptionGroup } from "./PlatformDropdown";
 
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
+let mockSettings: Partial<Settings> | null = null;
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -31,7 +34,7 @@ jest.mock(
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: null }),
+  useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
@@ -148,6 +151,7 @@ beforeEach(() => {
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
   mockDownloadedItems = [];
+  mockSettings = null;
 });
 
 afterEach(() => {
@@ -306,6 +310,223 @@ describe("DownloadItems, sending one episode of a season", () => {
         audioStreamIndex: 2,
         subtitleStreamIndex: 12,
       }),
+    );
+  });
+});
+
+describe("DownloadItems, original or transcode", () => {
+  const MOVIE_WITH_TWO_AUDIO_TRACKS: BaseItemDto = {
+    ...MOVIE,
+    MediaSources: [
+      {
+        Id: "source-1",
+        Name: "The only version",
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          { Type: "Audio", Index: 1, DisplayTitle: "English" },
+          { Type: "Audio", Index: 2, DisplayTitle: "French" },
+        ],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+  });
+
+  const switchToTranscode = () =>
+    fireEvent.press(screen.getByText("item_card.download.mode_transcode"));
+
+  // A streaming cap set to save data made every download a transcode, which
+  // keeps one audio track and burns in an image subtitle.
+  test("downloads the original file, whatever the streaming quality", async () => {
+    mockSettings = { defaultBitrate: BITRATES[1] };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "original",
+        maxStreamingBitrate: undefined,
+      }),
+    );
+  });
+
+  test("transcodes with the download defaults when that is what is set", async () => {
+    mockSettings = {
+      downloadMode: "transcode",
+      defaultDownloadBitrate: BITRATES[1],
+      downloadVideoCodec: "hevc",
+    };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "transcode",
+        maxStreamingBitrate: BITRATES[1].value,
+        videoCodec: "hevc",
+      }),
+    );
+  });
+
+  test("asks nothing of an original with a single version", async () => {
+    await render(<DownloadSingleItem item={MOVIE_WITH_TWO_AUDIO_TRACKS} />);
+
+    expect(screen.queryByText("The only version")).toBeNull();
+    expect(screen.queryByText("English")).toBeNull();
+    expect(
+      screen.getByText("item_card.download.original_keeps_every_track"),
+    ).toBeTruthy();
+  });
+
+  test("lets a transcode pick its audio track, and says the others are left out", async () => {
+    await render(<DownloadSingleItem item={MOVIE_WITH_TWO_AUDIO_TRACKS} />);
+
+    await switchToTranscode();
+
+    expect(screen.getAllByText("French").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("item_card.download.transcode_keeps_one_track"),
+    ).toBeTruthy();
+  });
+
+  test("offers no audio pick for a transcode of a single audio track", async () => {
+    const singleAudio: BaseItemDto = {
+      ...MOVIE,
+      MediaSources: [
+        {
+          Id: "source-1",
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            { Type: "Audio", Index: 1, DisplayTitle: "English" },
+          ],
+        },
+      ],
+    };
+    await render(<DownloadSingleItem item={singleAudio} />);
+
+    await switchToTranscode();
+
+    expect(screen.queryByText("English")).toBeNull();
+    expect(
+      screen.queryByText("item_card.download.transcode_keeps_one_track"),
+    ).toBeNull();
+  });
+
+  test("keeps the quality under More options and downloads the one picked", async () => {
+    await render(<DownloadSingleItem item={MOVIE} />);
+    await switchToTranscode();
+
+    expect(screen.queryByText(BITRATES[1].key)).toBeNull();
+    await fireEvent.press(screen.getByText("item_card.download.more_options"));
+    await fireEvent.press(screen.getByText(BITRATES[1].key));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "transcode",
+        maxStreamingBitrate: BITRATES[1].value,
+      }),
+    );
+  });
+});
+
+describe("DownloadItems, burning in a subtitle", () => {
+  const movieWithSubtitles = (defaultSubtitle?: number): BaseItemDto => ({
+    ...MOVIE,
+    MediaSources: [
+      {
+        Id: "source-1",
+        DefaultSubtitleStreamIndex: defaultSubtitle,
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          { Type: "Audio", Index: 1, DisplayTitle: "Stereo" },
+          {
+            Type: "Subtitle",
+            Index: 2,
+            DisplayTitle: "Signs (PGS)",
+            Codec: "PGSSUB",
+            IsTextSubtitleStream: false,
+          },
+          {
+            Type: "Subtitle",
+            Index: 3,
+            DisplayTitle: "Dialogue (SRT)",
+            Codec: "srt",
+            IsTextSubtitleStream: true,
+          },
+        ],
+      },
+    ],
+  });
+
+  beforeEach(() => {
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+  });
+
+  const switchToTranscode = () =>
+    fireEvent.press(screen.getByText("item_card.download.mode_transcode"));
+
+  test("asks nothing about subtitles when the movie has none", async () => {
+    await render(<DownloadSingleItem item={MOVIE} />);
+    await switchToTranscode();
+
+    expect(screen.queryByText("item_card.download.burn_in_none")).toBeNull();
+  });
+
+  test("asks nothing about subtitles for an original, which keeps them all", async () => {
+    await render(<DownloadSingleItem item={movieWithSubtitles()} />);
+
+    expect(screen.queryByText("Dialogue (SRT)")).toBeNull();
+  });
+
+  // For a player that reads no sidecar files.
+  test("burns in a text subtitle that is picked", async () => {
+    await render(<DownloadSingleItem item={movieWithSubtitles()} />);
+    await switchToTranscode();
+
+    await fireEvent.press(screen.getByText("Dialogue (SRT)"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "transcode", subtitleStreamIndex: 3 }),
+    );
+    // Offline playback starts on it: the subtitle index is the last argument.
+    expect(mockStartBackgroundDownload.mock.calls[0].at(-1)).toBe(3);
+  });
+
+  // A transcode cannot carry an image subtitle as a track, so the one the
+  // movie turns on is lost unless it is burned in.
+  test("starts on burning in the image subtitle the movie turns on", async () => {
+    await render(<DownloadSingleItem item={movieWithSubtitles(2)} />);
+    await switchToTranscode();
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ subtitleStreamIndex: 2 }),
+    );
+  });
+
+  test("burns in nothing when None is picked", async () => {
+    await render(<DownloadSingleItem item={movieWithSubtitles(2)} />);
+    await switchToTranscode();
+
+    await fireEvent.press(screen.getByText("item_card.download.burn_in_none"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ subtitleStreamIndex: -1 }),
     );
   });
 });
