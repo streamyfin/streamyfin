@@ -12,6 +12,8 @@ const session = {
   mediaSourceId: "source-1",
   currentAudioIndex: 2,
   currentSubtitleIndex: 4,
+  awaitingLoad: false,
+  positionMs: 0,
 };
 
 test("the hand-off sends the session's streams at the position", () => {
@@ -22,6 +24,17 @@ test("the hand-off sends the session's streams at the position", () => {
     audioIndex: 2,
     subtitleIndex: 4,
   });
+});
+
+// During an in-place swap the native position is still the outgoing stream's: the incoming item goes from where its
+// start report said, as the teardown report does.
+test("a hand-off during an in-place load goes from where the incoming item starts", () => {
+  expect(
+    resolveCastHandOff(
+      { ...session, awaitingLoad: true, positionMs: 30_000 },
+      812,
+    ).positionTicks,
+  ).toBe(300_000_000);
 });
 
 // A live channel has no position to go on from: the receiver joins it live, as the item page's Play sends it.
@@ -120,10 +133,13 @@ test("a hand-off a newer one replaced leaves the player alone", () => {
   }
 });
 
-// A group joined while the receiver loaded owns the player now: it neither closes nor plays on its own.
+// A group joined while the receiver loaded owns the player now: it neither closes nor plays on its own, and the
+// receiver stops the item it loaded, which nobody watches there.
 test("a hand-off a SyncPlay join overtook leaves the player to the group", () => {
+  expect(nextStepAfterSend({ status: "loaded" }, { inSyncPlay: true })).toEqual(
+    { kind: "stopReceiver" },
+  );
   for (const result of [
-    { status: "loaded" },
     { status: "superseded" },
     { status: "notStarted", message: "It did not start" },
   ] as const) {
