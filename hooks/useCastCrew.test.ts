@@ -100,7 +100,10 @@ describe("useCastCrew", () => {
     mockT.mockImplementation((key, options) => options?.defaultValue ?? key);
     try {
       const { result } = await renderHook(() =>
-        useCastCrew([{ Id: "a", Type: "Narrator" } as unknown as BaseItemPerson], { labelRoles: true }),
+        useCastCrew(
+          [{ Id: "a", Type: "Narrator" } as unknown as BaseItemPerson],
+          { labelRoles: true },
+        ),
       );
 
       expect(result.current[0].Role).toBe("Narrator");
