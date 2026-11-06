@@ -246,21 +246,28 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
 
-        {Platform.OS === "android" && !Platform.isTV && (
-          <ListItem
-            title={t("home.settings.other.audio_only_when_screen_off")}
-            subtitle={t("home.settings.other.audio_only_when_screen_off_hint")}
-            disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
-          >
-            <SettingSwitch
-              value={settings.audioOnlyWhenScreenOff !== false}
+        {/* Needs the offscreen sink, which needs Android 10 (API 29). */}
+        {Platform.OS === "android" &&
+          !Platform.isTV &&
+          Platform.Version >= 29 && (
+            <ListItem
+              title={t("home.settings.other.audio_only_when_screen_off")}
+              subtitle={t(
+                "home.settings.other.audio_only_when_screen_off_hint",
+              )}
               disabled={pluginSettings?.audioOnlyWhenScreenOff?.locked === true}
-              onValueChange={(audioOnlyWhenScreenOff) =>
-                updateSettings({ audioOnlyWhenScreenOff })
-              }
-            />
-          </ListItem>
-        )}
+            >
+              <SettingSwitch
+                value={settings.audioOnlyWhenScreenOff !== false}
+                disabled={
+                  pluginSettings?.audioOnlyWhenScreenOff?.locked === true
+                }
+                onValueChange={(audioOnlyWhenScreenOff) =>
+                  updateSettings({ audioOnlyWhenScreenOff })
+                }
+              />
+            </ListItem>
+          )}
 
         <ListItem
           title={t("home.settings.other.still_watching")}
