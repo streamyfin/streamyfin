@@ -267,7 +267,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactUrl(loadEventInfo.uri.toString()) + ": " + error.message,
+                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " + error.message,
             )
         }
     }
@@ -480,13 +480,6 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val cause = error.cause?.javaClass?.simpleName
         return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
     }
-
-    /**
-     * Stream and subtitle URLs carry the server's ApiKey; logcat outlives the
-     * session and ends up in bug reports, so the token never goes in a log line.
-     */
-    private fun redactUrl(url: String): String =
-        url.replace(Regex("([?&]ApiKey=)[^&]*", RegexOption.IGNORE_CASE), "$1***")
 
     // MARK: - Video Loading
 
