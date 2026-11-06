@@ -3,14 +3,10 @@ import type { QuickConnectSteps } from "./seerrQuickConnect";
 
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // this spec's module under test actually calls.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
+jest.mock(
+  "@/utils/log",
+  () => jest.requireActual("@/test-utils/log").silentLogModule,
+);
 
 import {
   attemptQuickConnectSignIn,

@@ -2,10 +2,6 @@ jest.mock(
   "expo-secure-store",
   () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
 );
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The barrel re-exports modules with native dependencies; the spec needs the
 // pure helpers only.
 jest.mock("@/utils/customHeaders", () =>

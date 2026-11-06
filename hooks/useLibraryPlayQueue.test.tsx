@@ -20,10 +20,6 @@ const mockPlayMedia = jest.fn();
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // A new function on every render, as the real hook hands out.
 jest.mock("@/hooks/usePlayMedia", () => ({
   usePlayMedia:

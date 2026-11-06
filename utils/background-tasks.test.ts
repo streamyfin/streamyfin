@@ -1,7 +1,3 @@
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-background-task", () => ({
   registerTaskAsync: jest.fn(async () => {}),
   unregisterTaskAsync: jest.fn(async () => {}),

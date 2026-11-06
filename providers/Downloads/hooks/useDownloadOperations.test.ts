@@ -8,10 +8,6 @@ import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records are real, over the MMKV double: they are what cancel reads its files from.
 jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock(
   "expo-file-system",
   () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
 );
@@ -48,9 +44,10 @@ jest.mock("@/utils/customHeaders", () => ({
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("react-native-device-info", () => ({}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("sonner-native", () => ({
   toast: { info: jest.fn(), success: jest.fn(), error: jest.fn() },
 }));

@@ -7,10 +7,6 @@ import { type DiscoverSlider, DiscoverSliderType } from "@/utils/seerr/types";
 import GenreSlide from "./GenreSlide";
 import { TVGenreSlide } from "./TVGenreSlide";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Ships as ES modules, which Jest does not load, and nothing here toasts.
 jest.mock("sonner-native", () => ({ toast: {} }));
 // The real log loads Sentry, whose timers keep Jest from exiting.
@@ -45,9 +41,10 @@ jest.mock("@shopify/flash-list", () => ({
 }));
 // The rows' headings, by their keys: the TV's through the hook, the phone's
 // through i18next itself.
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("i18next", () => ({
   ...jest.requireActual("i18next"),
   t: (key: string) => key,

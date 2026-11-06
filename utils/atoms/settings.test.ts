@@ -16,10 +16,6 @@ import {
   SETTINGS_KEY,
 } from "@/utils/storedSettings";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // BitrateSelector is a React component module; only the BITRATES table matters.
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],

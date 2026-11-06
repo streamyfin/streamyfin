@@ -69,9 +69,10 @@ jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
 jest.mock("@/utils/seriesTrackMemory", () => ({
   rememberSeriesTrackFromRow: () => {},
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 
 let audioTracks: Track[] | null = null;
 const Menu = () => {

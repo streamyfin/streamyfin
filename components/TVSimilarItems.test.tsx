@@ -14,9 +14,10 @@ jest.mock("@/hooks/useAppRouter", () => ({
   default: () => ({ push: mockPush }),
 }));
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: mockShowItemActions }),
 }));

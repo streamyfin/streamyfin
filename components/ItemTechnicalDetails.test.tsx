@@ -9,9 +9,10 @@ jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetBackdrop: () => null,
   BottomSheetScrollView: () => null,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 18 }),
 }));

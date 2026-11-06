@@ -27,10 +27,6 @@ jest.mock("@sentry/react-native", () => ({
     mockCaptured[mockCaptured.length - 1].exception = exception;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 import { AxiosError, type AxiosResponse } from "axios";
 import { clearMmkv } from "@/test-utils/mmkv";

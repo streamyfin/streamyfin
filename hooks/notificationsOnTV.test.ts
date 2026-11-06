@@ -13,9 +13,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("sonner-native", () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 
 describe("on TV", () => {
   beforeEach(() => stubReactNative({ isTV: true }));

@@ -17,10 +17,6 @@ import { stubReactNative } from "@/test-utils/reactNative";
 const mockParams: { current: Record<string, unknown> } = { current: {} };
 const mockWriteToLog = jest.fn();
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-router", () => {
   const { useEffect } = jest.requireActual("react");
   return {
@@ -77,9 +73,10 @@ jest.mock("@/components/BitrateSelector", () => ({
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 // The list renders its header, where the phone keeps the filter bar, and
 // what it shows when empty.
 jest.mock("@shopify/flash-list", () => ({

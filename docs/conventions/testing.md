@@ -78,7 +78,13 @@ Three rules keep mocks from becoming the thing that breaks:
   reads `Platform` when it loads has to be required after the call, not imported, or it
   keeps the platform it saw first.
 - `mmkvModule` stands for `react-native-mmkv`, backed by one map per spec file;
-  `clearMmkv()` empties it between tests.
+  `clearMmkv()` empties it between tests. `moduleNameMapper` wires it for every
+  spec through `test-utils/mmkvModule.ts`, so it needs no `jest.mock` of its own.
+- `identityTranslationModule` stands for `react-i18next` when a spec only needs
+  `t` to return its key. A spec asserting on interpolation, a language or the
+  calls `t` receives keeps its own factory.
+- `silentLogModule` stands for `@/utils/log` when a spec only needs the log
+  silenced. A spec that records or asserts on log calls keeps its own factory.
 - `secureStoreModule` stands for `expo-secure-store`, the same way; `clearSecureStore()`
   empties it, and `secureStoreValues` seeds or reads it back. `lockSecureStore()` locks the
   phone: a read then throws, as the Keychain's does, unless the item was created as readable
@@ -96,13 +102,17 @@ Three rules keep mocks from becoming the thing that breaks:
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.
 
-A module double is wired the same way everywhere:
+A double a spec opts into is wired the same way everywhere:
 
 ```typescript
-jest.mock("react-native-mmkv", () =>
-  jest.requireActual("@/test-utils/mmkv").mmkvModule,
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
 );
 ```
+
+`react-native-mmkv` is the exception: `moduleNameMapper` wires it for every
+spec, so nothing declares it.
 
 ## React Native components
 

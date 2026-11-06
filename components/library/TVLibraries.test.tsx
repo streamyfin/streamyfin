@@ -16,9 +16,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { hiddenLibraries: [] } }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),

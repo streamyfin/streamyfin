@@ -14,6 +14,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { queryDehydrateOptions } from "@/utils/queryPersistence";
 import { Favorites as PhoneFavorites } from "./Favorites";
+// The TV row's sort options sit next to filter atoms stored in MMKV.
 import { Favorites as TVFavorites } from "./Favorites.tv";
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -21,9 +22,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
   return { apiAtom: atom(null), userAtom: atom(null) };
 });
 jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 // The TV sizes read the type scale from the settings, and its enum with it.
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
@@ -39,11 +41,6 @@ jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-// The TV row's sort options sit next to filter atoms stored in MMKV.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: jest.fn() }),
 }));

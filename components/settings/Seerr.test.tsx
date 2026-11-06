@@ -13,18 +13,15 @@ const mockLogin = jest.fn();
 const mockSetSeerrUser = jest.fn();
 const mockToastError = jest.fn();
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The log module loads Sentry and its timers. Nothing asserted here logs.
 jest.mock("@/utils/log", () => ({
   writeErrorLog: () => undefined,
   writeToLog: () => undefined,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("sonner-native", () => ({
   toast: { error: (message: string) => mockToastError(message) },
 }));

@@ -23,9 +23,10 @@ jest.mock("@/hooks/useControlsSafeAreaInsets", () => ({
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ body: 20, callout: 18 }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 // The transcode progress is polled from the server through the provider tree,
 // and has its own spec in hooks/useTranscodingProgress.test.tsx.
 jest.mock("@/hooks/useTranscodingProgress", () => ({

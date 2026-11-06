@@ -13,10 +13,6 @@ import {
 import { secureCustomHeaderMetadata } from "./secureValues";
 
 jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock(
   "expo-secure-store",
   () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
 );

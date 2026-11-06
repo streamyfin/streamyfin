@@ -15,16 +15,13 @@ const mockToastError = jest.fn();
 const mockToastInfo = jest.fn();
 const mockRefreshUrlState = jest.fn();
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The saved-server store imports the log module, which loads Sentry and its
 // timers. Nothing on the path under test logs.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("sonner-native", () => ({
   toast: {
     error: (message: string) => mockToastError(message),

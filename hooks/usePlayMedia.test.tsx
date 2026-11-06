@@ -41,9 +41,10 @@ jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 
 const play = async (item: BaseItemDto) => {
   const { result } = await renderHook(() => usePlayMedia());

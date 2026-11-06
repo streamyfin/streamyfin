@@ -14,10 +14,6 @@ import {
   useSeerrImageCache,
 } from "./useSeerr";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Ships as ES modules, which Jest does not load.
 jest.mock("sonner-native", () => ({
   toast: { error: (...args: unknown[]) => mockToastError(...args) },

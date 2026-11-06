@@ -96,11 +96,6 @@ jest.mock("react-native-safe-area-context", () => ({
 
 jest.mock("expo-router", () => ({ useSegments: () => ["(auth)", "(tabs)"] }));
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: (item: BaseItemDto, from: string) =>
     `/items/${item.Id}?from=${from}`,

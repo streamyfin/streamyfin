@@ -204,7 +204,8 @@
     "globalSetup": "<rootDir>/test-utils/timeZone.ts",
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
-      "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts"
+      "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts",
+      "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg))"

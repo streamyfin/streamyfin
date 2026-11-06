@@ -4,11 +4,10 @@ const values = new Map<string, StoredValue>();
 
 /**
  * A react-native-mmkv double for specs, which cannot load its native module.
- * Wire it at the top of a spec, where Jest hoists it above the imports:
- *
- *   jest.mock("react-native-mmkv", () =>
- *     jest.requireActual("@/test-utils/mmkv").mmkvModule,
- *   );
+ * `moduleNameMapper` sends every Jest `react-native-mmkv` import to
+ * `test-utils/mmkvModule.ts`, which re-exports this surface, so a spec needs
+ * no mock of its own; one needing a different shape still wires a local
+ * `jest.mock`.
  *
  * `@/utils/mmkv` builds its `storage` instance once at module evaluation, so
  * one backing map serves the whole spec, and Jest's per-file module registry

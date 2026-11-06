@@ -26,10 +26,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     }),
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: null }),
 }));
@@ -46,9 +42,10 @@ jest.mock("@/hooks/useAppRouter", () => ({
 }));
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
 // The sheet is always open here: what is under test is what confirming it
 // does, not how it is presented.

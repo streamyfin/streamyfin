@@ -1,10 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The settings atoms reach the api atoms, which read react-native-device-info.
 jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
@@ -13,14 +9,10 @@ jest.mock("@/utils/atoms/api", () => {
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
+jest.mock(
+  "@/utils/log",
+  () => jest.requireActual("@/test-utils/log").silentLogModule,
+);
 
 import { buildTrickplayDescriptor } from "./buildNativePlayerConfig";
 

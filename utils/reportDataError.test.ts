@@ -23,10 +23,6 @@ jest.mock("@sentry/react-native", () => ({
     mockCaptured[mockCaptured.length - 1].exception = exception;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 import { onlineManager } from "@tanstack/react-query";
 import { AxiosError, type AxiosResponse } from "axios";

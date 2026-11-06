@@ -23,9 +23,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("@/components/common/ItemImage", () => ({ ItemImage: () => null }));
 // The row layout is not what is under test; a channel shows up as the names
 // of its programs.

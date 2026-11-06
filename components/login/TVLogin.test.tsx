@@ -43,10 +43,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
   useNavigation: () => ({ setOptions: () => {} }),

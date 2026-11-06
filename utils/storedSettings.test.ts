@@ -6,10 +6,6 @@ import {
   SETTINGS_KEY,
 } from "./storedSettings";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));

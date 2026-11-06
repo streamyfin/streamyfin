@@ -13,9 +13,10 @@ const mockMenuLinks = jest.fn<MenuLink[], []>();
 const mockOpenBrowser = jest.fn<Promise<{ type: string }>, [string]>();
 const mockToastError = jest.fn();
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 jest.mock("sonner-native", () => ({
   toast: { error: (message: string) => mockToastError(message) },
 }));

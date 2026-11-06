@@ -14,9 +14,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
   // The cards are built from the api's base path; nothing is requested.
   return { apiAtom: atom({ basePath: "http://server" }) };
 });
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 // The row itself is not under test: a card shows up as its two lines.
 jest.mock("@/components/cards/CardRow", () => ({
   CardRow: ({

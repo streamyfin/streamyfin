@@ -155,10 +155,6 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
     };
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The log module loads Sentry and its timers. Nothing on the path under test logs.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("@/utils/customHeaders", () => ({

@@ -2,9 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Pressable, Text } from "react-native";
 import { TVSearchTabBadges } from "@/components/search/TVSearchTabBadges";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 // The real button pulls the TV focus animation in; the row only needs
 // something to press that shows its label and value.
 const MockFilterButton = (props: {

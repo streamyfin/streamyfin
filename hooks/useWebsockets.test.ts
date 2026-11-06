@@ -15,9 +15,10 @@ jest.mock("@/providers/WebSocketProvider", () => ({
     clearLastMessage: mockClear,
   }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "react-i18next",
+  () => jest.requireActual("@/test-utils/i18next").identityTranslationModule,
+);
 
 const props = {
   isPlaying: true,
