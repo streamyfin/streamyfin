@@ -27,6 +27,11 @@ import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
 
 const CACHE_SUBDIR = "subtitles";
 
+// A budget timeout rejects the caller but does not cancel the native
+// download: sweep the staging file again after the abandoned transfer has
+// had time to settle.
+const LATE_STAGING_SWEEP_MS = 60_000;
+
 /** The engines sniff the MIME from the extension; keep the served one. */
 const extensionFromUrl = (url: string, codec?: string | null): string => {
   const path = url.split("?")[0] ?? "";
@@ -41,10 +46,14 @@ const extensionFromUrl = (url: string, codec?: string | null): string => {
 
 export const localSubtitleFileName = (
   item: BaseItemDto,
+  mediaSourceId: string | null | undefined,
   sub: MediaStream,
   url: string,
 ): string =>
-  `${item.Id ?? "item"}-${sub.Index}.${extensionFromUrl(url, sub.Codec)}`;
+  // The media source is part of the name: two versions of one item can share
+  // a subtitle index and extension, and the second version must not reuse the
+  // first one's file.
+  `${item.Id ?? "item"}-${mediaSourceId ?? "source"}-${sub.Index}.${extensionFromUrl(url, sub.Codec)}`;
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -55,6 +64,23 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
     );
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
+/**
+ * One in-flight download per destination: the next-episode warm and the swap
+ * prefetch run this function concurrently for the same file. Without this,
+ * both write the same `.part` staging name — the second native download
+ * rejects, its catch deletes the staging file the first one is still moving,
+ * and the subtitle is lost for the session.
+ */
+const inFlight = new Map<string, Promise<void>>();
+
+const removeStaging = (file: File) => {
+  try {
+    file.delete();
+  } catch {
+    // The staging file lives in the OS cache; losing its cleanup is fine.
+  }
 };
 
 /**
@@ -85,19 +111,21 @@ export const prefetchExternalSubtitles = async (params: {
     ) ?? [];
   if (externals.length === 0) return;
 
-  const cacheDir = new Directory(Paths.cache, CACHE_SUBDIR);
+  let cacheDir: Directory | null = null;
   try {
+    cacheDir = new Directory(Paths.cache, CACHE_SUBDIR);
     if (!cacheDir.exists) cacheDir.create();
   } catch {
-    // Nowhere to cache means no prefetch; the sweep below then undelivers
+    // Nowhere to cache means no downloads; the sweep below still undelivers
     // every remote sub, which is the safe outcome.
-    return;
+    cacheDir = null;
   }
 
   const deadline =
     Date.now() + (params.budgetMs ?? SUBTITLE_PREFETCH_BUDGET_MS);
   const perSubtitleMs =
     params.perSubtitleMs ?? SUBTITLE_PREFETCH_PER_SUBTITLE_MS;
+  const mediaSourceId = params.mediaSource.Id;
 
   for (const sub of externals) {
     const url = getExternalSubtitleUrl(sub, {
@@ -107,51 +135,78 @@ export const prefetchExternalSubtitles = async (params: {
     // Already local (a third-party path or a previous pass): keep as is.
     if (!url || url.startsWith("file://")) continue;
     if (Date.now() >= deadline) break;
+    if (!cacheDir) continue;
 
-    const destination = new File(
-      cacheDir,
-      localSubtitleFileName(params.item, sub, url),
+    const fileName = localSubtitleFileName(
+      params.item,
+      mediaSourceId,
+      sub,
+      url,
     );
+    const destination = new File(cacheDir, fileName);
+    const key = destination.uri;
+
+    // The warm and the swap both land here for the same file; wait for the
+    // other caller's download instead of starting a second one.
+    const running = inFlight.get(key);
+    if (running) {
+      try {
+        await withTimeout(running, deadline - Date.now());
+      } catch {
+        // Failed or out of budget either way; fall through to the checks.
+      }
+    }
+    // Cached already — by an earlier pass or by the warm that just finished.
+    if (destination.exists) {
+      sub.DeliveryUrl = destination.uri;
+      continue;
+    }
+
+    const pending = new File(cacheDir, `${fileName}.part`);
+    // No Jellyfin credentials on a URL the server does not host.
+    const proxyHeaders = getJellyfinHeadersForUrl(url, params.api.basePath);
+    const headers = sub.IsExternalUrl
+      ? proxyHeaders
+      : {
+          ...proxyHeaders,
+          ...(params.api.accessToken
+            ? {
+                Authorization: `MediaBrowser Token="${params.api.accessToken}"`,
+              }
+            : {}),
+        };
     // Downloads land on a throwaway .part name and are moved into place on
     // completion: a budget timeout cannot cancel the native download, and a
     // later completion would otherwise leave a partial file under the final
     // name for a future session to serve.
-    let pending: File | undefined;
+    const task: Promise<void> = (async () => {
+      await withTimeout(
+        File.downloadFileAsync(
+          url,
+          pending,
+          optionsWithOptionalHeaders({}, headers),
+        ),
+        Math.min(deadline - Date.now(), perSubtitleMs),
+      );
+      // The move must be awaited: the URL below may only be exposed once the
+      // final file exists at that path.
+      await pending.move(destination);
+    })();
+    inFlight.set(key, task);
+    void task
+      .finally(() => inFlight.delete(key))
+      .catch(() => {
+        // Handled by the await below.
+      });
     try {
-      if (!destination.exists) {
-        pending = new File(
-          cacheDir,
-          `${localSubtitleFileName(params.item, sub, url)}.part`,
-        );
-        // No Jellyfin credentials on a URL the server does not host.
-        const proxyHeaders = getJellyfinHeadersForUrl(url, params.api.basePath);
-        const headers = sub.IsExternalUrl
-          ? proxyHeaders
-          : {
-              ...proxyHeaders,
-              ...(params.api.accessToken
-                ? {
-                    Authorization: `MediaBrowser Token="${params.api.accessToken}"`,
-                  }
-                : {}),
-            };
-        await withTimeout(
-          File.downloadFileAsync(
-            url,
-            pending,
-            optionsWithOptionalHeaders({}, headers),
-          ),
-          Math.min(deadline - Date.now(), perSubtitleMs),
-        );
-        pending.move(destination);
-      }
+      await withTimeout(task, deadline - Date.now());
       sub.DeliveryUrl = destination.uri;
     } catch {
-      try {
-        pending?.delete();
-      } catch {
-        // The part file lives in the OS cache; losing its cleanup is fine.
-      }
+      // A timeout before the transfer opened its output leaves nothing to
+      // delete; the sweep below removes whatever the abandoned download
+      // writes after this point.
+      removeStaging(pending);
+      setTimeout(() => removeStaging(pending), LATE_STAGING_SWEEP_MS);
     }
   }
 
