@@ -380,6 +380,17 @@ test("a receiver switched while it was asked is left alone", async () => {
   expect(mockPlayMedia).not.toHaveBeenCalled();
 });
 
+// The receiver's status cannot be read (an Android session suspended by the tap): nothing says what it plays, so it
+// plays on and nothing starts here.
+test("a receiver whose status cannot be read plays on", async () => {
+  mockCast.mediaStatus = null;
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
 // The receiver's item belonged to the account that asked: another one by the end of the lookup plays nothing.
 test("an account switched during the lookup plays nothing here", async () => {
   mockCast.mediaStatus = receiverPlaying({
@@ -423,6 +434,21 @@ test("a group joined while the sheet is open only stops the receiver", async () 
     Type: "Episode",
     MediaType: "Video",
   });
+  const view = await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  mockSyncPlayEnabled = true;
+  await view.rerender(<OutputButton />);
+  await act(async () =>
+    emitCastEvent(mockCast, "onOutputPickerAction", { action: "playHere" }),
+  );
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// A member's tap is a stop, which needs no status: it stops the receiver even when its status cannot be read.
+test("a member's tap stops a receiver whose status cannot be read", async () => {
+  mockCast.mediaStatus = null;
   const view = await render(<OutputButton />);
   await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
   mockSyncPlayEnabled = true;

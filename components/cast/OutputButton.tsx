@@ -1,5 +1,5 @@
 import { useAtomValue, useStore } from "jotai";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -69,6 +69,9 @@ const continueReceiverHere = async (
     : null;
   // Another receiver by its answer: the tap was for the one asked, so nothing is stopped or played.
   if (session && currentCastSession()?.id !== session.id) return;
+  // No status (a session suspended by the tap): nothing says what the receiver plays, so it plays on, unless the tap
+  // is a member's, which only stops it.
+  if (!status && !inGroup()) return;
   const request = playRequestFromReceiver(status);
   await disconnectRemoteTarget({ stopPlayback: true });
   if (!request) return;
@@ -129,7 +132,9 @@ export function OutputButton({
   const syncPlay = useSyncPlay();
   // Read when the sheet answers: a group joined while it was open (a SyncPlay rejoin) counts then.
   const inGroup = useRef(syncPlay.enabled);
-  inGroup.current = syncPlay.enabled;
+  useEffect(() => {
+    inGroup.current = syncPlay.enabled;
+  }, [syncPlay.enabled]);
   const anchor = useRef<View>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
