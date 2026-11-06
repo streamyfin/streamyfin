@@ -24,6 +24,7 @@ class StreamConfigRecord : Record {
     @Field var cacheConfig: CacheConfigRecord? = null
     @Field var videoWidth: Int? = null
     @Field var videoHeight: Int? = null
+    @Field var audioOnlyWhenHidden: Boolean = false
 
     fun toVideoLoadConfig(): VideoLoadConfig? {
         if (url.isBlank()) return null
@@ -38,7 +39,8 @@ class StreamConfigRecord : Record {
             cacheEnabled = cacheConfig?.enabled,
             cacheSeconds = cacheConfig?.cacheSeconds,
             demuxerMaxBytes = cacheConfig?.maxBytes,
-            demuxerMaxBackBytes = cacheConfig?.maxBackBytes
+            demuxerMaxBackBytes = cacheConfig?.maxBackBytes,
+            audioOnlyWhenHidden = audioOnlyWhenHidden
         )
     }
 }

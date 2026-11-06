@@ -17,6 +17,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONArray
 import org.json.JSONException
@@ -70,6 +71,19 @@ class MPVLayerRenderer(
         private val surfaceSizeExecutor = Executors.newSingleThreadExecutor { task ->
             Thread(task, "mpv-surface-size").apply { isDaemon = true }
         }
+
+        // Turning the video track off and on waits for the player core, which
+        // can be busy for seconds: never on the UI thread. One worker keeps
+        // the off and the on in the order they were asked for.
+        private val videoTrackExecutor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "mpv-video-track").apply { isDaemon = true }
+        }
+
+        // How long the surface must stay gone before video decoding stops. A
+        // PiP transition destroys and recreates the surface within a second,
+        // and each track switch costs a seek: only a real lock or background
+        // gets there.
+        const val AUDIO_ONLY_DELAY_MS = 3_000L
     }
 
     private fun isTvDevice(): Boolean {
@@ -408,6 +422,13 @@ class MPVLayerRenderer(
 
     override fun stop() {
         invalidateSeekReports()
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        endVideoTrackSuspension(null)
+        // Released by the teardown below, once mpv no longer renders into it.
+        val sink = offscreenSink
+        offscreenSink = null
+        // A failed sink is retried by the next session, not by every detach.
+        offscreenSinkUnavailable = false
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return
@@ -435,6 +456,7 @@ class MPVLayerRenderer(
         loadGenerations.reset()
 
         if (m == null) {
+            sink?.release()
             activeToken?.let(MpvOwnership::release)
             return
         }
@@ -480,6 +502,7 @@ class MPVLayerRenderer(
             } catch (e: Exception) {
                 Log.e(TAG, "Error detaching mpv surface: ${e.message}")
             } finally {
+                sink?.release()
                 activeToken?.let(MpvOwnership::release)
             }
         }.also { it.isDaemon = true }.start()
@@ -507,7 +530,91 @@ class MPVLayerRenderer(
             val activeVo = try { mpv?.getPropertyString("vo") } catch (e: Exception) { null }
             Log.i(TAG, "[PiP] attachSurface — attached, activeVo=$activeVo")
         }
+        restoreVideoTrack()
     }
+
+    // Audio only while hidden: with the surface gone the video is decoded only
+    // to be thrown away, so past AUDIO_ONLY_DELAY_MS the track is switched off
+    // (vid=no) and restored when a surface comes back. Off by load() unless the
+    // source asks for it.
+    private var audioOnlyWhenHidden = false
+    // The video track switched off for the background, to restore. Written
+    // on videoTrackExecutor only.
+    private val suspendedVideoTrack = AtomicReference<String?>(null)
+    // Which file a queued switch was asked for: load() and stop() move it on,
+    // and a switch queued for an earlier file is dropped.
+    private val videoTrackEpoch = AtomicInteger(0)
+    private val enterAudioOnlyRunnable = Runnable { enterAudioOnly() }
+
+    private fun enterAudioOnly() {
+        if (!isRunning || surface != null) return
+        val m = mpv ?: return
+        val epoch = videoTrackEpoch.get()
+        videoTrackExecutor.execute {
+            if (epoch != videoTrackEpoch.get()) return@execute
+            try {
+                // Without an audio track there is nothing left to play: mpv
+                // would reach the end of the file.
+                val aid = m.getPropertyString("aid")
+                if (aid.isNullOrEmpty() || aid == "no") return@execute
+                val vid = m.getPropertyString("vid")
+                if (vid.isNullOrEmpty() || vid == "no") return@execute
+                suspendedVideoTrack.set(vid)
+                m.setPropertyString("vid", "no")
+                Log.i(TAG, "[Background] audio only — video track $vid off")
+            } catch (e: Exception) {
+                Log.w(TAG, "[Background] could not switch to audio only: ${e.message}")
+            }
+        }
+    }
+
+    private fun restoreVideoTrack() {
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        val m = mpv ?: return
+        val epoch = videoTrackEpoch.get()
+        videoTrackExecutor.execute {
+            if (epoch != videoTrackEpoch.get()) return@execute
+            val vid = suspendedVideoTrack.get() ?: return@execute
+            try {
+                m.setPropertyString("vid", vid)
+                Log.i(TAG, "[Background] video track $vid back")
+            } catch (e: Exception) {
+                Log.w(TAG, "[Background] could not restore the video track: ${e.message}")
+            }
+            // Cleared only once the track is back: until then the resume
+            // recovery must keep reading the missing video as intended.
+            suspendedVideoTrack.set(null)
+        }
+    }
+
+    /**
+     * Drops the switches queued so far. The worker runs in order, so the reset
+     * runs once a switch already under way has finished; it clears the
+     * suspension and gets [m] (if any) its video back.
+     */
+    private fun endVideoTrackSuspension(m: MPVLib?) {
+        videoTrackEpoch.incrementAndGet()
+        videoTrackExecutor.execute {
+            // vid=no outlives a loadfile, and nothing but the suspension sets
+            // it: a file replacing a suspended one would start without video.
+            if (suspendedVideoTrack.getAndSet(null) != null || m?.getPropertyString("vid") == "no") {
+                try {
+                    m?.setPropertyString("vid", "auto")
+                } catch (e: Exception) {
+                    Log.w(TAG, "[Background] could not reset the video track: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // Stands in for the surface while there is none; see OffscreenSurfaceSink.
+    // Kept, not released, when the real surface comes back: mpv switches
+    // surfaces on its core thread, and a sink closed under a frame in flight
+    // would fail the VO this exists to keep alive. Three 64x36 buffers; the
+    // next lock reuses it and stop() releases it.
+    private var offscreenSink: OffscreenSurfaceSink? = null
+    // A device that cannot make one is not asked again on every detach.
+    private var offscreenSinkUnavailable = false
 
     /**
      * Detach surface without killing the VO pipeline.
@@ -524,6 +631,25 @@ class MPVLayerRenderer(
         this.surface = null
         Log.i(TAG, "[PiP] detachSurface — isRunning=$isRunning, vo=$voDriver")
         if (isRunning) {
+            // Hand mpv a surface nobody sees instead of none: without one the
+            // VO fails, the video track is dropped and the refresh seek that
+            // follows can take tens of seconds (OffscreenSurfaceSink).
+            val sink = offscreenSink ?: if (offscreenSinkUnavailable) null else {
+                OffscreenSurfaceSink.create().also {
+                    offscreenSink = it
+                    offscreenSinkUnavailable = it == null
+                }
+            }
+            if (sink != null) {
+                mpv?.attachSurface(sink.surface)
+                updateSurfaceSize(OffscreenSurfaceSink.WIDTH, OffscreenSurfaceSink.HEIGHT)
+                Log.i(TAG, "[PiP] detachSurface — rendering into the offscreen sink")
+                if (audioOnlyWhenHidden) {
+                    mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+                    mainHandler.postDelayed(enterAudioOnlyRunnable, AUDIO_ONLY_DELAY_MS)
+                }
+                return
+            }
             mpv?.detachSurface()
             val activeVo = try { mpv?.getPropertyString("vo") } catch (e: Exception) { null }
             Log.i(TAG, "[PiP] detachSurface — detached, activeVo=$activeVo (should still be $voDriver)")
@@ -615,6 +741,7 @@ class MPVLayerRenderer(
                 initialSubtitleId = savedSid,
                 loop = currentLoop,
                 externalSubtitles = activeExternalSubtitles,
+                audioOnlyWhenHidden = audioOnlyWhenHidden,
             ),
         )
 
@@ -647,6 +774,11 @@ class MPVLayerRenderer(
                 Log.i(TAG, "[Recover] isVideoOutputBroken — no video track (audio-only), healthy")
                 return false
             }
+            // Switched off on purpose while hidden, and coming back.
+            if (suspendedVideoTrack.get() != null) {
+                Log.i(TAG, "[Recover] isVideoOutputBroken — video suspended for the background, healthy")
+                return false
+            }
             val vid = mpv?.getPropertyString("vid")
             val voConfigured = mpv?.getPropertyBoolean("vo-configured") ?: false
             val broken = vid == "no" || !voConfigured
@@ -671,6 +803,7 @@ class MPVLayerRenderer(
         this.initialSubtitleId = config.initialSubtitleId
         this.initialAudioId = config.initialAudioId
         this.currentLoop = config.loop
+        audioOnlyWhenHidden = config.audioOnlyWhenHidden
         _videoWidth = 0
         _videoHeight = 0
         _videoRotation = 0
@@ -732,6 +865,9 @@ class MPVLayerRenderer(
 
         // Load the file
         mpv?.let {
+            // A restore still queued for the previous file would pick its
+            // track ID in this one.
+            endVideoTrackSuspension(it)
             it.command(arrayOf("loadfile", url, "replace"))
             // loadfile left this file as the playlist's only entry; its
             // MPV_EVENT_START_FILE is matched by that entry's id.
@@ -770,6 +906,7 @@ class MPVLayerRenderer(
                     url = url,
                     headers = currentHeaders,
                     loop = currentLoop,
+                    audioOnlyWhenHidden = audioOnlyWhenHidden,
                 ),
             )
         }

@@ -31,6 +31,8 @@ export type NativePlayerStreamConfig = {
   /** Source video dimensions (for zoom-to-fill subtitle compensation). */
   videoWidth?: number;
   videoHeight?: number;
+  /** Stop decoding video while the screen is off or the app hidden (Android only). */
+  audioOnlyWhenHidden?: boolean;
 };
 
 export type NativePlayerMetadata = {

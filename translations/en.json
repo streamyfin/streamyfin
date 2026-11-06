@@ -398,6 +398,8 @@
         "default_quality": "Default quality",
         "default_playback_speed": "Default playback speed",
         "auto_play_next_episode": "Auto-play next episode",
+        "audio_only_when_screen_off": "Audio only when screen is off",
+        "audio_only_when_screen_off_hint": "Stops decoding the video a few seconds after the screen turns off or you leave the app, to save battery. The picture comes back when you return.",
         "still_watching": "Ask \"Are you still watching?\"",
         "still_watching_hint": "Before auto-playing the next episode, check that someone is still watching after a long session.",
         "still_watching_presets": {
