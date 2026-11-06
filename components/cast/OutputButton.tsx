@@ -51,8 +51,8 @@ type PlayMedia = ReturnType<typeof usePlayMedia>;
 
 /**
  * This device chosen while the receiver plays. The receiver forgets its item once stopped, so it is read first,
- * then stopped, and its video goes on here from where it was. An item this server does not know, and music, whose
- * queue comes back with B4, only stop.
+ * then stopped, and its video goes on here from where it was. An item this server does not know only stops, and so
+ * does audio, whose queue comes back with B4 (the sheet offers it no Continue here).
  */
 const continueReceiverHere = async (store: Store, playMedia: PlayMedia) => {
   const session = currentCastSession();

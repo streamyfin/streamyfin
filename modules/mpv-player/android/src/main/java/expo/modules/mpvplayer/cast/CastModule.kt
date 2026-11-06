@@ -169,7 +169,7 @@ class CastModule : Module() {
             OutputPickerPresenter.receiverGoesOnHere = {
                 heardStatus.read(mediaClient?.mediaStatus)?.mediaInfo?.let { media ->
                     val data = ReceiverProtocol.parseCustomData(media.customData)
-                    CastMapping.goesOnHere(media.metadata?.mediaType, data.itemId, data.liveStreamId)
+                    CastMapping.goesOnHere(media.metadata?.mediaType, media.contentType, data.itemId, data.liveStreamId)
                 } == true
             }
             OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }

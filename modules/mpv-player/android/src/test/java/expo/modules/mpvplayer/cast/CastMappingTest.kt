@@ -82,11 +82,20 @@ class CastMappingTest {
     // Only a Jellyfin item goes on on this phone: not media another sender loaded, live TV, nor a music track (B4).
     @Test
     fun onlyAJellyfinItemOtherThanMusicGoesOnHere() {
-        assertTrue(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_TV_SHOW, "item-1", null))
-        assertTrue(CastMapping.goesOnHere(null, "item-1", null))
-        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MOVIE, null, null))
-        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_GENERIC, "item-1", "live-1"))
-        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK, "item-1", null))
+        assertTrue(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_TV_SHOW, "video/mp4", "item-1", null))
+        assertTrue(CastMapping.goesOnHere(null, null, "item-1", null))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MOVIE, "video/mp4", null, null))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_GENERIC, "video/mp4", "item-1", "live-1"))
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK, "audio/flac", "item-1", null))
+    }
+
+    // The Jellyfin receiver gives an audiobook the generic metadata type (bench, 06/11: type 0, audio/mp3): its audio
+    // content type tells it from a video, and audio stays on the receiver until B4.
+    @Test
+    fun anAudiobookStaysOnTheReceiver() {
+        assertFalse(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_GENERIC, "audio/mp3", "book-1", null))
+        assertTrue(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_GENERIC, "video/mkv", "item-1", null))
+        assertTrue(CastMapping.goesOnHere(MediaMetadata.MEDIA_TYPE_TV_SHOW, "application/x-mpegURL", "item-1", null))
     }
 
     // A stop from the TV leaves the idle media with its metadata: the sheet must not offer to stop it again.

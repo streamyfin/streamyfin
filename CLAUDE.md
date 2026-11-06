@@ -95,6 +95,7 @@ Native modules:
 - `cast-session-setters-freeze-android-volume` | on Android, CastSession.setVolume or setMute stops the session following the receiver; set the level through the MediaRouter route of the session's receiver, as the Cast dialog does, and mute the stream (the SDK's own toggle mutes the device); a fixed-volume receiver (a Google TV on HDMI-CEC) has no level to publish
 - `cast-media-status-position-is-the-last-report` | the media status a sender holds is the receiver's last report, sent on events only, so its position (and the SDK's estimate from it) falls behind a receiver playing undisturbed; requestStatus() first, as requestMediaStatus does
 - `cast-custom-data-keeps-the-loaded-tracks` | the Jellyfin receiver's custom data keeps the stream indexes it was loaded with; subtitles picked on the TV switch the active text track, whose id is the subtitle stream index, so read activeTrackIds
+- `jellyfin-receiver-tells-audio-by-content-type` | the Jellyfin receiver's metadata type follows the item Type (an audiobook is generic, 0, like a video); its content type follows the media type, audio/ for every audio item, so test audio there
 - `native-view-dies-with-a-recreated-activity` | a view added with addContentView stays on the old activity when the system recreates it (font size, display size, a background kill: not in configChanges); watch ON_DESTROY and close it
 
 TV platform:

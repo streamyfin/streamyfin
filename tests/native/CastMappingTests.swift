@@ -59,11 +59,20 @@ enum CastMappingTests {
 
         // Only a Jellyfin item goes on on this phone: not media another sender loaded, live TV, nor a music track
         // (B4). GCKMediaMetadataType: generic 0, movie 1, TV show 2, music track 3.
-        precondition(CastMapping.goesOnHere(metadataType: 2, itemId: "item-1", liveStreamId: nil))
-        precondition(CastMapping.goesOnHere(metadataType: nil, itemId: "item-1", liveStreamId: nil))
-        precondition(!CastMapping.goesOnHere(metadataType: 1, itemId: nil, liveStreamId: nil))
-        precondition(!CastMapping.goesOnHere(metadataType: 0, itemId: "item-1", liveStreamId: "live-1"))
-        precondition(!CastMapping.goesOnHere(metadataType: 3, itemId: "item-1", liveStreamId: nil))
+        precondition(CastMapping.goesOnHere(metadataType: 2, contentType: "video/mp4", itemId: "item-1", liveStreamId: nil))
+        precondition(CastMapping.goesOnHere(metadataType: nil, contentType: nil, itemId: "item-1", liveStreamId: nil))
+        precondition(!CastMapping.goesOnHere(metadataType: 1, contentType: "video/mp4", itemId: nil, liveStreamId: nil))
+        precondition(
+          !CastMapping.goesOnHere(metadataType: 0, contentType: "video/mp4", itemId: "item-1", liveStreamId: "live-1"))
+        precondition(!CastMapping.goesOnHere(metadataType: 3, contentType: "audio/flac", itemId: "item-1", liveStreamId: nil))
+
+        // The Jellyfin receiver gives an audiobook the generic metadata type (bench, 06/11: type 0, audio/mp3): its
+        // audio content type tells it from a video, and audio stays on the receiver until B4.
+        precondition(!CastMapping.goesOnHere(metadataType: 0, contentType: "audio/mp3", itemId: "book-1", liveStreamId: nil))
+        precondition(CastMapping.goesOnHere(metadataType: 0, contentType: "video/mkv", itemId: "item-1", liveStreamId: nil))
+        precondition(
+          CastMapping.goesOnHere(
+            metadataType: 2, contentType: "application/x-mpegURL", itemId: "item-1", liveStreamId: nil))
 
         print("PASS: Cast state, player state, idle reason, text tracks, session end error, receiver id, expanded controls, playing title and what goes on here")
     }

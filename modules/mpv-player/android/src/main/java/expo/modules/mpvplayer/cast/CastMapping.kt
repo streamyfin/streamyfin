@@ -66,11 +66,13 @@ object CastMapping {
 
     /**
      * Whether this phone can go on with the receiver's media: a Jellyfin item (media another sender loaded has none),
-     * neither live TV, whose position means nothing here, nor a music track, whose queue goes back with B4. The
-     * Jellyfin receiver gives its Audio items the music track metadata type.
+     * neither live TV, whose position means nothing here, nor audio, whose queue goes back with B4. The Jellyfin
+     * receiver gives its Audio items the music track metadata type, and every audio item, an audiobook among them
+     * (generic metadata), an audio/ content type.
      */
-    fun goesOnHere(metadataType: Int?, itemId: String?, liveStreamId: String?): Boolean =
-        itemId != null && liveStreamId == null && metadataType != MediaMetadata.MEDIA_TYPE_MUSIC_TRACK
+    fun goesOnHere(metadataType: Int?, contentType: String?, itemId: String?, liveStreamId: String?): Boolean =
+        itemId != null && liveStreamId == null && metadataType != MediaMetadata.MEDIA_TYPE_MUSIC_TRACK &&
+            contentType?.startsWith("audio/", ignoreCase = true) != true
 
     /**
      * A subtitle change goes over the bus only when the media carries text tracks; without any, the
