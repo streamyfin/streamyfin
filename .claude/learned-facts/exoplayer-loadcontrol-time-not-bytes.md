@@ -32,9 +32,9 @@ Amlogic box — `dumpsys dropbox` showed two `OutOfMemoryError ... target
 footprint 268435456` crashes ~1.5–3 min into playback). With the veto
 disabled and a 50s retained back buffer restored, total allocator memory
 became bitrate × (forward 10s + back 50s): ~337 MB at 45 Mbps → OOM. The
-back buffer is now `BACK_BUFFER_MS = 10_000` (10s forward + 10s back ≈
-160 MB at 64 Mbps worst case). Never lengthen it without a binding byte
-target.
+back buffer then went to `BACK_BUFFER_MS = 10_000` for a while (10s forward
++ 10s back ≈ 160 MB at 64 Mbps worst case) — since superseded by the pool
+below. Never lengthen it without a binding byte target.
 
 **Shipped 2026-11-05** — the deferred pool went in after the OOM came back
 with evidence that pins it. Values: `TARGET_BUFFER_BYTES = 100663296`

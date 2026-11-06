@@ -33,16 +33,22 @@ object RefreshRateMatcher {
     private fun tolerance(multiple: Float) = 0.5f + 0.02f * multiple
 
     /**
-     * The supported mode to switch to for `contentFrameRate`, or null when no
-     * mode matches or the best match is already active. Considers only modes
-     * at the current resolution: switching resolution is a bigger promise
-     * than removing judder (jellyfin-androidtv #1482).
+     * The best supported mode for `contentFrameRate`, or null when no mode
+     * qualifies. The caller decides between switching and keeping what is
+     * active: a tie at the lowest multiple prefers the active mode and then
+     * the closest rate, so a matching active mode is never switched away from
+     * and 59.94 fps content does not land on a 60 Hz mode that merely lists
+     * earlier. Considers only modes at the current resolution: switching
+     * resolution is a bigger promise than removing judder
+     * (jellyfin-androidtv #1482).
      */
     fun pickMode(display: Display, contentFrameRate: Double): Display.Mode? {
         if (contentFrameRate <= 0.0) return null
         val current = display.mode
         var best: Display.Mode? = null
         var bestMultiple = Float.MAX_VALUE
+        var bestDistance = Float.MAX_VALUE
+        var bestIsCurrent = false
         for (mode in display.supportedModes) {
             if (mode.physicalWidth != current.physicalWidth ||
                 mode.physicalHeight != current.physicalHeight
@@ -54,15 +60,24 @@ object RefreshRateMatcher {
             // multiple stops the scan for this mode.
             for (multiple in MULTIPLES) {
                 val target = (contentFrameRate * multiple).toFloat()
-                if (abs(mode.refreshRate - target) <= tolerance(multiple)) {
-                    if (multiple < bestMultiple) {
-                        best = mode
-                        bestMultiple = multiple
-                    }
-                    break
+                val distance = abs(mode.refreshRate - target)
+                if (distance > tolerance(multiple)) continue
+                val isCurrent = mode.modeId == current.modeId
+                val better =
+                    multiple < bestMultiple ||
+                        (multiple == bestMultiple &&
+                            (distance < bestDistance ||
+                                (distance == bestDistance &&
+                                    isCurrent && !bestIsCurrent)))
+                if (better) {
+                    best = mode
+                    bestMultiple = multiple
+                    bestDistance = distance
+                    bestIsCurrent = isCurrent
                 }
+                break
             }
         }
-        return best?.takeIf { it.modeId != current.modeId }
+        return best
     }
 }
