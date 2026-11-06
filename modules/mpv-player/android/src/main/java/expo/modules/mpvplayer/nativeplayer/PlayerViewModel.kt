@@ -260,7 +260,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun updateSyncPlay(state: SyncPlayStateRecord?) {
         val active = state?.takeIf { it.groupId.isNotEmpty() }
         syncScheduler.updateIdentity(active?.groupId, active?.currentPlaylistItemId, active?.connected == true)
+        val previous = syncPlay
         syncPlay = active
+        // The media session offers Previous and Next from the group's queue:
+        // republish when that changes, even while paused.
+        if ((previous == null) != (active == null) ||
+            previous?.hasPrevious != active?.hasPrevious ||
+            previous?.hasNext != active?.hasNext
+        ) onPlaybackStateSync?.invoke()
         if (active == null) {
             showSyncPlayQueue = false
         } else {
