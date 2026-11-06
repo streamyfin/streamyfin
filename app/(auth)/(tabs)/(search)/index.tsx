@@ -493,6 +493,19 @@ export default function SearchPage() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
+  const { data: livetvChannelsFound, isFetching: l14 } = useQuery({
+    queryKey: ["search", "livetv-channels", debouncedSearch],
+    queryFn: ({ signal }) =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["LiveTvChannel"] as BaseItemKind[],
+        signal,
+      }),
+    // TVSearchPage has no channel row.
+    enabled:
+      !Platform.isTV && searchType === "Library" && debouncedSearch.length > 0,
+  });
+
   // The Library results in the order picked, for the phone and the TV alike.
   const {
     movies,
@@ -505,6 +518,7 @@ export default function SearchPage() {
     albums,
     songs,
     playlists,
+    livetvChannels,
   } = useMemo(() => {
     const sorted = (items?: BaseItemDto[]) =>
       sortLibraryResults(items, librarySort, librarySortOrder);
@@ -519,6 +533,7 @@ export default function SearchPage() {
       albums: sorted(albumsFound),
       songs: sorted(songsFound),
       playlists: sorted(playlistsFound),
+      livetvChannels: sorted(livetvChannelsFound),
     };
   }, [
     moviesFound,
@@ -531,22 +546,10 @@ export default function SearchPage() {
     albumsFound,
     songsFound,
     playlistsFound,
+    livetvChannelsFound,
     librarySort,
     librarySortOrder,
   ]);
-
-  const { data: livetvChannels, isFetching: l14 } = useQuery({
-    queryKey: ["search", "livetv-channels", debouncedSearch],
-    queryFn: ({ signal }) =>
-      jellyfinSearchFn({
-        query: debouncedSearch,
-        types: ["LiveTvChannel"] as BaseItemKind[],
-        signal,
-      }),
-    // TVSearchPage has no channel row.
-    enabled:
-      !Platform.isTV && searchType === "Library" && debouncedSearch.length > 0,
-  });
 
   const noResults = useMemo(() => {
     return !(
