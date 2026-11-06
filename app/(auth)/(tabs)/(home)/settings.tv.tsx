@@ -1448,6 +1448,7 @@ export default function SettingsTV() {
                 onSelect: (value) => updateSettings({ trailerSource: value }),
               })
             }
+            disabledByAdmin={pluginSettings?.trailerSource?.locked}
           />
           <TVSettingsToggle
             label={t(
