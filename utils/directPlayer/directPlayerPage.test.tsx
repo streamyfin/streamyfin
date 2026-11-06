@@ -593,6 +593,9 @@ describe("direct player stop report", () => {
 
     test("shows the spinner while a channel starts", async () => {
       await openPlayer();
+      await announceLoading(false);
+      expect(mockControlsProps?.isBuffering).toBe(false);
+
       await announceLoading(true);
 
       expect(mockControlsProps?.isBuffering).toBe(true);
