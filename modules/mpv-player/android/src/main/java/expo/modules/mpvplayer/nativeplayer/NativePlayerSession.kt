@@ -201,6 +201,9 @@ class NativePlayerSession(
                 viewModel.onMetadataSync = {
                     mediaSessionController?.updateMetadata()
                 }
+                viewModel.onPositionSync = {
+                    mediaSessionController?.onPositionTick()
+                }
 
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
