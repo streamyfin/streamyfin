@@ -12,6 +12,8 @@ import {
   withoutRedundantSaves,
 } from "./queryPersistence";
 
+// The real log is under test, not the silent double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/log");
 jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
 jest.mock("./logStorage", () => ({
   readFromLog: jest.fn(() => []),

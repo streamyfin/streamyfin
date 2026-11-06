@@ -74,9 +74,6 @@ jest.mock("react-native-reanimated", () => ({
   },
 }));
 jest.mock("react-native-volume-manager", () => ({}));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   const { makeApi: make } = jest.requireActual("@/test-utils/jellyfinApi");

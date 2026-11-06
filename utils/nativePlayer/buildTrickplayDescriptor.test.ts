@@ -10,10 +10,6 @@ jest.mock(
   "@/components/BitrateSelector",
   () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
 );
-jest.mock(
-  "@/utils/log",
-  () => jest.requireActual("@/test-utils/log").silentLogModule,
-);
 
 import { buildTrickplayDescriptor } from "./buildNativePlayerConfig";
 

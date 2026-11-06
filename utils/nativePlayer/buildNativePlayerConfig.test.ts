@@ -16,9 +16,6 @@ jest.mock("@/utils/log", () => ({
   writeDebugLog: () => undefined,
   logAndCaptureError: () => undefined,
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),
 }));

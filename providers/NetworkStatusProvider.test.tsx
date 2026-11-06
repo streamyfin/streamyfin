@@ -27,9 +27,6 @@ jest.mock("@/providers/JellyfinProvider", () => ({
     .requireActual("jotai")
     .atom({ basePath: "https://jellyfin.example.com" }),
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
   jellyfinProbe: (...args: unknown[]) => mockProbe(...args),
 }));

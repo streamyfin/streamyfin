@@ -23,9 +23,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     getServerUrlFromStorage: () => mockPrimaryUrl,
   };
 });
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 

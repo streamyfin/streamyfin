@@ -3,10 +3,6 @@ import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // this spec's module under test actually calls.
-jest.mock(
-  "@/utils/log",
-  () => jest.requireActual("@/test-utils/log").silentLogModule,
-);
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import {

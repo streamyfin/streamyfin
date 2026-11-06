@@ -7,9 +7,6 @@ import {
 } from "@/components/watchlists/WatchlistSheet";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
 let mockWatchlists: StreamystatsWatchlist[] = [];
 jest.mock("@/hooks/useWatchlists", () => ({
   useItemInWatchlists: () => ({ data: [] }),

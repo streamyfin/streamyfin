@@ -12,9 +12,6 @@ jest.mock(
   () => jest.requireActual("@/test-utils/stubModules").expoWithoutNativeModule,
 );
 jest.mock("@/components/BitrateSelector", () => ({}));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 // No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
 jest.mock("@/providers/JellyfinProvider", () => ({

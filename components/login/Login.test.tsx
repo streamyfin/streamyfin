@@ -93,9 +93,6 @@ jest.mock("@/components/settings/CustomHeaderSheet", () => ({
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/utils/jellyfin/checkServer", () => ({
   checkJellyfinServer: jest.fn(),
   ServerTooOldError: class extends Error {},

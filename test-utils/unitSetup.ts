@@ -20,3 +20,10 @@ jest.mock(
 jest.mock("@/providers/JellyfinProvider", () =>
   jest.requireActual("@/test-utils/jellyfinProviderModule"),
 );
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+jest.mock(
+  "@/utils/log",
+  () => jest.requireActual("@/test-utils/log").silentLogModule,
+);

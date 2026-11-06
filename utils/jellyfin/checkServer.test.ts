@@ -4,9 +4,6 @@ import type { CustomHeader } from "@/utils/customHeaders/types";
 // checkServer pulls the two helpers through the barrel file, which also
 // re-exports modules with native dependencies (MMKV, SecureStore) — so the
 // barrel is replaced with the real pure helpers plus stubbed resolvers.
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 // No proxy headers in these specs.
 beforeEach(() => setJellyfinHeaders());
 

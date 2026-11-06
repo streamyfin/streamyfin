@@ -2,10 +2,6 @@ import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { reportOrphanedReceiverStop } from "./reportOrphanedReceiverStop";
 
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
-
 // The real waits are 3 s and 15 s; the connection-loss path is about what is
 // compared between the two reads, not how long it waits. Kept above zero so a
 // wait sneaking into the stopped-casting path still shows as a delayed timer.

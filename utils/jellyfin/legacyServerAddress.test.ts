@@ -4,9 +4,6 @@ jest.mock(
 );
 // The barrel re-exports modules with native dependencies; the spec needs the
 // pure helpers only.
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 // The log module reaches Sentry.
 jest.mock("@/utils/log", () => ({
   writeToLog: jest.fn(),
