@@ -32,6 +32,8 @@ class MediaSessionController(
         override val canSkipToNext get() =
             if (viewModel.syncPlayActive) viewModel.syncPlay?.hasNext == true
             else viewModel.nextEpisode != null
+        override val canSkipToPrevious get() =
+            !viewModel.syncPlayActive || viewModel.syncPlay?.hasPrevious == true
 
         override fun play() = viewModel.play()
         override fun pause() = viewModel.pause()

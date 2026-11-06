@@ -24,6 +24,9 @@ interface MediaPlaybackTarget {
 
     val canSkipToNext: Boolean get() = false
 
+    /** Previous restarts the item when solo, so it is offered by default. */
+    val canSkipToPrevious: Boolean get() = true
+
     fun play()
     fun pause()
 

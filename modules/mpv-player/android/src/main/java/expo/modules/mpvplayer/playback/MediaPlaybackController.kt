@@ -128,7 +128,9 @@ class MediaPlaybackController(
                 override fun onSkipToNext() {
                     if (target.canSkipToNext) target.skipToNext()
                 }
-                override fun onSkipToPrevious() = target.skipToPrevious()
+                override fun onSkipToPrevious() {
+                    if (target.canSkipToPrevious) target.skipToPrevious()
+                }
                 override fun onStop() = target.stop()
             })
             launchPendingIntent()?.let { setSessionActivity(it) }
@@ -176,8 +178,8 @@ class MediaPlaybackController(
             PlaybackState.ACTION_PLAY_PAUSE or
             PlaybackState.ACTION_SEEK_TO or
             PlaybackState.ACTION_FAST_FORWARD or
-            PlaybackState.ACTION_REWIND or
-            PlaybackState.ACTION_SKIP_TO_PREVIOUS
+            PlaybackState.ACTION_REWIND
+        if (target.canSkipToPrevious) actions = actions or PlaybackState.ACTION_SKIP_TO_PREVIOUS
         if (target.canSkipToNext) actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT
 
         session.setPlaybackState(
@@ -331,8 +333,9 @@ class MediaPlaybackController(
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= ARTWORK_MAX_PX &&
-            bounds.outHeight / (sample * 2) >= ARTWORK_MAX_PX) sample *= 2
+        // By the longer side, so a very wide or tall image is scaled down too.
+        val longest = maxOf(bounds.outWidth, bounds.outHeight)
+        while (longest / (sample * 2) >= ARTWORK_MAX_PX) sample *= 2
         return BitmapFactory.decodeByteArray(
             bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }
         )
