@@ -372,6 +372,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // text-disable among them. mpv is unaffected: loadfile always builds
         // a fresh demuxer.
         releasePlayer()
+        // releasePlayer removes the listener before media3's parting empty
+        // cue group, so the outgoing item's cues would otherwise survive on
+        // the subtitle view until the incoming player's text renderer resets.
+        currentSubtitleCues = emptyList()
+        applySubtitleCues()
         currentUrl = config.url
         currentHeaders = config.headers
         currentLoop = config.loop

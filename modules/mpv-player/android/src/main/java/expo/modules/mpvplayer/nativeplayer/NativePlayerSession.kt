@@ -9,8 +9,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
-import android.hardware.display.DisplayManager
-import android.view.Display
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -691,8 +689,11 @@ class NativePlayerSession(
         if (contentFrameRate == null) {
             // Setting off, or the PlaybackInfo response carried no
             // RealFrameRate for the video stream — one line, because this is
-            // the silent exit the refresh-rate feature loses to.
+            // the silent exit the refresh-rate feature loses to. The window
+            // may hold a preference an earlier stream in this session set;
+            // hand the display back to the system.
             Log.i(TAG, "Refresh-rate match: config carries no content frame rate")
+            restoreDisplayMode()
         } else {
             matchContentFrameRate(contentFrameRate)
         }
@@ -745,22 +746,26 @@ class NativePlayerSession(
      * on a 60Hz panel and judders in an uneven 2:2:3 cadence.
      * preferredDisplayModeId is the API Android's docs prescribe for TV
      * boxes: Surface.setFrameRate() only drives seamless switches, and TV
-     * panels switch non-seamlessly. Resolves to a no-op when no supported
-     * mode matches or the best match is already active.
+     * panels switch non-seamlessly. No qualifying mode restores the session's
+     * original preference; the best match already active is a no-op.
      */
     private fun matchContentFrameRate(contentFrameRate: Double) {
         val activity = hostActivity ?: return
+        // The setting's contract is Android TV only — enforce it where it
+        // acts, not just in the settings UI.
+        if (!DeviceKind.isTelevision(activity)) return
         try {
-            val displayManager =
-                activity.getSystemService(DisplayManager::class.java) ?: return
-            val display =
-                displayManager.getDisplay(Display.DEFAULT_DISPLAY) ?: return
+            // The display the window is on: preferredDisplayModeId must be
+            // one of that display's supported modes.
+            val display = activity.windowManager.defaultDisplay ?: return
             val current = display.mode
-            val mode = RefreshRateMatcher.pickMode(display, contentFrameRate)
-            if (mode == null) {
+            val candidate = RefreshRateMatcher.pickMode(display, contentFrameRate)
+            if (candidate == null) {
                 // The mode list is what jellyfin-androidtv reads too, so if
                 // it has no qualifying mode for a rate that app switches to,
-                // this line is the evidence of the difference.
+                // this line is the evidence of the difference. The window may
+                // hold a preference a previous stream set — restore it rather
+                // than pin this stream to the wrong rate.
                 Log.i(
                     TAG,
                     "Refresh-rate match: no mode for " + contentFrameRate + " fps" +
@@ -772,17 +777,19 @@ class NativePlayerSession(
                                 m.physicalWidth + "x" + m.physicalHeight
                         },
                 )
+                restoreDisplayMode()
                 return
             }
+            if (candidate.modeId == current.modeId) return
             val attributes = activity.window.attributes
             if (originalPreferredDisplayModeId == null) {
                 originalPreferredDisplayModeId = attributes.preferredDisplayModeId
             }
-            attributes.preferredDisplayModeId = mode.modeId
+            attributes.preferredDisplayModeId = candidate.modeId
             activity.window.attributes = attributes
             Log.i(
                 TAG,
-                "Matched display mode " + mode.modeId + " (" + mode.refreshRate +
+                "Matched display mode " + candidate.modeId + " (" + candidate.refreshRate +
                     " Hz) to " + contentFrameRate + " fps"
             )
         } catch (e: Exception) {

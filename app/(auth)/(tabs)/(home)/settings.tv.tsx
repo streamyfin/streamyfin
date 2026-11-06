@@ -942,10 +942,11 @@ export default function SettingsTV() {
             </>
           )}
 
-          {/* Refresh-rate matching — Android TV, default off: the display
-              mode switch is non-seamless on most panels, a brief black flash
-              on frame-rate changes. */}
-          {isAndroidTv && (
+          {/* Refresh-rate matching — native Android TV player only (the JS
+              route reads no contentFrameRate), default off: the display mode
+              switch is non-seamless on most panels, a brief black flash on
+              frame-rate changes. */}
+          {isAndroidTv && isNativeChromeActive(settings) && (
             <>
               <TVSettingsToggle
                 disabledByAdmin={pluginSettings?.matchRefreshRate?.locked}
