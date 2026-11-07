@@ -1,6 +1,7 @@
-// Wired for every unit spec in `unitSetup.ts`: `bitrateSelectorModule`,
-// `appRouterModule`, `inactivityModule`, `deviceModule`, `wifiSsidModule` and
-// `jellyfinProbeModule`. The rest are opt-in: a spec mocks them itself.
+// `unitSetup.ts` wires `deviceModule`, `wifiSsidModule` and
+// `jellyfinProbeModule` for every unit spec, because they stand for native
+// code or the network. The rest stand for the app's own code, so a spec that
+// needs one mocks it itself.
 
 /** `@/components/BitrateSelector` with one "Max" entry, for specs that never open the selector. */
 export const bitrateSelectorModule = {

@@ -5,7 +5,6 @@ jest.mock("expo-background-task", () => ({
 jest.mock("expo-task-manager", () => ({
   isTaskRegisteredAsync: jest.fn(async () => false),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";

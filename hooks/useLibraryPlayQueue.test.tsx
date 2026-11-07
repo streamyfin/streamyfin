@@ -39,9 +39,6 @@ jest.mock("@/providers/DownloadProvider", () => ({
     updateDownloadedItem: () => {},
   }),
 }));
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test.
-jest.mock("@/utils/log", () => ({ writeErrorLog: () => undefined }));
 // Asked of the server otherwise, ahead of the items a test looks at.
 jest.mock("@/hooks/useServerVersion", () => ({
   useServerVersion: () => "12.0.0",

@@ -155,8 +155,6 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
     };
   },
 }));
-// The log module loads Sentry and its timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeadersForUrl: () => undefined,
 }));

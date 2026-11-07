@@ -29,7 +29,6 @@ jest.mock("react-i18next", () => {
   const t = (key: string) => key;
   return { useTranslation: () => ({ t }) };
 });
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 
 describe("useTVItemActionModal", () => {
   // The TV rows, cards and hero are memoized and take this callback as a

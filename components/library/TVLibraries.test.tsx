@@ -16,8 +16,6 @@ jest.mock("@/utils/atoms/settings", () =>
     .requireActual("@/test-utils/settings")
     .makeSettingsModule({ hiddenLibraries: [] }),
 );
-// The real log writes to MMKV, which no test environment has.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The rows draw a backdrop only when a preview item has one.
 
 const LIVE_TV = { Id: "livetv-1", Name: "Live TV", CollectionType: "livetv" };

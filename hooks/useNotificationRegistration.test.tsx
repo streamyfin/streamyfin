@@ -39,11 +39,6 @@ jest.mock("@/utils/background-tasks", () => ({
 jest.mock("@/utils/notificationPermissions", () => ({
   offerSettingsLinkOnce: jest.fn(async () => {}),
 }));
-jest.mock("@/utils/log", () => ({
-  writeToLog: jest.fn(),
-  writeInfoLog: jest.fn(),
-  writeErrorLog: jest.fn(),
-}));
 jest.mock("@/utils/mmkv", () => ({
   storage: { getString: () => "true", set: jest.fn() },
 }));

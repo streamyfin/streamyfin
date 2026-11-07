@@ -22,7 +22,6 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
     getQuickConnectEnabled: () => mockEnabled(),
   }),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 // The sheet's own input throws outside a bottom sheet, which this screen is
 // not: the code field has to be a plain one.
 jest.mock("@gorhom/bottom-sheet", () => ({

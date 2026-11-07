@@ -9,8 +9,6 @@ import {
   searchStudios,
 } from "./search";
 
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-
 /** The one request the api sent: its path and its query. */
 const sentRequest = (api: ReturnType<typeof makeApi>) => {
   expect(api.mock.history.get).toHaveLength(1);

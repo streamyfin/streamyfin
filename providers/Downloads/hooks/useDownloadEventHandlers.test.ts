@@ -49,10 +49,6 @@ jest.mock("sonner-native", () => ({
     dismiss: (...args: unknown[]) => mockToastDismiss(...args),
   },
 }));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeToLog: jest.fn(),
-}));
 
 import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";

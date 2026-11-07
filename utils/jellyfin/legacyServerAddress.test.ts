@@ -1,12 +1,3 @@
-// The barrel re-exports modules with native dependencies; the spec needs the
-// pure helpers only.
-// The log module reaches Sentry.
-jest.mock("@/utils/log", () => ({
-  writeToLog: jest.fn(),
-  writeInfoLog: jest.fn(),
-  logAndCaptureError: jest.fn(),
-}));
-
 import { clearMmkv } from "@/test-utils/mmkv";
 import { clearSecureStore } from "@/test-utils/secureStore";
 import {

@@ -50,25 +50,54 @@ say which one, so the next person does not delete it as redundant.
 
 ## Mocks
 
-**Mock the boundary and run everything else for real.** The boundary is what Jest cannot
-run: native modules, the file system, the network, the keychain and Sentry. The app's own
-code (settings, log, the Jellyfin provider, router hooks) runs for real. A double of your
-own code can drift from the real one, and a broken spec keeps passing.
+**Mock the boundary and run the app's logic for real.** A double of app logic can drift
+from the real code, and a broken spec keeps passing. A double of the boundary keeps specs
+fast and deterministic and costs no coverage.
 
-Doubles for the boundary live in `test-utils/` and are wired once for every spec. A spec
-declares only what is specific to it.
+Boundary doubles live in `test-utils/` and are wired once for every spec, so a spec does
+not repeat their setup. A spec declares only what is specific to it.
+
+### Boundary or app logic
+
+Classify a module by what it does, not by where it lives. `utils/log.tsx` is app code, but
+it is a boundary.
+
+A module is a **boundary** when both hold:
+
+- Running it reaches something Jest cannot or should not run: native code, the file
+  system, the network, the keychain, Sentry, or a long-lived timer.
+- Its callers do not depend on its result. They call it for a side effect and carry on, so
+  a spec of a caller asserts nothing about what it did.
+
+A module is **app logic** when its callers' behaviour depends on what it returns or holds:
+a setting changes what renders, the session decides which request is sent, the router
+wrapper adds the offline parameter. A double of it would decide the result of the spec.
+
+| Module | Class | Why |
+| --- | --- | --- |
+| `@/utils/log` | Boundary | Writes to Sentry and the MMKV log store; callers ignore the result |
+| `@/hooks/useHaptic` | Boundary | Drives the haptic engine; nothing reads it back |
+| `@/components/common/ServerImage` | Boundary | Decodes in native code |
+| `@/utils/serverUrl/probes/jellyfin` | Boundary | A network request |
+| `@/utils/atoms/settings` | App logic | Callers branch on every setting |
+| `@/providers/JellyfinProvider` | App logic | The session decides what each request carries |
+| `@/hooks/useAppRouter` | App logic | Adds `offline=true` inside an offline context |
+| `@/utils/customHeaders` | App logic | Decides which headers and URLs a request uses |
+
+When unsure, count the specs that already mock the module and read what their doubles do.
+If most of them only silence it, it is a boundary: wire it once. If they return
+spec-specific values, it is app logic: leave it to each spec.
 
 ### The rules
 
 1. **Check what is already wired before writing a mock.** `jest.config.js`
    (`moduleNameMapper`) maps packages to doubles in `test-utils/`. `test-utils/unitSetup.ts`
-   mocks the app modules that wrap native code or IO. `jest-expo` mocks the native Expo
-   modules. Most specs need no `jest.mock` at all.
-2. **Wire a double for every spec only if it stands in for native code, IO or the
-   network.** Put it in `test-utils/` and add it to the config or `unitSetup.ts`. If the
-   same factory appears in a second spec, move it there.
-3. **Do not wire doubles of the app's own code for every spec.** A spec that needs a double
-   of an app provider, hook or atom adds one line that uses a shared double:
+   mocks the boundary app modules. `jest-expo` mocks the native Expo modules. Most specs need
+   no `jest.mock` at all.
+2. **Wire every boundary double globally.** Put it in `test-utils/` and add it to the config
+   or `unitSetup.ts`. Delete the per-spec copies it replaces.
+3. **Never wire a double of app logic globally.** A spec that needs one adds one line that
+   uses a shared double, so the reader sees what was replaced:
 
    ```typescript
    jest.mock("@/hooks/useAppRouter", () =>
@@ -76,32 +105,31 @@ declares only what is specific to it.
    );
    ```
 
-   This keeps visible in the spec what was replaced. When a second spec needs the same
-   double, move it to `test-utils/`.
-4. **Unmock the module a spec is about.** A spec for `hooks/useHaptic.ts` calls
-   `jest.unmock("<path>")` with a short comment saying why. Otherwise it tests the double
-   and passes for the wrong reason.
-5. **A double behaves like the real module and exposes a handle.** To simulate a failure,
-   use the handle (`jest.mocked(jellyfinProbe)`, `appRouter`, `fakeFiles`, `clearMmkv()`,
-   `clearSecureStore()`, `setJellyfinHeaders()`) instead of rewriting the double. If the
-   real function is pure, use it.
+   When a second spec needs the same app-logic double, move it to `test-utils/`, unwired.
+4. **Unmock the module a spec is about.** A spec for `utils/log.tsx` or `hooks/useHaptic.ts`
+   calls `jest.unmock("<path>")` with a short comment saying why. Otherwise it tests the
+   double and passes for the wrong reason.
+5. **A double behaves like the real module and exposes a handle.** Use the handle instead of
+   rewriting the double: `jest.mocked(writeErrorLog)`, `jest.mocked(jellyfinProbe)`,
+   `appRouter`, `fakeFiles`, `clearMmkv()`, `clearSecureStore()`, `setJellyfinHeaders()`.
+   If the real function is pure, use it.
 6. **Do not depend on mock state left by another test.** `clearMocks` is on, so call counts
    reset before each test. Implementations set with `mockReturnValue` or
    `mockImplementation` are kept. Set them in the test or in `beforeEach`, or call
    `mockReset()` to start from an empty `jest.fn()`.
 7. **Restore spies and timers.** A `jest.spyOn` or fake timer stays active until it is
    undone. Call `mockRestore()` or `jest.useRealTimers()` in `afterEach`.
-8. **Assert on results, not on the double.** Check what the user sees or what left the app
-   (a request sent, a route pushed). A test that counts calls to a double breaks on every
-   refactor.
+8. **Assert on results, not on the double.** Check what the user sees or what crossed the
+   boundary (a request sent, a route pushed, an error reported). A test that counts calls to
+   an internal double breaks on every refactor.
 
 ### What is wired
 
 - **Packages** are mapped in `jest.config.js` (`moduleNameMapper`).
-- **App modules that wrap native code or IO** are mocked by path in
+- **Boundary app modules** are mocked by path in
   `test-utils/unitSetup.ts`. `moduleNameMapper` matches only the exact import string, so it
   cannot replace a module that other files import by a relative path.
-- **Doubles of the app's own code** (`makeSettingsModule()`, `makeJellyfinAtomsModule()`,
+- **Doubles of app logic** (`makeSettingsModule()`, `makeJellyfinAtomsModule()`,
   `appRouterModule`, `networkStatusModule`, `customHeadersModule()` and others) are in
   `test-utils/` but not wired. A spec adds one as described in rule 3.
 

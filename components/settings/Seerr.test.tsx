@@ -13,11 +13,6 @@ const mockLogin = jest.fn();
 const mockSetSeerrUser = jest.fn();
 const mockToastError = jest.fn();
 
-// The log module loads Sentry and its timers. Nothing asserted here logs.
-jest.mock("@/utils/log", () => ({
-  writeErrorLog: () => undefined,
-  writeToLog: () => undefined,
-}));
 jest.mock("sonner-native", () => ({
   toast: { error: (message: string) => mockToastError(message) },
 }));

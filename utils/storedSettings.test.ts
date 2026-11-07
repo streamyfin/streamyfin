@@ -6,10 +6,6 @@ import {
   SETTINGS_KEY,
 } from "./storedSettings";
 
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-
 const store = (settings?: object, pluginSettings?: object) => {
   if (settings) storage.set(SETTINGS_KEY, JSON.stringify(settings));
   if (pluginSettings) {

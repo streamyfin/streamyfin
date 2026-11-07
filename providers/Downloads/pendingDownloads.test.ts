@@ -1,7 +1,5 @@
 import { DOCUMENTS } from "@/test-utils/fileSystem";
 
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-
 import {
   type PendingDownload,
   pendingDownloadFileUri,

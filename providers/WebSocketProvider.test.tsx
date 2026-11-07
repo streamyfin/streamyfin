@@ -25,11 +25,6 @@ jest.mock("@/utils/customHeaders", () => ({
   hasHeaders: () => false,
 }));
 jest.mock("@/utils/errors", () => ({ describeHttpResponse: () => undefined }));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeErrorLog: jest.fn(),
-  writeToLog: jest.fn(),
-}));
 jest.mock("@/utils/jellyfin/socketFailure", () => ({
   ...jest.requireActual("@/utils/jellyfin/socketFailure"),
   reportSocketFastRetriesExhausted: (...args: unknown[]) =>

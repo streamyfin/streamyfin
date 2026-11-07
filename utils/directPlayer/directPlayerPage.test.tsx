@@ -139,10 +139,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
   getSubtitlesForItem: () => [],
 }));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeToLog: jest.fn(),
-}));
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));

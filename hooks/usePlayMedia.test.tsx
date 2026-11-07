@@ -40,7 +40,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const play = async (item: BaseItemDto) => {
   const { result } = await renderHook(() => usePlayMedia());

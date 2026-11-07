@@ -11,15 +11,6 @@ jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
 
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-}));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),
 }));
