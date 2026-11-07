@@ -32,7 +32,6 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));
 jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
 // The sheet is always open here: what is under test is what confirming it
 // does, not how it is presented.
 jest.mock("@gorhom/bottom-sheet", () => {

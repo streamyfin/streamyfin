@@ -39,9 +39,6 @@ jest.mock("@/utils/customHeaders", () => ({
 }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("react-native-device-info", () => ({}));
-jest.mock("sonner-native", () => ({
-  toast: { info: jest.fn(), success: jest.fn(), error: jest.fn() },
-}));
 
 import { toast } from "sonner-native";
 import {

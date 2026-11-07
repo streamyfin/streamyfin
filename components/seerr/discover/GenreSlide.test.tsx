@@ -13,7 +13,6 @@ jest.mock(
 );
 
 // Ships as ES modules, which Jest does not load, and nothing here toasts.
-jest.mock("sonner-native", () => ({ toast: {} }));
 // The settings atom imports the screens that edit it. The TV row only reads
 // the typography scale, and the Seerr client nothing.
 // The real client, answering what the test says, behind the hook the slides

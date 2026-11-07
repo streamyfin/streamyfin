@@ -10,9 +10,6 @@ jest.mock("@/providers/JellyfinProvider", () =>
 jest.mock("expo-notifications", () => {
   throw new Error("expo-notifications is left out of TV builds");
 });
-jest.mock("sonner-native", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}));
 
 describe("on TV", () => {
   beforeEach(() => stubReactNative({ isTV: true }));

@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -41,14 +42,8 @@ jest.mock("../notifications", () => ({
     mockGetNotificationContent(...(args as [])),
   sendDownloadNotification: () => mockSendDownloadNotification(),
 }));
-const mockToastError = jest.fn();
-const mockToastDismiss = jest.fn();
-jest.mock("sonner-native", () => ({
-  toast: {
-    error: (...args: unknown[]) => mockToastError(...args),
-    dismiss: (...args: unknown[]) => mockToastDismiss(...args),
-  },
-}));
+const mockToastError = jest.mocked(toast.error);
+const mockToastDismiss = jest.mocked(toast.dismiss);
 
 import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";

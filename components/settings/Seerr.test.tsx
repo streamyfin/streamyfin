@@ -5,17 +5,15 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import { SeerrSettings } from "./Seerr";
 
 const mockQuickConnectEnabled = jest.fn<Promise<boolean>, []>();
 const mockSignInWithQuickConnect = jest.fn();
 const mockLogin = jest.fn();
 const mockSetSeerrUser = jest.fn();
-const mockToastError = jest.fn();
+const mockToastError = jest.mocked(toast.error);
 
-jest.mock("sonner-native", () => ({
-  toast: { error: (message: string) => mockToastError(message) },
-}));
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
 jest.mock(

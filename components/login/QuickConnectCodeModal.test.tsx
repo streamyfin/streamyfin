@@ -29,7 +29,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetBackdrop: () => null,
   };
 });
-jest.mock("sonner-native", () => ({ toast: { success: jest.fn() } }));
 
 describe("QuickConnectCodeModal", () => {
   beforeEach(() => {

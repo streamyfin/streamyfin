@@ -48,9 +48,6 @@ jest.mock("react-i18next", () => {
   const t = (key: string) => key;
   return { useTranslation: () => ({ t }) };
 });
-jest.mock("sonner-native", () => ({
-  toast: Object.assign(jest.fn(), { error: jest.fn() }),
-}));
 
 const movie = (id: string, extra: BaseItemDto = {}): BaseItemDto => ({
   Id: id,

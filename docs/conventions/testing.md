@@ -79,14 +79,20 @@ wrapper adds the offline parameter. A double of it would decide the result of th
 | `@/hooks/useHaptic` | Boundary | Drives the haptic engine; nothing reads it back |
 | `@/components/common/ServerImage` | Boundary | Decodes in native code |
 | `@/utils/serverUrl/probes/jellyfin` | Boundary | A network request |
+| `sonner-native` | Boundary | Draws a native toast; callers never read it back |
+| `expo-notifications` | Boundary | Native OS notifications |
+| `@/hooks/useTVBackPress` | Boundary | Subscribes to the TV remote's back and menu keys |
 | `@/utils/atoms/settings` | App logic | Callers branch on every setting |
 | `@/providers/JellyfinProvider` | App logic | The session decides what each request carries |
 | `@/hooks/useAppRouter` | App logic | Adds `offline=true` inside an offline context |
 | `@/utils/customHeaders` | App logic | Decides which headers and URLs a request uses |
 
-When unsure, count the specs that already mock the module and read what their doubles do.
-If most of them only silence it, it is a boundary: wire it once. If they return
-spec-specific values, it is app logic: leave it to each spec.
+When the two tests above are unclear, count the specs that already mock the module and read
+what their doubles do. If most of them only silence it, it is a boundary: wire it once. If
+they return spec-specific values, it is app logic: leave it to each spec.
+
+The behaviour test wins over the count. Most doubles of `@/constants/TVTypography` only
+silence it, but it reads settings and reaches no boundary, so it stays app logic.
 
 ### The rules
 
@@ -110,13 +116,16 @@ spec-specific values, it is app logic: leave it to each spec.
    calls `jest.unmock("<path>")` with a short comment saying why. Otherwise it tests the
    double and passes for the wrong reason.
 5. **A double behaves like the real module and exposes a handle.** Use the handle instead of
-   rewriting the double: `jest.mocked(writeErrorLog)`, `jest.mocked(jellyfinProbe)`,
+   rewriting the double: `jest.mocked(writeErrorLog)`, `jest.mocked(toast.error)`,
+   `jest.mocked(Notifications.getPermissionsAsync)`, `pressTVBack()`, `jest.mocked(jellyfinProbe)`,
    `appRouter`, `fakeFiles`, `clearMmkv()`, `clearSecureStore()`, `setJellyfinHeaders()`.
    If the real function is pure, use it.
 6. **Do not depend on mock state left by another test.** `clearMocks` is on, so call counts
    reset before each test. Implementations set with `mockReturnValue` or
    `mockImplementation` are kept. Set them in the test or in `beforeEach`, or call
-   `mockReset()` to start from an empty `jest.fn()`.
+   `mockReset()` on one mock to start from an empty `jest.fn()`. Never call
+   `jest.resetAllMocks()`: it strips the defaults of every wired double, so
+   `readFromLog()` and `getPermissionsAsync()` start returning `undefined`.
 7. **Restore spies and timers.** A `jest.spyOn` or fake timer stays active until it is
    undone. Call `mockRestore()` or `jest.useRealTimers()` in `afterEach`.
 8. **Assert on results, not on the double.** Check what the user sees or what crossed the

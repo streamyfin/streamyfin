@@ -19,7 +19,6 @@ jest.mock("@/components/tv", () => ({
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 30, body: 20, callout: 20 }),
 }));
-jest.mock("@/hooks/useTVBackPress", () => ({ useTVBackPress: () => {} }));
 jest.mock("@/utils/secureCredentials", () => ({
   verifyAccountPIN: async () => false,
 }));

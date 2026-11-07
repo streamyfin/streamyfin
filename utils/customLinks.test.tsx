@@ -5,17 +5,15 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { Linking, Platform } from "react-native";
+import { toast } from "sonner-native";
 import CustomLinksPage, {
   type MenuLink,
 } from "@/app/(auth)/(tabs)/(custom-links)/index";
 
 const mockMenuLinks = jest.fn<MenuLink[], []>();
 const mockOpenBrowser = jest.fn<Promise<{ type: string }>, [string]>();
-const mockToastError = jest.fn();
+const mockToastError = jest.mocked(toast.error);
 
-jest.mock("sonner-native", () => ({
-  toast: { error: (message: string) => mockToastError(message) },
-}));
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
 }));

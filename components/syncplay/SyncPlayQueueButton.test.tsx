@@ -5,10 +5,11 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
+import { toast } from "sonner-native";
 import { SyncPlayQueueButton } from "./SyncPlayQueueButton";
 
 let mockChoice: number | undefined;
-const mockToast = { success: jest.fn(), error: jest.fn() };
+const mockToast = jest.mocked(toast);
 let mockOffline = false;
 
 jest.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
@@ -19,11 +20,6 @@ jest.mock("@expo/react-native-action-sheet", () => ({
       onSelect: (index?: number) => void,
     ) => onSelect(mockChoice),
   }),
-}));
-jest.mock("sonner-native", () => ({
-  get toast() {
-    return mockToast;
-  },
 }));
 jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,

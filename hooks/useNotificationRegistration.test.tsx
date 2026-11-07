@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
+import * as Notifications from "expo-notifications";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
@@ -14,19 +15,11 @@ jest.mock("@/providers/JellyfinProvider", () =>
 );
 
 const mockPush = jest.fn();
-const mockNotifications = {
-  DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",
-  getPermissionsAsync: jest.fn(),
-  requestPermissionsAsync: jest.fn(),
-  getExpoPushTokenAsync: jest.fn(),
-  setNotificationChannelAsync: jest.fn(),
-  addNotificationReceivedListener: jest.fn(),
-  addNotificationResponseReceivedListener: jest.fn(),
-  addPushTokenListener: jest.fn(),
-  AndroidImportance: { DEFAULT: 3 },
-};
+const mockNotifications = Notifications as unknown as Record<
+  keyof typeof Notifications,
+  jest.Mock
+>;
 
-jest.mock("expo-notifications", () => mockNotifications);
 jest.mock("expo-device", () => ({ isDevice: true }));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,

@@ -7,6 +7,7 @@ import {
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { AxiosError, AxiosHeaders } from "axios";
 import type React from "react";
+import { toast } from "sonner-native";
 import { MY_NOTIFICATIONS_QUERY } from "@/constants/Notifications";
 import {
   type MyNotifications,
@@ -19,7 +20,7 @@ import { useMyNotifications } from "./useMyNotifications";
 
 const mockGet = jest.fn();
 const mockPut = jest.fn();
-const mockToastError = jest.fn();
+const mockToastError = jest.mocked(toast.error);
 const mockCapture = jest.fn();
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -33,9 +34,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     userAtom: atom({ Id: "alice" }),
   };
 });
-jest.mock("sonner-native", () => ({
-  toast: { error: (...args: unknown[]) => mockToastError(...args) },
-}));
 // The reporter writes what it keeps from Sentry to the local log, which MMKV backs.
 jest.mock("@sentry/react-native", () => ({
   withScope: (report: (scope: unknown) => void) =>

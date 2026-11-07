@@ -4,6 +4,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
 import { getServerLocalConfig } from "@/utils/secureCredentials";
@@ -11,17 +12,10 @@ import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { LocalNetworkSettings } from "./LocalNetworkSettings";
 
 const mockProbe = jest.mocked(jellyfinProbe);
-const mockToastError = jest.fn();
-const mockToastInfo = jest.fn();
+const mockToastError = jest.mocked(toast.error);
+const mockToastInfo = jest.mocked(toast.info);
 const mockRefreshUrlState = jest.fn();
 
-jest.mock("sonner-native", () => ({
-  toast: {
-    error: (message: string) => mockToastError(message),
-    info: (message: string) => mockToastInfo(message),
-    success: () => {},
-  },
-}));
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
 jest.mock(
