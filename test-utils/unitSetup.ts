@@ -28,7 +28,10 @@ jest.mock(
   () => jest.requireActual("@/test-utils/log").silentLogModule,
 );
 
-jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
+jest.mock(
+  "@/utils/device",
+  () => jest.requireActual("@/test-utils/stubModules").deviceModule,
+);
 jest.mock(
   "@/hooks/useHaptic",
   () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
@@ -52,4 +55,7 @@ jest.mock(
 jest.mock("@/utils/serverUrl/probes/jellyfin", () =>
   jest.requireActual("@/test-utils/stubModules").jellyfinProbeModule(),
 );
-jest.mock("@/modules/wifi-ssid", () => ({ openLocationSettings: () => {} }));
+jest.mock(
+  "@/modules/wifi-ssid",
+  () => jest.requireActual("@/test-utils/stubModules").wifiSsidModule,
+);

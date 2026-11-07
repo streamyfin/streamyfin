@@ -50,8 +50,26 @@ say which one, so the next person does not delete it as redundant.
 
 ## Mocks
 
-`jest-expo` already mocks the native Expo surface, so most specs need no module mock at
-all. When you do need one:
+A spec should be about the behaviour under test, not its setup. Mock globally, not per file:
+
+- **Check what is already wired first.** `jest.config.js` (`moduleNameMapper`) and
+  `test-utils/unitSetup.ts` (path mocks) cover the packages and app modules most specs touch.
+  The lists below name them. `jest-expo` also mocks the native Expo surface, so most specs
+  need no `jest.mock` at all.
+- **Wire a new double globally when it is stable.** If a stub is, or would be, repeated in a
+  second spec, or many modules import the module, put it in `test-utils/` and wire it in
+  `unitSetup.ts` or `moduleNameMapper`. Do not paste the same factory into each spec.
+- **Declare a mock in the spec only for an exception.** That is a spec that needs different
+  behaviour (a recording log, a session of its own), or one about the real module, which
+  calls `jest.unmock`. The override then sits next to the assertion that needs it.
+- **A global default must stay honest.** It behaves like the real module in the common case
+  and exposes a handle (`jest.mocked(jellyfinProbe)`, `appRouter`, `fakeFiles`,
+  `clearMmkv()`) so a spec can drive a failure path without rewriting the stub. A hook that
+  is silent or online by default (`useHaptic`, `useNetworkStatus`) cannot fail a spec, so a
+  spec about that hook calls `jest.unmock` (`hooks/useHaptic.test.ts`). `useNetworkStatus` only
+  re-exports the provider's hook, which `providers/NetworkStatusProvider.test.tsx` covers.
+
+When a spec does declare a mock:
 
 ```typescript
 jest.mock("expo-secure-store", () => ({
@@ -64,9 +82,8 @@ Three rules keep mocks from becoming the thing that breaks:
 - `jest.mock` is hoisted above the imports, so its factory cannot reference an
   out-of-scope variable. Give the variable a `mock` prefix (`mockStore`), or read the real
   module inside the factory with `jest.requireActual`.
-- Jest gives every test file its own module registry, so a mock never leaks into another
-  spec. Stub only what the module under test touches, and do not try to keep stubs
-  compatible across files.
+- Jest gives every test file its own module registry, so a spec's own mock never leaks into
+  another spec. A spec-level mock replaces the global default for that file only.
 - Prefer a real implementation to a stub whenever it is pure. `jest.requireActual` on a
   helper is more faithful than a hand written double that drifts from it.
 
@@ -98,11 +115,13 @@ Three rules keep mocks from becoming the thing that breaks:
   no insets, the rest is real. `silentHapticModule` stands for `@/hooks/useHaptic` when a
   haptic should be a no-op.
 - `@expo/vector-icons` is wired for every spec: the package stays real except `Ionicons`,
-  which draws nothing (`blankIconsModule`). A spec needing the real `Ionicons` or another
+  which draws nothing (`test-utils/vectorIconsModule.ts`). A spec needing the real `Ionicons` or another
   family blanked declares its own `jest.mock`.
-- `stubModules` holds one-line stand-ins repeated across specs: `bitrateSelectorModule`,
-  `appRouterModule`, `inactivityModule`, `expoWithoutNativeModule`, `onlineModule`,
-  `emptyTVTypographyModule` and `blankIconsModule`.
+- `stubModules` holds one-line stand-ins. Wired for every unit spec in `unitSetup.ts`:
+  `bitrateSelectorModule`, `appRouterModule` (its router is `appRouter`, so a spec asserts
+  `appRouter.push`), `inactivityModule`, `deviceModule`, `wifiSsidModule` and
+  `jellyfinProbeModule()`. Opt-in, mocked by the spec that needs it:
+  `expoWithoutNativeModule`, `onlineModule` and `emptyTVTypographyModule`.
 - `makeJellyfinAtomsModule(api, user)` stands for `@/providers/JellyfinProvider` when a
   spec needs the api and user atoms to hold a session of its own; the unit default
   re-exports the real `apiAtom` and `userAtom`. `makeSettingsModule()` stands for
@@ -136,7 +155,7 @@ App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/sett
 URL), `@/hooks/useNetworkStatus`, `@/utils/customHeaders` (`customHeadersModule()`),
 `@/utils/log` (silent), `@/providers/JellyfinProvider`, `@/hooks/useHaptic`,
 `@/hooks/useAppRouter`, `@/components/BitrateSelector`, `@/providers/InactivityProvider`,
-`expo-secure-store`, `@/utils/serverUrl/probes/jellyfin` (`jellyfinProbe` is a `jest.fn()`
+`@/utils/device` (a fixed device id), `expo-secure-store`, `@/utils/serverUrl/probes/jellyfin` (`jellyfinProbe` is a `jest.fn()`
 that finds the server; drive it with `jest.mocked(jellyfinProbe)`) and
 `@/modules/wifi-ssid` (a no-op `openLocationSettings`). The provider is
 imported relatively by sibling modules, so it cannot go through `moduleNameMapper`; its
@@ -147,7 +166,8 @@ about the real module calls `jest.unmock`.
 
 The perf config (`jest.perf.config.js`) inherits the package mappings except `expo-router`,
 `react-i18next`, `expo-file-system` and `@expo/vector-icons`, and replaces the unit setup file
-with `test-utils/perfSetup.ts`, which supplies the signed-in JellyfinProvider double over the
+with `test-utils/perfSetup.ts`. That file overrides the safe-area, device-info and Reanimated
+mappings with the libraries' own Jest mocks (Reanimated with `reanimatedModule`), and supplies the signed-in JellyfinProvider double over the
 shared api atoms: a scenario measures the real translation, file system, icons, settings,
 image and network cost.
 
