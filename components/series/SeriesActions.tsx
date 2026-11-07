@@ -2,6 +2,7 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
@@ -35,6 +36,7 @@ export const ItemActions = ({
 }: Props) => {
   const { t } = useTranslation();
   const { showActionSheetWithOptions } = useActionSheet();
+  const { bottom } = useSafeAreaInsets();
   const { trailers, playTrailer } = useTrailers(item);
 
   const playPreferred = useCallback(() => {
@@ -47,13 +49,15 @@ export const ItemActions = ({
         title: t("item_card.choose_trailer"),
         options: [...trailerLabels(t, trailers), t("common.cancel")],
         cancelButtonIndex: trailers.length,
+        // The library ignores the Android nav bar; pad above it ourselves.
+        containerStyle: { paddingBottom: bottom },
       },
       (index) => {
         const trailer = index === undefined ? undefined : trailers[index];
         if (trailer) playTrailer(trailer);
       },
     );
-  }, [trailers, playTrailer, showActionSheetWithOptions, t]);
+  }, [trailers, playTrailer, showActionSheetWithOptions, t, bottom]);
 
   if (trailers.length === 0) return null;
 
