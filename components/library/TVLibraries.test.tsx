@@ -16,10 +16,6 @@ jest.mock("@/utils/atoms/settings", () =>
     .requireActual("@/test-utils/settings")
     .makeSettingsModule({ hiddenLibraries: [] }),
 );
-jest.mock(
-  "@/hooks/useAppRouter",
-  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
-);
 // The real log writes to MMKV, which no test environment has.
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The rows draw a backdrop only when a preview item has one.

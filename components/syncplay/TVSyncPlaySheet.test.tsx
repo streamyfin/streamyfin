@@ -19,10 +19,6 @@ jest.mock(
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 22, callout: 18 }),
 }));
-jest.mock(
-  "@/providers/InactivityProvider",
-  () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
-);
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Name: "Fredrik" }),
 }));

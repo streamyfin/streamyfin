@@ -29,3 +29,23 @@ jest.mock(
 );
 
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
+jest.mock(
+  "@/hooks/useHaptic",
+  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
+);
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
+jest.mock(
+  "@/providers/InactivityProvider",
+  () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
+);
+jest.mock(
+  "expo-secure-store",
+  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
+);

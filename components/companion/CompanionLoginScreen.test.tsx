@@ -42,10 +42,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock(
-  "@/hooks/useHaptic",
-  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
-);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>

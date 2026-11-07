@@ -6,10 +6,6 @@ jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom(null) };
 });
-jest.mock(
-  "@/components/BitrateSelector",
-  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
-);
 
 import { buildTrickplayDescriptor } from "./buildNativePlayerConfig";
 

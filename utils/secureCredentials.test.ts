@@ -1,7 +1,3 @@
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
 jest.mock("./log", () => ({ logAndCaptureError: jest.fn() }));
 
 import * as SecureStore from "expo-secure-store";

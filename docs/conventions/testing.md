@@ -130,7 +130,9 @@ module that is also imported relatively.
 App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/settings`
 (`makeSettingsModule()`), `@/components/common/ServerImage` (a `View` named after its
 URL), `@/hooks/useNetworkStatus`, `@/utils/customHeaders` (`customHeadersModule()`),
-`@/utils/log` (silent) and `@/providers/JellyfinProvider`. The provider is
+`@/utils/log` (silent), `@/providers/JellyfinProvider`, `@/hooks/useHaptic`,
+`@/hooks/useAppRouter`, `@/components/BitrateSelector`, `@/providers/InactivityProvider` and
+`expo-secure-store`. The provider is
 imported relatively by sibling modules, so it cannot go through `moduleNameMapper`; its
 unit default re-exports the real `apiAtom` and `userAtom`, so code reading either module
 shares the atoms. A spec that needs `useJellyfin`, another provider export or a session

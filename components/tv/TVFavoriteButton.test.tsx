@@ -4,10 +4,6 @@ import { TVFavoriteButton } from "./TVFavoriteButton";
 jest.mock("@/hooks/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, toggleFavorite: () => {} }),
 }));
-jest.mock(
-  "@/providers/InactivityProvider",
-  () => jest.requireActual("@/test-utils/stubModules").inactivityModule,
-);
 
 /** What the TV focus engine reads off the button's focusable host view. */
 const requestsInitialFocus = () => {

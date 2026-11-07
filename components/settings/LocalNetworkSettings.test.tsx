@@ -25,10 +25,6 @@ jest.mock("sonner-native", () => ({
     success: () => {},
   },
 }));
-jest.mock(
-  "@/hooks/useHaptic",
-  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
-);
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
 jest.mock(

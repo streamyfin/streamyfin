@@ -23,10 +23,6 @@ jest.mock("@/hooks/useSeerr", () => ({
   ...jest.requireActual("@/hooks/useSeerr"),
   useSeerr: () => ({ seerrApi: mockSeerrApi }),
 }));
-jest.mock(
-  "@/hooks/useAppRouter",
-  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
-);
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 // FlashList ships as ES modules, which Jest does not load. FlatList reads the
 // row the same way: as many items as `data.length`, each through

@@ -9,6 +9,8 @@ import type { OptionGroup } from "./PlatformDropdown";
 const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
 
+// The real bitrate selector is rendered here, not the `BITRATES` double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/components/BitrateSelector");
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     processes: [],
@@ -33,14 +35,6 @@ jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeToLog: jest.fn(),
 }));
-jest.mock(
-  "@/hooks/useAppRouter",
-  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
-);
-jest.mock(
-  "@/hooks/useHaptic",
-  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
-);
 jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
 // The sheet is always open here: what is under test is what confirming it

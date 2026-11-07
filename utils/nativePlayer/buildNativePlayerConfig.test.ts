@@ -24,10 +24,6 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
 }));
-jest.mock(
-  "@/components/BitrateSelector",
-  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
-);
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));

@@ -4,6 +4,8 @@ import useAppRouter from "./useAppRouter";
 const mockReplace = jest.fn();
 let mockOffline = false;
 
+// The real hook is under test, not the double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/hooks/useAppRouter");
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     replace: mockReplace,

@@ -29,10 +29,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetBackdrop: () => null,
   };
 });
-jest.mock(
-  "@/hooks/useHaptic",
-  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
-);
 jest.mock("sonner-native", () => ({ toast: { success: jest.fn() } }));
 
 describe("QuickConnectCodeModal", () => {

@@ -1,7 +1,3 @@
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
 // The barrel re-exports modules with native dependencies; the spec needs the
 // pure helpers only.
 // The log module reaches Sentry.

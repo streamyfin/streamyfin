@@ -12,10 +12,6 @@ import {
 } from "./integrations";
 import { secureCustomHeaderMetadata } from "./secureValues";
 
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // the modules under test call.
 jest.mock("@/utils/log", () => ({

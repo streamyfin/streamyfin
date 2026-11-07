@@ -156,10 +156,6 @@ jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
   buildSubtitleStyle: () => ({}),
 }));
-jest.mock(
-  "@/components/BitrateSelector",
-  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
-);
 jest.mock("@/components/Loader", () => ({ Loader: () => null }));
 jest.mock("@/components/common/Text", () => ({ Text: () => null }));
 jest.mock("@/components/video-player/controls/AutoSubtitleNotice", () => ({
