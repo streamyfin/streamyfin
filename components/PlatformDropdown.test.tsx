@@ -1,39 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type React from "react";
 import { Text } from "react-native";
+import { swiftUiHostProps } from "@/test-utils/swiftUi";
 import { PlatformDropdown } from "./PlatformDropdown";
 
-const mockHost = jest.fn();
-
-// The SwiftUI views are native. Each stands in as what it carries: the Host
-// records its props, the Menu is its label and its items, a Button a row.
-jest.mock("@expo/ui/swift-ui", () => {
-  const { Text: Row, View: Box } = jest.requireActual("react-native");
-  return {
-    Host: (props: { children: React.ReactNode }) => {
-      mockHost(props);
-      return <Box>{props.children}</Box>;
-    },
-    Menu: ({
-      label,
-      children,
-    }: {
-      label: React.ReactNode;
-      children: React.ReactNode;
-    }) => (
-      <Box>
-        {label}
-        {children}
-      </Box>
-    ),
-    Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
-      <Row accessibilityRole='menuitem' onPress={onPress}>
-        {label}
-      </Row>
-    ),
-  };
-});
-jest.mock("@expo/ui/swift-ui/modifiers", () => ({ disabled: jest.fn() }));
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({
     showModal: jest.fn(),
@@ -76,7 +45,7 @@ describe("PlatformDropdown on iOS", () => {
       <PlatformDropdown groups={groups} trigger={<Text>Pick</Text>} />,
     );
 
-    expect(mockHost).toHaveBeenCalledWith(
+    expect(swiftUiHostProps).toHaveBeenCalledWith(
       expect.objectContaining({ ignoreSafeArea: "keyboard" }),
     );
   });

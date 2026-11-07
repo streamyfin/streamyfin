@@ -1,54 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import type React from "react";
 import { stubReactNative } from "@/test-utils/reactNative";
+import { swiftUiPickerProps } from "@/test-utils/swiftUi";
 import { LibraryTabs } from "./LibraryTabs";
-
-const mockPicker = jest.fn();
-
-// The system control is native. It stands in as what it is handed: a
-// selection, and one tagged label per segment that reports its tag when
-// pressed.
-jest.mock("@expo/ui/swift-ui", () => {
-  const { Children } = jest.requireActual("react");
-  const { Text: Segment, View: Box } = jest.requireActual("react-native");
-  type MockTagged = React.ReactElement<{
-    modifiers: { tag: string }[];
-    children: React.ReactNode;
-  }>;
-  return {
-    Host: ({ children }: { children: React.ReactNode }) => (
-      <Box>{children}</Box>
-    ),
-    Picker: (props: {
-      selection: string;
-      onSelectionChange: (tag: string) => void;
-      children: React.ReactNode;
-    }) => {
-      mockPicker(props);
-      return (
-        <Box accessibilityRole='tablist'>
-          {Children.map(props.children, (child: MockTagged) => {
-            const value = child.props.modifiers[0].tag;
-            return (
-              <Segment
-                accessibilityRole='tab'
-                accessibilityState={{ selected: value === props.selection }}
-                onPress={() => props.onSelectionChange(value)}
-              >
-                {child.props.children}
-              </Segment>
-            );
-          })}
-        </Box>
-      );
-    },
-    Text: () => null,
-  };
-});
-jest.mock("@expo/ui/swift-ui/modifiers", () => ({
-  pickerStyle: (style: string) => ({ pickerStyle: style }),
-  tag: (value: string) => ({ tag: value }),
-}));
 
 // iOS draws the system's segmented control, Android the app's own. Both are
 // the same tabs to whoever uses them.
@@ -107,7 +60,7 @@ describe("LibraryTabs", () => {
       />,
     );
 
-    expect(mockPicker).toHaveBeenCalledWith(
+    expect(swiftUiPickerProps).toHaveBeenCalledWith(
       expect.objectContaining({
         selection: "items",
         modifiers: [{ pickerStyle: "segmented" }],
@@ -125,6 +78,6 @@ describe("LibraryTabs", () => {
       />,
     );
 
-    expect(mockPicker).not.toHaveBeenCalled();
+    expect(swiftUiPickerProps).not.toHaveBeenCalled();
   });
 });

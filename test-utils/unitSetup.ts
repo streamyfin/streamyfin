@@ -43,6 +43,14 @@ jest.mock(
   "expo-notifications",
   () => jest.requireActual("@/test-utils/notifications").notificationsModule,
 );
+jest.mock(
+  "@expo/ui/swift-ui",
+  () => jest.requireActual("@/test-utils/swiftUi").swiftUiModule,
+);
+jest.mock(
+  "@expo/ui/swift-ui/modifiers",
+  () => jest.requireActual("@/test-utils/swiftUi").swiftUiModifiersModule,
+);
 
 // The app's own modules that wrap a boundary. They are mocked by resolved
 // path, not through `moduleNameMapper`: a mapper entry matches the import
