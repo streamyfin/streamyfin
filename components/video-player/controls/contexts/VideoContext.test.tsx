@@ -39,6 +39,16 @@ jest.mock("./PlayerContext", () => ({
   }),
   usePlayerControls: () => mockControls,
 }));
+jest.mock("expo-router", () => ({
+  useLocalSearchParams: () => ({
+    itemId: "item-1",
+    audioIndex: "3",
+    subtitleIndex: "-1",
+    mediaSourceId: "source-1",
+    bitrateValue: "",
+    playbackPosition: "0",
+  }),
+}));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
@@ -96,6 +106,6 @@ test("reloads the stream with an external audio track instead of guessing one", 
 
   expect(mockControls.setAudioTrack).not.toHaveBeenCalled();
   expect(mockRouter.replace).toHaveBeenCalledWith(
-    expect.stringContaining("audioIndex=1"),
+    "player/direct-player?itemId=item-1&audioIndex=1&subtitleIndex=-1&mediaSourceId=source-1&bitrateValue=&playbackPosition=0",
   );
 });
