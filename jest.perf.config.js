@@ -1,4 +1,4 @@
-const { jest: base } = require("./package.json");
+const base = require("./jest.config");
 
 // `expo-router` is mocked explicitly by the scenarios, and `react-i18next` must
 // translate for real. The unit setup file (settings, `ServerImage`, network

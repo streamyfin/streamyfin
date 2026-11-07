@@ -19,6 +19,7 @@ on:
       - "constants/**"
       - "test-utils/**"
       - "**/*.perf-test.*"
+      - "jest.config.js"
       - "jest.perf.config.js"
       - "scripts/reassure-*.ts"
       - "package.json"
