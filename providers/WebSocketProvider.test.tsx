@@ -20,7 +20,6 @@ jest.mock("@/hooks/useNetworkAwareQueryClient", () => ({
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
   getSessionApi: () => ({ postFullCapabilities: mockCapabilities }),
 }));
-jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "test-device" }));
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeaders: () => ({}),
   hasHeaders: () => false,

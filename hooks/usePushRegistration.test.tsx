@@ -23,7 +23,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     getServerUrlFromStorage: () => mockPrimaryUrl,
   };
 });
-jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
 jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const REMOTE_URL = "https://jellyfin.example.com";

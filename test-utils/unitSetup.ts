@@ -27,3 +27,5 @@ jest.mock(
   "@/utils/log",
   () => jest.requireActual("@/test-utils/log").silentLogModule,
 );
+
+jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));

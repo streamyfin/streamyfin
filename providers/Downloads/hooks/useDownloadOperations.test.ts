@@ -41,7 +41,6 @@ jest.mock("@/utils/download", () => ({
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeadersForUrl: () => undefined,
 }));
-jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("react-native-device-info", () => ({}));
 jest.mock("sonner-native", () => ({
@@ -484,7 +483,7 @@ describe("startBackgroundDownload", () => {
       item,
       mediaSource,
       maxBitrate: { key: "Max", value: undefined },
-      deviceId: "device",
+      deviceId: "device-1",
     });
 
     expect(await start()).toBeUndefined();
