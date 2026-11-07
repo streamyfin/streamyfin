@@ -50,17 +50,17 @@ say which one, so the next person does not delete it as redundant.
 
 ## Mocks
 
-**Mock the boundary and run the app's logic for real.** A double of app logic can drift
-from the real code, and a broken spec keeps passing. A double of the boundary keeps specs
-fast and deterministic and costs no coverage.
+**Mock the boundary and keep app logic real.** Native code, storage, and other I/O need
+doubles in Jest. Settings, routing, and other app decisions are what the spec should
+exercise. Mocking them by default can let broken app code pass.
 
-Boundary doubles live in `test-utils/` and are wired once for every spec, so a spec does
-not repeat their setup. A spec declares only what is specific to it.
+Put shared boundary doubles in `test-utils/` and wire them once. A spec adds a mock only
+when it needs a different answer for its scenario.
 
 ### Boundary or app logic
 
-Classify a module by what it does, not by where it lives. `utils/log.tsx` is app code, but
-it is a boundary.
+What a module does matters more than where it lives. `utils/log.tsx` is app code, but it
+crosses a boundary.
 
 A module is a **boundary** when both hold:
 
@@ -91,16 +91,13 @@ wrapper adds the offline parameter. A double of it would decide the result of th
 | `@/hooks/useAppRouter` | App logic | Adds `offline=true` inside an offline context |
 | `@/utils/customHeaders` | App logic | Decides which headers and URLs a request uses |
 
-When the two tests above are unclear, count the specs that already mock the module and read
-what their doubles do. If most of them only silence it, it is a boundary: wire it once. If
-they return spec-specific values, it is app logic: leave it to each spec.
+The mock count is a clue, not the rule. If most specs only silence a module, it may belong
+in global setup. If they need different answers from it, keep the mock local.
+`@/constants/TVTypography` is often silenced, but it reads settings, so it stays app logic.
 
-A package that only works after the app configures it at start-up is wired globally too, even
-though it is not a boundary. `react-i18next` and `i18next` answer `undefined` before `init`, so
-their doubles return the key until a spec boots i18n itself.
-
-The behaviour test wins over the count. Most doubles of `@/constants/TVTypography` only
-silence it, but it reads settings and reaches no boundary, so it stays app logic.
+`react-i18next` and `i18next` are a separate case. They return `undefined` before the app
+initializes them, so their shared doubles return the key until a spec boots i18n. Packages
+that need app start-up configuration belong in global setup too.
 
 ### The rules
 
@@ -137,9 +134,9 @@ silence it, but it reads settings and reaches no boundary, so it stays app logic
    `readFromLog()` and `getPermissionsAsync()` start returning `undefined`.
 7. **Restore spies and timers.** A `jest.spyOn` or fake timer stays active until it is
    undone. Call `mockRestore()` or `jest.useRealTimers()` in `afterEach`.
-   **Leave no real timer running when a test ends.** A pending one keeps the Jest worker
-   alive past the 500 ms Jest waits for it, and the run prints "A worker process has failed
-   to exit gracefully". The highest-risk cases:
+   **Leave no real timer running when a test ends.** A pending timer can keep the Jest
+   worker alive past its 500 ms grace period and print "A worker process has failed to
+   exit gracefully". The highest-risk cases:
    - A `QueryClient` without `gcTime: Number.POSITIVE_INFINITY` schedules a five-minute
      garbage collection timer for every query.
    - A hook that sets its own `retry` (`retryPluginRead`) overrides the client's
@@ -181,11 +178,10 @@ jest.mock(
   platform inside `jest.isolateModules`, setting `Platform` on the isolated copy of
   react-native. Use it to compare one module across platforms in a single spec
   (`constants/Seerr.test.ts`, `utils/profiles/av1Support.test.ts`).
-- Never mock all of react-native with a factory. Expo installs globals like `fetch` lazily. 
-  The first read after the mock reaches the stand-in, finds no native module, and logs after 
-  the test file is torn down. Jest then exits 1 with every test passing, but only under 
-  `--runInBand`, where later files share the process. The `biome-plugins/no-react-native-mock-factory.grit` 
-  rule rejects the pattern in specs.
+- Never mock all of `react-native` with a factory. Expo installs globals such as `fetch`
+  lazily. Under `--runInBand`, later specs share the worker; a read from the stand-in
+  after teardown can log an error and make Jest exit 1 even when every test passed. Use
+  `stubReactNative()` or `requireOnPlatform()` instead.
 - `stubModules` also exports `expoWithoutNativeModule`, `onlineModule` and
   `emptyTVTypographyModule`.
 
@@ -208,10 +204,11 @@ jest.mock("expo-secure-store", () => ({
 
 ### Perf scenarios
 
-`jest.perf.config.js` keeps the package mappings except `expo-router`, `react-i18next`,
-`expo-file-system` and `@expo/vector-icons`, and replaces the unit setup file with
-`test-utils/perfSetup.ts`. A scenario therefore measures the real cost of translation, the
-file system, icons, settings, images and the network. See [performance.md](performance.md).
+`jest.perf.config.js` replaces the unit setup with `test-utils/perfSetup.ts` and leaves
+`expo-router`, `react-i18next`, `expo-file-system` and `@expo/vector-icons` out of the
+unit package mappings. Performance scenarios can then measure the cost of translation,
+the file system, icons, settings, images and network work with their own scenario setup.
+See [performance.md](performance.md).
 
 ## React Native components
 

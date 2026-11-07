@@ -69,15 +69,6 @@
         "components/seerr/tv/**"
       ],
       "plugins": ["./biome-plugins/tv-no-hardcoded-font-size.grit"]
-    },
-    {
-      "includes": [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.perf-test.tsx",
-        "test-utils/**"
-      ],
-      "plugins": ["./biome-plugins/no-react-native-mock-factory.grit"]
     }
   ],
   "json": {
