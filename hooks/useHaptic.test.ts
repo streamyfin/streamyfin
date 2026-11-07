@@ -69,16 +69,26 @@ describe("useHaptic", () => {
     expect(mockSelection).toHaveBeenCalled();
   });
 
-  it("does nothing when the user disabled haptic feedback", async () => {
-    mockSettings = { disableHapticFeedback: true };
-    const render = loadHook();
-    (await render("light"))();
-    expect(mockImpact).not.toHaveBeenCalled();
-  });
+  it.each(["light", "selection", "success"] as const)(
+    "does nothing for %s feedback when the user disabled haptics",
+    async (type) => {
+      mockSettings = { disableHapticFeedback: true };
+      const render = loadHook();
+      (await render(type))();
+      expect(mockImpact).not.toHaveBeenCalled();
+      expect(mockSelection).not.toHaveBeenCalled();
+      expect(mockNotification).not.toHaveBeenCalled();
+    },
+  );
 
-  it("does nothing on TV, where expo-haptics is never loaded", async () => {
-    const render = loadHook(true);
-    (await render("light"))();
-    expect(mockImpact).not.toHaveBeenCalled();
-  });
+  it.each(["light", "selection", "success"] as const)(
+    "does nothing for %s feedback on TV, where expo-haptics is never loaded",
+    async (type) => {
+      const render = loadHook(true);
+      (await render(type))();
+      expect(mockImpact).not.toHaveBeenCalled();
+      expect(mockSelection).not.toHaveBeenCalled();
+      expect(mockNotification).not.toHaveBeenCalled();
+    },
+  );
 });

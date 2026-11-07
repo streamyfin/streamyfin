@@ -96,12 +96,15 @@ const started: DownloadStartedEvent = {
  * Mounts the hook and hands back the listener it registered. A hook that registers none fails
  * the test: every "nothing was deleted" assertion below would otherwise pass on its own.
  */
-const listenerFor = async <K extends keyof typeof mockListeners>(name: K) => {
+const listenerFor = async <K extends keyof typeof mockListeners>(
+  name: K,
+  removeProcess = jest.fn(),
+) => {
   await renderHook(() =>
     useDownloadEventHandlers({
       processes: [],
       updateProcess: jest.fn(),
-      removeProcess: jest.fn(),
+      removeProcess,
     }),
   );
   const listener = mockListeners[name];
@@ -251,6 +254,20 @@ describe("a download that fails", () => {
     taskId: 7,
     itemId: "item-1",
     error,
+  });
+
+  it("removes the failed download card after three seconds", async () => {
+    savePendingDownload(record);
+    const removeProcess = jest.fn();
+    const error = await listenerFor("error", removeProcess);
+
+    await error(failed("HTTP error: 404"));
+    expect(removeProcess).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(2_999);
+    expect(removeProcess).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(removeProcess).toHaveBeenCalledTimes(1);
+    expect(removeProcess).toHaveBeenCalledWith("item-1");
   });
 
   it("tells the user the server could not convert it", async () => {

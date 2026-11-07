@@ -25,8 +25,11 @@ export const appRouterModule = {
 /** `@/utils/device` with a fixed device id. */
 export const deviceModule = { getOrSetDeviceId: () => "device-1" };
 
-/** `@/modules/wifi-ssid` with a no-op `openLocationSettings`. */
-export const wifiSsidModule = { openLocationSettings: () => {} };
+/** `@/modules/wifi-ssid` with no network name and a no-op settings action. */
+export const wifiSsidModule = {
+  getSSID: jest.fn(async () => ({ ssid: null, connectedToWifi: false })),
+  openLocationSettings: () => {},
+};
 
 /** `@/providers/InactivityProvider` without the idle timer. */
 export const inactivityModule = {
