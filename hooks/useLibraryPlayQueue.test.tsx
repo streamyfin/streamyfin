@@ -43,12 +43,6 @@ jest.mock("@/providers/DownloadProvider", () => ({
 jest.mock("@/hooks/useServerVersion", () => ({
   useServerVersion: () => "12.0.0",
 }));
-jest.mock("react-i18next", () => {
-  // One `t` for every render, as react-i18next keeps it.
-  const t = (key: string) => key;
-  return { useTranslation: () => ({ t }) };
-});
-
 const movie = (id: string, extra: BaseItemDto = {}): BaseItemDto => ({
   Id: id,
   Type: "Movie",

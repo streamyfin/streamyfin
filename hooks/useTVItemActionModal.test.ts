@@ -25,11 +25,6 @@ jest.mock("@tanstack/react-query", () => {
   const client = { setQueriesData: jest.fn(), invalidateQueries: jest.fn() };
   return { useQueryClient: () => client };
 });
-jest.mock("react-i18next", () => {
-  const t = (key: string) => key;
-  return { useTranslation: () => ({ t }) };
-});
-
 describe("useTVItemActionModal", () => {
   // The TV rows, cards and hero are memoized and take this callback as a
   // prop: a new one on every render re-rendered all of them.

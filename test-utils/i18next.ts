@@ -1,5 +1,7 @@
+// One `t` for every render, as react-i18next keeps it.
+const t = (key: string) => key;
 export const identityTranslationModule = {
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t }),
 };
 
 /**

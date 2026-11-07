@@ -6,10 +6,6 @@ jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom(null) };
 });
-jest.mock(
-  "@/utils/log",
-  () => jest.requireActual("@/test-utils/log").silentLogModule,
-);
 
 import { buildTrickplayDescriptor } from "./buildNativePlayerConfig";
 

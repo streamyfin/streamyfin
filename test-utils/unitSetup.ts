@@ -51,6 +51,10 @@ jest.mock(
   "@expo/ui/swift-ui/modifiers",
   () => jest.requireActual("@/test-utils/swiftUi").swiftUiModifiersModule,
 );
+jest.mock(
+  "@expo/ui/jetpack-compose",
+  () => jest.requireActual("@/test-utils/jetpackCompose").jetpackComposeModule,
+);
 
 // The app's own modules that wrap a boundary. They are mocked by resolved
 // path, not through `moduleNameMapper`: a mapper entry matches the import
