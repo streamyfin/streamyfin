@@ -132,7 +132,7 @@ export default function DirectPlayerPage() {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   // Mirror of isPlaybackStopped that is already set when a report is built.
@@ -1668,8 +1668,8 @@ export default function DirectPlayerPage() {
       settings.subtitleSize,
       videoStream?.Width,
       videoStream?.Height,
-      screenWidth * PixelRatio.get(),
-      screenHeight * PixelRatio.get(),
+      windowWidth * PixelRatio.get(),
+      windowHeight * PixelRatio.get(),
       getActivePlayerType(settings),
     );
     void applySubtitleStyle(
@@ -1681,7 +1681,7 @@ export default function DirectPlayerPage() {
     ).catch((error: unknown) => {
       console.error("Failed to apply subtitle settings:", error);
     });
-  }, [tracksReady, settings, stream?.mediaSource, screenWidth, screenHeight]);
+  }, [tracksReady, settings, stream?.mediaSource, windowWidth, windowHeight]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {

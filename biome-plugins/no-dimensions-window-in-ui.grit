@@ -1,0 +1,9 @@
+language js
+
+`Dimensions.get($dim)` as $call where {
+  $dim <: or {
+    `"window"`,
+    `'window'`
+  },
+  register_diagnostic(span=$call, message="Use useWindowDimensions() in React components and screens; read Dimensions.get('window') at point of use only outside UI.", severity="error")
+}

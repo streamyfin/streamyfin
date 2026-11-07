@@ -171,7 +171,7 @@ export const Controls: FC<Props> = ({
   // still playing.
   const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
 
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
     item,
     isOffline: offline,
@@ -242,10 +242,10 @@ export const Controls: FC<Props> = ({
     );
     if (!videoStream?.Width || !videoStream?.Height) return 0;
     const videoAspect = videoStream.Width / videoStream.Height;
-    const screenAspect = screenWidth / screenHeight;
+    const screenAspect = windowWidth / windowHeight;
     if (screenAspect >= videoAspect) return 0;
-    return (screenHeight - screenWidth / videoAspect) / 2;
-  }, [isZoomedToFill, mediaSource, screenWidth, screenHeight]);
+    return (windowHeight - windowWidth / videoAspect) / 2;
+  }, [isZoomedToFill, mediaSource, windowWidth, windowHeight]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -760,8 +760,6 @@ export const Controls: FC<Props> = ({
       ) : (
         <>
           <GestureOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
             showControls={showControls}
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}

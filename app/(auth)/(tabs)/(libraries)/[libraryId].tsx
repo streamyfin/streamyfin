@@ -179,7 +179,7 @@ const LibraryPage = () => {
   const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
@@ -497,13 +497,13 @@ const LibraryPage = () => {
       // TV uses flexWrap, so nrOfCols is just for mobile
       return 1;
     }
-    if (screenWidth < 300) return 2;
-    if (screenWidth < 500) return 3;
-    if (screenWidth < 800) return 5;
-    if (screenWidth < 1000) return 6;
-    if (screenWidth < 1500) return 7;
+    if (windowWidth < 300) return 2;
+    if (windowWidth < 500) return 3;
+    if (windowWidth < 800) return 5;
+    if (windowWidth < 1000) return 6;
+    if (windowWidth < 1500) return 7;
     return 6;
-  }, [screenWidth, orientation]);
+  }, [windowWidth, orientation]);
 
   const { data: library, isLoading: isLibraryLoading } = useQuery({
     queryKey: ["library", libraryId],

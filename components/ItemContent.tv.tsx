@@ -17,7 +17,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Dimensions, ScrollView, View } from "react-native";
+import { Alert, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AwardsBadge } from "@/components/AwardsBadge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
@@ -78,8 +78,6 @@ import {
 } from "@/utils/subtitles/trackMenu";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 // One array for "no collections", so the memoized section is not handed a new
 // one on every render.
 const EMPTY_COLLECTIONS: BaseItemDto[] = [];
@@ -101,6 +99,7 @@ interface ItemContentTVProps {
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -688,7 +687,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           <View
             style={{
               flexDirection: "row",
-              minHeight: SCREEN_HEIGHT * 0.45,
+              minHeight: windowHeight * 0.45,
             }}
           >
             {/* Left side - Content */}
@@ -767,7 +766,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   style={{
                     borderRadius: scaleSize(8),
                     overflow: "hidden",
-                    maxWidth: SCREEN_WIDTH * 0.45,
+                    maxWidth: windowWidth * 0.45,
                     marginBottom: scaleSize(24),
                   }}
                 >
@@ -969,8 +968,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               style={{
                 width:
                   item.Type === "Episode"
-                    ? SCREEN_WIDTH * 0.35
-                    : SCREEN_WIDTH * 0.22,
+                    ? windowWidth * 0.35
+                    : windowWidth * 0.22,
                 marginLeft: scaleSize(50),
               }}
             >

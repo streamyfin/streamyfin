@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useRef } from "react";
-import { Dimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
@@ -16,7 +16,7 @@ export const LiveTVGuideRow = ({
   isVisible?: boolean;
 }) => {
   const _positionRefs = useRef<{ [key: string]: number }>({});
-  const screenWidth = Dimensions.get("window").width;
+  const { width: windowWidth } = useWindowDimensions();
 
   const calculateWidth = (s?: string | null, e?: string | null) => {
     if (!s || !e) return 0;
@@ -73,7 +73,7 @@ export const LiveTVGuideRow = ({
                 <View
                   style={{
                     marginLeft:
-                      p.width > screenWidth && scrollX > p.position
+                      p.width > windowWidth && scrollX > p.position
                         ? scrollX - p.position
                         : 0,
                   }}

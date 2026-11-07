@@ -254,15 +254,15 @@ export const Controls: FC<Props> = ({
 }) => {
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const { t } = useTranslation();
 
   // Calculate progress bar width (matches the padding used in bottomInner)
   const progressBarWidth = useMemo(() => {
     const leftPadding = Math.max(insets.left, 48);
     const rightPadding = Math.max(insets.right, 48);
-    return screenWidth - leftPadding - rightPadding;
-  }, [screenWidth, insets.left, insets.right]);
+    return windowWidth - leftPadding - rightPadding;
+  }, [windowWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   // Decides where a matched alternate version starts, see

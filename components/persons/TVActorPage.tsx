@@ -15,10 +15,10 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   Animated,
-  Dimensions,
   Easing,
   FlatList,
   ScrollView,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,8 +36,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 const HORIZONTAL_PADDING = 80;
 const TOP_PADDING = 140;
 const ACTOR_IMAGE_SIZE = 250;
@@ -50,6 +48,7 @@ interface TVActorPageProps {
 export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
@@ -444,7 +443,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
                   fontSize: typography.body,
                   color: "#D1D5DB",
                   lineHeight: typography.body * 1.4,
-                  maxWidth: SCREEN_WIDTH * 0.45,
+                  maxWidth: windowWidth * 0.45,
                 }}
                 numberOfLines={4}
               >

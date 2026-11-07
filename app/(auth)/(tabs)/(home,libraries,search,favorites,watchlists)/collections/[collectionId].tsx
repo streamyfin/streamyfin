@@ -66,7 +66,7 @@ const page: React.FC = () => {
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
   const { showItemActions } = useTVItemActionModal();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const [orientation, _setOrientation] = useState(
     ScreenOrientation.Orientation.PORTRAIT_UP,
   );
@@ -201,11 +201,11 @@ const page: React.FC = () => {
       const itemWidth = posterSizes.poster + TV_ITEM_GAP;
       return Math.max(
         1,
-        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
+        Math.floor((windowWidth - TV_SCALE_PADDING * 2) / itemWidth),
       );
     }
     return orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 3 : 5;
-  }, [screenWidth, orientation]);
+  }, [windowWidth, orientation]);
 
   const fetchItems = useCallback(
     async ({

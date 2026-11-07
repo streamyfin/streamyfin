@@ -13,7 +13,12 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
+import {
+  ScrollView,
+  TVFocusGuideView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
@@ -47,8 +52,6 @@ import { seasonHeading, seasonLabel } from "@/utils/seasonLabel";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 const HORIZONTAL_PADDING = scaleSize(80);
 const TOP_PADDING = scaleSize(140);
 const POSTER_WIDTH_PERCENT = 0.22;
@@ -71,6 +74,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
@@ -428,7 +432,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View
           style={{
             flexDirection: "row",
-            minHeight: SCREEN_HEIGHT * 0.45,
+            minHeight: windowHeight * 0.45,
           }}
         >
           {/* Left side - Content */}
@@ -522,7 +526,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           {/* Right side - Poster */}
           <View
             style={{
-              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
+              width: windowWidth * POSTER_WIDTH_PERCENT,
               marginLeft: scaleSize(50),
             }}
           >

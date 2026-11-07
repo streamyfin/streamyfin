@@ -1,12 +1,11 @@
 import React from "react";
-import { Dimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scaleSize } from "@/utils/scaleSize";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 export const ItemContentSkeletonTV: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
 
   return (
     <View
@@ -102,7 +101,7 @@ export const ItemContentSkeletonTV: React.FC = () => {
             the action row, so keep the same order here to avoid a shift on load */}
         <View
           style={{
-            maxWidth: SCREEN_WIDTH * 0.45,
+            maxWidth: windowWidth * 0.45,
             marginBottom: scaleSize(24),
           }}
         >
@@ -164,7 +163,7 @@ export const ItemContentSkeletonTV: React.FC = () => {
       {/* Right side - Poster placeholder */}
       <View
         style={{
-          width: SCREEN_WIDTH * 0.22,
+          width: windowWidth * 0.22,
           marginLeft: scaleSize(50),
         }}
       >

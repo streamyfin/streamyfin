@@ -68,7 +68,14 @@
         "components/tv/**",
         "components/seerr/tv/**"
       ],
-      "plugins": ["./biome-plugins/tv-no-hardcoded-font-size.grit"]
+      "plugins": [
+        "./biome-plugins/tv-no-hardcoded-font-size.grit",
+        "./biome-plugins/no-dimensions-window-in-ui.grit"
+      ]
+    },
+    {
+      "includes": ["app/**/*.tsx", "components/**/*.tsx"],
+      "plugins": ["./biome-plugins/no-dimensions-window-in-ui.grit"]
     }
   ],
   "json": {
