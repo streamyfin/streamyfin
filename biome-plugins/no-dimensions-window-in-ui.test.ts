@@ -37,12 +37,16 @@ const lintFile = (file: string, fileName: string): number[] => {
   return [...output.matchAll(re)].map((m) => Number(m[1]));
 };
 
-const withProbe = (dir: string, content: string): number[] => {
+const withProbe = (
+  dir: string,
+  content: string,
+  fileName = "Probe.tsx",
+): number[] => {
   const tmp = fs.mkdtempSync(path.join(ROOT, dir, ".lint-probe-"));
-  const file = path.join(tmp, "Probe.tsx");
+  const file = path.join(tmp, fileName);
   fs.writeFileSync(file, content);
   try {
-    return lintFile(file, "Probe.tsx");
+    return lintFile(file, fileName);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -71,6 +75,15 @@ describe("no-dimensions-window-in-ui", () => {
 
   it("still flags hardcoded TV font sizes alongside it", () => {
     expect(tvLines).toContain(2);
+  });
+
+  it("leaves TV .ts helpers to the font plugin alone", () => {
+    const lines = withProbe(
+      "components/tv",
+      'const windowWidth = Dimensions.get("window").width;\nconst layout = { fontSize: 20 };\n',
+      "Probe.ts",
+    );
+    expect(lines).toEqual([2]);
   });
 
   it("allows the non-UI helper in hooks/useOrientation.ts", () => {

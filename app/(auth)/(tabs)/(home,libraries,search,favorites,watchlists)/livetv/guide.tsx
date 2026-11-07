@@ -82,6 +82,7 @@ export default function LiveTvGuidePage() {
   });
 
   const { width: windowWidth } = useWindowDimensions();
+  const guideViewportWidth = windowWidth - insets.left - insets.right - 64;
 
   const [scrollX, setScrollX] = useState(0);
 
@@ -136,7 +137,7 @@ export default function LiveTvGuidePage() {
         </View>
         <ScrollView
           style={{
-            width: windowWidth - 64,
+            width: guideViewportWidth,
           }}
           horizontal
           scrollEnabled
@@ -152,6 +153,7 @@ export default function LiveTvGuidePage() {
                 programs={programs?.Items}
                 key={c.Id}
                 scrollX={scrollX}
+                guideViewportWidth={guideViewportWidth}
               />
             ))}
           </View>

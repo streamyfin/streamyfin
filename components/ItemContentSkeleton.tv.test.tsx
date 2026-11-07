@@ -25,15 +25,30 @@ const overviewMaxWidth = (root: TestInstance | null) => {
   return overview.props.style.maxWidth;
 };
 
+const posterWidth = (root: TestInstance | null) => {
+  const [poster] = root!.queryAll(
+    (node) =>
+      node.props?.style?.width !== undefined &&
+      node.children.some(
+        (child) =>
+          typeof child !== "string" &&
+          child?.props?.style?.aspectRatio === 2 / 3,
+      ),
+  );
+  return poster.props.style.width;
+};
+
 describe("ItemContentSkeletonTV", () => {
-  test("resizes the overview placeholder when the window width changes", async () => {
+  test("resizes the placeholders when the window width changes", async () => {
     const { root, rerender } = await render(<ItemContentSkeletonTV />);
 
     expect(overviewMaxWidth(root)).toBe(1920 * 0.45);
+    expect(posterWidth(root)).toBe(1920 * 0.22);
 
     mockWindowWidth = 1280;
     await rerender(<ItemContentSkeletonTV />);
 
     expect(overviewMaxWidth(root)).toBe(1280 * 0.45);
+    expect(posterWidth(root)).toBe(1280 * 0.22);
   });
 });
