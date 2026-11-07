@@ -39,16 +39,6 @@ jest.mock("./PlayerContext", () => ({
   }),
   usePlayerControls: () => mockControls,
 }));
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({
-    itemId: "item-1",
-    audioIndex: "3",
-    subtitleIndex: "-1",
-    mediaSourceId: "source-1",
-    bitrateValue: "",
-    playbackPosition: "0",
-  }),
-}));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,

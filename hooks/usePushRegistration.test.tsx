@@ -27,7 +27,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     getServerUrlFromStorage: () => mockPrimaryUrl,
   };
 });
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const REMOTE_URL = "https://jellyfin.example.com";
 const LAN_URL = "http://192.168.1.10:8096";

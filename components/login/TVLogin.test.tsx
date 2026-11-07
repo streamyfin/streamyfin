@@ -45,11 +45,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({}),
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 /** The last back handler a screen registered, to press back from the spec. */
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({

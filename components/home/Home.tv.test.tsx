@@ -86,8 +86,6 @@ jest.mock("react-i18next", () => ({
   }),
 }));
 
-jest.mock("expo-router", () => ({ useSegments: () => ["(auth)", "(tabs)"] }));
-
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: (item: BaseItemDto, from: string) =>
     `/items/${item.Id}?from=${from}`,

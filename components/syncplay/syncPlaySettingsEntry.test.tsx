@@ -14,10 +14,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => ({ logout: jest.fn() }),
   };
 });
-jest.mock("expo-router", () => ({
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 // The other sections of the screen have nothing to do with the switch.
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,

@@ -8,6 +8,9 @@
  * scenarios measure the real modules.
  */
 
+// FlashList measures natively; the library's Jest setup stubs only that.
+require("@shopify/flash-list/jestSetup");
+
 // Packages. Most package doubles are mapped in `jest.config.js`
 // (`moduleNameMapper`); these are mocked here because their doubles are
 // factories exported from `test-utils/` alongside the handles specs import.
@@ -18,6 +21,23 @@ jest.mock(
 jest.mock(
   "sonner-native",
   () => jest.requireActual("@/test-utils/toast").toastModule,
+);
+jest.mock("i18next", () =>
+  jest.requireActual("@/test-utils/i18next").identityI18nextModule(),
+);
+jest.mock("@sentry/react-native", () =>
+  jest.requireActual("@/test-utils/sentry").sentryModule(),
+);
+jest.mock(
+  "@expo/react-native-action-sheet",
+  () => jest.requireActual("@/test-utils/actionSheet").actionSheetModule,
+);
+jest.mock("expo-blur", () =>
+  jest.requireActual("@/test-utils/stubModules").blurModule(),
+);
+jest.mock(
+  "react-native-qrcode-svg",
+  () => jest.requireActual("@/test-utils/stubModules").qrCodeModule,
 );
 jest.mock(
   "expo-notifications",

@@ -205,7 +205,6 @@ const mockOrientation = {
   unlockOrientation: mockNoop,
 };
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: mockT }),
 }));
@@ -267,12 +266,6 @@ jest.mock("@/utils/jellyfin/getDefaultPlaySettings", () => ({
 }));
 jest.mock("@/utils/jellyfin/image/getPrimaryImageUrl", () => ({
   getPrimaryImageUrl: () => null,
-}));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeErrorLog: jest.fn(),
-  writeInfoLog: jest.fn(),
-  writeToLog: jest.fn(),
 }));
 jest.mock("@/utils/segments", () => {
   const none = {

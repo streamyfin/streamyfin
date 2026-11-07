@@ -3,10 +3,6 @@ import { Platform, StyleSheet } from "react-native";
 import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { TVSaveAccountModal } from "./TVSaveAccountModal";
 
-// The blur is drawn natively; here it only holds its content.
-jest.mock("expo-blur", () => ({
-  BlurView: ({ children }: { children: React.ReactNode }) => children,
-}));
 jest.mock("@/components/tv", () => ({
   TVOptionCard: () => null,
   useTVFocusAnimation: () => ({

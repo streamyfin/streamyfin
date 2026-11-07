@@ -31,25 +31,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-// The sheet is always open here: what is under test is what confirming it
-// does, not how it is presented.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { forwardRef, useImperativeHandle } = jest.requireActual("react");
-  return {
-    BottomSheetModal: forwardRef(
-      (
-        { children }: { children: React.ReactNode },
-        ref: React.Ref<unknown>,
-      ) => {
-        useImperativeHandle(ref, () => ({ present() {}, dismiss() {} }));
-        return children;
-      },
-    ),
-    BottomSheetView: ({ children }: { children: React.ReactNode }) => children,
-    BottomSheetBackdrop: () => null,
-  };
-});
 jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
 // Lists the options instead of a menu to open, so a spec can see what a
 // selector offers and pick from it.

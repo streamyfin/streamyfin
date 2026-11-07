@@ -21,10 +21,8 @@ jest.mock("@/providers/JellyfinProvider", () =>
   jest.requireActual("@/test-utils/jellyfinProviderModule"),
 );
 
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 // The TV sizes read the type scale from the settings, and its enum with it.
 jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: jest.fn() }),
 }));

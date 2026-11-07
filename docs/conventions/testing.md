@@ -82,6 +82,10 @@ wrapper adds the offline parameter. A double of it would decide the result of th
 | `sonner-native` | Boundary | Draws a native toast; callers never read it back |
 | `expo-notifications` | Boundary | Native OS notifications |
 | `@/hooks/useTVBackPress` | Boundary | Subscribes to the TV remote's back and menu keys |
+| `@sentry/react-native` | Boundary | Sends events and keeps a timer running past the last test |
+| `@expo/react-native-action-sheet` | Boundary | Draws the native sheet; the user's choice is the only answer |
+| `@shopify/flash-list` | Boundary | Measures natively; the library's own `jestSetup` stubs only that |
+| `expo-blur`, `react-native-qrcode-svg` | Boundary | Drawn natively |
 | `@/utils/atoms/settings` | App logic | Callers branch on every setting |
 | `@/providers/JellyfinProvider` | App logic | The session decides what each request carries |
 | `@/hooks/useAppRouter` | App logic | Adds `offline=true` inside an offline context |
@@ -90,6 +94,10 @@ wrapper adds the offline parameter. A double of it would decide the result of th
 When the two tests above are unclear, count the specs that already mock the module and read
 what their doubles do. If most of them only silence it, it is a boundary: wire it once. If
 they return spec-specific values, it is app logic: leave it to each spec.
+
+A package that only works after the app configures it at start-up is wired globally too, even
+though it is not a boundary. `react-i18next` and `i18next` answer `undefined` before `init`, so
+their doubles return the key until a spec boots i18n itself.
 
 The behaviour test wins over the count. Most doubles of `@/constants/TVTypography` only
 silence it, but it reads settings and reaches no boundary, so it stays app logic.
@@ -117,7 +125,8 @@ silence it, but it reads settings and reaches no boundary, so it stays app logic
    double and passes for the wrong reason.
 5. **A double behaves like the real module and exposes a handle.** Use the handle instead of
    rewriting the double: `jest.mocked(writeErrorLog)`, `jest.mocked(toast.error)`,
-   `jest.mocked(Notifications.getPermissionsAsync)`, `pressTVBack()`, `jest.mocked(jellyfinProbe)`,
+   `jest.mocked(Notifications.getPermissionsAsync)`, `jest.mocked(Sentry.captureException)`,
+   `pressTVBack()`, `chooseAction(index)`, `jest.mocked(jellyfinProbe)`,
    `appRouter`, `fakeFiles`, `clearMmkv()`, `clearSecureStore()`, `setJellyfinHeaders()`.
    If the real function is pure, use it.
 6. **Do not depend on mock state left by another test.** `clearMocks` is on, so call counts
@@ -174,6 +183,9 @@ jest.mock("expo-secure-store", () => ({
   the factory with `jest.requireActual`.
 - Each test file has its own module registry. A `jest.mock` in a spec replaces the wired
   double for that file only.
+- A mock whose factory throws is a guard: it proves the code under test never loads the
+  module (`hooks/notificationsOnTV.test.ts`). The spec passes without it, so never delete one
+  as redundant. Say what it guards in a comment above it.
 
 ### Perf scenarios
 

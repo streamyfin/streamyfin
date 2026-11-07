@@ -15,7 +15,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   // The cards build their image URLs from the api; nothing is requested.
   return { apiAtom: atom(makeApi()) };
 });
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: () => {} }),

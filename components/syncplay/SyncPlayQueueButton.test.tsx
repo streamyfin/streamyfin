@@ -12,7 +12,6 @@ let mockChoice: number | undefined;
 const mockToast = jest.mocked(toast);
 let mockOffline = false;
 
-jest.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({
     showActionSheetWithOptions: (

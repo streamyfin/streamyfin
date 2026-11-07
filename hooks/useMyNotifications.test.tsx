@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import {
   onlineManager,
   QueryCache,
@@ -21,7 +22,7 @@ import { useMyNotifications } from "./useMyNotifications";
 const mockGet = jest.fn();
 const mockPut = jest.fn();
 const mockToastError = jest.mocked(toast.error);
-const mockCapture = jest.fn();
+const mockCapture = jest.mocked(Sentry.captureException);
 
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -34,12 +35,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     userAtom: atom({ Id: "alice" }),
   };
 });
-// The reporter writes what it keeps from Sentry to the local log, which MMKV backs.
-jest.mock("@sentry/react-native", () => ({
-  withScope: (report: (scope: unknown) => void) =>
-    report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
-  captureException: (...args: unknown[]) => mockCapture(...args),
-}));
 
 let client: QueryClient;
 

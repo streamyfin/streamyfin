@@ -29,7 +29,6 @@ jest.mock("@/providers/AudioStorage", () => ({
   clearPermanentDownloads: jest.fn(),
   getStorageStats: async () => ({ cacheSize: 0, permanentSize: 0 }),
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => jest.fn() }));
 jest.mock("@/hooks/useNetworkAwareQueryClient", () => ({
   useNetworkAwareQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }));

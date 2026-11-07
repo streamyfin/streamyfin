@@ -4,10 +4,6 @@ import { TV_PANEL_BACKING } from "@/constants/Colors";
 import { TVPasswordEntryModal } from "./TVPasswordEntryModal";
 import { TVPINEntryModal } from "./TVPINEntryModal";
 
-// The blur is drawn natively; here it only holds its content.
-jest.mock("expo-blur", () => ({
-  BlurView: ({ children }: { children: React.ReactNode }) => children,
-}));
 jest.mock("@/components/tv", () => ({
   useTVFocusAnimation: () => ({
     focused: false,

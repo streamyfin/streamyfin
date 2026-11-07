@@ -13,13 +13,14 @@ import type { ReactNode } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
+import { writeToLog } from "@/utils/log";
 
 jest.mock("@/providers/JellyfinProvider", () =>
   jest.requireActual("@/test-utils/jellyfinProviderModule"),
 );
 
 const mockParams: { current: Record<string, unknown> } = { current: {} };
-const mockWriteToLog = jest.fn();
+const mockWriteToLog = jest.mocked(writeToLog);
 
 jest.mock("expo-router", () => {
   const { useEffect } = jest.requireActual("react");
@@ -56,15 +57,6 @@ jest.mock("@/providers/GlobalModalProvider", () => ({
 // the modal, never rendered here.
 jest.mock("@/components/filters/FilterSheetContent", () => ({
   FilterSheetContent: () => null,
-}));
-// The log reaches Sentry, so it is stubbed with what the page and the
-// settings it reads call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
-  logAndCaptureError: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
 }));
 // The settings only read its table of bitrates. The component pulls in the
 // bottom sheet, which needs the native worklets.

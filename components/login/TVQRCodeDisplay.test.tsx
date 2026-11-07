@@ -20,10 +20,6 @@ const MockTVButton = (props: {
   onPress: () => void;
   children: React.ReactNode;
 }) => <Pressable onPress={props.onPress}>{props.children}</Pressable>;
-jest.mock("react-native-qrcode-svg", () => ({
-  __esModule: true,
-  default: () => null,
-}));
 
 const renderTurnedOff = (serverName?: string) =>
   render(

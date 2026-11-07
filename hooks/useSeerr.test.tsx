@@ -7,6 +7,7 @@ import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
 import type React from "react";
 import { toast } from "sonner-native";
+import { writeToLog } from "@/utils/log";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 import {
   Endpoints,
@@ -16,14 +17,9 @@ import {
 } from "./useSeerr";
 
 // Ships as ES modules, which Jest does not load.
-// The real log loads Sentry, whose timers keep Jest from exiting.
-jest.mock("@/utils/log", () => ({
-  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
-  writeErrorLog: jest.fn(),
-}));
 // The settings atom imports the screens that edit it; the client reads none.
 
-const mockWriteToLog = jest.fn();
+const mockWriteToLog = jest.mocked(writeToLog);
 const mockToastError = jest.mocked(toast.error);
 
 beforeEach(() => {

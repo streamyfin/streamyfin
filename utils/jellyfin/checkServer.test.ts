@@ -42,7 +42,6 @@ jest.mock("@/utils/secureCredentials", () => ({
 
 // Only the scrubber is wanted from utils/sentry: what a log message is by the
 // time it has left the app. The SDK and what it reads at start-up are not.
-jest.mock("@sentry/react-native", () => ({}));
 jest.mock("@/utils/storedSettings", () => ({}));
 jest.mock("@/utils/version", () => ({}));
 

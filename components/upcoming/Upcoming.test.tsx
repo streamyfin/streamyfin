@@ -21,12 +21,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   const { makeApi: make } = jest.requireActual("@/test-utils/jellyfinApi");
   return { apiAtom: atom(make()), userAtom: atom({ Id: "user-1" }) };
 });
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: "en-US" },
-  }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ title: 1, heading: 1, body: 1, callout: 1 }),
 }));

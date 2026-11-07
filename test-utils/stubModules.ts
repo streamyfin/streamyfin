@@ -53,3 +53,12 @@ export const jellyfinProbeModule = () => ({
   ...jest.requireActual("@/utils/serverUrl/probes/jellyfin"),
   jellyfinProbe: jest.fn(async () => ({ status: "ok" })),
 });
+
+/** `expo-blur` whose `BlurView` draws only its children: the blur is native. */
+export const blurModule = () => ({
+  ...jest.requireActual("expo-blur"),
+  BlurView: ({ children }: { children: unknown }) => children,
+});
+
+/** `react-native-qrcode-svg` drawing nothing: the code is native SVG. */
+export const qrCodeModule = { __esModule: true, default: () => null };

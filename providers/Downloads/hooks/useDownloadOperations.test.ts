@@ -34,11 +34,9 @@ jest.mock("@/utils/download", () => ({
   __esModule: true,
   default: () => ({ saveSeriesPrimaryImage: jest.fn() }),
 }));
-jest.mock("@/utils/customHeaders", () => ({
-  getJellyfinHeadersForUrl: () => undefined,
-}));
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-jest.mock("react-native-device-info", () => ({}));
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
 
 import { toast } from "sonner-native";
 import {

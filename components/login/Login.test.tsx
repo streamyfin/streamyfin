@@ -7,10 +7,6 @@ import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { pendingAccountSaveAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Login } from "./Login";
 
-jest.mock("react-i18next", () =>
-  jest.requireActual("@/test-utils/realI18next"),
-);
-
 const mockStopPolling = jest.fn();
 const mockJellyfin = {
   setServer: jest.fn(),
@@ -35,11 +31,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({}),
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: () => null,
   MaterialCommunityIcons: (props: { name: string }) => MockIcon(props),

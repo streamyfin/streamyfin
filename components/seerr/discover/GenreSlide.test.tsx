@@ -21,18 +21,11 @@ jest.mock("@/hooks/useSeerr", () => ({
   ...jest.requireActual("@/hooks/useSeerr"),
   useSeerr: () => ({ seerrApi: mockSeerrApi }),
 }));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 // FlashList ships as ES modules, which Jest does not load. FlatList reads the
 // row the same way: as many items as `data.length`, each through
 // `keyExtractor(data[index])`, which is where the phone's row crashed.
 jest.mock("@shopify/flash-list", () => ({
   FlashList: jest.requireActual("react-native").FlatList,
-}));
-// The rows' headings, by their keys: the TV's through the hook, the phone's
-// through i18next itself.
-jest.mock("i18next", () => ({
-  ...jest.requireActual("i18next"),
-  t: (key: string) => key,
 }));
 
 let mockSeerrApi: SeerrApi;

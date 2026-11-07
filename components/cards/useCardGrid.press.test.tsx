@@ -10,7 +10,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom({ basePath: "http://server" }) };
 });
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 // One router object, as the real hook returns, or the handlers' deps change.
 jest.mock("@/hooks/useAppRouter", () => {
   const router = { push: () => {} };

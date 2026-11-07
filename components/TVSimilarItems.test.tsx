@@ -13,7 +13,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: mockPush }),
 }));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: mockShowItemActions }),
 }));

@@ -1,16 +1,11 @@
+import { writeErrorLog } from "@/utils/log";
 import type { User as SeerrUser } from "@/utils/seerr/types";
 import type {
   SeerrApiKeySignIn,
   SeerrSignInAtLogin,
 } from "./seerrSignInAtLogin";
 
-const mockWriteErrorLog = jest.fn();
-
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// this spec's module under test actually calls.
-jest.mock("@/utils/log", () => ({
-  writeErrorLog: (...args: unknown[]) => mockWriteErrorLog(...args),
-}));
+const mockWriteErrorLog = jest.mocked(writeErrorLog);
 
 import { store } from "@/utils/store";
 import {
