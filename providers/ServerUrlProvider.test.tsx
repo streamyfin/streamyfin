@@ -9,9 +9,6 @@ import { ServerUrlProvider, useServerUrl } from "./ServerUrlProvider";
 
 const mockSwitchServerUrl = jest.fn();
 
-// The saved-server store imports the log module, which loads Sentry and its
-// timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
 jest.mock("@/hooks/useWifiSSID", () => ({
   useWifiSSID: () => ({
     ssid: "Home",

@@ -89,13 +89,17 @@ Three rules keep mocks from becoming the thing that breaks:
   empties it, and `secureStoreValues` seeds or reads it back. `lockSecureStore()` locks the
   phone: a read then throws, as the Keychain's does, unless the item was created as readable
   after the first unlock.
-- `fileSystemModule` stands for `expo-file-system` in specs that delete or download files: a
-  path exists once `fakeFiles.add()` puts it there, or a download lands on it, and until
-  something deletes it. `fakeFiles.clear()` empties the disk, `fakeFiles.remaining()`,
-  `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
+- `fileSystemModule` stands for `expo-file-system`, a fake disk: a path exists once
+  `fakeFiles.add()` puts it there, or a download lands on it, and until something deletes it.
+  `moduleNameMapper` wires it for every spec through `test-utils/fileSystemModule.ts`, so it
+  needs no `jest.mock` of its own. `fakeFiles.clear()` empties the disk,
+  `fakeFiles.remaining()`, `fakeFiles.deleted()` and `fakeFiles.downloads()` read it back.
 - `react-native-safe-area-context` is wired for every spec: `useSafeAreaInsets` reports
   no insets, the rest is real. `silentHapticModule` stands for `@/hooks/useHaptic` when a
   haptic should be a no-op.
+- `@expo/vector-icons` is wired for every spec: the package stays real except `Ionicons`,
+  which draws nothing (`blankIconsModule`). A spec needing the real `Ionicons` or another
+  family blanked declares its own `jest.mock`.
 - `stubModules` holds one-line stand-ins repeated across specs: `bitrateSelectorModule`,
   `appRouterModule`, `inactivityModule`, `expoWithoutNativeModule`, `onlineModule`,
   `emptyTVTypographyModule` and `blankIconsModule`.
@@ -122,28 +126,30 @@ jest.mock(
 ```
 
 Packages are wired for every spec through `moduleNameMapper`: `react-native-mmkv`,
-`react-i18next`, `react-native-safe-area-context`, `@gorhom/bottom-sheet`,
-`react-native-device-info` and `@react-native-community/netinfo`. The bottom sheet, device
-info and netinfo use the libraries' own Jest mocks. A mapper entry matches the import specifier only, so it cannot stand for an app
-module that is also imported relatively.
+`expo-file-system`, `@expo/vector-icons`, `react-i18next`, `react-native-safe-area-context`,
+`@gorhom/bottom-sheet`, `react-native-device-info` and `@react-native-community/netinfo`. The
+bottom sheet, device info and netinfo use the libraries' own Jest mocks. A mapper entry matches
+the import specifier only, so it cannot stand for an app module that is also imported relatively.
 
 App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/settings`
 (`makeSettingsModule()`), `@/components/common/ServerImage` (a `View` named after its
 URL), `@/hooks/useNetworkStatus`, `@/utils/customHeaders` (`customHeadersModule()`),
 `@/utils/log` (silent), `@/providers/JellyfinProvider`, `@/hooks/useHaptic`,
 `@/hooks/useAppRouter`, `@/components/BitrateSelector`, `@/providers/InactivityProvider`,
-`expo-secure-store` and `@/utils/serverUrl/probes/jellyfin` (`jellyfinProbe` is a `jest.fn()`
-that finds the server; drive it with `jest.mocked(jellyfinProbe)`). The provider is
+`expo-secure-store`, `@/utils/serverUrl/probes/jellyfin` (`jellyfinProbe` is a `jest.fn()`
+that finds the server; drive it with `jest.mocked(jellyfinProbe)`) and
+`@/modules/wifi-ssid` (a no-op `openLocationSettings`). The provider is
 imported relatively by sibling modules, so it cannot go through `moduleNameMapper`; its
 unit default re-exports the real `apiAtom` and `userAtom`, so code reading either module
 shares the atoms. A spec that needs `useJellyfin`, another provider export or a session
 of its own declares its own `jest.mock`, e.g. `makeSettingsModule({ ... })`; a spec
 about the real module calls `jest.unmock`.
 
-The perf config (`jest.perf.config.js`) inherits the package mappings except `expo-router`
-and `react-i18next`, and replaces the unit setup file with `test-utils/perfSetup.ts`,
-which supplies the signed-in JellyfinProvider double over the shared api atoms: a
-scenario measures the real translation, settings, image and network cost.
+The perf config (`jest.perf.config.js`) inherits the package mappings except `expo-router`,
+`react-i18next`, `expo-file-system` and `@expo/vector-icons`, and replaces the unit setup file
+with `test-utils/perfSetup.ts`, which supplies the signed-in JellyfinProvider double over the
+shared api atoms: a scenario measures the real translation, file system, icons, settings,
+image and network cost.
 
 ## React Native components
 

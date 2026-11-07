@@ -52,3 +52,4 @@ jest.mock(
 jest.mock("@/utils/serverUrl/probes/jellyfin", () =>
   jest.requireActual("@/test-utils/stubModules").jellyfinProbeModule(),
 );
+jest.mock("@/modules/wifi-ssid", () => ({ openLocationSettings: () => {} }));

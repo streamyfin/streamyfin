@@ -15,9 +15,6 @@ const mockToastError = jest.fn();
 const mockToastInfo = jest.fn();
 const mockRefreshUrlState = jest.fn();
 
-// The saved-server store imports the log module, which loads Sentry and its
-// timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
 jest.mock("sonner-native", () => ({
   toast: {
     error: (message: string) => mockToastError(message),
@@ -37,7 +34,6 @@ jest.mock("@/hooks/useWifiSSID", () => ({
     requestPermission: async () => true,
   }),
 }));
-jest.mock("@/modules/wifi-ssid", () => ({ openLocationSettings: () => {} }));
 jest.mock("@/providers/ServerUrlProvider", () => ({
   useServerUrl: () => ({
     isUsingLocalUrl: false,
