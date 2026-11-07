@@ -6,6 +6,7 @@ import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVButtonProps {
   onPress: () => void;
+  onLongPress?: () => void;
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "glass" | "warning";
   hasTVPreferredFocus?: boolean;
@@ -71,6 +72,7 @@ const getButtonStyles = (
 
 export const TVButton: React.FC<TVButtonProps> = ({
   onPress,
+  onLongPress,
   children,
   variant = "primary",
   hasTVPreferredFocus = false,
@@ -91,6 +93,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
     <Pressable
       ref={refSetter}
       onPress={onPress}
+      onLongPress={onLongPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus && !disabled}

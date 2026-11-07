@@ -169,3 +169,40 @@ describe("the native player's exit confirmation", () => {
     expect(await confirmExit(false)).toBe(false);
   });
 });
+
+describe("the native player's title", () => {
+  const title = async (
+    itemTitle?: (item: BaseItemDto) => string | undefined,
+  ) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      itemTitle,
+      item,
+    });
+    return built?.config.metadata?.title;
+  };
+
+  // A trailer says it is one there, as it does in the JS player.
+  test("is the one the caller asks for", async () => {
+    expect(await title((i) => `Trailer: ${i.Name}`)).toBe("Trailer: Movie");
+  });
+
+  test("is the item's name when the caller asks for none", async () => {
+    expect(await title()).toBe("Movie");
+  });
+});

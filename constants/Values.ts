@@ -38,3 +38,10 @@ export const POSTER_IMAGE_TRANSITION_DURATION = 150;
  * Duration of the transition animation for background images, in milliseconds.
  */
 export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;
+
+/**
+ * How long a TV page waits after a modal route closes before it asks for the
+ * focus back: long enough for the route to have left the screen. Android TV
+ * leaves nothing focused otherwise (android-tv-modal-close-loses-focus).
+ */
+export const TV_MODAL_FOCUS_RESTORE_MS = 300;

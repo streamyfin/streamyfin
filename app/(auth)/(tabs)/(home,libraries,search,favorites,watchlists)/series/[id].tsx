@@ -21,6 +21,7 @@ import {
   SeasonPicker,
   seasonIndexAtom,
 } from "@/components/series/SeasonPicker";
+import { ItemActions } from "@/components/series/SeriesActions";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
@@ -221,6 +222,7 @@ const page: React.FC = () => {
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
             {shuffleButton}
+            <ItemActions item={item} variant='header' />
             {!Platform.isTV && !isOffline && (
               <SyncPlayButton items={allEpisodes} title={item.Name} />
             )}

@@ -105,6 +105,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { playerTitle } from "@/utils/jellyfin/media/trailers";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -991,6 +992,7 @@ const NativePlayerProviderInner: React.FC<{
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
+        itemTitle: (item) => playerTitle(t, item),
         item: options.item,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {

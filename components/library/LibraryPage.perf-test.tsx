@@ -37,6 +37,9 @@ jest.mock("@/hooks/useTVItemActionModal", () => ({
 jest.mock("@/hooks/useTVLibrarySheet", () => ({
   useTVLibrarySheet: () => ({ openSheet: () => {} }),
 }));
+jest.mock("@/hooks/useTrailers", () => ({
+  useTrailers: () => ({ trailers: [], playTrailer: () => {} }),
+}));
 jest.mock(
   "@/providers/GlobalModalProvider",
   () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
