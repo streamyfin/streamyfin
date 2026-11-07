@@ -9,6 +9,10 @@ import {
 import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { useNotificationRegistration } from "./useNotificationRegistration";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 const mockPush = jest.fn();
 const mockNotifications = {
   DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",

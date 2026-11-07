@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import Settings from "@/app/(auth)/(tabs)/(home)/settings";
 
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
+
 const mockUpdateSettings = jest.fn();
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");

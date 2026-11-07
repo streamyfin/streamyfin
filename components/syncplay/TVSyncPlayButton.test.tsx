@@ -1,6 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVSyncPlayButton } from "./TVSyncPlayButton";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 const mockOpen = jest.fn();
 let mockState = { group: null as object | null, available: true };
 

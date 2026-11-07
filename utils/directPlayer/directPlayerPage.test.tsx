@@ -11,6 +11,11 @@ import {
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
 
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
 /** 5m, the resume position of the episode after it. */

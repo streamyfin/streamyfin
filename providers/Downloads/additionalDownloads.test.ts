@@ -80,6 +80,10 @@ import {
   downloadTrickplayImages,
 } from "./additionalDownloads";
 
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+
 const api = makeApi();
 // makeApi() throws on unmatched requests; the segment fetch is not under test.
 api.mock.onGet(/\/MediaSegments\//).reply(200, { Items: [] });

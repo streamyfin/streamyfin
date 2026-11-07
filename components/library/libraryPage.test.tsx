@@ -14,6 +14,10 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 const mockParams: { current: Record<string, unknown> } = { current: {} };
 const mockWriteToLog = jest.fn();
 

@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVPosterCard } from "./TVPosterCard";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 jest.mock("@/components/WatchedIndicator", () => ({
   UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,

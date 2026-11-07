@@ -7,6 +7,10 @@ import type { Settings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { buildNativePlayerConfig } from "./buildNativePlayerConfig";
 
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test.
 jest.mock("@/utils/log", () => ({

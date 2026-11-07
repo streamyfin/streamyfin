@@ -7,6 +7,11 @@ import { type DiscoverSlider, DiscoverSliderType } from "@/utils/seerr/types";
 import GenreSlide from "./GenreSlide";
 import { TVGenreSlide } from "./TVGenreSlide";
 
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
+
 // Ships as ES modules, which Jest does not load, and nothing here toasts.
 jest.mock("sonner-native", () => ({ toast: {} }));
 // The real log loads Sentry, whose timers keep Jest from exiting.

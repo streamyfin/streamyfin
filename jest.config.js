@@ -1,5 +1,6 @@
 module.exports = {
   preset: "jest-expo",
+  clearMocks: true,
   globalSetup: "<rootDir>/test-utils/timeZone.ts",
   setupFilesAfterEnv: ["<rootDir>/test-utils/unitSetup.ts"],
   moduleNameMapper: {

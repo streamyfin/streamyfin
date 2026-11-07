@@ -14,6 +14,11 @@ import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import type { Home as HomeLayout } from "@/utils/atoms/settings";
 import { Home } from "./Home.tv";
 
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+
 const defaultSettings = {
   home: null as HomeLayout | null,
   hiddenLibraries: [] as string[],

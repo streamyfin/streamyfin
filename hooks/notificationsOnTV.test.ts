@@ -1,5 +1,9 @@
 import { stubReactNative } from "@/test-utils/reactNative";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 // TV builds leave this native module out (react-native.config.js), and loading it there
 // fails as the app starts. What the root layout and the settings pull in loads it only
 // off TV, like app/_layout.tsx does.

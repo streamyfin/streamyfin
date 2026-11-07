@@ -34,7 +34,7 @@ Read the relevant one before writing code in that area.
 | [docs/conventions/constants.md](docs/conventions/constants.md) | Adding a threshold, interval, ratio, storage key, or any value used twice |
 | [docs/conventions/contributing-flow.md](docs/conventions/contributing-flow.md) | Opening, describing, or reviewing a PR |
 | [docs/conventions/performance.md](docs/conventions/performance.md) | Claiming a change is faster, or writing a Reassure scenario |
-| [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, and before claiming a fix works |
+| [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, adding or unmocking a `jest.mock`, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
 
 Deep dives: [tv-modal-guide.md](docs/tv-modal-guide.md),

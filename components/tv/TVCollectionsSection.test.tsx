@@ -5,6 +5,10 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 // brings the proxy-header machinery along.
 import { TVCollectionsSection } from "./TVCollectionsSection";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 const trilogy = {
   Id: "boxset-1",
   Name: "The Trilogy",

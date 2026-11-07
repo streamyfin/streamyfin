@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-04
 **Category**: testing
-**Key files**: `app.config.ts`, `app.config.test.ts`, `test-utils/tsxRequireHook.ts`, `package.json` (`jest.moduleNameMapper`)
+**Key files**: `app.config.ts`, `app.config.test.ts`, `test-utils/tsxRequireHook.ts`, `jest.config.js` (`moduleNameMapper`)
 
 ## Detail
 

@@ -2,8 +2,8 @@ const base = require("./jest.config");
 
 // `expo-router` is mocked explicitly by the scenarios, `react-i18next` must
 // translate for real, and the file-system and icon doubles would stand in for
-// the real packages. The unit setup file (settings, `ServerImage`, network
-// status) is replaced below, so the scenarios measure the real modules.
+// the real packages. The unit setup file (`ServerImage`, haptics, the device
+// id) is replaced below, so the scenarios measure the real modules.
 const {
   "^expo-router$": _expoRouter,
   "^react-i18next$": _i18next,

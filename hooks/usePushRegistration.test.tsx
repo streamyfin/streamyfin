@@ -13,6 +13,10 @@ import { writeErrorLog } from "@/utils/log";
 import { inRegistrationOrder } from "@/utils/pushRegistration";
 import { usePushRegistration } from "./usePushRegistration";
 
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+
 let mockPrimaryUrl: string | null = null;
 
 jest.mock("@/providers/JellyfinProvider", () => {

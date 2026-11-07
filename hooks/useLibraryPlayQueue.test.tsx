@@ -14,6 +14,14 @@ import { useLibraryPlayQueue } from "./useLibraryPlayQueue";
 import { usePlaybackManager } from "./usePlaybackManager";
 import { useShuffleQueue } from "./useShuffleQueue";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+
 const mockPlayMedia = jest.fn();
 
 // BitrateSelector is a React component module; only the BITRATES table matters.

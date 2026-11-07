@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVFavoriteButton } from "./TVFavoriteButton";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+);
+
 jest.mock("@/hooks/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, toggleFavorite: () => {} }),
 }));
