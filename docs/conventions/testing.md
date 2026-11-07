@@ -123,7 +123,8 @@ jest.mock(
 
 Packages are wired for every spec through `moduleNameMapper`: `react-native-mmkv`,
 `react-i18next`, `react-native-safe-area-context`, `@gorhom/bottom-sheet` and
-`react-native-device-info`. The bottom sheet and device info use the libraries' own Jest
+`react-native-device-info` and `@react-native-community/netinfo`. The bottom sheet, device
+info and netinfo use the libraries' own Jest
 mocks. A mapper entry matches the import specifier only, so it cannot stand for an app
 module that is also imported relatively.
 
