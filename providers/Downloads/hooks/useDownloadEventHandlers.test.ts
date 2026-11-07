@@ -231,12 +231,20 @@ describe("a download that starts", () => {
 // alone, and the card went away three seconds later.
 describe("a download that fails", () => {
   beforeEach(() => {
+    // The hook removes the card three seconds after a failure, on a timer the
+    // spec must not leave running: a pending one keeps the Jest worker alive.
+    jest.useFakeTimers();
     clearMmkv();
     fakeFiles.clear();
     mockGetNotificationContent.mockClear();
     mockSendDownloadNotification.mockClear();
     mockToastError.mockClear();
     mockToastDismiss.mockClear();
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
   });
 
   const failed = (error: string): DownloadErrorEvent => ({

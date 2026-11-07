@@ -1,4 +1,4 @@
-import { stubReactNative } from "@/test-utils/reactNative";
+import { requireOnPlatform, stubReactNative } from "@/test-utils/reactNative";
 
 // utils/sentry imports the SDK and app modules with native dependencies;
 // only the pure scrubbers are under test here, so each mock covers the surface
@@ -240,10 +240,9 @@ describe("dev builds do not report", () => {
   // must stay unlatched until the last of them.
   const initializesOn = (OS: "ios" | "android"): unknown[] => {
     const before = initCalls.length;
-    jest.isolateModules(() => {
-      require("@/test-utils/reactNative").stubReactNative({ OS });
-      require("./sentry").initializeSentryIfConsented();
-    });
+    requireOnPlatform({ OS }, () =>
+      require("./sentry").initializeSentryIfConsented(),
+    );
     return initCalls.splice(before);
   };
 

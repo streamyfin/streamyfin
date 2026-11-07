@@ -1,0 +1,10 @@
+language js
+
+or {
+  `jest.mock("react-native", $factory)`,
+  `jest.doMock("react-native", $factory)`,
+  `jest.mock('react-native', $factory)`,
+  `jest.doMock('react-native', $factory)`
+} as $call where {
+  register_diagnostic(span=$call, message="Never mock all of react-native with a factory: Expo's lazily installed globals reach the stand-in later and log after teardown. Patch the real module with stubReactNative() or requireOnPlatform() from @/test-utils/reactNative.", severity="error")
+}

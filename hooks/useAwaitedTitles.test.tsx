@@ -109,7 +109,7 @@ const reportingClient = () =>
         reportDataError("mutation", mutation.options.mutationKey, error),
     }),
     defaultOptions: {
-      queries: { gcTime: Number.POSITIVE_INFINITY },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retryDelay: 0 },
       mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
     },
   });
@@ -122,11 +122,21 @@ const ready = async () => {
 
 describe("the titles the person waits for", () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    // Only this spec's own mocks: `jest.resetAllMocks()` would also strip the
+    // defaults of the doubles `test-utils/unitSetup.ts` wires.
+    mockGet.mockReset();
+    mockPost.mockReset();
+    mockDelete.mockReset();
     // No garbage collection timer nor retry: either keeps Jest from exiting.
+    // The hook sets its own `retry`, so a retry still runs: `retryDelay: 0`
+    // keeps its timer from outliving the test, which `client.clear()` cannot.
     client = new QueryClient({
       defaultOptions: {
-        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        queries: {
+          gcTime: Number.POSITIVE_INFINITY,
+          retry: false,
+          retryDelay: 0,
+        },
         mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
       },
     });
@@ -201,6 +211,7 @@ describe("the titles the person waits for", () => {
       defaultOptions: {
         queries: {
           gcTime: Number.POSITIVE_INFINITY,
+          retryDelay: 0,
           networkMode: "offlineFirst",
         },
       },

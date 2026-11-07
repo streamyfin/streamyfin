@@ -92,11 +92,20 @@ const both = withFollow(one, { favorites: false, started: true });
 describe("the person's notification choices", () => {
   beforeEach(() => {
     // Implementations too, so what one test told the server to answer stays in it.
-    jest.resetAllMocks();
+    // Only this spec's own mocks: `jest.resetAllMocks()` would also strip the
+    // defaults of the doubles `test-utils/unitSetup.ts` wires.
+    mockGet.mockReset();
+    mockPut.mockReset();
     // No garbage collection timer nor retry: either keeps Jest from exiting.
+    // The hook sets its own `retry`, so a retry still runs: `retryDelay: 0`
+    // keeps its timer from outliving the test, which `client.clear()` cannot.
     client = new QueryClient({
       defaultOptions: {
-        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        queries: {
+          gcTime: Number.POSITIVE_INFINITY,
+          retry: false,
+          retryDelay: 0,
+        },
         mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
       },
     });
@@ -129,7 +138,9 @@ describe("the person's notification choices", () => {
         onError: (error, query) =>
           reportDataError("query", query.queryKey, error),
       }),
-      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY, retryDelay: 0 },
+      },
     });
     mockGet.mockRejectedValue(notFound());
 
@@ -160,6 +171,7 @@ describe("the person's notification choices", () => {
       defaultOptions: {
         queries: {
           gcTime: Number.POSITIVE_INFINITY,
+          retryDelay: 0,
           networkMode: "offlineFirst",
         },
       },

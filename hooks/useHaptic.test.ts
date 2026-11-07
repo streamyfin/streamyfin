@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react-native";
-import { stubReactNative } from "@/test-utils/reactNative";
+import { requireOnPlatform } from "@/test-utils/reactNative";
 import type { HapticFeedbackType } from "./useHaptic";
 
 const mockImpact = jest.fn();
@@ -29,9 +29,8 @@ jest.mock("@/utils/atoms/settings", () => ({
 const loadHook = (isTV = false) => {
   const react = jest.requireActual("react");
   let useHaptic: typeof import("./useHaptic").useHaptic | undefined;
-  jest.isolateModules(() => {
+  requireOnPlatform({ isTV }, () => {
     jest.doMock("react", () => react);
-    stubReactNative({ isTV });
     useHaptic = require("./useHaptic").useHaptic;
   });
   return async (type?: HapticFeedbackType) => {

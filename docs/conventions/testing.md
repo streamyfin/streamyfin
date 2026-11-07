@@ -137,6 +137,16 @@ silence it, but it reads settings and reaches no boundary, so it stays app logic
    `readFromLog()` and `getPermissionsAsync()` start returning `undefined`.
 7. **Restore spies and timers.** A `jest.spyOn` or fake timer stays active until it is
    undone. Call `mockRestore()` or `jest.useRealTimers()` in `afterEach`.
+   **Leave no real timer running when a test ends.** A pending one keeps the Jest worker
+   alive past the 500 ms Jest waits for it, and the run prints "A worker process has failed
+   to exit gracefully". The highest-risk cases:
+   - A `QueryClient` without `gcTime: Number.POSITIVE_INFINITY` schedules a five-minute
+     garbage collection timer for every query.
+   - A hook that sets its own `retry` (`retryPluginRead`) overrides the client's
+     `retry: false`. Give the client `retryDelay: 0`: `client.clear()` cancels a retry but
+     not the timer it waits on.
+   - Code under test that schedules its own delay, such as the card removal after a failed
+     download, runs under `jest.useFakeTimers()` with `jest.clearAllTimers()` in `afterEach`.
 8. **Assert on results, not on the double.** Check what the user sees or what crossed the
    boundary (a request sent, a route pushed, an error reported). A test that counts calls to
    an internal double breaks on every refactor.
@@ -167,6 +177,15 @@ jest.mock(
   returns a new shared value on every render, which re-runs any effect that depends on it.
 - `stubReactNative()`: patches `Platform` and `AppState` on the real module. A module that
   reads `Platform` when it loads must be required after the call, not imported.
+- `requireOnPlatform({ isTV: true }, () => require("./Seerr"))`: loads a module on another
+  platform inside `jest.isolateModules`, setting `Platform` on the isolated copy of
+  react-native. Use it to compare one module across platforms in a single spec
+  (`constants/Seerr.test.ts`, `utils/profiles/av1Support.test.ts`).
+- Never mock all of react-native with a factory. Expo installs globals like `fetch` lazily. 
+  The first read after the mock reaches the stand-in, finds no native module, and logs after 
+  the test file is torn down. Jest then exits 1 with every test passing, but only under 
+  `--runInBand`, where later files share the process. The `biome-plugins/no-react-native-mock-factory.grit` 
+  rule rejects the pattern in specs.
 - `stubModules` also exports `expoWithoutNativeModule`, `onlineModule` and
   `emptyTVTypographyModule`.
 

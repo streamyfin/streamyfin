@@ -83,7 +83,9 @@ describe("persisted query cache at rest", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     writes = 0;
-    client = new QueryClient();
+    client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
     const persister: Persister = {
       persistClient: () => {
         writes += 1;
@@ -156,7 +158,9 @@ describe("saves of the persisted cache", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     writes = 0;
-    client = new QueryClient();
+    client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
     unsubscribe = persistQueryClientSubscribe({
       queryClient: client,
       persister: withoutRedundantSaves({
