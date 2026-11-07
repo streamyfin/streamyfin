@@ -230,6 +230,7 @@ test("a second write in the same millisecond is still saved", async () => {
   client.setQueryData(["home", "row"], "first");
   client.setQueryData(["home", "row"], "second");
   unsubscribe();
+  client.clear();
   now.mockRestore();
 
   expect(saved.at(-1)).toBe("second");

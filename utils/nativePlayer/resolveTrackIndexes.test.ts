@@ -6,6 +6,10 @@ import type { Settings } from "@/utils/atoms/settings";
 
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test, so it is stubbed with the surface the modules under test call.
+jest.mock(
+  "@/utils/log",
+  () => jest.requireActual("@/test-utils/log").silentLogModule,
+);
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";

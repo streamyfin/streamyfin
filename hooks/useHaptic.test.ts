@@ -54,11 +54,15 @@ describe("useHaptic", () => {
     expect(mockImpact).toHaveBeenCalledWith("heavy");
   });
 
-  it("fires a notification for success, warning and error", async () => {
-    const render = loadHook();
-    (await render("warning"))();
-    expect(mockNotification).toHaveBeenCalledWith("warning");
-  });
+  it.each(["success", "warning", "error"] as const)(
+    "fires a %s notification",
+    async (type) => {
+      const render = loadHook();
+      (await render(type))();
+      expect(mockNotification).toHaveBeenCalledTimes(1);
+      expect(mockNotification).toHaveBeenCalledWith(type);
+    },
+  );
 
   it("falls back to the selection tick by default", async () => {
     const render = loadHook();

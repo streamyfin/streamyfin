@@ -6,9 +6,17 @@ import type {
 import type { Settings } from "@/utils/atoms/settings";
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
 
 // The log module reaches Sentry, whose client keeps a timer running past the
 // last test, so it is stubbed with the surface the modules under test call.
+jest.mock(
+  "@/utils/log",
+  () => jest.requireActual("@/test-utils/log").silentLogModule,
+);
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
