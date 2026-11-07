@@ -6,10 +6,6 @@ import {
 } from "@testing-library/react-native";
 import { SyncPlayOptions, SyncPlayPlayback } from "./SyncPlayControls";
 
-jest.mock(
-  "@expo/vector-icons",
-  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
-);
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://host" }),
 }));

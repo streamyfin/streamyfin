@@ -1,10 +1,6 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVPosterCard } from "./TVPosterCard";
 
-jest.mock(
-  "@expo/vector-icons",
-  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
-);
 jest.mock("@/components/WatchedIndicator", () => ({
   UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,

@@ -7,10 +7,6 @@ import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records are real, over the MMKV double: they are what cancel reads its files from.
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 const mockDownloader = {
   enqueueDownload: jest.fn(),
   cancelDownload: jest.fn(),

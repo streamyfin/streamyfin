@@ -16,11 +16,6 @@ jest.mock("@/modules", () => ({
   },
 }));
 
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
-
 // liveActivity.ts reads Platform when it loads, so it is required after the stub above.
 const { buildDownloadActivityMetadata } =
   require("./liveActivity") as typeof import("./liveActivity");

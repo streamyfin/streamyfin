@@ -1,9 +1,5 @@
 import { DOCUMENTS } from "@/test-utils/fileSystem";
 
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 
 import {

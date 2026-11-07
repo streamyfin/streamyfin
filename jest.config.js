@@ -4,7 +4,9 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/test-utils/unitSetup.ts"],
   moduleNameMapper: {
     "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
+    "^expo-file-system$": "<rootDir>/test-utils/fileSystemModule.ts",
     "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts",
+    "^@expo/vector-icons$": "<rootDir>/test-utils/vectorIconsModule.ts",
     "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts",
     "^react-i18next$": "<rootDir>/test-utils/i18nextModule.ts",
     "^@gorhom/bottom-sheet$": "<rootDir>/test-utils/bottomSheetModule.ts",

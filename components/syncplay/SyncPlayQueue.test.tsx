@@ -45,10 +45,6 @@ jest.mock("react-native-draggable-flatlist", () => {
     ScaleDecorator: ({ children }: any) => children,
   };
 });
-jest.mock(
-  "@expo/vector-icons",
-  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
-);
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://host" }),
 }));

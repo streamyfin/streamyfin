@@ -19,10 +19,6 @@ jest.mock("@/hooks/useWatchlists", () => ({
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Id: "user" }),
 }));
-jest.mock(
-  "@expo/vector-icons",
-  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
-);
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({
     title: 50,

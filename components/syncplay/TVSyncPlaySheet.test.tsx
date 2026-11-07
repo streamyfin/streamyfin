@@ -12,10 +12,6 @@ jest.mock("react-i18next", () => ({
       values ? `${key} ${Object.values(values).join(" ")}` : key,
   }),
 }));
-jest.mock(
-  "@expo/vector-icons",
-  () => jest.requireActual("@/test-utils/stubModules").blankIconsModule,
-);
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 22, callout: 18 }),
 }));

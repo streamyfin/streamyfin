@@ -83,11 +83,8 @@ export const CACHE = "file:///cache";
 /**
  * An expo-file-system double for specs that delete or download files: a path exists once a spec
  * adds it, or something downloads to it, and until something deletes it. Every delete and every
- * download is recorded. Wire it at the top of a spec, where Jest hoists it above the imports:
- *
- *   jest.mock("expo-file-system", () =>
- *     jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
- *   );
+ * download is recorded. `moduleNameMapper` wires it for every spec through
+ * `test-utils/fileSystemModule.ts`; `fakeFiles` seeds and reads back the fake disk.
  *
  * Only what the app's delete and download paths call is implemented: the `File` and `Directory`
  * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.info()` for the

@@ -10,10 +10,6 @@ import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records and the downloads database are real, over the MMKV double: together they
 // are what says whether a completed file belongs to anything.
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 const mockListeners: {
   started?: (event: DownloadStartedEvent) => void;
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
