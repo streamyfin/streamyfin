@@ -8,6 +8,8 @@ module.exports = {
     "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts",
     "^react-i18next$": "<rootDir>/test-utils/i18nextModule.ts",
     "^@gorhom/bottom-sheet$": "<rootDir>/test-utils/bottomSheetModule.ts",
+    "^@react-native-community/netinfo$":
+      "<rootDir>/node_modules/@react-native-community/netinfo/jest/netinfo-mock.js",
     "^react-native-device-info$":
       "<rootDir>/node_modules/react-native-device-info/jest/react-native-device-info-mock.js",
     "^react-native-safe-area-context$":

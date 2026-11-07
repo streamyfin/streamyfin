@@ -1,3 +1,4 @@
+import NetInfo from "@react-native-community/netinfo";
 import { act, render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
 import {
@@ -8,20 +9,8 @@ import {
 const mockProbe = jest.fn();
 let mockNetState = { isConnected: true };
 
-// Like the real library, a new subscriber is handed the current state at once.
-const mockAddEventListener = jest.fn(
-  (handler: (state: { isConnected: boolean }) => void) => {
-    handler(mockNetState);
-    return () => undefined;
-  },
-);
+const mockAddEventListener = NetInfo.addEventListener as jest.Mock;
 
-jest.mock("@react-native-community/netinfo", () => ({
-  __esModule: true,
-  default: {
-    addEventListener: (handler: never) => mockAddEventListener(handler),
-  },
-}));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest
     .requireActual("jotai")
@@ -52,8 +41,15 @@ describe("NetworkStatusProvider", () => {
   beforeEach(() => {
     mockProbe.mockReset();
     mockProbe.mockResolvedValue({ status: "ok" });
-    mockAddEventListener.mockClear();
     mockNetState = { isConnected: true };
+    // Like the real library, a new subscriber is handed the current state at once.
+    mockAddEventListener.mockReset();
+    mockAddEventListener.mockImplementation(
+      (handler: (state: { isConnected: boolean }) => void) => {
+        handler(mockNetState);
+        return () => undefined;
+      },
+    );
   });
 
   // The subscription already delivers the current state, so a separate
