@@ -131,8 +131,9 @@ App modules are mocked by path in `test-utils/unitSetup.ts`: `@/utils/atoms/sett
 (`makeSettingsModule()`), `@/components/common/ServerImage` (a `View` named after its
 URL), `@/hooks/useNetworkStatus`, `@/utils/customHeaders` (`customHeadersModule()`),
 `@/utils/log` (silent), `@/providers/JellyfinProvider`, `@/hooks/useHaptic`,
-`@/hooks/useAppRouter`, `@/components/BitrateSelector`, `@/providers/InactivityProvider` and
-`expo-secure-store`. The provider is
+`@/hooks/useAppRouter`, `@/components/BitrateSelector`, `@/providers/InactivityProvider`,
+`expo-secure-store` and `@/utils/serverUrl/probes/jellyfin` (`jellyfinProbe` is a `jest.fn()`
+that finds the server; drive it with `jest.mocked(jellyfinProbe)`). The provider is
 imported relatively by sibling modules, so it cannot go through `moduleNameMapper`; its
 unit default re-exports the real `apiAtom` and `userAtom`, so code reading either module
 shares the atoms. A spec that needs `useJellyfin`, another provider export or a session

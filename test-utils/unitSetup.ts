@@ -49,3 +49,6 @@ jest.mock(
   "expo-secure-store",
   () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
 );
+jest.mock("@/utils/serverUrl/probes/jellyfin", () =>
+  jest.requireActual("@/test-utils/stubModules").jellyfinProbeModule(),
+);

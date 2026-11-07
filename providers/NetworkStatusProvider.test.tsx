@@ -1,12 +1,14 @@
 import NetInfo from "@react-native-community/netinfo";
 import { act, render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import {
   NetworkStatusProvider,
   useNetworkStatus,
 } from "./NetworkStatusProvider";
 
-const mockProbe = jest.fn();
+const mockProbe = jest.mocked(jellyfinProbe);
+
 let mockNetState = { isConnected: true };
 
 const mockAddEventListener = NetInfo.addEventListener as jest.Mock;
@@ -15,9 +17,6 @@ jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest
     .requireActual("jotai")
     .atom({ basePath: "https://jellyfin.example.com" }),
-}));
-jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
-  jellyfinProbe: (...args: unknown[]) => mockProbe(...args),
 }));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

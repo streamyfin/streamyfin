@@ -7,10 +7,10 @@ import {
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
 import { getServerLocalConfig } from "@/utils/secureCredentials";
-import type { ServerProbeOutcome } from "@/utils/serverUrl/types";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { LocalNetworkSettings } from "./LocalNetworkSettings";
 
-const mockProbe = jest.fn<Promise<ServerProbeOutcome>, [string]>();
+const mockProbe = jest.mocked(jellyfinProbe);
 const mockToastError = jest.fn();
 const mockToastInfo = jest.fn();
 const mockRefreshUrlState = jest.fn();
@@ -45,9 +45,6 @@ jest.mock("@/providers/ServerUrlProvider", () => ({
     connectedToWifi: true,
     refreshUrlState: mockRefreshUrlState,
   }),
-}));
-jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
-  jellyfinProbe: (url: string) => mockProbe(url),
 }));
 
 const REMOTE_URL = "https://jellyfin.example.com";

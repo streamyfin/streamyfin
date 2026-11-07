@@ -27,3 +27,13 @@ export const emptyTVTypographyModule = { useScaledTVTypography: () => ({}) };
 
 /** `@expo/vector-icons` drawing nothing. */
 export const blankIconsModule = { Ionicons: () => null };
+
+/**
+ * `@/utils/serverUrl/probes/jellyfin` with a `jellyfinProbe` that finds the
+ * server and records its calls. A spec drives it with
+ * `jest.mocked(jellyfinProbe).mockResolvedValue(...)`.
+ */
+export const jellyfinProbeModule = () => ({
+  ...jest.requireActual("@/utils/serverUrl/probes/jellyfin"),
+  jellyfinProbe: jest.fn(async () => ({ status: "ok" })),
+});
