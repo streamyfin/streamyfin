@@ -153,7 +153,6 @@ export default function LiveTvGuidePage() {
                 programs={programs?.Items}
                 key={c.Id}
                 scrollX={scrollX}
-                guideViewportWidth={guideViewportWidth}
               />
             ))}
           </View>

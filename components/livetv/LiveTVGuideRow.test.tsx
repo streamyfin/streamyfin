@@ -27,25 +27,29 @@ const marginLeftOf = (root: TestInstance | null) => {
 };
 
 describe("LiveTVGuideRow", () => {
-  test("keeps the title visible only while the program is wider than the viewport", async () => {
+  test("pins the title while the program overlaps the scrolled left edge", async () => {
     const { root, rerender } = await render(
-      <LiveTVGuideRow
-        channel={channel}
-        programs={[program]}
-        scrollX={30}
-        guideViewportWidth={336}
-      />,
+      <LiveTVGuideRow channel={channel} programs={[program]} scrollX={30} />,
     );
 
     expect(marginLeftOf(root)).toBe(30);
 
     await rerender(
-      <LiveTVGuideRow
-        channel={channel}
-        programs={[program]}
-        scrollX={30}
-        guideViewportWidth={400}
-      />,
+      <LiveTVGuideRow channel={channel} programs={[program]} scrollX={300} />,
+    );
+
+    expect(marginLeftOf(root)).toBe(300);
+  });
+
+  test("does not pin once the program scrolls fully past the edge", async () => {
+    const { root, rerender } = await render(
+      <LiveTVGuideRow channel={channel} programs={[program]} scrollX={350} />,
+    );
+
+    expect(marginLeftOf(root)).toBe(0);
+
+    await rerender(
+      <LiveTVGuideRow channel={channel} programs={[program]} scrollX={0} />,
     );
 
     expect(marginLeftOf(root)).toBe(0);

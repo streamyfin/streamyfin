@@ -136,7 +136,8 @@ fork release could restore the emitters.
 | Event handler, callback, utility function, Jotai atom read, service | `Dimensions.get('window')` at call time — it re-reads the latest native-pushed value |
 | Long-lived non-React subscriber that must react to changes | `Dimensions.addEventListener('change', cb)` → `EventSubscription`; call `.remove()` on cleanup |
 | Anything once-computed | Do not cache: no module-scope `const {width} = ...`, no `StyleSheet.create` baked from dimensions, no `useRef` snapshots. A `useMemo` that lists `windowWidth` in its deps recomputes on change and is valid; one that omits it is the same stale-cache bug. Compute per render (inline styles) or per call otherwise. |
-| Need screen size / no-system-bars size | `Dimensions.get('screen')` — React Native 0.86 has no screen-dimensions hook |
+| Need device screen size | `Dimensions.get('screen')` — React Native 0.86 has no screen-dimensions hook; Android `screen` can include system bars |
+| Need Android app window for content | Use `useWindowDimensions()` in React UI or `Dimensions.get('window')` at call time outside React. With edge-to-edge, account for system-bar insets. |
 | TV UI | Use `useWindowDimensions()`. In the fork version examined here, tvOS does not emit window-size updates; `fontScale` can still change. Android TV uses the Android path. |
 
 ## Edge cases and caveats

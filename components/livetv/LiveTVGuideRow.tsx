@@ -9,13 +9,11 @@ export const LiveTVGuideRow = ({
   programs,
   scrollX = 0,
   isVisible = true,
-  guideViewportWidth,
 }: {
   channel: BaseItemDto;
   programs?: BaseItemDto[] | null;
   scrollX?: number;
   isVisible?: boolean;
-  guideViewportWidth: number;
 }) => {
   const _positionRefs = useRef<{ [key: string]: number }>({});
 
@@ -74,7 +72,7 @@ export const LiveTVGuideRow = ({
                 <View
                   style={{
                     marginLeft:
-                      p.width > guideViewportWidth && scrollX > p.position
+                      scrollX > p.position && scrollX < p.position + p.width
                         ? scrollX - p.position
                         : 0,
                   }}
