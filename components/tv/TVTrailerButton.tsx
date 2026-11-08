@@ -23,12 +23,13 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
   disabled,
 }) => {
   const { t } = useTranslation();
-  const { trailers, playTrailer } = useTrailers(item);
+  const { trailers, playTrailer, isDiscovering } = useTrailers(item);
   const { showOptions } = useTVOptionModal();
   const modalState = useAtomValue(tvOptionModalAtom);
   const buttonRef = useRef<View | null>(null);
   const pickerOpenRef = useRef(false);
   const pickedRef = useRef<Trailer | null>(null);
+  const pendingChooseRef = useRef(false);
   // A new playTrailer must not cancel the pending play below.
   const playTrailerRef = useRef(playTrailer);
   playTrailerRef.current = playTrailer;
@@ -49,6 +50,13 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
   }, [modalState]);
 
   const chooseTrailer = useCallback(() => {
+    // The modal's options are a one-shot snapshot: open it once discovery
+    // settles, rather than before the library trailer has had a chance to
+    // join the list.
+    if (isDiscovering) {
+      pendingChooseRef.current = true;
+      return;
+    }
     pickerOpenRef.current = true;
     pickedRef.current = null;
     const labels = trailerLabels(t, trailers);
@@ -63,7 +71,14 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
         pickedRef.current = trailer;
       },
     });
-  }, [trailers, showOptions, t]);
+  }, [trailers, showOptions, t, isDiscovering]);
+
+  useEffect(() => {
+    if (!isDiscovering && pendingChooseRef.current) {
+      pendingChooseRef.current = false;
+      chooseTrailer();
+    }
+  }, [isDiscovering, chooseTrailer]);
 
   if (trailers.length === 0) return null;
 

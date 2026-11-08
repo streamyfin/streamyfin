@@ -1,5 +1,5 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,13 +37,21 @@ export const ItemActions = ({
   const { t } = useTranslation();
   const { showActionSheetWithOptions } = useActionSheet();
   const { bottom } = useSafeAreaInsets();
-  const { trailers, playTrailer } = useTrailers(item);
+  const { trailers, playTrailer, isDiscovering } = useTrailers(item);
+  const pendingChooseRef = useRef(false);
 
   const playPreferred = useCallback(() => {
     if (trailers[0]) playTrailer(trailers[0]);
   }, [trailers, playTrailer]);
 
   const chooseTrailer = useCallback(() => {
+    // The sheet's options are a one-shot snapshot: open it once discovery
+    // settles, rather than before the library trailer has had a chance to
+    // join the list.
+    if (isDiscovering) {
+      pendingChooseRef.current = true;
+      return;
+    }
     showActionSheetWithOptions(
       {
         title: t("item_card.choose_trailer"),
@@ -57,7 +65,21 @@ export const ItemActions = ({
         if (trailer) playTrailer(trailer);
       },
     );
-  }, [trailers, playTrailer, showActionSheetWithOptions, t, bottom]);
+  }, [
+    trailers,
+    playTrailer,
+    showActionSheetWithOptions,
+    t,
+    bottom,
+    isDiscovering,
+  ]);
+
+  useEffect(() => {
+    if (!isDiscovering && pendingChooseRef.current) {
+      pendingChooseRef.current = false;
+      chooseTrailer();
+    }
+  }, [isDiscovering, chooseTrailer]);
 
   if (trailers.length === 0) return null;
 

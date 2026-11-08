@@ -8,11 +8,16 @@ import { store } from "@/utils/store";
 import { TVTrailerButton } from "./TVTrailerButton";
 
 let mockTrailers: Trailer[] = [];
+let mockIsDiscovering = false;
 const mockPlayTrailer = jest.fn();
 const mockRequestTVFocus = jest.fn();
 
 jest.mock("@/hooks/useTrailers", () => ({
-  useTrailers: () => ({ trailers: mockTrailers, playTrailer: mockPlayTrailer }),
+  useTrailers: () => ({
+    trailers: mockTrailers,
+    playTrailer: mockPlayTrailer,
+    isDiscovering: mockIsDiscovering,
+  }),
 }));
 // The focus engine is TVButton's business; hand the component a ref that
 // records being asked for the focus back.
@@ -91,6 +96,7 @@ const closeList = async () => {
 beforeEach(() => {
   jest.useFakeTimers();
   mockTrailers = [library, remote];
+  mockIsDiscovering = false;
   mockPlayTrailer.mockReset();
   mockRequestTVFocus.mockReset();
   store.set(tvOptionModalAtom, null);
@@ -118,6 +124,30 @@ describe("TVTrailerButton", () => {
     await renderButton();
 
     await fireEvent(pressable(), "longPress");
+
+    expect(store.get(tvOptionModalAtom)?.options.map((o) => o.value)).toEqual([
+      library,
+      remote,
+    ]);
+  });
+
+  // The modal's options are a one-shot snapshot: opening it mid-lookup
+  // would freeze out a library trailer that arrives right after.
+  test("defers the list until a mid-flight library lookup settles", async () => {
+    mockIsDiscovering = true;
+    const { rerender } = await renderButton();
+    await fireEvent(pressable(), "longPress");
+
+    expect(store.get(tvOptionModalAtom)).toBeNull();
+
+    mockIsDiscovering = false;
+    await act(async () =>
+      rerender(
+        <JotaiProvider store={store}>
+          <TVTrailerButton item={{ Id: "movie-1" }} />
+        </JotaiProvider>,
+      ),
+    );
 
     expect(store.get(tvOptionModalAtom)?.options.map((o) => o.value)).toEqual([
       library,

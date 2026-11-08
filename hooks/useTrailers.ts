@@ -105,5 +105,8 @@ export const useTrailers = (item: TrailerSourceItem | null | undefined) => {
     [playMedia],
   );
 
-  return { trailers, playTrailer };
+  // A picker opened mid-discovery shows a one-shot snapshot of trailers:
+  // callers defer opening it until this clears, so a library trailer that
+  // arrives after preferRemote already returned the remote one isn't missed.
+  return { trailers, playTrailer, isDiscovering: isLoadingLibraryTrailers };
 };

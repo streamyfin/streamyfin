@@ -116,6 +116,16 @@ describe("useTrailers", () => {
     expect(result.current.trailers.map((t) => t.source)).toEqual(["remote"]);
   });
 
+  // A regression that dropped the returned library trailer would still
+  // pass the in-flight case above: this one lets the lookup finish.
+  test("still surfaces the library trailer once discovery finishes, with no remote trailer to prefer", async () => {
+    mockTrailerSource = "preferRemote";
+    const { result } = await renderTrailers({ ...movie, RemoteTrailers: [] });
+
+    await waitFor(() => expect(result.current.trailers).toHaveLength(1));
+    expect(result.current.trailers.map((t) => t.source)).toEqual(["library"]);
+  });
+
   // Most items have no trailer file: the count on the item spares the request.
   test("asks the server for nothing when the item has no library trailer", async () => {
     const { result } = await renderTrailers({ ...movie, LocalTrailerCount: 0 });

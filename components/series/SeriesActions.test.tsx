@@ -3,11 +3,16 @@ import type { Trailer } from "@/utils/jellyfin/media/trailers";
 import { ItemActions } from "./SeriesActions";
 
 let mockTrailers: Trailer[] = [];
+let mockIsDiscovering = false;
 const mockPlayTrailer = jest.fn();
 const mockShowActionSheet = jest.fn();
 
 jest.mock("@/hooks/useTrailers", () => ({
-  useTrailers: () => ({ trailers: mockTrailers, playTrailer: mockPlayTrailer }),
+  useTrailers: () => ({
+    trailers: mockTrailers,
+    playTrailer: mockPlayTrailer,
+    isDiscovering: mockIsDiscovering,
+  }),
 }));
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
@@ -48,6 +53,7 @@ const pickFromSheet = (index: number | undefined) => {
 
 beforeEach(() => {
   mockTrailers = [library, remote];
+  mockIsDiscovering = false;
   mockPlayTrailer.mockReset();
   mockShowActionSheet.mockReset();
 });
@@ -85,6 +91,21 @@ describe("ItemActions", () => {
     });
     pickFromSheet(1);
     expect(mockPlayTrailer).toHaveBeenCalledWith(remote);
+  });
+
+  // The sheet's options are a one-shot snapshot: opening it mid-lookup would
+  // freeze out a library trailer that arrives right after.
+  test("defers the list until a mid-flight library lookup settles", async () => {
+    mockIsDiscovering = true;
+    const { rerender } = await render(<ItemActions item={{ Id: "movie-1" }} />);
+
+    await fireEvent(screen.getByRole("button"), "longPress");
+    expect(mockShowActionSheet).not.toHaveBeenCalled();
+
+    mockIsDiscovering = false;
+    await rerender(<ItemActions item={{ Id: "movie-1" }} />);
+
+    expect(mockShowActionSheet).toHaveBeenCalledTimes(1);
   });
 
   test("cancelling the list plays nothing", async () => {
