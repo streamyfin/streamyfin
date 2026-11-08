@@ -137,8 +137,19 @@ fork release could restore the emitters.
 | Long-lived non-React subscriber that must react to changes | `Dimensions.addEventListener('change', cb)` → `EventSubscription`; call `.remove()` on cleanup |
 | Anything once-computed | Do not cache: no module-scope `const {width} = ...`, no `StyleSheet.create` baked from dimensions, no `useRef` snapshots. A `useMemo` that lists `windowWidth` in its deps recomputes on change and is valid; one that omits it is the same stale-cache bug. Compute per render (inline styles) or per call otherwise. |
 | Need device screen size | `Dimensions.get('screen')` — React Native 0.86 has no screen-dimensions hook; Android `screen` can include system bars |
-| Need Android app window for content | Use `useWindowDimensions()` in React UI or `Dimensions.get('window')` at call time outside React. With edge-to-edge, account for system-bar insets. |
+| Need Android app window for content | Use `useWindowDimensions()` in React UI or `Dimensions.get('window')` at call time outside React. With edge-to-edge, account for system-bar and display-cutout insets. |
 | TV UI | Use `useWindowDimensions()`. In the fork version examined here, tvOS does not emit window-size updates; `fontScale` can still change. Android TV uses the Android path. |
+
+### Reactive screen measurements
+
+`Dimensions.get('screen')` is a snapshot. If a React component needs screen
+metrics to update, initialize state from `Dimensions.get('screen')` and
+subscribe to
+`Dimensions.addEventListener('change', ({ screen }) => setScreen(screen))` in
+an effect. Call `setScreen(Dimensions.get('screen'))` immediately after
+subscribing so an update between render and subscription is not missed; remove
+the subscription on cleanup. `useWindowDimensions()` tracks the window, not
+the screen.
 
 ## Edge cases and caveats
 
@@ -171,3 +182,4 @@ fork release could restore the emitters.
 - https://github.com/react-native-tvos/react-native-tvos/blob/v0.86.0-2/packages/react-native/React/CoreModules/RCTDeviceInfo.mm
 - https://github.com/react-native-tvos/react-native-tvos/blob/v0.86.0-2/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/deviceinfo/DeviceInfoModule.kt (react-native-tvos v0.86.0-2)
 - https://github.com/react-native-tvos/react-native-tvos/blob/v0.86.0-2/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/ReactRootView.java (react-native-tvos v0.86.0-2)
+- https://developer.android.com/develop/ui/views/layout/edge-to-edge (Android edge-to-edge guidance: account for system-bar and display-cutout insets)

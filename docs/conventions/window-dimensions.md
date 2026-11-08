@@ -39,6 +39,8 @@ components, `hooks/useOrientation.ts` — a hook cannot run. There, call
 `Dimensions.get("window")` at the point of use so every call sees the current value.
 `Dimensions.get("screen")` stays allowed anywhere: the plugin guards `window` only,
 and `screen` (the full display, system bars included) is a different measurement.
+It is still a snapshot; for reactive screen layout in React, subscribe to
+`Dimensions` changes as described in `docs/research/dimensions-vs-usewindowdimensions.md`.
 
 ## Enforcement
 
