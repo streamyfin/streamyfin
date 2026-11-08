@@ -69,7 +69,10 @@ import {
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { tagOriginalAudioTrack } from "@/utils/jellyfin/trackLabel";
+import {
+  audioDisplayTitle,
+  tagOriginalAudioTrack,
+} from "@/utils/jellyfin/trackLabel";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
@@ -232,7 +235,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           const audio: Track[] = [
             {
               name: tagOriginalAudioTrack(
-                downloadedTrack.DisplayTitle || "Audio",
+                audioDisplayTitle(downloadedTrack) || "Audio",
                 downloadedTrack,
                 originalAudioLabel,
               ),

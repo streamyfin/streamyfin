@@ -34,6 +34,46 @@ export const streamLanguageName = (
 const mentions = (label: string, word: string | null | undefined): boolean =>
   !!word && label.toLowerCase().includes(word.toLowerCase());
 
+/** ISO 639 codes the server leaves out of `DisplayTitle`: uncoded, multiple, undetermined, none. */
+const UNSHOWN_LANGUAGE_CODES = new Set(["mis", "mul", "und", "zxx"]);
+
+const startsWithWord = (label: string, word: string): boolean =>
+  label.toLowerCase().startsWith(word.toLowerCase());
+
+/**
+ * `DisplayTitle` of an audio stream, with its language first.
+ *
+ * The server writes the track title first and appends the attributes the
+ * title does not already contain. Releases often use the file name as the
+ * title, which fills the native iOS menu before the language appears. So the
+ * attributes move in front of the title, and the language goes first when the
+ * title already contained it. A `DisplayTitle` in any other shape stays as it
+ * is, because cutting a string of unknown structure can split it anywhere.
+ */
+export const audioDisplayTitle = (
+  stream: Jellyfin12MediaStream,
+): string | undefined => {
+  const { DisplayTitle: displayTitle, Title: title } = stream;
+  if (!displayTitle) return undefined;
+  if (!title || !displayTitle.startsWith(title)) return displayTitle;
+
+  const rest = displayTitle.slice(title.length);
+  if (rest && !rest.startsWith(TAG_SEPARATOR)) return displayTitle;
+
+  const attributes = rest.slice(TAG_SEPARATOR.length);
+  const label = attributes ? `${attributes}${TAG_SEPARATOR}${title}` : title;
+
+  const language = streamLanguageName(stream);
+  const showsLanguage =
+    !!language &&
+    !UNSHOWN_LANGUAGE_CODES.has(stream.Language?.toLowerCase() ?? "");
+  if (!showsLanguage || startsWithWord(label, language)) return label;
+  // Upper-case the first letter like the server does, so a raw ISO code from
+  // a server without resolved names reads "Ger", as it would in its own label.
+  const shown = language.charAt(0).toUpperCase() + language.slice(1);
+  return `${shown}${TAG_SEPARATOR}${label}`;
+};
+
 /**
  * Marks the original-language audio track in a picker label.
  *

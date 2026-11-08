@@ -1,4 +1,115 @@
-import { streamLanguageName, tagOriginalAudioTrack } from "./trackLabel";
+import {
+  audioDisplayTitle,
+  streamLanguageName,
+  tagOriginalAudioTrack,
+} from "./trackLabel";
+
+describe("audioDisplayTitle", () => {
+  // DisplayTitle as the server builds it for audio: the track title first,
+  // then every attribute the title does not already contain.
+  test("moves a release-name title behind the language", () => {
+    // The reported case: the native iOS menu truncates after about three
+    // lines, which a file name used as a title fills on its own.
+    const title =
+      "Game.of.Thrones.S02E03.What.is.Dead.May.Never.Die.2160p.BluRay.REMUX";
+    expect(
+      audioDisplayTitle({
+        Title: title,
+        Language: "ger",
+        LocalizedLanguage: "German",
+        DisplayTitle: `${title} - German - DTS - 5.1 - Default`,
+      }),
+    ).toBe(`German - DTS - 5.1 - Default - ${title}`);
+  });
+
+  test("moves a short title too, so every row of the list reads alike", () => {
+    expect(
+      audioDisplayTitle({
+        Title: "Surround 5.1",
+        Language: "eng",
+        LocalizedLanguage: "English",
+        DisplayTitle: "Surround 5.1 - English - DTS",
+      }),
+    ).toBe("English - DTS - Surround 5.1");
+  });
+
+  test("leaves a track without a title as the server wrote it", () => {
+    expect(
+      audioDisplayTitle({
+        Language: "eng",
+        LocalizedLanguage: "English",
+        DisplayTitle: "English - AAC - Stereo",
+      }),
+    ).toBe("English - AAC - Stereo");
+  });
+
+  test("puts the language first when the title swallowed it", () => {
+    // The server drops an attribute the title contains, so a title naming the
+    // language leaves no language in the attribute part.
+    expect(
+      audioDisplayTitle({
+        Title: "Show.S01E01.German.DL.1080p",
+        Language: "ger",
+        LocalizedLanguage: "German",
+        DisplayTitle: "Show.S01E01.German.DL.1080p - Dolby Digital - 5.1",
+      }),
+    ).toBe("German - Dolby Digital - 5.1 - Show.S01E01.German.DL.1080p");
+  });
+
+  test("puts the language first when the title holds every attribute", () => {
+    expect(
+      audioDisplayTitle({
+        Title: "Commentary German Stereo",
+        Language: "ger",
+        LocalizedLanguage: "German",
+        DisplayTitle: "Commentary German Stereo",
+      }),
+    ).toBe("German - Commentary German Stereo");
+  });
+
+  test("matches the language whatever its case", () => {
+    // The server upper-cases the first letter of a raw ISO code, an older
+    // server sends no resolved name, so the label says "Ger" for "ger".
+    expect(
+      audioDisplayTitle({
+        Title: "Main",
+        Language: "ger",
+        DisplayTitle: "Main - Ger - AAC",
+      }),
+    ).toBe("Ger - AAC - Main");
+  });
+
+  test("adds no language for the codes the server never shows", () => {
+    for (const code of ["und", "mis", "mul", "zxx", "UND"]) {
+      expect(
+        audioDisplayTitle({
+          Title: "Main",
+          Language: code,
+          DisplayTitle: "Main - AAC",
+        }),
+      ).toBe("AAC - Main");
+    }
+  });
+
+  test("keeps a DisplayTitle that does not start with the title", () => {
+    // Not the shape the server builds today. Rearranging a string we do not
+    // understand could cut it in the wrong place.
+    expect(
+      audioDisplayTitle({
+        Title: "Main",
+        Language: "eng",
+        LocalizedLanguage: "English",
+        DisplayTitle: "English AAC (Main)",
+      }),
+    ).toBe("English AAC (Main)");
+  });
+
+  test("passes a missing DisplayTitle through for the caller's fallback", () => {
+    expect(audioDisplayTitle({ Title: "Main" })).toBeUndefined();
+    expect(audioDisplayTitle({ DisplayTitle: null })).toBeUndefined();
+    expect(audioDisplayTitle({ DisplayTitle: "" })).toBeUndefined();
+  });
+});
 
 describe("tagOriginalAudioTrack", () => {
   test("tags the original track when the label does not say so", () => {
