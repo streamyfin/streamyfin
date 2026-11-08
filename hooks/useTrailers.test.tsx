@@ -102,6 +102,20 @@ describe("useTrailers", () => {
     expect(result.current.trailers).toEqual([]);
   });
 
+  // preferRemote asked for the remote trailer regardless of the library
+  // one, so a slow library lookup must not hide it.
+  test("shows the remote trailer immediately when the source prefers it, even while the library lookup is in flight", async () => {
+    mockTrailerSource = "preferRemote";
+    api.mock.reset();
+    api.mock
+      .onGet(/\/Items\/movie-1\/LocalTrailers/)
+      .reply(() => new Promise(() => {}));
+    const { result } = await renderTrailers();
+
+    await waitFor(() => expect(trailerRequests()).toHaveLength(1));
+    expect(result.current.trailers.map((t) => t.source)).toEqual(["remote"]);
+  });
+
   // Most items have no trailer file: the count on the item spares the request.
   test("asks the server for nothing when the item has no library trailer", async () => {
     const { result } = await renderTrailers({ ...movie, LocalTrailerCount: 0 });

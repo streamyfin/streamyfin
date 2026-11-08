@@ -188,7 +188,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               {/* Alongside the other whole-item actions, not beside Play:
                   unlike SyncPlayQueueButton and MediaSourceButton it has
                   nothing to do with the version Play is about to start. */}
-              {item.Type !== "Program" && (
+              {item.Type !== "Program" && !isOffline && (
                 <ItemActions item={item} variant='header' />
               )}
               {item.Type !== "Program" && (

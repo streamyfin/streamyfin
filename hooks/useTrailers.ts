@@ -68,8 +68,10 @@ export const useTrailers = (item: TrailerSourceItem | null | undefined) => {
     // Hold off on the remote fallback while the library lookup is still in
     // flight: LocalTrailerCount already promises a library trailer, and
     // falling back here would let a tap play remote instead of waiting for
-    // it.
-    if (wantsLibrary && isLoadingLibraryTrailers) return [];
+    // it. preferRemote asked for the remote one regardless, so it has
+    // nothing to wait for.
+    if (source !== "preferRemote" && wantsLibrary && isLoadingLibraryTrailers)
+      return [];
     return pickTrailers(
       source,
       wantsLibrary ? (libraryTrailers ?? []) : [],
