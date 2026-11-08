@@ -57,9 +57,8 @@ interface LibraryWithPreview extends BaseItemDto {
 
 const TVLibraryRow: React.FC<{
   library: LibraryWithPreview;
-  isFirst: boolean;
   onPress: () => void;
-}> = ({ library, isFirst, onPress }) => {
+}> = ({ library, onPress }) => {
   const [api] = useAtom(apiAtom);
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
@@ -128,7 +127,6 @@ const TVLibraryRow: React.FC<{
         setFocused(false);
         animateTo(1, 0.7);
       }}
-      hasTVPreferredFocus={isFirst}
     >
       <Animated.View
         style={{
@@ -368,13 +366,9 @@ export const TVLibraries: React.FC = () => {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: LibraryWithPreview; index: number }) => (
+    ({ item }: { item: LibraryWithPreview }) => (
       <View style={{ marginBottom: CARD_GAP, paddingHorizontal: scaleSize(8) }}>
-        <TVLibraryRow
-          library={item}
-          isFirst={index === 0}
-          onPress={() => handleLibraryPress(item)}
-        />
+        <TVLibraryRow library={item} onPress={() => handleLibraryPress(item)} />
       </View>
     ),
     [handleLibraryPress],

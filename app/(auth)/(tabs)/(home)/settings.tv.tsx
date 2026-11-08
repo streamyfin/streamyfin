@@ -842,7 +842,6 @@ export default function SettingsTV() {
             value={user?.Name || "-"}
             onPress={handleSwitchUser}
             disabled={!hasOtherAccounts || isAnyModalOpen}
-            isFirst
           />
 
           {syncPlayAvailable && (
@@ -854,7 +853,6 @@ export default function SettingsTV() {
                 onToggle={(value) =>
                   updateSettings({ syncPlayIgnoreWait: value })
                 }
-                isFirst={!hasOtherAccounts}
               />
             </>
           )}
@@ -872,7 +870,6 @@ export default function SettingsTV() {
                   updateSettings({ inactivityTimeout: value }),
               })
             }
-            isFirst={!hasOtherAccounts && !syncPlayAvailable}
           />
 
           {/* Video Player Section */}

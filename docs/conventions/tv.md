@@ -107,6 +107,20 @@ issue. Four rules keep it away:
 
 Reference implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
 
+## Tab roots leave the focus on the tab bar
+
+A screen that is the root of a tab must not set `hasTVPreferredFocus`, on itself or on
+a row it renders. On tvOS the prop takes the focus for the whole app as the view mounts,
+and a tab mounts the first time the tab bar lands on it. Swiping across the bar then
+drops the focus into that tab instead of the next tab. The user expects to keep moving
+along the bar and swipe down when they choose; the focus engine then picks the top item.
+
+Home is the one exception. It mounts at launch, before the user touches the bar, so its
+first poster may take the initial focus. Pushed screens and modals keep their preferred
+focus, because the user has already left the bar. The learned fact
+`.claude/learned-facts/tv-preferred-focus-grabs-on-mount.md` explains why the prop
+behaves this way.
+
 ## Focus guides for non adjacent sections
 
 When focus has to travel between sections that are not geometrically aligned (left
