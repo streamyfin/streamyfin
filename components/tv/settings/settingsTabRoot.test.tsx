@@ -6,27 +6,30 @@ import { QueryWrapper } from "@/test-utils/queryWrapper";
  * Expo Router would turn a spec under `app/` into a route.
  */
 
-/** Labels of the settings rows rendered with `isFirst`. */
-const mockFirstRows = new Set<string>();
-
-jest.mock("@/components/tv", () => {
-  const row = ({ label, isFirst }: { label?: string; isFirst?: boolean }) => {
-    if (isFirst) mockFirstRows.add(label ?? "");
-    return null;
-  };
-  return {
-    TVBelowTabBar: ({ children }: { children: React.ReactNode }) => children,
-    TVCustomHeadersSection: () => null,
-    TVLogoutButton: () => null,
-    TVSectionHeader: () => null,
-    TVSettingsOptionButton: row,
-    TVSettingsRow: row,
-    TVSettingsStepper: row,
-    TVSettingsTextInput: row,
-    TVSettingsToggle: row,
-    useTVBelowTabBarContentTop: () => 0,
-  };
-});
+jest.mock("@/components/tv", () => ({
+  TVBelowTabBar: ({ children }: { children: React.ReactNode }) => children,
+  TVCustomHeadersSection: () => null,
+  TVLogoutButton: () => null,
+  TVSectionHeader: () => null,
+  // The rows render for real: a mock that returns null hides the native prop
+  // `hasTVPreferredFocus` lands on, which is the whole point of the spec below.
+  // Why that prop matters on a tab root: docs/conventions/tv.md.
+  TVSettingsOptionButton: jest.requireActual(
+    "@/components/tv/settings/TVSettingsOptionButton",
+  ).TVSettingsOptionButton,
+  TVSettingsRow: jest.requireActual("@/components/tv/settings/TVSettingsRow")
+    .TVSettingsRow,
+  TVSettingsStepper: jest.requireActual(
+    "@/components/tv/settings/TVSettingsStepper",
+  ).TVSettingsStepper,
+  TVSettingsTextInput: jest.requireActual(
+    "@/components/tv/settings/TVSettingsTextInput",
+  ).TVSettingsTextInput,
+  TVSettingsToggle: jest.requireActual(
+    "@/components/tv/settings/TVSettingsToggle",
+  ).TVSettingsToggle,
+  useTVBelowTabBarContentTop: () => 0,
+}));
 jest.mock("@/components/login/TVPasswordEntryModal", () => ({
   TVPasswordEntryModal: () => null,
 }));
@@ -96,10 +99,19 @@ describe("TV settings tab", () => {
   // it pulls the focus off the bar as the tab first mounts. The rule is in
   // docs/conventions/tv.md.
   test("leaves the initial focus on the tab bar", async () => {
-    mockFirstRows.clear();
+    const { container, getByText } = await render(<SettingsTV />, {
+      wrapper: QueryWrapper,
+    });
 
-    await render(<SettingsTV />, { wrapper: QueryWrapper });
+    getByText("syncplay.ignore_wait");
+    getByText("home.settings.security.inactivity_timeout.title");
 
-    expect([...mockFirstRows]).toEqual([]);
+    expect(
+      container.queryAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.hasTVPreferredFocus === true,
+      ),
+    ).toHaveLength(0);
   });
 });

@@ -99,8 +99,10 @@ issue. Four rules keep it away:
 
 2. **Set `removeClippedSubviews={false}`.** Otherwise off screen items unmount and focus
    falls through to unrelated elements.
-3. **Exactly one element gets `hasTVPreferredFocus`.** Two elements competing for the
-   initial focus is the flicker. Usually the first filter button, not a list item.
+3. **Exactly one element gets `hasTVPreferredFocus` on pushed screens.** Two
+   elements competing for initial focus cause flicker. Usually the first filter button,
+   not a list item. Tab roots follow [the tab-root rule](#tab-roots-leave-the-focus-on-the-tab-bar)
+   instead.
 4. **Keep the header or filter bar outside the list.** Render it as a sibling `View`
    above the `FlatList` rather than as `ListHeaderComponent`, and do not wrap it in a
    `ScrollView`: two scrollable containers fight over focus.
