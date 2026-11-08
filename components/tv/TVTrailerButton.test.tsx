@@ -155,6 +155,26 @@ describe("TVTrailerButton", () => {
     ]);
   });
 
+  // A refresh can drop the trailer the long press was waiting on; the
+  // deferred open must not show an empty modal once discovery settles.
+  test("opens no list when discovery settles with nothing left to show", async () => {
+    mockIsDiscovering = true;
+    const { rerender } = await renderButton();
+    await fireEvent(pressable(), "longPress");
+
+    mockIsDiscovering = false;
+    mockTrailers = [];
+    await act(async () =>
+      rerender(
+        <JotaiProvider store={store}>
+          <TVTrailerButton item={{ Id: "movie-1" }} />
+        </JotaiProvider>,
+      ),
+    );
+
+    expect(store.get(tvOptionModalAtom)).toBeNull();
+  });
+
   // A player pushed while the list's route is still up is swallowed, so the
   // pick plays once the route has gone.
   test("plays the picked trailer only after the list has closed", async () => {

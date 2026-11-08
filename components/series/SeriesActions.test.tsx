@@ -108,6 +108,21 @@ describe("ItemActions", () => {
     expect(mockShowActionSheet).toHaveBeenCalledTimes(1);
   });
 
+  // A refresh can drop the trailer the long press was waiting on; the
+  // deferred open must not show an empty sheet once discovery settles.
+  test("opens no list when discovery settles with nothing left to show", async () => {
+    mockIsDiscovering = true;
+    const { rerender } = await render(<ItemActions item={{ Id: "movie-1" }} />);
+
+    await fireEvent(screen.getByRole("button"), "longPress");
+
+    mockIsDiscovering = false;
+    mockTrailers = [];
+    await rerender(<ItemActions item={{ Id: "movie-1" }} />);
+
+    expect(mockShowActionSheet).not.toHaveBeenCalled();
+  });
+
   test("cancelling the list plays nothing", async () => {
     await render(<ItemActions item={{ Id: "movie-1" }} />);
 

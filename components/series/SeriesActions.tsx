@@ -52,6 +52,9 @@ export const ItemActions = ({
       pendingChooseRef.current = true;
       return;
     }
+    // A trailer can vanish from under the deferred open, e.g. a metadata
+    // refresh dropping the remote one while the library lookup was pending.
+    if (trailers.length === 0) return;
     showActionSheetWithOptions(
       {
         title: t("item_card.choose_trailer"),

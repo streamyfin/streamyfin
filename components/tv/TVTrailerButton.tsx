@@ -57,6 +57,10 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
       pendingChooseRef.current = true;
       return;
     }
+    // A trailer can vanish from under the deferred open, e.g. a metadata
+    // refresh dropping it while the library lookup was pending; the button
+    // is gone too by then, so a focus restore would have nothing to land on.
+    if (trailers.length === 0) return;
     pickerOpenRef.current = true;
     pickedRef.current = null;
     const labels = trailerLabels(t, trailers);
