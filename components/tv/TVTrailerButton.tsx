@@ -74,6 +74,9 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
       variant='glass'
       square
       disabled={disabled}
+      accessibilityLabel={t("item_card.trailer_count", {
+        count: trailers.length,
+      })}
       refSetter={(ref) => {
         buttonRef.current = ref;
       }}

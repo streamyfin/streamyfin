@@ -218,27 +218,36 @@ const page: React.FC = () => {
     }
 
     navigation.setOptions({
+      // The trailer action only needs `item`, so it stays up even when the
+      // episode list is empty or still failing to load.
       headerRight: () =>
-        !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
+        item ? (
           <HeaderButtonGroup>
             {shuffleButton}
             <ItemActions item={item} variant='header' />
-            {!Platform.isTV && !isOffline && (
-              <SyncPlayButton items={allEpisodes} title={item.Name} />
-            )}
-            <AddToFavorites item={item} />
-            {!Platform.isTV && (
-              <DownloadItems
-                size='large'
-                title={t("item_card.download.download_series")}
-                items={allEpisodes}
-                MissingDownloadIconComponent={() => (
-                  <HeaderIcon name='downloads' />
+            {!isLoading && allEpisodes && allEpisodes.length > 0 && (
+              <>
+                {!Platform.isTV && !isOffline && (
+                  <SyncPlayButton items={allEpisodes} title={item.Name} />
                 )}
-                DownloadedIconComponent={() => (
-                  <HeaderIcon name='downloaded' tintColor={Colors.primary} />
+                <AddToFavorites item={item} />
+                {!Platform.isTV && (
+                  <DownloadItems
+                    size='large'
+                    title={t("item_card.download.download_series")}
+                    items={allEpisodes}
+                    MissingDownloadIconComponent={() => (
+                      <HeaderIcon name='downloads' />
+                    )}
+                    DownloadedIconComponent={() => (
+                      <HeaderIcon
+                        name='downloaded'
+                        tintColor={Colors.primary}
+                      />
+                    )}
+                  />
                 )}
-              />
+              </>
             )}
           </HeaderButtonGroup>
         ) : null,

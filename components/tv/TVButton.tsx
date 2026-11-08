@@ -17,6 +17,7 @@ export interface TVButtonProps {
   refSetter?: (ref: View | null) => void;
   nextFocusDown?: number;
   nextFocusUp?: number;
+  accessibilityLabel?: string;
 }
 
 const getButtonStyles = (
@@ -83,6 +84,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
   refSetter,
   nextFocusDown,
   nextFocusUp,
+  accessibilityLabel,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount });
@@ -101,6 +103,8 @@ export const TVButton: React.FC<TVButtonProps> = ({
       focusable={!disabled}
       nextFocusDown={nextFocusDown}
       nextFocusUp={nextFocusUp}
+      accessibilityRole='button'
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[animatedStyle, style]}>
         <View

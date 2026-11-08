@@ -89,6 +89,19 @@ describe("useTrailers", () => {
     ]);
   });
 
+  // A tap during this window used to fall straight through to the remote
+  // trailer, skipping the library one the item promised via LocalTrailerCount.
+  test("does not fall back to the remote trailer while the library lookup is in flight", async () => {
+    api.mock.reset();
+    api.mock
+      .onGet(/\/Items\/movie-1\/LocalTrailers/)
+      .reply(() => new Promise(() => {}));
+    const { result } = await renderTrailers();
+
+    await waitFor(() => expect(trailerRequests()).toHaveLength(1));
+    expect(result.current.trailers).toEqual([]);
+  });
+
   // Most items have no trailer file: the count on the item spares the request.
   test("asks the server for nothing when the item has no library trailer", async () => {
     const { result } = await renderTrailers({ ...movie, LocalTrailerCount: 0 });

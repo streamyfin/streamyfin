@@ -140,10 +140,12 @@ export const AppearanceSettings: React.FC = () => {
         <ListItem
           title={t("home.settings.appearance.trailer_source")}
           subtitle={t("home.settings.appearance.trailer_source_hint")}
+          disabledByAdmin={pluginSettings?.trailerSource?.locked}
         >
           <PlatformDropdown
             groups={trailerSourceOptions}
             title={t("home.settings.appearance.trailer_source")}
+            disabled={pluginSettings?.trailerSource?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
                 <Text className='mr-1 text-[#8E8D91]'>

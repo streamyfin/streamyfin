@@ -48,29 +48,42 @@ export const useTrailers = (item: TrailerSourceItem | null | undefined) => {
     source !== "remoteOnly" &&
     (jellyfinItem?.LocalTrailerCount ?? 0) > 0;
 
-  const { data: libraryTrailers } = useQuery({
-    queryKey: ["localTrailers", jellyfinItem?.Id, user?.Id],
-    queryFn: async () => {
-      const res = await getLibraryApi(api!).getLocalTrailers({
-        itemId: jellyfinItem!.Id!,
-        userId: user?.Id,
-      });
-      return res.data;
-    },
-    enabled: wantsLibrary && !!api && !!jellyfinItem?.Id,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: libraryTrailers, isLoading: isLoadingLibraryTrailers } =
+    useQuery({
+      queryKey: ["localTrailers", jellyfinItem?.Id, user?.Id],
+      queryFn: async () => {
+        const res = await getLibraryApi(api!).getLocalTrailers({
+          itemId: jellyfinItem!.Id!,
+          userId: user?.Id,
+        });
+        return res.data;
+      },
+      enabled: wantsLibrary && !!api && !!jellyfinItem?.Id,
+      staleTime: 5 * 60 * 1000,
+    });
 
   const trailers = useMemo(() => {
     // Both kinds need the network: a library trailer streams from the server.
     if (!item || isOffline) return [];
+    // Hold off on the remote fallback while the library lookup is still in
+    // flight: LocalTrailerCount already promises a library trailer, and
+    // falling back here would let a tap play remote instead of waiting for
+    // it.
+    if (wantsLibrary && isLoadingLibraryTrailers) return [];
     return pickTrailers(
       source,
       wantsLibrary ? (libraryTrailers ?? []) : [],
       // tvOS has no browser to hand a YouTube link to.
       Platform.isTV && Platform.OS === "ios" ? [] : remoteLinksOf(item),
     );
-  }, [item, isOffline, source, wantsLibrary, libraryTrailers]);
+  }, [
+    item,
+    isOffline,
+    source,
+    wantsLibrary,
+    libraryTrailers,
+    isLoadingLibraryTrailers,
+  ]);
 
   const playTrailer = useCallback(
     async (trailer: Trailer) => {

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Provider as JotaiProvider } from "jotai";
+import type React from "react";
 import { TV_MODAL_FOCUS_RESTORE_MS } from "@/constants/Values";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
 import type { Trailer } from "@/utils/jellyfin/media/trailers";
@@ -8,10 +9,36 @@ import { TVTrailerButton } from "./TVTrailerButton";
 
 let mockTrailers: Trailer[] = [];
 const mockPlayTrailer = jest.fn();
+const mockRequestTVFocus = jest.fn();
 
 jest.mock("@/hooks/useTrailers", () => ({
   useTrailers: () => ({ trailers: mockTrailers, playTrailer: mockPlayTrailer }),
 }));
+// The focus engine is TVButton's business; hand the component a ref that
+// records being asked for the focus back.
+jest.mock("./TVButton", () => {
+  const { View: Box } = jest.requireActual("react-native");
+  return {
+    TVButton: ({
+      children,
+      onPress,
+      onLongPress,
+      refSetter,
+    }: {
+      children: React.ReactNode;
+      onPress?: () => void;
+      onLongPress?: () => void;
+      refSetter?: (ref: unknown) => void;
+    }) => {
+      refSetter?.({ requestTVFocus: mockRequestTVFocus });
+      return (
+        <Box onPress={onPress} onLongPress={onLongPress}>
+          {children}
+        </Box>
+      );
+    },
+  };
+});
 jest.mock("@/providers/InactivityProvider", () => ({
   useInactivity: () => ({ resetInactivityTimer: () => {} }),
 }));
@@ -65,6 +92,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   mockTrailers = [library, remote];
   mockPlayTrailer.mockReset();
+  mockRequestTVFocus.mockReset();
   store.set(tvOptionModalAtom, null);
 });
 
@@ -117,5 +145,24 @@ describe("TVTrailerButton", () => {
     await closeList();
 
     expect(mockPlayTrailer).not.toHaveBeenCalled();
+  });
+
+  test("hands the focus back to the button once a dismissed list has closed", async () => {
+    await renderButton();
+    await fireEvent(pressable(), "longPress");
+
+    await closeList();
+
+    expect(mockRequestTVFocus).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not request the focus back when a trailer was picked", async () => {
+    await renderButton();
+    await fireEvent(pressable(), "longPress");
+
+    await act(async () => store.get(tvOptionModalAtom)?.onSelect(remote));
+    await closeList();
+
+    expect(mockRequestTVFocus).not.toHaveBeenCalled();
   });
 });

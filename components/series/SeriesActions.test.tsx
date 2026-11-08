@@ -12,8 +12,14 @@ jest.mock("@/hooks/useTrailers", () => ({
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
 }));
+const mockBottomInset = 24;
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+  useSafeAreaInsets: () => ({
+    top: 0,
+    right: 0,
+    bottom: mockBottomInset,
+    left: 0,
+  }),
 }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -75,6 +81,7 @@ describe("ItemActions", () => {
         "common.cancel",
       ],
       cancelButtonIndex: 2,
+      containerStyle: { paddingBottom: mockBottomInset },
     });
     pickFromSheet(1);
     expect(mockPlayTrailer).toHaveBeenCalledWith(remote);
