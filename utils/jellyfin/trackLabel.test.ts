@@ -79,6 +79,67 @@ describe("audioDisplayTitle", () => {
     ).toBe("Ger - AAC - Main");
   });
 
+  describe("a server before Jellyfin 12, which sends the code and no name", () => {
+    // Jellyfin 10.11 expands the code in DisplayTitle ("fra" -> "French") but
+    // still sends the raw code in Language, so the two never match as text.
+    test.each([
+      ["fra", "French", "AAC - 5.1"],
+      ["deu", "German", "DTS - 5.1"],
+      ["jpn", "Japanese", "AAC - 2.0"],
+      ["ger", "German", "DTS - 5.1"],
+      ["eng", "English", "AAC - 2.0"],
+    ])("does not repeat the language for %s", (code, name, rest) => {
+      expect(
+        audioDisplayTitle({
+          Title: "Movie.2160p",
+          Language: code,
+          DisplayTitle: `Movie.2160p - ${name} - ${rest}`,
+        }),
+      ).toBe(`${name} - ${rest} - Movie.2160p`);
+    });
+
+    test("adds the code when the title holds it as a whole word", () => {
+      // The server dropped the language, so the first attribute is the codec.
+      expect(
+        audioDisplayTitle({
+          Title: "Show.GER.DL",
+          Language: "ger",
+          DisplayTitle: "Show.GER.DL - Dolby Digital - 5.1",
+        }),
+      ).toBe("Ger - Dolby Digital - 5.1 - Show.GER.DL");
+    });
+  });
+
+  test("does not take a longer word for the language code", () => {
+    // "Engine" starts with "eng", but it is not the language.
+    expect(
+      audioDisplayTitle({
+        Title: "Engine AAC Stereo English",
+        Language: "eng",
+        DisplayTitle: "Engine AAC Stereo English",
+      }),
+    ).toBe("Eng - Engine AAC Stereo English");
+    // The server did not drop "English" for it, so the language is first.
+    expect(
+      audioDisplayTitle({
+        Title: "Engine Room",
+        Language: "eng",
+        DisplayTitle: "Engine Room - English - AAC",
+      }),
+    ).toBe("English - AAC - Engine Room");
+  });
+
+  test("keeps a title that opens with the language as it is", () => {
+    expect(
+      audioDisplayTitle({
+        Title: "English Commentary",
+        Language: "eng",
+        LocalizedLanguage: "English",
+        DisplayTitle: "English Commentary",
+      }),
+    ).toBe("English Commentary");
+  });
+
   test("adds no language for the codes the server never shows", () => {
     for (const code of ["und", "mis", "mul", "zxx", "UND"]) {
       expect(

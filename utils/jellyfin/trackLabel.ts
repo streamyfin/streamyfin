@@ -37,8 +37,47 @@ const mentions = (label: string, word: string | null | undefined): boolean =>
 /** ISO 639 codes the server leaves out of `DisplayTitle`: uncoded, multiple, undetermined, none. */
 const UNSHOWN_LANGUAGE_CODES = new Set(["mis", "mul", "und", "zxx"]);
 
+const isWordCharacter = (character: string | undefined): boolean =>
+  !!character && /^[\p{L}\p{N}]$/u.test(character);
+
+/** The word at `index` in `label`, not the middle of a longer one ("eng" is not in "Engine"). */
+const isWholeWordAt = (label: string, index: number, length: number) =>
+  !isWordCharacter(label.charAt(index - 1)) &&
+  !isWordCharacter(label.charAt(index + length));
+
 const startsWithWord = (label: string, word: string): boolean =>
-  label.toLowerCase().startsWith(word.toLowerCase());
+  label.toLowerCase().startsWith(word.toLowerCase()) &&
+  isWholeWordAt(label, 0, word.length);
+
+const containsWord = (label: string, word: string): boolean => {
+  const haystack = label.toLowerCase();
+  const needle = word.toLowerCase();
+  for (
+    let at = haystack.indexOf(needle);
+    at !== -1;
+    at = haystack.indexOf(needle, at + 1)
+  ) {
+    if (isWholeWordAt(haystack, at, needle.length)) return true;
+  }
+  return false;
+};
+
+/**
+ * Whether the server left the language out of the attributes because the title
+ * already held it. It tests `Title.Contains(name)`, with the name it resolved
+ * itself ("French"). Jellyfin 12 sends that name, so the same substring test
+ * answers. Before 12 only the code ("fra") is known, which cannot be found in
+ * "French", so it counts only as a whole word: a title that spells the name
+ * out stays undetected, and the language is not repeated in front of it.
+ */
+const titleHoldsLanguage = (
+  title: string,
+  stream: Jellyfin12MediaStream,
+  language: string,
+): boolean =>
+  stream.LocalizedLanguage
+    ? mentions(title, stream.LocalizedLanguage)
+    : containsWord(title, language);
 
 /**
  * `DisplayTitle` of an audio stream, with its language first.
@@ -67,7 +106,14 @@ export const audioDisplayTitle = (
   const showsLanguage =
     !!language &&
     !UNSHOWN_LANGUAGE_CODES.has(stream.Language?.toLowerCase() ?? "");
-  if (!showsLanguage || startsWithWord(label, language)) return label;
+  if (!showsLanguage) return label;
+  // The server puts the language first among the attributes, unless the title
+  // held it. Comparing the label with `language` instead fails before
+  // Jellyfin 12: the label says "French", the stream only "fra".
+  const languageIsFirst = attributes
+    ? !titleHoldsLanguage(title, stream, language)
+    : startsWithWord(label, language);
+  if (languageIsFirst) return label;
   // Upper-case the first letter like the server does, so a raw ISO code from
   // a server without resolved names reads "Ger", as it would in its own label.
   const shown = language.charAt(0).toUpperCase() + language.slice(1);
