@@ -185,6 +185,12 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
               {item.Type !== "Program" && !isOffline && (
                 <SyncPlayButton items={[item]} title={item.Name} />
               )}
+              {/* Alongside the other whole-item actions, not beside Play:
+                  unlike SyncPlayQueueButton and MediaSourceButton it has
+                  nothing to do with the version Play is about to start. */}
+              {item.Type !== "Program" && (
+                <ItemActions item={item} variant='header' />
+              )}
               {item.Type !== "Program" && (
                 <>
                   {!Platform.isTV && (
@@ -322,13 +328,6 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     colors={itemColors}
                   />
                 )}
-                {/* Last: the options beside Play are for Play. */}
-                <ItemActions
-                  item={item}
-                  color={itemColors.primary}
-                  iconColor={itemColors.text}
-                  leadingGap={12}
-                />
               </View>
             ) : (
               <Text className='mb-2 text-neutral-400'>
