@@ -3,21 +3,19 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
-import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
-import { itemRouter } from "@/components/common/TouchableItemRouter";
 import {
   EPG_BORDER_COLOR,
   EPG_FAVORITE_ICON_SIZE,
   EPG_ICON_COLOR_INACTIVE,
   EPG_PROGRESS_BAR_HEIGHT,
 } from "@/components/livetv/constants";
+import { useChannelPress } from "@/components/livetv/useChannelPress";
 import { Colors } from "@/constants/Colors";
-import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
@@ -25,21 +23,9 @@ const ChannelItem: React.FC<{ channel: BaseItemDto; now: number }> = ({
   channel,
   now,
 }) => {
-  const router = useRouter();
-  const segments = useSegments();
   const { isFavorite, toggleFavorite } = useFavorite(channel);
-
-  const handlePress = useCallback(() => {
-    router.push(
-      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
-    );
-  }, [channel.Id, router]);
-
-  const handleLongPress = useCallback(() => {
-    const target = channel.CurrentProgram ?? channel;
-    const from = (segments as string[])[2] || "(home)";
-    router.push(itemRouter(target, from) as any);
-  }, [channel, segments, router]);
+  const { onPress: handlePress, onLongPress: handleLongPress } =
+    useChannelPress(channel);
 
   const progress = useMemo(() => {
     const p = channel.CurrentProgram;
