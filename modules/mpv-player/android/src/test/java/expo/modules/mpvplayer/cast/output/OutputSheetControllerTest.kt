@@ -368,6 +368,20 @@ class OutputSheetControllerTest {
         assertEquals(listOf(true), port.disconnects)
     }
 
+    // Stopped or disconnected, the sheet closes, as the Cast SDK's dialog does: left open on the list, a tap meant for
+    // the sheet's next screen would pick a receiver.
+    @Test
+    fun theEndActionClosesTheSheet() {
+        val port = port()
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+
+        sheet.stop()
+
+        assertEquals(listOf(true), port.disconnects)
+        assertEquals(listOf(OutputSheetOutput.DISMISS), outputs)
+    }
+
     // While the receiver plays, outside the player, this phone takes its video over where it is: JS reads the
     // receiver before it stops it, so the sheet stops nothing itself.
     @Test
