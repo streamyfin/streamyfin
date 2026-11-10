@@ -6,6 +6,7 @@ import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
+import { seasonLabel } from "@/utils/seasonLabel";
 import { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
 
 export interface TVSeriesNavigationProps {
@@ -65,7 +66,7 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
           {/* Season card */}
           {(item.SeasonId || item.ParentId) && (
             <TVSeriesSeasonCard
-              title={item.SeasonName || `Season ${item.ParentIndexNumber}`}
+              title={seasonLabel(t, item.SeasonName, item.ParentIndexNumber)}
               subtitle={t("item_card.view_season") || "View Season"}
               imageUrl={seasonImageUrl ?? null}
               onPress={onSeasonPress}

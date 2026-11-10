@@ -21,3 +21,6 @@ export const MUSIC_NORMALIZATION_MAX_VOLUME = 1;
 
 /** MMKV key of the index of stored tracks: user downloads and the look-ahead cache. */
 export const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";
+
+/** How many upcoming songs the music cache can fetch ahead, as its settings offer. */
+export const MUSIC_LOOKAHEAD_COUNTS = [1, 2, 3, 5] as const;
