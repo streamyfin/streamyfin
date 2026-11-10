@@ -15,7 +15,7 @@ const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
  */
 export const CustomLinksGroup: React.FC = () => {
   const { t } = useTranslation();
-  const { data: links = [] } = useMenuLinks();
+  const { data: links = [], isError, isFetching, refetch } = useMenuLinks();
 
   const openLink = useCallback(
     async (url: unknown) => {
@@ -29,6 +29,23 @@ export const CustomLinksGroup: React.FC = () => {
     },
     [t],
   );
+
+  // The load failed with nothing cached. More stays mounted, so without this
+  // row the links would stay hidden until the app restarts or the network
+  // comes back.
+  if (isError && links.length === 0) {
+    return (
+      <ListGroup title={t("tabs.custom_links")}>
+        <ListItem
+          icon='refresh'
+          title={t("custom_links.load_failed")}
+          value={t("home.retry")}
+          disabled={isFetching}
+          onPress={() => refetch()}
+        />
+      </ListGroup>
+    );
+  }
 
   if (links.length === 0) return null;
 
