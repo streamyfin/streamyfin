@@ -330,6 +330,30 @@ describe("DraggableQueueList rows", () => {
     expect(on.onRemoveRow).not.toHaveBeenCalled();
   });
 
+  // A Cast receiver playing the queue has no command to move or remove a track: its rows still play on a press.
+  test("of a queue that cannot be edited offer no handle and no remove button", async () => {
+    const on = handlers();
+    await render(
+      <DraggableQueueList
+        testID='queue'
+        rows={rows}
+        currentIndex={0}
+        icon='musical-note'
+        emptyText='Nothing queued'
+        editable={false}
+        {...on}
+      />,
+    );
+
+    expect(screen.queryAllByTestId("drax-handle")).toHaveLength(0);
+    expect(screen.queryByTestId("queue-remove-b")).toBeNull();
+    for (const item of draxItems()) {
+      expect(item).toMatchObject({ draggable: false });
+    }
+    await fireEvent.press(screen.getByTestId("queue-row-b"));
+    expect(on.onPressRow).toHaveBeenCalledWith(1);
+  });
+
   test("keep the playing row unless it can be removed", async () => {
     const on = handlers();
     const { rerender } = await render(

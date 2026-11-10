@@ -22,8 +22,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
@@ -263,7 +263,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
