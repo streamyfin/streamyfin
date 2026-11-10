@@ -99,3 +99,9 @@ export const RECEIVER_LIVENESS_WINDOW_MS = 15_000;
  * between the player counts on from the last report.
  */
 export const MUSIC_CAST_PROGRESS_TICK_MS = 1_000;
+
+/**
+ * Where the native output sheet puts a receiver's name in a text JS sends it
+ * (OutputPickerStrings.kt and OutputPickerStrings.swift replace this same marker).
+ */
+export const OUTPUT_PICKER_NAME_MARKER = "{{name}}";

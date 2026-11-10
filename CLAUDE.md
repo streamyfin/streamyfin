@@ -47,7 +47,7 @@ One file per hard won fact in `.claude/learned-facts/`. Read the relevant one be
 debugging in that area.
 
 Navigation:
-- `native-bottom-tabs-userouter-conflict` | useRouter() at provider level causes tab switches; use static router import
+- `native-bottom-tabs-userouter-conflict` | useRouter() at provider level used to cause tab switches; since expo-router 57 it is the imperative router, and useAppRouter is safe at the root
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch

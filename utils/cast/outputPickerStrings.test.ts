@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { TFunction } from "i18next";
+import i18next, { type TFunction } from "i18next";
 import { Platform } from "react-native";
 import en from "@/translations/en.json";
 import { buildOutputPickerStrings } from "./outputPickerStrings";
@@ -63,4 +63,31 @@ test("the device rows name a phone and a tablet on Android", () => {
     "This phone",
     "This tablet",
   ]);
+});
+
+// i18next set up as the app sets it, speaking a language with its own catalogue.
+const i18nextIn = (lng: string, translation: object) => {
+  const instance = i18next.createInstance();
+  instance.init({
+    lng,
+    fallbackLng: "en",
+    resources: { en: { translation: en }, [lng]: { translation } },
+    interpolation: { escapeValue: false },
+    initAsync: false,
+  });
+  return instance.t;
+};
+
+test("the Play on text keeps the marker the native sheet puts the receiver's name at", () => {
+  const strings = buildOutputPickerStrings(i18nextIn("en", en));
+
+  expect(strings.playOn).toBe("Play on {{name}}");
+});
+
+test("a translation that lost the receiver's name says the English text", () => {
+  const strings = buildOutputPickerStrings(
+    i18nextIn("fr", { player: { play_on: "Lire sur la TV" } }),
+  );
+
+  expect(strings.playOn).toBe("Play on {{name}}");
 });

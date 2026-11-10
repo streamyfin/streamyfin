@@ -139,6 +139,9 @@ const continueReceiverHere = async (
  * Answers the output sheet's actions for the whole app, mounted once: its remote opens the Cast expanded controls,
  * and this device chosen while the receiver plays continues the receiver's video here. At the root, its plays go
  * through no screen that could lose the focus meanwhile, and no Cast button holds a player. Renders nothing.
+ * Its usePlayMedia holds useAppRouter at the root, which native-bottom-tabs-userouter-conflict warns about: expo-router
+ * 57's useRouter is the imperative router (it reads the preview context only), so nothing here follows the
+ * navigation state, and a Continue here from the Search tab stays on it.
  */
 export function OutputPickerActions() {
   const { t } = useTranslation();
