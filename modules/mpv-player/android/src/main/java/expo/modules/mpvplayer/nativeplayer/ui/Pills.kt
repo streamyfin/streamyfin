@@ -22,10 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -254,10 +252,11 @@ fun DoubleTapSeekPill(forward: Boolean, seconds: Double) {
             .background(Color.Black.copy(alpha = 0.6f))
             .padding(18.dp)
     ) {
-        Icon(
-            imageVector = if (forward) Icons.Default.Forward10 else Icons.Default.Replay10,
-            contentDescription = null,
+        SeekIcon(
+            forward = forward,
+            seconds = seconds,
             tint = Color.White,
+            contentDescription = null,
             modifier = Modifier.size(36.dp)
         )
     }

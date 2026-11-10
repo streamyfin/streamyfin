@@ -3,6 +3,7 @@ import {
   type BaseItemDto,
   type BaseItemDtoQueryResult,
   type BaseItemKind,
+  ItemFields,
   PersonKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -10,7 +11,7 @@ import {
   getPersonApi,
   getStudioApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { sortBy } from "lodash";
+import sortBy from "lodash/sortBy";
 import {
   SEARCH_EXCLUDED_PERSON_TYPES,
   SEARCH_PEOPLE_FETCH_LIMIT,
@@ -101,6 +102,8 @@ export const searchPeople = ({
         searchTerm: query,
         limit,
         userId,
+        // For the sort by date added.
+        fields: [ItemFields.DateCreated],
         // Never both: 10.11 would then keep no one, see serverVersion.ts.
         ...(honoursExcludedPersonTypes(serverVersion)
           ? { excludePersonTypes: SEARCH_EXCLUDED_PERSON_TYPES }
@@ -142,6 +145,8 @@ export const searchStudios = ({
         limit: SEARCH_RESULT_LIMIT,
         userId,
         includeItemTypes: STUDIO_ITEM_TYPES,
+        // For the sort by date added.
+        fields: [ItemFields.DateCreated],
         enableTotalRecordCount: false,
       },
       { signal },

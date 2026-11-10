@@ -119,13 +119,11 @@ struct PlayerControlsRootView: View {
 			if let forward = viewModel.doubleTapSeekForward {
 				HStack {
 					if forward { Spacer() }
-					Image(
-						systemName: seekSymbol(
-							prefix: forward ? "goforward" : "gobackward",
-							seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
-						)
+					SeekGlyph(
+						prefix: forward ? "goforward" : "gobackward",
+						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec,
+						size: 28
 					)
-					.font(.system(size: 28, weight: .semibold))
 					.foregroundStyle(.white)
 					.padding(18)
 					.background(.black.opacity(0.55), in: Circle())
@@ -353,9 +351,10 @@ struct PlayerControlsRootView: View {
 						dragAxis = .vertical
 						dragOnLeftHalf = value.startLocation.x < size.width / 2
 						if dragOnLeftHalf {
-							dragStartLevel = viewModel.brightnessController.brightness
-							// An engine with no screen here leaves no brightness to drive.
+							// First: starting the interaction reads the screen's brightness. An engine with no
+							// screen here leaves no brightness to drive.
 							viewModel.brightnessController.isUserInteracting = viewModel.capabilities.brightness
+							dragStartLevel = viewModel.brightnessController.brightness
 						} else {
 							dragStartLevel = viewModel.volumeController.volume
 							viewModel.volumeController.isUserInteracting = true
