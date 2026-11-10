@@ -28,6 +28,7 @@ import {
   useTVBelowTabBarContentTop,
 } from "@/components/tv";
 import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
+import { SUBTITLE_PREFETCH_CACHE_DIR } from "@/constants/Playback";
 import {
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
@@ -255,12 +256,16 @@ export default function SettingsTV() {
 
               // 5. Clear Subtitle Cache
               storage.remove("downloadedSubtitles.json");
-              const subtitlesDir = new Directory(
-                Paths.cache,
+              // The downloaded remote subtitles, and the sidecars the player
+              // prefetches before an ExoPlayer session.
+              for (const name of [
                 "streamyfin-subtitles",
-              );
-              if (subtitlesDir.exists) {
-                await subtitlesDir.delete();
+                SUBTITLE_PREFETCH_CACHE_DIR,
+              ]) {
+                const subtitlesDir = new Directory(Paths.cache, name);
+                if (subtitlesDir.exists) {
+                  await subtitlesDir.delete();
+                }
               }
 
               // 6. Clear MMKV caches like extracted image colors and other non-essential storage keys

@@ -482,18 +482,21 @@ export async function buildNativePlayerConfig(params: {
       requiredHttpHeaders: res.requiredHttpHeaders,
     };
 
-    // Prefetch the sidecar subtitles onto disk and point their DeliveryUrl
-    // at the local files before the config is built: a subtitle the engine
-    // itself must fetch over the network wedges the pipeline when the path
-    // is slow (SingleSampleMediaPeriod holds the period until the file
-    // lands — ExoPlayer #8566), observed as a minutes-long next-episode
-    // stall behind a reverse proxy. Budgeted; a subtitle that cannot be
-    // fetched in time is undelivered for this session instead.
-    await prefetchExternalSubtitles({
-      mediaSource: res.mediaSource,
-      item,
-      api,
-    });
+    // ExoPlayer only: prefetch the sidecar subtitles onto disk and point their
+    // DeliveryUrl at the local files before the config is built. A sidecar
+    // Exo fetches itself over a slow path wedges its pipeline, observed as a
+    // minutes-long next-episode stall behind a reverse proxy. mpv opens each
+    // sidecar on a thread of its own with its core unlocked (sub-add), so a
+    // slow one delays only that track: it keeps fetching them itself and
+    // starts without this wait. Budgeted, the session's subtitle first.
+    if (engine === "exoplayer") {
+      await prefetchExternalSubtitles({
+        mediaSource: res.mediaSource,
+        item,
+        api,
+        preferredIndex: subtitleIndex,
+      });
+    }
   }
 
   const mediaSource = stream.mediaSource;

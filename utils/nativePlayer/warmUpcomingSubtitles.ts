@@ -29,6 +29,10 @@ export const warmUpcomingSubtitles = async (params: {
    * swap's cache key carries the source id), just wasted.
    */
   mediaSourceId?: string | null;
+  /** The tracks and bitrate cap the swap will carry, so both negotiate alike. */
+  audioStreamIndex?: number;
+  subtitleStreamIndex?: number;
+  maxStreamingBitrate?: number;
 }): Promise<void> => {
   if (!params.item.Id) return;
   try {
@@ -39,7 +43,9 @@ export const warmUpcomingSubtitles = async (params: {
       item: params.item,
       startTimeTicks: 0,
       userId: params.userId,
-      audioStreamIndex: 0,
+      audioStreamIndex: params.audioStreamIndex ?? 0,
+      subtitleStreamIndex: params.subtitleStreamIndex,
+      maxStreamingBitrate: params.maxStreamingBitrate,
       deviceProfile: params.deviceProfile,
       mediaSourceId: params.mediaSourceId ?? undefined,
     });
@@ -48,6 +54,7 @@ export const warmUpcomingSubtitles = async (params: {
       mediaSource: res.mediaSource,
       item: params.item,
       api: params.api,
+      preferredIndex: params.subtitleStreamIndex,
     });
   } catch {
     // The swap prefetches on its own; a failed warm is invisible.

@@ -840,25 +840,35 @@ const NativePlayerProviderInner: React.FC<{
       // the files now, while this episode still plays, so the swap finds them
       // cached. Best effort and once per item.
       const api = apiRef.current;
+      // Only ExoPlayer prefetches its sidecars (buildNativePlayerConfig).
       if (
         api &&
         !session.offline &&
         !syncRef.current.enabled &&
+        getActivePlayerType(currentSettings) === "exoplayer" &&
         next.Id &&
         !warmedSubtitleItemIdsRef.current.has(next.Id)
       ) {
         warmedSubtitleItemIdsRef.current.add(next.Id);
-        // The version the swap's own resolution would pick, so the warm and
-        // the swap negotiate the same source.
-        const nextSource = getDefaultPlaySettings(
-          next,
-          currentSettings,
-        ).mediaSource;
+        // Resolved as playAdjacentItem resolves the swap (version matched to
+        // the playing one, tracks carried, the session's bitrate cap), so the
+        // warm negotiates the very source and sidecars the swap will ask for.
+        const nextSettings = getDefaultPlaySettings(next, currentSettings, {
+          indexes: {
+            subtitleIndex: session.currentSubtitleIndex,
+            audioIndex: session.currentAudioIndex,
+          },
+          source: session.stream.mediaSource,
+          offline: session.offline,
+        });
         void warmUpcomingSubtitles({
           api,
           item: next,
           userId: userRef.current?.Id,
-          mediaSourceId: nextSource?.Id,
+          mediaSourceId: nextSettings.mediaSource?.Id,
+          audioStreamIndex: nextSettings.audioIndex,
+          subtitleStreamIndex: nextSettings.subtitleIndex,
+          maxStreamingBitrate: session.bitrateValue,
           deviceProfile: generateDeviceProfile({
             player: getActivePlayerType(currentSettings),
             audioMode: currentSettings?.audioTranscodeMode,
@@ -1616,21 +1626,9 @@ const NativePlayerProviderInner: React.FC<{
       // makes `session` the outgoing one.
       if (sessionRef.current !== session) return;
       if (result.kind === "notFound" || result.kind === "burnedIn") {
-        // An external subtitle the prefetch could not deliver has no track
-        // for the player to select; renegotiating with the same index would
-        // fail the same way and reload the stream for it. Turn subtitles off
-        // instead — the row stays in the menu, unchecked.
-        if (
-          result.kind === "notFound" &&
-          !session.offline &&
-          target?.DeliveryMethod === "External" &&
-          !target.DeliveryUrl
-        ) {
-          session.currentSubtitleIndex = SUBTITLES_OFF;
-          await applySubtitleSelection(session, SUBTITLES_OFF);
-          pushTrackMenus(session);
-          return;
-        }
+        // A sidecar the prefetch left out has no track yet: renegotiating
+        // prefetches it again, first and with a fresh budget, and keeps its
+        // remote URL if the budget runs out, so the pick is never lost.
         await replaceStream(session, {
           subtitleIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -2049,37 +2047,9 @@ const NativePlayerProviderInner: React.FC<{
           // Jellyfin-index resolver knows nothing about.
           void applyLocalSubtitleSelection(session);
         } else {
-          void (async () => {
-            const result = await applySubtitleSelection(
-              session,
-              session.currentSubtitleIndex,
-            );
-            // The native round trip is not session-bound: a swap landing
-            // during it makes `session` the outgoing one.
-            if (sessionRef.current !== session) return;
-            // An external subtitle the prefetch could not deliver (its URL
-            // was swept) resolves to notFound on every tracksReady. Leaving
-            // the index set keeps the failed row checked and renegotiates the
-            // stream for an index that can never resolve; turn it off and
-            // refresh the menus instead.
-            if (
-              result.kind === "notFound" &&
-              !session.offline &&
-              session.currentSubtitleIndex !== SUBTITLES_OFF
-            ) {
-              const target = session.stream.mediaSource.MediaStreams?.find(
-                (s) => s.Index === session.currentSubtitleIndex,
-              );
-              if (
-                target?.DeliveryMethod === "External" &&
-                !target.DeliveryUrl
-              ) {
-                session.currentSubtitleIndex = SUBTITLES_OFF;
-                await applySubtitleSelection(session, SUBTITLES_OFF);
-                pushTrackMenus(session);
-              }
-            }
-          })();
+          // The session's subtitle is the prefetch's preferred one, never left
+          // without a URL, so it always resolves to a track here.
+          void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
         // Mirror of the JS player, which waits for tracksReady before letting
         // the automation act: a track picked before mpv has enumerated them

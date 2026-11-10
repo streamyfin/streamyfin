@@ -15,11 +15,15 @@ jest.mock(
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
+// The log module reaches Sentry and MMKV; the prefetch only writes its summary.
+jest.mock("@/utils/log", () => ({ writeInfoLog: jest.fn() }));
 
 const { File } = jest.requireActual("@/test-utils/fileSystem")
   .fileSystemModule as typeof import("@/test-utils/fileSystem")["fileSystemModule"];
 const { localSubtitleFileName, prefetchExternalSubtitles } =
   require("./externalSubtitles") as typeof import("./externalSubtitles");
+const { writeInfoLog }: { writeInfoLog: jest.Mock } =
+  jest.requireMock("@/utils/log");
 
 const item = {
   Id: "item-1",
@@ -34,7 +38,7 @@ const api = {
 const REMOTE_URL =
   "https://jf.example/Videos/item-1/88794ff6/Subtitles/3/0/Stream.srt?ApiKey=k";
 const MEDIA_SOURCE_ID = "ms-1";
-const FINAL_URI = `${CACHE}/subtitles/item-1-${MEDIA_SOURCE_ID}-3.srt`;
+
 // Staging names carry an attempt-unique suffix: an abandoned transfer keeps
 // writing its `.part` after the timeout, so attempts never share a path.
 const isStagingOf = (path: string) =>
@@ -59,8 +63,23 @@ const mediaSourceWith = (subs: MediaStream[]): MediaSourceInfo =>
 const streamsOf = (mediaSource: MediaSourceInfo): MediaStream[] =>
   mediaSource.MediaStreams as MediaStream[];
 
+// The cache name of the default sidecar on this server, as the prefetch builds it.
+const FINAL_URI = `${CACHE}/subtitles/${localSubtitleFileName(
+  item,
+  MEDIA_SOURCE_ID,
+  externalSub(),
+  REMOTE_URL,
+  api.basePath,
+)}`;
+
 beforeEach(() => {
   fakeFiles.clear();
+  writeInfoLog.mockClear();
+});
+
+// A spy left in place would answer the next test's downloads too.
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 test("downloads the subtitle into the cache and points DeliveryUrl at it", async () => {
@@ -195,7 +214,7 @@ describe("localSubtitleFileName", () => {
   test("keeps the extension the server URL carries", () => {
     expect(
       localSubtitleFileName(item, MEDIA_SOURCE_ID, externalSub(), REMOTE_URL),
-    ).toBe("item-1-ms-1-3.srt");
+    ).toMatch(/^item-1-ms-1-3-[0-9a-f]{8}\.srt$/);
   });
 
   test("an extensionless URL falls back to the stream's codec", () => {
@@ -206,7 +225,7 @@ describe("localSubtitleFileName", () => {
         externalSub({ Codec: "vtt" }),
         "https://subs.example/3/Stream",
       ),
-    ).toBe("item-1-ms-1-3.vtt");
+    ).toMatch(/^item-1-ms-1-3-[0-9a-f]{8}\.vtt$/);
   });
 
   test("the subrip codec name becomes the srt extension", () => {
@@ -217,7 +236,7 @@ describe("localSubtitleFileName", () => {
         externalSub({ Codec: "subrip" }),
         "https://subs.example/3/Stream",
       ),
-    ).toBe("item-1-ms-1-3.srt");
+    ).toMatch(/^item-1-ms-1-3-[0-9a-f]{8}\.srt$/);
   });
 
   test("two versions of one item get different files", () => {
@@ -234,7 +253,7 @@ describe("localSubtitleFileName", () => {
         externalSub(),
         "https://subs.example/3",
       ),
-    ).toBe("item-1-ms-1-3.srt");
+    ).toMatch(/^item-1-ms-1-3-[0-9a-f]{8}\.srt$/);
   });
 });
 
@@ -268,4 +287,176 @@ test("a restarted app never reuses a staging name, even in the same millisecond"
     now.mockRestore();
     random.mockRestore();
   }
+});
+
+test("keeps the session's subtitle remote when the budget misses it", async () => {
+  // Left without a URL it would vanish for the whole session, then be carried
+  // as a deliberate off; remote, the engine fetches it as it did before.
+  jest
+    .spyOn(File, "downloadFileAsync")
+    .mockRejectedValue(new Error("extraction still running"));
+  const mediaSource = mediaSourceWith([
+    externalSub(),
+    externalSub({ Index: 4, DeliveryUrl: "/Videos/item-1/4/0/Stream.vtt" }),
+  ]);
+
+  await prefetchExternalSubtitles({
+    mediaSource,
+    item,
+    api,
+    preferredIndex: 4,
+  });
+
+  const [other, preferred] = streamsOf(mediaSource).slice(1);
+  expect(preferred!.DeliveryUrl).toBe("/Videos/item-1/4/0/Stream.vtt");
+  expect(other!.DeliveryUrl).toBeUndefined();
+});
+
+test("logs what the engine reads from disk, fetches itself and goes without", async () => {
+  jest
+    .spyOn(File, "downloadFileAsync")
+    .mockRejectedValueOnce(new Error("extraction still running"));
+  const mediaSource = mediaSourceWith([
+    externalSub({ Index: 4, DeliveryUrl: "/Videos/item-1/4/0/Stream.vtt" }),
+    externalSub(),
+    externalSub({ Index: 5, DeliveryUrl: "/Videos/item-1/5/0/Stream.ass" }),
+  ]);
+
+  await prefetchExternalSubtitles({
+    mediaSource,
+    item,
+    api,
+    preferredIndex: 4,
+    budgetMs: 60_000,
+  });
+
+  // Only the first download, the session's subtitle, is refused: it stays
+  // remote for the engine, and the two others land on disk.
+  expect(writeInfoLog).toHaveBeenCalledTimes(1);
+  expect(writeInfoLog.mock.calls[0]?.[0]).toMatch(
+    /^Subtitle prefetch: 2 of 3 on disk in \d+ ms$/,
+  );
+  expect(writeInfoLog.mock.calls[0]?.[1]).toEqual({
+    itemId: "item-1",
+    onDisk: [3, 5],
+    keptRemote: [4],
+    leftOut: [],
+  });
+});
+
+test("fetches the session's subtitle before the others", async () => {
+  const mediaSource = mediaSourceWith([
+    externalSub(),
+    externalSub({ Index: 4, DeliveryUrl: "/Videos/item-1/4/0/Stream.vtt" }),
+  ]);
+
+  await prefetchExternalSubtitles({
+    mediaSource,
+    item,
+    api,
+    preferredIndex: 4,
+  });
+
+  expect(fakeFiles.downloads().map((d) => d.url)).toEqual([
+    "https://jf.example/Videos/item-1/4/0/Stream.vtt",
+    REMOTE_URL,
+  ]);
+});
+
+test("cancels the native transfer of a subtitle whose time ran out", async () => {
+  // Left running, it competes with the next subtitle's request, and
+  // concurrent requests corrupt Jellyfin's first extraction.
+  const signals: AbortSignal[] = [];
+  const impl = (
+    _url: string,
+    _to: unknown,
+    options?: { signal?: AbortSignal },
+  ) => {
+    if (options?.signal) signals.push(options.signal);
+    return new Promise(() => undefined);
+  };
+  jest
+    .spyOn(File, "downloadFileAsync")
+    .mockImplementation(impl as unknown as typeof File.downloadFileAsync);
+  const mediaSource = mediaSourceWith([externalSub()]);
+
+  await prefetchExternalSubtitles({
+    mediaSource,
+    item,
+    api,
+    budgetMs: 60_000,
+    perSubtitleMs: 0,
+  });
+
+  expect(signals).toHaveLength(1);
+  expect(signals[0]!.aborted).toBe(true);
+});
+
+test("never names another track's file after an index shift, nor another server's", () => {
+  // Jellyfin numbers sidecars first: adding one moves the French row onto the
+  // index the German one had.
+  const german = externalSub({ Language: "ger" });
+  const french = externalSub({ Language: "fre" });
+  expect(
+    localSubtitleFileName(
+      item,
+      MEDIA_SOURCE_ID,
+      french,
+      REMOTE_URL,
+      api.basePath,
+    ),
+  ).not.toBe(
+    localSubtitleFileName(
+      item,
+      MEDIA_SOURCE_ID,
+      german,
+      REMOTE_URL,
+      api.basePath,
+    ),
+  );
+  expect(
+    localSubtitleFileName(
+      item,
+      MEDIA_SOURCE_ID,
+      german,
+      REMOTE_URL,
+      "https://a.example",
+    ),
+  ).not.toBe(
+    localSubtitleFileName(
+      item,
+      MEDIA_SOURCE_ID,
+      german,
+      REMOTE_URL,
+      "https://b.example",
+    ),
+  );
+});
+
+test("drops cached subtitles past their age, so a re-synced sidecar is fetched again", async () => {
+  const stale = `${CACHE}/subtitles/old-item-ms-1-3-00000000.srt`;
+  fakeFiles.add(`${CACHE}/subtitles`, stale, FINAL_URI);
+  const now = Date.now();
+  const info = jest
+    .spyOn(File.prototype, "info")
+    .mockImplementation(function (this: { uri: string }) {
+      return {
+        exists: true,
+        size: 0,
+        modificationTime:
+          this.uri === stale ? now - 8 * 24 * 60 * 60 * 1000 : now,
+      } as ReturnType<InstanceType<typeof File>["info"]>;
+    });
+  try {
+    await prefetchExternalSubtitles({
+      mediaSource: mediaSourceWith([externalSub()]),
+      item,
+      api,
+    });
+  } finally {
+    info.mockRestore();
+  }
+
+  expect(fakeFiles.remaining()).not.toContain(stale);
+  expect(fakeFiles.remaining()).toContain(FINAL_URI);
 });

@@ -35,6 +35,11 @@ jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
 
+// The prefetch downloads through expo-file-system (its own spec); here only
+// whether the builder asks for it, and for which subtitle, matters.
+jest.mock("./externalSubtitles", () => ({
+  prefetchExternalSubtitles: jest.fn(async () => undefined),
+}));
 // Android TV: the only platform where ExoPlayer can be the engine, so the
 // only place the mpv-only cacheConfig split is observable.
 stubReactNative({ OS: "android", isTV: true });
@@ -47,6 +52,8 @@ const { buildNativePlayerStrings } =
   require("./buildNativePlayerConfig") as typeof import("./buildNativePlayerConfig");
 const { defaultValues, VideoPlayer } =
   require("@/utils/atoms/settings") as typeof import("@/utils/atoms/settings");
+const { prefetchExternalSubtitles }: { prefetchExternalSubtitles: jest.Mock } =
+  jest.requireMock("./externalSubtitles");
 
 const strings = buildNativePlayerStrings(
   ((key: string) => key) as unknown as TFunction,
@@ -120,5 +127,58 @@ describe("cacheConfig is mpv-only wire data", () => {
     // The stream negotiation itself is engine-agnostic: still direct play.
     expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
     expect(result?.config.stream.url).toContain("static=true");
+  });
+});
+
+// ExoPlayer wedges on a sidecar it must fetch over a slow path, so it gets
+// its sidecars on disk first; mpv opens each one on a thread of its own and
+// starts without that wait.
+describe("the sidecar subtitle prefetch", () => {
+  beforeEach(() => {
+    prefetchExternalSubtitles.mockClear();
+  });
+
+  test("runs before an ExoPlayer load, the session's subtitle first", async () => {
+    await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: { ...defaultValues, videoPlayer: VideoPlayer.ExoPlayer },
+      req: {
+        itemId: "item-1",
+        offline: false,
+        audioIndex: 1,
+        subtitleIndex: 3,
+      },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+    });
+
+    expect(prefetchExternalSubtitles).toHaveBeenCalledTimes(1);
+    expect(prefetchExternalSubtitles.mock.calls[0]?.[0]).toMatchObject({
+      mediaSource: { Id: "ms-1" },
+      item: { Id: "item-1" },
+      preferredIndex: 3,
+    });
+  });
+
+  test("is skipped for mpv, which fetches its sidecars itself", async () => {
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: defaultValues,
+      req: {
+        itemId: "item-1",
+        offline: false,
+        audioIndex: 1,
+        subtitleIndex: 3,
+      },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+    });
+
+    expect(result?.config.engine).toBe("mpv");
+    expect(prefetchExternalSubtitles).not.toHaveBeenCalled();
   });
 });

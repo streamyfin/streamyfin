@@ -7,6 +7,9 @@ import type {
 import { Directory, File, Paths } from "expo-file-system";
 import {
   SUBTITLE_PREFETCH_BUDGET_MS,
+  SUBTITLE_PREFETCH_CACHE_DIR,
+  SUBTITLE_PREFETCH_CACHE_MAX_AGE_MS,
+  SUBTITLE_PREFETCH_LATE_SWEEP_MS,
   SUBTITLE_PREFETCH_PER_SUBTITLE_MS,
 } from "@/constants/Playback";
 import {
@@ -14,23 +17,17 @@ import {
   optionsWithOptionalHeaders,
 } from "@/utils/customHeaders";
 import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
+import { writeInfoLog } from "@/utils/log";
 
 // Sidecar subtitles are fetched onto disk before the stream is handed to the
-// player: a subtitle the engine itself must fetch over the network wedges the
-// whole pipeline when the path is slow — SingleSampleMediaPeriod holds the
-// period and pins its buffered position to 0 until the file lands, and its
-// retry loop can end playback (ExoPlayer #8566; observed as a minutes-long
-// next-episode stall behind a reverse proxy). Hard budget for the whole
-// prefetch, plus a per-subtitle cap so one dead sidecar cannot starve every
-// subtitle after it; a subtitle that misses is undelivered for this session —
-// playback without a subtitle beats a stalled stream.
-
-const CACHE_SUBDIR = "subtitles";
-
-// A budget timeout rejects the caller but does not cancel the native
-// download: sweep the staging file again after the abandoned transfer has
-// had time to settle.
-const LATE_STAGING_SWEEP_MS = 60_000;
+// ExoPlayer engine: a sidecar it must fetch itself over a slow path wedges the
+// whole pipeline (observed as a minutes-long next-episode stall behind a
+// reverse proxy). Hard budget for the whole prefetch, plus a per-subtitle cap
+// so one dead sidecar cannot starve the rest. The subtitle the session shows
+// goes first and is never dropped: one the budget misses keeps its remote URL
+// and the engine fetches it, as before this prefetch existed. Any other one it
+// misses is left out for the session; picking it renegotiates the stream,
+// which prefetches it again with a fresh budget.
 
 // Attempt-unique staging name: an abandoned transfer keeps writing its
 // `.part` after the timeout, so a later attempt must not reuse — or be swept
@@ -51,16 +48,53 @@ const extensionFromUrl = (url: string, codec?: string | null): string => {
   return /^[a-z0-9]{2,5}$/.test(fromCodec) ? fromCodec : "srt";
 };
 
+/** FNV-1a, 32 bits, as hex: a short, stable tag for a cache file name. */
+const shortHash = (value: string): string => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+};
+
 export const localSubtitleFileName = (
   item: BaseItemDto,
   mediaSourceId: string | null | undefined,
   sub: MediaStream,
   url: string,
-): string =>
+  basePath?: string | null,
+): string => {
   // The media source is part of the name: two versions of one item can share
-  // a subtitle index and extension, and the second version must not reuse the
-  // first one's file.
-  `${item.Id ?? "item"}-${mediaSourceId ?? "source"}-${sub.Index}.${extensionFromUrl(url, sub.Codec)}`;
+  // a subtitle index. So is the server (two servers can hold the same item
+  // id) and what the stream is: Jellyfin numbers sidecars first, so adding
+  // one shifts every index, and the French row must not get the German file
+  // cached under its old index.
+  const identity = shortHash(
+    [
+      basePath ?? "",
+      sub.Language ?? "",
+      sub.Codec ?? "",
+      sub.DisplayTitle ?? sub.Title ?? "",
+      sub.IsExternal ? "external" : "embedded",
+    ].join("|"),
+  );
+  return `${item.Id ?? "item"}-${mediaSourceId ?? "source"}-${sub.Index}-${identity}.${extensionFromUrl(url, sub.Codec)}`;
+};
+
+/** Drops cached subtitles past their age: a re-synced sidecar keeps its name. */
+const evictStale = (dir: Directory) => {
+  const cutoff = Date.now() - SUBTITLE_PREFETCH_CACHE_MAX_AGE_MS;
+  try {
+    for (const entry of dir.list()) {
+      if (!(entry instanceof File)) continue;
+      const modified = entry.info().modificationTime;
+      if (modified !== undefined && modified < cutoff) entry.delete();
+    }
+  } catch {
+    // Best effort: a stale file only costs a stale subtitle until the next pass.
+  }
+};
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -91,15 +125,15 @@ const removeStaging = (file: File) => {
 };
 
 /**
- * Download every external subtitle of `mediaSource` into the cache directory
- * and point its `DeliveryUrl` at the local file — the same DeliveryUrl
- * rewrite the offline flow (`downloadSubtitles`) makes, so the engine's
- * side-loaded track and the identity matcher (`getExpectedExternalUrl` on the
- * same object) stay in agreement without extra plumbing.
+ * Download the external subtitles of `mediaSource` into the cache directory,
+ * the preferred one first, and point each `DeliveryUrl` at its local file.
+ * The offline flow (`downloadSubtitles`) makes the same rewrite, so the
+ * engine's side-loaded track and the identity matcher (`getExpectedExternalUrl`
+ * on the same object) stay in agreement without extra plumbing.
  *
- * Whatever cannot be fetched within the budget — or at all — is left with its
- * remote URL stripped by the sweep below, so neither the engine nor the
- * matcher treats it as available this session.
+ * Whatever cannot be fetched within the budget, or at all, has its remote URL
+ * stripped by the sweep below, so neither the engine nor the matcher treats it
+ * as available this session; the preferred subtitle keeps its remote URL.
  *
  * Sequential on purpose: concurrent subtitle requests make Jellyfin's
  * first-time extraction race with itself and serve corrupted files (same as
@@ -109,6 +143,8 @@ export const prefetchExternalSubtitles = async (params: {
   mediaSource: MediaSourceInfo;
   item: BaseItemDto;
   api: Api;
+  /** The subtitle the session will show: fetched first, never left out. */
+  preferredIndex?: number | null;
   budgetMs?: number;
   perSubtitleMs?: number;
 }): Promise<void> => {
@@ -117,14 +153,23 @@ export const prefetchExternalSubtitles = async (params: {
       (s) => s.Type === "Subtitle" && s.DeliveryMethod === "External",
     ) ?? [];
   if (externals.length === 0) return;
+  const startedAt = Date.now();
+  const isPreferred = (sub: MediaStream) =>
+    params.preferredIndex != null && sub.Index === params.preferredIndex;
+  // The budget may not reach every sidecar: the one on screen goes first.
+  const ordered = [
+    ...externals.filter(isPreferred),
+    ...externals.filter((sub) => !isPreferred(sub)),
+  ];
 
   let cacheDir: Directory | null = null;
   try {
-    cacheDir = new Directory(Paths.cache, CACHE_SUBDIR);
+    cacheDir = new Directory(Paths.cache, SUBTITLE_PREFETCH_CACHE_DIR);
     if (!cacheDir.exists) cacheDir.create();
+    evictStale(cacheDir);
   } catch {
-    // Nowhere to cache means no downloads; the sweep below still undelivers
-    // every remote sub, which is the safe outcome.
+    // Nowhere to cache means no downloads; the sweep below leaves the
+    // preferred subtitle remote and every other one out.
     cacheDir = null;
   }
 
@@ -134,7 +179,7 @@ export const prefetchExternalSubtitles = async (params: {
     params.perSubtitleMs ?? SUBTITLE_PREFETCH_PER_SUBTITLE_MS;
   const mediaSourceId = params.mediaSource.Id;
 
-  for (const sub of externals) {
+  for (const sub of ordered) {
     const url = getExternalSubtitleUrl(sub, {
       offline: false,
       basePath: params.api.basePath,
@@ -149,6 +194,7 @@ export const prefetchExternalSubtitles = async (params: {
       mediaSourceId,
       sub,
       url,
+      params.api.basePath,
     );
     const destination = new File(cacheDir, fileName);
     const key = destination.uri;
@@ -183,18 +229,26 @@ export const prefetchExternalSubtitles = async (params: {
             : {}),
         };
     // Downloads land on a throwaway .part name and are moved into place on
-    // completion: a budget timeout cannot cancel the native download, and a
-    // later completion would otherwise leave a partial file under the final
-    // name for a future session to serve.
+    // completion, so a transfer cut short never leaves a partial file under
+    // the final name for a future session to serve. Its time up, the native
+    // transfer is cancelled, not abandoned: left running, it would compete
+    // with the next subtitle's request (concurrent requests corrupt
+    // Jellyfin's first extraction) and with the video's first buffer.
+    const transfer = new AbortController();
     const task: Promise<void> = (async () => {
-      await withTimeout(
-        File.downloadFileAsync(
-          url,
-          pending,
-          optionsWithOptionalHeaders({}, headers),
-        ),
-        Math.min(deadline - Date.now(), perSubtitleMs),
-      );
+      try {
+        await withTimeout(
+          File.downloadFileAsync(
+            url,
+            pending,
+            optionsWithOptionalHeaders({ signal: transfer.signal }, headers),
+          ),
+          Math.min(deadline - Date.now(), perSubtitleMs),
+        );
+      } catch (error) {
+        transfer.abort();
+        throw error;
+      }
       // The move must be awaited: the URL below may only be exposed once the
       // final file exists at that path.
       await pending.move(destination);
@@ -209,13 +263,14 @@ export const prefetchExternalSubtitles = async (params: {
       await withTimeout(task, deadline - Date.now());
       sub.DeliveryUrl = destination.uri;
     } catch {
+      transfer.abort();
       // A timeout before the transfer opened its output leaves nothing to
-      // delete; the sweep below removes whatever the abandoned download
-      // writes after this point.
+      // delete; the late sweep removes whatever the cancelled transfer still
+      // wrote before its cancel landed.
       removeStaging(pending);
       const sweep = setTimeout(
         () => removeStaging(pending),
-        LATE_STAGING_SWEEP_MS,
+        SUBTITLE_PREFETCH_LATE_SWEEP_MS,
       );
       // A Node timer (Jest) keeps the process alive for the whole minute;
       // React Native's has no unref and needs none.
@@ -223,12 +278,33 @@ export const prefetchExternalSubtitles = async (params: {
     }
   }
 
-  // A remote DeliveryUrl left standing here would send the ENGINE after the
-  // subtitle over the network — the exact pipeline-wedging fetch this
-  // prefetch exists to avoid. Undeliver it for this session instead.
+  // A remote sidecar left standing would send the engine after it over the
+  // network, which wedges the pipeline on a slow path, so the misses are left
+  // out for the session: all but the one the session shows, which keeps its
+  // remote URL rather than going missing.
   for (const sub of externals) {
-    if (sub.DeliveryUrl && !sub.DeliveryUrl.startsWith("file://")) {
+    if (
+      !isPreferred(sub) &&
+      sub.DeliveryUrl &&
+      !sub.DeliveryUrl.startsWith("file://")
+    ) {
       sub.DeliveryUrl = undefined;
     }
   }
+
+  // One line per load, for a "subtitles missing" report: what the engine
+  // reads from disk, what it fetches itself, and what this session leaves out.
+  const onDisk: number[] = [];
+  const keptRemote: number[] = [];
+  const leftOut: number[] = [];
+  for (const sub of externals) {
+    const index = sub.Index ?? -1;
+    if (sub.DeliveryUrl?.startsWith("file://")) onDisk.push(index);
+    else if (sub.DeliveryUrl) keptRemote.push(index);
+    else leftOut.push(index);
+  }
+  writeInfoLog(
+    `Subtitle prefetch: ${onDisk.length} of ${externals.length} on disk in ${Date.now() - startedAt} ms`,
+    { itemId: params.item.Id, onDisk, keptRemote, leftOut },
+  );
 };
