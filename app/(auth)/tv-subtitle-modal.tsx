@@ -23,6 +23,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
+import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -36,6 +37,7 @@ import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAcces
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 type TabType = "tracks" | "download" | "settings";
 
@@ -189,9 +191,11 @@ const SubtitleResultCard = React.forwardRef<
     result: SubtitleSearchResult;
     hasTVPreferredFocus?: boolean;
     isDownloading?: boolean;
+    /** Another result is downloading: presses on this one are dropped. */
+    dimmed?: boolean;
     onPress: () => void;
   }
->(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
+>(({ result, hasTVPreferredFocus, isDownloading, dimmed, onPress }, ref) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.03 });
   const { t } = useTranslation();
@@ -206,6 +210,7 @@ const SubtitleResultCard = React.forwardRef<
       disabled={isDownloading}
     >
       <Animated.View
+        testID={`subtitle-result-${result.id}`}
         style={[
           styles.resultCard,
           animatedStyle,
@@ -214,6 +219,7 @@ const SubtitleResultCard = React.forwardRef<
             borderColor: focused
               ? "rgba(255,255,255,0.8)"
               : "rgba(255,255,255,0.1)",
+            opacity: dimmed ? 0.4 : 1,
           },
         ]}
       >
@@ -532,6 +538,8 @@ const TVAlignmentCard: React.FC<{
   );
 };
 
+// Spec: hooks/useTVSubtitleModal.test.tsx. It cannot sit next to this file,
+// Expo Router turns everything under app/ into a route.
 export default function TVSubtitleModal() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -552,6 +560,10 @@ export default function TVSubtitleModal() {
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  // Android TV can deliver one remote select twice in the same JS batch
+  // (react-native-tvos#110/#138, see useAppRouter): the sheet closes once and
+  // runs one download at a time.
+  const submission = useRef(createSubmission()).current;
 
   const {
     hasOpenSubtitlesApiKey,
@@ -587,32 +599,37 @@ export default function TVSubtitleModal() {
   // Animate in on mount and cleanup atom on unmount
   useEffect(() => {
     isMountedRef.current = true;
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(300);
 
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 250,
+        duration: TVSheetTiming.fadeInMs,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
         toValue: 0,
-        duration: 300,
+        duration: TVSheetTiming.slideInMs,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
-    const timer = setTimeout(() => setIsReady(true), 100);
+    const timer = setTimeout(
+      () => setIsReady(true),
+      TVSheetTiming.contentDelayMs,
+    );
     return () => {
       clearTimeout(timer);
       isMountedRef.current = false;
+      submission.dismiss();
       // Clear the atom on unmount to prevent stale callbacks from being retained
       store.set(tvSubtitleModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   useEffect(() => {
     if (activeTab === "download" && !hasSearchedThisSession && modalState) {
@@ -624,16 +641,24 @@ export default function TVSubtitleModal() {
   useEffect(() => {
     if (isReady) {
       setIsTabContentReady(false);
-      const timer = setTimeout(() => setIsTabContentReady(true), 50);
+      const timer = setTimeout(
+        () => setIsTabContentReady(true),
+        TVSheetTiming.tabContentDelayMs,
+      );
       return () => clearTimeout(timer);
     }
     setIsTabContentReady(false);
   }, [activeTab, isReady]);
 
-  const handleClose = useCallback(() => {
+  const close = useCallback(() => {
     store.set(tvSubtitleModalAtom, null);
     router.back();
   }, [router]);
+
+  const handleClose = useCallback(() => {
+    if (!submission.dismiss()) return;
+    close();
+  }, [close, submission]);
 
   // Intercept back/menu press to close the modal instead of the player
   useTVBackPress(() => {
@@ -651,27 +676,35 @@ export default function TVSubtitleModal() {
 
   const handleTrackSelect = useCallback(
     (option: { setTrack?: () => void }) => {
+      if (!submission.dismiss()) return;
       if (modalState?.deferApplyUntilDismissed) {
         // Player: setTrack can navigate (replacePlayer for a burn-in switch
         // while transcoding); a router.replace fired while this modal is the
         // active route targets the MODAL and is swallowed. Close FIRST, apply
         // after dismissal.
-        handleClose();
+        close();
         InteractionManager.runAfterInteractions(() => option.setTrack?.());
         return;
       }
       // Detail page: setTrack only updates state. Run it BEFORE closing so the
       // re-render happens while the modal is up; deferring it until after
       // dismissal re-renders the detail page after focus returns and yanks TV
-      // focus, leaving navigation stuck.
-      option.setTrack?.();
-      handleClose();
+      // focus, leaving navigation stuck. The guard is spent already, so the
+      // sheet closes even when the track throws.
+      try {
+        option.setTrack?.();
+      } finally {
+        close();
+      }
     },
-    [handleClose, modalState?.deferApplyUntilDismissed],
+    [close, modalState?.deferApplyUntilDismissed, submission],
   );
 
   const handleDownload = useCallback(
     async (result: SubtitleSearchResult) => {
+      // One download at a time: a second press in the same batch lands before
+      // downloadingId disables the cards.
+      if (!submission.start()) return;
       setDownloadingId(result.id);
 
       try {
@@ -737,12 +770,13 @@ export default function TVSubtitleModal() {
       } catch (error) {
         console.error("Failed to download subtitle:", error);
       } finally {
+        submission.finish();
         if (isMountedRef.current) {
           setDownloadingId(null);
         }
       }
     },
-    [downloadAsync, modalState, handleClose],
+    [downloadAsync, modalState, handleClose, submission],
   );
 
   const displayLanguages = useMemo(
@@ -959,6 +993,10 @@ export default function TVSubtitleModal() {
                             result={result}
                             hasTVPreferredFocus={index === 0}
                             isDownloading={downloadingId === result.id}
+                            dimmed={
+                              downloadingId !== null &&
+                              downloadingId !== result.id
+                            }
                             onPress={() => handleDownload(result)}
                           />
                         ))}
