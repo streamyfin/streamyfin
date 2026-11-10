@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
+import expo.modules.mpvplayer.nativeplayer.engine.isRemote
 import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,6 +83,22 @@ class PlayerViewModel : PlayerEngine.Delegate {
      * dialogue boost, mono downmix, audio/subtitle sync).
      */
     var isMpvEngine by mutableStateOf(true)
+
+    /** What the chrome offers for the engine it holds, read once per presentation. */
+    var capabilities by mutableStateOf(
+        ChromeCapabilities.of(isRemote = false, pictureInPictureSupported = false, canChangeSpeed = true)
+    )
+        private set
+
+    /** Only the session knows whether the device floats a picture; the rest comes from the engine. */
+    fun applyCapabilities(pictureInPictureSupported: Boolean) {
+        val held = engine
+        capabilities = ChromeCapabilities.of(
+            isRemote = held?.isRemote ?: false,
+            pictureInPictureSupported = pictureInPictureSupported,
+            canChangeSpeed = held?.canChangeSpeed ?: true,
+        )
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -683,6 +700,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
+        // Before SyncPlay's own rule: an engine that cannot change speed gets no speed at all.
+        if (!capabilities.speed) return
         if (syncPlayActive) { forceSyncSpeed(); return }
         speed = newSpeed
         engine?.setSpeed(newSpeed)
@@ -692,7 +711,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun startHoldSpeed() {
-        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (!capabilities.speed || syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
@@ -825,6 +844,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Video Zoom & Track Controls
     fun toggleZoomToFill() {
+        if (!capabilities.zoom) return
         haptic()
         isZoomedToFill = !isZoomedToFill
         applyZoomState()

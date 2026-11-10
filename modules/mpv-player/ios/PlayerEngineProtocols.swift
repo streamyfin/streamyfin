@@ -117,6 +117,8 @@ protocol TransportEngine: AnyObject {
 	func requestPlaying(_ playing: Bool)
 	func requestSeek(by offset: Double)
 	func setSpeed(speed: Double)
+	/// False when the engine's target cannot change the playback rate: the chrome then offers none.
+	var canChangeSpeed: Bool { get }
 	func setMute(_ muted: Bool)
 	func getSpeed() -> Double
 	func isPaused() -> Bool
@@ -142,6 +144,8 @@ protocol TransportEngine: AnyObject {
 /// The defaults the concrete engine used to carry as default arguments: a protocol
 /// requirement cannot, so the hosts keep their short calls here.
 extension TransportEngine {
+	/// Every engine changes speed unless it says otherwise.
+	var canChangeSpeed: Bool { true }
 	func loadVideo(config: VideoLoadConfig) { loadVideo(config: config, force: false) }
 	func seekTo(position: Double) { seekTo(position: position, exact: false) }
 	func addSubtitleFile(url: String) { addSubtitleFile(url: url, select: true) }
@@ -214,6 +218,12 @@ typealias PlayerEngine = ChromeEngine & RenderingEngine
 /// Whether the chrome offers picture in picture: only an engine with a screen that can float.
 func pictureInPictureSupported(by engine: ChromeEngine?) -> Bool {
 	(engine as? RenderingEngine)?.isPictureInPictureSupported() == true
+}
+
+/// An engine without the rendering face has no screen on this device: it plays somewhere else.
+func isRemoteEngine(_ engine: ChromeEngine?) -> Bool {
+	guard let engine else { return false }
+	return !(engine is RenderingEngine)
 }
 
 /// The engine's technical info, for the overlay and JS. An engine without a screen answers with

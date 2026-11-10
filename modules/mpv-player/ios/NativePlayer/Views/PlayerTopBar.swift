@@ -49,13 +49,13 @@ struct PlayerTopBar: View {
 					.accessibilityIdentifier("syncplay-open-queue")
 			}
 
-			if viewModel.canPictureInPicture {
+			if viewModel.capabilities.pictureInPicture {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
 					viewModel.togglePictureInPicture()
 				}
 			}
 
-			if !compact {
+			if !compact && viewModel.capabilities.zoom {
 				barButton(
 					systemName: viewModel.isZoomedToFill
 						? "arrow.down.right.and.arrow.up.left"
@@ -73,7 +73,7 @@ struct PlayerTopBar: View {
 				.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 			}
 
-			if !compact && !viewModel.isSyncPlayActive {
+			if !compact && !viewModel.isSyncPlayActive && viewModel.capabilities.speed {
 				speedMenu
 			}
 
@@ -121,15 +121,17 @@ struct PlayerTopBar: View {
 	private var audioTracksMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
-			Divider()
-			Menu {
-				syncOffsetEntries(current: viewModel.audioDelay) { viewModel.setAudioDelay($0) }
-			} label: {
-				Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
+			if viewModel.capabilities.decoderSettings {
+				Divider()
+				Menu {
+					syncOffsetEntries(current: viewModel.audioDelay) { viewModel.setAudioDelay($0) }
+				} label: {
+					Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
+				}
+				volumeBoostMenu
+				dialogueBoostButton
+				monoAudioButton
 			}
-			volumeBoostMenu
-			dialogueBoostButton
-			monoAudioButton
 		} label: {
 			barIcon(systemName: "waveform")
 		}
@@ -222,20 +224,22 @@ struct PlayerTopBar: View {
 	private var subtitlesMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
-			Divider()
-			Button {
-				viewModel.showSubtitleScaleControl = true
-			} label: {
-				Label(
-					"\(viewModel.str("subtitleSize", "Subtitle size")): \(String(format: "%.1f×", viewModel.subtitleScale))",
-					systemImage: "textformat.size"
-				)
-			}
-			.disabled(viewModel.subtitleScaleLocked)
-			Menu {
-				syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
-			} label: {
-				Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
+			if viewModel.capabilities.decoderSettings {
+				Divider()
+				Button {
+					viewModel.showSubtitleScaleControl = true
+				} label: {
+					Label(
+						"\(viewModel.str("subtitleSize", "Subtitle size")): \(String(format: "%.1f×", viewModel.subtitleScale))",
+						systemImage: "textformat.size"
+					)
+				}
+				.disabled(viewModel.subtitleScaleLocked)
+				Menu {
+					syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
+				} label: {
+					Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
+				}
 			}
 			if viewModel.subtitleSearchEnabled {
 				Button {
@@ -255,16 +259,18 @@ struct PlayerTopBar: View {
 	private var moreMenu: some View {
 		Menu {
 			if compact {
-				Button {
-					viewModel.toggleZoomToFill()
-				} label: {
-					if viewModel.isZoomedToFill {
-						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "checkmark")
-					} else {
-						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
+				if viewModel.capabilities.zoom {
+					Button {
+						viewModel.toggleZoomToFill()
+					} label: {
+						if viewModel.isZoomedToFill {
+							Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "checkmark")
+						} else {
+							Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
+						}
 					}
 				}
-				if !viewModel.isSyncPlayActive {
+				if !viewModel.isSyncPlayActive && viewModel.capabilities.speed {
 					Menu {
 						speedMenuEntries
 					} label: {
@@ -303,14 +309,16 @@ struct PlayerTopBar: View {
 			} label: {
 				Label(viewModel.str("lockControls", "Lock controls"), systemImage: "lock")
 			}
-			Button {
-				viewModel.showTechnicalInfo.toggle()
-				viewModel.scheduleAutoHide()
-			} label: {
-				if viewModel.showTechnicalInfo {
-					Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "checkmark")
-				} else {
-					Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "info.circle")
+			if viewModel.capabilities.technicalInfo {
+				Button {
+					viewModel.showTechnicalInfo.toggle()
+					viewModel.scheduleAutoHide()
+				} label: {
+					if viewModel.showTechnicalInfo {
+						Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "checkmark")
+					} else {
+						Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "info.circle")
+					}
 				}
 			}
 		} label: {

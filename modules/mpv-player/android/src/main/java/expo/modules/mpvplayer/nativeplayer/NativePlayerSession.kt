@@ -173,6 +173,7 @@ class NativePlayerSession(
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
+                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported())
                 // The menus follow the engine built here: a later load never swaps it.
                 viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
@@ -362,7 +363,7 @@ class NativePlayerSession(
                 PlayerTheme {
                     PlayerScreen(
                         viewModel = viewModel,
-                        onPipClick = if (isPiPSupported()) {
+                        onPipClick = if (viewModel.capabilities.pictureInPicture) {
                             { enterPiP() }
                         } else null
                     )

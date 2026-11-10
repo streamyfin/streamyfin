@@ -34,8 +34,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// reads as never in it.
 	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 
-	/// Whether the PiP button shows: the engine has a screen that can float.
-	var canPictureInPicture: Bool { pictureInPictureSupported(by: engine) }
+	/// What the chrome offers for the engine it holds, read from it at each look: the PiP
+	/// button needs a screen that can float, and a remote engine drives nothing on this device.
+	var capabilities: ChromeCapabilities {
+		ChromeCapabilities.of(
+			isRemote: isRemoteEngine(engine),
+			pictureInPictureSupported: pictureInPictureSupported(by: engine),
+			canChangeSpeed: engine?.canChangeSpeed ?? true
+		)
+	}
 
 	/// What the technical info overlay shows: empty for an engine without a screen.
 	func technicalInfo(completion: @escaping ([String: Any]) -> Void) {
@@ -994,6 +1001,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: Zoom to fill
 
 	func toggleZoomToFill() {
+		guard capabilities.zoom else { return }
 		haptic()
 		isZoomedToFill.toggle()
 		applyZoomState()
@@ -1012,7 +1020,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var pinchActionTaken = false
 
 	func pinchBegan() {
-		guard pinchToZoomEnabled, !controlsLocked, !showStillWatching,
+		guard pinchToZoomEnabled, capabilities.zoom, !controlsLocked, !showStillWatching,
 			errorMessage == nil
 		else { return }
 		isPinching = true
@@ -1097,7 +1105,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Same as the volume reveal, for the brightness gesture: the vertical
 	/// drag needs its pill as feedback while the chrome is hidden.
 	func revealBrightnessSliderTransiently() {
-		guard showBrightnessSlider, !controlsVisible, !isTearingDown else { return }
+		guard showBrightnessSlider, capabilities.brightness, !controlsVisible, !isTearingDown else { return }
 		brightnessSliderRevealed = true
 		brightnessRevealTask?.cancel()
 		brightnessRevealTask = Task { [weak self] in
@@ -1214,6 +1222,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func setSpeed(_ newSpeed: Double) {
+		// An engine that cannot change speed gets none, whoever asks.
+		guard capabilities.speed else { return }
 		guard !isSyncPlayActive else { return }
 		// A deliberate speed choice (menu / remote) wins over a transient hold.
 		isHoldSpeedActive = false
@@ -1241,7 +1251,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// user's speed preference.
 	func beginHoldSpeed() {
 		guard !isSyncPlayActive else { return }
-		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
+		guard holdToSpeedEnabled, capabilities.speed, holdToSpeedRate > 0, !isHoldSpeedActive,
 			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
 		speedBeforeHold = speed

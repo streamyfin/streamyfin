@@ -145,7 +145,7 @@ fun PlayerTopBar(
         }
 
         // Zoom to fill button (if not compact)
-        if (!compact) {
+        if (!compact && viewModel.capabilities.zoom) {
             IconButton(
                 onClick = { viewModel.toggleZoomToFill() },
                 modifier = Modifier.size(40.dp)
@@ -176,7 +176,7 @@ fun PlayerTopBar(
         }
 
         // Speed Menu Button (if not compact)
-        if (!compact && !viewModel.syncPlayActive) {
+        if (!compact && !viewModel.syncPlayActive && viewModel.capabilities.speed) {
             Box {
                 IconButton(
                     onClick = {
@@ -272,7 +272,7 @@ fun PlayerTopBar(
 
                     // The blocks below drive mpv-only engine calls (no-ops on
                     // the Media3 engine) — hidden for an exo session.
-                    if (viewModel.isMpvEngine) {
+                    if (viewModel.isMpvEngine && viewModel.capabilities.decoderSettings) {
                         HorizontalDivider()
 
                         // Sync Delays
@@ -421,7 +421,7 @@ fun PlayerTopBar(
 
                     HorizontalDivider()
 
-                    if (!viewModel.subtitleScaleLocked) {
+                    if (!viewModel.subtitleScaleLocked && viewModel.capabilities.decoderSettings) {
                         Text(
                             text = viewModel.strings.get("subtitleSize", "Subtitle Size"),
                             fontWeight = FontWeight.Bold,
@@ -440,30 +440,32 @@ fun PlayerTopBar(
                         HorizontalDivider()
                     }
 
-                    // Subtitle Sync
-                    Text(
-                        text = viewModel.strings.get("subtitleSync", "Subtitle Sync"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                    PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (offset == 0.0) "0 s" else "${offset} s")
-                                    if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            },
-                            onClick = {
-                                viewModel.setSubtitleDelay(offset)
-                                showSubtitleMenu = false
-                            }
+                    if (viewModel.capabilities.decoderSettings) {
+                        // Subtitle Sync
+                        Text(
+                            text = viewModel.strings.get("subtitleSync", "Subtitle Sync"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
+                        PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(if (offset == 0.0) "0 s" else "${offset} s")
+                                        if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.setSubtitleDelay(offset)
+                                    showSubtitleMenu = false
+                                }
+                            )
+                        }
                     }
 
                     if (viewModel.uiOptions.subtitleSearchEnabled) {
@@ -509,7 +511,7 @@ fun PlayerTopBar(
                     viewModel.scheduleAutoHide()
                 }
             ) {
-                if (compact) {
+                if (compact && viewModel.capabilities.zoom) {
                     DropdownMenuItem(
                         text = { Text(viewModel.strings.get("zoomToFill", "Zoom to Fill")) },
                         onClick = {
@@ -639,20 +641,22 @@ fun PlayerTopBar(
                     }
                 )
 
-                // Technical Info
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                if (viewModel.capabilities.technicalInfo) {
+                    // Technical Info
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                            }
+                        },
+                        onClick = {
+                            viewModel.showTechnicalInfo = !viewModel.showTechnicalInfo
+                            showMoreMenu = false
                         }
-                    },
-                    onClick = {
-                        viewModel.showTechnicalInfo = !viewModel.showTechnicalInfo
-                        showMoreMenu = false
-                    }
-                )
+                    )
+                }
             }
         }
     }
