@@ -369,7 +369,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun apply(config: PlayerPresentConfigRecord) {
         updateSyncPlay(config.syncPlay)
-        isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
