@@ -34,6 +34,17 @@ export const CastMediaPlayerState = {
 export type CastMediaPlayerStateValue =
   (typeof CastMediaPlayerState)[keyof typeof CastMediaPlayerState];
 
+/** Why an idle receiver stopped, as both SDKs name it. */
+export const CastIdleReason = {
+  NONE: "none",
+  FINISHED: "finished",
+  CANCELLED: "cancelled",
+  INTERRUPTED: "interrupted",
+  ERROR: "error",
+} as const;
+export type CastIdleReasonValue =
+  (typeof CastIdleReason)[keyof typeof CastIdleReason];
+
 export interface CastDevice {
   deviceId: string;
   friendlyName: string;
@@ -90,6 +101,11 @@ export interface CastMediaInfo {
 
 export interface CastMediaStatus {
   playerState: CastMediaPlayerStateValue;
+  /**
+   * Why an idle receiver stopped: a stop, the end, another load, or a stream it could not play ("error"); "none"
+   * while it plays. Both modules always send it; a status built by hand may leave it out.
+   */
+  idleReason?: CastIdleReasonValue;
   currentItemId: number | null;
   /** The position at the receiver's last report, which comes on events only (a seek, a pause, a buffer). */
   streamPosition: number;

@@ -75,6 +75,9 @@ const RemoteTargetMemory = Platform.isTV
 const OutputPickerActions = Platform.isTV
   ? null
   : require("@/components/cast/OutputPickerActions").OutputPickerActions;
+const CastFailureNotice = Platform.isTV
+  ? null
+  : require("@/components/cast/CastFailureNotice").CastFailureNotice;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -515,6 +518,9 @@ function Layout() {
                                       )}
                                       {OutputPickerActions && (
                                         <OutputPickerActions />
+                                      )}
+                                      {CastFailureNotice && (
+                                        <CastFailureNotice />
                                       )}
                                       <Stack initialRouteName='(auth)/(tabs)'>
                                         <Stack.Screen

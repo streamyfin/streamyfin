@@ -34,4 +34,16 @@ class CastRecordsTest {
         assertEquals(listOf(4L), record?.get("activeTrackIds"))
         assertEquals(listOf(3L, 4L), (record?.get("mediaInfo") as? Map<*, *>)?.get("textTrackIds"))
     }
+
+    // A stream the receiver could not play leaves it idle like a stop or an end: only the reason tells them apart.
+    @Test
+    fun anIdleStatusSaysWhyTheReceiverStopped() {
+        val status =
+            MediaStatus.Builder()
+                .setPlayerState(MediaStatus.PLAYER_STATE_IDLE)
+                .setIdleReason(MediaStatus.IDLE_REASON_ERROR)
+                .build()
+
+        assertEquals("error", CastRecords.mediaStatus(status)?.get("idleReason"))
+    }
 }

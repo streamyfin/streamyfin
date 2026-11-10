@@ -18,6 +18,8 @@ enum CastRecords {
     guard let status else { return nil }
     return [
       "playerState": CastMapping.playerStateName(status.playerState.rawValue),
+      // An idle receiver stopped, finished, or could not play the stream: only the reason tells them apart.
+      "idleReason": CastMapping.idleReasonName(status.idleReason.rawValue),
       "currentItemId": status.currentItemID == kGCKMediaQueueInvalidItemID ? nil : Int(status.currentItemID),
       "streamPosition": status.streamPosition,
       "playbackRate": Double(status.playbackRate),

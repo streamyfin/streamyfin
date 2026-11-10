@@ -34,6 +34,9 @@ export const chooseRemotePlay = (command: unknown): PlayRequest | null => {
 export const isLatestPlayChoice = (choice: number): boolean =>
   choice === playChoice;
 
+/** The latest play choice, for what started without one of its own (a hand-off) and gives way to the next. */
+export const currentPlayChoice = (): number => playChoice;
+
 /** Where the Play button sends playback. */
 export type PlayDestination =
   | { where: "target"; name: string }

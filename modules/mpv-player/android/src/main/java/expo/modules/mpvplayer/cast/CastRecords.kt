@@ -24,6 +24,8 @@ object CastRecords {
     fun mediaStatus(status: MediaStatus?): Map<String, Any?>? = status?.let {
         mapOf(
             "playerState" to CastMapping.playerStateName(it.playerState),
+            // An idle receiver stopped, finished, or could not play the stream: only the reason tells them apart.
+            "idleReason" to CastMapping.idleReasonName(it.idleReason),
             "currentItemId" to it.currentItemId.takeIf { id -> id != MediaQueueItem.INVALID_ITEM_ID },
             // The SDK counts milliseconds; the screens, like the library before them, read seconds.
             "streamPosition" to it.streamPosition / 1000.0,
