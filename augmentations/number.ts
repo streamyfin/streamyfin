@@ -11,7 +11,7 @@ Number.prototype.bytesToReadable = function (decimals = 2) {
   if (bytes === 0) return "0 Bytes";
 
   const k = 1000;
-  const dm = decimals < 0 ? 0 : decimals;
+  const dm = Math.max(decimals, 0);
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));

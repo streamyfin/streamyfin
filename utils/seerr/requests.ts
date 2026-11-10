@@ -8,6 +8,7 @@ import {
   type MovieDetails,
   type MovieResult,
   type PersonCreditCast,
+  type ServarrTag,
   type TvDetails,
   type TvResult,
 } from "./types";
@@ -129,3 +130,22 @@ export const requestOffer = (
     canRequestMore(title as TvDetails, permissions, { specials });
   return { canRequest: asNew, requestMore: more, offersRequest: asNew || more };
 };
+
+/**
+ * The tags a request carries: the server's default tags until one is
+ * toggled in the request sheet, the picked ones from then on, none included.
+ */
+export const requestTagIds = (
+  picked: number[] | undefined,
+  defaults: ServarrTag[],
+): number[] => picked ?? defaults.map((tag) => tag.id);
+
+/** The labels of the tags `ids` names, in the server's order, or undefined for none. */
+export const requestTagsLabel = (
+  tags: ServarrTag[],
+  ids: number[],
+): string | undefined =>
+  tags
+    .filter((tag) => ids.includes(tag.id))
+    .map((tag) => tag.label)
+    .join(", ") || undefined;

@@ -1,9 +1,9 @@
-import { findNodeHandle, type View } from "react-native";
+import { findNodeHandle, type ViewInstance } from "react-native";
 import type { OutputPickerAnchor } from "@/modules/mpv-player/src/cast";
 
 /** A view's frame in window coordinates, which the output sheet's popover points at; null without a view. */
 export const measureInWindow = (
-  view: View | null,
+  view: ViewInstance | null,
 ): Promise<OutputPickerAnchor | null> =>
   new Promise((resolve) => {
     if (!view) {
@@ -16,5 +16,5 @@ export const measureInWindow = (
   });
 
 /** A view's native tag, which the popover follows when the window turns or resizes; null without a view. */
-export const nativeTagOf = (view: View | null): number | null =>
-  view ? findNodeHandle(view) : null;
+export const nativeTagOf = (view: ViewInstance | null): number | null =>
+  view ? (findNodeHandle(view) ?? null) : null;

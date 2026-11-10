@@ -1363,7 +1363,7 @@ class MPVLayerRenderer(
                 // Add external subtitles now that file is loaded
                 if (pendingExternalSubtitles.isNotEmpty()) {
                     pendingExternalSubtitles.forEachIndexed { index, subUrl ->
-                        android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: $subUrl")
+                        android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: ${redactCredentials(subUrl)}")
                         // "auto" flag = add without auto-selecting (order preserved, MPVLib.command is sync)
                         mpv?.command(arrayOf("sub-add", subUrl, "auto"))
                     }

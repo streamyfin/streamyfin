@@ -14,7 +14,9 @@ import {
 } from "@/providers/AudioStorage";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
-export const MusicPlaybackEngine: React.FC = () => {
+// Mounted once the player is ready: these hooks read the native state a single
+// time on mount and swallow the rejection when there is no player.
+const MusicPlaybackPolling: React.FC = () => {
   const { position, duration } = useProgress(1000);
   const playbackState = usePlaybackState();
   const activeTrack = useActiveTrack();
@@ -23,9 +25,7 @@ export const MusicPlaybackEngine: React.FC = () => {
     setDuration,
     setIsPlaying,
     reportProgress,
-    onTrackEnd,
     syncFromTrackPlayer,
-    triggerLookahead,
   } = useMusicPlayer();
 
   const lastReportedProgressRef = useRef(0);
@@ -67,6 +67,14 @@ export const MusicPlaybackEngine: React.FC = () => {
       reportProgress();
     }
   }, [position, reportProgress]);
+
+  return null;
+};
+
+// The listeners need no player and must exist before the first track is added,
+// or the first track change is missed.
+export const MusicPlaybackEngine: React.FC = () => {
+  const { isPlayerReady, onTrackEnd, triggerLookahead } = useMusicPlayer();
 
   // Listen for track changes (native -> JS)
   // This triggers look-ahead caching, checks for cached versions, and handles track end
@@ -218,5 +226,5 @@ export const MusicPlaybackEngine: React.FC = () => {
   }, []);
 
   // No visual component needed - TrackPlayer is headless
-  return null;
+  return isPlayerReady ? <MusicPlaybackPolling /> : null;
 };
