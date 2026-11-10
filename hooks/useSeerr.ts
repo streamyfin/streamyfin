@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom, useAtomValue } from "jotai";
-import { useAtom } from "jotai/index";
-import { inRange } from "lodash";
+import { atom, useAtom, useAtomValue } from "jotai";
+import inRange from "lodash/inRange";
 import { Image } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
@@ -75,9 +74,12 @@ interface SearchResults {
 // changed name twice (overseerr_ up to Jellyseerr 2.3, jellyseerr_ up to 2.7,
 // seerr_ since Seerr 3), and a name it does not know answers with its HTML
 // page, a broken image.
-const POSTER_PLACEHOLDER = Image.resolveAssetSource(
-  require("@/assets/images/seerr-poster-placeholder.png"),
-).uri;
+// resolveAssetSource only answers undefined for a source it cannot read, and
+// a bundled require() always resolves.
+const POSTER_PLACEHOLDER =
+  Image.resolveAssetSource(
+    require("@/assets/images/seerr-poster-placeholder.png"),
+  )?.uri ?? "";
 
 export const clearSeerrStorageData = () => {
   storage.remove(SEERR_USER_STORAGE_KEY);
