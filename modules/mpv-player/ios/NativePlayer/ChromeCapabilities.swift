@@ -14,15 +14,20 @@ struct ChromeCapabilities: Equatable {
 	let technicalInfo: Bool
 	/// The speed menu, the hold to speed up and the initial speed.
 	let speed: Bool
+	/// The Cast button, which hands this device's video off to a receiver: JS allows it, for a local engine.
+	var cast = false
 
-	static func of(isRemote: Bool, pictureInPictureSupported: Bool, canChangeSpeed: Bool) -> ChromeCapabilities {
+	static func of(
+		isRemote: Bool, pictureInPictureSupported: Bool, canChangeSpeed: Bool, allowCast: Bool = false
+	) -> ChromeCapabilities {
 		ChromeCapabilities(
 			pictureInPicture: !isRemote && pictureInPictureSupported,
 			zoom: !isRemote,
 			brightness: !isRemote,
 			decoderSettings: !isRemote,
 			technicalInfo: !isRemote,
-			speed: canChangeSpeed
+			speed: canChangeSpeed,
+			cast: !isRemote && allowCast
 		)
 	}
 }

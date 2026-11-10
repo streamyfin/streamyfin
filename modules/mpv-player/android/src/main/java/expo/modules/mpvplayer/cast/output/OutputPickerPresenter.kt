@@ -2,6 +2,8 @@ package expo.modules.mpvplayer.cast.output
 
 import android.app.Activity
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -28,6 +30,7 @@ import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.RemoteTargetListener
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
 import expo.modules.mpvplayer.cast.target.TargetDevice
+import expo.modules.mpvplayer.cast.target.TargetPhase
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 
 /**
@@ -41,11 +44,15 @@ object OutputPickerPresenter {
     private var host: ComposeView? = null
     private var controller: OutputSheetController? = null
     private var onRemote: (() -> Unit)? = null
+    private var onHandOff: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
     // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
     private val anchorBounds = mutableStateOf<IntRect?>(null)
     private var anchorView: View? = null
     private var removeTargetWatch: (() -> Unit)? = null
+    // A hand-off whose sheet closed before its receiver connected: it goes once the receiver is connected.
+    private var removeHandOffWatch: (() -> Unit)? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     // A session that ends or starts changes what the receiver plays before any media status says so.
     private val targetWatcher =
@@ -127,14 +134,33 @@ object OutputPickerPresenter {
     @VisibleForTesting
     internal var resolvePlayServices = defaultResolvePlayServices
 
-    /** False on a TV, which has no sheet; true once presented, or already there. */
+    /**
+     * False on a TV, which has no sheet; true once presented, or already there. [handOff] is the player's: a receiver
+     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff].
+     */
     @MainThread
-    fun present(activity: Activity, anchor: Rect?, playingHere: String?, anchorView: View? = null, onRemote: () -> Unit): Boolean {
+    fun present(
+        activity: Activity,
+        anchor: Rect?,
+        playingHere: String?,
+        anchorView: View? = null,
+        handOff: Boolean = false,
+        onHandOff: (() -> Unit)? = null,
+        onRemote: () -> Unit,
+    ): Boolean {
         if (DeviceKind.isTelevision(activity)) return false
+        // A new sheet takes over a hand-off the last one left waiting.
+        stopHandOffWatch()
         this.onRemote = onRemote
+        this.onHandOff = onHandOff
         controller?.let { sheet ->
             sheet.environment =
-                sheet.environment.copy(playingHere = playingHere, receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
+                sheet.environment.copy(
+                    playingHere = playingHere,
+                    receiverTitle = receiverTitle(),
+                    receiverPlaying = receiverPlaying(),
+                    handOff = handOff,
+                )
             return true
         }
         val sheet = OutputSheetController(RemoteTargetHub.shared, mainLooperSchedule())
@@ -145,6 +171,7 @@ object OutputPickerPresenter {
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
                 receiverPlaying = receiverPlaying(),
+                handOff = handOff,
             )
         sheet.onOutput = { output -> handle(activity, output) }
         anchorBounds.value = anchorView?.let(::windowBounds) ?: anchor?.let { IntRect(it.left, it.top, it.right, it.bottom) }
@@ -170,8 +197,27 @@ object OutputPickerPresenter {
     }
 
     @MainThread
-    fun dismiss() {
+    fun dismiss() = dismiss(keepHandOff = true)
+
+    /** The player that opened the sheet closes: its sheet goes with it, and a hand-off still waiting for a receiver. */
+    @MainThread
+    fun dismissPlayerSheet() {
+        stopHandOffWatch()
+        if (controller?.environment?.handOff == true) dismiss(keepHandOff = false)
+    }
+
+    /**
+     * A player opens over the app's sheet (a remote Play): the sheet goes first, or it would stay above the player and
+     * connect a receiver without handing the video off. The player's own Cast button opens a sheet of its own.
+     */
+    @MainThread
+    fun dismissForPlayer() = dismiss(keepHandOff = false)
+
+    private fun dismiss(keepHandOff: Boolean) {
         val view = host ?: return
+        // The player's sheet closed while the receiver it asked for connects: the video still goes once it is.
+        val awaited = controller?.takeIf { keepHandOff && it.environment.handOff }?.awaitedReceiver
+        val handOff = onHandOff
         host = null
         hostLifecycle?.removeObserver(hostWatcher)
         hostLifecycle = null
@@ -180,11 +226,37 @@ object OutputPickerPresenter {
         controller?.close()
         controller = null
         onRemote = null
+        onHandOff = null
         anchorView?.viewTreeObserver?.removeOnGlobalLayoutListener(anchorWatcher)
         anchorView = null
         anchorBounds.value = null
         (view.parent as? ViewGroup)?.removeView(view)
         onDismissed?.invoke()
+        if (awaited != null && handOff != null) followHandOff(awaited, handOff)
+    }
+
+    private fun followHandOff(deviceId: String, handOff: () -> Unit) {
+        stopHandOffWatch()
+        removeHandOffWatch =
+            RemoteTargetHub.shared.addListener(
+                object : RemoteTargetListener {
+                    override fun targetChanged(snapshot: RemoteTargetSnapshot) {
+                        if (snapshot.phase == TargetPhase.CONNECTED && snapshot.target?.id == deviceId) {
+                            stopHandOffWatch()
+                            mainHandler.post(handOff)
+                        } else if (snapshot.phase == TargetPhase.NONE || snapshot.failedTarget?.id == deviceId) {
+                            stopHandOffWatch()
+                        }
+                    }
+
+                    override fun devicesChanged(devices: List<TargetDevice>) = Unit
+                },
+            )
+    }
+
+    private fun stopHandOffWatch() {
+        removeHandOffWatch?.invoke()
+        removeHandOffWatch = null
     }
 
     /** The receiver started or changed what it plays: the panel's remote row follows. */
@@ -210,6 +282,14 @@ object OutputPickerPresenter {
                 val remote = onRemote
                 dismiss()
                 remote?.invoke()
+            }
+            // The same way: the player hands its video off once the sheet is gone.
+            OutputSheetOutput.HAND_OFF -> {
+                val handOff = onHandOff
+                dismiss()
+                // Posted: the SDK runs its session listeners one after the other, the module's own caching the session
+                // JS reads when it sends the item.
+                handOff?.let { mainHandler.post(it) }
             }
             OutputSheetOutput.DISMISS -> dismiss()
             // Its first step is the check below, which can throw the same way.

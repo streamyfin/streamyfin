@@ -47,7 +47,7 @@ public class NativePlayerModule: Module {
 			"onNextEpisodeRequested", "onPreviousEpisodeRequested",
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss",
 			"onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-			"onMuteStateChanged", "onSyncPlayAction"
+			"onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested"
 		)
 
 		// MARK: - Lifecycle

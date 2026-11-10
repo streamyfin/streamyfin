@@ -159,6 +159,24 @@ enum OutputSheetTests {
       )
     }
 
+    // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
+    do {
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      let connected = RemoteTargetSnapshot(
+        phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
+      )
+      var held = input(snapshot: reconnecting)
+      held.handOff = true
+      var back = input(snapshot: connected)
+      back.handOff = true
+      check(
+        "noHandOffWhileReconnecting",
+        panel(outputSheetState(held))?.canHandOff == false && panel(outputSheetState(back))?.canHandOff == true
+      )
+    }
+
     // A suspended session loses its media client until it resumes, and the resumed client reports nothing until the
     // receiver sends: the last status heard stands in meanwhile, until the receiver reports again or the session ends.
     do {
@@ -246,6 +264,44 @@ enum OutputSheetTests {
     func deviceRow(_ sheet: OutputSheetController, _ device: TargetDevice) -> OutputRow {
       rows(sheet.state).first { if case let .device(id, _, _, _) = $0 { return id == device.id } else { return false } }
         ?? .status(.searching)
+    }
+
+    // Opened from the player, the connection the sheet asks for hands the video off, once, instead of drawing the panel.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      sheet.environment.handOff = true
+      sheet.tap(deviceRow(sheet, livingRoom))
+      port.emit("started", livingRoom)
+      port.events?.volumeChanged(level: 0.5, muted: false)
+      check("aConnectionMadeFromThePlayerHandsOff", outputs == [.handOff])
+    }
+
+    // Opened from the player over a receiver already connected, the panel offers to play there.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      sheet.environment.handOff = true
+      port.emit("started", livingRoom)
+      let offered = panel(sheet.state)?.canHandOff == true
+      sheet.handOff()
+      check("aConnectedTargetOffersTheHandOffInThePanel", offered && outputs == [.handOff])
+    }
+
+    // Opened anywhere else, the same connection draws the panel and hands nothing off.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      sheet.tap(deviceRow(sheet, livingRoom))
+      port.emit("started", livingRoom)
+      let shown = panel(sheet.state)
+      check(
+        "outsideThePlayerNothingHandsOff",
+        shown?.target.id == "device-a" && shown?.canHandOff == false && outputs.isEmpty
+      )
     }
 
     // A failure is read once: the sheet that showed it clears it on closing, and the next one opens clean.

@@ -8,8 +8,11 @@ import expo.modules.mpvplayer.cast.target.TargetDevice
 import expo.modules.mpvplayer.cast.target.TargetPhase
 import kotlin.math.abs
 
-/** What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing. */
-enum class OutputSheetOutput { OPEN_AIRPLAY, RESOLVE_PLAY_SERVICES, REMOTE, DISMISS }
+/**
+ * What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
+ * player's video handed off to the receiver.
+ */
+enum class OutputSheetOutput { OPEN_AIRPLAY, RESOLVE_PLAY_SERVICES, REMOTE, DISMISS, HAND_OFF }
 
 /** What the screen that opened the sheet knows, and the hub does not. */
 data class OutputSheetEnvironment(
@@ -19,6 +22,8 @@ data class OutputSheetEnvironment(
     val playingHere: String? = null,
     val receiverTitle: String? = null,
     val receiverPlaying: Boolean = false,
+    /** Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel. */
+    val handOff: Boolean = false,
 )
 
 /**
@@ -48,6 +53,10 @@ class OutputSheetController(
     private var requestedId: String? = null
     // The receiver whose connection brings the panel back over the list "Change" opened.
     private var panelOn: String? = null
+
+    /** The receiver the sheet asked for and waits to see connected, if any. */
+    val awaitedReceiver: String?
+        get() = panelOn
     private var removeListener: (() -> Unit)? = null
     private var cancelSearch: (() -> Unit)? = null
     private var cancelSettle: (() -> Unit)? = null
@@ -188,6 +197,9 @@ class OutputSheetController(
 
     fun remote() = onOutput?.invoke(OutputSheetOutput.REMOTE)
 
+    /** The panel's "Play on", drawn only while it can hand off. */
+    fun handOff() = onOutput?.invoke(OutputSheetOutput.HAND_OFF)
+
     override fun targetChanged(snapshot: RemoteTargetSnapshot) {
         val sent = held
         val level = snapshot.volume
@@ -203,11 +215,14 @@ class OutputSheetController(
         if (asked != null && (took || snapshot.failedTarget?.id == asked)) requestedId = null
         val panel = panelOn
         if (panel != null && snapshot.failedTarget?.id == panel && snapshot.error != null) panelOn = null
-        if (panel != null && snapshot.phase == TargetPhase.CONNECTED && snapshot.target?.id == panel) {
+        val arrived = panel != null && snapshot.phase == TargetPhase.CONNECTED && snapshot.target?.id == panel
+        if (arrived) {
             panelOn = null
             showingList = false
         }
         publish()
+        // From the player, the receiver the sheet asked for takes the video as soon as it is connected.
+        if (arrived && environment.handOff) onOutput?.invoke(OutputSheetOutput.HAND_OFF)
     }
 
     override fun devicesChanged(devices: List<TargetDevice>) = publish()
@@ -252,6 +267,7 @@ class OutputSheetController(
             showingList = showingList,
             draggedVolume = dragged ?: held,
             requestedId = requestedId,
+            handOff = environment.handOff,
         )
 
     private fun publish() {

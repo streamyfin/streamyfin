@@ -72,6 +72,91 @@ class OutputPickerPresenterTest {
         assertEquals(false, presentedAtTheRemote)
     }
 
+    // The player's video goes to the TV once the sheet is gone, as the remote does.
+    @Test
+    fun aHandOffClosesTheSheetThenCallsBack() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var presentedAtTheHandOff: Boolean? = null
+        OutputPickerPresenter.present(
+            screen.get(),
+            anchor = null,
+            playingHere = null,
+            handOff = true,
+            onHandOff = { presentedAtTheHandOff = OutputPickerPresenter.isPresented },
+        ) {}
+        val handOff = OutputPickerPresenter.presentedController?.environment?.handOff
+
+        OutputPickerPresenter.presentedController?.handOff()
+        // Posted: the SDK's session listeners run one after the other, the module's own caching the session JS reads.
+        val calledAtOnce = presentedAtTheHandOff != null
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals(true, handOff)
+        assertEquals(false, calledAtOnce)
+        assertEquals(false, presentedAtTheHandOff)
+    }
+
+    private fun connectFromThePlayerSheet(port: FakeTargetPort, handOffs: () -> Unit) {
+        RemoteTargetHub.shared.install(port)
+        OutputPickerPresenter.checkPlayServices = { ConnectionResult.SUCCESS }
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null, handOff = true, onHandOff = handOffs) {}
+        val sheet = OutputPickerPresenter.presentedController!!
+        sheet.tap((sheet.state as OutputSheetState.List).rows.filterIsInstance<OutputRow.Device>().first { it.id == livingRoom.id })
+    }
+
+    // The player's sheet closed while the receiver it asked for connects: the video still goes once it is connected.
+    @Test
+    fun aSheetClosedWhileItsReceiverConnectsStillHandsOff() {
+        val port = FakeTargetPort(known = listOf(livingRoom), listsOnDiscovery = true)
+        var handOffs = 0
+        connectFromThePlayerSheet(port) { handOffs++ }
+
+        OutputPickerPresenter.dismiss()
+        port.emit("started", livingRoom)
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals(1, handOffs)
+    }
+
+    // The player closing takes its sheet, and a hand-off still waiting for its receiver, with it.
+    @Test
+    fun aSheetClosedWithThePlayerHandsNothingOff() {
+        val port = FakeTargetPort(known = listOf(livingRoom), listsOnDiscovery = true)
+        var handOffs = 0
+        connectFromThePlayerSheet(port) { handOffs++ }
+
+        OutputPickerPresenter.dismissPlayerSheet()
+        port.emit("started", livingRoom)
+        shadowOf(getMainLooper()).idle()
+
+        assertFalse(OutputPickerPresenter.isPresented)
+        assertEquals(0, handOffs)
+    }
+
+    // The app's own sheet stays: only the player's goes with the player.
+    @Test
+    fun aClosingPlayerLeavesTheAppsSheet() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+
+        OutputPickerPresenter.dismissPlayerSheet()
+
+        assertTrue(OutputPickerPresenter.isPresented)
+    }
+
+    // A player opening over the app's sheet (a remote Play) takes it down: left above the player, the sheet would
+    // connect a receiver without handing the video off.
+    @Test
+    fun aPlayerOpeningOverTheAppsSheetClosesIt() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+
+        OutputPickerPresenter.dismissForPlayer()
+
+        assertFalse(OutputPickerPresenter.isPresented)
+    }
+
     // The probe's sheet never takes over one the app opened: the app's remote still answers, and its track stays.
     @Test
     fun theProbeLeavesASheetTheAppOpened() {

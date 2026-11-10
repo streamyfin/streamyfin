@@ -7,6 +7,9 @@ package expo.modules.mpvplayer.cast.output
 class OutputPickerStrings(private val strings: Map<String, String> = emptyMap()) {
     fun get(key: String): String = strings[key] ?: FALLBACKS[key] ?: key
 
+    /** "Play on" with the receiver's name, which the template leaves to native. */
+    fun playOn(name: String): String = get("playOn").replace("{{name}}", name)
+
     fun cause(cause: FailureCause): String =
         when (cause) {
             FailureCause.DeviceGone -> get("deviceGone")
@@ -38,6 +41,7 @@ class OutputPickerStrings(private val strings: Map<String, String> = emptyMap())
                 "unmute" to "Unmute",
                 "volume" to "Volume",
                 "remote" to "Remote",
+                "playOn" to "Play on {{name}}",
                 "stopPlayback" to "Stop playback",
                 "disconnect" to "Disconnect",
                 "deviceGone" to "This device is no longer on the network",

@@ -1,5 +1,8 @@
 import ExpoModulesCore
 import UIKit
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import GoogleCast
+#endif
 
 enum PlayerDismissReason: String {
 	case closeButton
@@ -59,6 +62,9 @@ final class NativePlayerSession {
 	// MARK: - Presentation
 
 	func present(config: PlayerPresentConfigRecord, promise: Promise) throws {
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.dismissForPlayer()
+		#endif
 		guard let presenter = resolvePresenter() else {
 			throw NoPresenterException()
 		}
@@ -66,6 +72,9 @@ final class NativePlayerSession {
 		try engine.start()
 
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		if viewModel.capabilities.cast { followCast() }
+		#endif
 
 		let vc = NativePlayerViewController(
 			engine: engine,
@@ -90,6 +99,26 @@ final class NativePlayerSession {
 			promise: promise
 		)
 	}
+
+	#if os(iOS) && !targetEnvironment(macCatalyst)
+	// The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+	// model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+	// app's sheet does.
+	private func followCast() {
+		viewModel.followCast()
+		viewModel.onOutputSheetRequested = { [weak viewModel] anchor in
+			guard let viewModel else { return }
+			let presenter = OutputPickerPresenter.shared
+			presenter.strings = OutputPickerStrings(viewModel.outputPickerStrings)
+			presenter.present(
+				anchor: anchor, playingHere: viewModel.metadata?.title, handOff: true,
+				onHandOff: { [weak viewModel] in viewModel?.requestCastHandOff() }
+			) {
+				GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+			}
+		}
+	}
+	#endif
 
 	/// The JS coordinator locks the window to landscape (expo-screen-orientation)
 	/// right before calling present, which starts rotating the whole app.
@@ -156,6 +185,10 @@ final class NativePlayerSession {
 	func load(config: PlayerPresentConfigRecord) {
 		viewModel.prepareForReload()
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// A stream that brings the Cast button needs its sheet: a player presented with a downloaded file had none.
+		if viewModel.capabilities.cast && viewModel.onOutputSheetRequested == nil { followCast() }
+		#endif
 		startStream(config: config, force: true)
 	}
 
@@ -245,6 +278,10 @@ final class NativePlayerSession {
 		isDismissing = true
 
 		viewModel.willTeardown()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// The player's dismissal takes the sheet it opened down too, without telling the sheet.
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
 		rendering?.setPictureInPictureAutoStartEnabled(false)
 		if rendering?.isPictureInPictureActive() == true {
 			rendering?.stopPictureInPicture()
@@ -301,6 +338,9 @@ final class NativePlayerSession {
 		guard !isDismissing else { return }
 		isDismissing = true
 		viewModel.willTeardown()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
 		let presenter = viewController?.presentingViewController
 		presenter?.dismiss(animated: false)
 		#if os(iOS)

@@ -195,6 +195,7 @@ export type OutputPickerStringKey =
   | "unmute"
   | "volume"
   | "remote"
+  | "playOn"
   | "stopPlayback"
   | "disconnect"
   | "deviceGone"

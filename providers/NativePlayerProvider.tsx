@@ -11,7 +11,7 @@ import {
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -78,6 +78,12 @@ import {
   updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
+import {
+  castClientFor,
+  currentCastSession,
+  remoteTarget,
+  showExpandedControls,
+} from "@/modules/mpv-player/src/cast";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -100,6 +106,8 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
+import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
+import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -131,6 +139,12 @@ import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import {
+  mayHandOff,
+  nextStepAfterSend,
+  resolveCastHandOff,
+  stepAfterRefusal,
+} from "@/utils/nativePlayer/resolveCastHandOff";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
@@ -396,6 +410,7 @@ const NativePlayerProviderInner: React.FC<{
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
+  const store = useStore();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
@@ -452,6 +467,8 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // Counts the player's hand-offs: only the latest closes or resumes the player.
+  const handOffCountRef = useRef(0);
   const reportQueue = useRef(new NativePlaybackReportQueue()).current;
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
@@ -992,6 +1009,7 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
         item: options.item,
+        outputPickerStrings: buildOutputPickerStrings(t),
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,
@@ -2262,6 +2280,78 @@ const NativePlayerProviderInner: React.FC<{
           void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
+      // The output sheet handed the video off: the receiver gets the item where the player paused, then the player
+      // closes and the receiver's controls open, or it says why and plays on.
+      addNativePlayerListener(
+        "onCastHandOffRequested",
+        ({ positionSec, itemId, wasPlaying = true }) => {
+          const session = sessionRef.current;
+          const currentApi = apiRef.current;
+          const userId = userRef.current?.Id;
+          const target = remoteTarget();
+          const request = {
+            itemId,
+            session,
+            inSyncPlay: syncRef.current.enabled,
+            receiverConnected: target.state === "connected",
+            wasPlaying,
+          };
+          if (
+            !session ||
+            !currentApi ||
+            !userId ||
+            !target.target ||
+            !mayHandOff(request)
+          ) {
+            if (stepAfterRefusal(request).kind === "resume")
+              void nativePlayerPlay();
+            return;
+          }
+          // A later hand-off, to another receiver say, owns the player once it starts.
+          const handOff = ++handOffCountRef.current;
+          void sendToReceiver(
+            { api: currentApi, userId, store, t },
+            resolveCastHandOff(session, positionSec),
+            target.target,
+            // Another item in the player by then, or a group it now plays for: nothing goes to the receiver.
+            () => sessionRef.current !== session || syncRef.current.enabled,
+          ).then((result) => {
+            const current = sessionRef.current;
+            // The player closed meanwhile: what the receiver plays is the user's.
+            if (!current) return;
+            const step = nextStepAfterSend(result, {
+              latest: handOff === handOffCountRef.current,
+              inSyncPlay: syncRef.current.enabled,
+              wasPlaying,
+              // Another episode, or played here again while the receiver loaded.
+              movedOn: current !== session || session.isPlaying,
+            });
+            switch (step.kind) {
+              case "dismiss":
+                void dismissNativePlayer();
+                void showExpandedControls();
+                return;
+              case "notice":
+                void nativePlayerShowNotice(step.message);
+                if (step.resume) void nativePlayerPlay();
+                return;
+              case "resume":
+                void nativePlayerPlay();
+                return;
+              case "stopReceiver": {
+                const cast = currentCastSession();
+                if (cast)
+                  void castClientFor(cast)
+                    .stop()
+                    .catch(() => {});
+                return;
+              }
+              case "none":
+                return;
+            }
+          });
+        },
+      ),
     ];
 
     return () => {
@@ -2288,6 +2378,8 @@ const NativePlayerProviderInner: React.FC<{
     updateSettings,
     lockOrientation,
     syncBufferingReporter,
+    store,
+    t,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)

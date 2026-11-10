@@ -40,6 +40,10 @@ jest.mock("@/utils/profiles/native", () => ({
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   buildSubtitleStyle: () => ({}),
 }));
+let mockCastAvailable = true;
+jest.mock("@/modules/mpv-player/src/cast", () => ({
+  isCastAvailable: () => mockCastAvailable,
+}));
 
 const SERVER = "https://jellyfin.example";
 const api = { basePath: SERVER, accessToken: "token" } as Api;
@@ -167,5 +171,60 @@ describe("the native player's exit confirmation", () => {
 
   test("is skipped once the setting is off", async () => {
     expect(await confirmExit(false)).toBe(false);
+  });
+});
+
+// The player's Cast button hands the video off to a receiver: only online and with Cast; the player hides it in a
+// SyncPlay group.
+describe("the native player's Cast button", () => {
+  const castButton = async (options: { offline?: boolean } = {}) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+    const downloaded = {
+      item,
+      videoFilePath: "file:///downloads/movie.mkv",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+      userData: {},
+    };
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+      } as Settings,
+      req: { itemId: "item-1", offline: options.offline ?? false },
+      getDownloadedItemById: () => downloaded as never,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      item,
+      outputPickerStrings: { title: "Play on" } as never,
+    });
+    return built?.config.ui;
+  };
+
+  afterEach(() => {
+    mockCastAvailable = true;
+  });
+
+  test("is offered online, with the sheet's texts", async () => {
+    const ui = await castButton();
+
+    expect(ui?.allowCast).toBe(true);
+    expect(ui?.outputPickerStrings?.title).toBe("Play on");
+  });
+
+  test("is not offered offline", async () => {
+    expect((await castButton({ offline: true }))?.allowCast).toBe(false);
+  });
+
+  test("is not offered without the Cast module", async () => {
+    mockCastAvailable = false;
+
+    expect((await castButton())?.allowCast).toBe(false);
   });
 });

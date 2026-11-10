@@ -19,6 +19,7 @@ import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -44,6 +45,9 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.cast.CastExpandedControllerActivity
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
@@ -170,10 +174,13 @@ class NativePlayerSession(
 
         activity.runOnUiThread {
             try {
+                // A remote Play can open the player over the app's sheet: the sheet goes first, as on iOS.
+                OutputPickerPresenter.dismissForPlayer()
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
-                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported())
+                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported(), allowCast = config.ui.allowCast)
+                followCastIfAllowed(activity, config)
                 // The menus follow the engine built here: a later load never swaps it.
                 viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
@@ -226,6 +233,7 @@ class NativePlayerSession(
                     val configToLoad = pendingConfig ?: config
                     pendingConfig = null
                     viewModel.apply(configToLoad)
+                    followCastIfAllowed(activity, configToLoad)
                     startStream(configToLoad)
                 }
 
@@ -391,6 +399,7 @@ class NativePlayerSession(
         }
 
         // Add overlay to activity window
+        hideAppFromAccessibility(activity)
         activity.addContentView(
             container,
             ViewGroup.LayoutParams(
@@ -673,6 +682,7 @@ class NativePlayerSession(
                 playbackStarted = false
                 viewModel.prepareForReload()
                 viewModel.apply(config)
+                followCastIfAllowed(activity, config)
                 startStream(config)
             }
         }
@@ -786,6 +796,53 @@ class NativePlayerSession(
         rendering?.detachSurface()
     }
 
+    // A config that allows Cast needs the button's sheet, once: a player presented with a downloaded file, then given
+    // a stream in place, had none.
+    private fun followCastIfAllowed(activity: Activity?, config: PlayerPresentConfigRecord) {
+        if (activity == null || !viewModel.capabilities.cast || viewModel.onOutputSheetRequested != null) return
+        followCastFrom(activity, config.ui.outputPickerStrings)
+    }
+
+    // The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+    // model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+    // app's sheet does.
+    private fun followCastFrom(activity: Activity, strings: Map<String, String>) {
+        viewModel.followCast()
+        viewModel.onOutputSheetRequested = { anchor ->
+            OutputPickerPresenter.strings = OutputPickerStrings(strings)
+            OutputPickerPresenter.present(
+                activity,
+                anchor,
+                playingHere = viewModel.metadata?.title,
+                handOff = true,
+                onHandOff = { viewModel.requestCastHandOff() },
+            ) {
+                activity.startActivity(
+                    Intent(activity, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+    }
+
+    // The app under the player stays in the accessibility tree otherwise: TalkBack and uiautomator would reach its
+    // hidden buttons, the header's Cast button among them, named as the player's. Views added later, the output
+    // sheet's, stay reachable.
+    private val hiddenFromAccessibility = mutableListOf<Pair<View, Int>>()
+
+    private fun hideAppFromAccessibility(activity: Activity) {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
+        for (index in 0 until content.childCount) {
+            val view = content.getChildAt(index)
+            hiddenFromAccessibility += view to view.importantForAccessibility
+            view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+    }
+
+    private fun restoreAppAccessibility() {
+        for ((view, importance) in hiddenFromAccessibility) view.importantForAccessibility = importance
+        hiddenFromAccessibility.clear()
+    }
+
     // MARK: - Teardown
     fun dismiss(reason: String, completion: (() -> Unit)? = null) {
         if (isDismissing) {
@@ -797,6 +854,8 @@ class NativePlayerSession(
         val activity = hostActivity
         val dismissAction = {
             viewModel.willTeardown()
+            // The sheet the player opened goes with it: left over the app, its hand-off would reach a closed player.
+            OutputPickerPresenter.dismissPlayerSheet()
 
             if (activity != null) {
                 unregisterPiPReceiver(activity)
@@ -832,6 +891,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
 
             // Restore window state
             if (activity != null) {
@@ -881,6 +941,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
             activity?.let { unregisterPiPReceiver(it) }
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()

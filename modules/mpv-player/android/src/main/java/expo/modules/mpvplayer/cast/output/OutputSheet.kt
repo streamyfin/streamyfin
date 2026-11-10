@@ -280,6 +280,14 @@ private fun ConnectedPanelContent(
         TextButton(onClick = { controller.change() }) { Text(strings.get("change"), color = PlayerAccentColor) }
     }
     if (panel.showsVolume) VolumeRow(panel, strings, controller)
+    if (panel.canHandOff) {
+        SheetRow(
+            icon = if (panel.videoOut) Icons.Filled.Tv else Icons.Filled.Speaker,
+            title = strings.playOn(panel.target.name),
+            caption = null,
+            onClick = { controller.handOff() },
+        )
+    }
     if (panel.canStop) {
         SheetRow(
             icon = Icons.Filled.SettingsRemote,
