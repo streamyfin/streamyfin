@@ -6,12 +6,14 @@ import {
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv/TVOptionCard";
 import { SYNCPLAY_TV_SHEET_DISMISS_MS } from "@/constants/SyncPlay";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import type { SyncPlayGroup } from "@/providers/SyncPlayProvider";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import { nextSyncPlayRepeatMode } from "@/utils/syncplay/repeatMode";
 import type { SyncPlaySeed } from "@/utils/syncplay/types";
@@ -50,7 +52,7 @@ export function TVSyncPlaySheet({ seed, onClose }: Props) {
   const { group, groupState, canCreate, connected, busy, error } = sync;
   const { playlist, currentPlaylistItemId, repeatMode } = sync;
   const { items } = useSyncPlayQueueItems();
-  const firstCard = useRef<View>(null);
+  const firstCard = useRef<ViewInstance>(null);
   const current = playlist.find(
     (entry) => entry.PlaylistItemId === currentPlaylistItemId,
   );
@@ -215,10 +217,7 @@ export function TVSyncPlaySheet({ seed, onClose }: Props) {
   const view = showingGroup ? `group-${group.GroupId}` : group ? "switch" : "";
   useEffect(() => {
     const timer = setTimeout(
-      () =>
-        (
-          firstCard.current as (View & { requestTVFocus?: () => void }) | null
-        )?.requestTVFocus?.(),
+      () => requestTVFocus(firstCard.current),
       FOCUS_DELAY_MS,
     );
     return () => clearTimeout(timer);
