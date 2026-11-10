@@ -213,7 +213,13 @@ export const prefetchExternalSubtitles = async (params: {
       // delete; the sweep below removes whatever the abandoned download
       // writes after this point.
       removeStaging(pending);
-      setTimeout(() => removeStaging(pending), LATE_STAGING_SWEEP_MS);
+      const sweep = setTimeout(
+        () => removeStaging(pending),
+        LATE_STAGING_SWEEP_MS,
+      );
+      // A Node timer (Jest) keeps the process alive for the whole minute;
+      // React Native's has no unref and needs none.
+      (sweep as { unref?: () => void }).unref?.();
     }
   }
 
