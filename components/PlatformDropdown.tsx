@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FixedOrderMenu } from "@/components/common/FixedOrderMenu";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
@@ -11,7 +12,7 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 // A static top-level import evaluates requireNativeModule('ExpoUI') at module
 // load and crashes the entire route tree on tvOS (expo-router requires every
 // route file). Load it lazily and only off-TV; TV never renders these.
-const { Button, Host, Menu } = Platform.isTV
+const { Button, Host } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
 const {
@@ -57,6 +58,13 @@ export type OptionGroup = {
 
 interface PlatformDropdownProps {
   trigger?: React.ReactNode;
+  /**
+   * iOS: a SwiftUI view from @expo/ui to label the menu with, in place of the
+   * trigger. A React Native trigger inside the Menu is hosted in a view whose
+   * frame both layout engines set; a SwiftUI label has nothing to host. The
+   * trigger still sizes the dropdown, unseen.
+   */
+  nativeLabel?: React.ReactNode;
   title?: string;
   groups: OptionGroup[];
   disabled?: boolean;
@@ -214,6 +222,7 @@ const BottomSheetContent: React.FC<{
 
 const PlatformDropdownComponent = ({
   trigger,
+  nativeLabel,
   title,
   groups,
   disabled: isDisabled,
@@ -270,11 +279,12 @@ const PlatformDropdownComponent = ({
           style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}
           // SwiftUI would otherwise keep the Menu clear of the keyboard, and
           // in a Host this small that leaves it nothing to be tapped on: a
-          // dropdown next to a focused input drew and never opened.
-          ignoreSafeArea='keyboard'
+          // dropdown next to a focused input drew and never opened. Under a
+          // bar it was pushed down the same way, off its trigger's place.
+          ignoreSafeArea='all'
         >
-          <Menu
-            label={trigger}
+          <FixedOrderMenu
+            label={nativeLabel ?? trigger}
             modifiers={
               accessibilityLabel === undefined
                 ? undefined
@@ -314,7 +324,10 @@ const PlatformDropdownComponent = ({
                     ? `${group.title}: ${selectedOption.label}`
                     : group.title;
                   items.push(
-                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                    <FixedOrderMenu
+                      key={`submenu-${groupIndex}`}
+                      label={displayTitle}
+                    >
                       {radioOptions.map((option, optionIndex) => (
                         <Button
                           key={`radio-${groupIndex}-${optionIndex}`}
@@ -331,7 +344,7 @@ const PlatformDropdownComponent = ({
                           }}
                         />
                       ))}
-                    </Menu>,
+                    </FixedOrderMenu>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -390,7 +403,7 @@ const PlatformDropdownComponent = ({
 
               return items;
             })}
-          </Menu>
+          </FixedOrderMenu>
         </Host>
       </View>
     );
@@ -443,7 +456,8 @@ export const PlatformDropdown = React.memo(
       prevProps.groups === nextProps.groups && // Reference equality (works because we memoize groups in caller)
       prevProps.trigger === nextProps.trigger && // Reference equality
       prevProps.accessibilityLabel === nextProps.accessibilityLabel &&
-      prevProps.accessibilityValue === nextProps.accessibilityValue
+      prevProps.accessibilityValue === nextProps.accessibilityValue &&
+      prevProps.nativeLabel === nextProps.nativeLabel
     );
   },
 );

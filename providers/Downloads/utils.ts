@@ -2,7 +2,7 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { escapeRegExp } from "lodash";
+import escapeRegExp from "lodash/escapeRegExp";
 import {
   DOWNLOAD_SUBTITLE_INFIX,
   DOWNLOAD_TRICKPLAY_DIR_SUFFIX,
@@ -17,6 +17,10 @@ import {
  * Real ids, codecs and indexes only use these characters, so the name of a download that is
  * already on disk does not change.
  */
+/** The id of an item's download toasts: a failure takes the place of the toast that said it started. */
+export const getDownloadToastId = (itemId: string): string =>
+  `download-${itemId}`;
+
 export function safeNamePart(value: unknown): string {
   return String(value).replace(/[^A-Za-z0-9_-]/g, "_");
 }
