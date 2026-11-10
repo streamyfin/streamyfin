@@ -19,7 +19,7 @@ final class PlaybackTimeModel: ObservableObject {
 	@Published var cacheSeconds: Double = 0
 }
 
-/// Bridges MPVPlayerEngine callbacks into SwiftUI state and dual-emits every
+/// Bridges the engine's callbacks into SwiftUI state and dual-emits every
 /// engine event to the JS coordinator via `emit`. Also owns pure-UI behavior:
 /// auto-hide, scrubbing state, display-position interpolation between the
 /// renderer's 1Hz ticks, segment pills and the next-episode countdown.
@@ -27,7 +27,20 @@ final class PlaybackTimeModel: ObservableObject {
 /// All engine callbacks arrive on the main thread (the engine dispatches
 /// them), and all UI intents come from SwiftUI — so no locking is needed.
 final class PlayerViewModel: NSObject, ObservableObject {
-	weak var engine: PlayerEngine?
+	weak var engine: ChromeEngine?
+
+	/// The screen of a local engine; nil for one without, whose rendering calls
+	/// do nothing. Picture in picture is a rendering matter too: a remote engine
+	/// reads as never in it.
+	private var rendering: RenderingEngine? { engine as? RenderingEngine }
+
+	/// Whether the PiP button shows: the engine has a screen that can float.
+	var canPictureInPicture: Bool { pictureInPictureSupported(by: engine) }
+
+	/// What the technical info overlay shows: empty for an engine without a screen.
+	func technicalInfo(completion: @escaping ([String: Any]) -> Void) {
+		readTechnicalInfo(from: engine, completion: completion)
+	}
 	var emit: ((String, [String: Any]) -> Void)?
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
 	/// Set by the view controller — it owns the orientation mask.
@@ -457,8 +470,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// A window that is still on its way up counts: if it fails to appear,
 	/// the PiP change handler below withdraws instead.
 	func syncPlayDidEnterBackground() {
-		guard isSyncPlayActive, engine?.isPictureInPictureActive() != true,
-			engine?.isPictureInPictureStarting != true
+		guard isSyncPlayActive, rendering?.isPictureInPictureActive() != true,
+			rendering?.isPictureInPictureStarting != true
 		else { return }
 		withdrawFromSyncPlay()
 	}
@@ -839,7 +852,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func setSubtitleDelay(_ seconds: Double) {
 		subtitleDelay = seconds
-		engine?.setSubtitleDelay(seconds)
+		rendering?.setSubtitleDelay(seconds)
 		scheduleAutoHide()
 	}
 
@@ -1028,8 +1041,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Zoom changes video framing; the renderer keeps subtitle layout inside
 	/// the visible viewport without overwriting the selected style.
 	func applyZoomState() {
-		guard let engine else { return }
-		engine.setZoomedToFill(isZoomedToFill)
+		guard let rendering else { return }
+		rendering.setZoomedToFill(isZoomedToFill)
 		applySubtitleScale()
 	}
 
@@ -1037,7 +1050,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// MPV renders in source-video pixels, so compensate when fitting a larger
 	/// video into a smaller display, capped at the shared 3× boost.
 	func applySubtitleScale() {
-		guard let engine else { return }
+		guard let rendering else { return }
 		#if os(iOS)
 		var effectiveScale = subtitleScale * subtitleScaleMultiplier
 		if let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
@@ -1052,15 +1065,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 				effectiveScale *= min(1 / containScale, 3)
 			}
 		}
-		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
+		rendering.setSubtitleScale((effectiveScale * 100).rounded() / 100)
 		#else
-		engine.setSubtitleScale(subtitleScale)
+		rendering.setSubtitleScale(subtitleScale)
 		#endif
 	}
 
 	private var playerSurfaceSize: CGSize {
-		guard let engine else { return SceneGeometry.bounds().size }
-		let size = engine.displayLayer.bounds.size
+		guard let rendering else { return SceneGeometry.bounds().size }
+		let size = rendering.displayLayer.bounds.size
 		return size.width > 0 && size.height > 0 ? size : SceneGeometry.bounds().size
 	}
 
@@ -1379,16 +1392,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: PiP / close
 
 	func togglePictureInPicture() {
-		guard let engine else {
-			Logger.shared.log("PiP: button pressed but engine is nil", type: "Error")
+		guard let rendering else {
+			Logger.shared.log("PiP: button pressed without a local engine", type: "Error")
 			return
 		}
 		Logger.shared.log(
-			"PiP: button pressed (active=\(engine.isPictureInPictureActive()))", type: "Info")
-		if engine.isPictureInPictureActive() {
-			engine.stopPictureInPicture()
+			"PiP: button pressed (active=\(rendering.isPictureInPictureActive()))", type: "Info")
+		if rendering.isPictureInPictureActive() {
+			rendering.stopPictureInPicture()
 		} else {
-			engine.startPictureInPicture()
+			rendering.startPictureInPicture()
 		}
 		scheduleAutoHide()
 	}
@@ -1643,12 +1656,6 @@ final class PlayerViewModel: NSObject, ObservableObject {
 // MARK: - PlayerEngineDelegate
 
 extension PlayerViewModel: PlayerEngineDelegate {
-	/// Picture in picture is a rendering matter: a remote engine has none, so
-	/// every PiP question below reads as "not in PiP" for it.
-	private func rendering(_ engine: TransportEngine) -> RenderingEngine? {
-		engine as? RenderingEngine
-	}
-
 	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {
 		// Mute rides along: it is a device/session state, not a stream one, so
 		// JS has no other way to learn it for a player opened while already
@@ -1705,7 +1712,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 
 	func engine(_ engine: TransportEngine, requestsSeekBy offset: Double) {
 		guard !isTearingDown else { return }
-		if isSyncPlayActive, rendering(engine)?.isPictureInPictureActive() == true {
+		if isSyncPlayActive, rendering?.isPictureInPictureActive() == true {
 			// The pause AVKit sent just ahead of this skip is still held.
 			pendingPipPause?.cancel()
 			pendingPipPause = nil
@@ -1723,7 +1730,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 			return
 		}
 		#if os(iOS)
-		if rendering(engine)?.isPictureInPictureActive() == true,
+		if rendering?.isPictureInPictureActive() == true,
 			pipSkipBracket.covers(Date().timeIntervalSinceReferenceDate) {
 			return
 		}
@@ -1732,9 +1739,9 @@ extension PlayerViewModel: PlayerEngineDelegate {
 		// group because one member closed a window. Hold it for a moment: if
 		// PiP is on its way out by then, the stop handler leaves the group
 		// instead and the others play on.
-		if !playing, rendering(engine)?.isPictureInPictureActive() == true {
-			let pause = DispatchWorkItem { [weak self, weak engine] in
-				guard let self, let engine, let pip = self.rendering(engine) else { return }
+		if !playing, rendering?.isPictureInPictureActive() == true {
+			let pause = DispatchWorkItem { [weak self] in
+				guard let self, let pip = self.rendering else { return }
 				self.pendingPipPause = nil
 				if pip.isPictureInPictureStopping || !pip.isPictureInPictureActive() { return }
 				self.syncPlayAction("pause")
@@ -1797,7 +1804,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 		// With its window closed nothing here can answer the next seek, and
 		// the group would wait on this session until iOS suspends the app.
 		// Returning to the app also stops PiP: that is a restore, not a close.
-		if !isActive, isSyncPlayActive, rendering(engine)?.pictureInPictureStopIsRestore != true,
+		if !isActive, isSyncPlayActive, rendering?.pictureInPictureStopIsRestore != true,
 			UIApplication.shared.applicationState == .background {
 			withdrawFromSyncPlay()
 		}

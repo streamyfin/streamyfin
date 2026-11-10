@@ -3,7 +3,7 @@ import Foundation
 
 // A remote engine carries transport and queue, never a display layer: this double compiles
 // against the two protocols only, which is the whole point of the split.
-final class RemoteOnlyEngine: TransportEngine, QueueEngine {
+class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	weak var delegate: PlayerEngineDelegate?
 	private(set) var intendedPlayState = false
 	var played = 0
@@ -42,6 +42,37 @@ final class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	func setMonoDownmix(_ enabled: Bool) {}
 }
 
+// A local engine: the remote double plus a screen, which answers the chrome's rendering questions.
+final class LocalEngine: RemoteOnlyEngine, RenderingEngine {
+	let displayLayer = AVSampleBufferDisplayLayer()
+	let pictureInPictureStopIsRestore = false
+	let isPictureInPictureStopping = false
+	let isPictureInPictureStarting = false
+	var supportsPictureInPicture = true
+
+	func syncSubtitleLayerFrame() {}
+	func setPictureInPictureAutoStartEnabled(_ enabled: Bool) {}
+	func setPictureInPictureHostVisible(_ visible: Bool) {}
+	func startPictureInPicture() {}
+	func stopPictureInPicture() {}
+	func isPictureInPictureSupported() -> Bool { supportsPictureInPicture }
+	func isPictureInPictureActive() -> Bool { false }
+	func setSubtitlePosition(_ position: Int) {}
+	func setSubtitleScale(_ scale: Double) {}
+	func setSubtitleDelay(_ seconds: Double) {}
+	func setSubtitleMarginY(_ margin: Int) {}
+	func setSubtitleAlignX(_ alignment: String) {}
+	func setSubtitleAlignY(_ alignment: String) {}
+	func setSubtitleFontSize(_ size: Int) {}
+	func setSubtitleStyle(config: [String: Any]) {}
+	func setSubtitleBackgroundColor(_ color: String) {}
+	func setSubtitleBorderStyle(_ style: String) {}
+	func setSubtitleAssOverride(_ mode: String) {}
+	func setZoomedToFill(_ zoomed: Bool) {}
+	func isZoomedToFill() -> Bool { false }
+	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) { completion(["videoCodec": "h264"]) }
+}
+
 // A host that keeps no position bookkeeping lets the engine seek: the delegate's defaults.
 final class RecordingHost: PlayerEngineDelegate {
 	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {}
@@ -68,6 +99,31 @@ enum EngineProtocolsTests {
 		precondition(engine.isPaused() == false)
 		precondition((engine as AnyObject) is RenderingEngine == false, "a remote engine must not carry the rendering face")
 
+		// What the chrome holds: the remote double is a ChromeEngine, and so is any local engine.
+		let chrome: ChromeEngine = engine
+		precondition(chrome as? RenderingEngine == nil, "the chrome reaches rendering only through a cast")
+		let widen: (PlayerEngine) -> ChromeEngine = { $0 }
+		precondition(widen(LocalEngine()) as? RenderingEngine != nil, "a local engine keeps its screen once widened")
+
+		// The chrome's two rendering questions. An engine without a screen offers no picture in
+		// picture and answers the technical info with an empty table, so the overlay and the JS
+		// promise still get an answer; a local engine gives its own.
+		precondition(pictureInPictureSupported(by: engine) == false)
+		precondition(pictureInPictureSupported(by: nil) == false)
+		precondition(pictureInPictureSupported(by: LocalEngine()) == true)
+		let noPictureInPicture = LocalEngine()
+		noPictureInPicture.supportsPictureInPicture = false
+		precondition(pictureInPictureSupported(by: noPictureInPicture) == false)
+		var remoteInfo: [String: Any]?
+		readTechnicalInfo(from: engine) { remoteInfo = $0 }
+		precondition(remoteInfo?.isEmpty == true, "an engine without a screen must still answer, with nothing")
+		var noEngineInfo: [String: Any]?
+		readTechnicalInfo(from: nil) { noEngineInfo = $0 }
+		precondition(noEngineInfo?.isEmpty == true)
+		var localInfo: [String: Any]?
+		readTechnicalInfo(from: LocalEngine()) { localInfo = $0 }
+		precondition(localInfo?["videoCodec"] as? String == "h264")
+
 		// The queue has nothing by default: the local engines never answer it.
 		precondition(engine.currentItemId == nil)
 		precondition(engine.targetVolume == nil)
@@ -86,6 +142,6 @@ enum EngineProtocolsTests {
 		precondition(engine.seeksTo.count == 1 && engine.seeksTo[0].position == 12 && engine.seeksTo[0].exact == false)
 		precondition(engine.seeksBy == [-10])
 
-		print("PASS: transport, rendering and queue faces, queue defaults, delegate play and seek defaults")
+		print("PASS: transport, rendering and queue faces, the chrome engine, its rendering questions, queue defaults, delegate play and seek defaults")
 	}
 }

@@ -1,8 +1,10 @@
-`engine-agnostic-native-chrome` | The native chrome consumes PlayerEngine, not mpv; engine comes from config.engine
+`engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine and reaches rendering through a cast; engine comes from config.engine, an unknown one is refused
 
-The Android TV native player chrome (NativePlayerSession + PlayerViewModel +
-Compose UI in modules/mpv-player) never touches MPV directly — it consumes the
-`PlayerEngine` interface (nativeplayer/engine/PlayerEngine.kt). Which engine is
+The native player chrome on Android (NativePlayerSession + PlayerViewModel +
+Compose UI in modules/mpv-player; Android TV, and phones with the Native
+video player) never touches MPV directly: it holds a `ChromeEngine`
+(nativeplayer/engine/ChromeEngine.kt, the transport and queue faces), and reaches
+rendering, which only a local `PlayerEngine` has, through a cast. Which engine is
 built comes from `PlayerPresentConfigRecord.engine` ("mpv" default, "exoplayer"),
 which buildNativePlayerConfig sets from `getActivePlayerType` — the same resolver
 that picks the Jellyfin device profile. Consequences:
@@ -30,8 +32,22 @@ that picks the Jellyfin device profile. Consequences:
   `PlayerEngineProtocols.swift`, with `PlayerEngine = TransportEngine &
   RenderingEngine & QueueEngine` and the delegate typed on the transport face.
   A remote engine (Cast, later Play On and AirPlay) implements transport and
-  queue only. Today every engine the chrome holds is local and typed
-  `PlayerEngine`; the remote mode will hold `TransportEngine & QueueEngine` and
-  reach rendering members through a cast (`engine as? RenderingEngine`),
-  treating their absence as "none". The iOS view model already reads picture in
-  picture that way.
+  queue only.
+- The chrome holds a `ChromeEngine` on both platforms (2026-11-04): Kotlin
+  `interface ChromeEngine : TransportEngine, QueueEngine`, Swift `typealias
+  ChromeEngine = TransportEngine & QueueEngine`. A local engine is still a
+  `PlayerEngine`; a remote one is a `ChromeEngine` only. The session, the view
+  model and, on iOS, the view controller reach rendering through a private
+  `rendering` (`engine as? RenderingEngine`): without a screen those calls do
+  nothing. Views ask the view model (`canPictureInPicture`, `technicalInfo`),
+  never the engine. The technical info rule is a pure function on each side,
+  `technicalInfoOf` (Kotlin) and `readTechnicalInfo(from:)` (Swift, beside
+  `pictureInPictureSupported(by:)`), under test: no screen means an empty table,
+  still answered, so the overlay clears and the JS promise settles.
+- An engine name the platform does not build is refused at `presentPlayer`
+  with `ERR_UNSUPPORTED_ENGINE` (`NativeEngineKind`: mpv and exoplayer on
+  Android, mpv on iOS; no name means mpv), and the JS player takes over. Before,
+  an unknown name ran mpv. The engine is built by an exhaustive `when`/`switch`
+  over the kind (`NativePlayerSession.createEngine` on Android,
+  `NativePlayerModule.makeEngine` on iOS), so a kind added later does not
+  compile until it is built.

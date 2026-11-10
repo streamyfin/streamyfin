@@ -10,7 +10,10 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
+import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,7 +62,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
         private const val SKIPPED_NOTICE_MS = 3_000L
     }
 
-    var engine: PlayerEngine? = null
+    var engine: ChromeEngine? = null
+
+    // The screen of a local engine; null for one without, whose rendering calls do nothing.
+    private val rendering: RenderingEngine?
+        get() = engine as? RenderingEngine
     var emit: ((String, Map<String, Any?>) -> Unit)? = null
     var onDismissRequested: ((String) -> Unit)? = null
     var onRotateRequested: (() -> Unit)? = null
@@ -825,8 +832,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun applyZoomState() {
-        engine?.setZoomedToFill(isZoomedToFill)
+        rendering?.setZoomedToFill(isZoomedToFill)
     }
+
+    /** What the technical info overlay shows: empty for an engine without a screen. */
+    fun technicalInfo(): Map<String, Any> = technicalInfoOf(engine)
 
     fun updateSubtitleGeometry(width: Int, height: Int) {
         subtitleSurfaceWidth = width
@@ -836,9 +846,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun applySubtitleGeometry() {
         subtitleMarginY?.let { margin ->
-            engine?.setSubtitleMarginY(margin)
+            rendering?.setSubtitleMarginY(margin)
         }
-        engine?.setSubtitleScale(
+        rendering?.setSubtitleScale(
             if (isMpvEngine) {
                 calculateSubtitleScale(
                     baseScale = subtitleScale,
@@ -868,7 +878,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     @JvmName("applySubtitleDelay")
     fun setSubtitleDelay(seconds: Double) {
         subtitleDelay = seconds
-        engine?.setSubtitleDelay(seconds)
+        rendering?.setSubtitleDelay(seconds)
         scheduleAutoHide()
     }
 

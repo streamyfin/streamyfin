@@ -13,7 +13,7 @@ enum CastEngineError: Error {
 ///
 /// Track ids are Jellyfin MediaStream indexes, not the bridge-facing ids TransportEngine names: the
 /// receiver picks its streams by index, and the chrome already emits that index (spec §3.3).
-final class CastEngine: TransportEngine, QueueEngine {
+final class CastEngine: ChromeEngine {
   /// Runs a block after a delay in milliseconds and returns what cancels it: the progress tick, the
   /// reload deadline. The main queue in the app, a manual clock in the checks.
   typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
