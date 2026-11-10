@@ -82,4 +82,13 @@ class LogRedactionTest {
             redactCredentials("https://proxy.example.com/stream?keep=1"),
         )
     }
+
+    // A scheme in capitals and a password with a colon in it are still userinfo.
+    @Test
+    fun redactsUserinfoWhateverTheSchemeCaseOrAColonInThePassword() {
+        assertEquals(
+            "HTTPS://[redacted]@proxy.example.com/stream",
+            redactCredentials("HTTPS://user:pa:ss@proxy.example.com/stream"),
+        )
+    }
 }
