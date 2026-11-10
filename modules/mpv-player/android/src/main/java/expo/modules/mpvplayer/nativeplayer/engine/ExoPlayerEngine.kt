@@ -29,6 +29,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.VideoSize
+import androidx.media3.decoder.ffmpeg.FfmpegLibrary
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlaybackException
@@ -45,7 +46,7 @@ import java.io.IOException
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import expo.modules.mpvplayer.DeviceKind
-import expo.modules.mpvplayer.redactCredentials
+import expo.modules.mpvplayer.redactStreamUrls
 import expo.modules.mpvplayer.MpvPauseReport
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 
@@ -79,18 +80,19 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         private const val SIDELOAD_ID_PREFIX = "sideload:"
 
         // Excludes the platform's DTS decoders from the MediaCodec decode
-        // path, handing DTS/DTS-HD to the FFmpeg renderer instead — see
-        // ensurePlayer for why. DTS passthrough never consults this selector.
+        // path for the DTS formats FFmpeg decodes, handing them to the FFmpeg
+        // renderer instead — see ensurePlayer for why, and
+        // dtsAwareDecoderInfos for the formats that stay. DTS passthrough
+        // never consults this selector.
         private val dtsExcludingMediaCodecSelector =
             MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-                val infos = MediaCodecSelector.DEFAULT.getDecoderInfos(
-                    mimeType,
-                    requiresSecureDecoder,
-                    requiresTunnelingDecoder,
-                )
-                // The prefix covers MimeTypes.AUDIO_DTS, AUDIO_DTS_HD and
-                // AUDIO_DTS_X; containers append ";..." profile parameters.
-                if (mimeType?.startsWith("audio/vnd.dts") == true) emptyList() else infos
+                dtsAwareDecoderInfos(mimeType, FfmpegLibrary::supportsFormat) { mime ->
+                    MediaCodecSelector.DEFAULT.getDecoderInfos(
+                        mime,
+                        requiresSecureDecoder,
+                        requiresTunnelingDecoder,
+                    )
+                }
             }
 
         // Only steer DTS away from MediaCodec when the FFmpeg audio renderer
@@ -139,14 +141,14 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // load ignores it, which is what keeps starvation impossible.
         private const val TARGET_BUFFER_BYTES = 100663296
 
-        // Stall watchdog: once media has flowed for this load, buffering while
-        // playing with an (almost) empty forward buffer for this long means the
-        // source stopped answering (dead connection, wedged proxy path) —
-        // reload the same URL at the current position with fresh connections.
-        // Converts a minutes-long spinner into a same-spot hiccup. The cap is
-        // five recoveries per load: the watchdog's own reloads spend the
-        // budget, and only a genuinely new load (force == false) earns a
-        // fresh set — a STATE_READY does not re-arm it.
+        // Stall watchdog (StallWatchdog): once media has flowed since the last
+        // load or seek, buffering while playing with an (almost) empty forward
+        // buffer for this long means the source stopped answering (dead
+        // connection, wedged proxy path) — reload the same URL at the current
+        // position with fresh connections. Converts a minutes-long spinner into
+        // a same-spot hiccup. The cap is five recoveries per load: the
+        // watchdog's own reloads spend the budget, and only a genuinely new load
+        // (force == false) earns a fresh set — a STATE_READY does not re-arm it.
         private const val STALL_RELOAD_AFTER_MS = 10_000L
         private const val MAX_STALL_RELOADS_PER_EPISODE = 5
     }
@@ -194,12 +196,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
-    // Stall-watchdog state, reset per load. Media has flowed for this load
-    // (STATE_READY has fired); when it stopped flowing again, since when, and
-    // how often the watchdog already rebuilt the pipeline for this episode.
-    private var deliveredMediaThisLoad: Boolean = false
-    private var stalledSinceElapsedMs: Long? = null
-    private var stallReloadsThisEpisode: Int = 0
+    private val stallWatchdog = StallWatchdog(STALL_RELOAD_AFTER_MS, MAX_STALL_RELOADS_PER_EPISODE)
+
+    /** Retained across player re-creation: a rebuilt ExoPlayer starts at 1x. */
+    private var playbackSpeed = 1f
 
     // Resume position handed to setMediaSource() on load. seekTo() uses it to
     // drop the redundant re-seek the JS layer fires once tracks are ready.
@@ -355,7 +355,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         Log.i(
             TAG,
-            "load: url=" + redactCredentials(config.url) +
+            "load: url=" + redactStreamUrls(config.url) +
                 " startPosition=" + config.startPosition +
                 " force=" + force +
                 " priorState=" + player?.playbackState,
@@ -387,13 +387,12 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // every onTracksReady (mpv fires per FILE_LOADED), so the flag must
         // reset per load — unlike the JS-route view, which fires once per view.
         tracksReadyFired = false
-        deliveredMediaThisLoad = false
-        stalledSinceElapsedMs = null
         // Only a genuinely new load (item switch, quality re-negotiation)
-        // earns a fresh reload budget. The watchdog's own recovery reloads
-        // pass force=true and must keep counting, or the per-episode cap
-        // never binds.
-        if (!force) stallReloadsThisEpisode = 0
+        // earns a fresh reload budget. The engine's own reloads pass force=true
+        // and keep counting, or the per-episode cap never binds, and keep the
+        // media they replaced, or one that lands in the same wedge is never
+        // retried.
+        stallWatchdog.onLoad(forced = force)
         cachedVideoWidth = 0
         cachedVideoHeight = 0
         currentVideoAspectRatio = null
@@ -407,8 +406,12 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // onPlayWhenReadyChanged, and the outgoing player's last "playing"
         // would survive onto this load (chrome, PiP, JS state). Deliver the
         // fresh paused state; an autoplay=true load delivers its own
-        // false→true transition when play() runs right after.
+        // false→true transition when play() runs right after. Not for the
+        // engine's own reloads: their caller restores the play state at once,
+        // and a pause delivered for them reaches the server as a pause and a
+        // resume.
         cachedPlayWhenReady = false
+        if (force) return
         MpvPauseReport(
             paused = true,
             position = null,
@@ -530,6 +533,9 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // Re-apply the retained mute flag: a fresh ExoPlayer always starts at
         // full volume, which would contradict the state the session still holds.
         exo.volume = effectiveVolume()
+        // And the speed: the engine's own reloads (resume recovery, stall
+        // watchdog) rebuild the player, and nothing re-sends it for them.
+        exo.playbackParameters = PlaybackParameters(playbackSpeed)
         surfaceView?.let { exo.setVideoSurfaceView(it) }
         player = exo
 
@@ -633,6 +639,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             return
         }
         loadStartPositionMs = 0L
+        stallWatchdog.onSeek()
         p.seekTo(targetMs)
         // A buffered seek can stay READY without another state transition.
         // Read Media3's position even while paused; group readiness cannot
@@ -648,11 +655,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     override fun seekBy(seconds: Double) = post {
         val p = player ?: return@post
         val target = (p.currentPosition + seconds * 1000).coerceAtLeast(0.0)
+        stallWatchdog.onSeek()
         p.seekTo(target.toLong())
     }
 
     override fun setSpeed(speed: Double) = post {
-        player?.playbackParameters = PlaybackParameters(speed.toFloat())
+        playbackSpeed = speed.toFloat()
+        player?.playbackParameters = PlaybackParameters(playbackSpeed)
     }
 
     override fun getSpeed(): Double {
@@ -1394,8 +1403,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " +
-                        redactCredentials(error.message ?: "unknown"),
+                    " @ " + redactStreamUrls(loadEventInfo.uri.toString()) + ": " +
+                        redactStreamUrls(error.message ?: "unknown"),
             )
         }
     }
@@ -1443,14 +1452,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                     player?.let { reportSeekCompletion(it) }
                     delegate?.onLoadingChanged(false)
                     delegate?.onReadyToSeek()
-                    // Media has flowed for this load; a later stall may
-                    // therefore be treated by the watchdog. The reload budget
-                    // deliberately does NOT re-arm here: a stream that gets a
-                    // few seconds of media and then wedges again is exactly
-                    // the failure the watchdog exists for, and a reset on
-                    // every READY would make the per-episode cap dead.
-                    deliveredMediaThisLoad = true
-                    stalledSinceElapsedMs = null
+                    // Media has flowed; a later stall may therefore be
+                    // treated by the watchdog. The reload budget deliberately
+                    // does NOT re-arm here: a stream that gets a few seconds
+                    // of media and then wedges again is exactly the failure
+                    // the watchdog exists for, and a reset on every READY
+                    // would make the per-episode cap dead.
+                    stallWatchdog.onReady()
                     if (!tracksReadyFired) {
                         tracksReadyFired = true
                         rebuildTrackMaps(player?.currentTracks)
@@ -1563,8 +1571,9 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
      * rebuild means fresh sockets; the position survives, so the stall reads
      * as a hiccup instead of a restart from 0:00.
      *
-     * Gated on [deliveredMediaThisLoad]: an initial load that never got media
-     * is a dead server, not a stall, and stays with the normal error path.
+     * Gated in [StallWatchdog] on media having flowed since the last load or
+     * seek: an initial load that never got media is a dead server, not a
+     * stall, and stays with the normal error path.
      */
     private fun checkStallWatchdog(p: ExoPlayer) {
         val buffering = p.playbackState == Player.STATE_BUFFERING
@@ -1573,25 +1582,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 (p.bufferedPosition - p.currentPosition) / 1000.0
             } else 0.0
         val starved = buffering && p.playWhenReady && bufferedSec < 0.5
+        if (!stallWatchdog.shouldReload(starved, SystemClock.elapsedRealtime())) return
 
-        if (!starved) {
-            stalledSinceElapsedMs = null
-            return
-        }
-        if (!deliveredMediaThisLoad) return
-
-        val now = SystemClock.elapsedRealtime()
-        val stalledSince = stalledSinceElapsedMs ?: now.also { stalledSinceElapsedMs = now }
-        if (now - stalledSince < STALL_RELOAD_AFTER_MS) return
-        if (stallReloadsThisEpisode >= MAX_STALL_RELOADS_PER_EPISODE) return
-
-        stallReloadsThisEpisode++
-        stalledSinceElapsedMs = null
         Log.w(
             TAG,
             "Stall watchdog: buffering with an empty buffer while playing for " +
                 (STALL_RELOAD_AFTER_MS / 1000) + "s — reloading at " +
-                cachedPositionSec + "s (attempt " + stallReloadsThisEpisode + "/" +
+                cachedPositionSec + "s (attempt " + stallWatchdog.reloads + "/" +
                 MAX_STALL_RELOADS_PER_EPISODE + ")",
         )
         playbackResumeIntent = true

@@ -118,4 +118,57 @@ class LogRedactionTest {
             redactCredentials("https://tok3n@proxy.example.com/stream"),
         )
     }
+
+    // The stream URL of a remote source is its Path as Jellyfin stores it: an IPTV or .strm
+    // item can carry its credentials as path segments, which no parameter list names.
+    @Test
+    fun keepsOnlyTheOriginOfARemoteSourceUrl() {
+        assertEquals(
+            "load http://provider.example:8080/[redacted] failed",
+            redactStreamUrls("load http://provider.example:8080/movie/USER/PASS/123.mkv failed"),
+        )
+        assertEquals(
+            "https://cdn.example.com/[redacted]",
+            redactStreamUrls("https://user:secret@cdn.example.com/live.m3u8?username=U&password=P"),
+        )
+    }
+
+    @Test
+    fun keepsAJellyfinStreamUrlWithItsCredentialsMasked() {
+        assertEquals(
+            "http://jf.example:8096/Videos/2b5e727fd61e95f0ca3fd552b1132d22/stream?static=true&api_key=[redacted]",
+            redactStreamUrls(
+                "http://jf.example:8096/Videos/2b5e727fd61e95f0ca3fd552b1132d22/stream?static=true&api_key=SECRET"
+            ),
+        )
+        // Behind a base path, with the dashed id the subtitle routes carry, and an HLS segment.
+        val subtitle = "https://jf.example/jellyfin/Videos/b8ba64b6-8d39-ccf2-f594-85c42d5baa7b/" +
+            "b8ba64b68d39ccf2f59485c42d5baa7b/Subtitles/2/0/Stream.srt"
+        assertEquals(subtitle, redactStreamUrls(subtitle))
+        val segment = "https://jf.example/Videos/2b5e727fd61e95f0ca3fd552b1132d22/hls1/main/0.ts"
+        assertEquals(segment, redactStreamUrls(segment))
+    }
+
+    @Test
+    fun keepsALocalFileAndRedactsEveryUrlOfAMessage() {
+        val local = "file:///data/user/0/app/cache/subtitles/item-1-ms-1-3-0f75cd89.srt"
+        assertEquals(local, redactStreamUrls(local))
+        assertEquals(
+            "Unable to connect to http://provider.example/[redacted] after 8000 ms then https://jf.example/" +
+                "Videos/2b5e727fd61e95f0ca3fd552b1132d22/stream?ApiKey=[redacted]",
+            redactStreamUrls(
+                "Unable to connect to http://provider.example/get.php?username=U&password=P after 8000 ms " +
+                    "then https://jf.example/Videos/2b5e727fd61e95f0ca3fd552b1132d22/stream?ApiKey=SECRET"
+            ),
+        )
+    }
+
+    // A path segment named like Jellyfin's routes is not enough: the id must follow it.
+    @Test
+    fun doesNotTakeAVideosFolderOfAnotherHostForJellyfin() {
+        assertEquals(
+            "https://cdn.example.com/[redacted]",
+            redactStreamUrls("https://cdn.example.com/Videos/USER/PASS/movie.mkv"),
+        )
+    }
 }

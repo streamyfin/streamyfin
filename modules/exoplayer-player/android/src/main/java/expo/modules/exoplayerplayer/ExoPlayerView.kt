@@ -28,6 +28,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.decoder.ffmpeg.FfmpegLibrary
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
@@ -91,18 +92,19 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         private const val SIDELOAD_ID_PREFIX = "sideload:"
 
         // Excludes the platform's DTS decoders from the MediaCodec decode
-        // path, handing DTS/DTS-HD to the FFmpeg renderer instead — see
-        // ensurePlayer for why. DTS passthrough never consults this selector.
+        // path for the DTS formats FFmpeg decodes, handing them to the FFmpeg
+        // renderer instead — see ensurePlayer for why, and
+        // dtsAwareDecoderInfos for the formats that stay. DTS passthrough
+        // never consults this selector.
         private val dtsExcludingMediaCodecSelector =
             MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-                val infos = MediaCodecSelector.DEFAULT.getDecoderInfos(
-                    mimeType,
-                    requiresSecureDecoder,
-                    requiresTunnelingDecoder,
-                )
-                // The prefix covers MimeTypes.AUDIO_DTS, AUDIO_DTS_HD and
-                // AUDIO_DTS_X; containers append ";..." profile parameters.
-                if (mimeType?.startsWith("audio/vnd.dts") == true) emptyList() else infos
+                dtsAwareDecoderInfos(mimeType, FfmpegLibrary::supportsFormat) { mime ->
+                    MediaCodecSelector.DEFAULT.getDecoderInfos(
+                        mime,
+                        requiresSecureDecoder,
+                        requiresTunnelingDecoder,
+                    )
+                }
             }
 
         // Only steer DTS away from MediaCodec when the FFmpeg audio renderer
@@ -267,8 +269,8 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Log.w(
                 TAG,
                 "Load error (" + (if (wasCanceled) "canceled" else "retrying") + ")" +
-                    " @ " + redactCredentials(loadEventInfo.uri.toString()) + ": " +
-                        redactCredentials(error.message ?: "unknown"),
+                    " @ " + redactStreamUrls(loadEventInfo.uri.toString()) + ": " +
+                        redactStreamUrls(error.message ?: "unknown"),
             )
         }
     }

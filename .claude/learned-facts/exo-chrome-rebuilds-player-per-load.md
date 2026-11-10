@@ -63,11 +63,14 @@ SocketTimeoutException`) on the user's remote hostname, before a restart at
 request pattern — a skip-seek aborting a mid-body download, session stop, new
 session, new connections within ~2s — wedges something in the server/proxy
 path. The player-side mitigate is a **stall watchdog** in the engine's 1s
-progress loop: `STATE_BUFFERING` + playWhenReady + <0.5s buffered for 10s
-after media once flowed → reload the same URL at `cachedPositionSec` with
-fresh sockets (≤5 per load; the watchdog's own recovery reloads spend the
-budget, and only a genuinely new load — `force == false` — earns a fresh
-set; a `STATE_READY` does not re-arm it). Turns the
+progress loop (`StallWatchdog`): `STATE_BUFFERING` + playWhenReady + <0.5s
+buffered for 10s after media flowed since the last load or seek → reload the
+same URL at `cachedPositionSec` with fresh sockets (≤5 per load; the engine's
+own reloads spend the budget and stay armed, so one that lands in the same
+wedge is retried; only a genuinely new load — `force == false` — earns a
+fresh set; a `STATE_READY` does not re-arm it; a seek disarms it until media
+flows again, so a slow transcode restart is left to finish). A rebuilt player
+gets the engine's retained speed back and reports no pause for these reloads. Turns the
 minutes-long spinner + 0:00 restart into a same-position hiccup. If the
 watchdog fires on LAN too, the path is not the proxy — dig further; if
 remote-only, the server's tunnel/reverse-proxy is where the wedge lives.
