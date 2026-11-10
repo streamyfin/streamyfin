@@ -217,6 +217,22 @@ describe("custom links", () => {
     await view.unmount();
   });
 
+  // More stays mounted, so a load that failed would hide the links until the
+  // app restarts: the group says so and loads them again on a tap.
+  it("offers to load the links again when they failed to load", async () => {
+    mockMenuLinks.mockReturnValue([
+      { name: "Status", url: "https://example.com/status", icon: "link" },
+    ]);
+    mockGetConfig.mockRejectedValueOnce(new Error("Network Error"));
+    const view = await render(<CustomLinksGroup />, { wrapper: QueryWrapper });
+
+    await fireEvent.press(await screen.findByText("custom_links.load_failed"));
+
+    expect(await screen.findByText("Status")).toBeTruthy();
+    expect(screen.queryByText("custom_links.load_failed")).toBeNull();
+    await view.unmount();
+  });
+
   it("ignores the spaces around an address", async () => {
     await tapLink("  https://example.com/status ");
 
