@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { uniqBy } from "lodash";
+import uniqBy from "lodash/uniqBy";
 import type React from "react";
 import { useMemo } from "react";
 import type { ViewProps } from "react-native";

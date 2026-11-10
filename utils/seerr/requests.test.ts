@@ -4,6 +4,8 @@ import {
   canRequestForOthers,
   canRequestMore,
   requestOffer,
+  requestTagIds,
+  requestTagsLabel,
 } from "./requests";
 import {
   type MediaInfo,
@@ -13,6 +15,7 @@ import {
   MediaType,
   type MovieDetails,
   type MovieResult,
+  type ServarrTag,
   type TvDetails,
   type TvResult,
   type User,
@@ -292,5 +295,35 @@ describe("requestOffer", () => {
       requestOffer(filmDetails, MediaType.MOVIE, Permission.REQUEST)
         .requestMore,
     ).toBe(false);
+  });
+});
+
+const tags: ServarrTag[] = [
+  { id: 1, label: "4k" },
+  { id: 2, label: "anime" },
+  { id: 3, label: "kids" },
+];
+
+describe("requestTagIds", () => {
+  test("carries the server's default tags until one is toggled", () => {
+    expect(requestTagIds(undefined, [tags[0], tags[2]])).toEqual([1, 3]);
+  });
+
+  // The sheets showed a default tag as on, and listed it, once it was
+  // toggled off, though the request no longer carried it.
+  test("carries only the picked tags once one is toggled, none included", () => {
+    expect(requestTagIds([2], [tags[0]])).toEqual([2]);
+    expect(requestTagIds([], [tags[0]])).toEqual([]);
+  });
+});
+
+describe("requestTagsLabel", () => {
+  test("names the tags a request carries, in the server's order", () => {
+    expect(requestTagsLabel(tags, [3, 1])).toBe("4k, kids");
+  });
+
+  // The field was left blank, which read as not loaded rather than no tag.
+  test("gives nothing to show for no tag, so the sheet can say so", () => {
+    expect(requestTagsLabel(tags, [])).toBeUndefined();
   });
 });

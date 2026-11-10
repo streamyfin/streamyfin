@@ -13,11 +13,19 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
+import {
+  Dimensions,
+  ScrollView,
+  type ScrollViewInstance,
+  TVFocusGuideView,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
+import { episodeRowState } from "@/components/series/episodeRowState";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
@@ -42,6 +50,7 @@ import {
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
+import { seasonHeading, seasonLabel } from "@/utils/seasonLabel";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -90,13 +99,15 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
 
   // Focus guide refs (using useState to trigger re-renders when refs are set)
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [firstEpisodeRef, setFirstEpisodeRef] = useState<ViewInstance | null>(
+    null,
+  );
 
   // ScrollView ref for page scrolling
-  const mainScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollViewInstance>(null);
   // ScrollView ref for scrolling back
-  const episodeListRef = useRef<ScrollView>(null);
+  const episodeListRef = useRef<ScrollViewInstance>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
@@ -114,7 +125,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   }, []);
 
   // Fetch seasons
-  const { data: seasons = [] } = useQuery({
+  const seasonsQuery = useQuery({
     queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
@@ -133,6 +144,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
+  const { data: seasons = [] } = seasonsQuery;
 
   // Resolve which season is showing. A series may have no season 1 at all
   // (specials-only, or seasons starting at 2+), so the default must come from
@@ -182,7 +194,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   }, [isOffline, seasons, selectedSeasonIndex]);
 
   // Fetch episodes for selected season
-  const { data: episodesForSeason = [] } = useQuery({
+  const episodesQuery = useQuery({
     queryKey: [
       "episodes",
       item.Id,
@@ -215,6 +227,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       ? !!item.Id && selectedSeasonNumber !== null
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
+  const episodesForSeason = episodesQuery.data ?? [];
+  const episodeRow = episodeRowState(seasonsQuery, episodesQuery);
 
   // Find next unwatched episode
   const nextUnwatchedEpisode = useMemo(
@@ -223,14 +237,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   );
 
   // Get season name for button
-  const selectedSeasonName = useMemo(() => {
-    const season = seasons.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === selectedSeasonIndex ||
-        s.Name === String(selectedSeasonIndex),
-    );
-    return season?.Name || `Season ${selectedSeasonIndex}`;
-  }, [seasons, selectedSeasonIndex]);
+  const selectedSeasonName = useMemo(
+    () => seasonHeading(t, seasonsQuery.data, selectedSeasonIndex),
+    [seasonsQuery.data, selectedSeasonIndex, t],
+  );
 
   const handlePersonPress = useCallback(
     (personId: string) => {
@@ -274,7 +284,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     const options: TVOptionItem<"season" | "series">[] = [];
     if (episodesForSeason.length > 0) {
       options.push({
-        label: selectedSeasonName,
+        label: selectedSeasonName ?? "",
         sublabel: t("player.episode_count", {
           count: episodesForSeason.length,
         }),
@@ -327,13 +337,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // Season options for the modal
   const seasonOptions = useMemo(() => {
     return seasons.map((season: BaseItemDto) => ({
-      label: season.Name || `Season ${season.IndexNumber}`,
+      label: seasonLabel(t, season.Name, season.IndexNumber),
       value: season.IndexNumber ?? 0,
       selected:
         season.IndexNumber === selectedSeasonIndex ||
         season.Name === String(selectedSeasonIndex),
     }));
-  }, [seasons, selectedSeasonIndex]);
+  }, [seasons, selectedSeasonIndex, t]);
 
   // Open season modal
   const handleOpenSeasonModal = useCallback(() => {
@@ -556,7 +566,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               marginLeft: SCALE_PADDING,
             }}
           >
-            {selectedSeasonName}
+            {/* A blank line while the seasons are unknown, so the row
+                does not move when the name arrives. */}
+            {selectedSeasonName ?? "\u00a0"}
           </Text>
 
           {/* Bidirectional focus guides - stacked together above the list */}
@@ -584,7 +596,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             onBlur={handleEpisodeBlur}
             scrollViewRef={episodeListRef}
             firstEpisodeRefSetter={setFirstEpisodeRef}
-            emptyText={t("item_card.no_episodes_for_this_season")}
+            emptyText={
+              episodeRow === "failed"
+                ? t("item_card.episodes_load_failed")
+                : t("item_card.no_episodes_for_this_season")
+            }
+            isLoading={episodeRow === "loading"}
             horizontalPadding={HORIZONTAL_PADDING}
           />
         </View>

@@ -6,15 +6,34 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  MEDIA_OPTIONS_BUTTON_FILL_OPACITY,
+  MEDIA_OPTIONS_BUTTON_SIZE,
+} from "@/constants/Values";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { useSettings } from "@/utils/atoms/settings";
+import { withAlpha } from "@/utils/color";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
 import { BITRATES } from "./BitrateSelector";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds:
+// load it lazily, off TV.
+const { Image, ProgressView } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { accessibilityLabel, background, frame, shapes } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item?: BaseItemDto | null;
@@ -182,6 +201,7 @@ export const MediaSourceButton: React.FC<Props> = ({
     settings,
   ]);
 
+  const size = MEDIA_OPTIONS_BUTTON_SIZE;
   const trigger = (
     <TouchableOpacity
       disabled={!item}
@@ -189,10 +209,18 @@ export const MediaSourceButton: React.FC<Props> = ({
       className='relative'
     >
       <View
-        style={{ backgroundColor: effectiveColors.primary, opacity: 0.7 }}
-        className='absolute w-12 h-12 rounded-full'
+        style={{
+          backgroundColor: effectiveColors.primary,
+          opacity: MEDIA_OPTIONS_BUTTON_FILL_OPACITY,
+          width: size,
+          height: size,
+        }}
+        className='absolute rounded-full'
       />
-      <View className='w-12 h-12 rounded-full z-10 items-center justify-center'>
+      <View
+        style={{ width: size, height: size }}
+        className='rounded-full z-10 items-center justify-center'
+      >
         {!item ? (
           <ActivityIndicator size='small' color={effectiveColors.text} />
         ) : (
@@ -202,10 +230,35 @@ export const MediaSourceButton: React.FC<Props> = ({
     </TouchableOpacity>
   );
 
+  // iOS draws the button in SwiftUI as the menu's own label: a React Native
+  // trigger inside the menu is hosted in a view that both layout engines
+  // place, and it could be left below its place on the page. The progress
+  // view stands for the button while the item loads, so it carries the
+  // button's name too.
+  const label = [
+    frame({ width: size, height: size }),
+    background(
+      withAlpha(effectiveColors.primary, MEDIA_OPTIONS_BUTTON_FILL_OPACITY),
+      shapes.circle(),
+    ),
+    accessibilityLabel(t("item_card.media_options")),
+  ];
+  const nativeLabel =
+    Platform.OS !== "ios" || Platform.isTV ? undefined : item ? (
+      <Image
+        systemName='list.bullet'
+        color={effectiveColors.text}
+        modifiers={label}
+      />
+    ) : (
+      <ProgressView modifiers={label} />
+    );
+
   return (
     <PlatformDropdown
       groups={optionGroups}
       trigger={trigger}
+      nativeLabel={nativeLabel}
       title={t("item_card.media_options")}
       open={open}
       onOpenChange={setOpen}

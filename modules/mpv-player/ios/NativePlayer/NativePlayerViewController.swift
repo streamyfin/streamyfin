@@ -1,4 +1,5 @@
 import Combine
+import ExpoModulesCore
 import SwiftUI
 import UIKit
 #if os(tvOS)
@@ -78,7 +79,7 @@ final class NativePlayerViewController: UIViewController {
 	/// forces the opposite orientation and the lock follows it.
 	private func rotateInterface() {
 		guard let scene = view.window?.windowScene else { return }
-		let toPortrait = scene.interfaceOrientation.isLandscape
+		let toPortrait = SceneGeometry.interfaceOrientation(for: view).isLandscape
 		orientationMask = toPortrait ? .portrait : .landscape
 		setNeedsUpdateOfSupportedInterfaceOrientations()
 		scene.requestGeometryUpdate(
@@ -317,7 +318,7 @@ final class NativePlayerViewController: UIViewController {
 		videoContainerView.frame = view.bounds
 		if let rendering {
 			rendering.displayLayer.frame = zoomAwareLayerFrame()
-			rendering.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
+			rendering.displayLayer.contentsScale = SceneGeometry.displayScale(for: view)
 			rendering.syncSubtitleLayerFrame()
 		}
 		CATransaction.commit()
