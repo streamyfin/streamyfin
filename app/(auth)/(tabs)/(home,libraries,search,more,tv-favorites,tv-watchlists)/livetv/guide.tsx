@@ -41,6 +41,7 @@ import {
 } from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
+import { channelPlayerHref } from "@/components/livetv/useChannelPress";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -87,9 +88,7 @@ const ChannelLogoButton: React.FC<{
   const showFavoriteSheet = useChannelFavoriteSheet();
 
   const handlePress = useCallback(() => {
-    router.push(
-      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
-    );
+    router.push(channelPlayerHref(channel.Id));
   }, [channel.Id, router]);
 
   const handleLongPress = useCallback(() => {
@@ -137,9 +136,7 @@ const GuideRowWithFavorite: React.FC<{
   const segments = useSegments();
 
   const handlePress = useCallback(() => {
-    router.push(
-      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
-    );
+    router.push(channelPlayerHref(channel.Id));
   }, [channel.Id, router]);
 
   const handleLongPress = useCallback(

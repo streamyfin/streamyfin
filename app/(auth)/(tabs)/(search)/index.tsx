@@ -26,7 +26,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CardRow } from "@/components/cards/CardRow";
-import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
@@ -34,6 +33,7 @@ import {
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
+import { SearchChannelCard } from "@/components/search/SearchChannelCard";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchSortMenu } from "@/components/search/SearchSortMenu";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
@@ -1039,30 +1039,7 @@ export default function SearchPage() {
               items={livetvChannels}
               header={t("live_tv.title")}
               renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  item={item}
-                  className='flex flex-col w-24 mr-2'
-                >
-                  <View
-                    style={{
-                      width: 84,
-                      height: 84,
-                      borderRadius: 8,
-                      overflow: "hidden",
-                      backgroundColor: "#1a1a1a",
-                    }}
-                  >
-                    <ItemImage
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit='contain'
-                      item={item}
-                    />
-                  </View>
-                  <Text numberOfLines={2} className='mt-2 text-xs'>
-                    {item.Name}
-                  </Text>
-                </TouchableItemRouter>
+                <SearchChannelCard key={item.Id} channel={item} />
               )}
             />
             <SearchItemWrapper
