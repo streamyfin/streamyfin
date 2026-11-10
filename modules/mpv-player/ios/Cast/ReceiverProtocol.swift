@@ -149,6 +149,11 @@ enum ReceiverProtocol {
     return message(command: "PlayNow", server: server, options: options)
   }
 
+  /// Items added at the end of the receiver's queue (PlayNext does the same); nothing starts if nothing plays.
+  static func playLast(server: ReceiverServer, itemIds: [String]) -> [String: Any] {
+    message(command: "PlayLast", server: server, options: ["items": itemIds.map { slim(ReceiverItem(id: $0)) }])
+  }
+
   private static func slim(_ item: ReceiverItem) -> [String: Any] {
     var slimmed: [String: Any] = ["IsFolder": item.isFolder]
     if let value = item.id { slimmed["Id"] = value }

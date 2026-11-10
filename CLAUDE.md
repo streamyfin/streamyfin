@@ -90,6 +90,9 @@ Native modules:
 - `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
 - `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the module with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, paused in the background; no hidden MediaRouteButton, which the library needed
 - `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
+- `cast-resume-rebuilds-the-client` | a Cast resume hands a new media client and drops channel callbacks; register again on resume, never keep either across one
+- `cast-session-id-goes-null-when-ended` | an ended Android CastSession answers null for its id, so an end matched against the live id matches nothing; keep the id the binding was made with
+- `cast-stop-from-tv-leaves-an-idle-status` | stopped from the TV, the session stays connected and the SDK keeps an idle status with its media, at position 0; play() does nothing there, send the item or queue again from your own position
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -177,7 +180,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the receiver protocol), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

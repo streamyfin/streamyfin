@@ -59,3 +59,76 @@ python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.
 Its taps by position are laid out for the bench's 1080x2400 phone emulator. What the server
 recorded for the receiver during the flow is read with `e2e/bench/sessions.py`, as for the
 matrix.
+
+## Cast engine probe
+
+Debug builds carry a probe that drives a real receiver through the native Cast engine, so
+what the engine does on a TV is read from the device log rather than inferred. It binds an
+engine to the session of the first PlayNow the app sends, then, once that item plays, runs a
+fixed script through the engine's transport.
+
+It needs a Chromecast or a Google TV on the phone's network with the default Jellyfin
+receiver, and a debug build signed in to a test server, Metro running.
+
+**Android.** Clear the log, arm the probe, read the log, then cast an item from its page
+with the header Cast button, which is the app's own path. The last command keeps reading, so
+the cast goes from the app while it runs:
+
+```sh
+adb logcat -c
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.engine.CastEngineProbeReceiver -a expo.modules.mpvplayer.CAST_ENGINE_PROBE
+adb logcat -v time -s CastEngine:I CastEngineProbe:I ReceiverChannelHub:I StreamyfinCast:W
+```
+
+The broadcast needs the `DUMP` permission, which `adb shell` has. The log then reads:
+
+- `CastEngineProbe: armed`, then `engine bound, waiting for the item to play` and
+  `item playing, running the script`.
+- `ReceiverChannelHub: attached session=<id>` and `registered urn:x-cast:com.connectsdk
+  session=<id> subscribers=<n>`: the app's JS and the engine share one channel.
+- `CastEngine: bound to session <id> launched=<bool>`, then a line per state change,
+  `status <state> playSession=<id> playMethod=<DirectStream|Transcode> canClientSeek=<bool>`.
+- `CastEngineProbe: position <s>/<duration>` every second, the receiver's messages as
+  `bus type=<type> PlayMethod=… PositionTicks=… AudioStreamIndex=… SubtitleStreamIndex=…`
+  (the `PlayState` fields only), and `bus sent <command>` for what the app's JS sent.
+- One `step <name>` per step, timed from the first playing status: `pause` (5 s), `play`
+  (8 s), `seek+30` (12 s), `volume-0.1` (20 s), `volume-back` (23 s), `audio-reload` (26 s),
+  `subtitles-off` (40 s), `next` (45 s, to the next item when JS cast a queue),
+  `capped-reload` (55 s, the item played again where it is under a 192 kb/s cap, as a quality
+  change does through `reloadCurrentItem`; the probe's engine never loaded, so the receiver
+  keeps that item alone, hence `next` first), `seek+30` (65 s), `detach` (80 s). The TV pauses
+  and plays on, shows its volume banner twice, and keeps playing after `detach`. In the log: `seek <s> path=media` on
+  a stream the receiver seeks in and `path=bus` on one it cannot, a transcode after the capped
+  reload; `reload settled loaded`; `send SetSubtitleStreamIndex`; `send NextTrack`; `send PlayNow` and
+  `reload settled loaded` for the capped reload;
+  `detached from session <id>` and `disarmed`.
+- `idle finished, waiting for the next item` at the end of a track with more to come.
+
+What the server recorded for the receiver is read with `sessions.py`, during V03 for a
+direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
+
+```sh
+e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
+```
+
+Stopping the cast from the Cast dialog logs `binding lost session=<id> error=null`,
+`detached from session <id>` and `disarmed`. After a cast the SDK's expanded controls are
+open: their toolbar Cast button, read as `Cast. Connected`, opens that dialog; the app's
+header button reads `Cast button, Connected`.
+
+Cutting the phone's network ended the session on the emulator, within a second of the cut,
+after a suspend of about 16 s, or once right after a resume over its mobile link. The
+engine logs `binding lost session=<id> error=<code>`, status 2155 when the SDK gives one,
+then `detached from session <id>`. A phone that gets its Wi-Fi back within the SDK's window
+should log `session <id> suspended`, then `session <id> resumed` with the same id and bus
+messages again within 5 s: that check is left for a phone on the receiver's Wi-Fi.
+
+**iOS.** Pass the launch argument `-CastEngineProbe YES`, from the Xcode scheme or with
+`xcrun devicectl device process launch --console --terminate-existing --device <iPhone>
+<bundle identifier> -CastEngineProbe YES`, and read the same lines on the console. For the
+resume, put the app in the background for 10 s.
+
+Receiver 1.3.2 starts a transcode it cannot seek in at twice the position asked
+(jellyfin/jellyfin-chromecast#971): the second `seek+30` on MUSIC-FLAC shows it. Keep the
+evidence with `sessions.py --keep <subject>` and quote only that redacted copy: a raw log
+holds addresses.

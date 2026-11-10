@@ -271,8 +271,6 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// opening one grants a longer auto-hide grace period instead. Hiding
 	/// unmounts the bar, which grays out an open menu — so err long.
 	private let menuAutoHideDelay: TimeInterval = 15
-	/// More than this far into a chapter, "previous chapter" restarts it.
-	private let chapterRestartThreshold: Double = 3
 	/// Mirrors utils/subtitles.ts for mobile iOS MPV.
 	private let subtitleScaleMultiplier = 0.6 * 1.25 * 1.35
 
@@ -971,7 +969,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		guard idx >= 0 else { return }
 		haptic()
 		let chapterStart = chapters[idx].startSec
-		if displayPosition - chapterStart > chapterRestartThreshold {
+		if displayPosition - chapterStart > PlayerConstants.chapterRestartThreshold {
 			seek(to: chapterStart)
 		} else if idx > 0 {
 			seek(to: chapters[idx - 1].startSec)
