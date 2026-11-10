@@ -49,37 +49,21 @@ export const BITRATES: Bitrate[] = [
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
   selected?: Bitrate | null;
-  inverted?: boolean | null;
 }
 
 export const BitrateSelector: React.FC<Props> = ({
   onChange,
   selected,
-  inverted,
   ...props
 }) => {
   const isTv = Platform.isTV;
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
 
-  const sorted = useMemo(() => {
-    if (inverted)
-      return BITRATES.slice().sort(
-        (a, b) =>
-          (a.value || Number.POSITIVE_INFINITY) -
-          (b.value || Number.POSITIVE_INFINITY),
-      );
-    return BITRATES.slice().sort(
-      (a, b) =>
-        (b.value || Number.POSITIVE_INFINITY) -
-        (a.value || Number.POSITIVE_INFINITY),
-    );
-  }, [inverted]);
-
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        options: sorted.map((bitrate) => ({
+        options: BITRATES.map((bitrate) => ({
           type: "radio" as const,
           label: bitrate.key,
           value: bitrate,
@@ -88,11 +72,11 @@ export const BitrateSelector: React.FC<Props> = ({
         })),
       },
     ],
-    [sorted, selected, onChange],
+    [selected, onChange],
   );
 
   const handleOptionSelect = (optionId: string) => {
-    const selectedBitrate = sorted.find((b) => b.key === optionId);
+    const selectedBitrate = BITRATES.find((b) => b.key === optionId);
     if (selectedBitrate) {
       onChange(selectedBitrate);
     }

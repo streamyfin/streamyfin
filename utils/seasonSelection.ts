@@ -12,6 +12,19 @@ const isRemembered = (season: BaseItemDto, remembered: RememberedSeason) =>
   season.Name === String(remembered);
 
 /**
+ * The season among `seasons` that `remembered` names. Nothing remembered names
+ * no season: a season without a name or a number would otherwise match it,
+ * undefined being equal to undefined.
+ */
+export const findRememberedSeason = <S extends BaseItemDto>(
+  seasons: S[] | undefined,
+  remembered: RememberedSeason,
+): S | undefined => {
+  if (remembered === undefined || remembered === null) return undefined;
+  return seasons?.find((season) => isRemembered(season, remembered));
+};
+
+/**
  * The season to show instead when the remembered one is no longer among
  * `seasons`. Offline that happens by deleting the last downloaded episode of
  * the season on screen: the season list is built from what is downloaded, so

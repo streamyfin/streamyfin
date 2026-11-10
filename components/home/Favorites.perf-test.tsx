@@ -1,7 +1,7 @@
 import { act, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { measureRenders } from "reassure";
-import FavoritesPage from "@/app/(auth)/(tabs)/(favorites)/index";
+import FavoritesPage from "@/app/(auth)/(tabs)/(more)/favorites/index";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeItems } from "@/test-utils/baseItems";
 import type { makeApi } from "@/test-utils/jellyfinApi";

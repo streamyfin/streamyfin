@@ -9,11 +9,13 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   TVFocusGuideView,
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv";
+import { tvSheetBacking } from "@/components/tv/tvSheetBacking";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { scaleSize } from "@/utils/scaleSize";
@@ -109,7 +111,7 @@ const TVPasswordInput: React.FC<{
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   return (
     <Pressable
@@ -249,7 +251,8 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
             trapFocusDown
             trapFocusLeft
             trapFocusRight
-            style={styles.content}
+            testID='tv-password-panel'
+            style={[styles.content, tvSheetBacking()]}
           >
             {/* Header */}
             <View style={styles.header}>

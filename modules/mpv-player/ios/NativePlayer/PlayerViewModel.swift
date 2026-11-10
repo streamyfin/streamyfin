@@ -1,4 +1,5 @@
 import Combine
+import ExpoModulesCore
 import Foundation
 import QuartzCore
 import UIKit
@@ -517,8 +518,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		videoWidth = config.stream.videoWidth
 		videoHeight = config.stream.videoHeight
 		// Skip times are persisted settings that arrive unvalidated; a
-		// non-finite value would trap in seekSymbol's Int() and poison
-		// seek targets.
+		// non-finite value would poison seek targets.
 		seekForwardSec = config.ui.seekForwardSec.isFinite ? max(1, config.ui.seekForwardSec) : 10
 		seekBackwardSec = config.ui.seekBackwardSec.isFinite ? max(1, config.ui.seekBackwardSec) : 10
 		hapticsEnabled = config.ui.hapticsEnabled
@@ -1044,7 +1044,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		var effectiveScale = subtitleScale * subtitleScaleMultiplier
 		if let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
 			let surface = playerSurfaceSize
-			let pixelScale = UIScreen.main.scale
+			let pixelScale = SceneGeometry.displayScale()
 			let width = Double(surface.width * pixelScale)
 			let height = Double(surface.height * pixelScale)
 			let widthScale = width / Double(videoWidth)
@@ -1061,9 +1061,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private var playerSurfaceSize: CGSize {
-		guard let engine else { return UIScreen.main.bounds.size }
+		guard let engine else { return SceneGeometry.bounds().size }
 		let size = engine.displayLayer.bounds.size
-		return size.width > 0 && size.height > 0 ? size : UIScreen.main.bounds.size
+		return size.width > 0 && size.height > 0 ? size : SceneGeometry.bounds().size
 	}
 
 	// MARK: Volume slider reveal
