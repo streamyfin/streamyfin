@@ -26,7 +26,8 @@ setting the level through it does not freeze the session:
   published mute is the device's or the stream's. The SDK's own mute toggle
   (`UIMediaController.bindImageViewToMuteToggle`, in its expanded controls) mutes the device
   volume instead, as its reference says; on the bench of 2026-11-05 it lifted a device mute
-  another sender had set. A device mute set elsewhere is one the stream mute cannot lift.
+  another sender had set. A device mute set elsewhere is one the stream mute cannot lift: the
+  port reports it apart (`deviceMuted`) and the sheet holds its mute button still over it.
 
 iOS has no such freeze: `GCKCastSession.setDeviceVolume` and `setDeviceMuted` keep the session
 following outside changes, so iOS sets the device's level and mute.

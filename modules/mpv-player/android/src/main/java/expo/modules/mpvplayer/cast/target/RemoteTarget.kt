@@ -38,6 +38,9 @@ data class RemoteTargetSnapshot(
     // The receiver's own volume, 0 to 1, as the SDK last reported it for this session; null before.
     val volume: Double? = null,
     val muted: Boolean = false,
+    // Android: a mute set on the device itself, by another sender, which the app's stream mute cannot lift.
+    // Native only: the sheet reads it, JS does not.
+    val deviceMuted: Boolean = false,
     // The SDK's status code for [error], and the receiver it belongs to: null with no error, and the code
     // null as well for a refusal of the port's own.
     val errorCode: Int? = null,
@@ -107,9 +110,9 @@ class RemoteTargetMachine {
     }
 
     /** The receiver's volume, as the SDK reports it: held only for a session connecting or connected. */
-    fun volumeChanged(level: Double, muted: Boolean): Boolean {
+    fun volumeChanged(level: Double, muted: Boolean, deviceMuted: Boolean = false): Boolean {
         if (snapshot.phase != TargetPhase.CONNECTING && snapshot.phase != TargetPhase.CONNECTED) return false
-        val next = snapshot.copy(volume = level.coerceIn(0.0, 1.0), muted = muted)
+        val next = snapshot.copy(volume = level.coerceIn(0.0, 1.0), muted = muted, deviceMuted = deviceMuted)
         if (next == snapshot) return false
         snapshot = next
         return true
@@ -166,7 +169,12 @@ class RemoteTargetMachine {
     // The same session keeps the volume the SDK last reported; another target, or none, starts without one.
     private fun update(next: RemoteTargetSnapshot): Boolean {
         val sameSession = next.phase != TargetPhase.NONE && next.target?.id == snapshot.target?.id
-        val carried = if (sameSession) next.copy(volume = snapshot.volume, muted = snapshot.muted) else next.copy(volume = null, muted = false)
+        val carried =
+            if (sameSession) {
+                next.copy(volume = snapshot.volume, muted = snapshot.muted, deviceMuted = snapshot.deviceMuted)
+            } else {
+                next.copy(volume = null, muted = false, deviceMuted = false)
+            }
         if (carried == snapshot) return false
         snapshot = carried
         return true

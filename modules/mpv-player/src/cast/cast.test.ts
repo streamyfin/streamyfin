@@ -21,8 +21,10 @@ import {
   disconnectRemoteTarget,
   isCastAvailable,
   onCastSessionEvent,
+  onOutputPickerAction,
   onRemoteTargetChanged,
   playServicesState,
+  presentOutputPicker,
   remoteTarget,
   setRemoteTargetMuted,
   setRemoteTargetVolume,
@@ -397,6 +399,45 @@ test("setRemoteTargetMuted sends the flag to native", async () => {
   await setRemoteTargetMuted(false);
 
   expect(mockCast.muteCalls).toEqual([true, false]);
+});
+
+test("presentOutputPicker passes the strings, the anchor and what plays here", async () => {
+  const options = {
+    strings: { title: "Lire sur", cancel: "Annuler" },
+    anchor: { x: 312, y: 48, width: 44, height: 44 },
+    playingHere: "Big Buck Bunny",
+  };
+
+  await expect(presentOutputPicker(options)).resolves.toBe(true);
+
+  expect(mockCast.outputPickerCalls).toEqual([options]);
+});
+
+// The sheet is where Android explains missing or outdated Play Services: it opens while Cast cannot.
+test("presentOutputPicker asks the module while Cast is unavailable", async () => {
+  mockCast.available = false;
+
+  await presentOutputPicker({ strings: {} });
+
+  expect(mockCast.outputPickerCalls).toHaveLength(1);
+});
+
+test("presentOutputPicker resolves what the module answers", async () => {
+  mockCast.outputPickerAnswer = false;
+
+  await expect(presentOutputPicker({ strings: {} })).resolves.toBe(false);
+});
+
+test("onOutputPickerAction relays remote", () => {
+  const seen: string[] = [];
+  const subscription = onOutputPickerAction((action) => seen.push(action));
+
+  emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" });
+  subscription.remove();
+  emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" });
+
+  expect(seen).toEqual(["remote"]);
+  expect(mockCast.listeners.onOutputPickerAction).toHaveLength(0);
 });
 
 test("onRemoteTargetChanged hands each state the module publishes", () => {

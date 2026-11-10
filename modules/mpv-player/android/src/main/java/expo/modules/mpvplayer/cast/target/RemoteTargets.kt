@@ -21,6 +21,7 @@ object RemoteTargets {
     fun installDefault(context: Context, cast: CastContext, hub: RemoteTargetHub = RemoteTargetHub.shared) {
         if (installedFor === cast) return
         installedFor = cast
+        hub.log = { Log.w(TAG, it) }
         hub.install(portFor(fakeDevices, { GoogleCastTargetPort.of(context, cast) }, mainLooperSchedule()) { Log.w(TAG, it) })
     }
 

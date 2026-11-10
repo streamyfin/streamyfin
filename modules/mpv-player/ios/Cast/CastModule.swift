@@ -18,6 +18,8 @@ public class CastModule: Module {
   private var cachedState: String?
   private var cachedSession: [String: Any?]?
   private var observedClient: GCKRemoteMediaClient?
+  // What the output sheet reads of the receiver through a suspension, which drops the media client.
+  private var heardStatus = LastHeardStatus<GCKMediaStatus>()
   // The target hub outlives the module, like the channel hub: it holds the port, the devices and the
   // target state, and holds the module's relay weakly.
   private let remoteTargets = RemoteTargetHub.shared
@@ -34,8 +36,27 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged"
+      "onRemoteTargetChanged", "onOutputPickerAction", "onOutputPickerDismissed"
     )
+
+    OnCreate { [weak self] in
+      // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
+      let presenter = OutputPickerPresenter.shared
+      presenter.receiverTitle = {
+        guard let status = self?.heardMediaStatus() else { return nil }
+        return CastMapping.playingTitle(
+          status.playerState.rawValue, title: status.mediaInformation?.metadata?.string(forKey: kGCKMetadataKeyTitle)
+        )
+      }
+      presenter.receiverPlaying = {
+        CastMapping.isPlaying(self?.heardMediaStatus()?.playerState.rawValue ?? 0)
+      }
+      presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
+    }
+
+    OnDestroy {
+      DispatchQueue.main.async { OutputPickerPresenter.shared.dismiss() }
+    }
 
     OnStartObserving {
       DispatchQueue.main.async { self.ensureListening() }
@@ -106,6 +127,28 @@ public class CastModule: Module {
       self.ensureListening()
       GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
       return true
+    }.runOnQueue(.main)
+
+    // The output sheet (Cast receivers, AirPlay, this device): true once on screen, false where it cannot show.
+    AsyncFunction("presentOutputPicker") { (options: [String: Any]) -> Bool in
+      self.ensureListening()
+      let presenter = OutputPickerPresenter.shared
+      let strings = (options["strings"] as? [String: Any] ?? [:]).compactMapValues { $0 as? String }
+      presenter.strings = OutputPickerStrings(strings)
+      // The button's own view, which the popover follows across a rotation; its frame is the fallback.
+      let anchorView = (options["anchorTag"] as? NSNumber).flatMap {
+        self.appContext?.findView(withTag: $0.intValue, ofType: UIView.self)
+      }
+      // Held by the presenter only while the sheet is up.
+      return presenter.present(
+        anchor: Self.anchorRect(options["anchor"]), anchorView: anchorView, playingHere: options["playingHere"] as? String
+      ) {
+        self.sendEvent("onOutputPickerAction", ["action": "remote"])
+      }
+    }.runOnQueue(.main)
+
+    AsyncFunction("dismissOutputPicker") {
+      OutputPickerPresenter.shared.dismiss()
     }.runOnQueue(.main)
 
     // The hub adds the namespace's channel to every session it is given, a resume included, so
@@ -243,7 +286,22 @@ public class CastModule: Module {
     observedClient = nil
   }
 
+  fileprivate func suspended() {
+    // Before the client goes: the sheet keeps what the receiver plays until it reports again.
+    heardStatus.hold(observedClient?.mediaStatus)
+    stopObserving()
+  }
+
+  fileprivate func forgetHeardStatus() {
+    heardStatus.forget()
+  }
+
+  private func heardMediaStatus() -> GCKMediaStatus? {
+    heardStatus.read(observedClient?.mediaStatus)
+  }
+
   fileprivate func sessionEnded() {
+    heardStatus.forget()
     stopObserving()
     // The JS side opens its channels again on the next session's first command.
     jsChannels.values.forEach { $0.subscription.remove() }
@@ -252,7 +310,18 @@ public class CastModule: Module {
   }
 
   fileprivate func emitMediaStatus(_ status: GCKMediaStatus?) {
+    heardStatus.forget()
     sendEvent("onMediaStatusChanged", ["status": CastRecords.mediaStatus(status)])
+    OutputPickerPresenter.shared.refresh()
+  }
+
+  /// The button's frame in window points, as JS measures it.
+  private static func anchorRect(_ anchor: Any?) -> CGRect? {
+    guard let frame = anchor as? [String: Any],
+      let x = (frame["x"] as? NSNumber)?.doubleValue, let y = (frame["y"] as? NSNumber)?.doubleValue,
+      let width = (frame["width"] as? NSNumber)?.doubleValue, let height = (frame["height"] as? NSNumber)?.doubleValue
+    else { return nil }
+    return CGRect(x: x, y: y, width: width, height: height)
   }
 
   fileprivate func emitReceiverMessage(_ namespace: String, _ message: String) {
@@ -308,6 +377,7 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
   }
 
   func sessionManager(_ sessionManager: GCKSessionManager, willStart session: GCKSession) {
+    module?.forgetHeardStatus()
     module?.emitSession("starting", session, error: nil)
   }
 
@@ -324,7 +394,7 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
   }
 
   func sessionManager(_ sessionManager: GCKSessionManager, didSuspend session: GCKSession, with reason: GCKConnectionSuspendReason) {
-    module?.stopObserving()
+    module?.suspended()
     module?.emitSession("suspended", session, error: nil)
   }
 
@@ -361,7 +431,7 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged"
+      "onRemoteTargetChanged", "onOutputPickerAction", "onOutputPickerDismissed"
     )
 
     Function("isAvailable") { false }
@@ -374,6 +444,9 @@ public class CastModule: Module {
     AsyncFunction("disconnect") { (_: Bool) in }
     AsyncFunction("setTargetVolume") { (_: Double) in }
     AsyncFunction("setTargetMuted") { (_: Bool) in }
+    // No sheet on a TV or a Mac: the JS side keeps its button hidden there.
+    AsyncFunction("presentOutputPicker") { (_: [String: Any]) -> Bool in false }
+    AsyncFunction("dismissOutputPicker") {}
 
     View(CastButtonView.self) {
       Prop("tintColor") { (view: CastButtonView, color: String?) in

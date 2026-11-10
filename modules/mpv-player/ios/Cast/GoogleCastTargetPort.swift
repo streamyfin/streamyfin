@@ -188,6 +188,7 @@ final class GoogleCastTargetPort: TargetPort {
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import GoogleCast
+import UIKit
 
 extension GoogleCastTargetPort {
   static func targetDevice(_ device: GCKDevice?) -> TargetDevice? {
@@ -248,8 +249,8 @@ extension GoogleCastTargetPort {
   }
 }
 
-/// Timers on the main queue, cancellable, for the fake receivers and the debug probe.
-private let mainQueueSchedule: (Double, @escaping () -> Void) -> (() -> Void) = { delayMs, run in
+/// Timers on the main queue, cancellable, for the fake receivers, the debug probe and the output sheet.
+let mainQueueSchedule: (Double, @escaping () -> Void) -> (() -> Void) = { delayMs, run in
   let work = DispatchWorkItem(block: run)
   DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
   return { work.cancel() }
@@ -262,6 +263,7 @@ extension RemoteTargets {
   static func installDefault(hub: RemoteTargetHub = .shared) {
     guard !installed else { return }
     installed = true
+    hub.log = { Logger.shared.log($0, type: "RemoteTargets") }
     hub.install(
       portFor(fake: fakeDevices, real: { GoogleCastTargetPort.make() }, schedule: mainQueueSchedule) {
         Logger.shared.log($0, type: "RemoteTargets")
@@ -273,6 +275,7 @@ extension RemoteTargets {
 #if DEBUG
 extension CastTargetProbe {
   private static var current: CastTargetProbe?
+  private static var waitingForActive: NSObjectProtocol?
 
   /// One probe at a time, on the app's hub, its timers on the main queue. Debug builds log through
   /// Logger, which prints each line with its type: the console reads [CastTargetProbe]. `then` names a
@@ -280,15 +283,30 @@ extension CastTargetProbe {
   /// relaunch would first meet the SDK resuming its session.
   static func run(
     deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false, stop: Bool = true,
-    volume: Double? = nil, mute: Bool? = nil
+    volume: Double? = nil, mute: Bool? = nil, sheet: Bool = false
   ) {
     let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
     if current?.isActive == true { return log("already running") }
+    // The sheet needs a window on screen, which a launch has once its scene is active.
+    if sheet, UIApplication.shared.applicationState != .active {
+      waitingForActive = NotificationCenter.default.addObserver(
+        forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+      ) { _ in
+        if let token = waitingForActive { NotificationCenter.default.removeObserver(token) }
+        waitingForActive = nil
+        run(
+          deviceName: deviceName, keep: keep, holdMs: holdMs, then: next, back: back, stop: stop, volume: volume,
+          mute: mute, sheet: true
+        )
+      }
+      return
+    }
     RemoteTargets.installDefault()
     let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
       hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back, stop: stop,
-      volume: volume, mute: mute, schedule: mainQueueSchedule, log: log
+      volume: volume, mute: mute, presentSheet: sheet ? { OutputPickerPresenter.shared.presentForProbe() } : nil,
+      schedule: mainQueueSchedule, log: log
     )
     if let next, !next.isEmpty {
       probe.onFinish = { result in

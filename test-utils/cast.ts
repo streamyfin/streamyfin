@@ -20,6 +20,7 @@ import {
   type CastSessionInfo,
   type CastStateValue,
   NO_REMOTE_TARGET,
+  type OutputPickerOptions,
   type PlayServicesStateValue,
   type RemoteTargetPhase,
   type RemoteTargetState,
@@ -69,6 +70,10 @@ export interface CastDoubleState {
   volumeCalls: number[];
   /** Flags handed to `setTargetMuted`, in order. */
   muteCalls: boolean[];
+  /** Options handed to `presentOutputPicker`, in order. */
+  outputPickerCalls: OutputPickerOptions[];
+  /** What `presentOutputPicker` answers: false is a TV or a Mac. */
+  outputPickerAnswer: boolean;
   /** Listeners registered through `addListener`, by event. */
   listeners: { [K in keyof CastNativeEvents]: CastNativeEvents[K][] };
 }
@@ -103,6 +108,8 @@ export const createCastDoubleState = (): CastDoubleState => ({
   disconnectCalls: [],
   volumeCalls: [],
   muteCalls: [],
+  outputPickerCalls: [],
+  outputPickerAnswer: true,
   listeners: {
     onCastStateChanged: [],
     onDevicesChanged: [],
@@ -110,6 +117,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
     onMediaStatusChanged: [],
     onReceiverMessage: [],
     onRemoteTargetChanged: [],
+    onOutputPickerAction: [],
   },
 });
 
@@ -258,6 +266,11 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     state().dialogs.push("expandedControls");
     return true;
   }),
+  presentOutputPicker: jest.fn(async (options: OutputPickerOptions) => {
+    state().outputPickerCalls.push(options);
+    return state().outputPickerAnswer;
+  }),
+  dismissOutputPicker: jest.fn(async () => {}),
   addChannel: jest.fn(async (namespace: string) => {
     const current = state();
     if (current.holdAdd) await current.holdAdd;

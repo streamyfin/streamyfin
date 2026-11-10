@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.annotation.MainThread
 import com.google.android.gms.cast.framework.CastContext
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import java.util.Locale
 
 // The device proof of the remote target, in debug builds only (e2e/suites/cast/README.md, "Remote
@@ -22,12 +23,17 @@ internal class CastTargetProbe(
     private val holdMs: Long,
     /** Asks the receiver held at the start again right after the switch request: the switch asked back. */
     private val back: Boolean,
-    /** False ends the session and leaves the receiver playing, as the output sheet's Disconnect does. */
+    /**
+     * False ends the session asking to leave the receiver playing; only a session that joined the receiver
+     * leaves it so, the one that launched it stops it whatever it asks (bench, 04/11). The sheet always stops.
+     */
     private val stop: Boolean,
     /** A level, 0 to 1, set once connected; the receiver's report of it is logged. */
     private val volume: Double?,
     /** A mute, set once connected after the level; the receiver's report of it is logged. */
     private val mute: Boolean?,
+    /** Opens the output sheet at arming, for its screenshots; null leaves it closed. */
+    private val presentSheet: (() -> Boolean)?,
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val log: (String) -> Unit,
 ) : RemoteTargetListener {
@@ -53,16 +59,25 @@ internal class CastTargetProbe(
         // A whole name only: a part of one may name another receiver than the connected one.
         if (current.phase == TargetPhase.CONNECTED && target != null && target.name.equals(deviceName, ignoreCase = true)) {
             log("already connected to ${target.name}")
-            // The session the probe holds, for the hold's check.
+            // The session the probe holds, for the hold's check; held before the sheet, whose discovery could list a
+            // namesake first.
             device = TargetDevice(target.id, target.name)
+            showSheet()
             onConnected()
             return
         }
-        // Set first: the SDK port lists the routes it has inside startDiscovery, and a connection
-        // started there sets its own wait, which this one must not replace.
+        // Set first: the SDK port lists the routes it has inside startDiscovery, the sheet's too, and a
+        // connection started there sets its own wait, which this one must not replace.
         wait(DISCOVERY_TIMEOUT_MS, "no device named \"$deviceName\"")
+        showSheet()
+        // A refusal inside the sheet's discovery can have ended the probe already.
+        if (!isActive) return
         hub.startDiscovery(RemoteTargetHub.PROBE_DISCOVERY)
         devicesChanged(hub.devices)
+    }
+
+    private fun showSheet() {
+        presentSheet?.let { present -> log(if (present()) "presenting the output sheet" else "no activity for the output sheet") }
     }
 
     override fun devicesChanged(devices: List<TargetDevice>) {
@@ -228,6 +243,7 @@ internal class CastTargetProbe(
             stop: Boolean,
             volume: Double?,
             mute: Boolean?,
+            sheet: Boolean,
         ) {
             if (current?.isActive == true) {
                 Log.i(TAG, "already running")
@@ -241,12 +257,17 @@ internal class CastTargetProbe(
                 CastContext.getSharedInstance(context.applicationContext)
             } catch (error: RuntimeException) {
                 Log.w(TAG, "failed: no Cast context", error)
+                // The sheet says why on its own, missing or outdated Play Services: it is still worth a look.
+                if (sheet) Log.i(TAG, if (OutputPickerPresenter.presentForProbe()) "presenting the output sheet" else "no activity for the output sheet")
                 return
             }
             // The module installs the same port when JS first touches Cast; whichever comes first wins.
             RemoteTargets.installDefault(context, cast)
             current =
-                CastTargetProbe(RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mute, mainLooperSchedule()) {
+                CastTargetProbe(
+                    RemoteTargetHub.shared, deviceName, keep, holdMs, back, stop, volume, mute,
+                    if (sheet) OutputPickerPresenter::presentForProbe else null, mainLooperSchedule(),
+                ) {
                     Log.i(TAG, it)
                 }.also { it.start() }
         }
@@ -254,7 +275,7 @@ internal class CastTargetProbe(
 }
 
 /**
- * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>] [--ez mute true|false]`
+ * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device <name> [--ez keep true] [--el hold <ms>] [--ez back true] [--ez stop false] [--ef volume <0 to 1>] [--ez mute true|false] [--ez sheet true]`
  */
 class CastTargetProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -268,6 +289,7 @@ class CastTargetProbeReceiver : BroadcastReceiver() {
             intent.getBooleanExtra("stop", true),
             if (intent.hasExtra("volume")) intent.getFloatExtra("volume", 0f).toDouble() else null,
             if (intent.hasExtra("mute")) intent.getBooleanExtra("mute", false) else null,
+            intent.getBooleanExtra("sheet", false),
         )
     }
 }

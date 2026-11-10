@@ -2,12 +2,16 @@ package expo.modules.mpvplayer.cast
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import androidx.mediarouter.app.MediaRouteChooserDialog
 import androidx.mediarouter.app.MediaRouteControllerDialog
+import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
+import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastSession
@@ -20,6 +24,9 @@ import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.cast.output.LastHeardStatus
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.RemoteTargetListener
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
@@ -60,6 +67,8 @@ class CastModule : Module() {
     )
     private var removeTargetRelay: (() -> Unit)? = null
     private var mediaClient: RemoteMediaClient? = null
+    // What the output sheet reads of the receiver through a suspension, which drops the media client.
+    private val heardStatus = LastHeardStatus<MediaStatus>()
     // The hub holds the SDK registration of each namespace and outlives the module; the module only
     // keeps what JS asked to hear, so that a reload or a session end lets go of exactly that.
     private val hub = ReceiverChannelHub.shared
@@ -80,12 +89,17 @@ class CastModule : Module() {
 
     private val mediaCallback = object : RemoteMediaClient.Callback() {
         override fun onStatusUpdated() {
+            heardStatus.forget()
             sendEvent("onMediaStatusChanged", mapOf("status" to CastRecords.mediaStatus(mediaClient?.mediaStatus)))
+            OutputPickerPresenter.refresh()
         }
     }
 
     private val sessionListener = object : SessionManagerListener<CastSession> {
-        override fun onSessionStarting(session: CastSession) = emitSession("starting", session, null)
+        override fun onSessionStarting(session: CastSession) {
+            heardStatus.forget()
+            emitSession("starting", session, null)
+        }
 
         override fun onSessionStarted(session: CastSession, sessionId: String) {
             attachMedia(session)
@@ -97,6 +111,8 @@ class CastModule : Module() {
             emitSession("startFailed", session, endError(error))
 
         override fun onSessionSuspended(session: CastSession, reason: Int) {
+            // Before the client goes: the sheet keeps what the receiver plays until it reports again.
+            heardStatus.hold(mediaClient?.mediaStatus)
             detachMedia()
             emitSession("suspended", session, null)
         }
@@ -109,12 +125,15 @@ class CastModule : Module() {
             emitSession("resumed", session, null)
         }
 
-        override fun onSessionResumeFailed(session: CastSession, error: Int) =
+        override fun onSessionResumeFailed(session: CastSession, error: Int) {
+            heardStatus.forget()
             emitSession("startFailed", session, endError(error))
+        }
 
         override fun onSessionEnding(session: CastSession) = emitSession("ending", session, null)
 
         override fun onSessionEnded(session: CastSession, error: Int) {
+            heardStatus.forget()
             detachMedia()
             // The JS side opens its channels again on the next session's first command.
             removeJsSubscriptions()
@@ -133,7 +152,25 @@ class CastModule : Module() {
             "onMediaStatusChanged",
             "onReceiverMessage",
             "onRemoteTargetChanged",
+            "onOutputPickerAction",
+            "onOutputPickerDismissed",
         )
+
+        OnCreate {
+            // The output sheet outlives a JS reload like the hub; it reaches JS through the module in place.
+            OutputPickerPresenter.receiverTitle = {
+                heardStatus.read(mediaClient?.mediaStatus)?.let { status ->
+                    CastMapping.playingTitle(status.playerState, status.mediaInfo?.metadata?.getString(MediaMetadata.KEY_TITLE))
+                }
+            }
+            OutputPickerPresenter.receiverPlaying = {
+                heardStatus.read(mediaClient?.mediaStatus)?.let { CastMapping.isPlaying(it.playerState) } == true
+            }
+            OutputPickerPresenter.onDismissed = { if (!destroyed) sendEvent("onOutputPickerDismissed", emptyMap<String, Any?>()) }
+            OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
+            // Installed from the sheet: the context the module could not start before starts now.
+            OutputPickerPresenter.onPlayServicesAvailable = { if (!destroyed) ensureContext() }
+        }
 
         OnStartObserving {
             mainHandler.post { ensureContext() }
@@ -144,7 +181,10 @@ class CastModule : Module() {
         OnDestroy {
             destroyed = true
             mainHandler.removeCallbacksAndMessages(null)
-            mainHandler.post { release() }
+            mainHandler.post {
+                OutputPickerPresenter.dismiss()
+                release()
+            }
         }
 
         // An active scan costs battery; the SDK's own button paused it while off screen.
@@ -229,6 +269,26 @@ class CastModule : Module() {
             true
         }.runOnQueue(Queues.MAIN)
 
+        // The output sheet (Cast receivers, this device): true once on screen, false where it cannot show.
+        AsyncFunction("presentOutputPicker") { options: Map<String, Any?> ->
+            if (destroyed) return@AsyncFunction false
+            val activity = appContext.currentActivity ?: return@AsyncFunction false
+            // Not gated on the Cast context: without Play Services the sheet says so and offers the fix.
+            ensureContext()
+            @Suppress("UNCHECKED_CAST")
+            val strings = (options["strings"] as? Map<String, Any?>).orEmpty().mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+            OutputPickerPresenter.strings = OutputPickerStrings(strings.toMap())
+            // The button's own view, which the popover follows across a rotation; its frame is the fallback.
+            val anchorView = (options["anchorTag"] as? Number)?.let { tag -> appContext.findView<View>(tag.toInt()) }
+            OutputPickerPresenter.present(activity, anchorRect(options["anchor"], activity), options["playingHere"] as? String, anchorView) {
+                if (!destroyed) sendEvent("onOutputPickerAction", mapOf("action" to "remote"))
+            }
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("dismissOutputPicker") {
+            OutputPickerPresenter.dismiss()
+        }.runOnQueue(Queues.MAIN)
+
         AsyncFunction("showExpandedControls") {
             if (ensureContext() == null) return@AsyncFunction false
             val intent = Intent(context, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -278,6 +338,21 @@ class CastModule : Module() {
         View(CastButtonView::class) {
             Prop("tintColor") { view: CastButtonView, color: String? -> view.setTintColor(color) }
         }
+    }
+
+    // The button's frame in window dp, as JS measures it, to the window pixels the popover is placed in.
+    private fun anchorRect(anchor: Any?, activity: android.app.Activity): Rect? {
+        val frame = anchor as? Map<*, *> ?: return null
+        val density = activity.resources.displayMetrics.density
+        fun px(key: String): Int? {
+            val dp = (frame[key] as? Number)?.toDouble() ?: return null
+            return (dp * density).toInt()
+        }
+        val left = px("x") ?: return null
+        val top = px("y") ?: return null
+        val width = px("width") ?: return null
+        val height = px("height") ?: return null
+        return Rect(left, top, left + width, top + height)
     }
 
     // Main thread only: the SDK checks it, and the caches are written here alone.

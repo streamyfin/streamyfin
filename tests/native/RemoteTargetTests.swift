@@ -62,6 +62,17 @@ enum RemoteTargetTests {
   // The hub holds the target for the whole process and talks to the SDK through a port: the same
   // cases as RemoteTargetHubTest.kt.
   static func hubCases() {
+    // The sheet reads a cause by its family; the SDK's own text goes to the log.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      var lines: [String] = []
+      hub.log = { lines.append($0) }
+      port.emit("ended", livingRoom, error: "com.google.GCKError 5")
+      port.emit("started", livingRoom)
+      check("aFailureIsLoggedWithItsCause", lines.count == 1 && lines[0].contains("com.google.GCKError 5"))
+    }
+
     do {
       let port = FakeTargetPort(known: [livingRoom])
       let hub = connectedHub(port)
@@ -829,7 +840,7 @@ enum RemoteTargetTests {
     func run(
       _ name: String, keep: Bool = false, holdMs: Double = CastTargetProbe.connectedHoldMs, back: Bool = false,
       stop: Bool = true, volume: Double? = nil, mute: Bool? = nil, port: FakeTargetPort,
-      before: (RemoteTargetHub) -> Void = { _ in }
+      presentSheet: (() -> Bool)? = nil, before: (RemoteTargetHub) -> Void = { _ in }
     ) -> (CastTargetProbe, Clock, () -> [String]) {
       let hub = RemoteTargetHub()
       hub.install(port)
@@ -838,7 +849,7 @@ enum RemoteTargetTests {
       var logs: [String] = []
       let probe = CastTargetProbe(
         hub: hub, deviceName: name, keep: keep, holdMs: holdMs, back: back, stop: stop, volume: volume, mute: mute,
-        schedule: clock.schedule
+        presentSheet: presentSheet, schedule: clock.schedule
       ) { logs.append($0) }
       probe.start()
       return (probe, clock, { logs })
@@ -956,7 +967,7 @@ enum RemoteTargetTests {
     // before the switch has ended its session, and the probe ends connected to it.
     do {
       let port = FakeTargetPort(known: [chromecast, streamer])
-      let (probe, _, logs) = run("Bedroom", keep: true, back: true, port: port) { _ in port.emit("started", chromecast) }
+      let (probe, _, logs) = run("Bedroom", keep: true, back: true, port: port, before: { _ in port.emit("started", chromecast) })
       port.discover([chromecast, streamer])
       port.emit("ending", chromecast)
       port.emit("ended", chromecast, error: "Cast session status code 2155 (2155)")
@@ -979,7 +990,7 @@ enum RemoteTargetTests {
     // A refused switch used to publish nothing: the probe waited 30 s and said "never connected".
     do {
       let port = FakeTargetPort(known: [chromecast, streamer], refuses: [streamer.id])
-      let (probe, _, logs) = run("Bedroom", port: port) { _ in port.emit("started", chromecast) }
+      let (probe, _, logs) = run("Bedroom", port: port, before: { _ in port.emit("started", chromecast) })
       port.discover([chromecast, streamer])
       check(
         "aRefusedSwitchFailsTheProbeWithItsCause",
@@ -990,14 +1001,14 @@ enum RemoteTargetTests {
     // Finished inside its first request, the probe must not go on to ask the receiver it was leaving.
     do {
       let port = FakeTargetPort(known: [chromecast, streamer], refuses: [streamer.id])
-      let (probe, _, _) = run("Bedroom", back: true, port: port) { _ in port.emit("started", chromecast) }
+      let (probe, _, _) = run("Bedroom", back: true, port: port, before: { _ in port.emit("started", chromecast) })
       port.discover([chromecast, streamer])
       check("aProbeThatFinishedInsideTheRequestAsksNothingMore", port.connects == [streamer] && !probe.isActive)
     }
 
     do {
       let port = FakeTargetPort(known: [chromecast, streamer])
-      let (probe, _, logs) = run("Bedroom", back: true, port: port) { _ in port.emit("started", chromecast) }
+      let (probe, _, logs) = run("Bedroom", back: true, port: port, before: { _ in port.emit("started", chromecast) })
       port.discover([streamer])
       check(
         "aBackWithTheHeldReceiverUnlistedAsksNothing",
@@ -1010,7 +1021,7 @@ enum RemoteTargetTests {
     do {
       let port = FakeTargetPort(known: [chromecast, streamer])
       var hub: RemoteTargetHub?
-      let (probe, clock, logs) = run("Living room", port: port) { hub = $0 }
+      let (probe, clock, logs) = run("Living room", port: port, before: { hub = $0 })
       port.discover([chromecast, streamer])
       port.emit("started", chromecast)
       _ = hub?.connect(deviceId: streamer.id)
@@ -1028,7 +1039,7 @@ enum RemoteTargetTests {
     // took it for another receiver's session, since that path never named the probe's device (bench, 04/11).
     do {
       let port = FakeTargetPort(known: [chromecast])
-      let (probe, clock, logs) = run("Living room", port: port) { _ in port.emit("started", chromecast) }
+      let (probe, clock, logs) = run("Living room", port: port, before: { _ in port.emit("started", chromecast) })
       clock.advance(CastTargetProbe.connectedHoldMs)
       check(
         "aProbeArmedOnItsConnectedReceiverHoldsThenEndsIt",
@@ -1039,7 +1050,7 @@ enum RemoteTargetTests {
     // The output sheet's "Disconnect" leaves the TV playing: the probe ends a session the same way.
     do {
       let port = FakeTargetPort(known: [chromecast])
-      let (probe, clock, logs) = run("Living room", stop: false, port: port) { _ in port.emit("started", chromecast) }
+      let (probe, clock, logs) = run("Living room", stop: false, port: port, before: { _ in port.emit("started", chromecast) })
       clock.advance(CastTargetProbe.connectedHoldMs)
       check(
         "aProbeAskedNotToStopLeavesTheReceiver",
@@ -1049,7 +1060,53 @@ enum RemoteTargetTests {
 
     do {
       let port = FakeTargetPort(known: [chromecast])
-      let (probe, _, logs) = run("Living room", mute: true, port: port) { _ in port.emit("started", chromecast) }
+      var presented = 0
+      let (_, _, logs) = run("Living room", port: port, presentSheet: { presented += 1; return true })
+      check("aProbeAskedForTheSheetPresentsIt", presented == 1 && logs().dropFirst().first == "presenting the output sheet")
+    }
+
+    // The sheet's discovery can list the receiver inside its presentation: the connection it starts keeps its own wait.
+    do {
+      let port = FakeTargetPort(known: [chromecast], listsOnDiscovery: true)
+      var hub: RemoteTargetHub?
+      let (probe, clock, _) = run(
+        "Living room", port: port, presentSheet: { hub?.startDiscovery(owner: RemoteTargetHub.sheetDiscovery); return true },
+        before: { hub = $0 }
+      )
+      clock.advance(CastTargetProbe.discoveryTimeoutMs)
+      check("aReceiverTheSheetListsKeepsItsConnectionWait", port.connects == [chromecast] && probe.isActive)
+    }
+
+    // A namesake of the connected receiver can come first in the sheet's discovery: the probe holds its own session.
+    do {
+      let namesake = TargetDevice(id: "device-c", name: "Living room", model: "Chromecast")
+      let port = FakeTargetPort(known: [namesake, chromecast], listsOnDiscovery: true)
+      var hub: RemoteTargetHub?
+      _ = run(
+        "Living room", port: port, presentSheet: { hub?.startDiscovery(owner: RemoteTargetHub.sheetDiscovery); return true },
+        before: {
+          hub = $0
+          port.emit("started", chromecast)
+        }
+      )
+      check("aConnectedProbeKeepsItsSessionWhenTheSheetListsANamesake", port.connects.isEmpty)
+    }
+
+    // A refusal inside the sheet's presentation ends the probe: it then starts no discovery of its own.
+    do {
+      let port = FakeTargetPort(known: [chromecast], listsOnDiscovery: true, refuses: [chromecast.id])
+      var hub: RemoteTargetHub?
+      let (probe, _, _) = run(
+        "Living room", port: port, presentSheet: { hub?.startDiscovery(owner: RemoteTargetHub.sheetDiscovery); return true },
+        before: { hub = $0 }
+      )
+      hub?.stopDiscovery(owner: RemoteTargetHub.sheetDiscovery)
+      check("aProbeEndedInsideTheSheetStartsNoDiscovery", !probe.isActive && !port.discovering)
+    }
+
+    do {
+      let port = FakeTargetPort(known: [chromecast])
+      let (probe, _, logs) = run("Living room", mute: true, port: port, before: { _ in port.emit("started", chromecast) })
       check(
         "aProbeAskedToMuteMutes",
         port.mutes == [true] && logs().last == "setting the mute to true" && probe.isActive
@@ -1059,7 +1116,7 @@ enum RemoteTargetTests {
     // The volume proof reads the level the receiver reports back, not the one asked.
     do {
       let port = FakeTargetPort(known: [chromecast])
-      let (probe, _, logs) = run("Living room", volume: 0.4, port: port) { _ in port.emit("started", chromecast) }
+      let (probe, _, logs) = run("Living room", volume: 0.4, port: port, before: { _ in port.emit("started", chromecast) })
       let asked = port.volumes == [0.4] && logs().last == "setting the volume to 0.40"
       // The receiver's own report, not the level asked.
       port.events?.volumeChanged(level: 0.35, muted: false)

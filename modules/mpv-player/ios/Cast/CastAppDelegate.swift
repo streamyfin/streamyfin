@@ -34,7 +34,7 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
     // (`-CastTargetProbeKeep YES` leaves the session up, `-CastTargetProbeHold <ms>` holds it longer,
     // `-CastTargetProbeBack YES` asks the receiver a switch leaves again before its session ends,
     // `-CastTargetProbeStop NO` leaves the receiver playing, `-CastTargetProbeVolume <0 to 1>` sets its volume,
-    // `-CastTargetProbeMute YES|NO` its mute).
+    // `-CastTargetProbeMute YES|NO` its mute, `-CastTargetProbeSheet YES` opens the output sheet).
     if let name = UserDefaults.standard.string(forKey: CastTargetProbe.launchArgument), !name.isEmpty {
       let keep = UserDefaults.standard.bool(forKey: CastTargetProbe.keepArgument)
       let hold = UserDefaults.standard.double(forKey: CastTargetProbe.holdArgument)
@@ -48,9 +48,11 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
         ? nil : UserDefaults.standard.double(forKey: CastTargetProbe.volumeArgument)
       let mute = UserDefaults.standard.object(forKey: CastTargetProbe.muteArgument) == nil
         ? nil : UserDefaults.standard.bool(forKey: CastTargetProbe.muteArgument)
+      let sheet = UserDefaults.standard.bool(forKey: CastTargetProbe.sheetArgument)
       DispatchQueue.main.async {
         CastTargetProbe.run(
-          deviceName: name, keep: keep, holdMs: holdMs, then: next, back: back, stop: stop, volume: volume, mute: mute
+          deviceName: name, keep: keep, holdMs: holdMs, then: next, back: back, stop: stop, volume: volume, mute: mute,
+          sheet: sheet
         )
       }
     }

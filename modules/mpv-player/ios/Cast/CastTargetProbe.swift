@@ -13,12 +13,15 @@ final class CastTargetProbe: RemoteTargetListener {
   static let thenArgument = "CastTargetProbeThen"
   /// Asks the receiver held at the start again right after the switch request: the switch asked back.
   static let backArgument = "CastTargetProbeBack"
-  /// NO ends the session and leaves the receiver playing, as the output sheet's Disconnect does.
+  /// NO ends the session asking to leave the receiver playing; only a session that joined the receiver leaves it
+  /// so, the one that launched it stops it whatever it asks (bench, 04/11). The sheet always stops.
   static let stopArgument = "CastTargetProbeStop"
   /// A level, 0 to 1, set once connected; the receiver's report of it is logged.
   static let volumeArgument = "CastTargetProbeVolume"
   /// YES or NO, set once connected after the level; the receiver's report of it is logged.
   static let muteArgument = "CastTargetProbeMute"
+  /// YES opens the output sheet as the probe starts, for its screenshots.
+  static let sheetArgument = "CastTargetProbeSheet"
   static let discoveryTimeoutMs = 15_000.0
   static let partialMatchSettleMs = 3_000.0
   // Longer than the SDK's own connection timeout, which answers startFailed first.
@@ -35,6 +38,8 @@ final class CastTargetProbe: RemoteTargetListener {
   private let stop: Bool
   private let volume: Double?
   private let mute: Bool?
+  /// Opens the output sheet at arming, for its screenshots; nil leaves it closed.
+  private let presentSheet: (() -> Bool)?
   private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private let log: (String) -> Void
   private(set) var isActive = false
@@ -50,9 +55,10 @@ final class CastTargetProbe: RemoteTargetListener {
 
   init(
     hub: RemoteTargetHub, deviceName: String, keep: Bool, holdMs: Double = CastTargetProbe.connectedHoldMs,
-    back: Bool = false, stop: Bool = true, volume: Double? = nil, mute: Bool? = nil,
+    back: Bool = false, stop: Bool = true, volume: Double? = nil, mute: Bool? = nil, presentSheet: (() -> Bool)? = nil,
     schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void), log: @escaping (String) -> Void
   ) {
+    self.presentSheet = presentSheet
     self.holdMs = holdMs
     self.back = back
     self.stop = stop
@@ -93,16 +99,27 @@ final class CastTargetProbe: RemoteTargetListener {
       target.name.caseInsensitiveCompare(deviceName) == .orderedSame
     {
       log("already connected to \(target.name)")
-      // The session the probe holds, for the hold's check.
+      // The session the probe holds, for the hold's check; held before the sheet, whose discovery could list a
+      // namesake first.
       device = TargetDevice(id: target.id, name: target.name, model: nil)
+      showSheet()
       onConnected()
       return
     }
-    // Set first: a port can list its receivers inside startDiscovery, and a connection started there
-    // sets its own wait, which this one must not replace.
+    // Set first: a port can list its receivers inside startDiscovery, the sheet's too, and a connection
+    // started there sets its own wait, which this one must not replace.
     wait(Self.discoveryTimeoutMs, failure: "no device named \"\(deviceName)\"")
+    showSheet()
+    // A refusal inside the sheet's discovery can have ended the probe already.
+    guard isActive else { return }
     hub.startDiscovery(owner: RemoteTargetHub.probeDiscovery)
     remoteTargetDevicesDidChange(hub.devices)
+  }
+
+  private func showSheet() {
+    if let present = presentSheet {
+      log(present() ? "presenting the output sheet" : "no view controller for the output sheet")
+    }
   }
 
   func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {

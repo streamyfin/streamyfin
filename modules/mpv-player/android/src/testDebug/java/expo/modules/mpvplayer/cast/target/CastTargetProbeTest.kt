@@ -23,7 +23,8 @@ class CastTargetProbeTest {
         stop: Boolean = true,
         volume: Double? = null,
         mute: Boolean? = null,
-    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, mute, scheduler.schedule, logs::add)
+        presentSheet: (() -> Boolean)? = null,
+    ) = CastTargetProbe(hub, name, keep, holdMs, back, stop, volume, mute, presentSheet, scheduler.schedule, logs::add)
 
     private fun hubWith(port: FakeTargetPort) = RemoteTargetHub().also { it.install(port) }
 
@@ -241,6 +242,59 @@ class CastTargetProbeTest {
 
         assertEquals(listOf(false), port.disconnects)
         assertEquals("disconnecting without stopping the receiver", logs.last())
+    }
+
+    // The sheet's screenshots: the probe opens it at arming, before it looks for its receiver.
+    @Test
+    fun aProbeAskedForTheSheetPresentsIt() {
+        val port = FakeTargetPort(known = listOf(livingRoom))
+        var presented = 0
+        probe(hubWith(port), "Living room", presentSheet = { presented += 1; true }).start()
+
+        assertEquals(1, presented)
+        assertEquals("presenting the output sheet", logs[1])
+    }
+
+    // The sheet's discovery can list the receiver inside its presentation: the connection it starts keeps its own wait.
+    @Test
+    fun aReceiverTheSheetListsKeepsItsConnectionWait() {
+        val port = FakeTargetPort(known = listOf(livingRoom), listsOnDiscovery = true)
+        val hub = hubWith(port)
+        val probe = probe(hub, "Living room", presentSheet = { hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY); true })
+
+        probe.start()
+        scheduler.advance(CastTargetProbe.DISCOVERY_TIMEOUT_MS)
+
+        assertEquals(listOf(livingRoom), port.connects)
+        assertTrue(probe.isActive)
+    }
+
+    // A namesake of the connected receiver can come first in the sheet's discovery: the probe holds its own session.
+    @Test
+    fun aConnectedProbeKeepsItsSessionWhenTheSheetListsANamesake() {
+        val namesake = TargetDevice("device-c", "Living room", "Chromecast")
+        val port = FakeTargetPort(known = listOf(namesake, livingRoom), listsOnDiscovery = true)
+        val hub = hubWith(port)
+        port.emit("started", livingRoom)
+        val probe = probe(hub, "Living room", presentSheet = { hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY); true })
+
+        probe.start()
+
+        assertEquals(emptyList<TargetDevice>(), port.connects)
+    }
+
+    // A refusal inside the sheet's presentation ends the probe: it then starts no discovery of its own.
+    @Test
+    fun aProbeEndedInsideTheSheetStartsNoDiscovery() {
+        val port = FakeTargetPort(known = listOf(livingRoom), listsOnDiscovery = true, refuses = setOf(livingRoom.id))
+        val hub = hubWith(port)
+        val probe = probe(hub, "Living room", presentSheet = { hub.startDiscovery(RemoteTargetHub.SHEET_DISCOVERY); true })
+
+        probe.start()
+        hub.stopDiscovery(RemoteTargetHub.SHEET_DISCOVERY)
+
+        assertFalse(probe.isActive)
+        assertFalse(port.discovering)
     }
 
     @Test

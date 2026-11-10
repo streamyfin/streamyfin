@@ -35,6 +35,8 @@ class RemoteTargetHub {
     var disconnectedWithoutStop = false
         private set
 
+    var log: (String) -> Unit = {}
+
     /** The same port again does nothing, so every JS reload can install it. */
     fun install(port: TargetPort) {
         if (port === this.port) return
@@ -110,15 +112,19 @@ class RemoteTargetHub {
 
         override fun sessionEvent(event: String, device: TargetDevice?, error: String?, code: Int?) {
             if (this@RemoteTargetHub.port !== port) return
+            // The sheet reads a cause by its family; the SDK's own text is for the log.
+            if (error != null) log("Cast session $event: $error")
             // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
             // kept, or one that came back, is no end of that disconnect any more.
             if (event == "starting" || event == "endRefused" || event == "resumed") disconnectedWithoutStop = false
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 
-        override fun volumeChanged(level: Double, muted: Boolean) {
+        override fun volumeChanged(level: Double, muted: Boolean) = volumeChanged(level, muted, deviceMuted = false)
+
+        override fun volumeChanged(level: Double, muted: Boolean, deviceMuted: Boolean) {
             if (this@RemoteTargetHub.port !== port) return
-            if (machine.volumeChanged(level, muted)) publish()
+            if (machine.volumeChanged(level, muted, deviceMuted)) publish()
         }
 
         override fun devicesChanged(devices: List<TargetDevice>) {
@@ -147,5 +153,8 @@ class RemoteTargetHub {
 
         /** The debug probe's. */
         const val PROBE_DISCOVERY = "probe"
+
+        /** The output sheet's, while it is open. */
+        const val SHEET_DISCOVERY = "sheet"
     }
 }

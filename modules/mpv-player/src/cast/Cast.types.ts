@@ -174,6 +174,63 @@ export const NO_REMOTE_TARGET: RemoteTargetState = Object.freeze({
   failedTarget: null,
 });
 
+/** The keys of the output sheet's texts, those of OutputPickerStrings.kt and OutputPickerStrings.swift. */
+export type OutputPickerStringKey =
+  | "title"
+  | "thisPhone"
+  | "thisTablet"
+  | "playing"
+  | "castCaption"
+  | "searching"
+  | "noDevices"
+  | "playServicesMissing"
+  | "playServicesUpdate"
+  | "playServicesAction"
+  | "connecting"
+  | "cancel"
+  | "connected"
+  | "reconnecting"
+  | "change"
+  | "mute"
+  | "unmute"
+  | "volume"
+  | "remote"
+  | "stopPlayback"
+  | "disconnect"
+  | "deviceGone"
+  | "receiverUnavailable"
+  | "network"
+  | "failed"
+  | "airPlay"
+  | "airPlayCaption";
+
+export type OutputPickerStrings = Record<OutputPickerStringKey, string>;
+
+/** A frame in window coordinates, points on iOS and dp on Android, as measureInWindow gives it. */
+export interface OutputPickerAnchor {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OutputPickerOptions {
+  /** A key left out falls back to the sheet's own English text. */
+  strings: Partial<OutputPickerStrings>;
+  /** The button a popover points at on a wide window; it is centred without one. */
+  anchor?: OutputPickerAnchor | null;
+  /**
+   * The button's native view (`findNodeHandle`), which the popover follows when the window turns or resizes;
+   * `anchor` is the fallback when the view cannot be found.
+   */
+  anchorTag?: number | null;
+  /** What plays on this device, for its row; null when nothing does. */
+  playingHere?: string | null;
+}
+
+/** Asked from the sheet's panel, after the sheet has closed. */
+export type OutputPickerAction = "remote";
+
 export type CastNativeEvents = {
   onCastStateChanged: (payload: { state: CastStateValue }) => void;
   onDevicesChanged: (payload: { devices: CastDevice[] }) => void;
@@ -186,4 +243,5 @@ export type CastNativeEvents = {
    * remoteTarget() once, when it subscribes, for the state until the first event.
    */
   onRemoteTargetChanged: (payload: RemoteTargetState) => void;
+  onOutputPickerAction: (payload: { action: OutputPickerAction }) => void;
 };

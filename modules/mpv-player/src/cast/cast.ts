@@ -8,6 +8,8 @@ import type {
   CastSessionInfo,
   CastStateValue,
   CastSubscription,
+  OutputPickerAction,
+  OutputPickerOptions,
   PlayServicesStateValue,
   ReceiverMessage,
   RemoteTargetState,
@@ -93,6 +95,17 @@ export const showCastDialog = (): Promise<boolean> =>
 export const showExpandedControls = (): Promise<boolean> =>
   native()?.showExpandedControls() ?? Promise.resolve(false);
 
+/**
+ * Opens the output sheet: this device, the Cast receivers, and AirPlay on iOS.
+ * True once it is on screen, false without the module, on a TV and on a Mac.
+ * The module itself, not native(): without Play Services the sheet is where
+ * Android says so and offers the fix.
+ */
+export const presentOutputPicker = (
+  options: OutputPickerOptions,
+): Promise<boolean> =>
+  CastNative?.presentOutputPicker(options) ?? Promise.resolve(false);
+
 type EventName = keyof CastNativeEvents;
 type Listener<K extends EventName> = CastNativeEvents[K];
 
@@ -103,6 +116,7 @@ const listeners: { [K in EventName]: Set<Listener<K>> } = {
   onMediaStatusChanged: new Set(),
   onReceiverMessage: new Set(),
   onRemoteTargetChanged: new Set(),
+  onOutputPickerAction: new Set(),
 };
 const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
 
@@ -168,6 +182,12 @@ export const onRemoteTargetChanged = (
   listener: (state: RemoteTargetState) => void,
 ): CastSubscription =>
   subscribe("onRemoteTargetChanged", (state) => listener(state));
+
+/** What the sheet's panel asked for; the sheet has closed by then. */
+export const onOutputPickerAction = (
+  listener: (action: OutputPickerAction) => void,
+): CastSubscription =>
+  subscribe("onOutputPickerAction", ({ action }) => listener(action));
 
 /**
  * Opens a custom channel on the current session and hands every message the
