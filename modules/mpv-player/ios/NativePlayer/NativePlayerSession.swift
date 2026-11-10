@@ -18,7 +18,7 @@ internal final class NoPresenterException: Exception, @unchecked Sendable {
 /// controller and the view model, and funnels every dismissal path through a
 /// single teardown ordering (see dismiss(reason:completion:)).
 final class NativePlayerSession {
-	let engine = MPVPlayerEngine()
+	let engine: PlayerEngine = MPVPlayerEngine()
 	let viewModel = PlayerViewModel()
 
 	private var viewController: NativePlayerViewController?

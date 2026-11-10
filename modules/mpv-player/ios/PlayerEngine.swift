@@ -5,50 +5,11 @@ import CoreMedia
 import MediaPlayer
 import UIKit
 
-/// Delegate mirroring `MPVLayerRendererDelegate` granularity so the two hosts
-/// (`MpvPlayerView` for the RN-embedded player, `NativePlayerViewController`
-/// for the presented native player) can map callbacks 1:1 onto their own
-/// event surfaces without any payload translation. All callbacks arrive on
-/// the main thread.
-protocol MPVPlayerEngineDelegate: AnyObject {
-	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig)
-	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double)
-	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool)
-	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool)
-	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool)
-	func engine(_ engine: MPVPlayerEngine, didBecomeTracksReady ready: Bool)
-	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool)
-	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String)
-	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double)
-	func engineDidReachEnd(_ engine: MPVPlayerEngine)
-	/// Seeks the engine receives from the system — lock screen, Control
-	/// Center, PiP. A host that keeps its own position bookkeeping performs
-	/// the seek itself so it is treated like every other seek; the engine only
-	/// forwards the request.
-	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double)
-	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double)
-	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool)
-}
-
-/// Hosts without position bookkeeping of their own let the engine seek.
-extension MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, requestsPlaying playing: Bool) {
-		if playing { engine.play() } else { engine.pause() }
-	}
-	func engine(_ engine: MPVPlayerEngine, requestsSeekTo position: Double) {
-		engine.seekTo(position: position)
-	}
-
-	func engine(_ engine: MPVPlayerEngine, requestsSeekBy offset: Double) {
-		engine.seekBy(offset: offset)
-	}
-}
-
 /// Non-UI playback engine: owns the display layer, the libmpv renderer, PiP,
 /// Now Playing and the audio session. Hosts are responsible only for putting
 /// `displayLayer` into a layer tree and keeping its frame updated.
-final class MPVPlayerEngine: NSObject {
-	weak var delegate: MPVPlayerEngineDelegate?
+final class MPVPlayerEngine: NSObject, PlayerEngine {
+	weak var delegate: PlayerEngineDelegate?
 
 	/// Hosts add this to their layer tree and update its frame on layout.
 	let displayLayer = AVSampleBufferDisplayLayer()
