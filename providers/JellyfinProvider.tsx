@@ -20,7 +20,6 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
-import { getDeviceNameSync } from "react-native-device-info";
 import { toast } from "sonner-native";
 import {
   PUSH_DEVICE_PATH,
@@ -39,7 +38,7 @@ import {
   makeIntegrationHeadersReadableWhileLocked,
   normalizeHttpBaseUrl,
 } from "@/utils/customHeaders";
-import { getOrSetDeviceId } from "@/utils/device";
+import { getDeviceName, getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
 import {
@@ -161,7 +160,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [jellyfin] = useState<Jellyfin | undefined>(() => {
     try {
       const id = getOrSetDeviceId();
-      const deviceName = getDeviceNameSync();
+      const deviceName = getDeviceName();
       return new Jellyfin({
         clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {

@@ -1,4 +1,4 @@
-import { classifyDownloadError } from "./downloadErrors";
+import { classifyDownloadError, downloadFailureReason } from "./downloadErrors";
 
 const environment = { kind: "environment" };
 const reportedAs = (detail: string) => ({ kind: "report", detail });
@@ -161,5 +161,64 @@ describe("classifyDownloadError — everything else", () => {
 
   test("an error with no text at all is still reported", () => {
     expect(classifyDownloadError("")).toEqual(reportedAs(""));
+  });
+});
+
+// A failed download only told the user it failed: "HTTP error: 500" was in the logs alone, and
+// the card went away three seconds later.
+describe("downloadFailureReason", () => {
+  // A server that cannot transcode (an encoder it lacks, a codec its GPU cannot write) answers
+  // the transcoded download with a 5xx; the original file downloads all the same.
+  it("says the server could not convert a transcoded download, and what to do", () => {
+    for (const error of [
+      "HTTP error: 500 Internal Server Error",
+      "HTTP error: 500",
+      "Server responded with HTTP 500",
+    ]) {
+      expect(downloadFailureReason(error, true)).toEqual({
+        kind: "conversion",
+      });
+    }
+  });
+
+  it("says the server refused the download, with its status", () => {
+    expect(downloadFailureReason("HTTP error: 500", false)).toEqual({
+      kind: "refused",
+      status: 500,
+    });
+    expect(downloadFailureReason("HTTP error: 403 Forbidden", true)).toEqual({
+      kind: "refused",
+      status: 403,
+    });
+  });
+
+  it("says the device ran out of space", () => {
+    expect(
+      downloadFailureReason("No space left on device (ENOSPC)", false),
+    ).toEqual({ kind: "no_space" });
+  });
+
+  it("says the connection was lost", () => {
+    expect(
+      downloadFailureReason(
+        "The Internet connection appears to be offline.",
+        false,
+      ),
+    ).toEqual({ kind: "connection" });
+  });
+
+  // A proxy answers 502 or 504 when the server behind it is down or silent: nothing was converted.
+  it("takes a gateway status for a lost connection, transcoded or not", () => {
+    for (const transcoded of [true, false]) {
+      expect(
+        downloadFailureReason("HTTP error: 502 Bad Gateway", transcoded),
+      ).toEqual({ kind: "connection" });
+    }
+  });
+
+  it("falls back to a plain failure for an error it cannot read", () => {
+    expect(downloadFailureReason("NSURLErrorDomain -1", false)).toEqual({
+      kind: "other",
+    });
   });
 });

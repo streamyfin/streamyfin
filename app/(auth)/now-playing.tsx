@@ -27,7 +27,6 @@ import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
-import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
 import {
   DraggableQueueList,
@@ -41,6 +40,8 @@ import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
+import { useNowPlayingVolume } from "@/hooks/useNowPlayingVolume";
+import { isSystemVolumeAvailable } from "@/modules/system-volume";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
@@ -48,11 +49,6 @@ import {
 } from "@/providers/MusicPlayerProvider";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
-
-// Conditionally require VolumeManager (not available on TV)
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
 
 const formatFileSize = (bytes?: number | null) => {
   if (!bytes) return null;
@@ -418,30 +414,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
 
-  // Volume slider state
-  const volumeProgress = useSharedValue(0);
+  // Volume slider state, covered by hooks/useNowPlayingVolume.test.ts
+  const { volume: volumeProgress, setVolume: handleVolumeChange } =
+    useNowPlayingVolume(isCastConnected);
   const volumeMin = useSharedValue(0);
   const volumeMax = useSharedValue(1);
   const isTv = Platform.isTV;
-
-  useEffect(() => {
-    if (isTv || !VolumeManager) return;
-    // Get initial volume
-    VolumeManager.getVolume().then(({ volume }: { volume: number }) => {
-      volumeProgress.value = volume;
-    });
-    // Listen to volume changes
-    const listener = VolumeManager.addVolumeListener((result: VolumeResult) => {
-      volumeProgress.value = result.volume;
-    });
-    return () => listener.remove();
-  }, [isTv, volumeProgress]);
-
-  const handleVolumeChange = useCallback((value: number) => {
-    if (VolumeManager) {
-      VolumeManager.setVolume(value);
-    }
-  }, []);
 
   const fileSize = formatFileSize(mediaSource?.Size);
   const codec = audioStream?.Codec?.toUpperCase();
@@ -646,7 +624,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </View>
 
       {/* Volume Slider */}
-      {!isTv && VolumeManager && (
+      {!isTv && isSystemVolumeAvailable() && (
         <View className='flex-row items-center mb-6'>
           <Ionicons name='volume-low' size={20} color='#666' />
           <View className='flex-1 mx-3'>

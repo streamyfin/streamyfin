@@ -22,6 +22,7 @@ import { TVButton, TVOptionSelector } from "@/components/tv";
 import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useSeerr } from "@/hooks/useSeerr";
+import { requestTagIds } from "@/utils/seerr/requests";
 import type {
   MediaRequestBody,
   MediaType,
@@ -225,9 +226,9 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
       defaultServiceDetails?.tags.map((tag) => ({
         id: tag.id,
         label: tag.label,
-        selected:
-          requestOverrides.tags?.includes(tag.id) ||
-          defaultTags.some((dt) => dt.id === tag.id),
+        selected: requestTagIds(requestOverrides.tags, defaultTags).includes(
+          tag.id,
+        ),
       })) ?? []
     );
   }, [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags]);
@@ -287,7 +288,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
   const handleTagToggle = useCallback(
     (tagId: number) => {
       setRequestOverrides((prev) => {
-        const currentTags = prev.tags || defaultTags.map((t) => t.id);
+        const currentTags = requestTagIds(prev.tags, defaultTags);
         const hasTag = currentTags.includes(tagId);
         return {
           ...prev,

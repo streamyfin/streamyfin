@@ -5,6 +5,8 @@ import { Text } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { isExpectedError } from "@/utils/errors";
+import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { enterVideoSession } from "@/utils/videoSession";
 import { MusicPlayerProvider, useMusicPlayer } from "./MusicPlayerProvider";
@@ -27,6 +29,16 @@ const mockNative = {
    * the answer, which is when another caller's edit can slip in.
    */
   afterQueueRead: undefined as (() => Promise<void>) | undefined,
+  /** Whether setupPlayer has succeeded: the native side rejects most calls before. */
+  initialized: false,
+  /** Every native call that sets up or changes the queue, in order. */
+  calls: [] as string[],
+  /** What setupPlayer rejects with, as RNTP's native side does (a code). */
+  setupError: undefined as (Error & { code?: string }) | undefined,
+  /** How long setupPlayer takes to answer, in milliseconds. */
+  setupDelayMs: 0,
+  repeatModes: [] as number[],
+  notInitialized: () => new Error("The player is not initialized"),
 };
 
 // The package is installed from git with `main` pointing at a build output it
@@ -38,11 +50,29 @@ jest.mock(
     Capability: {},
     RepeatMode: { Off: 0, Track: 1, Queue: 2 },
     default: {
-      setupPlayer: async () => undefined,
+      setupPlayer: async () => {
+        mockNative.calls.push("setupPlayer");
+        await (mockNative.setupDelayMs
+          ? new Promise((resolve) =>
+              setTimeout(resolve, mockNative.setupDelayMs),
+            )
+          : Promise.resolve());
+        if (mockNative.initialized) {
+          throw Object.assign(new Error("already initialized"), {
+            code: "player_already_initialized",
+          });
+        }
+        if (mockNative.setupError) throw mockNative.setupError;
+        mockNative.initialized = true;
+      },
       updateOptions: async () => undefined,
-      setRepeatMode: async () => undefined,
+      setRepeatMode: async (mode: number) => {
+        mockNative.repeatModes.push(mode);
+      },
       setVolume: async () => undefined,
-      play: async () => undefined,
+      play: async () => {
+        if (!mockNative.initialized) throw mockNative.notInitialized();
+      },
       pause: async () => undefined,
       seekTo: async () => undefined,
       getProgress: async () => ({ position: 0, duration: 0, buffered: 0 }),
@@ -57,6 +87,8 @@ jest.mock(
           ? undefined
           : mockNative.queue[mockNative.activeIndex],
       reset: async () => {
+        mockNative.calls.push("reset");
+        if (!mockNative.initialized) throw mockNative.notInitialized();
         mockNative.queue = [];
         mockNative.activeIndex = undefined;
       },
@@ -64,6 +96,8 @@ jest.mock(
         tracks: NativeTrack | NativeTrack[],
         insertBeforeIndex = -1,
       ) => {
+        mockNative.calls.push("add");
+        if (!mockNative.initialized) throw mockNative.notInitialized();
         const added = Array.isArray(tracks) ? tracks : [tracks];
         const count = mockNative.queue.length;
         const index = insertBeforeIndex === -1 ? count : insertBeforeIndex;
@@ -103,13 +137,19 @@ const mockHandlers = new Map<string, (data: unknown) => void>();
 /** Stream URL requests the spec keeps pending, by item id. */
 const mockHeldStreams = new Map<string, Array<() => void>>();
 
+/** How long a stream URL request takes, in milliseconds: the network. */
+const mockStream = { delayMs: 0 };
+
 jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
   getAudioStreamUrl: async (_api: unknown, _userId: string, itemId: string) => {
     const held = mockHeldStreams.get(itemId);
     if (held) await new Promise<void>((release) => held.push(release));
+    if (mockStream.delayMs) {
+      await new Promise((resolve) => setTimeout(resolve, mockStream.delayMs));
+    }
     return {
       url: `https://jellyfin.example.com/Audio/${itemId}/stream`,
-      sessionId: null,
+      sessionId: `session-${itemId}`,
       mediaSource: null,
       isTranscoding: false,
     };
@@ -120,7 +160,7 @@ jest.mock(
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 // The log module loads Sentry and its timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
+jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeadersForUrl: () => undefined,
 }));
@@ -273,6 +313,13 @@ beforeEach(() => {
   mockNative.queue = [];
   mockNative.activeIndex = undefined;
   mockNative.afterQueueRead = undefined;
+  mockNative.initialized = false;
+  mockNative.calls = [];
+  mockNative.setupError = undefined;
+  mockNative.setupDelayMs = 0;
+  mockStream.delayMs = 0;
+  mockNative.repeatModes = [];
+  (logAndCaptureError as jest.Mock).mockClear();
   getDefaultStore().set(userAtom, { Id: "user", ServerId: "server" });
   api.mock.reset();
   api.mock.onPost().reply(204);
@@ -438,10 +485,12 @@ describe("MusicPlayerProvider and the native queue", () => {
   });
 
   // Same report, the other way in: a queue restored after a restart is only
-  // on screen. Resuming loads the one track it stopped on.
+  // on screen. Resuming loads the one track it stopped on, then the rest in
+  // the background; t1 held here keeps that load from catching up.
   test("jumps to another track of a queue restored after a restart", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    holdStreams("t1");
     await run((p) => p.resume());
     expect(nativeIds()).toEqual(["t2"]);
 
@@ -454,6 +503,52 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(nativeIds()).toEqual(["t0", "t2", "t4"]);
     expect(nativeActiveId()).toBe("t0");
     expect(player.queueIndex).toBe(0);
+  });
+
+  // Resume used to load the track it stopped on and nothing else, so the
+  // native queue had no track after it: next did nothing and playback stopped
+  // at the end of that track.
+  test("resuming a restored queue loads the rest of it behind the track", async () => {
+    persistQueue(ALBUM, 1);
+    await mount();
+    await run((p) => p.resume());
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t1");
+    expect(player.queueIndex).toBe(1);
+
+    await run((p) => p.next());
+
+    expect(nativeActiveId()).toBe("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+  });
+
+  // The previous queue's load must not add its tracks behind a new one.
+  test("a new queue stops the background load of the previous one", async () => {
+    await mount();
+    holdStreams("t3");
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds()).toEqual(["t0", "t1", "t2"]);
+
+    await run((p) => p.playQueue(["x0", "x1"].map(track), 0));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(["x0", "x1"]);
+  });
+
+  // A track jumpToIndex loaded paused is live when Play resumes it: the
+  // resume played it without the session its PlaybackInfo opened, and every
+  // stop report after it was skipped.
+  test("resuming a jump-loaded track keeps its playback session", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    await run((p) => p.jumpToIndex(3));
+    expect(nativeActiveId()).toBe("t3");
+
+    await run((p) => p.resume());
+
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.playSessionId).toBe("session-t3");
   });
 
   // An id cannot tell two copies of a track apart; the row's index can, once
@@ -502,6 +597,8 @@ describe("MusicPlayerProvider and the native queue", () => {
   test("next and previous show the track the player moved to across a gap", async () => {
     persistQueue(ALBUM, 2);
     await mount();
+    // The rest of the restored queue is still loading.
+    holdStreams("t1");
     await run((p) => p.resume());
     await run((p) => p.jumpToIndex(4));
     expect(nativeIds()).toEqual(["t2", "t4"]);
@@ -517,16 +614,71 @@ describe("MusicPlayerProvider and the native queue", () => {
     expect(player.queueIndex).toBe(4);
   });
 
-  test("next leaves a restored queue alone until something is loaded", async () => {
-    storage.set("music_player_repeat_mode", "all");
+  // A queue restored after a restart is only on screen until playback
+  // resumes: nothing is loaded natively to skip to, so next walks the queue
+  // it has and leaves the native side alone.
+  test("next walks a restored queue while nothing is loaded", async () => {
+    storage.set("music_player_progress", "42");
+    persistQueue(
+      ALBUM.map((t, i) => ({ ...t, RunTimeTicks: (i + 1) * 600_000_000 })),
+      2,
+    );
+    await mount();
+    expect(player.progress).toBe(42);
+    expect(player.duration).toBe(180);
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const skipSpy = jest.spyOn(tp, "skip");
+    const skipToNextSpy = jest.spyOn(tp, "skipToNext");
+    try {
+      await run((p) => p.next());
+
+      expect(nativeIds()).toEqual([]);
+      expect(player.currentTrack?.Id).toBe("t3");
+      expect(player.queueIndex).toBe(3);
+      expect(player.progress).toBe(0);
+      expect(player.duration).toBe(240);
+      expect(skipSpy).not.toHaveBeenCalled();
+      expect(skipToNextSpy).not.toHaveBeenCalled();
+    } finally {
+      skipSpy.mockRestore();
+      skipToNextSpy.mockRestore();
+    }
+  });
+
+  // The restored queue's position lives in state until resume loads the track
+  // and seeks to it, so a seek before that moves only state.
+  test("seek on a restored queue moves the position without a loaded track", async () => {
     persistQueue(ALBUM, 2);
     await mount();
 
-    await run((p) => p.next());
+    const tp = jest.requireMock("react-native-track-player").default;
+    const seekSpy = jest.spyOn(tp, "seekTo");
+    try {
+      await run((p) => p.seek(30));
 
-    expect(nativeIds()).toEqual([]);
-    expect(player.currentTrack?.Id).toBe("t2");
-    expect(player.queueIndex).toBe(2);
+      expect(player.progress).toBe(30);
+      expect(seekSpy).not.toHaveBeenCalled();
+    } finally {
+      seekSpy.mockRestore();
+    }
+  });
+
+  // streamUrl is never persisted, so a reattached or jump-loaded track has
+  // none while the native side does. seek asks the player, not the flag.
+  test("seek reaches the native player once a track is loaded", async () => {
+    await startPlaying();
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const seekSpy = jest.spyOn(tp, "seekTo");
+    try {
+      await run((p) => p.seek(30));
+
+      expect(seekSpy).toHaveBeenCalledWith(30);
+      expect(player.progress).toBe(30);
+    } finally {
+      seekSpy.mockRestore();
+    }
   });
 
   // The insert position used to be read before the stream URL request, and a
@@ -542,16 +694,40 @@ describe("MusicPlayerProvider and the native queue", () => {
     await act(async () => {
       queued = player.playNext(track("extra"));
     });
-    await run((p) => p.playQueue([track("other")], 0));
-    expect(nativeIds()).toEqual(["other"]);
+    await run((p) => p.jumpToIndex(1));
+    expect(nativeActiveId()).toBe("t1");
 
     await releaseStreams();
     await act(async () => {
       await queued;
     });
 
-    expect(nativeIds()).toEqual(["other", "extra"]);
-    expect(nativeActiveId()).toBe("other");
+    expect(nativeIds()).toEqual(["t0", "t1", "extra", "t2", "t3", "t4"]);
+    expect(player.queue.map((t) => t.Id)).toEqual(nativeIds());
+    expect(nativeActiveId()).toBe("t1");
+  });
+
+  // A new queue supersedes a Play next still waiting on its stream URL. The
+  // state skipped it while the native queue took it, so the track played
+  // after the new album's first one with nothing on screen for it.
+  test("drops a Play next whose stream URL arrives after a new queue started", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    holdStreams("extra");
+    let queued: unknown;
+    await act(async () => {
+      queued = player.playNext(track("extra"));
+    });
+    await run((p) => p.playQueue([track("other")], 0));
+
+    await releaseStreams();
+    await act(async () => {
+      await queued;
+    });
+
+    expect(nativeIds()).toEqual(["other"]);
+    expect(player.queue.map((t) => t.Id)).toEqual(["other"]);
   });
 });
 
@@ -706,5 +882,460 @@ describe("MusicPlayerProvider repeat and shuffle", () => {
 
     expect(screen.getByText("one sorted")).toBeTruthy();
     expect(api.mock.history.post).toEqual([]);
+  });
+});
+
+const setupCalls = () =>
+  mockNative.calls.filter((call) => call === "setupPlayer").length;
+
+const nativeError = (code: string) => Object.assign(new Error(code), { code });
+
+describe("MusicPlayerProvider native player setup", () => {
+  test("mounting with no saved queue never sets up the player", async () => {
+    await mount();
+
+    expect(mockNative.calls).toEqual([]);
+    expect(player.isPlayerReady).toBe(false);
+  });
+
+  test("mounting with a saved queue for this account sets up the player once", async () => {
+    persistQueue(ALBUM, 1);
+
+    await mount();
+
+    expect(setupCalls()).toBe(1);
+    expect(player.isPlayerReady).toBe(true);
+    // Only reattached: nothing is loaded until the user resumes.
+    expect(nativeIds()).toEqual([]);
+  });
+
+  test("mounting with another account's queue does not set up the player", async () => {
+    persistQueue(ALBUM, 1);
+    storage.set("music_player_queue_owner", "server:someone-else");
+
+    await mount();
+
+    expect(mockNative.calls).toEqual([]);
+    expect(player.isPlayerReady).toBe(false);
+  });
+
+  test("starting playback sets up the player before the first reset and add", async () => {
+    await mount();
+
+    await run((p) => p.playQueue([TRACK]));
+
+    expect(mockNative.calls.slice(0, 3)).toEqual([
+      "setupPlayer",
+      "reset",
+      "add",
+    ]);
+    expect(player.isPlayerReady).toBe(true);
+    expect(nativeIds()).toEqual(["track-1"]);
+  });
+
+  // The second tap lands while the first is still waiting for the setup. Both
+  // must leave the setup waiting for the same moment, or both reset and add
+  // behind each other and the queue holds two tracks with the first playing.
+  test("two starts at once set up the player once and leave the last tap playing", async () => {
+    mockNative.setupDelayMs = 40;
+    mockStream.delayMs = 5;
+    await mount();
+
+    await act(async () => {
+      player.playQueue([TRACK]);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      player.playQueue([track("track-2")]);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    await settle();
+
+    expect(setupCalls()).toBe(1);
+    expect(nativeIds()).toEqual(["track-2"]);
+    expect(nativeActiveId()).toBe("track-2");
+    expect(player.currentTrack?.Id).toBe("track-2");
+    expect(player.isLoading).toBe(false);
+  });
+
+  test("adding to the queue sets up the player first", async () => {
+    await mount();
+
+    await run((p) => p.addToQueue(TRACK));
+
+    expect(mockNative.calls).toEqual(["setupPlayer", "add"]);
+  });
+
+  test("playing next sets up the player first", async () => {
+    await mount();
+
+    await run((p) => p.playNext(TRACK));
+
+    expect(mockNative.calls).toEqual(["setupPlayer", "add"]);
+  });
+
+  test("resuming a restored queue sets up the player before it loads the track", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    expect(setupCalls()).toBe(1);
+
+    await run((p) => p.resume());
+
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+    expect(setupCalls()).toBe(1);
+  });
+
+  // A JS reload keeps the native module alive, and an Android relaunch finds the
+  // service still running: both answer setupPlayer with this code.
+  test("an already initialized player counts as ready", async () => {
+    mockNative.initialized = true;
+    await mount();
+
+    await run((p) => p.playQueue([TRACK]));
+
+    expect(player.isPlayerReady).toBe(true);
+    expect(nativeIds()).toEqual(["track-1"]);
+  });
+
+  // Android refuses setupPlayer while the app is in the background. The old code
+  // took any failure for "already set up", so every later call hit a dead player.
+  test("a failed setup is retried by the next start and never marks the player ready", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    await mount();
+
+    await run((p) => p.playQueue([TRACK]));
+
+    expect(player.isPlayerReady).toBe(false);
+    expect(nativeIds()).toEqual([]);
+    expect(mockNative.calls).toEqual(["setupPlayer"]);
+    expect(player.isLoading).toBe(false);
+
+    mockNative.setupError = undefined;
+    await run((p) => p.playQueue([TRACK]));
+
+    expect(setupCalls()).toBe(2);
+    expect(player.isPlayerReady).toBe(true);
+    expect(nativeIds()).toEqual(["track-1"]);
+  });
+
+  // Starting while the app is backgrounded is an expected outcome on Android:
+  // it belongs in the local log and never in Sentry.
+  test("a start refused for the background is logged as an expected error", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    await mount();
+
+    await run((p) => p.playQueue([TRACK]));
+
+    const logged = (logAndCaptureError as jest.Mock).mock.calls;
+    expect(logged).toHaveLength(1);
+    expect(isExpectedError(logged[0][1])).toBe(true);
+  });
+
+  test("any other setup failure stays reportable", async () => {
+    mockNative.setupError = nativeError("something_else");
+    await mount();
+
+    await run((p) => p.playQueue([TRACK]));
+
+    const logged = (logAndCaptureError as jest.Mock).mock.calls;
+    expect(logged).toHaveLength(1);
+    expect(isExpectedError(logged[0][1])).toBe(false);
+  });
+
+  // The reattach is still in flight when the user stops or logs out. The reset
+  // must wait for it, or the setup ends with a live service and an empty queue.
+  test("stopping while the reattach is in flight resets the player once it is up", async () => {
+    mockNative.setupDelayMs = 40;
+    persistQueue(ALBUM, 2);
+    await mount();
+    expect(mockNative.calls).toEqual(["setupPlayer"]);
+
+    await run((p) => p.stop());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(mockNative.calls).toEqual(["setupPlayer", "reset"]);
+  });
+
+  test("switching account while the reattach is in flight resets the player once it is up", async () => {
+    mockNative.setupDelayMs = 40;
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(mockNative.calls).toEqual(["setupPlayer", "reset"]);
+  });
+
+  test("stopping a reattach that failed does not reset or retry", async () => {
+    mockNative.setupDelayMs = 40;
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await run((p) => p.stop());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(mockNative.calls).toEqual(["setupPlayer"]);
+  });
+
+  test("a setup that fails while restoring the queue is left for the next start to retry", async () => {
+    persistQueue(ALBUM, 2);
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+
+    await mount();
+
+    expect(player.isPlayerReady).toBe(false);
+    expect(player.currentTrack?.Id).toBe("t2");
+
+    mockNative.setupError = undefined;
+    await run((p) => p.resume());
+
+    expect(player.isPlayerReady).toBe(true);
+    expect(nativeIds()).toEqual(["t0", "t1", "t2", "t3", "t4"]);
+    expect(nativeActiveId()).toBe("t2");
+  });
+
+  // The controls share one guard, and it starts the setup instead of skipping
+  // it: after a failed or in flight reattach the button would otherwise be dead.
+  test("a control with no player sets one up instead of doing nothing", async () => {
+    await mount();
+
+    await run((p) => p.pause());
+
+    expect(mockNative.calls).toEqual(["setupPlayer"]);
+    expect(player.isPlayerReady).toBe(true);
+  });
+
+  test("stopping a restored queue clears it without a player", async () => {
+    persistQueue(ALBUM, 2);
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    await mount();
+
+    await run((p) => p.stop());
+
+    expect(player.currentTrack).toBeNull();
+    expect(storage.getString("music_player_queue")).toBeUndefined();
+  });
+
+  test("switching account with no player does not touch the native side", async () => {
+    await mount();
+
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await settle();
+
+    expect(mockNative.calls).toEqual([]);
+  });
+
+  // The effect used to run before the player existed, and ran again only when
+  // the mode changed, so a saved mode never reached the native side.
+  test("a saved repeat mode reaches the native player once it is set up", async () => {
+    storage.set("music_player_repeat_mode", "all");
+    await mount();
+    expect(mockNative.repeatModes).toEqual([]);
+
+    await run((p) => p.playQueue([TRACK]));
+
+    expect(mockNative.repeatModes).toEqual([2]);
+  });
+
+  test("a saved repeat mode reaches the native player when a restored queue reattaches", async () => {
+    storage.set("music_player_repeat_mode", "one");
+    persistQueue(ALBUM, 0);
+
+    await mount();
+
+    expect(mockNative.repeatModes).toEqual([1]);
+  });
+
+  // The restored queue is on screen with working controls while the reattach
+  // is still in flight: a control waits for it instead of doing nothing.
+  test("pause waits for a reattach that is still in flight", async () => {
+    const tp = jest.requireMock("react-native-track-player").default;
+    let finishSetup!: () => void;
+    const setupSpy = jest.spyOn(tp, "setupPlayer").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSetup = resolve;
+        }),
+    );
+    const pauseSpy = jest.spyOn(tp, "pause");
+    try {
+      persistQueue(ALBUM, 2);
+      await mount();
+      expect(setupSpy).toHaveBeenCalledTimes(1);
+
+      let paused: unknown;
+      await act(async () => {
+        paused = player.pause();
+      });
+      await settle();
+      expect(pauseSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        finishSetup();
+        await paused;
+      });
+      expect(pauseSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      setupSpy.mockRestore();
+      pauseSpy.mockRestore();
+    }
+  });
+
+  // Android refuses setupPlayer in the background, so a restored queue can be
+  // on screen with a dead reattach behind it. A control retries the setup.
+  test("pause retries a reattach that failed", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    persistQueue(ALBUM, 2);
+    await mount();
+    expect(setupCalls()).toBe(1);
+    expect(player.isPlayerReady).toBe(false);
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const pauseSpy = jest.spyOn(tp, "pause");
+    try {
+      mockNative.setupError = undefined;
+      await run((p) => p.pause());
+
+      expect(setupCalls()).toBe(2);
+      expect(pauseSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      pauseSpy.mockRestore();
+    }
+  });
+
+  // A setup that keeps failing must not reject out of the control: the next
+  // tap is the retry.
+  test("seek swallows a setup that fails on every call", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    const tp = jest.requireMock("react-native-track-player").default;
+    const seekSpy = jest.spyOn(tp, "seekTo");
+    try {
+      await run((p) => p.seek(10));
+
+      expect(setupCalls()).toBe(2);
+      expect(seekSpy).not.toHaveBeenCalled();
+      expect(player.isPlayerReady).toBe(false);
+    } finally {
+      seekSpy.mockRestore();
+    }
+  });
+
+  // Two starts that both wait on the setup resume together behind it. The
+  // sequence in isStale drops the first, or its phase-two adds land inside
+  // the second start's queue.
+  test("a second start wins when two wait on the same setup", async () => {
+    mockNative.setupDelayMs = 40;
+    mockStream.delayMs = 5;
+    await mount();
+
+    await act(async () => {
+      player.playQueue(ALBUM, 0);
+      player.playQueue([track("s0"), track("s1")], 0);
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    await settle();
+
+    expect(player.currentTrack?.Id).toBe("s0");
+    expect(nativeIds()).toEqual(["s0", "s1"]);
+  });
+
+  // The setup wait sits before jumpToIndex reads its generation. A switch of
+  // account during it must stop the jump, or the old account's track goes
+  // into the player the teardown just reset.
+  test("a jump that outlives its account does not load the track", async () => {
+    mockNative.setupDelayMs = 20;
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    const jumping = act(async () => {
+      await player.jumpToIndex(3);
+    });
+    await act(async () => {
+      getDefaultStore().set(userAtom, { Id: "other", ServerId: "server" });
+    });
+    await jumping;
+    await settle();
+
+    expect(nativeIds()).toEqual([]);
+  });
+
+  // A restored queue lives in state only: the controls that walk it need no
+  // player, so a failed setup must not dead them.
+  test("next and seek move a restored queue while the setup fails", async () => {
+    mockNative.setupError = nativeError(
+      "android_cannot_setup_player_in_background",
+    );
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    await run((p) => p.next());
+    expect(player.currentTrack?.Id).toBe("t3");
+    expect(player.queueIndex).toBe(3);
+
+    await run((p) => p.seek(30));
+    expect(player.progress).toBe(30);
+  });
+
+  // A service that kept the restored track answers getActiveTrack with it:
+  // the tap is a resume, and a reset would restart the stream it still has.
+  test("resume plays the track a surviving service already holds", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+
+    mockNative.queue = [{ id: "t2" }];
+    mockNative.activeIndex = 0;
+
+    await run((p) => p.resume());
+
+    expect(mockNative.calls).not.toContain("reset");
+    expect(mockNative.calls).not.toContain("add");
+    expect(player.isPlaying).toBe(true);
+  });
+
+  // A start waiting on the setup would otherwise resume behind the reset a
+  // stop just ran and play a queue that no longer exists.
+  test("a stop cancels a start still waiting on the setup", async () => {
+    mockNative.setupDelayMs = 40;
+    mockStream.delayMs = 5;
+    await mount();
+
+    await act(async () => {
+      player.playQueue(ALBUM, 0);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await player.stop();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    await settle();
+
+    expect(nativeIds()).toEqual([]);
+    expect(player.currentTrack).toBeNull();
   });
 });

@@ -32,7 +32,7 @@ class OkHttpDownloadManager {
     onComplete: (filePath: String) -> Unit,
     onError: (error: String) -> Unit
   ) {
-    Log.d(TAG, "Starting download: taskId=$taskId, url=$url")
+    Log.d(TAG, "Starting download: taskId=$taskId, url=${redactCredentials(url)}")
 
     val requestBuilder = Request.Builder().url(url)
     headers?.forEach { (key, value) ->
