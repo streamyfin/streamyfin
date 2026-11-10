@@ -6,6 +6,7 @@ import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 import com.google.android.gms.cast.framework.media.CastMediaOptions
+import com.google.android.gms.cast.framework.media.ImageHints
 import com.google.android.gms.cast.framework.media.ImagePicker
 import com.google.android.gms.cast.framework.media.MediaIntentReceiver
 import com.google.android.gms.cast.framework.media.NotificationOptions
@@ -45,9 +46,12 @@ class CastOptionsProvider : OptionsProvider {
 
     override fun getAdditionalSessionProviders(context: Context): List<SessionProvider>? = null
 
-    /** The receiver sends one artwork per item; the SDK asks for one per surface. */
-    private class FirstImagePicker : ImagePicker() {
-        override fun onPickImage(metadata: MediaMetadata?, type: Int): WebImage? =
+    /**
+     * The receiver sends one artwork per item; the SDK asks for one per surface, through the hints call (the
+     * type-only one is deprecated).
+     */
+    internal class FirstImagePicker : ImagePicker() {
+        override fun onPickImage(metadata: MediaMetadata?, hints: ImageHints): WebImage? =
             metadata?.images?.firstOrNull()
     }
 }
