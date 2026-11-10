@@ -1,3 +1,4 @@
+import type { ImageTransition } from "expo-image";
 import { Platform } from "react-native";
 
 export const TAB_HEIGHT = Platform.OS === "android" ? 58 : 74;
@@ -12,6 +13,21 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
+
+/** The round media options button next to an item's play button, in points. */
+export const MEDIA_OPTIONS_BUTTON_SIZE = 48;
+
+/** How opaque the poster's color is under that button's symbol. */
+export const MEDIA_OPTIONS_BUTTON_FILL_OPACITY = 0.7;
+
+/**
+ * The row at the top of the Search screen on iOS: the Library and Discover
+ * buttons, and the sort button, each in a SwiftUI host this high.
+ */
+export const SEARCH_TAB_ROW_HEIGHT = 40;
+
+/** Room for the sort button's host, beside the tabs. */
+export const SEARCH_SORT_BUTTON_WIDTH = 50;
 
 /**
  * MMKV key for the collection type and server of each hidden singleton view
@@ -29,3 +45,16 @@ export const POSTER_IMAGE_TRANSITION_DURATION = 150;
  * Duration of the transition animation for background images, in milliseconds.
  */
 export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;
+
+// The fade plays when an image arrives from the network. One already cached
+// shows at once, so a page opened again or a card scrolled back into view does
+// not fade in a second time.
+export const POSTER_IMAGE_TRANSITION: ImageTransition = {
+  duration: POSTER_IMAGE_TRANSITION_DURATION,
+  skipOnCacheHit: "all",
+};
+
+export const BACKGROUND_IMAGE_TRANSITION: ImageTransition = {
+  duration: BACKGROUND_IMAGE_TRANSITION_DURATION,
+  skipOnCacheHit: "all",
+};

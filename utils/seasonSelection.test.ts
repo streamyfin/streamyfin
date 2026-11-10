@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { replacementSeason } from "./seasonSelection";
+import { findRememberedSeason, replacementSeason } from "./seasonSelection";
 
 const season = (index: number): BaseItemDto => ({
   Id: `season-${index}`,
@@ -45,5 +45,27 @@ describe("replacementSeason", () => {
     expect(replacementSeason([season(1), extras], "Extras")).toBeUndefined();
     expect(replacementSeason([season(1)], "Extras")).toBe(1);
     expect(replacementSeason([extras], 1)).toBe("Extras");
+  });
+});
+
+describe("findRememberedSeason", () => {
+  // Offline seasons carry no name since the pages name them. With nothing
+  // remembered yet (first open), \`Name === remembered\` matched the first of
+  // them, undefined === undefined, and that season's episodes were asked for
+  // before the default one was picked.
+  test("nothing remembered finds no season, even one without a name", () => {
+    const seasons = [{ IndexNumber: 1 }, { IndexNumber: 2 }];
+    expect(findRememberedSeason(seasons, undefined)).toBeUndefined();
+    expect(findRememberedSeason(seasons, null)).toBeUndefined();
+  });
+
+  test("finds the remembered season by number or by name", () => {
+    const seasons = [
+      { Id: "a", IndexNumber: 1, Name: "Season 1" },
+      { Id: "b", Name: "Extras" },
+    ];
+    expect(findRememberedSeason(seasons, 1)?.Id).toBe("a");
+    expect(findRememberedSeason(seasons, "Extras")?.Id).toBe("b");
+    expect(findRememberedSeason(seasons, 3)).toBeUndefined();
   });
 });
