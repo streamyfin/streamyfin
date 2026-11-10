@@ -452,8 +452,11 @@ export default function DirectPlayerPage() {
 
   const [stream, setStream] = useState<Stream | null>(null);
   // A channel whose source needs no opening comes back without a LiveStreamId.
+  // Jellyfin types a channel TvChannel or LiveTvChannel, by endpoint.
   const isLiveStream =
-    item?.Type === "TvChannel" || !!stream?.mediaSource?.LiveStreamId;
+    item?.Type === "TvChannel" ||
+    item?.Type === "LiveTvChannel" ||
+    !!stream?.mediaSource?.LiveStreamId;
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,

@@ -674,6 +674,20 @@ describe("direct player stop report", () => {
       expect(mockControlsProps?.isBuffering).toBe(false);
     });
 
+    // Jellyfin types a channel TvChannel or LiveTvChannel, depending on the
+    // endpoint that returned it.
+    test("keeps the spinner off for a LiveTvChannel streamed without opening", async () => {
+      api.mock
+        .onGet(/\/Items\/channel-3/)
+        .reply(200, { Id: "channel-3", Type: "LiveTvChannel" });
+      mockParams.itemId = "channel-3";
+      await openPlayer();
+      await announcePlaying();
+      await announceLoading(true);
+
+      expect(mockControlsProps?.isBuffering).toBe(false);
+    });
+
     test("shows the spinner while the next channel starts", async () => {
       mockLiveStreamId = "live-1";
       api.mock.onPost(/\/LiveStreams\/Close/).reply(204);
