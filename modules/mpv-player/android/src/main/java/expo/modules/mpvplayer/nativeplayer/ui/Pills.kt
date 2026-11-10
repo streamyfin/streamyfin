@@ -219,7 +219,7 @@ fun NextEpisodeCountdownView(
 
 @Composable
 fun HoldSpeedPill(speedRate: Double) {
-    val label = if (speedRate == 2.0) "2×" else "${speedRate}×"
+    val label = speedLabel(speedRate)
 
     Row(
         modifier = Modifier

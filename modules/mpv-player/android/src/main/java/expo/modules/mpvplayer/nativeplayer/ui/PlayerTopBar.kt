@@ -203,7 +203,7 @@ fun PlayerTopBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (opt == 1.0) "1×" else "${opt}×")
+                                    Text(speedLabel(opt))
                                     if (kotlin.math.abs(viewModel.speed - opt) < 0.01) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))

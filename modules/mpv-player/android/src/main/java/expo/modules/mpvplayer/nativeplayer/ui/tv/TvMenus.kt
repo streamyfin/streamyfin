@@ -48,6 +48,7 @@ import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TvMenuScreen
 import expo.modules.mpvplayer.nativeplayer.ui.formatTimeSec
+import expo.modules.mpvplayer.nativeplayer.ui.speedLabel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -456,7 +457,7 @@ private fun SpeedMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(presets) { index, option ->
             val isSelected = abs(viewModel.speed - option) < 0.001
-            val label = if (option == 1.0) "1×" else String.format("%g×", option)
+            val label = speedLabel(option)
             TvMenuRow(
                 label = label,
                 selected = isSelected,
