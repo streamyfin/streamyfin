@@ -42,6 +42,11 @@ jest.mock("@sentry/react-native", () => ({
     report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
   captureException: (...args: unknown[]) => mockCapture(...args),
 }));
+// The reporter writes what it keeps from Sentry to the local log, which MMKV backs.
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 
 let client: QueryClient;
 
