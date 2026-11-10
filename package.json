@@ -50,7 +50,7 @@
     "@tanstack/query-sync-storage-persister": "5.107.1",
     "@tanstack/react-query": "5.107.1",
     "@tanstack/react-query-persist-client": "5.107.1",
-    "axios": "1.21.0",
+    "axios": "1.21.1",
     "eventemitter3": "^5.0.4",
     "expo": "58.0.22",
     "expo-application": "~58.1.2",
