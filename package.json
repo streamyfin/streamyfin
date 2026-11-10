@@ -38,7 +38,6 @@
     "uuid": "11.1.1"
   },
   "dependencies": {
-    "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~58.0.16",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~58.0.26",

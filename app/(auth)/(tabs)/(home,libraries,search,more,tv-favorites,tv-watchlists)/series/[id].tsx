@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { OutputButton } from "@/components/cast/OutputButton";
 import {
   HeaderButton,
   HeaderButtonGroup,
@@ -47,7 +48,6 @@ import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 const HEADER_HEIGHT = 400;
 
 // Cast is off on TV.
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -223,7 +223,7 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
-            {Chromecast && <Chromecast.Chromecast />}
+            <OutputButton offline={isOffline} />
             {shuffleButton}
             {!Platform.isTV && !isOffline && (
               <SyncPlayButton items={allEpisodes} title={item.Name} />

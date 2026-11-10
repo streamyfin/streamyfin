@@ -89,9 +89,6 @@ export const setRemoteTargetVolume = (level: number): Promise<void> =>
 export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
   native()?.setTargetMuted(muted) ?? Promise.resolve();
 
-export const showCastDialog = (): Promise<boolean> =>
-  native()?.showCastDialog() ?? Promise.resolve(false);
-
 export const showExpandedControls = (): Promise<boolean> =>
   native()?.showExpandedControls() ?? Promise.resolve(false);
 

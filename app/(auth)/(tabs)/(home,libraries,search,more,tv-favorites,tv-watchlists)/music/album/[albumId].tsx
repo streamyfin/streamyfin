@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OutputButton } from "@/components/cast/OutputButton";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -38,7 +39,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ARTWORK_SIZE = SCREEN_WIDTH * 0.5;
 
 // Cast is off on TV.
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 export default function AlbumDetailScreen() {
   const { albumId } = useLocalSearchParams<{ albumId: string }>();
@@ -100,13 +100,13 @@ export default function AlbumDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
-      headerRight: Chromecast
-        ? () => (
+      headerRight: Platform.isTV
+        ? undefined
+        : () => (
             <HeaderButtonGroup>
-              <Chromecast.Chromecast />
+              <OutputButton />
             </HeaderButtonGroup>
-          )
-        : undefined,
+          ),
     });
   }, [album?.Name, navigation]);
 

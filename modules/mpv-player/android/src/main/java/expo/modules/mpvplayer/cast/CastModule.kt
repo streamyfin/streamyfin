@@ -7,8 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
-import androidx.mediarouter.app.MediaRouteChooserDialog
-import androidx.mediarouter.app.MediaRouteControllerDialog
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.MediaStatus
@@ -255,20 +253,6 @@ class CastModule : Module() {
             cachedSession
         }
 
-        AsyncFunction("showCastDialog") {
-            val activity = appContext.currentActivity ?: return@AsyncFunction false
-            val cast = ensureContext() ?: return@AsyncFunction false
-            // A suspended or connecting session still owns the route: the controller dialog is
-            // the one with "Stop casting", the chooser would list the same TV as a no-op.
-            if (cast.sessionManager.currentSession != null) {
-                MediaRouteControllerDialog(activity).show()
-            } else {
-                val selector = cast.mergedSelector ?: return@AsyncFunction false
-                MediaRouteChooserDialog(activity).apply { routeSelector = selector }.show()
-            }
-            true
-        }.runOnQueue(Queues.MAIN)
-
         // The output sheet (Cast receivers, this device): true once on screen, false where it cannot show.
         AsyncFunction("presentOutputPicker") { options: Map<String, Any?> ->
             if (destroyed) return@AsyncFunction false
@@ -334,10 +318,6 @@ class CastModule : Module() {
             ownSession(sessionId)?.remoteMediaClient?.seek(options)
             Unit
         }.runOnQueue(Queues.MAIN)
-
-        View(CastButtonView::class) {
-            Prop("tintColor") { view: CastButtonView, color: String? -> view.setTintColor(color) }
-        }
     }
 
     // The button's frame in window dp, as JS measures it, to the window pixels the popover is placed in.

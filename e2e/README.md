@@ -28,8 +28,10 @@ server log, the session the server records, the receiver on the TV.
   Expo dev client waiting for Metro. Then run `bun run e2e:smoke`, or
   `python3 e2e/bench/maestro.py --flow <flow> --device <id>`. Without `--device`, a flow runs on
   the one emulator or simulator running and never on a phone: the smoke flow clears the app's
-  data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or the screen the
-  smoke flow drives, and on demand (`.github/workflows/e2e-tier1-android.yml`).
+  data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or a screen the
+  flows find by test id, and on demand (`.github/workflows/e2e-tier1-android.yml`): the smoke
+  flow, then the output sheet on the fake receivers, signed in to a throwaway server
+  (`e2e/suites/cast/README.md`).
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
@@ -41,8 +43,8 @@ Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of 
 "Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
 300 ms after a disconnection (`RemoteTargetConstants`), and a switch ends one session before
 the next starts. Only the target the module publishes (`getRemoteTarget`, `connectToDevice`,
-`onRemoteTargetChanged`) goes through them: no media plays, and the SDK's own Cast button
-still reads the real network.
+`onRemoteTargetChanged`) and the output sheet, which reads it, go through them: no media
+plays, so the sheet's end action reads Disconnect.
 
 - **Android**: `./gradlew … -PstreamyfinFakeCastDevices=true`, or the variable as a prefix of
   one command, for example

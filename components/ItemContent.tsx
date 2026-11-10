@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
+import { OutputButton } from "@/components/cast/OutputButton";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
@@ -50,7 +51,6 @@ import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 
-const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 const ItemContentTV = Platform.isTV
   ? require("./ItemContent.tv").ItemContentTV
   : null;
@@ -178,7 +178,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         headerRight: () =>
           item && (
             <HeaderButtonGroup>
-              <Chromecast.Chromecast />
+              <OutputButton offline={isOffline} />
               {/* A group plays from the server: a downloaded copy has
                   nothing to start one with. */}
               {item.Type !== "Program" && !isOffline && (

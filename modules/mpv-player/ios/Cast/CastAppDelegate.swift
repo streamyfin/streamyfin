@@ -14,6 +14,8 @@ enum CastContextBootstrap {
     // A stop from this phone closes the receiver app too, as Android does; the stop reporter
     // relies on it to tell a user's stop from a lost connection.
     options.stopReceiverApplicationWhenEndingSession = true
+    // There is no SDK button to tap any more: the option keeps the SDK from scanning, and iOS from asking for the
+    // local network, from launch. The hub starts discovery when the output sheet opens.
     options.startDiscoveryAfterFirstTapOnCastButton = true
     options.suspendSessionsWhenBackgrounded = true
     GCKCastContext.setSharedInstanceWith(options)

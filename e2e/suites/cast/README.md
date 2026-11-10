@@ -46,10 +46,29 @@ build only assembles it: `bun run build:android:local`, then
 on a phone, since the flow clears the app's data: `make e2e DEVICE=<adb serial>`, or
 `--device` for `e2e/bench/maestro.py`, names another device.
 
+`flows/output-sheet-fake-receivers.yml` drives the output sheet on the fake receivers of a
+tier 1 build (`e2e/README.md`): it signs in, since the Cast button shows only with a server
+session, opens the sheet from the header button, connects to "Bench TV", checks the button's
+state, then disconnects. It needs an English device, as the native sheet is found by its text,
+and a server the device reaches. CI runs it after the smoke flow, on the SyncPlay suite's
+throwaway server (`e2e/suites/syncplay/setup.py`) through `adb reverse`; on the bench, any
+server and account do:
+
+```sh
+ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true bun run build:android:local
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/output-sheet-fake-receivers.yml --device emulator-5554 \
+  --env SERVER_URL=<url> --env USERNAME=<account> --env PASSWORD=<password>
+```
+
+`maestro.py` masks the values it echoes; Maestro's own output and its debug files under
+`~/.maestro/tests/` do not, so keep them off anything shared when the account is a real one.
+
 `flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
-the phone emulator it finds an item by name, connects to a receiver through the header Cast
-button, plays the item on it, then stops casting from the SDK's expanded controls. It needs
-the emulator (so the Mac) on the receiver's network, and two variables:
+the phone emulator it finds an item by name, connects to a receiver from the output sheet,
+which the header Cast button opens, plays the item on it, then stops casting from the SDK's
+expanded controls. It needs the emulator (so the Mac) on the receiver's network, a build
+without the fake receivers, and two variables:
 
 ```sh
 python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.yml --device emulator-5554 \
