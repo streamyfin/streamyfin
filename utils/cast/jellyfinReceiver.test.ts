@@ -1,10 +1,14 @@
 import { RECEIVER_CHANNEL_OPEN_ATTEMPTS } from "@/constants/Cast";
+import type { CastSessionEvent } from "@/modules/mpv-player/src/cast";
 import {
-  CAST_DOUBLE_DEVICE_ID,
+  castDoubleDevice,
   createCastDoubleState,
-  fireCastSessionEvent,
+  emitCastSessionEvent,
   lastCastChannel,
-} from "@/test-utils/googleCast";
+  receiveOnChannel,
+  sentOn,
+  setCastSession,
+} from "@/test-utils/cast";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import {
   castToJellyfinReceiver,
@@ -20,10 +24,11 @@ import {
 } from "./jellyfinReceiver";
 
 const mockCast = createCastDoubleState();
-jest.mock("react-native-google-cast", () =>
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
   // The factory runs before this file's body, so the state is read lazily.
-  require("@/test-utils/googleCast").castDoubleModule(() => mockCast),
-);
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
 
 const lastChannel = () => lastCastChannel(mockCast);
 
@@ -33,11 +38,7 @@ beforeEach(() => {
   // The module caches its channel per Cast session, so each test starts on a
   // session of its own rather than on whatever the last one left open.
   nextSession += 1;
-  mockCast.sessionId = `session-${nextSession}`;
-  mockCast.device = {
-    friendlyName: "Living Room TV",
-    deviceId: CAST_DOUBLE_DEVICE_ID,
-  };
+  setCastSession(mockCast, `session-${nextSession}`, castDoubleDevice());
   mockCast.channels = [];
   mockCast.connectOnAdd = true;
   mockCast.holdAdd = null;
@@ -68,7 +69,7 @@ describe("playOnJellyfinReceiver", () => {
       },
     );
 
-    expect(lastChannel().sendMessage).toHaveBeenCalledWith({
+    expect(sentOn(lastChannel())[0]).toEqual({
       command: "PlayNow",
       serverAddress: "https://jellyfin.example.com",
       accessToken: "SECRET_TOKEN",
@@ -115,7 +116,7 @@ describe("playOnJellyfinReceiver", () => {
       },
     );
 
-    const [message] = lastChannel().sendMessage.mock.calls[0];
+    const message = sentOn(lastChannel())[0] as Record<string, unknown>;
     expect(message.options).toEqual({
       items: [
         {
@@ -132,7 +133,7 @@ describe("playOnJellyfinReceiver", () => {
   test("leaves out the receiver name and bitrate when there are none", async () => {
     await sendJellyfinCastCommand("Stop", { api: makeApi(), userId: "user-1" });
 
-    const [message] = lastChannel().sendMessage.mock.calls[0];
+    const message = sentOn(lastChannel())[0] as Record<string, unknown>;
     expect(message).not.toHaveProperty("receiverName");
     expect(message).not.toHaveProperty("maxBitrate");
   });
@@ -156,11 +157,11 @@ describe("receiver channel", () => {
 
     await sendJellyfinCastCommand("Pause", session);
     const previous = lastChannel();
-    mockCast.sessionId = "session-next";
+    setCastSession(mockCast, "session-next");
     await sendJellyfinCastCommand("Unpause", session);
 
     expect(mockCast.channels).toHaveLength(2);
-    expect(previous.remove).toHaveBeenCalled();
+    expect(previous.removed).toBe(true);
   });
 
   test.each(["ended", "suspended", "resumed"])(
@@ -172,13 +173,13 @@ describe("receiver channel", () => {
 
       await sendJellyfinCastCommand("Pause", session);
       const previous = lastChannel();
-      fireCastSessionEvent(mockCast, event);
+      emitCastSessionEvent(mockCast, event as CastSessionEvent);
       await sendJellyfinCastCommand("Unpause", session);
 
       expect(mockCast.channels).toHaveLength(2);
-      expect(previous.remove).toHaveBeenCalled();
-      expect(previous.sendMessage).toHaveBeenCalledTimes(1);
-      expect(lastChannel().sendMessage).toHaveBeenCalledTimes(1);
+      expect(previous.removed).toBe(true);
+      expect(previous.sent).toHaveLength(1);
+      expect(lastChannel().sent).toHaveLength(1);
     },
   );
 
@@ -199,7 +200,7 @@ describe("receiver channel", () => {
     await commands;
 
     expect(mockCast.channels).toHaveLength(1);
-    expect(lastChannel().sendMessage).toHaveBeenCalledTimes(2);
+    expect(lastChannel().sent).toHaveLength(2);
   });
 
   test("opens a channel for the session the command is sent on", async () => {
@@ -214,15 +215,15 @@ describe("receiver channel", () => {
       userId: "user-1",
     });
 
-    mockCast.sessionId = "session-after";
+    setCastSession(mockCast, "session-after");
     mockCast.holdAdd = null;
     release();
     await command;
 
     expect(mockCast.channels).toHaveLength(2);
-    expect(mockCast.channels[0].sendMessage).not.toHaveBeenCalled();
-    expect(mockCast.channels[0].remove).toHaveBeenCalled();
-    expect(mockCast.channels[1].sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockCast.channels[0].sent).toHaveLength(0);
+    expect(mockCast.channels[0].removed).toBe(true);
+    expect(mockCast.channels[1].sent).toHaveLength(1);
   });
 
   test("gives up when the Cast session changes on every try", async () => {
@@ -233,9 +234,7 @@ describe("receiver channel", () => {
     ).rejects.toThrow("the Cast session keeps changing");
     expect(mockCast.channels).toHaveLength(RECEIVER_CHANNEL_OPEN_ATTEMPTS);
     expect(
-      mockCast.channels.every(
-        (channel) => !channel.sendMessage.mock.calls.length,
-      ),
+      mockCast.channels.every((channel) => channel.sent.length === 0),
     ).toBe(true);
   });
 
@@ -257,8 +256,12 @@ describe("receiver channel", () => {
       userId: "user-1",
     });
 
-    lastChannel().receive('{"type":"connectionerror","message":""}');
-    lastChannel().receive("not json");
+    receiveOnChannel(
+      mockCast,
+      lastChannel(),
+      '{"type":"connectionerror","message":""}',
+    );
+    receiveOnChannel(mockCast, lastChannel(), "not json");
 
     expect(received).toEqual([
       { type: "connectionerror", message: "" },
@@ -276,9 +279,15 @@ describe("receiver channel", () => {
       userId: "user-1",
     });
 
-    lastChannel().receive({ type: "connectionerror", message: "" });
+    receiveOnChannel(mockCast, lastChannel(), {
+      type: "connectionerror",
+      message: "",
+    });
     unsubscribe();
-    lastChannel().receive({ type: "error", message: "ignored" });
+    receiveOnChannel(mockCast, lastChannel(), {
+      type: "error",
+      message: "ignored",
+    });
 
     expect(received).toEqual([{ type: "connectionerror", message: "" }]);
   });
@@ -322,9 +331,17 @@ describe("watchReceiverLoadErrors", () => {
     const errors: string[] = [];
     watchReceiverLoadErrors((error) => errors.push(error), 1_000);
 
-    lastChannel().receive('{"type":"playbackprogress"}');
-    lastChannel().receive('{"type":"connectionerror","message":""}');
-    lastChannel().receive('{"type":"playbackerror","message":"NoStream"}');
+    receiveOnChannel(mockCast, lastChannel(), '{"type":"playbackprogress"}');
+    receiveOnChannel(
+      mockCast,
+      lastChannel(),
+      '{"type":"connectionerror","message":""}',
+    );
+    receiveOnChannel(
+      mockCast,
+      lastChannel(),
+      '{"type":"playbackerror","message":"NoStream"}',
+    );
 
     expect(errors).toEqual(["server_unreachable"]);
   });
@@ -336,7 +353,10 @@ describe("watchReceiverLoadErrors", () => {
     watchReceiverLoadErrors((error) => first.push(error), 1_000);
     watchReceiverLoadErrors((error) => second.push(error), 1_000);
 
-    lastChannel().receive({ type: "error", message: "Missing params" });
+    receiveOnChannel(mockCast, lastChannel(), {
+      type: "error",
+      message: "Missing params",
+    });
 
     expect(first).toEqual([]);
     expect(second).toEqual(["rejected"]);
@@ -348,7 +368,10 @@ describe("watchReceiverLoadErrors", () => {
     watchReceiverLoadErrors((error) => errors.push(error), 5);
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    lastChannel().receive({ type: "playbackerror", message: "late" });
+    receiveOnChannel(mockCast, lastChannel(), {
+      type: "playbackerror",
+      message: "late",
+    });
 
     expect(errors).toEqual([]);
   });
@@ -359,7 +382,10 @@ describe("watchReceiverLoadErrors", () => {
     const stop = watchReceiverLoadErrors((error) => errors.push(error), 1_000);
 
     stop();
-    lastChannel().receive({ type: "connectionerror", message: "" });
+    receiveOnChannel(mockCast, lastChannel(), {
+      type: "connectionerror",
+      message: "",
+    });
 
     expect(errors).toEqual([]);
   });
@@ -371,19 +397,18 @@ describe("currentReceiverName", () => {
   });
 
   test("is undefined with no session or no device name", async () => {
-    mockCast.sessionId = undefined;
+    mockCast.session = null;
     expect(await currentReceiverName()).toBeUndefined();
 
-    mockCast.sessionId = "session-x";
-    mockCast.device = null;
+    setCastSession(mockCast, "session-x", null);
     expect(await currentReceiverName()).toBeUndefined();
   });
 
   test("gives a TV with no ASCII letter in its name one the receiver can use", async () => {
-    mockCast.device = {
+    setCastSession(mockCast, "session-cyrillic", {
+      ...castDoubleDevice(),
       friendlyName: "Гостиная",
-      deviceId: CAST_DOUBLE_DEVICE_ID,
-    };
+    });
     expect(await currentReceiverName()).toBe("Chromecast 0b9c8d7e");
   });
 });
@@ -505,7 +530,7 @@ describe("castToJellyfinReceiver", () => {
     );
     await sent();
 
-    expect(lastChannel().sendMessage).toHaveBeenCalledTimes(1);
+    expect(lastChannel().sent).toHaveLength(1);
     expect(await settledWith(outcome)).toBe("pending");
 
     // The receiver reports the new item idle before it starts loading it.
@@ -584,7 +609,9 @@ describe("castToJellyfinReceiver", () => {
     );
     await sent();
 
-    lastChannel().receive(
+    receiveOnChannel(
+      mockCast,
+      lastChannel(),
       '{"type":"playbackerror","message":"NoCompatibleStream"}',
     );
 
@@ -655,10 +682,10 @@ describe("castToJellyfinReceiver", () => {
 
       expect(await settledWith(first)).toEqual({ status: "superseded" });
       const playNows = mockCast.channels
-        .flatMap((channel) => channel.sendMessage.mock.calls)
-        .filter(([message]) => message.command === "PlayNow");
+        .flatMap((channel) => sentOn(channel) as Record<string, any>[])
+        .filter((message) => message.command === "PlayNow");
       expect(playNows).toHaveLength(1);
-      expect(playNows[0][0].options.items[0].Id).toBe("item-2");
+      expect(playNows[0].options.items[0].Id).toBe("item-2");
 
       client.emit(status("buffering", "item-2", "session-b"));
       expect(await second).toEqual({ status: "loaded" });

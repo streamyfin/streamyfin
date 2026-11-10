@@ -18,6 +18,8 @@ import React, {
 import { Platform } from "react-native";
 import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
 import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
+import { useMusicCast } from "@/hooks/useMusicCast";
+import { CastState } from "@/modules/mpv-player/src/cast";
 import {
   downloadTrack,
   getLocalPath,
@@ -528,6 +530,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const { isConnected, serverConnected } = useNetworkStatus();
   const { subscribe } = useWebSocketContext();
   const isOffline = !isConnected || serverConnected === false;
+  const { castQueue, castState } = useMusicCast({ api, userId: user?.Id });
+  // Offline, the downloaded tracks stay on the phone: the receiver streams.
+  const castConnected = castState === CastState.CONNECTED && !isOffline;
   const initializedRef = useRef(false);
   // Shared by every caller that needs the native player, so setup runs once.
   const playerSetupRef = useRef<Promise<void> | null>(null);
@@ -1235,6 +1240,38 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     ],
   );
 
+  // A connected Cast session plays the music on the receiver, and the phone
+  // stops so that one place plays.
+  const castOnReceiver = useCallback(
+    async (queue: BaseItemDto[], startIndex: number) => {
+      if (TrackPlayer && state.isPlaying) {
+        await TrackPlayer.pause();
+        setState((prev) => ({ ...prev, isPlaying: false }));
+      }
+      await castQueue({ queue, startIndex });
+    },
+    [castQueue, state.isPlaying],
+  );
+
+  // Connecting while the phone plays moves the queue to the receiver. A queue
+  // left paused, restored at launch say, stays: the session may be for a film.
+  const previousCastState = useRef(castState);
+  useEffect(() => {
+    const previous = previousCastState.current;
+    previousCastState.current = castState;
+    if (!castConnected || previous === CastState.CONNECTED) return;
+    if (!state.isPlaying || state.queue.length === 0) return;
+    const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
+    void castOnReceiver(state.queue, Math.max(index, 0));
+  }, [
+    castState,
+    castConnected,
+    castOnReceiver,
+    state.isPlaying,
+    state.queue,
+    state.currentTrack,
+  ]);
+
   const playTrack = useCallback(
     (track: BaseItemDto, queue?: BaseItemDto[]) => {
       if (state.currentTrack && state.playSessionId) {
@@ -1247,6 +1284,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       const newQueue = queue || [track];
       const queueIndex = newQueue.findIndex((t) => t.Id === track.Id);
+      if (castConnected) {
+        void castOnReceiver(newQueue, Math.max(queueIndex, 0));
+        return;
+      }
       loadAndPlayQueue(newQueue, Math.max(queueIndex, 0));
     },
     [
@@ -1255,6 +1296,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.progress,
       reportPlaybackStopped,
       loadAndPlayQueue,
+      castConnected,
+      castOnReceiver,
     ],
   );
 
@@ -1293,6 +1336,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         finalIndex = 0;
       }
 
+      if (castConnected) {
+        void castOnReceiver(finalQueue, finalIndex);
+        return;
+      }
       loadAndPlayQueue(finalQueue, finalIndex);
     },
     [
@@ -1303,6 +1350,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reportPlaybackStopped,
       loadAndPlayQueue,
       isOffline,
+      castConnected,
+      castOnReceiver,
     ],
   );
 

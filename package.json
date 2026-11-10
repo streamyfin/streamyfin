@@ -98,7 +98,6 @@
     "react-native-drax": "1.1.0",
     "react-native-edge-to-edge": "1.8.2",
     "react-native-gesture-handler": "3.4.0",
-    "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.1",
     "react-native-mmkv": "4.3.2",
     "react-native-nitro-modules": "0.37.1",
@@ -152,7 +151,6 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "react-native-google-cast",
           "react-native-udp",
           "react-native-track-player",
           "@jellyfin/sdk",
@@ -192,7 +190,6 @@
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
-    "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
     "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch"
   },
   "jest": {

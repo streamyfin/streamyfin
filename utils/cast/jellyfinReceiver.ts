@@ -1,16 +1,19 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import GoogleCast, {
-  CastChannel,
-  MediaPlayerState,
-  type MediaStatus,
-  type RemoteMediaClient,
-} from "react-native-google-cast";
 import {
   RECEIVER_CHANNEL_OPEN_ATTEMPTS,
   RECEIVER_FALLBACK_ID_LENGTH,
   RECEIVER_FALLBACK_NAME,
 } from "@/constants/Cast";
+import {
+  addCastChannel,
+  type CastChannel,
+  type CastClient,
+  CastMediaPlayerState,
+  type CastMediaStatus,
+  currentCastSession,
+  onCastSessionEvent,
+} from "@/modules/mpv-player/src/cast";
 
 /**
  * The official Jellyfin receiver (F007D354) speaks its own protocol over this
@@ -134,13 +137,11 @@ const releaseChannelOnSessionChange = () => {
   if (releasesOnSessionChange) return;
   releasesOnSessionChange = true;
 
-  const sessionManager = GoogleCast.getSessionManager();
-  const release = () => {
-    void closeChannel();
-  };
-  sessionManager.onSessionEnded(release);
-  sessionManager.onSessionSuspended(release);
-  sessionManager.onSessionResumed(release);
+  onCastSessionEvent(({ event }) => {
+    if (event === "ended" || event === "suspended" || event === "resumed") {
+      void closeChannel();
+    }
+  });
 };
 
 const openChannel = async (
@@ -148,7 +149,7 @@ const openChannel = async (
 ): Promise<CastChannel> => {
   releaseChannelOnSessionChange();
   await closeChannel();
-  const channel = await CastChannel.add(JELLYFIN_CAST_NAMESPACE, (message) => {
+  const channel = await addCastChannel(JELLYFIN_CAST_NAMESPACE, (message) => {
     const parsed = parseReceiverMessage(message);
     for (const listener of listeners) listener(parsed);
   });
@@ -169,8 +170,7 @@ let opening: Promise<CastChannel> | null = null;
 
 const getChannel = async (): Promise<CastChannel> => {
   for (let attempt = 0; attempt < RECEIVER_CHANNEL_OPEN_ATTEMPTS; attempt++) {
-    const session =
-      await GoogleCast.getSessionManager().getCurrentCastSession();
+    const session = currentCastSession();
 
     // `connected` is not maintained on Android: the native module answers
     // `true` when the channel is created and never sends an update. So the
@@ -246,9 +246,7 @@ export const receiverNameFor = (
  * name itself "Google Cast" and the stop reporter could not find its session.
  */
 export const currentReceiverName = async (): Promise<string | undefined> => {
-  const session = await GoogleCast.getSessionManager().getCurrentCastSession();
-
-  return receiverNameFor(await session?.getCastDevice());
+  return receiverNameFor(currentCastSession()?.device);
 };
 
 export const sendJellyfinCastCommand = async (
@@ -445,7 +443,7 @@ export const parseReceiverCustomData = (
 };
 
 const receiverMediaData = (
-  status: MediaStatus | null | undefined,
+  status: CastMediaStatus | null | undefined,
 ): ReceiverMediaData | undefined => {
   if (!status?.mediaInfo?.customData) return undefined;
   const data = parseReceiverCustomData(status.mediaInfo.customData);
@@ -469,7 +467,7 @@ let castCount = 0;
  * closes Android's expanded controls if they were opened on the send.
  */
 export const castToJellyfinReceiver = async (
-  client: RemoteMediaClient,
+  client: CastClient,
   session: JellyfinCastSession,
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
@@ -520,7 +518,10 @@ export const castToJellyfinReceiver = async (
       ) {
         return;
       }
-      if (!status?.playerState || status.playerState === MediaPlayerState.IDLE)
+      if (
+        !status?.playerState ||
+        status.playerState === CastMediaPlayerState.IDLE
+      )
         return;
       settle(() => resolve({ status: "loaded" }));
     });
