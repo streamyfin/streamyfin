@@ -116,8 +116,8 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@expo/repack-app": "0.10.4",
     "@biomejs/biome": "2.6.4",
+    "@expo/repack-app": "0.10.4",
     "@react-native-tvos/config-tv": "0.1.7",
     "@react-native/jest-preset": "0.88.1",
     "@testing-library/react-native": "14.1.0",
