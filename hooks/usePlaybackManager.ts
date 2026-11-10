@@ -68,6 +68,15 @@ const getOfflineAdjacentItems = (
  * This provides a simple facade for player components to report playback
  * without needing to know the underlying details of data syncing.
  */
+/**
+ * The LastPlayedDate each user's own save last wrote into a download, by
+ * `${userId}:${itemId}`. A failed report may only queue a stamp its user wrote:
+ * the record's current one can be another account's (downloads carry no
+ * owner), and the offline sync takes a matching stamp as proof of ownership.
+ * Module level, as several playback managers report for the same items.
+ */
+const ownSavedStamps = new Map<string, string>();
+
 export const usePlaybackManager = ({
   item,
   isOffline = false,
@@ -246,6 +255,7 @@ export const usePlaybackManager = ({
           },
         },
       });
+      if (user?.Id) ownSavedStamps.set(`${user.Id}:${itemId}`, lastPlayed);
       // Saved where the server cannot see it: queue it for the sync that
       // runs once the server answers again (useOfflineProgressSync).
       if (user?.Id && (!isOnline || serverConnected !== true)) {
@@ -270,15 +280,15 @@ export const usePlaybackManager = ({
         );
       } catch (error) {
         console.error("Failed to report playback progress", error);
-        // A downloaded item's progress is still on the device: queue it.
+        // A downloaded item's progress is still on the device: queue it, with
+        // the stamp this user's own save wrote, and only if it wrote one.
         const itemId = playbackProgressInfo.ItemId;
-        const downloaded = itemId ? getDownloadedItemById(itemId) : undefined;
-        if (user?.Id && itemId && downloaded) {
-          markOfflineProgress(
-            user.Id,
-            itemId,
-            downloaded.item.UserData?.LastPlayedDate,
-          );
+        const stamp =
+          user?.Id && itemId
+            ? ownSavedStamps.get(`${user.Id}:${itemId}`)
+            : undefined;
+        if (user?.Id && itemId && stamp && getDownloadedItemById(itemId)) {
+          markOfflineProgress(user.Id, itemId, stamp);
         }
       }
     }

@@ -10,6 +10,7 @@ jest.mock(
 
 const RUNTIME = 1_000_000_000;
 let mockIsConnected = true;
+let mockUserId = "alice";
 let mockServerConnected: boolean | null = true;
 // The download record of "episode-1", as the downloads database holds it.
 let mockRecord: { item: Record<string, unknown> } | undefined;
@@ -60,7 +61,7 @@ jest.mock("jotai", () => ({
   ...jest.requireActual("jotai"),
   useAtomValue: (atom: unknown) =>
     atom === "user"
-      ? { Id: "alice" }
+      ? { Id: mockUserId }
       : atom === "api"
         ? { basePath: "http://jellyfin.local" }
         : null,
@@ -85,6 +86,7 @@ const manager = async () =>
 
 beforeEach(() => {
   clearMmkv();
+  mockUserId = "alice";
   mockIsConnected = true;
   mockServerConnected = true;
   mockRecord = downloaded();
@@ -168,5 +170,21 @@ describe("usePlaybackManager and the offline progress queue", () => {
       LastPlayedDate: "2026-11-01T10:00:00.000Z",
     });
     expect(getOfflineProgress("alice")).toEqual({});
+  });
+
+  // Downloads carry no owner: a failed report after a save that wrote nothing
+  // must not queue the record's stamp, which may be another account's.
+  it("queues no stamp it did not write when a report fails", async () => {
+    // A user with no save of their own yet in this process.
+    mockUserId = "carol";
+    mockRecord = downloaded({
+      Played: true,
+      LastPlayedDate: "2026-11-01T10:00:00.000Z",
+    });
+    mockReport.mockRejectedValue(new Error("502"));
+
+    await (await manager()).reportPlaybackProgress(progressAt(0.02));
+
+    expect(getOfflineProgress("carol")).toEqual({});
   });
 });
