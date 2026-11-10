@@ -23,6 +23,12 @@ export const RECEIVER_FALLBACK_ID_LENGTH = 8;
 export const RECEIVER_UNCAPPED_BITRATE = 120_000_000;
 
 /**
+ * Receivers the remote quality settings remember, the latest first: a connection
+ * adds one, and the oldest leaves the list, with its own quality, past this many.
+ */
+export const REMOTE_QUALITY_KNOWN_TARGETS_MAX = 20;
+
+/**
  * Most items handed to the receiver in one PlayNow message. Each one is only a
  * few ids, but a Cast message is capped at 64 KB, so a long music queue is sent
  * as a window of this size around the selected track.
@@ -37,6 +43,13 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
  * a few seconds on a home network.
  */
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
+
+/**
+ * How long a Play pressed while a receiver connects waits for the connection.
+ * Connections took a few seconds on the bench; past this the press gives up and
+ * says the connection failed, instead of starting much later on its own.
+ */
+export const PLAY_TARGET_WAIT_MS = 20_000;
 
 /**
  * Tries at opening the receiver channel before a command gives up. A session

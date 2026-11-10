@@ -6,6 +6,7 @@ import { MediaToggles } from "@/components/settings/MediaToggles";
 import { MpvBufferSettings } from "@/components/settings/MpvBufferSettings";
 import { MpvVoSettings } from "@/components/settings/MpvVoSettings";
 import { PlaybackControlsSettings } from "@/components/settings/PlaybackControlsSettings";
+import { RemotePlaybackQualitySettings } from "@/components/settings/RemotePlaybackQualitySettings";
 import { VideoPlayerSelector } from "@/components/settings/VideoPlayerSelector";
 
 export default function PlaybackControlsPage() {
@@ -30,6 +31,7 @@ export default function PlaybackControlsPage() {
             <MediaToggles className='mb-4' />
             <GestureControls className='mb-4' />
             <PlaybackControlsSettings />
+            <RemotePlaybackQualitySettings />
             <MpvBufferSettings />
             <MpvVoSettings />
           </MediaProvider>

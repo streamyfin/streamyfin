@@ -1,50 +1,14 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import type { Bitrate } from "@/constants/Playback";
+import { BITRATES } from "@/constants/Playback";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
-export type Bitrate = {
-  key: string;
-  value: number | undefined;
-};
-
-export const BITRATES: Bitrate[] = [
-  {
-    key: "Max",
-    value: undefined,
-  },
-  {
-    key: "8 Mb/s",
-    value: 8000000,
-    height: 1080,
-  },
-  {
-    key: "4 Mb/s",
-    value: 4000000,
-    height: 1080,
-  },
-  {
-    key: "2 Mb/s",
-    value: 2000000,
-  },
-  {
-    key: "1 Mb/s",
-    value: 1000000,
-  },
-  {
-    key: "500 Kb/s",
-    value: 500000,
-  },
-  {
-    key: "250 Kb/s",
-    value: 250000,
-  },
-].sort(
-  (a, b) =>
-    (b.value || Number.POSITIVE_INFINITY) -
-    (a.value || Number.POSITIVE_INFINITY),
-);
+// The list moved to constants/Playback.ts, which utils read without this component's UI.
+export type { Bitrate } from "@/constants/Playback";
+export { BITRATES };
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;

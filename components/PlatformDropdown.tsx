@@ -15,7 +15,11 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 const { Button, Host } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
-const { disabled } = Platform.isTV
+const {
+  accessibilityLabel: menuAccessibilityLabel,
+  accessibilityValue: menuAccessibilityValue,
+  disabled,
+} = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
   : require("@expo/ui/swift-ui/modifiers");
 
@@ -74,6 +78,13 @@ interface PlatformDropdownProps {
     enableDynamicSizing?: boolean;
     enablePanDownToClose?: boolean;
   };
+  /**
+   * What screen readers call the control, and what it is set to. On iOS the
+   * trigger's text never reaches VoiceOver through the SwiftUI Menu, which
+   * announces a bare pop-up button without them.
+   */
+  accessibilityLabel?: string;
+  accessibilityValue?: string;
 }
 
 const ToggleSwitch: React.FC<{ value: boolean }> = ({ value }) => (
@@ -220,6 +231,8 @@ const PlatformDropdownComponent = ({
   onOptionSelect,
   expoUIConfig,
   bottomSheetConfig,
+  accessibilityLabel,
+  accessibilityValue,
 }: PlatformDropdownProps) => {
   const { t } = useTranslation();
   const { showModal, hideModal, isVisible } = useGlobalModal();
@@ -270,7 +283,17 @@ const PlatformDropdownComponent = ({
           // bar it was pushed down the same way, off its trigger's place.
           ignoreSafeArea='all'
         >
-          <FixedOrderMenu label={nativeLabel ?? trigger}>
+          <FixedOrderMenu
+            label={nativeLabel ?? trigger}
+            modifiers={
+              accessibilityLabel === undefined
+                ? undefined
+                : [
+                    menuAccessibilityLabel(accessibilityLabel),
+                    menuAccessibilityValue(accessibilityValue ?? ""),
+                  ]
+            }
+          >
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -408,6 +431,13 @@ const PlatformDropdownComponent = ({
       onPress={handlePress}
       activeOpacity={0.7}
       disabled={isDisabled}
+      accessibilityLabel={accessibilityLabel}
+      // Always an object once named: Android drops the whole description, label included, when it turns undefined.
+      accessibilityValue={
+        accessibilityLabel === undefined
+          ? undefined
+          : { text: accessibilityValue ?? "" }
+      }
     >
       {trigger || <Text className='text-white'>{t("common.open_menu")}</Text>}
     </TouchableOpacity>
@@ -425,6 +455,8 @@ export const PlatformDropdown = React.memo(
       prevProps.disabled === nextProps.disabled &&
       prevProps.groups === nextProps.groups && // Reference equality (works because we memoize groups in caller)
       prevProps.trigger === nextProps.trigger && // Reference equality
+      prevProps.accessibilityLabel === nextProps.accessibilityLabel &&
+      prevProps.accessibilityValue === nextProps.accessibilityValue &&
       prevProps.nativeLabel === nextProps.nativeLabel
     );
   },
