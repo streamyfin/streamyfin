@@ -345,7 +345,8 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         // The download keeps the mark: queue it for the offline sync.
-        if (localItem && user.Id) markOfflineProgress(user.Id, itemId, lastPlayed);
+        if (localItem && user.Id)
+          markOfflineProgress(user.Id, itemId, lastPlayed);
         console.error("Failed to mark item as played on server", error);
         throw error;
       }
@@ -399,7 +400,8 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         // The download keeps the mark: queue it for the offline sync.
-        if (localItem && user.Id) markOfflineProgress(user.Id, itemId, lastPlayed);
+        if (localItem && user.Id)
+          markOfflineProgress(user.Id, itemId, lastPlayed);
         console.error("Failed to mark item as unplayed on server", error);
         throw error;
       }

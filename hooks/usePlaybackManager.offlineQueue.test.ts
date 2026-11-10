@@ -21,7 +21,10 @@ jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     getDownloadedItemById: (id: string) =>
       id === "episode-1" ? mockRecord : undefined,
-    updateDownloadedItem: (_id: string, next: { item: Record<string, unknown> }) => {
+    updateDownloadedItem: (
+      _id: string,
+      next: { item: Record<string, unknown> },
+    ) => {
       mockRecord = next;
     },
     getDownloadedItems: () => [],
@@ -50,7 +53,9 @@ jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: "api",
   userAtom: "user",
 }));
-jest.mock("@/utils/atoms/shuffleQueue", () => ({ shuffleQueueAtom: "shuffle" }));
+jest.mock("@/utils/atoms/shuffleQueue", () => ({
+  shuffleQueueAtom: "shuffle",
+}));
 jest.mock("jotai", () => ({
   ...jest.requireActual("jotai"),
   useAtomValue: (atom: unknown) =>
@@ -126,8 +131,9 @@ describe("usePlaybackManager and the offline progress queue", () => {
     mockIsConnected = false;
 
     await (await manager()).markItemPlayed("episode-1");
-    const playedStamp = (mockRecord!.item.UserData as { LastPlayedDate: string })
-      .LastPlayedDate;
+    const playedStamp = (
+      mockRecord!.item.UserData as { LastPlayedDate: string }
+    ).LastPlayedDate;
     expect(getOfflineProgress("alice")).toEqual({ "episode-1": playedStamp });
     expect(mockMarkPlayed).not.toHaveBeenCalled();
 
@@ -141,7 +147,9 @@ describe("usePlaybackManager and the offline progress queue", () => {
   it("queues a mark the server failed to take, and still reports the failure", async () => {
     mockMarkPlayed.mockRejectedValue(new Error("503"));
 
-    await expect((await manager()).markItemPlayed("episode-1")).rejects.toThrow("503");
+    await expect((await manager()).markItemPlayed("episode-1")).rejects.toThrow(
+      "503",
+    );
 
     expect(Object.keys(getOfflineProgress("alice"))).toEqual(["episode-1"]);
   });
