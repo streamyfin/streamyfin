@@ -36,7 +36,7 @@ const LATE_STAGING_SWEEP_MS = 60_000;
 // `.part` after the timeout, so a later attempt must not reuse — or be swept
 // by — the same path. Timestamp + random: unique across attempts AND across
 // app restarts, so a leftover file from a crashed run is never adopted.
-const stagingName = (fileName: string): string =>
+export const stagingName = (fileName: string): string =>
   `${fileName}.${Date.now()}-${Math.random().toString(36).slice(2, 8)}.part`;
 
 /** The engines sniff the MIME from the extension; keep the served one. */

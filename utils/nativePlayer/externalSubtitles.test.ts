@@ -237,3 +237,35 @@ describe("localSubtitleFileName", () => {
     ).toBe("item-1-ms-1-3.srt");
   });
 });
+
+test("a restarted app never reuses a staging name, even in the same millisecond", () => {
+  // A transfer an earlier run abandoned can still be writing its `.part`, so the
+  // next run must stage somewhere else. A per-process counter would start over
+  // after a restart and hand out the same name again.
+  const now = jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+  let draws = 0;
+  const random = jest
+    .spyOn(Math, "random")
+    .mockImplementation(() => ++draws / 10);
+  // Each call loads a fresh copy of the module, as a new process would.
+  const nameAfterRestart = (): string => {
+    let name = "";
+    jest.isolateModules(() => {
+      name = (
+        require("./externalSubtitles") as typeof import("./externalSubtitles")
+      ).stagingName("item-1-ms-1-3.srt");
+    });
+    return name;
+  };
+
+  try {
+    const first = nameAfterRestart();
+    const second = nameAfterRestart();
+
+    expect(first).toMatch(/^item-1-ms-1-3\.srt\..+\.part$/);
+    expect(second).not.toBe(first);
+  } finally {
+    now.mockRestore();
+    random.mockRestore();
+  }
+});
