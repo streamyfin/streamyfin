@@ -198,3 +198,23 @@ test("useRemoteTarget starts from the native state, follows it and lets go on un
   await view.unmount();
   expect(mockCast.listeners.onRemoteTargetChanged).toHaveLength(0);
 });
+
+test("useRemoteTarget carries the volume", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+  const view = await renderHook(useRemoteTarget);
+  // Connected, but the SDK has not reported the receiver's volume yet.
+  expect(view.result.current.volume).toBeNull();
+
+  const reported = {
+    ...castDoubleTarget("connected"),
+    volume: 0.62,
+    muted: true,
+  };
+  await act(() => emitRemoteTarget(mockCast, reported));
+  expect(view.result.current.volume).toBe(0.62);
+  expect(view.result.current.muted).toBe(true);
+
+  await act(() => emitRemoteTarget(mockCast, NO_REMOTE_TARGET));
+  expect(view.result.current.volume).toBeNull();
+  expect(view.result.current.muted).toBe(false);
+});

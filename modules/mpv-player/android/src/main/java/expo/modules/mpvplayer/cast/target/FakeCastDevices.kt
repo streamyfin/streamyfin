@@ -9,6 +9,9 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
     private var events: TargetPortEvents? = null
     private var current: TargetDevice? = null
     private var pending: (() -> Unit)? = null
+    private var echo: (() -> Unit)? = null
+    private var volume = 1.0
+    private var muted = false
 
     override fun start(events: TargetPortEvents) {
         this.events = events
@@ -38,11 +41,18 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
             events?.sessionEvent("ending", previous, null)
             events?.sessionEvent("ended", previous, null)
         }
+        // A level still on its way belongs to the receiver left; the next one starts at its own.
+        echo?.invoke()
+        echo = null
+        volume = 1.0
+        muted = false
         current = device
         events?.sessionEvent("starting", device, null)
         pending = schedule(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS) {
             pending = null
             events?.sessionEvent("started", device, null)
+            // As the SDK does once the session is up.
+            events?.volumeChanged(volume, muted)
         }
     }
 
@@ -61,6 +71,26 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
         }
     }
 
+    override fun setVolume(level: Double) {
+        volume = level
+        echoVolume()
+    }
+
+    override fun setMuted(muted: Boolean) {
+        this.muted = muted
+        echoVolume()
+    }
+
+    // Reported back a moment later, as a receiver does, and only while a session is up.
+    private fun echoVolume() {
+        if (current == null) return
+        echo?.invoke()
+        echo = schedule(RemoteTargetConstants.FAKE_VOLUME_ECHO_MS) {
+            echo = null
+            if (current != null) events?.volumeChanged(volume, muted)
+        }
+    }
+
     private fun cancelPending() {
         pending?.invoke()
         pending = null
@@ -70,7 +100,7 @@ class FakeCastDevices(private val schedule: (Long, () -> Unit) -> (() -> Unit)) 
         const val NOT_ON_THE_BENCH = "Not one of the fake receivers"
         val DEVICES = listOf(
             TargetDevice("fake-cast-living-room", "Bench TV", "Fake Chromecast"),
-            TargetDevice("fake-cast-bedroom", "Bench Speaker", "Fake Cast speaker"),
+            TargetDevice("fake-cast-bedroom", "Bench Speaker", "Fake Cast speaker", videoOut = false),
         )
     }
 }

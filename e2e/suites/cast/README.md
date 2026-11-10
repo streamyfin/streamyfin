@@ -176,6 +176,17 @@ open it again, and send the same broadcast with `keep`: the first line reads
 because the SDK resumed the session before anything asked. A last broadcast without `keep`
 ends it.
 
+**Leaving the receiver playing, setting its volume.** `--ez stop false` ends the session
+without asking the receiver to stop: the log reads `disconnecting without stopping the
+receiver`. It is a request, not a guarantee: the receiver app keeps playing only when the
+probe's session joined it, and the session that launched it stops it at its end on both SDKs
+(`.claude/learned-facts/cast-launching-session-stops-the-receiver.md`). `--ef volume <0 to 1>` sets the
+receiver's volume once connected (`setting the volume to 0.40`), then logs each level the
+receiver reports back as `volume=0.40 muted=false`. `--ez mute true|false` sets its mute after the level
+(`setting the mute to true`). On Android the mute is the playing stream's, as the SDK's expanded
+controls do it: with no media loaded the port logs `setMute: no media playing to mute` and the
+receiver reports nothing, so cast something before.
+
 **iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
 up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
 under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
@@ -183,3 +194,5 @@ SDK resuming the session it had, so a switch inside a live session needs one pro
 `-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
 the first session kept up with or without `-CastTargetProbeKeep`.
 `-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.
+`-CastTargetProbeStop NO`, `-CastTargetProbeVolume <0 to 1>` and `-CastTargetProbeMute YES|NO` are `stop`,
+`volume` and `mute`.

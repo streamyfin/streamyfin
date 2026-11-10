@@ -27,6 +27,57 @@ class FakeCastDevicesTest {
 
     private fun started(events: Events) = FakeCastDevices(scheduler.schedule).also { it.start(events) }
 
+    // A real receiver reports its level when the session opens: the fake ones do too, so tier 1 sees the slider.
+    @Test
+    fun aStartedFakeSessionReportsItsLevel() {
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(tv.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        assertEquals(1.0, hub.snapshot.volume)
+        assertEquals(false, hub.snapshot.muted)
+    }
+
+    @Test
+    fun theFakeReceiverEchoesTheVolume() {
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(tv.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        hub.setVolume(0.4)
+        val before = hub.snapshot.volume
+        scheduler.advance(RemoteTargetConstants.FAKE_VOLUME_ECHO_MS)
+
+        // The level the session started at, until the receiver echoes the new one.
+        assertEquals(1.0, before)
+        assertEquals(0.4, hub.snapshot.volume)
+    }
+
+    // A switch inside the echo's delay must not report the TV's level on the speaker's session.
+    @Test
+    fun aSwitchDropsThePendingVolumeEcho() {
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(tv.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        hub.setVolume(0.3)
+        hub.connect(speaker.id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        assertEquals(speaker.id, hub.snapshot.target?.id)
+        // The speaker's own level, never the TV's 0.3.
+        assertEquals(1.0, hub.snapshot.volume)
+    }
+
+    @Test
+    fun theBenchSpeakerHasNoScreen() {
+        assertTrue(tv.videoOut)
+        assertEquals(false, speaker.videoOut)
+    }
+
     @Test
     fun discoveryListsTheTwoBenchDevices() {
         val events = Events()
@@ -135,7 +186,7 @@ class FakeCastDevicesTest {
         scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
 
         assertEquals(TargetPhase.CONNECTING, connecting)
-        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(tv), false, null), hub.snapshot)
+        assertEquals(RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(tv), false, null, volume = 1.0), hub.snapshot)
         assertEquals(FakeCastDevices.DEVICES, hub.devices)
     }
 }

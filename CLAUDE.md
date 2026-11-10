@@ -94,6 +94,8 @@ Native modules:
 - `cast-session-id-goes-null-when-ended` | an ended Android CastSession answers null for its id, so an end matched against the live id matches nothing; keep the id the binding was made with
 - `cast-stop-from-tv-leaves-an-idle-status` | stopped from the TV, the session stays connected and the SDK keeps an idle status with its media, at position 0; play() does nothing there, send the item or queue again from your own position
 - `cast-switch-ends-the-old-session` | a receiver switch is two sessions: iOS startSession(with:) answers NO while one is established, so end it first; Android ends the old one with status 2155, the same code as a network loss, so only the request tells them apart; asked back, the old route is selected only on the turn after its end, or the SDK's cleanup selects the default route over it
+- `cast-launching-session-stops-the-receiver` | the session that launched the receiver app stops it at its end whatever stopCasting says, on both SDKs; only a joined session leaves the TV playing, so the stop reporter checks the receiver after a disconnect without stop
+- `cast-session-setters-freeze-android-volume` | on Android, CastSession.setVolume or setMute stops the session following the receiver; set the level through the MediaRouter route of the session's receiver, as the Cast dialog does, and mute the stream (the SDK's own toggle mutes the device); a fixed-volume receiver (a Google TV on HDMI-CEC) has no level to publish
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals

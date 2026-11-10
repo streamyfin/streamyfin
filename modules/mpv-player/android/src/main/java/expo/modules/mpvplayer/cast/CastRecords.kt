@@ -6,18 +6,14 @@ import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastSession
+import expo.modules.mpvplayer.cast.target.GoogleCastTargetPort
 import org.json.JSONArray
 import org.json.JSONObject
 
 /** SDK objects as the records the JS side declares in Cast.types.ts. */
 object CastRecords {
-    fun device(device: CastDevice?): Map<String, Any?>? = device?.let {
-        mapOf(
-            "deviceId" to it.deviceId,
-            "friendlyName" to (it.friendlyName ?: ""),
-            "modelName" to it.modelName,
-        )
-    }
+    // The record discovery publishes, so a session's device carries the same fields.
+    fun device(device: CastDevice?): Map<String, Any?>? = GoogleCastTargetPort.device(device)?.toMap()
 
     fun session(session: CastSession?): Map<String, Any?>? {
         val id = session?.sessionId ?: return null

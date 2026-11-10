@@ -67,7 +67,7 @@ export function JellyfinCastStopReporter() {
   );
 
   useEffect(() => {
-    const subscription = onCastSessionEvent(({ event, error }) => {
+    const subscription = onCastSessionEvent(({ event, error, withoutStop }) => {
       // A new cast on the same TV must not be stopped by a check left over from
       // the previous session.
       if (event === "starting") {
@@ -91,9 +91,11 @@ export function JellyfinCastStopReporter() {
         api,
         userId: user.Id,
         deviceName: last.deviceName,
-        // The module leaves `error` out only when casting was stopped, which
-        // closes the receiver app; anything else may leave the TV playing.
-        receiverClosed: !error,
+        // The module leaves `error` out for a stop, which closes the receiver
+        // app, and for a disconnect without stop, which closes it only when
+        // this session launched it: that one and any error may leave the TV
+        // playing, so the report first checks that the receiver went quiet.
+        receiverClosed: !error && !withoutStop,
         itemId: last.itemId,
         playSessionId: last.playSessionId,
         signal: controller.signal,

@@ -10,6 +10,8 @@ import {
   onCastSessionEvent,
   onRemoteTargetChanged,
   remoteTarget,
+  setRemoteTargetMuted,
+  setRemoteTargetVolume,
   showCastDialog,
 } from "./cast";
 
@@ -42,4 +44,9 @@ test("no remote target can exist when the native module is missing", async () =>
   await expect(connectToCastDevice("device-a")).resolves.toBe(false);
   await expect(disconnectRemoteTarget()).resolves.toBeUndefined();
   expect(onRemoteTargetChanged(() => {}).remove).toBeInstanceOf(Function);
+});
+
+test("setRemoteTargetVolume and setRemoteTargetMuted both do nothing without the module", async () => {
+  await expect(setRemoteTargetVolume(0.5)).resolves.toBeUndefined();
+  await expect(setRemoteTargetMuted(true)).resolves.toBeUndefined();
 });
