@@ -3,7 +3,7 @@ import { Tag } from "@/components/GenreTags";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
-const { Button, Host, HStack, Spacer } = Platform.isTV
+const { Button, Host, HStack, ScrollView } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
 const { buttonStyle } = Platform.isTV
@@ -33,19 +33,20 @@ export const LiveTVTabButtons: React.FC<Props> = ({
   if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <Host style={{ height: 40, flex: 1 }}>
-        <HStack spacing={8}>
-          {TABS.map(({ key, labelKey }) => (
-            <Button
-              key={key}
-              modifiers={[
-                buttonStyle(activeTab === key ? "glassProminent" : "glass"),
-              ]}
-              onPress={() => onChange(key)}
-              label={t(labelKey)}
-            />
-          ))}
-          <Spacer />
-        </HStack>
+        <ScrollView axes='horizontal' showsIndicators={false}>
+          <HStack spacing={8}>
+            {TABS.map(({ key, labelKey }) => (
+              <Button
+                key={key}
+                modifiers={[
+                  buttonStyle(activeTab === key ? "glassProminent" : "glass"),
+                ]}
+                onPress={() => onChange(key)}
+                label={t(labelKey)}
+              />
+            ))}
+          </HStack>
+        </ScrollView>
       </Host>
     );
   }
