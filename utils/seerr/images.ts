@@ -4,7 +4,7 @@ import {
   SEERR_STILL_WIDTH,
 } from "@/constants/Seerr";
 
-const TMDB_IMAGES = "https://image.tmdb.org/t/p";
+const TMDB_IMAGES = "https://image.tmdb.org/";
 // A TMDB image as Seerr 3 hands it over: the size, then the path.
 const TMDB_IMAGE_URL = /^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+\/(.+)$/i;
 // The other host Seerr's resizer takes (next.config.ts, remotePatterns).
@@ -25,26 +25,23 @@ export const resizedImageUrl = (
   }).toString()}`;
 
 /**
- * A TMDB image by its path, at one of TMDB's sizes, through Seerr's resizer.
- * None without a path: the caller shows its own placeholder.
+ * A TMDB image by its path, at one of TMDB's sizes, the way Seerr's own app loads it
+ * (src/components/Common/CachedImage): through the server's image cache when its admin turned
+ * caching on (cacheImages, in the public settings), from TMDB otherwise. None without a path:
+ * the caller shows its own placeholder.
  */
 export const tmdbImageUrl = (
   baseUrl: string,
   path: string | null | undefined,
-  {
-    filter = "original",
-    width = 1920,
-    quality = SEERR_IMAGE_QUALITY,
-  }: { filter?: string; width?: number; quality?: number } = {},
-): string | undefined =>
-  path
-    ? resizedImageUrl(
-        baseUrl,
-        `${TMDB_IMAGES}/${filter}/${path}`,
-        width,
-        quality,
-      )
-    : undefined;
+  size: string,
+  cacheImages: boolean,
+): string | undefined => {
+  if (!path) return undefined;
+  const image = `t/p/${size}/${path.replace(/^\/+/, "")}`;
+  return cacheImages
+    ? `${baseUrl}/imageproxy/tmdb/${image}`
+    : `${TMDB_IMAGES}${image}`;
+};
 
 /**
  * The URL of an episode still, at a thumbnail's size.
@@ -52,18 +49,21 @@ export const tmdbImageUrl = (
  * Seerr sends a TMDB path, a TMDB URL to the full-size original since Seerr 3
  * (server/api/themoviedb/index.ts, getTvSeason), or a TheTVDB artwork URL
  * when the series' metadata comes from there (server/api/tvdb/index.ts).
+ * TheTVDB has no smaller size, so its artwork goes through Seerr's resizer.
  */
 export const episodeStillUrl = (
   baseUrl: string,
   still: string | null | undefined,
+  cacheImages: boolean,
 ): string | undefined => {
   if (!still) return undefined;
-  const thumbnail = { filter: SEERR_STILL_SIZE, width: SEERR_STILL_WIDTH };
   const tmdb = TMDB_IMAGE_URL.exec(still);
-  if (tmdb) return tmdbImageUrl(baseUrl, tmdb[1], thumbnail);
+  if (tmdb) {
+    return tmdbImageUrl(baseUrl, tmdb[1], SEERR_STILL_SIZE, cacheImages);
+  }
   if (THETVDB_IMAGE_URL.test(still)) {
     return resizedImageUrl(baseUrl, still, SEERR_STILL_WIDTH);
   }
   if (FULL_URL.test(still)) return still;
-  return tmdbImageUrl(baseUrl, still, thumbnail);
+  return tmdbImageUrl(baseUrl, still, SEERR_STILL_SIZE, cacheImages);
 };

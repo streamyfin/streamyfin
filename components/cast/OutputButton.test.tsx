@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
-import { Platform, type PlatformIOSStatic } from "react-native";
+import { Platform } from "react-native";
 import { Colors } from "@/constants/Colors";
 import {
   type CastDoubleState,
@@ -99,7 +99,11 @@ test("hidden on a page that says it is offline", async () => {
 
 test("hidden on Catalyst", async () => {
   jest
-    .spyOn(Platform as PlatformIOSStatic, "isMacCatalyst", "get")
+    .spyOn(
+      Platform as { readonly isMacCatalyst: boolean },
+      "isMacCatalyst",
+      "get",
+    )
     .mockReturnValue(true);
   await render(<OutputButton />);
   expect(screen.queryByLabelText(LABEL)).toBeNull();

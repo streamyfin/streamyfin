@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -13,7 +13,7 @@ export interface TVAddIconProps {
   disabled?: boolean;
 }
 
-export const TVAddIcon = React.forwardRef<View, TVAddIconProps>(
+export const TVAddIcon = React.forwardRef<ViewInstance, TVAddIconProps>(
   ({ label, onPress, hasTVPreferredFocus, disabled = false }, ref) => {
     const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =

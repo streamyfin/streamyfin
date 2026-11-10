@@ -14,12 +14,22 @@ func formatTime(_ seconds: Double) -> String {
 	return String(format: "%d:%02d", minutes, secs)
 }
 
-/// SF Symbols only ship numbered seek glyphs for specific intervals. Shared
-/// by the center transport buttons and the double-tap seek feedback pill.
-func seekSymbol(prefix: String, seconds: Double) -> String {
-	let supported: Set<Int> = [5, 10, 15, 30, 45, 60, 75, 90]
+/// The whole seconds a skip button shows, or nil for a skip-time setting
+/// that is not a number.
+func seekCount(_ seconds: Double) -> Int? {
 	// Int(_: Double) traps on non-finite input; this runs in body, so a
 	// bad persisted skip-time setting must degrade, not crash.
-	guard let rounded = Int(exactly: seconds.rounded()) else { return prefix }
-	return supported.contains(rounded) ? "\(prefix).\(rounded)" : prefix
+	// Negative before rounding: -0.4 rounds to -0, which would pass as 0.
+	guard seconds >= 0, let rounded = Int(exactly: seconds.rounded()) else { return nil }
+	return rounded
+}
+
+/// SF Symbols only ship numbered seek glyphs for these intervals.
+private let numberedSeekCounts: Set<Int> = [5, 10, 15, 30, 45, 60, 75, 90]
+
+/// "gobackward.30" when SF Symbols has a glyph for exactly that many
+/// seconds, nil otherwise: SeekGlyph then draws the number itself.
+func numberedSeekSymbol(prefix: String, seconds: Double) -> String? {
+	guard let count = seekCount(seconds), numberedSeekCounts.contains(count) else { return nil }
+	return "\(prefix).\(count)"
 }

@@ -1,11 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
-import { orderBy } from "lodash";
+import orderBy from "lodash/orderBy";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, ScrollView, View } from "react-native";
+import { FlatList, ScrollView, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
@@ -24,7 +24,6 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrPublicSettings } from "@/hooks/useSeerrPublicSettings";
 import { scaleSize } from "@/utils/scaleSize";
-import { episodeStillUrl } from "@/utils/seerr/images";
 import { seasonsWithStatus, unrequestedSeasons } from "@/utils/seerr/seasons";
 import { seerrStatusBadge } from "@/utils/seerr/statusBadge";
 import type { TvDetails } from "@/utils/seerr/types";
@@ -40,7 +39,6 @@ const TVSeasonEpisodes: React.FC<{
     queryFn: async () => seerrApi?.tvSeason(details.id, seasonNumber),
     enabled: !!seerrApi,
   });
-  const baseUrl = seerrApi?.axios.defaults.baseURL ?? "";
 
   if (isLoading) return <Loader />;
 
@@ -56,7 +54,7 @@ const TVSeasonEpisodes: React.FC<{
         gap: scaleSize(SEERR_TV_ROW_CARD_GAP),
       }}
       renderItem={({ item: episode }) => {
-        const still = episodeStillUrl(baseUrl, episode.stillPath);
+        const still = seerrApi?.episodeStill(episode.stillPath);
         const card: BaseItemDto = {
           Id: String(episode.id),
           Name: episode.name,
@@ -94,7 +92,7 @@ export const TVSeerrSeasons: React.FC<{
   offersRequest: boolean;
   onRequestSeason: (seasonNumber: number) => void;
   /** The first season's card, for the focus coming back up from the cast. */
-  firstCardRef?: (ref: View | null) => void;
+  firstCardRef?: (ref: ViewInstance | null) => void;
 }> = ({ details, offersRequest, onRequestSeason, firstCardRef }) => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();

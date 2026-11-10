@@ -82,6 +82,9 @@ it sent.
   asks for a regression test, the test is part of addressing the comment.
 - Push fixes as their own commits. The repo squashes on merge, so the intermediate
   history costs the reviewer nothing and shows how the feedback was handled.
+- To stop a merge queue entry, remove the PR from the queue rather than cancel its
+  🏗️ Build Apps run. A cancelled run leaves the required build jobs skipped, which
+  GitHub counts as passing, so the queue could merge the entry without a build.
 
 ## Review expectations
 

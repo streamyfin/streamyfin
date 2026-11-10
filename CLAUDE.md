@@ -51,12 +51,11 @@ Navigation:
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
-- `ios27-sdk-tab-bar-items-display-order` | linked against the iOS 27 SDK, UITabBar.items is in display order (search last) and the detached button is TabRole.prominent; patched in react-native-bottom-tabs
-- `swiftui-foreach-evicts-hidden-tabs` | SwiftUI evicts a ForEach element no tab retains, and a tvOS focus selection past it rebuilds it outside an update and traps (REACT-NATIVE-24); hidden tabs stay out of the ForEach, patched in react-native-bottom-tabs
+- `shared-route-from-outside-tabs-lands-in-first-group` | a shared route pushed from outside the tabs opens in the alphabetically first tab group; keep `(home)` first
 - `foreign-link-lands-on-library-route` | the library route is /[libraryId], so an unknown one-word link opens it with that word as the id; the music notification's trackplayer://notification.click did, and app/+native-intent.ts drops it
 
 UI and headers:
-- `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
+- `macos-header-buttons-fix` | macOS Catalyst: use RNGH LegacyPressable, not RN TouchableOpacity or the new RNGH Pressable
 - `header-button-locations` | Defined in _layout.tsx, HeaderBackButton, Chromecast, RoundButton, etc.
 - `stack-screen-header-configuration` | Sub-pages need explicit Stack.Screen with headerTransparent + back button
 - `switch-pointerevents-ignored` | Switch ignores its own pointerEvents (Android); wrap in a View pointerEvents="none"
@@ -70,7 +69,9 @@ State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
 - `mark-as-played-flow` | PlayedStatus -> useMarkAsPlayed -> playbackManager with optimistic updates
 - `shared-value-js-write-lands-later` | a shared value set from JS is applied later on the UI thread, the next JS read still gets the old one; keep JS-only state in a ref
+- `jellyfin-unknown-parent-answers-400` | GET /Items with a parentId the server no longer has is a 400 "Error processing request.", not a 404; a renamed library has a new id, and the cache restores the old one for a day. Not reported nor retried, one WARN line in the local log
 - `unobserved-query-reports-its-first-failure` | a query whose key changed under it has no observer left, so React Query cancels its retries and its first failure goes to Sentry; one failing request and an instant event in the breadcrumbs is that
+- `polling-query-rewrites-persisted-cache` | a persisted query with `refetchInterval` re-serializes the whole persisted cache every tick, even when its data never changes (`withoutRedundantSaves` only skips the ticks of queries that are not persisted); enable it only while a consumer is focused, with `gcTime: 0`
 
 Native modules:
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
@@ -83,9 +84,11 @@ Native modules:
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
-- `keychain-accessibility-set-at-creation` | a SecureStore item keeps the accessibility it was created with, `setItem` over it changes only the data; a default item throws on read when iOS launches the app on a locked phone
+- `keychain-accessibility-set-at-creation` | before SDK 58 a SecureStore item kept the accessibility it was created with, `setItem` over it changed only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
+- `drax-drop-needs-patch-in-release` | drax 1.1.0 on Gesture Handler 3 springs a dropped row back in release builds only; `patches/react-native-drax@1.1.0.patch` fixes it, keep it until a release passes its spec
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
+- `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
 - `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the module with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, paused in the background; no hidden MediaRouteButton, which the library needed
 - `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
 - `cast-resume-rebuilds-the-client` | a Cast resume hands a new media client and drops channel callbacks; register again on resume, never keep either across one
@@ -112,6 +115,8 @@ Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
 - `bun-test-discovery-leaks-fds` | bare `bun test` leaves ~14k fds open; child processes spawned from tests get dead stdio, so do the work in-process
 - `require-hooks-leak-across-jest-specs` | a require hook (tsx/cjs) registered from a spec stays on the Jest worker's Node loader and breaks later specs; map it to a stub
+- `expo-image-prebuilt-glide-logs` | Expo's prebuilt expo-image AAR ships with Glide logs on, every image URL (trickplay ApiKey included) reaches logcat; built from source instead
+- `repack-shrunk-resources-missing-attrs` | AGP 9's R8 resource shrinking leaves XML naming attributes it removed; apktool cannot relink them, so the Android repack declares them and builds again
 - `new-swift-file-needs-pod-install` | a Swift file added to a local module joins its Pods target only after `pod install`; until then xcodebuild fails on the types it declares
 
 ## Project overview
@@ -156,7 +161,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 ## Stack
 
 - **Runtime and package manager**: Bun
-- **Framework**: Expo SDK 57, React 19, `react-native-tvos`
+- **Framework**: Expo SDK 58, React 19, `react-native-tvos`
 - **Language**: TypeScript, strict mode
 - **State**: Jotai for global state, React Query for server state
 - **API**: Jellyfin SDK 1.0 (`@jellyfin/sdk`)
@@ -182,8 +187,8 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, the Cast module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the native engine kind, the chrome capabilities, the receiver protocol, the receiver channel hub, the Cast engine, the remote target, the output sheet, the audio session's queues), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities, the remote target, the output sheet, the audio session's queues), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
@@ -220,9 +225,15 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 
 **Navigation**
 - File based routing under `app/`.
-- Tab groups: `(home)`, `(search)`, `(favorites)`, `(libraries)`, `(watchlists)`,
-  `(custom-links)`, `(settings)`. Routes shared by several tabs live in the combined
-  group `(home,libraries,search,favorites,watchlists)`.
+- Tab groups: `(home)`, `(search)`, `(libraries)`, `(more)`, `(tv-favorites)`,
+  `(tv-watchlists)`, `(tv-settings)`. The phone bar shows Home, Search, Library and
+  More, a menu for what it has no room for: favorites, watchlists, custom links,
+  sessions and settings. Downloads stay a button in Home's header. The TV bar has room
+  for every section, so favorites, watchlists and settings stay tabs there, in the
+  `(tv-*)` groups, and More is hidden (`utils/tvTabs.ts`). Routes shared by several
+  tabs live in the combined group
+  `(home,libraries,search,more,tv-favorites,tv-watchlists)`. No tab group may sort
+  before `(home)`, see `shared-route-from-outside-tabs-lands-in-first-group`.
 - **IMPORTANT**: use `useAppRouter` from `@/hooks/useAppRouter`, never `useRouter` or the
   static `router` from `expo-router`. The wrapper preserves offline mode across
   navigation.
@@ -283,8 +294,8 @@ import { apiAtom } from "@/utils/atoms/api";
 ## Coding standards
 
 - TypeScript everywhere. The only exceptions are the config files whose loaders cannot
-  parse TypeScript: `babel.config.js`, `jest.perf.config.js`, `metro.config.js`, `react-native.config.js`,
-  `tailwind.config.js`.
+  parse TypeScript: `babel.config.js`, `fingerprint.config.js`, `jest.perf.config.js`, `metro.config.js`,
+  `react-native.config.js`, `tailwind.config.js`.
 - Functional components with hooks.
 - Biome formatting: two space indent, semicolons, LF endings.
 - Reuse the existing atoms, hooks and utilities before adding new ones.
