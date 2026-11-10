@@ -64,15 +64,14 @@ export const HourHeader = ({
           >
             <Text
               style={{
+                paddingLeft: index === 0 ? 6 : 0,
                 fontSize: isFullHour ? 12 : 11,
                 color: isFullHour
                   ? EPG_TEXT_COLOR_PRIMARY
                   : EPG_TEXT_COLOR_SECONDARY,
               }}
             >
-              {index === 0
-                ? `:${String(time.getMinutes()).padStart(2, "0")}`
-                : formatTime(time)}
+              {formatTime(time)}
             </Text>
             {/* Tick mark at bottom */}
             <View
