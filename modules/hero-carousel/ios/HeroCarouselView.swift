@@ -32,9 +32,9 @@ struct HeroCarouselRootView: View {
         )
       }
     }
-    // The cards cap Dynamic Type; the filter menu, overlaid after, keeps the
-    // system's.
-    .dynamicTypeSize(...HeroLayout.maxDynamicTypeSize)
+    // The cards stop at the size the app's font scale cap comes to (none on a
+    // tablet); the filter menu, overlaid after, keeps the system's.
+    .dynamicTypeSize(...HeroTypeScale.maxDynamicTypeSize(for: state.maxFontScale))
     // Overlaid here rather than inside a card for two reasons: neighbour
     // cards peek in at the edges, so a per-card button would show a second
     // half-clipped copy in the slivers; and filtering down to zero items
@@ -42,9 +42,10 @@ struct HeroCarouselRootView: View {
     // to outlive the carousel and sit over the empty-state skeleton too.
     .overlay(alignment: .topTrailing) {
       if filter.isAvailable {
+        // On the snapped card's content corner, the label chip's row.
         HeroFilterMenu(filter: filter)
-          .padding(.top, 12)
-          .padding(.trailing, HeroLayout.pageMargin + 12)
+          .padding(.top, HeroLayout.cardPadding)
+          .padding(.trailing, HeroLayout.pageMargin + HeroLayout.cardPadding)
       }
     }
     // The app is dark themed; force dark so the glass materials render dark
@@ -78,11 +79,8 @@ private enum HeroLayout {
   static let parallaxAmount: CGFloat = 36
   /// Vertical space reserved under the cards for the page dots.
   static let dotsArea: CGFloat = 24
-  /// Largest Dynamic Type size the cards follow. Their panels have a fixed
-  /// height, so past it a larger size clips the title and synopsis and swells
-  /// the badges instead of making them easier to read. About the Compose
-  /// side's `MaxFontScale` (1.3).
-  static let maxDynamicTypeSize: DynamicTypeSize = .xxxLarge
+  /// Inset of a card's content: the label chip and the info panel.
+  static let cardPadding: CGFloat = 12
 }
 
 // MARK: - Filter
@@ -486,7 +484,7 @@ private struct HeroCardView: View {
             Spacer(minLength: 0)
             infoPanel
           }
-          .padding(12)
+          .padding(HeroLayout.cardPadding)
         }
         .frame(width: geo.size.width, height: geo.size.height)
         .clipShape(shape)
@@ -694,7 +692,9 @@ private struct HeroLogoView: View {
         Image(uiImage: logo)
           .resizable()
           .aspectRatio(contentMode: .fit)
-          .frame(maxWidth: .infinity, maxHeight: 32, alignment: .leading)
+          // A fixed height, as on Compose: a flexible one gave up its room to
+          // the stack, which then offered the synopsis one line instead of two.
+          .frame(maxWidth: .infinity, minHeight: 32, maxHeight: 32, alignment: .leading)
       } else {
         Text(title)
           .font(.system(size: 17, weight: .bold))
