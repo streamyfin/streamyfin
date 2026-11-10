@@ -54,8 +54,30 @@ describe("declareAttributes", () => {
 `);
   });
 
-  it("leaves a name already declared alone", () => {
-    expect(declareAttributes(ATTRS_XML, ["yearTodayStyle"])).toBe(ATTRS_XML);
+  // aapt2 only reports an attribute that has no definition of its own: one a
+  // styleable lists is a reference, and still needs declaring.
+  it("declares a name that a styleable only references", () => {
+    const styleable = ATTRS_XML.replace(
+      "</resources>",
+      `    <declare-styleable name="Card">
+        <attr name="state_dragged" />
+    </declare-styleable>
+</resources>`,
+    );
+
+    expect(declareAttributes(styleable, ["state_dragged"])).toContain(
+      `    </declare-styleable>
+    <attr name="state_dragged" />
+</resources>`,
+    );
+  });
+
+  // Declarations dropped without a word would fail the next build the same
+  // way, with nothing saying why.
+  it("throws on a file with no closing resources tag", () => {
+    expect(() =>
+      declareAttributes('<resources>\n    <attr name="a" />\n', ["b"]),
+    ).toThrow("no closing </resources>");
   });
 
   it("starts the file when the APK had no attributes", () => {
@@ -65,6 +87,18 @@ describe("declareAttributes", () => {
     <attr name="state_dragged" />
 </resources>
 `,
+    );
+  });
+});
+
+// The retry finds the decoded APK in repack-app's own apktool call. A release
+// that changed that call would turn the retry off without failing anything.
+describe("repack-app", () => {
+  it("still builds with `java -jar <apktool> build -o <apk> <decoded dir>`", () => {
+    const bundle = readFileSync(require.resolve("@expo/repack-app"), "utf8");
+
+    expect(bundle).toMatch(
+      /"java",\["-jar",[\w$]+,"build","-o",[\w$]+,[\w$]+\]/,
     );
   });
 });

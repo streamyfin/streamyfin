@@ -31,20 +31,28 @@ const EMPTY_ATTRS_XML = `<?xml version="1.0" encoding="utf-8"?>
 </resources>
 `;
 
+const CLOSING_TAG = /<\/resources>\s*$/;
+
 /**
  * `attrs.xml` with each of `names` declared. With no format an attr takes any
- * value, which the shrunk XML needs: widthChange holds a fraction.
+ * value, which the shrunk XML needs: widthChange holds a fraction. Every name
+ * gets one: aapt2 reports only an attribute with no definition of its own, so
+ * a name the file already holds is a styleable's reference.
  */
 export const declareAttributes = (
   attrsXml: string | undefined,
   names: string[],
 ) => {
   const xml = attrsXml ?? EMPTY_ATTRS_XML;
+  if (!CLOSING_TAG.test(xml)) {
+    throw new Error(
+      `attrs.xml has no closing </resources>, so ${names.join(", ")} cannot be declared`,
+    );
+  }
   const declarations = names
-    .filter((name) => !xml.includes(`<attr name="${name}"`))
     .map((name) => `    <attr name="${name}" />\n`)
     .join("");
-  return xml.replace(/<\/resources>\s*$/, `${declarations}</resources>\n`);
+  return xml.replace(CLOSING_TAG, `${declarations}</resources>\n`);
 };
 
 /** The decoded APK an `apktool build` call rebuilds, if `args` is one. */
