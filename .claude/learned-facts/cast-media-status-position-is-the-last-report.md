@@ -2,7 +2,7 @@
 
 **Date**: 2026-11-05
 **Category**: native-modules
-**Key files**: `components/cast/OutputButton.tsx`, `utils/cast/playRequestFromReceiver.ts`,
+**Key files**: `components/cast/OutputPickerActions.tsx`, `utils/cast/playRequestFromReceiver.ts`,
 `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/cast/CastModule.kt`,
 `modules/mpv-player/ios/Cast/CastModule.swift`
 
@@ -22,3 +22,5 @@ a stop at 175.282 s on the server). The Cast module's `requestMediaStatus` does 
 
 Anything that acts on where a playing receiver is now, not where it was at its last event, has
 to go through that request; the status pushed to listeners is enough to know what it plays.
+"Continue here" reads the estimate once more right before it stops the receiver: the item
+lookup in between takes time, and the estimate from an answer that recent still holds.

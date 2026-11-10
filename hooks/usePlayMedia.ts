@@ -9,6 +9,7 @@ import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { choosePlay } from "@/utils/cast/playTarget";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { writeErrorLog } from "@/utils/log";
 import {
@@ -53,6 +54,9 @@ export const usePlayMedia = () => {
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
+      // Any play asked here is the latest choice, whatever started it (a Shuffle among them): a Continue here or a
+      // receiver load still on its way gives way to it.
+      choosePlay();
       // A Book, a Season or a folder has no stream: both players would open,
       // get a 400 from the server and leave the user on a dead screen. Say
       // why instead, and leave the shuffle queue and auto-play chain alone.

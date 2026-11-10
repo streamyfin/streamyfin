@@ -173,9 +173,11 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             canHandOff = input.handOff && snapshot.phase == TargetPhase.CONNECTED,
         )
     }
-    // In the player the phone already has its video: there this row stops the receiver, as before.
+    // In the player the phone already has its video, and music playing here would be covered by it: there this row
+    // stops the receiver, as before.
     val continueHere =
-        !input.handOff && snapshot.phase == TargetPhase.CONNECTED && input.receiverPlaying && input.receiverGoesOnHere
+        !input.handOff && input.playingHere == null && snapshot.phase == TargetPhase.CONNECTED &&
+            input.receiverPlaying && input.receiverGoesOnHere
     val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere, continueHere))
     when (input.playServices) {
         PlayServicesStatus.MISSING -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING)

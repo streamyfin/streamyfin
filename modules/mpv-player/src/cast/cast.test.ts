@@ -152,9 +152,12 @@ test("castClientFor asks its own session's receiver for a fresh status", async (
   mockCast.freshMediaStatus = status("paused");
   const client = castClientFor(mockCast.session!);
 
-  await expect(client.requestMediaStatus(2_000)).resolves.toEqual(
-    status("paused"),
-  );
+  // As the native module answers: with the SDK's estimate, and whether the receiver answered.
+  await expect(client.requestMediaStatus(2_000)).resolves.toEqual({
+    ...status("paused"),
+    approximateStreamPosition: 0,
+    fresh: true,
+  });
   expect(native.requestMediaStatus).toHaveBeenLastCalledWith(
     "session-1",
     2_000,
@@ -169,7 +172,10 @@ test("castClientFor reads and follows the media status of its session", async ()
   const client = castClientFor(mockCast.session!);
 
   expect(client.sessionId).toBe("session-1");
-  await expect(client.getMediaStatus()).resolves.toEqual(status("playing"));
+  await expect(client.getMediaStatus()).resolves.toEqual({
+    ...status("playing"),
+    approximateStreamPosition: 0,
+  });
 
   const seen: (CastMediaStatus | null)[] = [];
   const subscription = client.onMediaStatusUpdated((value) => seen.push(value));

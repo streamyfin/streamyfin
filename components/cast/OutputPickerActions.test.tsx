@@ -1,17 +1,22 @@
 import { act, render } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
-import type { CastMediaStatus } from "@/modules/mpv-player/src/cast";
+import { RECEIVER_ITEM_LOOKUP_TIMEOUT_MS } from "@/constants/Cast";
+import type {
+  CastMediaStatus,
+  OutputPickerAction,
+} from "@/modules/mpv-player/src/cast";
 import { CastNative } from "@/modules/mpv-player/src/cast/CastModule";
 import {
   type CastDoubleState,
+  castDoubleTarget,
   createCastDoubleState,
   emitCastEvent,
 } from "@/test-utils/cast";
 import { userAtom } from "@/utils/atoms/api";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { choosePlay } from "@/utils/cast/playTarget";
-import { logAndCaptureError } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import { OutputPickerActions } from "./OutputPickerActions";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -29,10 +34,14 @@ jest.mock("@/utils/atoms/api", () => {
     userAtom: atom({ Id: "user-1" }),
   };
 });
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
+jest.mock("@/utils/log", () => ({
+  logAndCaptureError: jest.fn(),
+  writeErrorLog: jest.fn(),
+}));
+// The user's own settings, and the effective ones with the admin's locks: two values, so a test can tell them apart.
 jest.mock("@/utils/atoms/settings", () => {
   const { atom } = jest.requireActual("jotai");
-  return { settingsAtom: atom(null) };
+  return { settingsAtom: atom(null), effectiveSettingsAtom: atom({}) };
 });
 let mockSyncPlayEnabled = false;
 jest.mock("@/providers/SyncPlayProvider", () => ({
@@ -51,11 +60,17 @@ beforeEach(() => {
   mockCast = createCastDoubleState();
   mockSyncPlayEnabled = false;
   getDefaultStore().set(settingsAtom, null);
+  getDefaultStore().set(effectiveSettingsAtom as never, {} as never);
   mockPlayMedia.mockClear();
   jest.mocked(CastNative!.requestMediaStatus).mockClear();
-  jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
+  // The same spy comes back on every spyOn: its calls are cleared, or one test's alert answers for the next.
+  jest
+    .spyOn(Alert, "alert")
+    .mockReset()
+    .mockImplementation(() => undefined);
   mockGetUserItemData.mockReset();
   jest.mocked(logAndCaptureError).mockClear();
+  jest.mocked(writeErrorLog).mockClear();
   getDefaultStore().set(userAtom, { Id: "user-1" } as never);
 });
 
@@ -74,9 +89,12 @@ const receiverPlaying = (
   customData: null,
 });
 
-const sheetAnswers = async (action: "remote" | "playHere") => {
+// Any string, as a later native build could send one this build does not know.
+const sheetAnswers = async (action: string) => {
   await act(async () =>
-    emitCastEvent(mockCast, "onOutputPickerAction", { action }),
+    emitCastEvent(mockCast, "onOutputPickerAction", {
+      action: action as OutputPickerAction,
+    }),
   );
 };
 
@@ -90,6 +108,15 @@ test("remote opens the expanded controls", async () => {
   await render(<OutputPickerActions />);
   await sheetAnswers("remote");
   expect(mockCast.dialogs).toEqual(["expandedControls"]);
+});
+
+// An action this build does not know (a later sheet's, or none) is left alone rather than taken for the remote.
+test("an action the app does not know does nothing", async () => {
+  await render(<OutputPickerActions />);
+  await sheetAnswers("queue");
+  expect(mockCast.dialogs).toEqual([]);
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(CastNative!.requestMediaStatus).not.toHaveBeenCalled();
 });
 
 // The receiver forgets its item once stopped: it is read first, then stopped, and the phone plays it from there.
@@ -148,6 +175,104 @@ test("continue here goes on from where the receiver says it is when asked", asyn
   );
 });
 
+// The receiver plays on while its item is looked up: where it is is read again right before it stops.
+test("continue here goes on from where the receiver is when it stops", async () => {
+  mockCast.freshMediaStatus = {
+    ...receiverPlaying({ itemId: "item-1", canClientSeek: true }),
+    approximateStreamPosition: 177.4,
+  };
+  mockGetUserItemData.mockImplementation(async () => {
+    mockCast.mediaStatus = {
+      ...receiverPlaying({ itemId: "item-1", canClientSeek: true }),
+      approximateStreamPosition: 180.4,
+    };
+    return episode;
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ playbackPositionTicks: 1_804_000_000 }),
+    expect.anything(),
+  );
+});
+
+// A lookup that hangs (a dead link) gives up: the receiver plays on, the user is told, and the next tap runs.
+test("an item lookup that does not answer leaves the receiver playing", async () => {
+  jest.useFakeTimers();
+  try {
+    mockCast.mediaStatus = receiverPlaying({
+      itemId: "item-1",
+      canClientSeek: true,
+    });
+    mockGetUserItemData.mockImplementationOnce(() => new Promise(() => {}));
+    await continueHereFromTheSheet();
+    await act(async () => {
+      jest.advanceTimersByTime(RECEIVER_ITEM_LOOKUP_TIMEOUT_MS);
+    });
+
+    expect(mockCast.disconnectCalls).toEqual([]);
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "cast.output.continue_here",
+      "cast.output.continue_here_failed",
+    );
+    mockGetUserItemData.mockResolvedValue(episode);
+    await sheetAnswers("playHere");
+    expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+// A lookup that fails after the tap went stale (another account by then) belongs to no one: nothing is said.
+test("a lookup failing for a tap gone stale says nothing", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockImplementation(async () => {
+    getDefaultStore().set(userAtom, { Id: "user-2" } as never);
+    throw Object.assign(new Error("Request failed with status code 401"), {
+      response: { status: 401 },
+    });
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(logAndCaptureError).not.toHaveBeenCalled();
+  expect(mockCast.disconnectCalls).toEqual([]);
+});
+
+// Signed out with the sheet still up: no account to look the item up with, so the receiver plays on, and says so.
+test("a tap with no account signed in leaves the receiver playing", async () => {
+  getDefaultStore().set(userAtom, null as never);
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockGetUserItemData).not.toHaveBeenCalled();
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "cast.output.continue_here",
+    "cast.output.continue_here_failed",
+  );
+});
+
+// The session gone by the time the tap is answered: nothing to stop or read, and the log says why nothing happened.
+test("a tap without a session is written to the log", async () => {
+  mockCast.session = null;
+
+  await continueHereFromTheSheet();
+
+  expect(writeErrorLog).toHaveBeenCalledTimes(1);
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
 test("an item this server does not know only stops the receiver", async () => {
   mockCast.mediaStatus = receiverPlaying({
     itemId: "elsewhere-1",
@@ -201,12 +326,17 @@ test("a receiver switched while it was asked is left alone", async () => {
 
   expect(mockCast.disconnectCalls).toEqual([]);
   expect(mockPlayMedia).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalled();
 });
 
-// The receiver's status cannot be read (an Android session suspended by the tap): nothing says what it plays, so it
-// plays on and nothing starts here.
+// The receiver's status cannot be read (an Android session suspended by the tap, reconnecting): nothing says what it
+// plays, so it plays on and nothing starts here.
 test("a receiver whose status cannot be read plays on", async () => {
   mockCast.mediaStatus = null;
+  mockCast.remoteTarget = {
+    ...castDoubleTarget("connecting"),
+    reconnecting: true,
+  };
 
   await continueHereFromTheSheet();
 
@@ -216,6 +346,38 @@ test("a receiver whose status cannot be read plays on", async () => {
     "cast.output.continue_here",
     "cast.output.continue_here_failed",
   );
+});
+
+// A request that fails outright says nothing of the receiver either: it plays on.
+test("a status request that fails leaves the receiver playing", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  jest
+    .mocked(CastNative!.requestMediaStatus)
+    .mockRejectedValueOnce(new Error("No client"));
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "cast.output.continue_here",
+    "cast.output.continue_here_failed",
+  );
+});
+
+// A receiver whose media just ended (the last episode, Stop on the TV remote) answers with no status at all, and the
+// session stays connected: nothing plays there to go on with, and the tap only stops it.
+test("a receiver whose media ended meanwhile only stops", async () => {
+  mockCast.mediaStatus = null;
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(mockGetUserItemData).not.toHaveBeenCalled();
 });
 
 // A request that timed out, failed or outlived a resume answers the held report, which falls behind while the
@@ -297,11 +459,17 @@ test("an account switched while the receiver is asked looks nothing up", async (
   expect(mockPlayMedia).not.toHaveBeenCalled();
 });
 
-// The quality the user caps streaming at applies here as on the item page.
-test("continue here plays at the user's default quality", async () => {
+// The quality streaming is capped at applies here as on the item page, a value the admin locked included.
+test("continue here plays at the effective default quality", async () => {
   getDefaultStore().set(settingsAtom, {
-    defaultBitrate: { key: "4 Mb/s", value: 4_000_000 },
+    defaultBitrate: { key: "Max", value: undefined },
   } as never);
+  getDefaultStore().set(
+    effectiveSettingsAtom as never,
+    {
+      defaultBitrate: { key: "4 Mb/s", value: 4_000_000 },
+    } as never,
+  );
   mockCast.mediaStatus = receiverPlaying({
     itemId: "item-1",
     canClientSeek: true,
@@ -345,6 +513,24 @@ test("an account switched during the lookup plays nothing here", async () => {
 
   await continueHereFromTheSheet();
 
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// The stop takes a moment: an account switched meanwhile gets nothing played here.
+test("an account switched while the receiver stops plays nothing here", async () => {
+  mockCast.mediaStatus = receiverPlaying({
+    itemId: "item-1",
+    canClientSeek: true,
+  });
+  mockGetUserItemData.mockResolvedValue(episode);
+  jest.mocked(CastNative!.disconnect).mockImplementationOnce(async (stop) => {
+    mockCast.disconnectCalls.push(stop);
+    getDefaultStore().set(userAtom, { Id: "user-2" } as never);
+  });
+
+  await continueHereFromTheSheet();
+
+  expect(mockCast.disconnectCalls).toEqual([true]);
   expect(mockPlayMedia).not.toHaveBeenCalled();
 });
 

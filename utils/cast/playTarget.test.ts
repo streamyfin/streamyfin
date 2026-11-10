@@ -4,6 +4,7 @@ import {
 } from "@/modules/mpv-player/src/cast/Cast.types";
 import {
   choosePlay,
+  chooseRemotePlay,
   isLatestPlayChoice,
   resolvePlay,
   waitForTarget,
@@ -164,4 +165,20 @@ test("aLaterPlayChoiceMakesTheEarlierOneStale", () => {
   const second = choosePlay();
   expect(isLatestPlayChoice(first)).toBe(false);
   expect(isLatestPlayChoice(second)).toBe(true);
+});
+
+// A Play command from another client is a play choice too: a Continue here or a receiver load still on its way gives
+// way to it.
+test("a Play command from another client is the latest play choice", () => {
+  const before = choosePlay();
+
+  expect(chooseRemotePlay({ ItemIds: ["item-1"] })?.itemId).toBe("item-1");
+  expect(isLatestPlayChoice(before)).toBe(false);
+});
+
+test("a Play command that names nothing leaves the choices alone", () => {
+  const before = choosePlay();
+
+  expect(chooseRemotePlay({ ItemIds: [] })).toBeNull();
+  expect(isLatestPlayChoice(before)).toBe(true);
 });

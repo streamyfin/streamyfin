@@ -234,6 +234,41 @@ class OutputSheetModelTest {
         assertEquals(false, music.continueHere)
     }
 
+    // Music plays on this phone: its row says so and only stops the receiver, as before; the receiver's video would
+    // cover the music.
+    @Test
+    fun musicPlayingHereKeepsTheRowAStop() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val row =
+            rows(outputSheetState(input(snapshot = connected, playingHere = "Lever du jour", receiverPlaying = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, row.continueHere)
+        assertEquals("Lever du jour", row.playing)
+    }
+
+    // A receiver stopped from the TV keeps its media (it would go on here) with nothing playing, and a suspended
+    // session holds its last status while it reconnects: neither offers Continue here.
+    @Test
+    fun aStoppedOrReconnectingReceiverOffersNothing() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val stopped =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = false, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+        val held =
+            rows(outputSheetState(input(snapshot = reconnecting, receiverPlaying = true, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, stopped.continueHere)
+        assertEquals(false, held.continueHere)
+    }
+
     // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
     @Test
     fun noHandOffWhileReconnecting() {

@@ -1,23 +1,27 @@
 import { useStore } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
-import { RECEIVER_STATUS_TIMEOUT_MS } from "@/constants/Cast";
+import {
+  RECEIVER_ITEM_LOOKUP_TIMEOUT_MS,
+  RECEIVER_STATUS_TIMEOUT_MS,
+} from "@/constants/Cast";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
   castClientFor,
   currentCastSession,
   disconnectRemoteTarget,
   onOutputPickerAction,
+  remoteTarget,
   showExpandedControls,
 } from "@/modules/mpv-player/src/cast";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom } from "@/utils/atoms/settings";
 import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { logAndCaptureError } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import { isNotFound } from "@/utils/pluginReads";
 
 type Store = ReturnType<typeof useStore>;
@@ -31,6 +35,16 @@ interface ContinueHere {
   /** Tells the user the video could not go on here and plays on where it is. */
   staysThere: () => void;
 }
+
+/** Rejects once `ms` pass without an answer: a hung request neither holds the tap nor stops the receiver much later. */
+const within = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`No answer within ${ms} ms`)),
+      ms,
+    );
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
 
 /**
  * This device chosen while the receiver plays (Continue here). The receiver forgets its item once stopped, so it is
@@ -47,49 +61,74 @@ const continueReceiverHere = async (
   // A member plays the group's video: the tap only stops the receiver, which needs nothing read first.
   if (inGroup()) return stopReceiver();
   const session = currentCastSession();
-  if (!session) return;
+  if (!session) {
+    // Ended between the sheet's answer and this one, or the module unavailable: nothing to read or stop.
+    writeErrorLog("Continue here dropped: no Cast session");
+    return;
+  }
   const api = store.get(apiAtom);
   const user = store.get(userAtom);
-  const outdated = () => {
+  // Signed out with the sheet still up: there is no account to look the item up with.
+  if (!api || !user?.Id) return staysThere();
+  const userId = user.Id;
+  const tapGoneStale = () => {
     const now = store.get(userAtom);
     return (
       !isLatestPlayChoice(choice) ||
-      currentCastSession()?.id !== session.id ||
-      now?.Id !== user?.Id ||
-      now?.ServerId !== user?.ServerId
+      now?.Id !== userId ||
+      now?.ServerId !== user.ServerId
     );
   };
+  const outdated = () =>
+    tapGoneStale() || currentCastSession()?.id !== session.id;
+  const client = castClientFor(session);
   // The status held is the receiver's last report, which falls behind while it plays on: it is asked where it is.
-  const status = await castClientFor(session)
+  const status = await client
     .requestMediaStatus(RECEIVER_STATUS_TIMEOUT_MS)
-    .catch((error) => {
-      logAndCaptureError("The receiver's status could not be read", error);
-      return null;
-    });
+    .then(
+      (answer) => answer,
+      (error) => {
+        logAndCaptureError("The receiver's status could not be read", error);
+        return "failed" as const;
+      },
+    );
   if (outdated()) return;
-  // Not answered (a session suspended or resumed by the tap, a timeout): where it is is unknown, so it plays on.
-  if (!status || status.fresh === false) return staysThere();
+  // Not answered (a failed request, a timeout, one outlived by a resume): where it is is unknown, so it plays on.
+  if (status === "failed" || status?.fresh === false) return staysThere();
+  if (!status) {
+    // No status at all: a receiver whose media just ended answers with none, its session still connected, and the
+    // tap only stops it. A suspended or reconnecting one says nothing of what it plays, so it plays on.
+    const target = remoteTarget();
+    return target.state === "connected" && !target.reconnecting
+      ? stopReceiver()
+      : staysThere();
+  }
   const request = playRequestFromReceiver(status);
   // Nothing of ours to go on with any more (stopped meanwhile, another sender's media): the tap only stops it.
   if (!request) return stopReceiver();
-  const item = await getUserItemData({
-    api,
-    itemId: request.itemId,
-    userId: user?.Id,
-  }).catch((error) => {
-    // Another server's item only stops the receiver; any other failure leaves it playing and is reported.
-    if (isNotFound(error)) return null;
+  const item = await within(
+    getUserItemData({ api, itemId: request.itemId, userId }),
+    RECEIVER_ITEM_LOOKUP_TIMEOUT_MS,
+  ).catch((error) => {
+    // A tap gone stale by then says nothing, and another server's item only stops the receiver. Any other failure,
+    // a lookup that does not answer among them, leaves it playing and is reported.
+    if (outdated() || isNotFound(error)) return null;
     staysThere();
     throw error;
   });
+  // The receiver played on during the lookup: the estimate from the answer just had says where it is now.
+  const latest = await client.getMediaStatus().catch(() => null);
   if (outdated()) return;
   if (inGroup() || !item || item.MediaType === "Audio") return stopReceiver();
+  const now = playRequestFromReceiver(latest);
+  const from = now?.itemId === request.itemId ? now : request;
   await stopReceiver();
-  if (!isLatestPlayChoice(choice)) return;
+  // The stop takes a moment: a later choice, another account or a group joined by then gets nothing played here.
+  if (tapGoneStale() || inGroup()) return;
   await playMedia(
     {
-      ...request,
-      bitrateValue: store.get(settingsAtom)?.defaultBitrate?.value,
+      ...from,
+      bitrateValue: store.get(effectiveSettingsAtom).defaultBitrate?.value,
       offline: false,
     },
     { item, itemIsComplete: true },
@@ -106,9 +145,10 @@ export function OutputPickerActions() {
   const store = useStore();
   const playMedia = usePlayMedia();
   const syncPlay = useSyncPlay();
-  // Read when the sheet answers: a group joined while it was open (a SyncPlay rejoin) counts then.
+  // Read when the sheet answers: a group joined while it was open (a SyncPlay rejoin) counts then. Set at the
+  // commit, so an answer arriving before the passive effects already reads it.
   const latest = useRef({ playMedia, inGroup: syncPlay.enabled, t });
-  useEffect(() => {
+  useLayoutEffect(() => {
     latest.current = { playMedia, inGroup: syncPlay.enabled, t };
   }, [playMedia, syncPlay.enabled, t]);
   // One Continue here at a time: a second tap while one runs would open a second player.
@@ -116,7 +156,7 @@ export function OutputPickerActions() {
 
   useEffect(() => {
     const subscription = onOutputPickerAction((action) => {
-      if (action !== "playHere") {
+      if (action === "remote") {
         showExpandedControls().catch((error) => {
           logAndCaptureError(
             "The Cast expanded controls failed to open",
@@ -125,7 +165,8 @@ export function OutputPickerActions() {
         });
         return;
       }
-      if (continuing.current) return;
+      // An action this build does not know is left alone.
+      if (action !== "playHere" || continuing.current) return;
       continuing.current = true;
       continueReceiverHere(
         {

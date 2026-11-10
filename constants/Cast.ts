@@ -52,6 +52,13 @@ export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 export const RECEIVER_STATUS_TIMEOUT_MS = 2_000;
 
 /**
+ * How long "Continue here" waits for the server to describe the receiver's
+ * item. The receiver plays on meanwhile; past this the tap gives up and says
+ * so, instead of holding later taps and stopping the receiver much later.
+ */
+export const RECEIVER_ITEM_LOOKUP_TIMEOUT_MS = 10_000;
+
+/**
  * How long a Play pressed while a receiver connects waits for the connection.
  * Connections took a few seconds on the bench; past this the press gives up and
  * says the connection failed, instead of starting much later on its own.

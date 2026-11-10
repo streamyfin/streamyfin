@@ -136,6 +136,8 @@ export const PlayButton: React.FC<Props> = ({
         Alert.alert(t("player.client_error"), result.message);
       } else if (
         result.status === "loaded" &&
+        // A later choice by then (a Continue here) presents its own player: the remote would open over it.
+        isLatestPlayChoice(choice) &&
         // state is already set when reopening current media, so skip it here.
         !isOpeningCurrentlyPlayingMedia
       ) {

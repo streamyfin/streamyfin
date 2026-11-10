@@ -60,7 +60,7 @@ export interface CastDoubleState {
   holdAdd: Promise<void> | null;
   /** When true, `addChannel` moves the session on, as a Cast session change would. */
   renewSessionOnAdd: boolean;
-  /** When true, `requestMediaStatus` moves the session on while the receiver answers. */
+  /** When true, `requestMediaStatus` moves the session on while the receiver answers, and answers nothing. */
   renewSessionOnStatusRequest: boolean;
   /** When false, `requestMediaStatus` answers the held report, as after a timeout or a failed request. */
   statusRequestAnswered: boolean;
@@ -149,6 +149,14 @@ export const castDoubleTarget = (
   errorCode: null,
   failedTarget: null,
 });
+
+/** A status as the native module answers it: with the SDK's estimate, which is the reported position at rest. */
+const withEstimate = (status: CastMediaStatus | null): CastMediaStatus | null =>
+  status && {
+    ...status,
+    approximateStreamPosition:
+      status.approximateStreamPosition ?? status.streamPosition,
+  };
 
 /** Moves the module's target state on and publishes it, as the native hub does on a change. */
 export const emitRemoteTarget = (
@@ -304,23 +312,33 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     current.sent.push({ namespace, message });
     openChannel(current, namespace)?.sent.push(message);
   }),
-  // The native side acts only on the session a transport call names.
+  // The native side acts only on the session a transport call names, and adds the SDK's estimate to every record.
   getMediaStatus: jest.fn(async (sessionId?: string) =>
-    sessionId && state().session?.id !== sessionId ? null : state().mediaStatus,
+    sessionId && state().session?.id !== sessionId
+      ? null
+      : withEstimate(state().mediaStatus),
   ),
+  // A renewed session has no client of the one asked, so nothing comes back, as natively.
   requestMediaStatus: jest.fn(async (sessionId: string, _timeoutMs: number) => {
     const current = state();
     if (current.session?.id !== sessionId) return null;
-    const answer = current.freshMediaStatus ?? current.mediaStatus;
     if (current.renewSessionOnStatusRequest && current.session) {
       current.session = {
         ...current.session,
         id: `${current.session.id}-renewed`,
       };
+      return null;
     }
-    return answer && !current.statusRequestAnswered
-      ? { ...answer, fresh: false }
-      : answer;
+    // An answer becomes the status the client holds, as the SDK keeps the last one the receiver sent.
+    if (current.statusRequestAnswered && current.freshMediaStatus) {
+      current.mediaStatus = current.freshMediaStatus;
+    }
+    const answer = withEstimate(
+      current.statusRequestAnswered
+        ? (current.freshMediaStatus ?? current.mediaStatus)
+        : current.mediaStatus,
+    );
+    return answer && { ...answer, fresh: current.statusRequestAnswered };
   }),
   play: jest.fn(async (_sessionId?: string) => {}),
   pause: jest.fn(async (_sessionId?: string) => {}),

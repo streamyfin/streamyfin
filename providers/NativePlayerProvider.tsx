@@ -104,6 +104,7 @@ import {
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
+import { chooseRemotePlay } from "@/utils/cast/playTarget";
 import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import {
   getAdjacentStartTicks,
@@ -130,7 +131,6 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
-import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
   type PlayRequest,
@@ -371,7 +371,7 @@ const PlayCommandRouteFallback: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         // Someone chose this play, from another client: a new session.
         resetStillWatchingSession();
@@ -2296,7 +2296,7 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         if (syncRef.current.enabled && !req.offline) {
           void syncRef.current

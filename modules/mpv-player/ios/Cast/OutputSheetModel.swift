@@ -146,9 +146,11 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
       )
     )
   }
-  // In the player the phone already has its video: there this row stops the receiver, as before.
+  // In the player the phone already has its video, and music playing here would be covered by it: there this row
+  // stops the receiver, as before.
   let continueHere =
-    !input.handOff && snapshot.phase == .connected && input.receiverPlaying && input.receiverGoesOnHere
+    !input.handOff && input.playingHere == nil && snapshot.phase == .connected && input.receiverPlaying
+    && input.receiverGoesOnHere
   var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere)]
   switch input.playServices {
   case .missing:

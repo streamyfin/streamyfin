@@ -4,6 +4,8 @@ import {
   remoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import type { RemoteTargetState } from "@/modules/mpv-player/src/cast/Cast.types";
+import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
+import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 
 let playChoice = 0;
 
@@ -14,6 +16,16 @@ let playChoice = 0;
 export const choosePlay = (): number => {
   playChoice += 1;
   return playChoice;
+};
+
+/**
+ * Reads a Jellyfin "Play" command from another client and, when it names an item, records it as a play choice: a
+ * Continue here or a receiver load still on its way gives way to it, as to a Play pressed here.
+ */
+export const chooseRemotePlay = (command: unknown): PlayRequest | null => {
+  const request = parseRemotePlayCommand(command);
+  if (request) choosePlay();
+  return request;
 };
 
 /** True while no play choice came after this one. */

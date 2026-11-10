@@ -164,8 +164,12 @@ enum OutputSheetTests {
       let connected = RemoteTargetSnapshot(
         phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
       )
-      func continueHere(playing: Bool, handOff: Bool, goesOnHere: Bool? = nil) -> Bool? {
-        var list = input(snapshot: connected)
+      func continueHere(
+        playing: Bool, handOff: Bool, goesOnHere: Bool? = nil, playingHere: String? = nil,
+        snapshot: RemoteTargetSnapshot? = nil
+      ) -> Bool? {
+        var list = input(snapshot: snapshot ?? connected)
+        list.playingHere = playingHere
         list.receiverPlaying = playing
         list.receiverGoesOnHere = goesOnHere ?? playing
         list.showingList = true
@@ -182,6 +186,21 @@ enum OutputSheetTests {
       check(
         "thisDeviceOffersNothingOfWhatStaysOnTheReceiver",
         continueHere(playing: true, handOff: false, goesOnHere: false) == false
+      )
+      // Music plays on this phone: its row says so and only stops the receiver, as before.
+      check(
+        "musicPlayingHereKeepsTheRowAStop",
+        continueHere(playing: true, handOff: false, playingHere: "Lever du jour") == false
+      )
+      // A receiver stopped from the TV keeps its media with nothing playing, and a suspended session holds its last
+      // status while it reconnects: neither offers Continue here.
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      check(
+        "aStoppedOrReconnectingReceiverOffersNothing",
+        continueHere(playing: false, handOff: false, goesOnHere: true) == false
+          && continueHere(playing: true, handOff: false, goesOnHere: true, snapshot: reconnecting) == false
       )
     }
 

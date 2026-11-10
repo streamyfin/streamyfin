@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
+import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { usePlayMedia } from "./usePlayMedia";
 
 const mockPush = jest.fn();
@@ -69,6 +70,15 @@ describe("usePlayMedia", () => {
 
   afterEach(() => {
     alert.mockRestore();
+  });
+
+  // A play here is the latest choice, whatever started it (a Shuffle among them): a Continue here or a receiver load
+  // still on its way gives way to it.
+  test("a play here is the latest play choice", async () => {
+    const before = choosePlay();
+    await play({ Id: "movie-1", Type: "Movie" });
+
+    expect(isLatestPlayChoice(before)).toBe(false);
   });
 
   test("opens the player for a movie", async () => {
