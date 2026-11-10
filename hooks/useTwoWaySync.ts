@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLibraryApi, getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
@@ -37,17 +38,20 @@ export const useTwoWaySync = () => {
    */
   const syncPlaybackStateDetailed = async (
     itemId: string,
+    // false only takes the server's state: the local progress is shared by every
+    // account on the device, so only a sync that knows this user queued it may
+    // send it (useOfflineProgressSync).
+    { push = true }: { push?: boolean } = {},
   ): Promise<PlaybackSyncResult> => {
     if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
       return "failed";
     }
 
-    const localItem = getDownloadedItemById(itemId);
-    if (!localItem) return "unchanged";
+    if (!getDownloadedItemById(itemId)) return "unchanged";
 
     const fetchRemoteItem = async (): Promise<
-      (typeof localItem)["item"] | "missing" | undefined
+      BaseItemDto | "missing" | undefined
     > => {
       try {
         return (await getLibraryApi(api).getItem({ itemId, userId: user.Id }))
@@ -65,9 +69,15 @@ export const useTwoWaySync = () => {
         return undefined;
       }
     };
-    const remoteItem = await fetchRemoteItem();
-    if (remoteItem === "missing") return "missing";
-    if (!remoteItem) return "failed";
+    const fetched = await fetchRemoteItem();
+    if (fetched === "missing") return "missing";
+    if (!fetched) return "failed";
+    const remoteItem = fetched;
+    // A progress save can land while the fetch is out; compare with, and write
+    // back over, the record as it is now rather than the one read before.
+    const currentItem = getDownloadedItemById(itemId);
+    if (!currentItem) return "unchanged";
+    const localItem = currentItem;
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
@@ -97,6 +107,7 @@ export const useTwoWaySync = () => {
       });
       return "pulled";
     } else if (remoteLastPlayed < localLastPlayed) {
+      if (!push) return "unchanged";
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
         await getUserDataApi(api).updateItemUserData({
