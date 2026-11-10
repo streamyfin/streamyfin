@@ -34,7 +34,7 @@ data class OutputSheetInput(
     val receiverTitle: String?,
     /** Something plays on the receiver, with a title or without. */
     val receiverPlaying: Boolean = false,
-    /** What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor music. */
+    /** What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor audio. */
     val receiverGoesOnHere: Boolean = false,
     /** "Change" asked for the list over a connected target. */
     val showingList: Boolean,

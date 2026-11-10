@@ -180,7 +180,10 @@ export const onRemoteTargetChanged = (
 ): CastSubscription =>
   subscribe("onRemoteTargetChanged", (state) => listener(state));
 
-/** What the sheet's panel asked for; the sheet has closed by then. */
+/**
+ * What the sheet asked of the app: the remote (its connected panel), or this device's video while the receiver
+ * plays (Continue here). The sheet has closed by then.
+ */
 export const onOutputPickerAction = (
   listener: (action: OutputPickerAction) => void,
 ): CastSubscription =>

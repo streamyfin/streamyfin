@@ -178,4 +178,37 @@ describe("usePlayMedia", () => {
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  // An item the caller looked up whole (Continue here) goes to the native player, which would fetch it again.
+  test("hands a complete item to the native player", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+    const item = { Id: "episode-1", Type: "Episode" } as BaseItemDto;
+    const { result } = await renderHook(() => usePlayMedia());
+
+    await act(async () => {
+      await result.current(
+        { itemId: "episode-1", offline: false },
+        { item, itemIsComplete: true },
+      );
+    });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "episode-1", offline: false },
+      { item },
+    );
+  });
+
+  // A list's item carries only some fields: the player looks the item up itself.
+  test("leaves the native player its own lookup for a partial item", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+
+    await play({ Id: "episode-1", Type: "Episode" });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "episode-1", offline: false },
+      undefined,
+    );
+  });
 });

@@ -95,9 +95,15 @@ export interface CastMediaStatus {
   streamPosition: number;
   /**
    * Where the receiver is now, as the SDK estimates it from its last report, rate and time since. Only a
-   * `getMediaStatus` read carries it.
+   * read carries it (`getMediaStatus`, `requestMediaStatus`), never a pushed status. The iOS SDK answers 0
+   * once the channel is gone.
    */
   approximateStreamPosition?: number;
+  /**
+   * Only from `requestMediaStatus`: false when the receiver did not answer (a timeout, a failed request, or a
+   * session resumed meanwhile), and the record is the report held, which falls behind while the receiver plays.
+   */
+  fresh?: boolean;
   playbackRate: number;
   volume: number;
   isMuted: boolean;

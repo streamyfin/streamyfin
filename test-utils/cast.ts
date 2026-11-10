@@ -62,6 +62,8 @@ export interface CastDoubleState {
   renewSessionOnAdd: boolean;
   /** When true, `requestMediaStatus` moves the session on while the receiver answers. */
   renewSessionOnStatusRequest: boolean;
+  /** When false, `requestMediaStatus` answers the held report, as after a timeout or a failed request. */
+  statusRequestAnswered: boolean;
   /** What `getRemoteTarget()` answers; none until a test sets it, whatever the session says. */
   remoteTarget: RemoteTargetState;
   /** What `connectToDevice` answers: false is a device discovery does not know. */
@@ -108,6 +110,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   holdAdd: null,
   renewSessionOnAdd: false,
   renewSessionOnStatusRequest: false,
+  statusRequestAnswered: true,
   remoteTarget: NO_REMOTE_TARGET,
   connectAnswer: true,
   connectRequests: [],
@@ -315,7 +318,9 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
         id: `${current.session.id}-renewed`,
       };
     }
-    return answer;
+    return answer && !current.statusRequestAnswered
+      ? { ...answer, fresh: false }
+      : answer;
   }),
   play: jest.fn(async (_sessionId?: string) => {}),
   pause: jest.fn(async (_sessionId?: string) => {}),

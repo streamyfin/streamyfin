@@ -28,6 +28,11 @@ interface PlayMediaOptions {
    * refuse an item that has nothing to play before a player is opened.
    */
   item?: BaseItemDto | null;
+  /**
+   * `item` is the server's whole answer for it (an item lookup, not a list's partial item): the native player
+   * takes it rather than fetching it again.
+   */
+  itemIsComplete?: boolean;
 }
 
 /**
@@ -102,7 +107,12 @@ export const usePlayMedia = () => {
       if (
         isNativeChromeActive(settings) &&
         !isLiveTv &&
-        (await presentFromRequest(req))
+        (await presentFromRequest(
+          req,
+          options?.itemIsComplete && options.item
+            ? { item: options.item }
+            : undefined,
+        ))
       ) {
         return;
       }

@@ -339,7 +339,14 @@ class CastModule : Module() {
                 return@AsyncFunction
             }
             client.requestStatus().setResultCallback(
-                { promise.resolve(mediaStatusRecord(client)) },
+                { result ->
+                    // A resume hands the session a new client: the record is read from the one it holds now, and is
+                    // fresh only when the receiver answered that one.
+                    val now = ownSession(sessionId)?.remoteMediaClient
+                    promise.resolve(
+                        mediaStatusRecord(now)?.plus("fresh" to (result.status.isSuccess && now === client)),
+                    )
+                },
                 timeoutMs.toLong(),
                 TimeUnit.MILLISECONDS,
             )

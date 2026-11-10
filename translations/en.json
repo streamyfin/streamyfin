@@ -1234,6 +1234,7 @@
       "this_ipad": "This iPad",
       "playing": "Playing",
       "continue_here": "Continue here",
+      "continue_here_failed": "This video could not go on here, so it keeps playing on the receiver.",
       "cast_caption": "Chromecast",
       "searching": "Looking for devices",
       "no_devices": "No devices found",

@@ -14,11 +14,14 @@ captions button of the Cast SDK's expanded controls (both SDKs), switch the medi
 track without a reload: on the bench the active track went from 3 to 4 while the custom data still
 said 3, and "Continue here" brought the English subtitles back over the French ones the TV showed.
 
-The receiver names each text track by the Jellyfin subtitle stream index (3 and 4 for the test
-episode's two SubRip streams), so the shown subtitles are the active track ids that are text tracks,
-and none of them active is subtitles off. Media without text tracks had its subtitles burned in at
-the load, a new load that writes its index into the custom data. The media status record carries
-`activeTrackIds` and the media info's `textTrackIds` for this.
+The receiver builds a text track for every subtitle stream the server delivers as text (one with a
+DeliveryUrl, SubRip and the like converted to VTT), not only the selected one, and names it by its
+Jellyfin stream index (3 and 4 for the test episode's two SubRip streams); loaded without subtitles,
+it builds none (`createStreamInfo` in jellyfin-chromecast's `src/helpers.ts`). An image subtitle (PGS)
+picked at the load is burned into the stream and has no track. So the shown subtitles are the
+active text track; with none active, a custom data index outside the text tracks is that burned-in
+subtitle, and otherwise subtitles are off. The media status record carries `activeTrackIds` and the
+media info's `textTrackIds` for this.
 
 Audio has no Cast track there: a change of audio goes through a reload, which rewrites the custom
 data.

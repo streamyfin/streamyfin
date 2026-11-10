@@ -205,19 +205,24 @@ public class CastModule: Module {
     }.runOnQueue(.main)
 
     // The status held is the receiver's last report, which comes on events only: this asks the receiver, whose
-    // answer says where it is. The record comes with the answer, or as it stands once timeoutMs pass.
+    // answer says where it is. The record comes with the answer, or as it stands once timeoutMs pass. A resume
+    // hands the session a new client: the record is read from the one it holds then, and is fresh only when the
+    // receiver answered that one.
     AsyncFunction("requestMediaStatus") { (sessionId: String, timeoutMs: Double, promise: Promise) in
       guard let client = self.ownSession(sessionId)?.remoteMediaClient else {
         promise.resolve(nil)
         return
       }
-      let answer = StatusRequest { [weak self] request in
+      let answer = StatusRequest { [weak self] request, answered in
         self?.statusRequests.removeAll { $0 === request }
-        promise.resolve(Self.mediaStatusRecord(client))
+        let now = self?.ownSession(sessionId)?.remoteMediaClient
+        guard var record = Self.mediaStatusRecord(now) else { return promise.resolve(nil) }
+        record["fresh"] = answered && now === client
+        promise.resolve(record)
       }
       self.statusRequests.append(answer)
       client.requestStatus().delegate = answer
-      DispatchQueue.main.asyncAfter(deadline: .now() + timeoutMs / 1000) { answer.finish() }
+      DispatchQueue.main.asyncAfter(deadline: .now() + timeoutMs / 1000) { answer.finish(answered: false) }
     }.runOnQueue(.main)
 
     AsyncFunction("play") { (sessionId: String?) in self.ownSession(sessionId)?.remoteMediaClient?.play() }.runOnQueue(.main)
@@ -453,21 +458,22 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKRemoteMediaC
 
 /// A status asked of the receiver: done once, at its answer, its failure, or the end of the wait.
 private final class StatusRequest: NSObject, GCKRequestDelegate {
-  private var done: ((StatusRequest) -> Void)?
+  private var done: ((StatusRequest, Bool) -> Void)?
 
-  init(done: @escaping (StatusRequest) -> Void) {
+  /// `done` runs once, told whether the receiver answered.
+  init(done: @escaping (StatusRequest, Bool) -> Void) {
     self.done = done
   }
 
-  func finish() {
+  func finish(answered: Bool) {
     let run = done
     done = nil
-    run?(self)
+    run?(self, answered)
   }
 
-  func requestDidComplete(_ request: GCKRequest) { finish() }
-  func request(_ request: GCKRequest, didFailWithError error: GCKError) { finish() }
-  func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) { finish() }
+  func requestDidComplete(_ request: GCKRequest) { finish(answered: true) }
+  func request(_ request: GCKRequest, didFailWithError error: GCKError) { finish(answered: false) }
+  func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) { finish(answered: false) }
 }
 #else
 /// tvOS and Catalyst carry no Cast: the module answers unavailable and the JS side does nothing.

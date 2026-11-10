@@ -32,7 +32,7 @@ struct OutputSheetInput {
   var receiverTitle: String?
   /// Something plays on the receiver, with a title or without.
   var receiverPlaying = false
-  /// What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor music.
+  /// What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor audio.
   var receiverGoesOnHere = false
   /// "Change" asked for the list over a connected target.
   var showingList: Bool

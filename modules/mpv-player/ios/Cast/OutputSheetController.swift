@@ -1,7 +1,7 @@
 import Foundation
 
-/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
-/// player's video handed off to the receiver.
+/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, the
+/// player's video handed off to the receiver, and the receiver's video going on here.
 enum OutputSheetOutput: Equatable {
   case openAirPlay, resolvePlayServices, remote, dismiss, handOff, playHere
 }

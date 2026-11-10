@@ -72,6 +72,9 @@ const JellyfinCastStopReporter = Platform.isTV
 const RemoteTargetMemory = Platform.isTV
   ? null
   : require("@/components/cast/RemoteTargetMemory").RemoteTargetMemory;
+const OutputPickerActions = Platform.isTV
+  ? null
+  : require("@/components/cast/OutputPickerActions").OutputPickerActions;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -509,6 +512,9 @@ function Layout() {
                                       )}
                                       {RemoteTargetMemory && (
                                         <RemoteTargetMemory />
+                                      )}
+                                      {OutputPickerActions && (
+                                        <OutputPickerActions />
                                       )}
                                       <Stack initialRouteName='(auth)/(tabs)'>
                                         <Stack.Screen

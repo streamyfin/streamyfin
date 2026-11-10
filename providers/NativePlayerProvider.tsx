@@ -261,7 +261,8 @@ interface NativePlayerContextValue {
    */
   presentFromRequest: (
     req: PlayRequest,
-    options?: { isCurrent?: () => boolean },
+    /** `item`: the server's whole answer for the item, which the player then does not fetch again. */
+    options?: { isCurrent?: () => boolean; item?: BaseItemDto },
   ) => Promise<boolean>;
   isActive: boolean;
 }
@@ -1199,12 +1200,13 @@ const NativePlayerProviderInner: React.FC<{
   const presentFromRequest = useCallback(
     async (
       req: PlayRequest,
-      options?: { isCurrent?: () => boolean },
+      options?: { isCurrent?: () => boolean; item?: BaseItemDto },
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
       // stream is negotiated.
       return beginSession(req, {
+        item: options?.item,
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
       });

@@ -88,8 +88,12 @@ test("a receiver that stopped gives nothing", () => {
 // Subtitles picked on the receiver (the Cast controls' captions) switch its text track and leave the custom data at
 // the index it was loaded with; the Jellyfin receiver names each text track by its stream index (bench, 05/11:
 // tracks 3 and 4, 4 active, custom data still 3).
-const withTracks = (activeTrackIds: number[], textTrackIds: number[]) => {
-  const loaded = status({ itemId: "item-1", subtitleStreamIndex: 3 });
+const withTracks = (
+  activeTrackIds: number[],
+  textTrackIds: number[],
+  subtitleStreamIndex = 3,
+) => {
+  const loaded = status({ itemId: "item-1", subtitleStreamIndex });
   return {
     ...loaded,
     activeTrackIds,
@@ -112,4 +116,31 @@ test("subtitles turned off on the receiver stay off here", () => {
 // Without text tracks the receiver burned the subtitles in at the load, which the custom data names.
 test("burned-in subtitles go on as the receiver was loaded with them", () => {
   expect(playRequestFromReceiver(withTracks([], []))?.subtitleIndex).toBe(3);
+});
+
+// The server hands the receiver every text subtitle as a track, so an image subtitle picked at the load (PGS, burned
+// in) has none: with no track active, a loaded index outside the text tracks is that burned-in subtitle.
+test("a burned-in subtitle beside text tracks goes on as the receiver was loaded with it", () => {
+  expect(playRequestFromReceiver(withTracks([], [3], 5))?.subtitleIndex).toBe(
+    5,
+  );
+});
+
+// Loaded without subtitles, the receiver shows none: none here either, whatever this device would pick.
+test("a receiver loaded without subtitles gives none here", () => {
+  expect(
+    playRequestFromReceiver(
+      status({ itemId: "item-1", subtitleStreamIndex: null }),
+    )?.subtitleIndex,
+  ).toBe(-1);
+});
+
+// The iOS SDK estimates 0 once the channel is gone: that is no estimate, and the last report stands.
+test("an estimate of 0 leaves the last report", () => {
+  expect(
+    playRequestFromReceiver({
+      ...status({ itemId: "item-1", canClientSeek: true }, 2700),
+      approximateStreamPosition: 0,
+    })?.playbackPositionTicks,
+  ).toBe(27_000_000_000);
 });
