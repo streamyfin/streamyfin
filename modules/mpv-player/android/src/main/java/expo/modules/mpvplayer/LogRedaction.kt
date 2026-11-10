@@ -2,10 +2,11 @@ package expo.modules.mpvplayer
 
 // The parameters utils/redactCredentials.ts masks for the JS side, plus the userinfo of a URL that carries credentials before its host. A release build still writes
 // Log.d to logcat, and an external subtitle URL carries the session's token in its query.
-// A scheme is case insensitive and a password may itself hold a colon, but userinfo
-// never runs past the authority: a ? or # starts the query or fragment (RFC 3986).
+// Whatever sits before an @ in the authority is userinfo: user:password, an empty user
+// (:password@), a token alone (token@), a password holding a colon. A scheme is case
+// insensitive, and userinfo never runs past the authority: a / ? or # ends it (RFC 3986).
 private val USERINFO = Regex(
-    "([a-z][a-z0-9+.-]*://)[^\\s:@/?#]+:[^\\s@/?#]+@",
+    "([a-z][a-z0-9+.-]*://)[^\\s/?#@]+@",
     RegexOption.IGNORE_CASE
 )
 private val CREDENTIAL_PARAM = Regex(

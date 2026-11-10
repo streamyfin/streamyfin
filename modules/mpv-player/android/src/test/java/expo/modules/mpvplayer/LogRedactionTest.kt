@@ -61,4 +61,17 @@ class LogRedactionTest {
             redactCredentials("https://proxy.example.com:8096#part@x"),
         )
     }
+
+    // An empty user before the password, or a token as the user alone, is still userinfo.
+    @Test
+    fun redactsUserinfoWithAnEmptyUserOrATokenAlone() {
+        assertEquals(
+            "https://[redacted]@proxy.example.com/stream",
+            redactCredentials("https://:secret@proxy.example.com/stream"),
+        )
+        assertEquals(
+            "https://[redacted]@proxy.example.com/stream",
+            redactCredentials("https://tok3n@proxy.example.com/stream"),
+        )
+    }
 }
