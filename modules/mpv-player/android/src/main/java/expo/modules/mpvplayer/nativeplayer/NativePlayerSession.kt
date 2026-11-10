@@ -750,14 +750,23 @@ class NativePlayerSession(
      * original preference; the best match already active is a no-op.
      */
     private fun matchContentFrameRate(contentFrameRate: Double) {
-        val activity = hostActivity ?: return
+        val activity = hostActivity ?: run {
+            Log.i(TAG, "Refresh-rate match: no host activity, display left as it is")
+            return
+        }
         // The setting's contract is Android TV only — enforce it where it
         // acts, not just in the settings UI.
-        if (!DeviceKind.isTelevision(activity)) return
+        if (!DeviceKind.isTelevision(activity)) {
+            Log.i(TAG, "Refresh-rate match: not a TV, display left as it is")
+            return
+        }
         try {
             // The display the window is on: preferredDisplayModeId must be
             // one of that display's supported modes.
-            val display = activity.windowManager.defaultDisplay ?: return
+            val display = activity.windowManager.defaultDisplay ?: run {
+                Log.i(TAG, "Refresh-rate match: the window has no display yet")
+                return
+            }
             val current = display.mode
             val candidate = RefreshRateMatcher.pickMode(display, contentFrameRate)
             if (candidate == null) {
@@ -780,7 +789,14 @@ class NativePlayerSession(
                 restoreDisplayMode()
                 return
             }
-            if (candidate.modeId == current.modeId) return
+            if (candidate.modeId == current.modeId) {
+                Log.i(
+                    TAG,
+                    "Refresh-rate match: active mode " + current.modeId + "@" +
+                        current.refreshRate + "Hz already suits " + contentFrameRate + " fps",
+                )
+                return
+            }
             val attributes = activity.window.attributes
             if (originalPreferredDisplayModeId == null) {
                 originalPreferredDisplayModeId = attributes.preferredDisplayModeId
@@ -807,7 +823,8 @@ class NativePlayerSession(
             attributes.preferredDisplayModeId = original
             activity.window.attributes = attributes
         } catch (e: Exception) {
-            // Ignored — the window is going away anyway.
+            // The window is going away anyway; logged so the restore is never a silent no-op.
+            Log.w(TAG, "Refresh-rate match: restoring the display mode failed", e)
         }
     }
 
