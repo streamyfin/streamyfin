@@ -1,0 +1,146 @@
+name: Repack app
+description: >-
+  Download an IPA or APK that an earlier run built from the same native
+  fingerprint, put this commit's JS bundle into it with `@expo/repack-app`,
+  and write the result to `output`. Runs on Linux, so an iOS repack needs no
+  macOS runner and an Android repack skips the Gradle build.
+  `scripts/ci/find-native-build.ts` decides which earlier run is safe to reuse.
+
+inputs:
+  platform:
+    description: '"ios" or "android".'
+    required: true
+  source-run-id:
+    description: The run that uploaded the app to repack.
+    required: true
+  artifact-name:
+    description: The name of that run's IPA or APK artifact.
+    required: true
+  output:
+    description: Where to write the repacked IPA or APK.
+    required: true
+  tv:
+    description: '"1" to bundle the TV JS, "0" for the phone.'
+    required: true
+  expo-token:
+    description: >-
+      iOS only. An EAS token to fetch the App Store signing files with. Leave
+      empty for an unsigned IPA.
+    required: false
+    default: ""
+  bundle-identifiers:
+    description: >-
+      iOS only. The bundle identifiers to sign, separated by spaces: the app
+      and each extension it embeds. Read only when `expo-token` is set, and
+      checked against the bundles the source IPA embeds.
+    required: false
+    default: ""
+  build-profile:
+    description: >-
+      The EAS build profile the source app was built with, written into the
+      repacked app's build metadata as an EAS build writes it.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: 📥 Download the source app
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_RUN_ID: ${{ inputs.source-run-id }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        EXTENSION: ${{ inputs.platform == 'ios' && 'ipa' || 'apk' }}
+      run: |
+        # A flake or a just-expired artifact must not fail the job at once: the
+        # caller falls back to a full build on a real failure.
+        for attempt in 1 2 3; do
+          gh run download "$SOURCE_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$ARTIFACT_NAME" -D "$RUNNER_TEMP/source" && break
+          [ "$attempt" = 3 ] && exit 1
+          sleep 10
+        done
+        find "$RUNNER_TEMP/source" -name "*.$EXTENSION" -print -quit | xargs -I{} mv {} "$RUNNER_TEMP/source.$EXTENSION"
+
+    - name: 🔍 Read the source app
+      id: source
+      if: inputs.platform == 'ios'
+      shell: bash
+      env:
+        BUNDLE_IDENTIFIERS: ${{ inputs.expo-token != '' && inputs.bundle-identifiers || '' }}
+      # The build number goes on to the repack, which writes the config's or
+      # "1" otherwise. A signed repack also checks that each embedded bundle
+      # has a profile: zsign signs a bundle without one with the app's.
+      run: |
+        python3 - "$RUNNER_TEMP/source.ipa" "$BUNDLE_IDENTIFIERS" >> "$GITHUB_OUTPUT" <<'PY'
+        import plistlib, re, sys, zipfile
+        ipa, wanted = sys.argv[1], set(sys.argv[2].split())
+        with zipfile.ZipFile(ipa) as z:
+            names = z.namelist()
+            app = [n for n in names if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", n)]
+            plugins = [n for n in names if re.fullmatch(r"Payload/[^/]+\.app/PlugIns/[^/]+\.appex/Info\.plist", n)]
+            if len(app) != 1:
+                sys.exit(f"Expected one app in the source IPA, found {len(app)}")
+            info = plistlib.loads(z.read(app[0]))
+            ids = {info["CFBundleIdentifier"]} | {plistlib.loads(z.read(n))["CFBundleIdentifier"] for n in plugins}
+        if wanted and ids != wanted:
+            sys.exit(f"The source IPA embeds {sorted(ids)}, profiles are fetched for {sorted(wanted)}")
+        print(f"build_number={info['CFBundleVersion']}")
+        PY
+
+    - name: 🛑 Refuse to sign without a token
+      # The signed job passes its bundle identifiers: without the EAS token it
+      # would upload an unsigned IPA under the signed artifact's name.
+      if: inputs.platform == 'ios' && inputs.bundle-identifiers != '' && inputs.expo-token == ''
+      shell: bash
+      run: |
+        echo "::error::A signed repack needs expo-token; the full build signs this IPA instead."
+        exit 1
+
+    - name: 🔏 Fetch the signing files from EAS
+      if: inputs.platform == 'ios' && inputs.expo-token != ''
+      shell: bash
+      env:
+        EXPO_TOKEN: ${{ inputs.expo-token }}
+        BUNDLE_IDENTIFIERS: ${{ inputs.bundle-identifiers }}
+      run: |
+        read -ra ids <<< "$BUNDLE_IDENTIFIERS"
+        bun scripts/ci/fetch-ios-credentials.ts "$RUNNER_TEMP/signing" "${ids[@]}"
+
+    - name: 📦 Repack with this commit's JS
+      shell: bash
+      env:
+        # repack-app defaults NODE_ENV to development, which bundles the JS with
+        # Babel's development transforms and `.env.development`. A repacked app
+        # must match a release build, so production must be explicit.
+        NODE_ENV: production
+        EXPO_TV: ${{ inputs.tv }}
+        PLATFORM: ${{ inputs.platform }}
+        OUTPUT: ${{ inputs.output }}
+        SIGNED: ${{ inputs.platform == 'ios' && inputs.expo-token != '' }}
+        REPACK_IOS_BUILD_NUMBER: ${{ steps.source.outputs.build_number }}
+        EAS_BUILD_PROFILE: ${{ inputs.build-profile }}
+      run: |
+        mkdir -p "$(dirname "$OUTPUT")"
+        if [ "$SIGNED" = "true" ]; then
+          # Through repack-app's API, which keeps the app's entitlements; zsign
+          # signs in process, with no Xcode.
+          bun scripts/ci/repack-signed-ios.ts "$RUNNER_TEMP/source.ipa" "$RUNNER_TEMP/signing" "$OUTPUT" "$RUNNER_TEMP/repack"
+          exit 0
+        fi
+        if [ "$PLATFORM" = "ios" ]; then
+          bunx repack-app -p ios --source-app "$RUNNER_TEMP/source.ipa" -w "$RUNNER_TEMP/repack" -o "$OUTPUT" .
+          exit 0
+        fi
+        # Through repack-app's API, which lets the script rebuild resources
+        # that R8 shrank. With no keystore, repack-app signs with the standard
+        # React Native debug key, the key the Gradle release build signs with.
+        # A different key would stop a repacked APK from installing over an
+        # earlier one.
+        build_tools=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+        bun scripts/ci/repack-android.ts "$RUNNER_TEMP/source.apk" "$build_tools" "$OUTPUT" "$RUNNER_TEMP/repack"
+
+    - name: 🧹 Delete the signing files
+      if: always() && inputs.platform == 'ios' && inputs.expo-token != ''
+      shell: bash
+      run: rm -rf "$RUNNER_TEMP/signing"

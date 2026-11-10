@@ -9,7 +9,7 @@ import type React from "react";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
@@ -146,7 +146,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
           {/* Account List */}
           <View className='bg-neutral-800 rounded-xl overflow-hidden mb-4'>
             {server.accounts.map((account, index) => (
-              <Swipeable
+              <ReanimatedSwipeable
                 key={account.userId}
                 renderRightActions={() => renderRightActions(account)}
                 overshootRight={false}
@@ -188,7 +188,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
                     color={Colors.primary}
                   />
                 </TouchableOpacity>
-              </Swipeable>
+              </ReanimatedSwipeable>
             ))}
           </View>
 
