@@ -3,6 +3,7 @@ import {
   Animated,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleProp,
   View,
   ViewStyle,
@@ -95,7 +96,7 @@ export const TVNavBar: React.FC<TVNavBarProps> = ({
   onTabChange,
   style,
 }) => {
-  const scrollRef = React.useRef<ScrollView>(null);
+  const scrollRef = React.useRef<ScrollViewInstance>(null);
   const tabLayouts = React.useRef<Record<string, { x: number; width: number }>>(
     {},
   );

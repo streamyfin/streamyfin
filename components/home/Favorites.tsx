@@ -133,42 +133,42 @@ export const Favorites = () => {
 
   const handleSeeAllSeries = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "Series", title: t("favorites.series") },
     } as any);
   }, [router]);
 
   const handleSeeAllMovies = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "Movie", title: t("favorites.movies") },
     } as any);
   }, [router]);
 
   const handleSeeAllEpisodes = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "Episode", title: t("favorites.episodes") },
     } as any);
   }, [router]);
 
   const handleSeeAllVideos = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "Video", title: t("favorites.videos") },
     } as any);
   }, [router]);
 
   const handleSeeAllBoxsets = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "BoxSet", title: t("favorites.boxsets") },
     } as any);
   }, [router]);
 
   const handleSeeAllPlaylists = useCallback(() => {
     router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      pathname: "/(auth)/(tabs)/(more)/favorites/see-all",
       params: { type: "Playlist", title: t("favorites.playlists") },
     } as any);
   }, [router]);

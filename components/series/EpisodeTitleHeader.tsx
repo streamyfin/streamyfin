@@ -1,7 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { episodeNumberLabel } from "@/utils/episodeLabel";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
@@ -9,6 +11,7 @@ interface Props extends ViewProps {
 
 export const EpisodeTitleHeader: React.FC<Props> = ({ item, ...props }) => {
   const router = useRouter();
+  const { t } = useTranslation();
 
   return (
     <View {...props}>
@@ -27,7 +30,9 @@ export const EpisodeTitleHeader: React.FC<Props> = ({ item, ...props }) => {
         </TouchableOpacity>
 
         <Text className='opacity-50 mx-2'>{"—"}</Text>
-        <Text className='opacity-50'>{`Episode ${item.IndexNumber}`}</Text>
+        <Text className='opacity-50'>
+          {episodeNumberLabel(t, item.IndexNumber)}
+        </Text>
       </View>
       <Text className='opacity-50'>{item?.ProductionYear}</Text>
     </View>

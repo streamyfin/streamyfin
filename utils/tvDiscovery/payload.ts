@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import i18next from "i18next";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 
@@ -125,8 +126,12 @@ function formatEpisodeNumber(item: BaseItemDto): string | undefined {
     return `S${season} • E${episode}`;
   }
 
-  if (season != null) return `Season ${season}`;
-  if (episode != null) return `Episode ${episode}`;
+  if (season != null) {
+    return i18next.t("seerr.season_number", { season_number: season });
+  }
+  if (episode != null) {
+    return i18next.t("item_card.episode_number", { episode_number: episode });
+  }
 
   return undefined;
 }
