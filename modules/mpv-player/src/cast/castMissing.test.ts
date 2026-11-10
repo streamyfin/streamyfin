@@ -1,10 +1,15 @@
+import { NO_REMOTE_TARGET } from "./Cast.types";
 import {
   addCastChannel,
   castDevices,
   castState,
+  connectToCastDevice,
   currentCastSession,
+  disconnectRemoteTarget,
   isCastAvailable,
   onCastSessionEvent,
+  onRemoteTargetChanged,
+  remoteTarget,
   showCastDialog,
 } from "./cast";
 
@@ -30,4 +35,11 @@ test("every call is a no-op when the native module is missing", async () => {
     "Cast is not available on this platform",
   );
   expect(onCastSessionEvent(() => {}).remove).toBeInstanceOf(Function);
+});
+
+test("no remote target can exist when the native module is missing", async () => {
+  expect(remoteTarget()).toEqual(NO_REMOTE_TARGET);
+  await expect(connectToCastDevice("device-a")).resolves.toBe(false);
+  await expect(disconnectRemoteTarget()).resolves.toBeUndefined();
+  expect(onRemoteTargetChanged(() => {}).remove).toBeInstanceOf(Function);
 });

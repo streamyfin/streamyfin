@@ -1,19 +1,29 @@
 import {
   type CastDoubleState,
   castDoubleDevice,
+  castDoubleTarget,
   createCastDoubleState,
   emitCastEvent,
+  emitRemoteTarget,
 } from "@/test-utils/cast";
-import type { CastMediaStatus } from "./Cast.types";
+import {
+  type CastMediaStatus,
+  NO_REMOTE_TARGET,
+  type RemoteTargetState,
+} from "./Cast.types";
 import {
   addCastChannel,
   castClientFor,
   castDevices,
   castState,
+  connectToCastDevice,
   currentCastSession,
+  disconnectRemoteTarget,
   isCastAvailable,
   onCastSessionEvent,
+  onRemoteTargetChanged,
   playServicesState,
+  remoteTarget,
   showCastDialog,
   showPlayServicesErrorDialog,
 } from "./cast";
@@ -317,4 +327,60 @@ test("the caller gets the open's error even when giving the namespace back fails
   await expect(addCastChannel(NAMESPACE, () => {})).rejects.toThrow(
     "No active service connection",
   );
+});
+
+test("the remote target answers none and no calls reach the module while Cast is unavailable", async () => {
+  mockCast.available = false;
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  expect(remoteTarget()).toEqual(NO_REMOTE_TARGET);
+  await expect(connectToCastDevice("device-a")).resolves.toBe(false);
+  await expect(disconnectRemoteTarget()).resolves.toBeUndefined();
+  expect(mockCast.connectRequests).toEqual([]);
+  expect(mockCast.disconnectCalls).toEqual([]);
+});
+
+test("remoteTarget reads the state the module holds", () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  expect(remoteTarget()).toEqual({
+    state: "connected",
+    target: {
+      kind: "cast",
+      id: castDoubleDevice().deviceId,
+      name: castDoubleDevice().friendlyName,
+      capabilities: { volume: true },
+    },
+    reconnecting: false,
+    error: null,
+  });
+});
+
+test("connectToCastDevice hands the id over and answers what the module answers", async () => {
+  mockCast.connectAnswer = false;
+  await expect(connectToCastDevice("missing")).resolves.toBe(false);
+
+  mockCast.connectAnswer = true;
+  await expect(connectToCastDevice("device-a")).resolves.toBe(true);
+  expect(mockCast.connectRequests).toEqual(["missing", "device-a"]);
+});
+
+test("disconnectRemoteTarget stops the receiver's playback unless asked not to", async () => {
+  await disconnectRemoteTarget();
+  await disconnectRemoteTarget({ stopPlayback: false });
+
+  expect(mockCast.disconnectCalls).toEqual([true, false]);
+});
+
+test("onRemoteTargetChanged hands each state the module publishes", () => {
+  const seen: RemoteTargetState[] = [];
+  const subscription = onRemoteTargetChanged((state) => seen.push(state));
+
+  emitRemoteTarget(mockCast, castDoubleTarget("connecting"));
+  emitRemoteTarget(mockCast, castDoubleTarget("connected"));
+  subscription.remove();
+  emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+
+  expect(seen.map(({ state }) => state)).toEqual(["connecting", "connected"]);
+  expect(mockCast.listeners.onRemoteTargetChanged).toHaveLength(0);
 });
