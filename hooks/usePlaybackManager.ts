@@ -218,6 +218,10 @@ export const usePlaybackManager = ({
 
       const shouldSaveProgress =
         meetsMinimumPercentage && !isItemConsideredPlayed;
+      // A watched download re-opened for a moment stays watched, as Jellyfin
+      // 12 keeps it: otherwise the offline sync would push Played=false and
+      // un-mark it everywhere.
+      if (localItem.item.UserData?.Played && !meetsMinimumPercentage) return;
       const lastPlayed = new Date().toISOString();
 
       updateDownloadedItem(itemId, {
@@ -304,6 +308,7 @@ export const usePlaybackManager = ({
    */
   const markItemPlayed = async (itemId: string) => {
     const localItem = getDownloadedItemById(itemId);
+    const lastPlayed = new Date().toISOString();
 
     // Handle local state update for downloaded items
     if (localItem) {
@@ -317,10 +322,15 @@ export const usePlaybackManager = ({
             Played: true,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
-            LastPlayedDate: new Date().toISOString(),
+            LastPlayedDate: lastPlayed,
           },
         },
       });
+      // Marked where the server cannot see it: the offline sync sends it once
+      // the server answers again (useOfflineProgressSync).
+      if (user?.Id && (!isOnline || serverConnected !== true)) {
+        markOfflineProgress(user.Id, itemId, lastPlayed);
+      }
       // Force invalidate queries so they refetch from updated local database
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["episodes"] });
@@ -334,6 +344,8 @@ export const usePlaybackManager = ({
           userId: user.Id,
         });
       } catch (error) {
+        // The download keeps the mark: queue it for the offline sync.
+        if (localItem && user.Id) markOfflineProgress(user.Id, itemId, lastPlayed);
         console.error("Failed to mark item as played on server", error);
         throw error;
       }
@@ -350,6 +362,7 @@ export const usePlaybackManager = ({
    */
   const markItemUnplayed = async (itemId: string) => {
     const localItem = getDownloadedItemById(itemId);
+    const lastPlayed = new Date().toISOString();
 
     // Handle local state update for downloaded items
     if (localItem) {
@@ -363,10 +376,15 @@ export const usePlaybackManager = ({
             Played: false,
             PlaybackPositionTicks: 0,
             PlayedPercentage: 0,
-            LastPlayedDate: new Date().toISOString(), // Keep track of when it was marked unplayed
+            LastPlayedDate: lastPlayed,
           },
         },
       });
+      // Marked where the server cannot see it: the offline sync sends it once
+      // the server answers again (useOfflineProgressSync).
+      if (user?.Id && (!isOnline || serverConnected !== true)) {
+        markOfflineProgress(user.Id, itemId, lastPlayed);
+      }
       // Force invalidate queries so they refetch from updated local database
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
       queryClient.invalidateQueries({ queryKey: ["episodes"] });
@@ -380,6 +398,8 @@ export const usePlaybackManager = ({
           userId: user.Id,
         });
       } catch (error) {
+        // The download keeps the mark: queue it for the offline sync.
+        if (localItem && user.Id) markOfflineProgress(user.Id, itemId, lastPlayed);
         console.error("Failed to mark item as unplayed on server", error);
         throw error;
       }
