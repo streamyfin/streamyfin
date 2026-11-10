@@ -18,7 +18,7 @@ covers setup and the human side; this file is the operational checklist.
 Run the full gate and read its output:
 
 ```bash
-bun run test    # typecheck + unit tests + lint + format + i18n keys + Expo Doctor
+bun run test    # typecheck + unit tests + e2e bench tests + lint + format + i18n keys + Expo Doctor
 bun run check   # the read-only Biome pass CI runs as its own job
 ```
 

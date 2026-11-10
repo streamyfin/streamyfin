@@ -27,6 +27,7 @@ never through a public issue.
 3. Xcode and/or Android Studio, following the
    [Expo guides](https://docs.expo.dev/workflow/android-studio-emulator/).
 4. The [Biome](https://biomejs.dev) extension in your editor.
+5. Python 3: `bun run test` runs the end-to-end bench's own tests with it.
 
 ```bash
 bun i
@@ -63,11 +64,11 @@ Two rules catch most review comments before they are written:
 bun run test
 ```
 
-That runs typecheck, unit tests, lint, format, the i18n key check and Expo Doctor. CI runs
-the same commands as separate jobs and adds `bun run check`, the read-only Biome pass, so
-run that one too if you are unsure. Expo Doctor is non-blocking in CI, which means a
-warning there will not fail your PR, but it is still worth reading. Read the output rather
-than trusting the exit code.
+That runs typecheck, unit tests, the end-to-end bench's own tests, lint, format, the i18n
+key check and Expo Doctor. CI runs the same commands as separate jobs and adds
+`bun run check`, the read-only Biome pass, so run that one too if you are unsure. Expo
+Doctor is non-blocking in CI, which means a warning there will not fail your PR, but it is
+still worth reading. Read the output rather than trusting the exit code.
 
 Then make sure the change carries its own proof:
 
