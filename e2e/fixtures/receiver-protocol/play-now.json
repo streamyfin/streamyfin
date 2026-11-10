@@ -214,6 +214,24 @@
       }
     },
     {
+      "name": "seek rounds as Math.round does: just under a half goes down, which adding 0.5 first gets wrong",
+      "session": {
+        "basePath": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1"
+      },
+      "command": "Seek",
+      "options": { "position": 0.49999999999999994 },
+      "expected": {
+        "command": "Seek",
+        "serverAddress": "https://jellyfin.example.test",
+        "accessToken": "tok-123",
+        "userId": "user-1",
+        "maxBitrate": 120000000,
+        "options": { "position": 0 }
+      }
+    },
+    {
       "name": "a container is refused",
       "session": {
         "basePath": "https://jellyfin.example.test",

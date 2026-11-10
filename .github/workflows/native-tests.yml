@@ -1,8 +1,10 @@
 name: 🧪 Native tests
 
 # Unit tests of the native modules (JUnit under modules/*/android/src/test), one Gradle task
-# per module that has some: workflows.test.ts fails when one is left out. They only run when
-# a module changes: the Android project has to be generated first, which costs minutes.
+# per module that has some: workflows.test.ts fails when one is left out, and the standalone
+# Swift checks (scripts/ios/test-*.sh) on macOS. They only run when a module, a check or the
+# receiver vectors they replay change: the Android project has to be generated first, which
+# costs minutes.
 
 on:
   pull_request:
@@ -38,6 +40,9 @@ jobs:
           filters: |
             modules:
               - 'modules/**'
+              - 'tests/native/**'
+              - 'scripts/ios/**'
+              - 'e2e/fixtures/receiver-protocol/**'
               - '.github/workflows/native-tests.yml'
 
   android-unit:
@@ -108,3 +113,19 @@ jobs:
             modules/*/android/build/test-results/**
             modules/*/android/build/reports/tests/**
           retention-days: 7
+
+  ios-checks:
+    name: 🍎 iOS standalone Swift checks
+    needs: changes
+    if: needs.changes.outputs.modules == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          show-progress: false
+
+      # Each check compiles its sources with swiftc alone: no pods, no simulator.
+      - name: 🧪 Run the standalone Swift checks
+        run: bash scripts/ios/run-native-checks.sh

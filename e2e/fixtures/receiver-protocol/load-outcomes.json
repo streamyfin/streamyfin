@@ -218,6 +218,67 @@
       "previous": null,
       "events": [{ "timeout": true }],
       "expected": { "status": "timed_out" }
+    },
+    {
+      "name": "recasting the item on the TV: its old play session still playing is not the load",
+      "previous": { "itemId": "item-1", "playSessionId": "ps-0" },
+      "events": [
+        {
+          "status": {
+            "itemId": "item-1",
+            "playSessionId": "ps-0",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "timed_out" }
+    },
+    {
+      "name": "a guide program waits for its channel, the item the receiver plays",
+      "request": {
+        "items": [
+          {
+            "Id": "program-1",
+            "Name": "A program",
+            "Type": "Program",
+            "ChannelId": "channel-1",
+            "ChannelName": "A channel"
+          }
+        ]
+      },
+      "events": [
+        {
+          "status": {
+            "itemId": "channel-1",
+            "playSessionId": "ps-1",
+            "playerState": "buffering"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
+    },
+    {
+      "name": "a queue waits for the item at startIndex, not the first one",
+      "request": {
+        "items": [
+          { "Id": "item-1", "Name": "A first film", "Type": "Movie" },
+          { "Id": "item-2", "Name": "A second film", "Type": "Movie" }
+        ],
+        "startIndex": 1
+      },
+      "events": [
+        {
+          "status": {
+            "itemId": "item-2",
+            "playSessionId": "ps-1",
+            "playerState": "playing"
+          }
+        },
+        { "timeout": true }
+      ],
+      "expected": { "status": "loaded" }
     }
   ]
 }

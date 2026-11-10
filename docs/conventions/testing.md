@@ -37,6 +37,15 @@ uses and the screen carries a comment pointing at it:
 `app/(auth)/player/direct-player.tsx` is covered by
 `utils/directPlayer/directPlayerPage.test.tsx`.
 
+Native code has its own two places. Kotlin is tested with JUnit under
+`modules/<name>/android/src/test`. Swift that imports nothing but Foundation or
+AVFoundation is tested by a standalone check: `tests/native/<Name>Tests.swift`, compiled
+with the sources it covers by `scripts/ios/test-<name>.sh`, with no Xcode target and no
+simulator. `scripts/ios/run-native-checks.sh` runs every check, and CI runs both kinds
+when a module, a check or the receiver vectors change. The receiver protocol vectors in
+`e2e/fixtures/receiver-protocol` are replayed by Jest, the bench, JUnit and the Swift
+check alike: a new case goes there first, see its README.
+
 ## Writing a test
 
 Name the test after the behaviour, not the function: "keeps the resume point when the
