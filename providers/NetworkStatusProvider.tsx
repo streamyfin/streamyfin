@@ -81,15 +81,6 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Initial check
-    NetInfo.fetch().then((state) => {
-      if (state.isConnected) {
-        validateConnection();
-      } else {
-        setServerConnected(false);
-      }
-    });
-
     return () => unsubscribe();
   }, [validateConnection]);
 

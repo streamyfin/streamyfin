@@ -10,6 +10,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import SeerrMediaIcon from "@/components/seerr/SeerrMediaIcon";
 import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrCanRequest } from "@/hooks/useSeerrCanRequest";
 import type {
@@ -40,8 +41,7 @@ const SeerrPoster: React.FC<Props> = ({ item, horizontal }) => {
   };
 
   const backdropSrc = useMemo(
-    () =>
-      seerrApi?.imageProxy(item?.backdropPath, "w1920_and_h800_multi_faces"),
+    () => seerrApi?.imageProxy(item?.backdropPath, SEERR_BACKDROP_SIZE),
     [item, seerrApi, horizontal],
   );
 

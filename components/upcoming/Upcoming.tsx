@@ -75,7 +75,7 @@ export const Upcoming: React.FC<Props> = ({ parentId }) => {
             : t("upcoming.no_episodes")}
         </Text>
       }
-      ListFooterComponent={isFetchingNextPage ? <Loader /> : null}
+      ListFooterComponent={isFetchingNextPage ? <Loader /> : undefined}
     />
   );
 };
