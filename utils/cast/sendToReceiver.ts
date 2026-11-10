@@ -44,6 +44,9 @@ export interface SendDeps {
   t: TFunction;
 }
 
+/** Counts follows, so one whose status read ends after a newer load's follow starts nothing. */
+let follows = 0;
+
 /**
  * The load answer comes at the first buffering status: a stream the receiver fails on later is followed from here,
  * told from the next load by the play session the receiver opened for it, read off the status held. The receiver
@@ -55,10 +58,14 @@ const followLoad = async (
   receiverName: string,
   userId: string,
 ) => {
+  // Read at the answer: a play chosen while the status is read is the user's next one, which a failure gives way to.
+  const choice = currentPlayChoice();
+  const follow = ++follows;
   try {
     const held = parseReceiverCustomData(
       (await client.getMediaStatus().catch(() => null))?.mediaInfo?.customData,
     );
+    if (follow !== follows) return;
     watchLoadedCast(client, {
       item: play.item,
       sent: {
@@ -70,7 +77,7 @@ const followLoad = async (
       },
       receiverName,
       playSessionId: held.itemId === play.item.Id ? held.playSessionId : null,
-      choice: currentPlayChoice(),
+      choice,
       userId,
     });
   } catch (error) {
@@ -130,7 +137,8 @@ export const sendToReceiver = async (
       return { status: "notStarted", message: notStarted };
     }
     if (outcome.status !== "loaded") return { status: "superseded" };
-    await followLoad(client, play, receiverName, deps.userId);
+    // Not waited for: the hand-off closes the player at this answer, which a status read that hangs must not hold.
+    void followLoad(client, play, receiverName, deps.userId);
     return { status: "loaded" };
   } catch (e) {
     logAndCaptureError("Chromecast playback failed", e);
