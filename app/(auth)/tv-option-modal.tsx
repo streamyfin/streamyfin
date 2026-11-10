@@ -5,20 +5,23 @@ import {
   Animated,
   Easing,
   FlatList,
-  InteractionManager,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
-  View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv";
+import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
+import { deferToMicrotask } from "@/utils/deferToMicrotask";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
+import { createSubmission } from "@/utils/submission";
 
 /**
  * Above this many options the card strip virtualizes; below it, it doesn't.
@@ -29,86 +32,103 @@ import { store } from "@/utils/store";
  */
 const VIRTUALIZE_ABOVE = 60;
 
+// Spec: hooks/useTVOptionModal.test.tsx. It cannot sit next to this file,
+// Expo Router turns everything under app/ into a route.
 export default function TVOptionModal() {
   const router = useRouter();
   const modalState = useAtomValue(tvOptionModalAtom);
   const typography = useScaledTVTypography();
 
   const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
+  const firstCardRef = useRef<ViewInstance>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  // Android TV can deliver one remote select twice in the same JS batch
+  // (react-native-tvos#110/#138, see useAppRouter): the sheet closes once, or
+  // the second router.back() pops the screen under it as well.
+  const submission = useRef(createSubmission()).current;
 
   const initialSelectedIndex = useMemo(() => {
     if (!modalState?.options) return 0;
     const idx = modalState.options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
+    return Math.max(idx, 0);
   }, [modalState?.options]);
 
   // Animate in on mount and cleanup atom on unmount
   useEffect(() => {
+    submission.show();
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
 
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 250,
+        duration: TVSheetTiming.fadeInMs,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.timing(sheetTranslateY, {
         toValue: 0,
-        duration: 300,
+        duration: TVSheetTiming.slideInMs,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
     // Delay focus setup to allow layout
-    const timer = setTimeout(() => setIsReady(true), 100);
+    const timer = setTimeout(
+      () => setIsReady(true),
+      TVSheetTiming.contentDelayMs,
+    );
     return () => {
       clearTimeout(timer);
+      submission.dismiss();
       // Clear the atom on unmount to prevent stale callbacks from being retained
       store.set(tvOptionModalAtom, null);
     };
-  }, [overlayOpacity, sheetTranslateY]);
+  }, [overlayOpacity, sheetTranslateY, submission]);
 
   // Request focus on the first card when ready
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
+        requestTVFocus(firstCardRef.current);
+      }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }
   }, [isReady]);
 
   const handleSelect = (value: any) => {
-    if (modalState?.deferApplyUntilDismissed) {
+    if (!modalState || !submission.dismiss()) return;
+    if (modalState.deferApplyUntilDismissed) {
       // onSelect navigates (the transcode audio switch replacing the player);
       // a router.replace fired while this modal is the active route would be
       // swallowed. Close FIRST, apply after dismissal.
-      const onSelect = modalState.onSelect;
+      const { onSelect } = modalState;
       store.set(tvOptionModalAtom, null);
       router.back();
-      InteractionManager.runAfterInteractions(() => onSelect?.(value));
+      deferToMicrotask(() => onSelect(value));
       return;
     }
     // State-only callers (detail page, library filters, settings): run before
     // closing so the re-render happens while the modal is up. Deferring it until
     // after dismissal re-renders the page after focus returns and yanks TV
-    // focus, leaving navigation stuck.
-    modalState?.onSelect(value);
-    store.set(tvOptionModalAtom, null);
-    router.back();
+    // focus, leaving navigation stuck. The guard is spent already, so the
+    // sheet closes even when the choice throws.
+    try {
+      modalState.onSelect(value);
+    } finally {
+      store.set(tvOptionModalAtom, null);
+      router.back();
+    }
   };
 
   const handleClose = useCallback(() => {
+    if (!submission.dismiss()) return;
     store.set(tvOptionModalAtom, null);
     router.back();
-  }, [router]);
+  }, [router, submission]);
 
   // Intercept back/menu press to close the modal instead of the player
   useTVBackPress(() => {

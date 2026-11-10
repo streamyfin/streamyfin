@@ -89,6 +89,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   config.extra = { ...config.extra, build: buildMeta };
 
+  // A repack (scripts/ci) passes the build number of the IPA it starts from:
+  // repack-app writes the config's, or "1", into the app and its extensions,
+  // and an EAS build's number would be lost.
+  if (process.env.REPACK_IOS_BUILD_NUMBER) {
+    config.ios = {
+      ...config.ios,
+      buildNumber: process.env.REPACK_IOS_BUILD_NUMBER,
+    };
+  }
+
   return {
     ...(Object.keys(androidConfig).length > 0 && { android: androidConfig }),
     ...config,

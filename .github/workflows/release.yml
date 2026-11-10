@@ -85,7 +85,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: 📤 Upload APK artifact (${{ matrix.name }})
         if: ${{ !matrix.submit }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}.apk
