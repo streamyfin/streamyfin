@@ -1,5 +1,11 @@
 import React from "react";
-import { Animated, Pressable, View, type ViewStyle } from "react-native";
+import {
+  Animated,
+  Pressable,
+  View,
+  type ViewInstance,
+  type ViewStyle,
+} from "react-native";
 import { SeerrIssueColors } from "@/constants/Colors";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
@@ -13,7 +19,7 @@ export interface TVButtonProps {
   style?: ViewStyle;
   scaleAmount?: number;
   square?: boolean;
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
   nextFocusDown?: number;
   nextFocusUp?: number;
 }

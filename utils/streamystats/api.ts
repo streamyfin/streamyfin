@@ -1,4 +1,5 @@
 import axios from "axios";
+import { STREAMYSTATS_REQUEST_TIMEOUT_MS } from "@/constants/Streamystats";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { toRecommendationIds, toSearchIds } from "./responses";
 import type {
@@ -218,9 +219,15 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
    * Get all watchlists (own + public)
    * GET /api/watchlists
    */
-  const getWatchlists = async (): Promise<GetWatchlistsResponse> => {
+  const getWatchlists = async (
+    signal?: AbortSignal,
+  ): Promise<GetWatchlistsResponse> => {
     const url = `${baseUrl}/api/watchlists`;
-    const response = await axios.get(url, { headers });
+    const response = await axios.get(url, {
+      headers,
+      signal,
+      timeout: STREAMYSTATS_REQUEST_TIMEOUT_MS,
+    });
     return response.data;
   };
 
