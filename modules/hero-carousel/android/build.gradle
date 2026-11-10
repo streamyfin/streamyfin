@@ -7,35 +7,14 @@ buildscript {
   }
 }
 
-apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 group = 'expo.modules.herocarousel'
 version = '1.0.0'
 
-def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
-apply from: expoModulesCorePlugin
-applyKotlinExpoModulesCorePlugin()
-useCoreDependencies()
-useExpoPublishing()
-
-// If you want to use the managed Android SDK versions from expo-modules-core, set this to true.
-def useManagedAndroidSdkVersions = false
-if (useManagedAndroidSdkVersions) {
-  useDefaultAndroidSdkVersions()
-} else {
-  buildscript {
-    ext.safeExtGet = { prop, fallback ->
-      rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-    }
-  }
-  project.android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 36)
-    defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 26)
-      targetSdkVersion safeExtGet("targetSdkVersion", 36)
-    }
-  }
+expoModule {
+  canBePublished false
 }
 
 android {
@@ -47,21 +26,18 @@ android {
   buildFeatures {
     compose true
   }
-  lintOptions {
-    abortOnError false
-  }
 }
 
 dependencies {
   // Jetpack Compose, pinned to the versions @expo/ui resolves so the app
   // ends up with one Compose runtime rather than two.
-  implementation 'androidx.compose.foundation:foundation-android:1.10.6'
-  implementation 'androidx.compose.ui:ui-android:1.10.6'
-  implementation 'androidx.compose.material3:material3:1.5.0-alpha17'
-  implementation 'androidx.compose.material3:material3-android:1.5.0-alpha17'
+  implementation 'androidx.compose.foundation:foundation-android:1.12.1'
+  implementation 'androidx.compose.ui:ui-android:1.12.1'
+  implementation 'androidx.compose.material3:material3:1.5.0-beta02'
+  implementation 'androidx.compose.material3:material3-android:1.5.0-beta02'
   implementation 'androidx.compose.material:material-icons-core:1.7.8'
   // Only for the three glyphs core doesn't ship (fast-forward, sparkles,
   // filter). Already on the app's classpath via modules/mpv-player.
   implementation 'androidx.compose.material:material-icons-extended:1.7.8'
-  implementation 'androidx.core:core-ktx:1.18.0'
+  implementation 'androidx.core:core-ktx:1.19.1'
 }

@@ -58,10 +58,11 @@ Create a hook that sets the atom and navigates to the modal:
 ```typescript
 // hooks/useTVExampleModal.ts
 import { useSetAtom } from "jotai";
-import { router } from "expo-router";
+import useRouter from "@/hooks/useAppRouter";
 import { tvExampleModalAtom, TVExampleModalData } from "@/utils/atoms/tvExampleModal";
 
 export const useTVExampleModal = () => {
+  const router = useRouter();
   const setModalData = useSetAtom(tvExampleModalAtom);
 
   const openModal = (data: TVExampleModalData) => {
@@ -79,28 +80,39 @@ Create a page file that reads the atom and renders the modal UI:
 
 ```typescript
 // app/(auth)/tv-example-modal.tsx
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { View, Pressable, Text } from "react-native";
 import { useAtom } from "jotai";
-import { router } from "expo-router";
 import { BlurView } from "expo-blur";
+import useRouter from "@/hooks/useAppRouter";
 import { tvExampleModalAtom } from "@/utils/atoms/tvExampleModal";
+import { createSubmission } from "@/utils/submission";
 
 export default function TVExampleModal() {
+  const router = useRouter();
   const [modalData, setModalData] = useAtom(tvExampleModalAtom);
+  // Android TV can deliver one remote select twice in the same JS batch:
+  // close once, or the second router.back() pops the screen under the modal.
+  const submission = useRef(createSubmission()).current;
 
   // Clear atom on unmount
   useEffect(() => {
+    submission.show();
     return () => {
+      submission.dismiss();
       setModalData(null);
     };
-  }, [setModalData]);
+  }, [setModalData, submission]);
 
-  // Handle case where modal is opened without data
-  if (!modalData) {
+  const close = () => {
+    if (!submission.dismiss()) return;
+    setModalData(null);
     router.back();
-    return null;
-  }
+  };
+
+  // Opened without data, or closing: close() clears the atom before
+  // router.back(), so a back here would pop the screen under the modal too.
+  if (!modalData) return null;
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -111,7 +123,7 @@ export default function TVExampleModal() {
           top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: "rgba(0, 0, 0, 0.7)",
         }}
-        onPress={() => router.back()}
+        onPress={close}
       />
 
       {/* Modal content */}
@@ -130,7 +142,7 @@ export default function TVExampleModal() {
         {/* Modal content here */}
 
         <Pressable
-          onPress={() => router.back()}
+          onPress={close}
           hasTVPreferredFocus
           style={({ focused }) => ({
             marginTop: 24,
@@ -402,6 +414,7 @@ import { TVFocusGuideView } from "react-native";
 | No `hasTVPreferredFocus` in modal | Focus stuck on background | Set preferred focus on first modal element |
 | Missing `presentation: "transparentModal"` | Modal not transparent | Add to Stack.Screen options |
 | Not clearing atom on unmount | Stale data on reopen | Clear in useEffect cleanup |
+| Closing from a press handler without a guard | One remote select can fire twice on Android TV and pop the screen under the modal as well | Close through `createSubmission` (`utils/submission.ts`): `if (!submission.dismiss()) return;`, as in Step 3 |
 
 ---
 

@@ -1,12 +1,11 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
-
-// Volume Manager type (since it's not exported from the library)
-interface VolumeManager {
-  getVolume(): Promise<{ volume: number }>;
-  setVolume(volume: number): Promise<void>;
-  showNativeVolumeUI(options: { enabled: boolean }): void;
-}
+import { VOLUME_SWIPE_INDICATOR_RELEASE_MS } from "@/constants/Playback";
+import {
+  getSystemVolumeAsync,
+  hideSystemVolumeIndicator,
+  setSystemVolume,
+} from "@/modules/system-volume";
 
 // Brightness type
 interface Brightness {
@@ -14,10 +13,7 @@ interface Brightness {
   setBrightnessAsync(brightness: number): Promise<void>;
 }
 
-// Dynamic imports for TV compatibility
-const VolumeManager: VolumeManager | null = !Platform.isTV
-  ? require("react-native-volume-manager")
-  : null;
+// Dynamic import for TV compatibility
 const Brightness: Brightness | null = !Platform.isTV
   ? require("expo-brightness")
   : null;
@@ -35,54 +31,70 @@ export const useVolumeAndBrightness = ({
   const initialBrightness = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
   const brightnessSupported = useRef(true);
+  const releaseVolumeIndicator = useRef<(() => void) | null>(null);
+  // Bumped when a volume drag starts or ends, so a starting volume read that
+  // lands after its drag ended is dropped.
+  const volumeDrag = useRef(0);
+  const mounted = useRef(true);
+
+  // Picture in picture unmounts the controls mid-gesture, so the drag never
+  // ends, and a hold left behind would keep the system indicator away, and on
+  // Android the volume keys taken, for the life of the app.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      volumeDrag.current += 1;
+      releaseVolumeIndicator.current?.();
+      releaseVolumeIndicator.current = null;
+    };
+  }, []);
 
   const startVolumeDrag = useCallback(async (startY: number) => {
-    if (Platform.isTV || !VolumeManager) return;
+    // The drag starts on the next frame, which can come after an unmount.
+    if (Platform.isTV || !mounted.current) return;
 
-    try {
-      const { volume } = await VolumeManager.getVolume();
-      initialVolume.current = volume;
-      dragStartY.current = startY;
+    const drag = ++volumeDrag.current;
+    initialVolume.current = null;
+    dragStartY.current = startY;
 
-      // Disable native volume UI during drag
-      VolumeManager.showNativeVolumeUI({ enabled: false });
-    } catch (error) {
-      console.error("Error starting volume drag:", error);
-    }
+    // The gesture shows its own volume level.
+    releaseVolumeIndicator.current?.();
+    releaseVolumeIndicator.current = hideSystemVolumeIndicator();
+
+    const volume = await getSystemVolumeAsync();
+    if (drag === volumeDrag.current) initialVolume.current = volume;
   }, []);
 
   const updateVolumeDrag = useCallback(
     async (deltaY: number) => {
-      if (Platform.isTV || !VolumeManager || initialVolume.current === null)
-        return;
+      if (Platform.isTV || initialVolume.current === null) return;
 
-      try {
-        // Convert deltaY to volume change (negative deltaY = volume up)
-        // More sensitive - easier to control
-        const sensitivity = 0.006; // Doubled sensitivity for easier control
-        const volumeChange = -deltaY * sensitivity;
-        const newVolume = Math.max(
-          0,
-          Math.min(1, initialVolume.current + volumeChange),
-        );
+      // Convert deltaY to volume change (negative deltaY = volume up)
+      // More sensitive - easier to control
+      const sensitivity = 0.006; // Doubled sensitivity for easier control
+      const volumeChange = -deltaY * sensitivity;
+      const newVolume = Math.max(
+        0,
+        Math.min(1, initialVolume.current + volumeChange),
+      );
 
-        await VolumeManager.setVolume(newVolume);
-        const volumePercent = Math.round(newVolume * 100);
-        onVolumeChange?.(volumePercent);
-      } catch (error) {
-        console.error("Error updating volume:", error);
-      }
+      setSystemVolume(newVolume);
+      const volumePercent = Math.round(newVolume * 100);
+      onVolumeChange?.(volumePercent);
     },
     [onVolumeChange],
   );
 
   const endVolumeDrag = useCallback(() => {
-    if (Platform.isTV || !VolumeManager) return;
+    if (Platform.isTV) return;
 
-    // Re-enable native volume UI
-    setTimeout(() => {
-      VolumeManager.showNativeVolumeUI({ enabled: true });
-    }, 500);
+    volumeDrag.current += 1;
+    // Held a little longer, so the gesture's last change does not bring the
+    // system indicator up as it ends.
+    const release = releaseVolumeIndicator.current;
+    releaseVolumeIndicator.current = null;
+    if (release) setTimeout(release, VOLUME_SWIPE_INDICATOR_RELEASE_MS);
 
     initialVolume.current = null;
     dragStartY.current = null;
