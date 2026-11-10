@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useCallback } from "react";
-import { type ScrollViewInstance, type ViewInstance, View } from "react-native";
+import { type ScrollViewInstance, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
