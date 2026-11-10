@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useSeerr } from "@/hooks/useSeerr";
+import { seerrPublicSettingsQuery, useSeerr } from "@/hooks/useSeerr";
 import type { PublicSettings } from "@/utils/seerr/types";
 
 /**
@@ -10,13 +10,7 @@ import type { PublicSettings } from "@/utils/seerr/types";
 export const useSeerrPublicSettings = (): PublicSettings | undefined => {
   const { seerrApi } = useSeerr();
 
-  const { data } = useQuery({
-    // Per server: after signing in to another one, its own settings apply.
-    queryKey: ["seerr", "settings", "public", seerrApi?.axios.defaults.baseURL],
-    queryFn: async () => (await seerrApi?.publicSettings()) ?? null,
-    enabled: !!seerrApi,
-    staleTime: 10 * 60 * 1000,
-  });
+  const { data } = useQuery(seerrPublicSettingsQuery(seerrApi));
 
   return data ?? undefined;
 };

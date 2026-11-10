@@ -5,7 +5,6 @@ import type {
 import { File, Paths } from "expo-file-system";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import DeviceInfo from "react-native-device-info";
 import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
@@ -15,6 +14,7 @@ import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { estimateDownloadActivitySize } from "@/utils/downloadSize";
 import { logAndCaptureError } from "@/utils/log";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -34,7 +34,7 @@ import {
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
-import { generateFilename, uriToFilePath } from "../utils";
+import { generateFilename, getDownloadToastId, uriToFilePath } from "../utils";
 
 /**
  * Starts that have not finished handing their download to native yet, by item id.
@@ -131,7 +131,7 @@ export function useDownloadOperations({
           const basePath = api.basePath || "";
           downloadUrl = `${basePath}${url}`;
           console.log(
-            `[DOWNLOAD] Converted relative URL to absolute: ${downloadUrl}`,
+            `[DOWNLOAD] Converted relative URL to absolute: ${redactCredentials(downloadUrl)}`,
           );
         }
 
@@ -184,7 +184,9 @@ export function useDownloadOperations({
         const destinationPath = uriToFilePath(videoFile.uri);
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
-        console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
+        console.log(
+          `[DOWNLOAD] Download URL: ${redactCredentials(downloadUrl)}`,
+        );
 
         // Download metadata for native: drives the iOS Live Activity, and its itemId is echoed
         // back in every download event on both platforms — it is how events find their way back
@@ -262,6 +264,10 @@ export function useDownloadOperations({
           return;
         }
 
+        // Native can report a failure before this answer comes back: the error handler then
+        // removed the record and put the reason under the toast id this one would take over.
+        if (!getPendingDownload(processId)) return;
+
         if (taskId !== -1) {
           updatePendingDownload(processId, {
             status: "downloading",
@@ -273,6 +279,7 @@ export function useDownloadOperations({
           t("home.downloads.toasts.download_started_for_item", {
             item: item.Name,
           }),
+          { id: getDownloadToastId(processId) },
         );
       } catch (error) {
         // The user cancelled this start and has been told so. cancelDownload cleaned up, and
@@ -465,15 +472,11 @@ export function useDownloadOperations({
       }
     }
 
+    // The volume that holds Documents, where downloads are written.
     try {
-      const [freeDiskStorage, totalDiskCapacity] = await Promise.all([
-        DeviceInfo.getFreeDiskStorage(),
-        DeviceInfo.getTotalDiskCapacity(),
-      ]);
-
       return {
-        total: totalDiskCapacity,
-        remaining: freeDiskStorage,
+        total: Paths.totalDiskSpace,
+        remaining: Paths.availableDiskSpace,
         appSize: totalSize,
       };
     } catch (error) {

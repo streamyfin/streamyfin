@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
+import { Colors } from "@/constants/Colors";
 import { Text } from "../common/Text";
 
 interface Props extends ViewProps {
@@ -101,8 +102,8 @@ const ListItemContent = ({
     <>
       <View className='flex flex-row items-center w-full'>
         {icon && (
-          <View className='border border-neutral-800 rounded-md h-8 w-8 flex items-center justify-center mr-2'>
-            <Ionicons name='person-circle-outline' size={18} color='white' />
+          <View className='mr-3'>
+            <Ionicons name={icon} size={20} color={Colors.primary} />
           </View>
         )}
         {/* The label sizes to its content and only shrinks if it alone
