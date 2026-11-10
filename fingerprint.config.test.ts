@@ -1,0 +1,124 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+
+const config = require("./fingerprint.config.js");
+
+const hashed = new Set<string>(
+  config.extraSources.map((source: { filePath: string }) => source.filePath),
+);
+
+describe("fingerprint.config.js", () => {
+  it("never hashes the per-build metadata in extra", () => {
+    // app.config.ts writes the commit and run number into extra.build, so
+    // hashing it would give every commit a new fingerprint.
+    expect(config.sourceSkips).toContain("ExpoConfigExtraSection");
+  });
+
+  it("hashes the app extension sources", () => {
+    // Config plugins copy targets/ in at prebuild, out of the fingerprint's sight.
+    expect(hashed.has("targets")).toBe(true);
+  });
+
+  it("hashes the entire iOS scripts directory", () => {
+    expect(config.extraSources).toContainEqual(
+      expect.objectContaining({
+        type: "dir",
+        filePath: "scripts/ios",
+      }),
+    );
+  });
+
+  it("hashes the build workflow, which sets native build options", () => {
+    // The ABIs and the Xcode version live there, out of the project's sight.
+    expect(hashed.has(".github/workflows/build-apps.yml")).toBe(true);
+  });
+
+  it.each(["android", "android_tv"])(
+    "excludes iOS-only sources from the %s CI fingerprint",
+    (output) => {
+      const workflow = readFileSync(
+        path.join(__dirname, ".github/workflows/build-apps.yml"),
+        "utf8",
+      );
+      const command = workflow
+        .split("\n")
+        .find((line) => line.trim().endsWith(`; ${output}=$HASH`));
+
+      expect(command).toContain("--ignore-path 'scripts/ios/**/*'");
+      // targets/ holds iOS and tvOS extension sources only; hashing them would
+      // stop an Android binary from being reused for a Swift-only change.
+      expect(command).toContain("--ignore-path 'targets/**/*'");
+    },
+  );
+
+  it("hashes every file the Expo config points to", () => {
+    // @expo/fingerprint hashes the adaptive icon's foreground and background
+    // but not its monochrome image, which the repack does not refresh either.
+    const { expo } = JSON.parse(
+      readFileSync(path.join(__dirname, "app.json"), "utf8"),
+    );
+    expect(expo.android.adaptiveIcon.monochromeImage).toBeDefined();
+    expect(hashed).toContain(
+      expo.android.adaptiveIcon.monochromeImage.replace(/^\.\//, ""),
+    );
+  });
+
+  // A folder declared as a file fails the whole Android fingerprint (EISDIR).
+  it("declares each hashed path as the file or folder it is", () => {
+    for (const source of config.extraSources) {
+      if (source.type !== "file" && source.type !== "dir") continue;
+      const isDir = statSync(
+        path.join(__dirname, source.filePath),
+      ).isDirectory();
+      expect([source.filePath, source.type]).toEqual([
+        source.filePath,
+        isDir ? "dir" : "file",
+      ]);
+    }
+  });
+
+  it("hashes the files config plugins copy in, the network security config among them", () => {
+    expect(hashed.has("plugins")).toBe(true);
+  });
+
+  it("hashes the custom EAS build steps", () => {
+    expect(hashed.has(".eas/build")).toBe(true);
+  });
+
+  // The fingerprint hashes the config as sorted JSON, so the order of the
+  // plugins, which decides the native output, needs its own source.
+  it("hashes the order of the config plugins", () => {
+    const order = config.extraSources.find(
+      (source: { id?: string }) => source.id === "configPluginOrder",
+    );
+    const { expo } = JSON.parse(
+      readFileSync(path.join(__dirname, "app.json"), "utf8"),
+    );
+    expect(JSON.parse(order.contents)).toEqual(
+      expo.plugins.map((plugin: string | unknown[]) =>
+        Array.isArray(plugin) ? plugin[0] : plugin,
+      ),
+    );
+    // app.config.ts adds more of them, in an order of its own.
+    expect(hashed.has("app.config.ts")).toBe(true);
+  });
+
+  it("hashes every file passed as a config plugin option", () => {
+    // The tvOS icons once missed this: a new icon would have shipped in a
+    // repacked IPA with the old one still inside.
+    const { expo } = JSON.parse(
+      readFileSync(path.join(__dirname, "app.json"), "utf8"),
+    );
+    const optionFiles = JSON.stringify(
+      expo.plugins.filter(Array.isArray).map((p: unknown[]) => p.slice(1)),
+    )
+      .match(/"\.\/[^"]+"/g)
+      ?.map((quoted) => quoted.slice(3, -1))
+      .filter((file) => existsSync(path.join(__dirname, file)));
+
+    expect(optionFiles?.length).toBeGreaterThan(0);
+    for (const file of optionFiles ?? []) {
+      expect(hashed).toContain(file);
+    }
+  });
+});

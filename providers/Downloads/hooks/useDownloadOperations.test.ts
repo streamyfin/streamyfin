@@ -3,7 +3,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
+import {
+  DISK_AVAILABLE,
+  DISK_TOTAL,
+  DOCUMENTS,
+  fakeFiles,
+} from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records are real, over the MMKV double: they are what cancel reads its files from.
@@ -47,7 +52,6 @@ jest.mock("@/utils/customHeaders", () => ({
 }));
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-jest.mock("react-native-device-info", () => ({}));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -56,7 +60,12 @@ jest.mock("sonner-native", () => ({
 }));
 
 import { toast } from "sonner-native";
-import { getPendingDownload, savePendingDownload } from "../pendingDownloads";
+import {
+  getPendingDownload,
+  removePendingDownload,
+  savePendingDownload,
+} from "../pendingDownloads";
+import { getDownloadToastId } from "../utils";
 import { useDownloadOperations } from "./useDownloadOperations";
 
 const SUBTITLE = `${DOCUMENTS}/show_s01e01_subtitle_2.subrip`;
@@ -348,6 +357,25 @@ describe("startBackgroundDownload", () => {
     return failure;
   };
 
+  // A release build's console goes to logcat, where a log copied into an issue would hand out the
+  // session's token with the download URL.
+  it("logs the download URL without its ApiKey", async () => {
+    const { operations } = await renderOperations();
+
+    await act(async () => {
+      await operations.startBackgroundDownload(
+        "/Items/item-1/Download?ApiKey=SECRET_TOKEN",
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+    });
+
+    const logged = jest.mocked(console.log).mock.calls.flat().join(" ");
+    expect(logged).toContain("https://jellyfin.example/Items/item-1/Download");
+    expect(logged).not.toContain("SECRET_TOKEN");
+  });
+
   it("removes what it wrote when native refuses the download", async () => {
     mockDownloader.enqueueDownload.mockRejectedValue(new Error("no session"));
 
@@ -424,6 +452,38 @@ describe("startBackgroundDownload", () => {
     );
   });
 
+  // A download that fails right away put its failure under the toast that said it started, and
+  // the two overlapped: the failure takes that toast's place, by its id.
+  // Native can report a failure before enqueueDownload's answer comes back: the error handler
+  // then removed the record and put the reason under the item's toast id, which a "started"
+  // toast would take over.
+  it("does not say a download started once it has failed", async () => {
+    mockDownloader.enqueueDownload.mockImplementationOnce(async () => {
+      removePendingDownload("item-1");
+      return 7;
+    });
+    const { operations } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("names the toast that says the download started after the item", async () => {
+    const { operations } = await renderOperations();
+
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+
+    expect(toast.success).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_started_for_item",
+      { id: getDownloadToastId("item-1") },
+    );
+  });
+
   it("leaves a download of the same item that is already in flight alone", async () => {
     fakeFiles.add(...SIDECARS);
     savePendingDownload({
@@ -442,5 +502,19 @@ describe("startBackgroundDownload", () => {
 
     expect(mockDownloadAdditionalAssets).not.toHaveBeenCalled();
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+});
+
+describe("appSizeUsage", () => {
+  // Storage settings draw their bar from this: the volume downloads are
+  // written to, and how much of it the app's downloads take.
+  it("reports the size and free space of the volume downloads go to", async () => {
+    const { operations } = await renderOperations();
+
+    expect(await operations.appSizeUsage()).toEqual({
+      total: DISK_TOTAL,
+      remaining: DISK_AVAILABLE,
+      appSize: 0,
+    });
   });
 });
