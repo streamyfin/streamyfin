@@ -293,9 +293,13 @@ describe("the quality of a download", () => {
     mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
     await render(<DownloadSingleItem item={MOVIE} />);
 
-    expect(screen.queryByText("item_card.quality_auto")).toBeNull();
-    expect(screen.queryByText("Auto")).toBeNull();
-    expect(screen.getByText("Max")).toBeTruthy();
+    // The sheet lists its qualities as it renders, as the test above reads them: Auto is none of them.
+    const qualities = screen
+      .getAllByText(/^(Auto|item_card\.quality_auto|Max|\d+ [MK]b\/s)$/)
+      .map((option) => option.props.children);
+    expect(qualities).toContain("Max");
+    expect(qualities).not.toContain("Auto");
+    expect(qualities).not.toContain("item_card.quality_auto");
   });
 
   test("keeps a fixed default quality", async () => {
