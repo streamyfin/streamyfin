@@ -69,43 +69,28 @@ export const bitrateOptions = (
     selected: bitrate.key === selected?.key,
   }));
 
+// Only the download sheet picks from here, and a download is a file: it has no
+// connection to measure, so it is not offered Auto.
+const DOWNLOAD_BITRATES = BITRATES.filter((bitrate) => !isAutoBitrate(bitrate));
+
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
   selected?: Bitrate | null;
-  inverted?: boolean | null;
 }
 
 export const BitrateSelector: React.FC<Props> = ({
   onChange,
   selected,
-  inverted,
   ...props
 }) => {
   const isTv = Platform.isTV;
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
 
-  const sorted = useMemo(() => {
-    // Only the download sheet picks from here, and a download is a file: it
-    // has no connection to measure, so it is not offered Auto.
-    const qualities = BITRATES.filter((bitrate) => !isAutoBitrate(bitrate));
-    if (inverted)
-      return qualities.sort(
-        (a, b) =>
-          (a.value || Number.POSITIVE_INFINITY) -
-          (b.value || Number.POSITIVE_INFINITY),
-      );
-    return qualities.sort(
-      (a, b) =>
-        (b.value || Number.POSITIVE_INFINITY) -
-        (a.value || Number.POSITIVE_INFINITY),
-    );
-  }, [inverted]);
-
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        options: sorted.map((bitrate) => ({
+        options: DOWNLOAD_BITRATES.map((bitrate) => ({
           type: "radio" as const,
           label: bitrate.key,
           value: bitrate,
@@ -114,11 +99,11 @@ export const BitrateSelector: React.FC<Props> = ({
         })),
       },
     ],
-    [sorted, selected, onChange],
+    [selected, onChange],
   );
 
   const handleOptionSelect = (optionId: string) => {
-    const selectedBitrate = sorted.find((b) => b.key === optionId);
+    const selectedBitrate = DOWNLOAD_BITRATES.find((b) => b.key === optionId);
     if (selectedBitrate) {
       onChange(selectedBitrate);
     }

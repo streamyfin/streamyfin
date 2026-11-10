@@ -384,15 +384,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       return progress === 0 ? (
         <Loader />
       ) : (
-        <View className='-rotate-45'>
-          <ProgressCircle
-            size={PROGRESS_RING_SIZE}
-            fill={progress}
-            width={PROGRESS_RING_WIDTH}
-            tintColor={Colors.primary}
-            backgroundColor='white'
-          />
-        </View>
+        <ProgressCircle
+          size={PROGRESS_RING_SIZE}
+          fill={progress}
+          width={PROGRESS_RING_WIDTH}
+          tintColor={Colors.primary}
+          backgroundColor='white'
+        />
       );
     }
 
@@ -457,7 +455,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             <View className='flex flex-col space-y-2 w-full'>
               <View className='items-start'>
                 <BitrateSelector
-                  inverted
                   onChange={(val) =>
                     setSelectedOptions(
                       (prev) => prev && { ...prev, bitrate: val },

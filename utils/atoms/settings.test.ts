@@ -26,7 +26,7 @@ jest.mock(
 jest.mock("@/components/PlatformDropdown", () => ({
   PlatformDropdown: () => null,
 }));
-// The api atoms read react-native-device-info (native at test time);
+// The api atoms read expo-device (native at test time);
 // settings.ts only reads the atoms.
 jest.mock("@/utils/atoms/api", () => ({
   apiAtom: jest.requireActual("jotai").atom(null),
