@@ -1,5 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
+import { OFFLINE_PROGRESS_SYNC_TIMEOUT_MS } from "@/constants/Downloads";
 import { PLAYBACK_PROGRESS_QUERY_KEYS } from "@/constants/Playback";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -8,7 +9,7 @@ import {
   useNetworkStatus,
 } from "@/providers/NetworkStatusProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
-import { writeToLog } from "@/utils/log";
+import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   clearOfflineProgress,
   getOfflineProgress,
@@ -36,7 +37,7 @@ export function useOfflineProgressSync() {
   const { serverConnected } = useNetworkStatus();
   const api = useAtomValue(apiAtom);
   const userId = useAtomValue(userAtom)?.Id;
-  const { getDownloadedItemById } = useDownload();
+  const { getDownloadedItemById, triggerRefresh } = useDownload();
   const { syncPlaybackStateDetailed } = useTwoWaySync();
   const queryClient = useNetworkAwareQueryClient();
 
@@ -49,6 +50,7 @@ export function useOfflineProgressSync() {
     getDownloadedItemById,
     syncPlaybackStateDetailed,
     queryClient,
+    triggerRefresh,
   });
   latest.current = {
     api,
@@ -57,6 +59,7 @@ export function useOfflineProgressSync() {
     getDownloadedItemById,
     syncPlaybackStateDetailed,
     queryClient,
+    triggerRefresh,
   };
 
   const runningRef = useRef(false);
@@ -111,11 +114,14 @@ export function useOfflineProgressSync() {
         writeToLog("DEBUG", "Offline progress sync: server not answering yet");
         return;
       }
+      // Read again after the probe: the network status, the api and the user
+      // may all have changed while it was out.
+      const fresh = latest.current;
       // Signed out or switched while the probe was out: not this user's turn.
-      if (latest.current.userId !== user) return;
+      if (fresh.userId !== user) return;
 
       const results = await Promise.allSettled(
-        items.map((id) => current.syncPlaybackStateDetailed(id)),
+        items.map((id) => fresh.syncPlaybackStateDetailed(id)),
       );
       const outcome = (i: number) => {
         const result = results[i];
@@ -139,20 +145,42 @@ export function useOfflineProgressSync() {
       if (pushed > 0) {
         writeToLog("INFO", `Synced offline progress of ${pushed} item(s)`);
       }
-      // A pull rewrote the downloaded record: cached pages show the old one.
+      // A pull rewrote the downloaded record: cached pages show the old one,
+      // and the downloads views read the records directly.
       if (pushed + count("pulled") === 0) return;
+      fresh.triggerRefresh();
       await Promise.all(
         PLAYBACK_PROGRESS_QUERY_KEYS.map((queryKey) =>
-          current.queryClient.invalidateQueries({ queryKey: [...queryKey] }),
+          fresh.queryClient.invalidateQueries({ queryKey: [...queryKey] }),
         ),
       );
     };
 
-    run()
+    // A request that never settles (a proxy with no upstream timeout, a
+    // half-open connection) must not keep the sync off for the rest of the
+    // process: the run is released after a bound, and the next trigger tries
+    // again. Pushing an entry twice is harmless, the server takes the same state.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const bound = new Promise<"timeout">((resolve) => {
+      timer = setTimeout(
+        () => resolve("timeout"),
+        OFFLINE_PROGRESS_SYNC_TIMEOUT_MS,
+      );
+    });
+    Promise.race([run(), bound])
+      .then((outcome) => {
+        if (outcome === "timeout") {
+          writeToLog(
+            "WARN",
+            "Offline progress sync timed out, retrying on the next trigger",
+          );
+        }
+      })
       .catch((error) => {
-        writeToLog("ERROR", "Offline progress sync failed", error);
+        logAndCaptureError("Offline progress sync failed", error);
       })
       .finally(() => {
+        clearTimeout(timer);
         runningRef.current = false;
         const rerun = rerunRef.current;
         if (rerun) {
