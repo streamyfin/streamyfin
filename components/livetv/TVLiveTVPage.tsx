@@ -2,7 +2,7 @@ import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { ScrollView, TVFocusGuideView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
@@ -47,6 +47,9 @@ export const TVLiveTVPage: React.FC = () => {
   const user = useAtomValue(userAtom);
 
   const [activeTab, setActiveTab] = useState<TabId>("programs");
+  // Tabs switch on focus, so moving across the row would rebuild every tab
+  // passed on the way. A visited tab stays mounted and is only hidden.
+  const [visitedTabs, setVisitedTabs] = useState<TabId[]>(["programs"]);
 
   // Section configurations for Programs tab
   const sections = useMemo(() => {
@@ -164,57 +167,59 @@ export const TVLiveTVPage: React.FC = () => {
 
   const handleTabSelect = useCallback((tabId: TabId) => {
     setActiveTab(tabId);
+    setVisitedTabs((prev) => (prev.includes(tabId) ? prev : [...prev, tabId]));
   }, []);
 
-  const renderProgramsContent = () => (
-    <ScrollView
-      nestedScrollEnabled
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingTop: 24,
-        paddingBottom: insets.bottom + 60,
-      }}
-    >
-      <View
-        style={{
-          gap: SECTION_GAP,
-          paddingHorizontal: insets.left + HORIZONTAL_PADDING,
+  const programsContent = useMemo(
+    () => (
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: 24,
+          paddingBottom: insets.bottom + 60,
         }}
       >
-        {sections.map((section) => (
-          <InfiniteScrollingCollectionList
-            key={section.queryKey.join("-")}
-            title={section.title}
-            queryKey={section.queryKey}
-            queryFn={section.queryFn}
-            orientation='horizontal'
-            hideIfEmpty
-            pageSize={10}
-            enabled={true}
-            isFirstSection={false}
-          />
-        ))}
-      </View>
-    </ScrollView>
+        <View
+          style={{
+            gap: SECTION_GAP,
+            paddingHorizontal: insets.left + HORIZONTAL_PADDING,
+          }}
+        >
+          {sections.map((section) => (
+            <InfiniteScrollingCollectionList
+              key={section.queryKey.join("-")}
+              title={section.title}
+              queryKey={section.queryKey}
+              queryFn={section.queryFn}
+              orientation='horizontal'
+              hideIfEmpty
+              pageSize={10}
+              enabled={true}
+              isFirstSection={false}
+            />
+          ))}
+        </View>
+      </ScrollView>
+    ),
+    [sections, insets.bottom, insets.left],
   );
 
-  const renderTabContent = () => {
-    if (activeTab === "programs") {
-      return renderProgramsContent();
-    }
-
-    if (activeTab === "guide") {
-      return <TVLiveTVGuide />;
-    }
-
-    if (activeTab === "channels") {
-      return <TVChannelsGrid />;
-    }
-
-    // Placeholder for other tabs
-    const tab = TABS.find((t) => t.id === activeTab);
-    return <TVLiveTVPlaceholder tabName={t(tab?.labelKey || "")} />;
-  };
+  // Stable elements: a switch only changes which tab is shown, so React
+  // skips the content of every tab, visible or not.
+  const tabContents = useMemo<Record<TabId, React.ReactNode>>(
+    () => ({
+      programs: programsContent,
+      guide: <TVLiveTVGuide />,
+      channels: <TVChannelsGrid />,
+      recordings: (
+        <TVLiveTVPlaceholder tabName={t("live_tv.tabs.recordings")} />
+      ),
+      schedule: <TVLiveTVPlaceholder tabName={t("live_tv.tabs.schedule")} />,
+      series: <TVLiveTVPlaceholder tabName={t("live_tv.tabs.series")} />,
+    }),
+    [programsContent, t],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -238,8 +243,10 @@ export const TVLiveTVPage: React.FC = () => {
           {t("live_tv.title")}
         </Text>
 
-        {/* Tab Bar */}
-        <View
+        {/* Tab Bar: a tab switches on focus, so focus entering the row must
+            land on the active tab rather than on the tab nearest to it. */}
+        <TVFocusGuideView
+          autoFocus
           style={{
             flexDirection: "row",
             gap: 8,
@@ -255,11 +262,18 @@ export const TVLiveTVPage: React.FC = () => {
               switchOnFocus={true}
             />
           ))}
-        </View>
+        </TVFocusGuideView>
       </View>
 
       {/* Tab Content */}
-      <View style={{ flex: 1 }}>{renderTabContent()}</View>
+      {visitedTabs.map((tabId) => (
+        <View
+          key={tabId}
+          style={{ flex: 1, display: tabId === activeTab ? "flex" : "none" }}
+        >
+          {tabContents[tabId]}
+        </View>
+      ))}
     </View>
   );
 };
