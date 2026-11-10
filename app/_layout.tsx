@@ -57,12 +57,6 @@ const JellyfinCastStopReporter = Platform.isTV
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
-import type { EventSubscription } from "expo-modules-core";
-import type {
-  Notification,
-  NotificationResponse,
-} from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { DarkTheme, Stack, ThemeProvider, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
