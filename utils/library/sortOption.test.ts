@@ -1,4 +1,5 @@
-import { SortByOption, sortOptionsFor } from "@/utils/atoms/filters";
+import { SortByOption } from "@/utils/atoms/filters";
+import { sortOptionsFor } from "./libraryFilterSets";
 import { resolveSortKey } from "./sortOption";
 
 jest.mock(
@@ -11,7 +12,7 @@ jest.mock("@/utils/atoms/settings", () => ({}));
 describe("resolveSortKey", () => {
   test("keeps a key the shown list offers", () => {
     expect(
-      resolveSortKey(SortByOption.PremiereDate, sortOptionsFor(undefined)),
+      resolveSortKey(SortByOption.PremiereDate, sortOptionsFor("unknown")),
     ).toBe(SortByOption.PremiereDate);
   });
 
@@ -21,7 +22,7 @@ describe("resolveSortKey", () => {
     expect(
       resolveSortKey(
         SortByOption.DateLastContentAdded,
-        sortOptionsFor(undefined),
+        sortOptionsFor("unknown"),
       ),
     ).toBe(SortByOption.SortName);
   });

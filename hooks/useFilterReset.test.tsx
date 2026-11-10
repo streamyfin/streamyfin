@@ -11,6 +11,7 @@ import {
   subtitleLanguageFilterAtom,
   subtitleLanguagePreferenceAtom,
 } from "@/utils/atoms/filters";
+import type { LibraryKind } from "@/utils/library/libraryFilterSets";
 import { useFilterReset } from "./useFilterReset";
 
 jest.mock(
@@ -28,8 +29,11 @@ const libraryStore = () => {
   return store;
 };
 
-const renderReset = async (store: ReturnType<typeof createStore>) => {
-  const { result } = await renderHook(() => useFilterReset("movies"), {
+const renderReset = async (
+  store: ReturnType<typeof createStore>,
+  kind: LibraryKind = "movies",
+) => {
+  const { result } = await renderHook(() => useFilterReset("movies", kind), {
     wrapper: ({ children }: { children: React.ReactNode }) => (
       <JotaiProvider store={store}>{children}</JotaiProvider>
     ),
@@ -88,4 +92,23 @@ test("a reset clears the official ratings and forgets only this library's memory
   expect(store.get(officialRatingFilterAtom)).toEqual([]);
   expect(store.get(officialRatingPreferenceAtom)).toEqual({ shows: ["TV-MA"] });
   expect(result.current.hasActiveFilters).toBe(false);
+});
+
+// A selection saved in another kind of library is not on screen here, so it
+// must not show a reset button nobody can explain.
+test("a hidden filter and an unoffered sort do not light the reset", async () => {
+  const store = libraryStore();
+  store.set(audioLanguageFilterAtom, ["eng"]);
+  store.set(sortByAtom, [SortByOption.DateLastContentAdded]);
+  const result = await renderReset(store, "boxsets");
+
+  expect(result.current.hasActiveFilters).toBe(false);
+});
+
+test("the same selection lights the reset where it is offered", async () => {
+  const store = libraryStore();
+  store.set(audioLanguageFilterAtom, ["eng"]);
+  const result = await renderReset(store, "movies");
+
+  expect(result.current.hasActiveFilters).toBe(true);
 });

@@ -90,7 +90,6 @@ import {
   SortOrderOption,
   sortByAtom,
   sortByPreferenceAtom,
-  sortOptionsFor,
   sortOrderAtom,
   sortOrderOptions,
   sortOrderPreferenceAtom,
@@ -118,6 +117,14 @@ import {
 } from "@/utils/jellyfin/languageFilters";
 import { supportsNameBounds } from "@/utils/jellyfin/serverVersion";
 import {
+  effectiveSelection,
+  type FilterGroupKey,
+  filterByOptionsFor,
+  filterGroupsFor,
+  libraryKindFor,
+  sortOptionsFor,
+} from "@/utils/library/libraryFilterSets";
+import {
   buildLibraryItemsQuery,
   isQueueableLibrary,
   type LibraryItemsFilter,
@@ -131,6 +138,7 @@ import {
   libraryTabUsesFilterBar,
 } from "@/utils/library/libraryTabs";
 import { withSelectedRatings } from "@/utils/library/officialRatings";
+import { resolveSortKey } from "@/utils/library/sortOption";
 import { writeToLog } from "@/utils/log";
 import { store } from "@/utils/store";
 
@@ -156,6 +164,26 @@ const toggled = (selected: string[], value: string): string[] =>
     : selected.includes(value)
       ? selected.filter((picked) => picked !== value)
       : [...selected, value];
+
+// The filter group each phone chip and TV sheet group belongs to, for hiding
+// the ones the kind of library does not offer. Sort and reset belong to none.
+const GROUP_OF_KEY: Record<string, FilterGroupKey> = {
+  genre: "genres",
+  genres: "genres",
+  year: "years",
+  years: "years",
+  tags: "tags",
+  officialRatings: "officialRatings",
+  audioLanguageFilter: "audioLanguages",
+  subtitleLanguageFilter: "subtitleLanguages",
+  filterOptions: "filterBy",
+  filterBy: "filterBy",
+};
+
+const isShown = (groups: readonly FilterGroupKey[], key: string): boolean => {
+  const group = GROUP_OF_KEY[key];
+  return !group || groups.includes(group);
+};
 
 interface LanguageFilterEntry {
   key: string;
@@ -202,7 +230,7 @@ const LibraryPage = () => {
   // effect below has written it, so the query waits for that instead of
   // fetching with whatever they held before. Covered by
   // hooks/useLibraryFilters.test.tsx.
-  const ownFilters = useLibraryFilters(libraryId);
+  const heldFilters = useLibraryFilters(libraryId);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [filterByPreference, setFilterByPreference] = useAtom(
     FilterByPreferenceAtom,
@@ -560,7 +588,17 @@ const LibraryPage = () => {
     } as any);
   }, [router, libraryId]);
 
-  const sortOptions = sortOptionsFor(library?.CollectionType);
+  // What the page offers and acts on follows the kind of library. A sort or
+  // filter saved in another kind falls back here without touching the saved
+  // preference, so it is back in a library that offers it.
+  const kind = libraryKindFor(library);
+  const groups = filterGroupsFor(kind);
+  const sortOptions = sortOptionsFor(kind);
+  const activeSortBy = resolveSortKey(sortBy[0], sortOptions);
+  const ownFilters = useMemo(
+    () => heldFilters && effectiveSelection(kind, heldFilters),
+    [kind, heldFilters],
+  );
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -626,7 +664,7 @@ const LibraryPage = () => {
   // depends on. The logic is covered by utils/jellyfin/alphabetJump.test.ts.
   const canJumpToLetter =
     hasFilterBar &&
-    sortBy[0] === SortByOption.SortName &&
+    activeSortBy === SortByOption.SortName &&
     supportsNameBounds(serverVersion);
   // `serial` tells one jump from the next, the same letter again included:
   // that is the way back to the first of its titles, so every jump starts the
@@ -875,7 +913,7 @@ const LibraryPage = () => {
     [router, showItemActions, api, typography],
   );
 
-  const generalFilters = useFilterOptions();
+  const generalFilters = useFilterOptions(filterByOptionsFor(kind));
   // The two language filters, described once for the mobile chips and the TV
   // buttons. Empty when the filters are not offered.
   const languageFilterEntries = useMemo(
@@ -929,7 +967,7 @@ const LibraryPage = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton libraryId={libraryId} />,
+            component: <ResetFiltersButton libraryId={libraryId} kind={kind} />,
           },
           {
             key: "genre",
@@ -1042,10 +1080,10 @@ const LibraryPage = () => {
                 id={libraryId}
                 // The options depend on the library's type, which can arrive
                 // after the button has cached the list for this id.
-                queryKey={`sortBy:${library?.CollectionType ?? ""}`}
+                queryKey={`sortBy:${kind}`}
                 queryFn={async () => sortOptions.map((s) => s.key)}
                 set={setSortBy}
-                values={sortBy}
+                values={[activeSortBy]}
                 title={t("library.filters.sort_by")}
                 renderItemLabel={(item) =>
                   sortOptions.find((i) => i.key === item)?.value || ""
@@ -1076,7 +1114,7 @@ const LibraryPage = () => {
               <FilterButton
                 className='mr-1'
                 id={libraryId}
-                queryKey='filters'
+                queryKey={`filters:${kind}`}
                 queryFn={async () => generalFilters.map((s) => s.key)}
                 set={setFilter}
                 values={filterBy}
@@ -1087,7 +1125,7 @@ const LibraryPage = () => {
               />
             ),
           },
-        ]}
+        ].filter((item) => isShown(groups, item.key))}
         renderItem={({ item }) => item.component}
         keyExtractor={(item) => item.key}
       />
@@ -1106,7 +1144,7 @@ const LibraryPage = () => {
       selectedOfficialRatings,
       setOfficialRatings,
       languageFilterEntries,
-      sortBy,
+      activeSortBy,
       setSortBy,
       sortOrder,
       setSortOrder,
@@ -1115,13 +1153,15 @@ const LibraryPage = () => {
       generalFilters,
       sortOptions,
       library?.CollectionType,
+      groups,
+      kind,
     ],
   );
 
   // Filter bar reset and its visibility, shared with the mobile
   // ResetFiltersButton so sort and order can't be forgotten on one path (they
   // used to be reset on neither).
-  const { hasActiveFilters, resetAllFilters } = useFilterReset(libraryId);
+  const { hasActiveFilters, resetAllFilters } = useFilterReset(libraryId, kind);
 
   // TV Filter options - with "All" option for clearable filters
   const tvGenreFilterOptions = useMemo(
@@ -1193,9 +1233,9 @@ const LibraryPage = () => {
       sortOptions.map((option) => ({
         label: option.value,
         value: option.key,
-        selected: sortBy[0] === option.key,
+        selected: activeSortBy === option.key,
       })),
-    [sortBy, sortOptions],
+    [activeSortBy, sortOptions],
   );
 
   const tvSortOrderOptions = useMemo(
@@ -1297,8 +1337,9 @@ const LibraryPage = () => {
         (v) => setFilter(v === ALL_OPTION ? [] : [v as FilterByOption]),
         false,
       ),
-    ];
+    ].filter((entry) => isShown(groups, entry.key));
   }, [
+    groups,
     t,
     tvGenreFilterOptions,
     tvYearFilterOptions,
