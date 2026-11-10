@@ -4,6 +4,7 @@ import { Platform, View } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
+import useRouter from "@/hooks/useAppRouter";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -12,6 +13,7 @@ import { ListItem } from "../list/ListItem";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
+  const router = useRouter();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const confirmDelete = useConfirmDelete();
@@ -120,6 +122,11 @@ export const StorageSettings = () => {
       </View>
       {!Platform.isTV && (
         <ListGroup className='mt-4'>
+          <ListItem
+            onPress={() => router.push("/settings/downloads/page")}
+            showArrow
+            title={t("home.settings.storage.download_defaults")}
+          />
           <ListItem
             textColor='red'
             onPress={onDeleteClicked}
