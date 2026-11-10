@@ -1,54 +1,134 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useCallback, useMemo } from "react";
+import { useActionSheet } from "@expo/react-native-action-sheet";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Linking,
-  TouchableOpacity,
-  View,
-  type ViewProps,
-} from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
-import type { MovieDetails, TvDetails } from "@/utils/seerr/types";
+import { Text } from "@/components/common/Text";
+import { type TrailerSourceItem, useTrailers } from "@/hooks/useTrailers";
+import { trailerLabels } from "@/utils/jellyfin/media/trailers";
 
-interface Props extends ViewProps {
-  item: BaseItemDto | MovieDetails | TvDetails;
+interface Props {
+  item: TrailerSourceItem;
+  /**
+   * Round like the buttons beside Play, or `"header"` for a native stack
+   * header, where an icon stands alone.
+   */
+  variant?: "round" | "header";
+  /** Tints the round button like its neighbours. */
+  color?: string;
+  iconColor?: string;
+  /**
+   * Space to the control before it. A prop and not a style, as on
+   * SyncPlayQueueButton: the row's own spacing would add to a margin.
+   */
+  leadingGap?: number;
 }
 
-export const ItemActions = ({ item, ...props }: Props) => {
+/** Tap plays the preferred trailer, long press lists every one. */
+export const ItemActions = ({
+  item,
+  variant = "round",
+  color = "#262626",
+  iconColor = "white",
+  leadingGap = 0,
+}: Props) => {
   const { t } = useTranslation();
-  const trailerLink = useMemo(() => {
-    if ("RemoteTrailers" in item && item.RemoteTrailers?.[0]?.Url) {
-      return item.RemoteTrailers[0].Url;
-    }
+  const { showActionSheetWithOptions } = useActionSheet();
+  const { bottom } = useSafeAreaInsets();
+  const { trailers, playTrailer, isDiscovering } = useTrailers(item);
+  const pendingChooseRef = useRef(false);
 
-    if ("relatedVideos" in item) {
-      return item.relatedVideos?.find((v) => v.type === "Trailer")?.url;
-    }
+  const playPreferred = useCallback(() => {
+    if (trailers[0]) playTrailer(trailers[0]);
+  }, [trailers, playTrailer]);
 
-    return undefined;
-  }, [item]);
-
-  const openTrailer = useCallback(async () => {
-    if (!trailerLink) {
-      Alert.alert(t("common.no_trailer_available"));
+  const chooseTrailer = useCallback(() => {
+    // The sheet's options are a one-shot snapshot: open it once discovery
+    // settles, rather than before the library trailer has had a chance to
+    // join the list.
+    if (isDiscovering) {
+      pendingChooseRef.current = true;
       return;
     }
+    // A trailer can vanish from under the deferred open, e.g. a metadata
+    // refresh dropping the remote one while the library lookup was pending.
+    if (trailers.length === 0) return;
+    showActionSheetWithOptions(
+      {
+        title: t("item_card.choose_trailer"),
+        options: [...trailerLabels(t, trailers), t("common.cancel")],
+        cancelButtonIndex: trailers.length,
+        // The library ignores the Android nav bar; pad above it ourselves.
+        containerStyle: { paddingBottom: bottom },
+      },
+      (index) => {
+        const trailer = index === undefined ? undefined : trailers[index];
+        if (trailer) playTrailer(trailer);
+      },
+    );
+  }, [
+    trailers,
+    playTrailer,
+    showActionSheetWithOptions,
+    t,
+    bottom,
+    isDiscovering,
+  ]);
 
-    try {
-      await Linking.openURL(trailerLink);
-    } catch (err) {
-      console.error("Failed to open trailer link:", err);
+  useEffect(() => {
+    if (!isDiscovering && pendingChooseRef.current) {
+      pendingChooseRef.current = false;
+      chooseTrailer();
     }
-  }, [trailerLink, t]);
+  }, [isDiscovering, chooseTrailer]);
+
+  if (trailers.length === 0) return null;
+
+  const label = t("item_card.trailer_count", { count: trailers.length });
+
+  if (variant === "header") {
+    return (
+      <HeaderButton
+        onPress={playPreferred}
+        onLongPress={chooseTrailer}
+        accessibilityRole='button'
+        accessibilityLabel={label}
+      >
+        <HeaderIcon name='trailer' />
+      </HeaderButton>
+    );
+  }
 
   return (
-    <View className='' {...props}>
-      {trailerLink && (
-        <TouchableOpacity onPress={openTrailer}>
-          <HeaderIcon name='trailer' />
-        </TouchableOpacity>
+    <TouchableOpacity
+      onPress={playPreferred}
+      onLongPress={chooseTrailer}
+      accessibilityRole='button'
+      accessibilityLabel={label}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      className='relative'
+      style={{ marginLeft: leadingGap }}
+    >
+      <View
+        style={{ backgroundColor: color, opacity: 0.7 }}
+        className='absolute w-12 h-12 rounded-full'
+      />
+      <View className='w-12 h-12 rounded-full z-10 items-center justify-center'>
+        <HeaderIcon name='trailer' tintColor={iconColor} />
+      </View>
+      {/* More than one: say so, as a hint the long press lists them. */}
+      {trailers.length > 1 && (
+        <View
+          className='absolute -top-1 -right-1 z-20 min-w-[18px] h-[18px] px-1 rounded-full items-center justify-center'
+          style={{ backgroundColor: iconColor }}
+        >
+          <Text style={{ color, fontSize: 11, fontWeight: "700" }}>
+            {trailers.length}
+          </Text>
+        </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 };

@@ -406,6 +406,13 @@ export type HomeHeroSection = "continueWatching" | "nextUp" | "recentlyAdded";
 /** Media kinds that can appear in the home hero carousel. */
 export type HomeHeroMediaType = "movie" | "tv";
 
+/** Library: a trailer file on the server. Remote: a link, mostly YouTube. */
+export type TrailerSource =
+  | "preferLibrary"
+  | "preferRemote"
+  | "libraryOnly"
+  | "remoteOnly";
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -534,6 +541,7 @@ export type Settings = {
   tvThemeMusicEnabled: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
+  trailerSource: TrailerSource;
   hideWatchlistsTab: boolean;
   // Audio look-ahead caching
   audioLookaheadEnabled: boolean;
@@ -714,6 +722,7 @@ export const defaultValues: Settings = {
   tvThemeMusicEnabled: true,
   // Appearance
   hideRemoteSessionButton: false,
+  trailerSource: "preferLibrary",
   hideWatchlistsTab: false,
   // Audio look-ahead caching defaults
   audioLookaheadEnabled: true,

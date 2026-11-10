@@ -169,6 +169,12 @@
         "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide remote session button",
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
+        "trailer_source": "Trailers",
+        "trailer_source_hint": "Library trailers play in Streamyfin, remote ones open in your browser or YouTube.",
+        "trailer_source_prefer_library": "Prefer library",
+        "trailer_source_prefer_remote": "Prefer remote",
+        "trailer_source_library_only": "Library only",
+        "trailer_source_remote_only": "Remote only",
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
         "show_hero_carousel_hint": "Show the large swipeable carousel at the top of the home screen.",
@@ -723,7 +729,6 @@
   },
   "common": {
     "no_results": "No results",
-    "no_trailer_available": "No trailer available",
     "video": "Video",
     "audio": "Audio",
     "subtitle": "Subtitle",
@@ -868,6 +873,7 @@
     "could_not_open_link": "Could not open this link"
   },
   "player": {
+    "trailer_title": "Trailer: {{name}}",
     "live": "LIVE",
     "auto_subtitles_enabled": "Subtitles on while muted",
     "auto_subtitles_restart_required": "These subtitles need playback to restart. Enable it in Settings, Audio and subtitles.",
@@ -975,6 +981,13 @@
     "close": "Close chapters"
   },
   "item_card": {
+    "trailer_count_one": "Trailer",
+    "trailer_count_other": "{{count}} trailers",
+    "trailer_count": "{{count}} trailers",
+    "choose_trailer": "Choose a trailer",
+    "trailer_library": "{{name}} (Library)",
+    "trailer_remote": "{{name}} (Remote)",
+    "trailer_numbered": "{{name}} {{number}}",
     "next_up": "Next up",
     "no_items_to_display": "No items to display",
     "cast_and_crew": "Cast & crew",

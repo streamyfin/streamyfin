@@ -25,6 +25,7 @@ import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import { ItemActions } from "@/components/series/SeriesActions";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { LOGO_HEIGHT } from "@/constants/Images";
@@ -183,6 +184,12 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                   nothing to start one with. */}
               {item.Type !== "Program" && !isOffline && (
                 <SyncPlayButton items={[item]} title={item.Name} />
+              )}
+              {/* Alongside the other whole-item actions, not beside Play:
+                  unlike SyncPlayQueueButton and MediaSourceButton it has
+                  nothing to do with the version Play is about to start. */}
+              {item.Type !== "Program" && !isOffline && (
+                <ItemActions item={item} variant='header' />
               )}
               {item.Type !== "Program" && (
                 <>

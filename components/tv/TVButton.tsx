@@ -6,6 +6,7 @@ import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVButtonProps {
   onPress: () => void;
+  onLongPress?: () => void;
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "glass" | "warning";
   hasTVPreferredFocus?: boolean;
@@ -16,6 +17,7 @@ export interface TVButtonProps {
   refSetter?: (ref: View | null) => void;
   nextFocusDown?: number;
   nextFocusUp?: number;
+  accessibilityLabel?: string;
 }
 
 const getButtonStyles = (
@@ -71,6 +73,7 @@ const getButtonStyles = (
 
 export const TVButton: React.FC<TVButtonProps> = ({
   onPress,
+  onLongPress,
   children,
   variant = "primary",
   hasTVPreferredFocus = false,
@@ -81,6 +84,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
   refSetter,
   nextFocusDown,
   nextFocusUp,
+  accessibilityLabel,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount });
@@ -91,6 +95,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
     <Pressable
       ref={refSetter}
       onPress={onPress}
+      onLongPress={onLongPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
@@ -98,6 +103,8 @@ export const TVButton: React.FC<TVButtonProps> = ({
       focusable={!disabled}
       nextFocusDown={nextFocusDown}
       nextFocusUp={nextFocusUp}
+      accessibilityRole='button'
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[animatedStyle, style]}>
         <View

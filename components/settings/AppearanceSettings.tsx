@@ -1,12 +1,19 @@
+import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Platform } from "react-native";
+import { Linking, Platform, View } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
+import { Text } from "@/components/common/Text";
+import {
+  type OptionGroup,
+  PlatformDropdown,
+} from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
 import { isHeroCarouselAvailable } from "@/modules";
-import { useSettings } from "@/utils/atoms/settings";
+import { type TrailerSource, useSettings } from "@/utils/atoms/settings";
+import { TRAILER_SOURCE_LABEL_KEYS } from "@/utils/jellyfin/media/trailers";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -20,6 +27,23 @@ export const AppearanceSettings: React.FC = () => {
       pluginSettings?.showCustomMenuLinks?.locked === true &&
       pluginSettings?.hiddenLibraries?.locked === true,
     [pluginSettings],
+  );
+
+  const trailerSourceOptions = useMemo<OptionGroup[]>(
+    () => [
+      {
+        options: (
+          Object.keys(TRAILER_SOURCE_LABEL_KEYS) as TrailerSource[]
+        ).map((source) => ({
+          type: "radio",
+          label: t(TRAILER_SOURCE_LABEL_KEYS[source]),
+          value: source,
+          selected: settings?.trailerSource === source,
+          onPress: () => updateSettings({ trailerSource: source }),
+        })),
+      },
+    ],
+    [settings?.trailerSource, updateSettings, t],
   );
 
   if (!settings) return null;
@@ -110,6 +134,29 @@ export const AppearanceSettings: React.FC = () => {
             value={settings.hideRemoteSessionButton}
             onValueChange={(value) =>
               updateSettings({ hideRemoteSessionButton: value })
+            }
+          />
+        </ListItem>
+        <ListItem
+          title={t("home.settings.appearance.trailer_source")}
+          subtitle={t("home.settings.appearance.trailer_source_hint")}
+          disabledByAdmin={pluginSettings?.trailerSource?.locked}
+        >
+          <PlatformDropdown
+            groups={trailerSourceOptions}
+            title={t("home.settings.appearance.trailer_source")}
+            disabled={pluginSettings?.trailerSource?.locked}
+            trigger={
+              <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(TRAILER_SOURCE_LABEL_KEYS[settings.trailerSource])}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
             }
           />
         </ListItem>

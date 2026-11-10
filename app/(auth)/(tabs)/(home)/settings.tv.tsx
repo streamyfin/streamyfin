@@ -55,11 +55,13 @@ import {
   type MpvCacheMode,
   type MpvVoDriver,
   type SegmentSkipMode,
+  type TrailerSource,
   TVTypographyScale,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
 import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
+import { TRAILER_SOURCE_LABEL_KEYS } from "@/utils/jellyfin/media/trailers";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
@@ -759,6 +761,18 @@ export default function SettingsTV() {
     return option?.label || t("home.settings.appearance.display_size_default");
   }, [typographyScaleOptions, t]);
 
+  const trailerSourceOptions: TVOptionItem<TrailerSource>[] = useMemo(
+    () =>
+      (Object.keys(TRAILER_SOURCE_LABEL_KEYS) as TrailerSource[]).map(
+        (source) => ({
+          label: t(TRAILER_SOURCE_LABEL_KEYS[source]),
+          value: source,
+          selected: settings.trailerSource === source,
+        }),
+      ),
+    [settings.trailerSource, t],
+  );
+
   const cacheModeLabel = useMemo(() => {
     const option = cacheModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.buffer.cache_auto");
@@ -1423,6 +1437,18 @@ export default function SettingsTV() {
                   updateSettings({ preferedLanguage: value }),
               })
             }
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.appearance.trailer_source")}
+            value={t(TRAILER_SOURCE_LABEL_KEYS[settings.trailerSource])}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.appearance.trailer_source"),
+                options: trailerSourceOptions,
+                onSelect: (value) => updateSettings({ trailerSource: value }),
+              })
+            }
+            disabledByAdmin={pluginSettings?.trailerSource?.locked}
           />
           <TVSettingsToggle
             label={t(

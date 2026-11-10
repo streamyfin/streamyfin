@@ -57,6 +57,9 @@ jest.mock("@/components/cards/useCardGrid", () => ({
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({}),
 }));
+jest.mock("@/hooks/useTrailers", () => ({
+  useTrailers: () => ({ trailers: [], playTrailer: () => {} }),
+}));
 jest.mock("@/hooks/useMarkAsPlayed", () => ({
   useMarkAsPlayed: () => () => {},
 }));
