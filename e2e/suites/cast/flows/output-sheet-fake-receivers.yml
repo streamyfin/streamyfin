@@ -67,12 +67,12 @@ appId: com.fredrikburmester.streamyfin
 - extendedWaitUntil:
     visible: "Disconnect"
     timeout: 15000
+# Disconnect also closes the sheet, as the Cast SDK's dialog does, and the button says the session ended.
 - tapOn: "Disconnect"
 - extendedWaitUntil:
-    visible: "Bench TV"
+    notVisible: "Play on"
     timeout: 15000
-- takeScreenshot: output-sheet-disconnected
-- back
 - extendedWaitUntil:
     visible: "Cast button.*, Not connected"
     timeout: 15000
+- takeScreenshot: output-sheet-disconnected
