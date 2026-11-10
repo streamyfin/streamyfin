@@ -195,14 +195,25 @@ extension GoogleCastTargetPort {
   }
 }
 
-/// Gives the shared hub its port, once per process: every module instance and the debug probe come through here.
-enum RemoteTargets {
+/// Timers on the main queue, cancellable, for the fake receivers and the debug probe.
+private let mainQueueSchedule: (Double, @escaping () -> Void) -> (() -> Void) = { delayMs, run in
+  let work = DispatchWorkItem(block: run)
+  DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+  return { work.cancel() }
+}
+
+extension RemoteTargets {
   private static var installed = false
 
+  /// Once per process: every module instance and the debug probe come through here.
   static func installDefault(hub: RemoteTargetHub = .shared) {
     guard !installed else { return }
     installed = true
-    hub.install(GoogleCastTargetPort.make())
+    hub.install(
+      portFor(fake: fakeDevices, real: { GoogleCastTargetPort.make() }, schedule: mainQueueSchedule) {
+        Logger.shared.log($0, type: "RemoteTargets")
+      }
+    )
   }
 }
 
@@ -221,12 +232,7 @@ extension CastTargetProbe {
     let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
     let probe = CastTargetProbe(
       hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back,
-      schedule: { delayMs, run in
-        let work = DispatchWorkItem(block: run)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
-        return { work.cancel() }
-      },
-      log: log
+      schedule: mainQueueSchedule, log: log
     )
     if let next, !next.isEmpty {
       probe.onFinish = { result in
