@@ -141,10 +141,13 @@ class LogRedactionTest {
                 "http://jf.example:8096/Videos/2b5e727fd61e95f0ca3fd552b1132d22/stream?static=true&api_key=SECRET"
             ),
         )
-        // Behind a base path, with the dashed id the subtitle routes carry, and an HLS segment.
-        val subtitle = "https://jf.example/jellyfin/Videos/b8ba64b6-8d39-ccf2-f594-85c42d5baa7b/" +
+        // A subtitle route, with the dashed id it carries, behind a base path that stays hidden.
+        val subtitle = "/Videos/b8ba64b6-8d39-ccf2-f594-85c42d5baa7b/" +
             "b8ba64b68d39ccf2f59485c42d5baa7b/Subtitles/2/0/Stream.srt"
-        assertEquals(subtitle, redactStreamUrls(subtitle))
+        assertEquals(
+            "https://jf.example/[base]$subtitle",
+            redactStreamUrls("https://jf.example/jellyfin$subtitle"),
+        )
         val segment = "https://jf.example/Videos/2b5e727fd61e95f0ca3fd552b1132d22/hls1/main/0.ts"
         assertEquals(segment, redactStreamUrls(segment))
     }
@@ -163,12 +166,21 @@ class LogRedactionTest {
         )
     }
 
-    // A path segment named like Jellyfin's routes is not enough: the id must follow it.
+    // Segments named like Jellyfin's routes are not enough: only a route matched whole is kept,
+    // and whatever precedes it is hidden.
     @Test
-    fun doesNotTakeAVideosFolderOfAnotherHostForJellyfin() {
+    fun trustsOnlyAWholeJellyfinRoute() {
         assertEquals(
             "https://cdn.example.com/[redacted]",
             redactStreamUrls("https://cdn.example.com/Videos/USER/PASS/movie.mkv"),
+        )
+        assertEquals(
+            "http://provider.example/[redacted]",
+            redactStreamUrls("http://provider.example/Videos/0123456789abcdef0123456789abcdef/USER/PASS/a.mkv"),
+        )
+        assertEquals(
+            "http://provider.example/[base]/Videos/0123456789abcdef0123456789abcdef/stream",
+            redactStreamUrls("http://provider.example/USER/PASS/Videos/0123456789abcdef0123456789abcdef/stream"),
         )
     }
 }

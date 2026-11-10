@@ -19,10 +19,17 @@ internal fun redactCredentials(value: String): String =
         .replace(USERINFO, "$1[redacted]@")
         .replace(CREDENTIAL_PARAM, "$1[redacted]")
 
-// Jellyfin's own media endpoints, behind any base path: /Videos/{id}/..., /Audio/{id}/... (an item
-// id with or without its dashes) and Live TV's.
-private val JELLYFIN_MEDIA_PATH = Regex(
-    "/(?:(?:Videos|Audio)/[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}|LiveTv)(?:[/?#]|$)"
+// An item or media source id, with or without its dashes.
+private const val JELLYFIN_ID =
+    "[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+// Jellyfin's own media routes, whole: an item's stream, HLS playlist or segment, sidecar
+// subtitle, and Live TV's stream files. Whatever precedes the route (a base path) is group 1.
+private val JELLYFIN_MEDIA_ROUTE = Regex(
+    "^(.*?)(" +
+        "/(?:Videos|Audio)/$JELLYFIN_ID/(?:stream(?:\\.\\w+)?|universal|(?:master|main|live)\\.m3u8|" +
+        "hls1?/\\w+/\\d+\\.\\w+|$JELLYFIN_ID/Subtitles/\\d+/(?:\\d+/Stream\\.\\w+|subtitles\\.m3u8))|" +
+        "/LiveTv/(?:LiveStreamFiles|LiveRecordings)/$JELLYFIN_ID/stream(?:\\.\\w+)?" +
+        ")$"
 )
 private val REMOTE_URL = Regex(
     "([a-z][a-z0-9+.-]*://)(?:[^\\s/?#@]+@)?([^\\s/?#\"'<>]*)([^\\s\"'<>]*)",
@@ -31,17 +38,23 @@ private val REMOTE_URL = Regex(
 private val LOCAL_SCHEMES = setOf("file://", "content://", "asset://", "android.resource://")
 
 /**
- * Every URL in [text] as a log line may carry it. A Jellyfin endpoint keeps its path, credentials
- * masked; a local file keeps its path; any other URL keeps only its origin. A path handed through
- * from a remote source (an IPTV or .strm item) can hold its credentials as path segments
- * (/movie/USER/PASS/123.mkv), which no parameter list can name.
+ * Every URL in [text] as a log line may carry it. A URL whose path is one of Jellyfin's media
+ * routes keeps that route, credentials masked, with any base path before it hidden; a local file
+ * keeps its path; any other URL keeps only its origin. A path handed through from a remote source
+ * (an IPTV or .strm item) can hold its credentials as path segments (/movie/USER/PASS/123.mkv),
+ * which no parameter list can name, so only a route matched whole is trusted.
  */
 internal fun redactStreamUrls(text: String): String =
     REMOTE_URL.replace(redactCredentials(text)) { url ->
         val (scheme, host, rest) = url.destructured
+        val path = rest.substringBefore('?').substringBefore('#')
+        val route = JELLYFIN_MEDIA_ROUTE.matchEntire(path)
         when {
             scheme.lowercase() in LOCAL_SCHEMES -> url.value
-            JELLYFIN_MEDIA_PATH.containsMatchIn(rest.substringBefore('?').substringBefore('#')) -> url.value
+            route != null -> {
+                val base = if (route.groupValues[1].isEmpty()) "" else "/[base]"
+                scheme + host + base + route.groupValues[2] + rest.substring(path.length)
+            }
             else -> "$scheme$host/[redacted]"
         }
     }
