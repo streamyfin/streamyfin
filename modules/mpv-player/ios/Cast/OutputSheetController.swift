@@ -155,10 +155,12 @@ final class OutputSheetController: RemoteTargetListener {
     hub.setMuted(!hub.snapshot.muted)
   }
 
-  /// The one end action: it closes the receiver app, as the end of a session this phone launched does anyway.
+  /// The one end action: it closes the receiver app, as the end of a session this phone launched does anyway, and the
+  /// sheet, as the Cast SDK's dialog does.
   func stop() {
     requestedId = nil
     hub.disconnect(stopPlayback: true)
+    onOutput?(.dismiss)
   }
 
   func remote() {

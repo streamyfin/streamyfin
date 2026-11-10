@@ -176,10 +176,14 @@ class OutputSheetController(
 
     fun toggleMute() = hub.setMuted(!hub.snapshot.muted)
 
-    /** The one end action: it closes the receiver app, as the end of a session this phone launched does anyway. */
+    /**
+     * The one end action: it closes the receiver app, as the end of a session this phone launched does anyway, and
+     * the sheet, as the Cast SDK's dialog does.
+     */
     fun stop() {
         requestedId = null
         hub.disconnect(stopPlayback = true)
+        onOutput?.invoke(OutputSheetOutput.DISMISS)
     }
 
     fun remote() = onOutput?.invoke(OutputSheetOutput.REMOTE)
