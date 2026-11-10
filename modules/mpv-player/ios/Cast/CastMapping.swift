@@ -56,6 +56,15 @@ enum CastMapping {
     isPlaying(playerState) ? title : nil
   }
 
+  /// Whether this phone can go on with the receiver's media: a Jellyfin item (media another sender loaded has none),
+  /// neither live TV, whose position means nothing here, nor audio, whose queue goes back with B4. The Jellyfin
+  /// receiver gives its Audio items the music track metadata type, GCKMediaMetadataType 3, and every audio item, an
+  /// audiobook among them (generic metadata), an audio/ content type.
+  static func goesOnHere(metadataType: Int?, contentType: String?, itemId: String?, liveStreamId: String?) -> Bool {
+    itemId != nil && liveStreamId == nil && metadataType != 3
+      && contentType?.lowercased().hasPrefix("audio/") != true
+  }
+
   /// GCKMediaTrackType text is 1. A subtitle change goes over the bus only when the media carries
   /// text tracks; without any, the receiver has to reload the stream to burn the subtitles in.
   static func hasTextTracks(_ trackTypes: [Int]) -> Bool {

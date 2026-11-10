@@ -45,6 +45,20 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
+ * How long a status asked of the receiver is waited for before the one held
+ * stands in. The receiver reports on events only, so "Continue here" asks it
+ * where it is; it answers in well under a second on a home network.
+ */
+export const RECEIVER_STATUS_TIMEOUT_MS = 2_000;
+
+/**
+ * How long "Continue here" waits for the server to describe the receiver's
+ * item. The receiver plays on meanwhile; past this the tap gives up and says
+ * so, instead of holding later taps and stopping the receiver much later.
+ */
+export const RECEIVER_ITEM_LOOKUP_TIMEOUT_MS = 10_000;
+
+/**
  * How long a Play pressed while a receiver connects waits for the connection.
  * Connections took a few seconds on the bench; past this the press gives up and
  * says the connection failed, instead of starting much later on its own.
@@ -85,3 +99,9 @@ export const RECEIVER_LIVENESS_WINDOW_MS = 15_000;
  * between the player counts on from the last report.
  */
 export const MUSIC_CAST_PROGRESS_TICK_MS = 1_000;
+
+/**
+ * Where the native output sheet puts a receiver's name in a text JS sends it
+ * (OutputPickerStrings.kt and OutputPickerStrings.swift replace this same marker).
+ */
+export const OUTPUT_PICKER_NAME_MARKER = "{{name}}";

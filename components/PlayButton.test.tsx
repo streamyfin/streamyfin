@@ -7,9 +7,11 @@ import {
 } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
+import { showExpandedControls } from "@/modules/mpv-player/src/cast";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
+import { choosePlay } from "@/utils/cast/playTarget";
 import { PlayButton } from "./PlayButton";
 
 const mockSalon = {
@@ -172,6 +174,7 @@ beforeEach(() => {
   getDefaultStore().set(settingsAtom as never, mockSettings as never);
   getDefaultStore().set(effectiveSettingsAtom as never, mockSettings as never);
   (castToJellyfinReceiver as jest.Mock).mockClear();
+  jest.mocked(showExpandedControls).mockClear();
 });
 
 // The glyph is the whole cue: the pill used to also mount the library's Cast
@@ -196,6 +199,21 @@ test("without a receiver the pill carries the play glyph only", async () => {
 test("a connected target names itself on the button", async () => {
   await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
   expect(screen.getByText("player.play_on")).toBeTruthy();
+});
+
+// A Continue here tapped while the load was on its way is the last choice: the expanded controls stay closed, or they
+// would open over the player it presents.
+test("a load that lands after a later choice opens no remote", async () => {
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(async () => {
+    choosePlay();
+    return { status: "loaded" };
+  });
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(showExpandedControls).not.toHaveBeenCalled();
 });
 
 // One Play action: no "Chromecast / Device" choice any more.

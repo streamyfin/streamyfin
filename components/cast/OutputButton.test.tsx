@@ -6,11 +6,11 @@ import {
   type CastDoubleState,
   castDoubleTarget,
   createCastDoubleState,
-  emitCastEvent,
   emitRemoteTarget,
 } from "@/test-utils/cast";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { measureInWindow } from "@/utils/cast/measureInWindow";
+import { logAndCaptureError } from "@/utils/log";
 import { OutputButton } from "./OutputButton";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -29,6 +29,10 @@ jest.mock("@/utils/atoms/api", () => {
   };
 });
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
+let mockSyncPlayEnabled = false;
+jest.mock("@/providers/SyncPlayProvider", () => ({
+  useSyncPlay: () => ({ enabled: mockSyncPlayEnabled }),
+}));
 let mockOffline = false;
 jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,
@@ -42,6 +46,10 @@ const MOCK_TAG = 42;
 jest.mock("@/utils/cast/measureInWindow", () => ({
   measureInWindow: jest.fn(async () => mockAnchor),
   nativeTagOf: jest.fn(() => MOCK_TAG),
+}));
+const mockUsePlayMedia = jest.fn();
+jest.mock("@/hooks/usePlayMedia", () => ({
+  usePlayMedia: () => mockUsePlayMedia(),
 }));
 /** The glyphs the button drew, latest last. */
 const mockIcons: { name: string; tintColor?: string }[] = [];
@@ -58,8 +66,11 @@ const session = { basePath: "http://server" };
 beforeEach(() => {
   mockCast = createCastDoubleState();
   mockOffline = false;
+  mockSyncPlayEnabled = false;
   mockPlayingHere = null;
   mockIcons.length = 0;
+  mockUsePlayMedia.mockClear();
+  jest.mocked(logAndCaptureError).mockClear();
   getDefaultStore().set(apiAtom, session as never);
   getDefaultStore().set(userAtom, { Id: "user-1" } as never);
 });
@@ -219,23 +230,31 @@ test("passes what the music player plays here", async () => {
   expect(mockCast.outputPickerCalls[0].playingHere).toBe("Bonus 1");
 });
 
-// Two buttons on screen, one remote asked: the expanded controls open once.
-test("remote opens the expanded controls", async () => {
-  await render(
-    <>
-      <OutputButton />
-      <OutputButton />
-    </>,
-  );
-  await act(async () => fireEvent.press(screen.getAllByLabelText(LABEL)[0]));
-  await act(async () =>
-    emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" }),
-  );
-  expect(mockCast.dialogs).toEqual(["expandedControls"]);
+// A SyncPlay member plays the group's video: the sheet offers no Continue here, and this device only stops the
+// receiver.
+test("the sheet offers Continue here outside a SyncPlay group only", async () => {
+  const view = await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  mockSyncPlayEnabled = true;
+  await view.rerender(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+
+  expect(mockCast.outputPickerCalls.map((call) => call.playHere)).toEqual([
+    true,
+    false,
+  ]);
 });
 
 // The sheet starts discovery when it opens; a button on screen costs no scan.
 test("starts no discovery on mount", async () => {
   await render(<OutputButton />);
   expect(mockCast.discoveryCalls).toBe(0);
+});
+
+// What the sheet answers goes to OutputPickerActions, mounted once: a button on screen holds no player, which
+// re-renders with every download tick.
+test("holds no player of its own", async () => {
+  await render(<OutputButton />);
+  await act(async () => fireEvent.press(screen.getByLabelText(LABEL)));
+  expect(mockUsePlayMedia).not.toHaveBeenCalled();
 });

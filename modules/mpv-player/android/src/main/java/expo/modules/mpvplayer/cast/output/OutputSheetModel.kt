@@ -34,6 +34,8 @@ data class OutputSheetInput(
     val receiverTitle: String?,
     /** Something plays on the receiver, with a title or without. */
     val receiverPlaying: Boolean = false,
+    /** What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor audio. */
+    val receiverGoesOnHere: Boolean = false,
     /** "Change" asked for the list over a connected target. */
     val showingList: Boolean,
     /** The level under the finger, or the one sent until the receiver echoes it. */
@@ -67,7 +69,8 @@ sealed interface DeviceStatus {
 enum class SheetStatus { SEARCHING, NO_DEVICES, PLAY_SERVICES_MISSING, PLAY_SERVICES_UPDATE }
 
 sealed interface OutputRow {
-    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?) : OutputRow
+    /** [continueHere]: the receiver plays, outside the player, and a tap takes its video over on this device. */
+    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?, val continueHere: Boolean = false) : OutputRow
 
     data class Device(val id: String, val name: String, val videoOut: Boolean, val status: DeviceStatus) : OutputRow
 
@@ -170,7 +173,12 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             canHandOff = input.handOff && snapshot.phase == TargetPhase.CONNECTED,
         )
     }
-    val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere))
+    // In the player the phone already has its video, and music playing here would be covered by it: there this row
+    // stops the receiver, as before.
+    val continueHere =
+        !input.handOff && input.playingHere == null && snapshot.phase == TargetPhase.CONNECTED &&
+            input.receiverPlaying && input.receiverGoesOnHere
+    val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere, continueHere))
     when (input.playServices) {
         PlayServicesStatus.MISSING -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING)
         PlayServicesStatus.UPDATE_REQUIRED -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_UPDATE)

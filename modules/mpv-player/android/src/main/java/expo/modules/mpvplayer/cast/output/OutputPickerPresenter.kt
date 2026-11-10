@@ -45,6 +45,7 @@ object OutputPickerPresenter {
     private var controller: OutputSheetController? = null
     private var onRemote: (() -> Unit)? = null
     private var onHandOff: (() -> Unit)? = null
+    private var onPlayHere: (() -> Unit)? = null
     private var hostLifecycle: Lifecycle? = null
     // Where the popover points, in the window's pixels; the host reads it, so a new value moves the popover.
     private val anchorBounds = mutableStateOf<IntRect?>(null)
@@ -101,6 +102,9 @@ object OutputPickerPresenter {
     /** Whether something plays on the receiver, with a title or without. */
     var receiverPlaying: () -> Boolean = { false }
 
+    /** Whether what the receiver plays can go on on this device, which "Continue here" offers. */
+    var receiverGoesOnHere: () -> Boolean = { false }
+
     /** Called once the sheet is gone, whichever way it went. */
     var onDismissed: (() -> Unit)? = null
 
@@ -136,7 +140,8 @@ object OutputPickerPresenter {
 
     /**
      * False on a TV, which has no sheet; true once presented, or already there. [handOff] is the player's: a receiver
-     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff].
+     * connected from the sheet, or its panel's "Play on", closes the sheet and then calls [onHandOff]. Elsewhere, this
+     * device chosen while the receiver plays closes the sheet and then calls [onPlayHere].
      */
     @MainThread
     fun present(
@@ -146,6 +151,7 @@ object OutputPickerPresenter {
         anchorView: View? = null,
         handOff: Boolean = false,
         onHandOff: (() -> Unit)? = null,
+        onPlayHere: (() -> Unit)? = null,
         onRemote: () -> Unit,
     ): Boolean {
         if (DeviceKind.isTelevision(activity)) return false
@@ -153,12 +159,14 @@ object OutputPickerPresenter {
         stopHandOffWatch()
         this.onRemote = onRemote
         this.onHandOff = onHandOff
+        this.onPlayHere = onPlayHere
         controller?.let { sheet ->
             sheet.environment =
                 sheet.environment.copy(
                     playingHere = playingHere,
                     receiverTitle = receiverTitle(),
                     receiverPlaying = receiverPlaying(),
+                    receiverGoesOnHere = goesOnHere(),
                     handOff = handOff,
                 )
             return true
@@ -171,6 +179,7 @@ object OutputPickerPresenter {
                 playingHere = playingHere,
                 receiverTitle = receiverTitle(),
                 receiverPlaying = receiverPlaying(),
+                receiverGoesOnHere = goesOnHere(),
                 handOff = handOff,
             )
         sheet.onOutput = { output -> handle(activity, output) }
@@ -227,6 +236,7 @@ object OutputPickerPresenter {
         controller = null
         onRemote = null
         onHandOff = null
+        onPlayHere = null
         anchorView?.viewTreeObserver?.removeOnGlobalLayoutListener(anchorWatcher)
         anchorView = null
         anchorBounds.value = null
@@ -259,11 +269,20 @@ object OutputPickerPresenter {
         removeHandOffWatch = null
     }
 
+    // Continue here needs someone to take the video over: a sheet opened without onPlayHere (the probe, a SyncPlay
+    // member) offers none, and this device only stops the receiver.
+    private fun goesOnHere() = onPlayHere != null && receiverGoesOnHere()
+
     /** The receiver started or changed what it plays: the panel's remote row follows. */
     @MainThread
     fun refresh() {
         controller?.let { sheet ->
-            sheet.environment = sheet.environment.copy(receiverTitle = receiverTitle(), receiverPlaying = receiverPlaying())
+            sheet.environment =
+                sheet.environment.copy(
+                    receiverTitle = receiverTitle(),
+                    receiverPlaying = receiverPlaying(),
+                    receiverGoesOnHere = goesOnHere(),
+                )
         }
     }
 
@@ -290,6 +309,12 @@ object OutputPickerPresenter {
                 // Posted: the SDK runs its session listeners one after the other, the module's own caching the session
                 // JS reads when it sends the item.
                 handOff?.let { mainHandler.post(it) }
+            }
+            // And this device takes the receiver's video once the sheet is gone.
+            OutputSheetOutput.PLAY_HERE -> {
+                val playHere = onPlayHere
+                dismiss()
+                playHere?.invoke()
             }
             OutputSheetOutput.DISMISS -> dismiss()
             // Its first step is the check below, which can throw the same way.

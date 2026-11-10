@@ -36,6 +36,7 @@ class OutputPickerPresenterTest {
         OutputPickerPresenter.resolvePlayServices = OutputPickerPresenter.defaultResolvePlayServices
         OutputPickerPresenter.receiverTitle = { null }
         OutputPickerPresenter.receiverPlaying = { false }
+        OutputPickerPresenter.receiverGoesOnHere = { false }
         OutputPickerPresenter.onPlayServicesAvailable = {}
     }
 
@@ -94,6 +95,23 @@ class OutputPickerPresenterTest {
         assertEquals(true, handOff)
         assertEquals(false, calledAtOnce)
         assertEquals(false, presentedAtTheHandOff)
+    }
+
+    // This phone takes the receiver's video once the sheet is gone, as the remote opens.
+    @Test
+    fun aPlayHereClosesTheSheetThenCallsBack() {
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var presentedAtThePlayHere: Boolean? = null
+        OutputPickerPresenter.present(
+            screen.get(),
+            anchor = null,
+            playingHere = null,
+            onPlayHere = { presentedAtThePlayHere = OutputPickerPresenter.isPresented },
+        ) {}
+
+        OutputPickerPresenter.presentedController?.onOutput?.invoke(OutputSheetOutput.PLAY_HERE)
+
+        assertEquals(false, presentedAtThePlayHere)
     }
 
     private fun connectFromThePlayerSheet(port: FakeTargetPort, handOffs: () -> Unit) {
@@ -234,14 +252,33 @@ class OutputPickerPresenterTest {
         var title: String? = "Big Buck Bunny"
         OutputPickerPresenter.receiverTitle = { title }
         OutputPickerPresenter.receiverPlaying = { title != null }
+        OutputPickerPresenter.receiverGoesOnHere = { title != null }
         val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
-        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null, onPlayHere = {}) {}
+        val before = OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere
 
         title = null
         port.emit("ended", livingRoom)
 
+        assertEquals(true, before)
         assertEquals(null, OutputPickerPresenter.presentedController?.environment?.receiverTitle)
         assertEquals(false, OutputPickerPresenter.presentedController?.environment?.receiverPlaying)
+        assertEquals(false, OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere)
+    }
+
+    // A sheet opened with no way to take the receiver's video over (the probe, a SyncPlay member) offers none.
+    @Test
+    fun aSheetWithoutPlayHereOffersNoContinueHere() {
+        OutputPickerPresenter.receiverGoesOnHere = { true }
+        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
+        val without = OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere
+        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null, onPlayHere = {}) {}
+        val with = OutputPickerPresenter.presentedController?.environment?.receiverGoesOnHere
+
+        assertEquals(false, without)
+        assertEquals(true, with)
     }
 
     // The services' dialog runs the same check, which throws where the manifest lacks their version.

@@ -107,6 +107,7 @@ import {
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
+import { chooseRemotePlay } from "@/utils/cast/playTarget";
 import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import {
   getAdjacentStartTicks,
@@ -133,7 +134,6 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
-import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
   type PlayRequest,
@@ -264,7 +264,8 @@ interface NativePlayerContextValue {
    */
   presentFromRequest: (
     req: PlayRequest,
-    options?: { isCurrent?: () => boolean },
+    /** `item`: the server's whole answer for the item, which the player then does not fetch again. */
+    options?: { isCurrent?: () => boolean; item?: BaseItemDto },
   ) => Promise<boolean>;
   isActive: boolean;
 }
@@ -390,7 +391,7 @@ const PlayCommandRouteFallback: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         // Someone chose this play, from another client: a new session.
         resetStillWatchingSession();
@@ -1289,12 +1290,13 @@ const NativePlayerProviderInner: React.FC<{
   const presentFromRequest = useCallback(
     async (
       req: PlayRequest,
-      options?: { isCurrent?: () => boolean },
+      options?: { isCurrent?: () => boolean; item?: BaseItemDto },
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
       // stream is negotiated.
       return beginSession(req, {
+        item: options?.item,
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
       });
@@ -2390,7 +2392,7 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         if (syncRef.current.enabled && !req.offline) {
           void syncRef.current

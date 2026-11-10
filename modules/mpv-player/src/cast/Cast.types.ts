@@ -34,6 +34,17 @@ export const CastMediaPlayerState = {
 export type CastMediaPlayerStateValue =
   (typeof CastMediaPlayerState)[keyof typeof CastMediaPlayerState];
 
+/** Why an idle receiver stopped, as both SDKs name it. */
+export const CastIdleReason = {
+  NONE: "none",
+  FINISHED: "finished",
+  CANCELLED: "cancelled",
+  INTERRUPTED: "interrupted",
+  ERROR: "error",
+} as const;
+export type CastIdleReasonValue =
+  (typeof CastIdleReason)[keyof typeof CastIdleReason];
+
 export interface CastDevice {
   deviceId: string;
   friendlyName: string;
@@ -84,17 +95,38 @@ export interface CastMediaInfo {
   /** What the receiver put on its media: item id, play session, play method. */
   customData: Record<string, unknown> | null;
   metadata: CastMediaMetadata | null;
+  /** The ids of the media's text tracks; the Jellyfin receiver names each by its subtitle stream index. */
+  textTrackIds?: number[];
 }
 
 export interface CastMediaStatus {
   playerState: CastMediaPlayerStateValue;
+  /**
+   * Why an idle receiver stopped: a stop, the end, another load, or a stream it could not play ("error"); "none"
+   * while it plays. Both modules always send it; a status built by hand may leave it out.
+   */
+  idleReason?: CastIdleReasonValue;
   currentItemId: number | null;
+  /** The position at the receiver's last report, which comes on events only (a seek, a pause, a buffer). */
   streamPosition: number;
+  /**
+   * Where the receiver is now, as the SDK estimates it from its last report, rate and time since. Only a
+   * read carries it (`getMediaStatus`, `requestMediaStatus`), never a pushed status. The iOS SDK answers 0
+   * once the channel is gone.
+   */
+  approximateStreamPosition?: number;
+  /**
+   * Only from `requestMediaStatus`: false when the receiver did not answer (a timeout, a failed request, or a
+   * session resumed meanwhile), and the record is the report held, which falls behind while the receiver plays.
+   */
+  fresh?: boolean;
   playbackRate: number;
   volume: number;
   isMuted: boolean;
   mediaInfo: CastMediaInfo | null;
   customData: Record<string, unknown> | null;
+  /** The tracks the receiver shows. A track switched there (its captions) changes these, not the custom data. */
+  activeTrackIds?: number[];
 }
 
 export type ReceiverMessage = Record<string, unknown> | string;
@@ -110,7 +142,13 @@ export interface CastChannel {
 /** What a screen needs from the session it casts to. */
 export interface CastClient {
   sessionId: string;
+  /** The status held: the receiver's last report, which comes on events only. */
   getMediaStatus(): Promise<CastMediaStatus | null>;
+  /**
+   * A status asked of the receiver now, which says where it is; the one held
+   * when it does not answer within `timeoutMs`.
+   */
+  requestMediaStatus(timeoutMs: number): Promise<CastMediaStatus | null>;
   onMediaStatusUpdated(
     listener: (status: CastMediaStatus | null) => void,
   ): CastSubscription;
@@ -180,6 +218,7 @@ export type OutputPickerStringKey =
   | "thisPhone"
   | "thisTablet"
   | "playing"
+  | "continueHere"
   | "castCaption"
   | "searching"
   | "noDevices"
@@ -227,10 +266,18 @@ export interface OutputPickerOptions {
   anchorTag?: number | null;
   /** What plays on this device, for its row; null when nothing does. */
   playingHere?: string | null;
+  /**
+   * Whether this device can take the receiver's video over ("Continue here"); without it this device only stops the
+   * receiver. Left out, it can.
+   */
+  playHere?: boolean;
 }
 
-/** Asked from the sheet's panel, after the sheet has closed. */
-export type OutputPickerAction = "remote";
+/**
+ * Asked from the sheet, after it has closed: the panel's remote, or this device chosen while the receiver plays,
+ * which takes the receiver's video over here.
+ */
+export type OutputPickerAction = "remote" | "playHere";
 
 export type CastNativeEvents = {
   onCastStateChanged: (payload: { state: CastStateValue }) => void;

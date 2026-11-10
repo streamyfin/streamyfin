@@ -25,7 +25,9 @@ class OutputSheetModelTest {
         playingHere: String? = null,
         receiverTitle: String? = null,
         receiverPlaying: Boolean = receiverTitle != null,
+        receiverGoesOnHere: Boolean = receiverPlaying,
         handOff: Boolean = false,
+        showingList: Boolean = false,
     ) = OutputSheetInput(
         snapshot = snapshot,
         devices = devices,
@@ -37,7 +39,8 @@ class OutputSheetModelTest {
         playingHere = playingHere,
         receiverTitle = receiverTitle,
         receiverPlaying = receiverPlaying,
-        showingList = false,
+        receiverGoesOnHere = receiverGoesOnHere,
+        showingList = showingList,
         draggedVolume = null,
         handOff = handOff,
     )
@@ -199,6 +202,71 @@ class OutputSheetModelTest {
         assertEquals(true, panel.showsVolume)
         assertEquals(false, panel.canSetVolume)
         assertEquals(false, panel.canMute)
+    }
+
+    // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
+    @Test
+    fun thisDeviceOffersToContinueWhileTheReceiverPlays() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        fun thisDevice(state: OutputSheetState) = rows(state).first() as OutputRow.ThisDevice
+        val playing = thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true)))
+        val idle = thisDevice(outputSheetState(input(snapshot = connected, showingList = true)))
+        val inThePlayer =
+            thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true, handOff = true)))
+
+        assertEquals(true, playing.continueHere)
+        assertEquals(false, idle.continueHere)
+        assertEquals(false, inThePlayer.continueHere)
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: the row offers nothing to take over.
+    @Test
+    fun thisDeviceOffersNothingOfWhatStaysOnTheReceiver() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val music =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = true, receiverGoesOnHere = false, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, music.continueHere)
+    }
+
+    // Music plays on this phone: its row says so and only stops the receiver, as before; the receiver's video would
+    // cover the music.
+    @Test
+    fun musicPlayingHereKeepsTheRowAStop() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val row =
+            rows(outputSheetState(input(snapshot = connected, playingHere = "Lever du jour", receiverPlaying = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, row.continueHere)
+        assertEquals("Lever du jour", row.playing)
+    }
+
+    // A receiver stopped from the TV keeps its media (it would go on here) with nothing playing, and a suspended
+    // session holds its last status while it reconnects: neither offers Continue here.
+    @Test
+    fun aStoppedOrReconnectingReceiverOffersNothing() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val stopped =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = false, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+        val held =
+            rows(outputSheetState(input(snapshot = reconnecting, receiverPlaying = true, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, stopped.continueHere)
+        assertEquals(false, held.continueHere)
     }
 
     // The hand-off waits for the session to be back: a reconnecting receiver takes no item.

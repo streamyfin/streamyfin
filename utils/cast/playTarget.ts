@@ -4,21 +4,38 @@ import {
   remoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import type { RemoteTargetState } from "@/modules/mpv-player/src/cast/Cast.types";
+import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
+import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 
 let playChoice = 0;
 
 /**
- * Records a play choice from any Play button, here or on the receiver, and returns its number. A page left
- * under another stays mounted: a receiver load sends only while its choice is the latest.
+ * Records a play choice and returns its number. Every play the app starts is one, on purpose, not only a cast: a
+ * Play button here or on the receiver, any play through usePlayMedia (a Shuffle, a Continue here's own play), and a
+ * Play command from another Jellyfin client (chooseRemotePlay). A page left under another stays mounted, so a
+ * receiver load or a Continue here still on its way acts only while its choice is the latest.
  */
 export const choosePlay = (): number => {
   playChoice += 1;
   return playChoice;
 };
 
+/**
+ * Reads a Jellyfin "Play" command from another client and, when it names an item, records it as a play choice: a
+ * Continue here or a receiver load still on its way gives way to it, as to a Play pressed here.
+ */
+export const chooseRemotePlay = (command: unknown): PlayRequest | null => {
+  const request = parseRemotePlayCommand(command);
+  if (request) choosePlay();
+  return request;
+};
+
 /** True while no play choice came after this one. */
 export const isLatestPlayChoice = (choice: number): boolean =>
   choice === playChoice;
+
+/** The latest play choice, for what started without one of its own (a hand-off) and gives way to the next. */
+export const currentPlayChoice = (): number => playChoice;
 
 /** Where the Play button sends playback. */
 export type PlayDestination =

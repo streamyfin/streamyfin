@@ -47,7 +47,7 @@ One file per hard won fact in `.claude/learned-facts/`. Read the relevant one be
 debugging in that area.
 
 Navigation:
-- `native-bottom-tabs-userouter-conflict` | useRouter() at provider level causes tab switches; use static router import
+- `native-bottom-tabs-userouter-conflict` | useRouter() at provider level used to cause tab switches; since expo-router 57 it is the imperative router, and useAppRouter is safe at the root
 - `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
 - `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
 - `expo-router-top-tabs-runtime-peers` | js-top-tabs requires react-native-tab-view (+ pager-view) at runtime; no import shows it, removing them crashes on launch
@@ -63,6 +63,7 @@ UI and headers:
 - `bottom-sheet-dismiss-before-present` | dismiss() on a BottomSheetModal that is not on screen leaves it unable to present, silently; follow `open` with useSheetOpenState
 - `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
 - `accessibility-value-undefined-clears-label` | on Android an accessibilityValue that turns undefined wipes the whole content description, label included; keep it an object with a text
+- `android-alert-lost-while-paused` | an Alert asked for while MainActivity is paused (the Cast expanded controls, the background) is dropped on Android with no error; wait for AppState "active"
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
@@ -96,6 +97,9 @@ Native modules:
 - `cast-switch-ends-the-old-session` | a receiver switch is two sessions: iOS startSession(with:) answers NO while one is established, so end it first; Android ends the old one with status 2155, the same code as a network loss, so only the request tells them apart; asked back, the old route is selected only on the turn after its end, or the SDK's cleanup selects the default route over it
 - `cast-launching-session-stops-the-receiver` | the session that launched the receiver app stops it at its end whatever stopCasting says, on both SDKs; only a joined session leaves the TV playing, so the stop reporter checks the receiver after a disconnect without stop
 - `cast-session-setters-freeze-android-volume` | on Android, CastSession.setVolume or setMute stops the session following the receiver; set the level through the MediaRouter route of the session's receiver, as the Cast dialog does, and mute the stream (the SDK's own toggle mutes the device); a fixed-volume receiver (a Google TV on HDMI-CEC) has no level to publish
+- `cast-media-status-position-is-the-last-report` | the media status a sender holds is the receiver's last report, sent on events only, so its position (and the SDK's estimate from it) falls behind a receiver playing undisturbed; requestStatus() first, as requestMediaStatus does
+- `cast-custom-data-keeps-the-loaded-tracks` | the Jellyfin receiver's custom data keeps the stream indexes it was loaded with; subtitles picked on the TV switch the active text track, whose id is the subtitle stream index, so read activeTrackIds
+- `jellyfin-receiver-tells-audio-by-content-type` | the Jellyfin receiver's metadata type follows the item Type (an audiobook is generic, 0, like a video); its content type follows the media type, audio/ for every audio item, so test audio there
 - `native-view-dies-with-a-recreated-activity` | a view added with addContentView stays on the old activity when the system recreates it (font size, display size, a background kill: not in configChanges); watch ON_DESTROY and close it
 
 TV platform:

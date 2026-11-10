@@ -1,9 +1,9 @@
 import Foundation
 
-/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, and the
-/// player's video handed off to the receiver.
+/// What the sheet hands back to the platform: AirPlay's picker, Play Services' dialog, the remote, closing, the
+/// player's video handed off to the receiver, and the receiver's video going on here.
 enum OutputSheetOutput: Equatable {
-  case openAirPlay, resolvePlayServices, remote, dismiss, handOff
+  case openAirPlay, resolvePlayServices, remote, dismiss, handOff, playHere
 }
 
 /// What the screen that opened the sheet knows, and the hub does not.
@@ -14,6 +14,7 @@ struct OutputSheetEnvironment {
   var playingHere: String?
   var receiverTitle: String?
   var receiverPlaying = false
+  var receiverGoesOnHere = false
   /// Opened from the player: a receiver connected from the sheet takes the video instead of drawing the panel.
   var handOff = false
 }
@@ -95,8 +96,13 @@ final class OutputSheetController: RemoteTargetListener {
     switch row {
     case let .device(id, _, _, _):
       connect(id)
-    case .thisDevice:
-      // Playback comes back to this phone: the target stops (the hand-off at the position comes with B4).
+    case let .thisDevice(_, _, continueHere):
+      // The receiver's video goes on here: JS reads where the receiver is before it stops it.
+      if continueHere {
+        onOutput?(.playHere)
+        return
+      }
+      // Playback comes back to this phone: the target stops (music comes back with its queue in B4).
       if hub.snapshot.phase != .none { hub.disconnect(stopPlayback: true) }
       onOutput?(.dismiss)
     case .airPlay:
@@ -237,7 +243,8 @@ final class OutputSheetController: RemoteTargetListener {
       snapshot: hub.snapshot, devices: hub.devices, discovering: isOpen, searchTimedOut: searchTimedOut,
       playServices: environment.playServices, airPlay: environment.airPlay, thisDevice: environment.thisDevice,
       playingHere: environment.playingHere, receiverTitle: environment.receiverTitle,
-      receiverPlaying: environment.receiverPlaying, showingList: showingList,
+      receiverPlaying: environment.receiverPlaying, receiverGoesOnHere: environment.receiverGoesOnHere,
+      showingList: showingList,
       draggedVolume: dragged ?? held, requestedId: requestedId, handOff: environment.handOff
     )
   }

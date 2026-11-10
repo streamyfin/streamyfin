@@ -32,6 +32,8 @@ struct OutputSheetInput {
   var receiverTitle: String?
   /// Something plays on the receiver, with a title or without.
   var receiverPlaying = false
+  /// What the receiver plays can go on on this device: a Jellyfin item, neither live TV nor audio.
+  var receiverGoesOnHere = false
   /// "Change" asked for the list over a connected target.
   var showingList: Bool
   /// The level under the finger, or the one sent until the receiver echoes it.
@@ -57,7 +59,8 @@ enum SheetStatus: Equatable {
 }
 
 enum OutputRow: Equatable {
-  case thisDevice(kind: ThisDeviceKind, playing: String?)
+  /// `continueHere`: the receiver plays, outside the player, and a tap takes its video over on this device.
+  case thisDevice(kind: ThisDeviceKind, playing: String?, continueHere: Bool = false)
   case device(id: String, name: String, videoOut: Bool, status: DeviceStatus)
   case airPlay(activeRoute: String?)
   case status(SheetStatus)
@@ -143,7 +146,12 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
       )
     )
   }
-  var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere)]
+  // In the player the phone already has its video, and music playing here would be covered by it: there this row
+  // stops the receiver, as before.
+  let continueHere =
+    !input.handOff && input.playingHere == nil && snapshot.phase == .connected && input.receiverPlaying
+    && input.receiverGoesOnHere
+  var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere)]
   switch input.playServices {
   case .missing:
     rows.append(.status(.playServicesMissing))

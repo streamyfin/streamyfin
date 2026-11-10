@@ -1,16 +1,21 @@
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
+import { OUTPUT_PICKER_NAME_MARKER } from "@/constants/Cast";
 import type { OutputPickerStrings } from "@/modules/mpv-player/src/cast";
 
 /** The output sheet's texts for presentOutputPicker, one key per sentence. */
 export const buildOutputPickerStrings = (t: TFunction): OutputPickerStrings => {
   // An iPhone and an iPad are named as Apple names them; Android says phone and tablet.
   const ios = Platform.OS === "ios";
+  // The receiver's name goes in natively, where the panel knows it, at the marker: a translation that lost it says
+  // the English text rather than a sentence without the name.
+  const playOn = t("player.play_on", { name: OUTPUT_PICKER_NAME_MARKER });
   return {
     title: t("cast.output.title"),
     thisPhone: ios ? t("cast.output.this_iphone") : t("cast.output.this_phone"),
     thisTablet: ios ? t("cast.output.this_ipad") : t("cast.output.this_tablet"),
     playing: t("cast.output.playing"),
+    continueHere: t("cast.output.continue_here"),
     castCaption: t("cast.output.cast_caption"),
     searching: t("cast.output.searching"),
     noDevices: t("cast.output.no_devices"),
@@ -26,8 +31,9 @@ export const buildOutputPickerStrings = (t: TFunction): OutputPickerStrings => {
     unmute: t("cast.output.unmute"),
     volume: t("cast.output.volume"),
     remote: t("cast.output.remote"),
-    // The receiver's name goes in natively, where the panel knows it.
-    playOn: t("player.play_on", { name: "{{name}}" }),
+    playOn: playOn.includes(OUTPUT_PICKER_NAME_MARKER)
+      ? playOn
+      : t("player.play_on", { name: OUTPUT_PICKER_NAME_MARKER, lng: "en" }),
     stopPlayback: t("player.stopPlayback"),
     disconnect: t("cast.output.disconnect"),
     deviceGone: t("cast.output.device_gone"),

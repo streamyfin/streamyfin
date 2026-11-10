@@ -71,11 +71,11 @@ private struct OutputListView: View {
       .accessibilityAddTraits(.isHeader)
     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
       switch row {
-      case let .thisDevice(kind, playing):
+      case let .thisDevice(kind, playing, continueHere):
         SheetRow(
           icon: kind == .tablet ? "ipad" : "iphone",
           title: strings.get(kind == .tablet ? "thisTablet" : "thisPhone"),
-          caption: playing.map { _ in strings.get("playing") },
+          caption: continueHere ? strings.get("continueHere") : playing.map { _ in strings.get("playing") },
           action: { controller.tap(row) }
         )
       case let .device(_, name, videoOut, status):

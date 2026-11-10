@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
+import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { usePlayMedia } from "./usePlayMedia";
 
 const mockPush = jest.fn();
@@ -69,6 +70,15 @@ describe("usePlayMedia", () => {
 
   afterEach(() => {
     alert.mockRestore();
+  });
+
+  // A play here is the latest choice, whatever started it (a Shuffle among them): a Continue here or a receiver load
+  // still on its way gives way to it.
+  test("a play here is the latest play choice", async () => {
+    const before = choosePlay();
+    await play({ Id: "movie-1", Type: "Movie" });
+
+    expect(isLatestPlayChoice(before)).toBe(false);
   });
 
   test("opens the player for a movie", async () => {
@@ -177,5 +187,38 @@ describe("usePlayMedia", () => {
 
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // An item the caller looked up whole (Continue here) goes to the native player, which would fetch it again.
+  test("hands a complete item to the native player", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+    const item = { Id: "episode-1", Type: "Episode" } as BaseItemDto;
+    const { result } = await renderHook(() => usePlayMedia());
+
+    await act(async () => {
+      await result.current(
+        { itemId: "episode-1", offline: false },
+        { item, itemIsComplete: true },
+      );
+    });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "episode-1", offline: false },
+      { item },
+    );
+  });
+
+  // A list's item carries only some fields: the player looks the item up itself.
+  test("leaves the native player its own lookup for a partial item", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+
+    await play({ Id: "episode-1", Type: "Episode" });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "episode-1", offline: false },
+      undefined,
+    );
   });
 });

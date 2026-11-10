@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.cast
 
 import com.google.android.gms.cast.CastStatusCodes
+import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastReasonCodes
@@ -62,6 +63,16 @@ object CastMapping {
 
     /** The title of what the receiver plays, none once it stopped. */
     fun playingTitle(playerState: Int, title: String?): String? = if (isPlaying(playerState)) title else null
+
+    /**
+     * Whether this phone can go on with the receiver's media: a Jellyfin item (media another sender loaded has none),
+     * neither live TV, whose position means nothing here, nor audio, whose queue goes back with B4. The Jellyfin
+     * receiver gives its Audio items the music track metadata type, and every audio item, an audiobook among them
+     * (generic metadata), an audio/ content type.
+     */
+    fun goesOnHere(metadataType: Int?, contentType: String?, itemId: String?, liveStreamId: String?): Boolean =
+        itemId != null && liveStreamId == null && metadataType != MediaMetadata.MEDIA_TYPE_MUSIC_TRACK &&
+            contentType?.startsWith("audio/", ignoreCase = true) != true
 
     /**
      * A subtitle change goes over the bus only when the media carries text tracks; without any, the

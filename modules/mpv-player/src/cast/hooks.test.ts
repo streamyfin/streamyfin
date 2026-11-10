@@ -134,7 +134,11 @@ test("useCastMediaStatus follows onMediaStatusChanged and resets without session
   mockCast.mediaStatus = status("playing");
   const view = await renderHook(useCastMediaStatus);
   await act(async () => {});
-  expect(view.result.current).toEqual(status("playing"));
+  // Read from the module, which adds the SDK's estimate.
+  expect(view.result.current).toEqual({
+    ...status("playing"),
+    approximateStreamPosition: 0,
+  });
 
   await act(() =>
     emitCastEvent(mockCast, "onMediaStatusChanged", {
@@ -179,7 +183,11 @@ test("useCastMediaStatus reads the status once on mount", async () => {
 
   const view = await renderHook(useCastMediaStatus);
   await act(async () => {});
-  expect(view.result.current).toEqual(status("playing"));
+  // Read from the module, which adds the SDK's estimate.
+  expect(view.result.current).toEqual({
+    ...status("playing"),
+    approximateStreamPosition: 0,
+  });
   expect(native.getMediaStatus).toHaveBeenCalledTimes(1);
 });
 

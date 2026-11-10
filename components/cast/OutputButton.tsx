@@ -15,13 +15,11 @@ import {
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Colors } from "@/constants/Colors";
 import {
-  type CastSubscription,
-  onOutputPickerAction,
   presentOutputPicker,
-  showExpandedControls,
   useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { measureInWindow, nativeTagOf } from "@/utils/cast/measureInWindow";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
@@ -35,19 +33,6 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
   idleTint?: string;
   /** A header renders outside its page's OfflineModeProvider: the page says whether it is offline. */
   offline?: boolean;
-};
-
-// One listener at a time, taken again at each opening: whichever button opened the sheet, its remote opens the
-// expanded controls once.
-let remoteListener: CastSubscription | null = null;
-const listenForRemote = () => {
-  remoteListener?.remove();
-  remoteListener = onOutputPickerAction((action) => {
-    if (action !== "remote") return;
-    showExpandedControls().catch((error) => {
-      logAndCaptureError("The Cast expanded controls failed to open", error);
-    });
-  });
 };
 
 /**
@@ -67,6 +52,7 @@ export function OutputButton({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const store = useStore();
+  const syncPlay = useSyncPlay();
   const anchor = useRef<ViewInstance>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
@@ -74,8 +60,8 @@ export function OutputButton({
   if (Platform.isTV || mac || offline || !api || !user) return null;
 
   const connected = target.state === "connected";
+  // What the sheet answers goes to OutputPickerActions, mounted once for the whole app.
   const open = async () => {
-    listenForRemote();
     try {
       const [frame, playingHere] = await Promise.all([
         measureInWindow(anchor.current),
@@ -90,6 +76,8 @@ export function OutputButton({
         anchor: frame,
         anchorTag: nativeTagOf(anchor.current),
         playingHere,
+        // A SyncPlay member plays the group's video: this device only stops the receiver.
+        playHere: !syncPlay.enabled,
       });
     } catch (error) {
       logAndCaptureError("The output sheet failed to open", error);
