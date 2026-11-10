@@ -73,6 +73,16 @@ describe("searchPeople", () => {
     },
   );
 
+  // Jellyfin leaves DateCreated out unless it is asked for, and the sort by
+  // date added reads it.
+  test("asks for the date each person was added", async () => {
+    const api = makeApi({ Items: [] });
+
+    await searchPeople({ api, query: "tom", serverVersion: "12.1.0" });
+
+    expect(sentRequest(api).query.getAll("fields")).toEqual(["DateCreated"]);
+  });
+
   // The Persons API answers in name order at best, so more are asked for than
   // shown and the closest names are the ones kept.
   test("keeps the ten closest of the people the server lists", async () => {
@@ -114,12 +124,14 @@ describe("searchPeople", () => {
       new URL(request.url ?? "").searchParams.get("limit"),
     );
     expect(limits).toEqual(["100", "1000"]);
-    // The wider ask is the same search, musicians still left out.
-    expect(
-      new URL(api.mock.history.get[1].url ?? "").searchParams.getAll(
-        "excludePersonTypes",
-      ),
-    ).toEqual(["Artist", "AlbumArtist"]);
+    // The wider ask is the same search, musicians still left out and the date
+    // added still asked for.
+    const wider = new URL(api.mock.history.get[1].url ?? "").searchParams;
+    expect(wider.getAll("excludePersonTypes")).toEqual([
+      "Artist",
+      "AlbumArtist",
+    ]);
+    expect(wider.getAll("fields")).toEqual(["DateCreated"]);
   });
 
   test("sends nothing for an empty search", async () => {
@@ -205,6 +217,14 @@ describe("searchStudios", () => {
     expect(query.getAll("includeItemTypes")).toEqual(["Movie", "Series"]);
     expect(query.get("userId")).toBe("user-1");
     expect(query.get("limit")).toBe("10");
+  });
+
+  test("asks for the date each studio was added", async () => {
+    const api = makeApi({ Items: [] });
+
+    await searchStudios({ api, query: "pix" });
+
+    expect(sentRequest(api).query.getAll("fields")).toEqual(["DateCreated"]);
   });
 
   test("shows no studios and reports it when the server fails", async () => {

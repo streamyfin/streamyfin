@@ -3,10 +3,10 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  type ColorValue,
   Platform,
   Pressable,
   View,
+  type ViewInstance,
 } from "react-native";
 import {
   HeaderButton,
@@ -32,7 +32,7 @@ type Props = Omit<HeaderButtonProps, "onPress" | "children" | "variant"> & {
   /** A header bar button, or a plain one among a screen's own controls, as the music player's. */
   variant?: "header" | "inline";
   /** The glyph's color while nothing is connected; white, as the header's icons. */
-  idleTint?: ColorValue;
+  idleTint?: string;
   /** A header renders outside its page's OfflineModeProvider: the page says whether it is offline. */
   offline?: boolean;
 };
@@ -67,7 +67,7 @@ export function OutputButton({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const store = useStore();
-  const anchor = useRef<View>(null);
+  const anchor = useRef<ViewInstance>(null);
 
   // No sheet on a TV or a Mac, nothing to cast offline, and nothing to play without a server.
   const mac = Platform.OS === "ios" && Platform.isMacCatalyst;

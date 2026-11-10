@@ -14,9 +14,12 @@ jest.mock("@/utils/atoms/settings", () => ({
   ...jest.requireActual("@/utils/atoms/settings"),
   ...jest.requireActual("@/test-utils/settings").makeSettingsModule(),
 }));
+// The page asks the server nothing for a library id that is not a Jellyfin
+// id, so the scenario's library has a real one.
+const mockLibraryId = "f137a2dd21bbc1b99aa5c0f6bf02a805";
 jest.mock("expo-router", () => ({
   ...jest.requireActual("@/test-utils/expoRouter").expoRouterModule,
-  useLocalSearchParams: () => ({ libraryId: "movies" }),
+  useLocalSearchParams: () => ({ libraryId: mockLibraryId }),
   useSegments: () => ["(auth)", "(tabs)", "(libraries)"],
 }));
 jest.mock("@/hooks/useAppRouter", () => () => ({
@@ -94,10 +97,16 @@ const stubServer = () => {
   api.mock.onGet().reply((config) => {
     const url = new URL(config.url!);
     const query = url.searchParams;
-    if (url.pathname.endsWith("/Items/movies")) {
-      return [200, { Id: "movies", Name: "Movies", CollectionType: "movies" }];
+    if (url.pathname.endsWith(`/Items/${mockLibraryId}`)) {
+      return [
+        200,
+        { Id: mockLibraryId, Name: "Movies", CollectionType: "movies" },
+      ];
     }
-    if (url.pathname.endsWith("/Items") && query.get("parentId") === "movies") {
+    if (
+      url.pathname.endsWith("/Items") &&
+      query.get("parentId") === mockLibraryId
+    ) {
       const start = Number(query.get("startIndex") ?? 0);
       const end = Math.min(start + PAGE_SIZE, TOTAL);
       return [
