@@ -543,6 +543,17 @@ enum OutputSheetTests {
       check("withNothingOnTheReceiverTheEndActionDisconnects", canStop == false && port.disconnects == [true])
     }
 
+    // Stopped or disconnected, the sheet closes, as the Cast SDK's dialog does: left open on the list, a tap meant for
+    // the sheet's next screen would pick a receiver.
+    do {
+      let port = port()
+      var outputs: [OutputSheetOutput] = []
+      let sheet = sheet(port, clock: Clock()) { outputs.append($0) }
+      port.emit("started", livingRoom)
+      sheet.stop()
+      check("theEndActionClosesTheSheet", port.disconnects == [true] && outputs == [.dismiss])
+    }
+
     do {
       let port = port()
       var outputs: [OutputSheetOutput] = []
