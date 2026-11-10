@@ -10,6 +10,15 @@ jest.mock(
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 jest.mock("@/components/tv/TVNavBar", () => ({ TVNavBar: () => null }));
+// The unit config maps expo-router to a stub with no navigators. The layout
+// renders a Stack on TV and a Redirect, which none of these tests look at, and
+// redirects from the group's own route: these tests sit on the Home tab.
+jest.mock("expo-router", () => ({
+  ...jest.requireActual("@/test-utils/expoRouterModule"),
+  Redirect: () => null,
+  Stack: () => null,
+  useSegments: () => ["(auth)", "(tabs)", "(home)"],
+}));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
 }));
