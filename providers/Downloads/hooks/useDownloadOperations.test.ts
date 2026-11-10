@@ -3,7 +3,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
+import {
+  DISK_AVAILABLE,
+  DISK_TOTAL,
+  DOCUMENTS,
+  fakeFiles,
+} from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records are real, over the MMKV double: they are what cancel reads its files from.
@@ -47,7 +52,6 @@ jest.mock("@/utils/customHeaders", () => ({
 }));
 jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device" }));
 jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-jest.mock("react-native-device-info", () => ({}));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -353,6 +357,25 @@ describe("startBackgroundDownload", () => {
     return failure;
   };
 
+  // A release build's console goes to logcat, where a log copied into an issue would hand out the
+  // session's token with the download URL.
+  it("logs the download URL without its ApiKey", async () => {
+    const { operations } = await renderOperations();
+
+    await act(async () => {
+      await operations.startBackgroundDownload(
+        "/Items/item-1/Download?ApiKey=SECRET_TOKEN",
+        item,
+        mediaSource,
+        maxBitrate,
+      );
+    });
+
+    const logged = jest.mocked(console.log).mock.calls.flat().join(" ");
+    expect(logged).toContain("https://jellyfin.example/Items/item-1/Download");
+    expect(logged).not.toContain("SECRET_TOKEN");
+  });
+
   it("removes what it wrote when native refuses the download", async () => {
     mockDownloader.enqueueDownload.mockRejectedValue(new Error("no session"));
 
@@ -479,5 +502,19 @@ describe("startBackgroundDownload", () => {
 
     expect(mockDownloadAdditionalAssets).not.toHaveBeenCalled();
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+});
+
+describe("appSizeUsage", () => {
+  // Storage settings draw their bar from this: the volume downloads are
+  // written to, and how much of it the app's downloads take.
+  it("reports the size and free space of the volume downloads go to", async () => {
+    const { operations } = await renderOperations();
+
+    expect(await operations.appSizeUsage()).toEqual({
+      total: DISK_TOTAL,
+      remaining: DISK_AVAILABLE,
+      appSize: 0,
+    });
   });
 });

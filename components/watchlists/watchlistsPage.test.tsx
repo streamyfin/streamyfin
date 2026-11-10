@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Platform, StyleSheet } from "react-native";
-import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
+import WatchlistsPage from "@/app/(auth)/(tabs)/(more)/watchlists/index";
 
 /** What the watchlists query answers, set by each test. */
 let mockQuery: {

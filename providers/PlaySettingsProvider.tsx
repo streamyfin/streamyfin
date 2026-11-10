@@ -98,9 +98,6 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           userId: user.Id,
         });
 
-        console.log("getStreamUrl ~");
-        console.log(`${data?.url?.slice(0, 100)}...${data?.url?.slice(-50)}`);
-
         _setPlaySettings(newSettings);
         if (data?.url) setPlayUrl(data.url);
         if (data?.sessionId) setPlaySessionId(data.sessionId);

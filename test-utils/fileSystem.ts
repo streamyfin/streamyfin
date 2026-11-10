@@ -79,6 +79,10 @@ class FakeDirectory extends FakeEntry {
 export const DOCUMENTS = "file:///documents";
 /** Where `Paths.cache` points in a spec. */
 export const CACHE = "file:///cache";
+/** The size of the volume Documents is on, as `Paths.totalDiskSpace` reads it in a spec. */
+export const DISK_TOTAL = 64_000_000_000;
+/** The space left on it, as `Paths.availableDiskSpace` reads it in a spec. */
+export const DISK_AVAILABLE = 10_000_000_000;
 
 /**
  * An expo-file-system double for specs that delete or download files: a path exists once a spec
@@ -103,6 +107,8 @@ export const fileSystemModule = {
     get cache() {
       return new FakeDirectory(CACHE);
     },
+    totalDiskSpace: DISK_TOTAL,
+    availableDiskSpace: DISK_AVAILABLE,
   },
 };
 
