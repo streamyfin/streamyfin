@@ -863,7 +863,8 @@
     "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Could not open this link",
+    "load_failed": "Couldn't load the custom links"
   },
   "player": {
     "live": "LIVE",
