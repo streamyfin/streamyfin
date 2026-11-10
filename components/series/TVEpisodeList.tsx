@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useCallback } from "react";
-import { ScrollView, View } from "react-native";
+import { type ScrollViewInstance, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
@@ -26,9 +26,9 @@ interface TVEpisodeListProps {
   /** Called when any episode loses focus */
   onBlur?: () => void;
   /** Ref for programmatic scrolling */
-  scrollViewRef?: React.RefObject<ScrollView | null>;
+  scrollViewRef?: React.RefObject<ScrollViewInstance | null>;
   /** Setter for the first episode ref (for focus guide destinations) */
-  firstEpisodeRefSetter?: (ref: View | null) => void;
+  firstEpisodeRefSetter?: (ref: ViewInstance | null) => void;
   /** Text to show when episodes array is empty */
   emptyText?: string;
   /** The episodes are still on their way: an empty list is not an empty season yet. */

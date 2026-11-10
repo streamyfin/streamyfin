@@ -8,7 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
-  View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv";
@@ -18,6 +18,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
 import { deferToMicrotask } from "@/utils/deferToMicrotask";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
 import { createSubmission } from "@/utils/submission";
@@ -39,7 +40,7 @@ export default function TVOptionModal() {
   const typography = useScaledTVTypography();
 
   const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
+  const firstCardRef = useRef<ViewInstance>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
@@ -51,7 +52,7 @@ export default function TVOptionModal() {
   const initialSelectedIndex = useMemo(() => {
     if (!modalState?.options) return 0;
     const idx = modalState.options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
+    return Math.max(idx, 0);
   }, [modalState?.options]);
 
   // Animate in on mount and cleanup atom on unmount
@@ -92,7 +93,7 @@ export default function TVOptionModal() {
   useEffect(() => {
     if (isReady && firstCardRef.current) {
       const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
+        requestTVFocus(firstCardRef.current);
       }, TVSheetTiming.focusDelayMs);
       return () => clearTimeout(timer);
     }

@@ -1,4 +1,11 @@
-import { type ComponentType, useEffect, useRef } from "react";
+import {
+  type ComponentType,
+  createElement,
+  forwardRef,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
 import { ScrollView, Text, View } from "react-native";
 
 // Reanimated's interpolation module has no native code, so the double runs the
@@ -47,6 +54,19 @@ const triggerReanimatedReactions = () => {
   }
 };
 
+const sameProps = (a: object, b: object) => {
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) =>
+      Object.is(
+        (a as Record<string, unknown>)[key],
+        (b as Record<string, unknown>)[key],
+      ),
+    )
+  );
+};
+
 export const makeSharedValue = <Value>(initial: Value) => {
   let held = initial;
   const land = (next: Value) => {
@@ -74,7 +94,17 @@ const Animated = {
   View,
   Text,
   ScrollView,
-  createAnimatedComponent: (component: ComponentType) => component,
+  // The real one applies `animatedProps` on the UI thread; here they land as
+  // plain props, so a spec sees what the component draws.
+  createAnimatedComponent: (component: ComponentType<object>) =>
+    forwardRef<unknown, { animatedProps?: object }>(
+      ({ animatedProps, ...props }, ref) =>
+        createElement(component as ComponentType<{ ref: unknown }>, {
+          ...props,
+          ...animatedProps,
+          ref,
+        }),
+    ),
 };
 
 /**
@@ -129,6 +159,28 @@ export const reanimatedModule = {
   useSharedValue: <Value>(initial: Value) =>
     useRef(makeSharedValue(initial)).current,
   useAnimatedStyle: (updater: () => object) => updater(),
+  // The real one updates the props on the UI thread whenever a shared value
+  // they read changes; here such a change renders the component again.
+  useAnimatedProps: (updater: () => object) => {
+    const [, renderAgain] = useReducer((count: number) => count + 1, 0);
+    const updaterRef = useRef(updater);
+    updaterRef.current = updater;
+    const props = updater();
+    const shownRef = useRef(props);
+    shownRef.current = props;
+    useEffect(() => {
+      const reaction = () => {
+        if (!sameProps(updaterRef.current(), shownRef.current)) renderAgain();
+      };
+      reactions.add(reaction);
+      // An effect that ran before this one may already have written.
+      reaction();
+      return () => {
+        reactions.delete(reaction);
+      };
+    }, []);
+    return props;
+  },
   withTiming: (toValue: unknown) => toValue,
   withDelay: (_delay: unknown, animation: unknown) => animation,
   withRepeat: (animation: unknown) => animation,

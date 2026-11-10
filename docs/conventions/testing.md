@@ -96,6 +96,17 @@ Three rules keep mocks from becoming the thing that breaks:
   Node lacks, built on timers so fake timers drive it. Jest loads it through `setupFiles`.
   `pendingIdleCallbacks()` counts the ones still waiting, which is how a spec proves an
   unmounted component cancelled its own.
+- `swiftUiModule` stands for `@expo/ui/swift-ui`: the SwiftUI views become plain views and
+  each `Menu` keeps the modifiers it was given, which `renderedMenuModifiers(screen)` reads
+  back. Leave `@expo/ui/swift-ui/modifiers` real, it is plain JavaScript and loads in Jest.
+- `draxModule` stands for `react-native-drax`, since a real drag needs gestures and layout
+  Jest does not have. It keeps what a spec can see of drax: rows render from drax's own
+  copy, which a drop the parent accepts leaves in the old order (`shownItems()` reads the
+  order drax shows), each sortable item keeps the props it was given, and `await
+  dragRow(from, to)` ends the drag on release and reports the reorder a frame later.
+  `dropRowOutside(index)` drops a row off the list, `sortableResets()` counts the resets
+  of its rows, and `moveDraxRoot()` with `draxRootOffset()` stand for the provider's
+  place on screen.
 - `tsxRequireHook` stands for `tsx/cjs` in every spec, wired once through
   `moduleNameMapper` instead of per spec. A require hook registered from a spec lands on
   the Jest worker's own loader and breaks whichever spec that worker loads next.
