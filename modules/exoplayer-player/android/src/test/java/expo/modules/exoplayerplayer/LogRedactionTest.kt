@@ -91,4 +91,18 @@ class LogRedactionTest {
             redactCredentials("HTTPS://user:pa:ss@proxy.example.com/stream"),
         )
     }
+
+    // An @ in the query or the fragment is no userinfo: the host stays, and the
+    // whole token is masked rather than the text before its @.
+    @Test
+    fun keepsAnAtSignInTheQueryOrFragmentOutOfUserinfo() {
+        assertEquals(
+            "https://proxy.example.com:8096?token=[redacted]",
+            redactCredentials("https://proxy.example.com:8096?token=ab@cd"),
+        )
+        assertEquals(
+            "https://proxy.example.com:8096#part@x",
+            redactCredentials("https://proxy.example.com:8096#part@x"),
+        )
+    }
 }
