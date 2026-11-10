@@ -162,6 +162,29 @@ describe("the sidecar subtitle prefetch", () => {
     });
   });
 
+  // Subtitles are optional: a prefetch that throws must not keep the stream
+  // from playing.
+  test("a failing prefetch still builds the config", async () => {
+    prefetchExternalSubtitles.mockRejectedValueOnce(new Error("disk full"));
+
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: { ...defaultValues, videoPlayer: VideoPlayer.ExoPlayer },
+      req: {
+        itemId: "item-1",
+        offline: false,
+        audioIndex: 1,
+        subtitleIndex: 3,
+      },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+    });
+
+    expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
+  });
+
   test("is skipped for mpv, which fetches its sidecars itself", async () => {
     const result = await buildNativePlayerConfig({
       api: makeConfiguredApi(),

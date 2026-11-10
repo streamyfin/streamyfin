@@ -41,6 +41,7 @@ import {
   getMpvAudioId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
+import { logAndCaptureError } from "@/utils/log";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
@@ -490,12 +491,20 @@ export async function buildNativePlayerConfig(params: {
     // slow one delays only that track: it keeps fetching them itself and
     // starts without this wait. Budgeted, the session's subtitle first.
     if (engine === "exoplayer") {
-      await prefetchExternalSubtitles({
-        mediaSource: res.mediaSource,
-        item,
-        api,
-        preferredIndex: subtitleIndex,
-      });
+      try {
+        await prefetchExternalSubtitles({
+          mediaSource: res.mediaSource,
+          item,
+          api,
+          preferredIndex: subtitleIndex,
+        });
+      } catch (error) {
+        // Subtitles are optional: an unexpected failure here plays the stream
+        // with whatever URLs the sidecars have, rather than not at all.
+        logAndCaptureError("NativePlayer subtitle prefetch failed", error, {
+          itemId: item.Id,
+        });
+      }
     }
   }
 
