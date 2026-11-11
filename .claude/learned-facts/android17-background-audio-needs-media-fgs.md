@@ -32,7 +32,9 @@ brings the picture back.
 
 The fix is a `mediaPlayback` foreground service, started while the app is still
 visible (the play request), and kept for the player's lifetime, paused included:
-starting it again from the background is refused. `MpvPlayerView` keeps its
+starting it again from the background is refused. A start that was refused anyway
+(the player attached with the app already in the background) leaves the player
+unprotected until the next play, which retries it (`PlaybackService.ensureStarted`). `MpvPlayerView` keeps its
 controller across `destroy()` because direct-player reuses the view for the next
 episode, possibly with the screen off.
 
