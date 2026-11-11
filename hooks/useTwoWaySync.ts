@@ -41,7 +41,10 @@ export const useTwoWaySync = () => {
     // false only takes the server's state: the local progress is shared by every
     // account on the device, so only a sync that knows this user queued it may
     // send it (useOfflineProgressSync).
-    { push = true }: { push?: boolean } = {},
+    // stamp: the LastPlayedDate this user's queued save wrote. The record is
+    // read again after the fetch, and a save by another account (switched to
+    // while the fetch was out) must not be sent as this user's.
+    { push = true, stamp }: { push?: boolean; stamp?: string } = {},
   ): Promise<PlaybackSyncResult> => {
     if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
@@ -108,6 +111,11 @@ export const useTwoWaySync = () => {
       return "pulled";
     } else if (remoteLastPlayed < localLastPlayed) {
       if (!push) return "unchanged";
+      // Saved again since this user's save: not provably theirs. A newer save
+      // of their own re-queued it with its own stamp, for the next run.
+      if (stamp && localItem.item.UserData?.LastPlayedDate !== stamp) {
+        return "unchanged";
+      }
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
         await getUserDataApi(api).updateItemUserData({

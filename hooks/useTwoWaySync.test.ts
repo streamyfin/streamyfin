@@ -40,7 +40,7 @@ const failWith = (status: number) =>
     status,
   } as AxiosResponse);
 
-const sync = async (options?: { push?: boolean }) => {
+const sync = async (options?: { push?: boolean; stamp?: string }) => {
   const { result } = await renderHook(() => useTwoWaySync());
   return result.current.syncPlaybackStateDetailed("episode-1", options);
 };
@@ -100,5 +100,28 @@ describe("useTwoWaySync", () => {
         updateUserItemDataDto: expect.objectContaining({ LastPlayedDate: T3 }),
       }),
     );
+  });
+
+  // Another account switched in and saved while the fetch was out: the
+  // record is no longer the save this user queued.
+  test("does not push a record saved since the queued stamp", async () => {
+    mockRecord = withLastPlayed(T1);
+    mockGetItem.mockImplementationOnce(async () => {
+      mockRecord = withLastPlayed(T3);
+      return { data: { Id: "episode-1", UserData: { LastPlayedDate: T2 } } };
+    });
+
+    expect(await sync({ stamp: T1 })).toBe("unchanged");
+    expect(mockUpdateUserData).not.toHaveBeenCalled();
+    expect(mockUpdateDownloaded).not.toHaveBeenCalled();
+  });
+
+  test("pushes the record while it is still the queued save", async () => {
+    mockRecord = withLastPlayed(T3);
+    mockGetItem.mockResolvedValueOnce({
+      data: { Id: "episode-1", UserData: { LastPlayedDate: T2 } },
+    });
+
+    expect(await sync({ stamp: T3 })).toBe("pushed");
   });
 });

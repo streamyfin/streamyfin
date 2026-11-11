@@ -121,7 +121,11 @@ export function useOfflineProgressSync() {
       if (fresh.userId !== user) return;
 
       const results = await Promise.allSettled(
-        items.map((id) => fresh.syncPlaybackStateDetailed(id)),
+        items.map((id) =>
+          fresh.syncPlaybackStateDetailed(id, {
+            stamp: queued[id] || undefined,
+          }),
+        ),
       );
       const outcome = (i: number) => {
         const result = results[i];
