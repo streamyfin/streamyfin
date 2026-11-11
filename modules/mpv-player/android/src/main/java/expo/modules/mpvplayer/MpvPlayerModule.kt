@@ -79,6 +79,14 @@ class MpvPlayerModule : Module() {
                 view.setBackgroundPlayback(enabled == true)
             }
 
+            // The user's skip settings, for the session's fast forward and rewind.
+            Prop("sessionSkipSeconds") { view: MpvPlayerView, skip: Map<String, Any?>? ->
+                view.setSessionSkipSeconds(
+                    (skip?.get("forward") as? Number)?.toDouble(),
+                    (skip?.get("backward") as? Number)?.toDouble(),
+                )
+            }
+
             // Async function to play video
             AsyncFunction("play") { view: MpvPlayerView ->
                 view.play()

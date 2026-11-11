@@ -23,6 +23,9 @@ class MediaSessionController(
         override val playbackSpeed get() = viewModel.speed
         override val isNetworkSource get() = viewModel.sourceUrl.startsWith("http", ignoreCase = true)
         override val nowPlaying get() = nowPlayingInfo(viewModel.metadata)
+        // The skips the on-screen and remote buttons use.
+        override val seekForwardSeconds get() = viewModel.uiOptions.seekForwardSec
+        override val seekBackSeconds get() = viewModel.uiOptions.seekBackwardSec
         // In a group Next goes to the group's next item, and only that.
         override val canSkipToNext get() =
             if (viewModel.syncPlayActive) viewModel.syncPlay?.hasNext == true

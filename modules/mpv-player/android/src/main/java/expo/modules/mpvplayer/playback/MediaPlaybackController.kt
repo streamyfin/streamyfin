@@ -52,8 +52,6 @@ class MediaPlaybackController(
     companion object {
         private const val TAG = "MediaPlaybackController"
 
-        private const val SEEK_BACK_SECONDS = 10.0
-        private const val SEEK_FORWARD_SECONDS = 30.0
 
         // A position report further than this from where the session's
         // extrapolation says it should be is a seek or a stall: republish.
@@ -123,8 +121,8 @@ class MediaPlaybackController(
                 override fun onPlay() = target.play()
                 override fun onPause() = target.pause()
                 override fun onSeekTo(pos: Long) = target.seekTo(pos / 1000.0)
-                override fun onFastForward() = target.seekBy(SEEK_FORWARD_SECONDS)
-                override fun onRewind() = target.seekBy(-SEEK_BACK_SECONDS)
+                override fun onFastForward() = target.seekBy(target.seekForwardSeconds)
+                override fun onRewind() = target.seekBy(-target.seekBackSeconds)
                 override fun onSkipToNext() {
                     if (target.canSkipToNext) target.skipToNext()
                 }
@@ -385,8 +383,8 @@ class MediaPlaybackController(
         when (action) {
             PlaybackService.ACTION_PLAY -> target.play()
             PlaybackService.ACTION_PAUSE -> target.pause()
-            PlaybackService.ACTION_REWIND -> target.seekBy(-SEEK_BACK_SECONDS)
-            PlaybackService.ACTION_FORWARD -> target.seekBy(SEEK_FORWARD_SECONDS)
+            PlaybackService.ACTION_REWIND -> target.seekBy(-target.seekBackSeconds)
+            PlaybackService.ACTION_FORWARD -> target.seekBy(target.seekForwardSeconds)
         }
     }
 

@@ -22,6 +22,13 @@ interface MediaPlaybackTarget {
      */
     val isNetworkSource: Boolean
 
+    /**
+     * How far fast forward and rewind go from the session and notification: the
+     * user's skip settings where the player has them.
+     */
+    val seekForwardSeconds: Double get() = 30.0
+    val seekBackSeconds: Double get() = 10.0
+
     val canSkipToNext: Boolean get() = false
 
     /** Previous restarts the item when solo, so it is offered by default. */

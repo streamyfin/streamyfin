@@ -102,6 +102,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var playbackFailed = false
     private var playbackSpeedValue = 1.0
 
+    // The user's skip settings, from the player screen (sessionSkipSeconds).
+    private var sessionSkipForward = 30.0
+    private var sessionSkipBack = 10.0
+
     private val mediaPlaybackTarget = object : MediaPlaybackTarget {
         override val isPlaying get() = rendererStarted && !playbackFailed && !isPaused()
         override val isBuffering get() = isLoadingMedia
@@ -111,6 +115,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         override val playbackSpeed get() = playbackSpeedValue
         override val isNetworkSource get() = currentUrl?.startsWith("http", ignoreCase = true) == true
         override val nowPlaying get() = this@MpvPlayerView.nowPlaying
+        override val seekForwardSeconds get() = sessionSkipForward
+        override val seekBackSeconds get() = sessionSkipBack
 
         override fun play() = this@MpvPlayerView.play()
         override fun pause() = this@MpvPlayerView.pause()
@@ -331,6 +337,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     // MARK: - Background playback
+
+    /** How far the session's fast forward and rewind go: the user's skip settings. */
+    fun setSessionSkipSeconds(forward: Double?, backward: Double?) {
+        forward?.takeIf { it > 0 }?.let { sessionSkipForward = it }
+        backward?.takeIf { it > 0 }?.let { sessionSkipBack = it }
+    }
 
     /** Turns the media session and service on or off, before a load or after it. */
     fun setBackgroundPlayback(enabled: Boolean) {

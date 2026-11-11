@@ -597,6 +597,23 @@ describe("direct player stop report", () => {
     expect(mockPlayerProps?.backgroundPlayback).toBe(true);
   });
 
+  // Fast forward and rewind from a headset or the notification went +30 and
+  // -10 s whatever the user had set.
+  test("hands the session the user's skip settings", async () => {
+    Object.assign(mockSettings, { forwardSkipTime: 15, rewindSkipTime: 30 });
+    try {
+      await openPlayer();
+
+      expect(mockPlayerProps?.sessionSkipSeconds).toEqual({
+        forward: 15,
+        backward: 30,
+      });
+    } finally {
+      for (const key of ["forwardSkipTime", "rewindSkipTime"])
+        delete (mockSettings as Record<string, unknown>)[key];
+    }
+  });
+
   describe("on TV, where the controls re-negotiate the stream through the page", () => {
     beforeEach(() => stubReactNative({ isTV: true }));
     afterEach(() => stubReactNative());

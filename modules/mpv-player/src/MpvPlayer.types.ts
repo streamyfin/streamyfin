@@ -94,6 +94,11 @@ export type MpvPlayerViewProps = {
    * user's music. iOS ignores it.
    */
   backgroundPlayback?: boolean;
+  /**
+   * Android: how far fast forward and rewind go from the media session and the
+   * notification (a headset, a car, the lock screen). The user's skip settings.
+   */
+  sessionSkipSeconds?: { forward: number; backward: number };
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;
