@@ -15,6 +15,10 @@ export const SHEET_MAX_HEIGHT_RATIO = 0.85;
 export const SHEET_PADDING = 16;
 export const SHEET_PADDING_TOP = 8;
 
+// A filter that takes one value closes its sheet this long after the choice,
+// so the check mark is seen.
+export const FILTER_SINGLE_CHOICE_CLOSE_DELAY_MS = 250;
+
 /** A poster's width over its height, as TMDB's artwork is cut. */
 export const POSTER_ASPECT_RATIO = 10 / 15;
 

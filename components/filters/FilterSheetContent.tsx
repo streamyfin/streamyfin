@@ -7,6 +7,7 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Input } from "@/components/common/Input";
 import { useSheetContentPadding } from "@/components/common/SheetContent";
 import { Text } from "@/components/common/Text";
+import { FILTER_SINGLE_CHOICE_CLOSE_DELAY_MS } from "@/constants/Values";
 
 interface Props<T> {
   title: string;
@@ -73,7 +74,7 @@ export const FilterSheetContent = <T,>({
         setValues([item]);
         set([item]);
       }
-      setTimeout(() => onClose(), 250);
+      setTimeout(() => onClose(), FILTER_SINGLE_CHOICE_CLOSE_DELAY_MS);
     }
   };
 
