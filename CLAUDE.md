@@ -108,6 +108,7 @@ Build and tooling:
 - `require-hooks-leak-across-jest-specs` | a require hook (tsx/cjs) registered from a spec stays on the Jest worker's Node loader and breaks later specs; map it to a stub
 - `expo-image-prebuilt-glide-logs` | Expo's prebuilt expo-image AAR ships with Glide logs on, every image URL (trickplay ApiKey included) reaches logcat; built from source instead
 - `repack-shrunk-resources-missing-attrs` | AGP 9's R8 resource shrinking leaves XML naming attributes it removed; apktool cannot relink them, so the Android repack declares them and builds again
+- `expo-prebuilt-modules-need-matching-rn` | the prebuilt ExpoModulesCore uses React core classes of the RN patch the SDK targets; expo-modules-core 58.0.30 on react-native-tvos 0.88.0-0 dies in dyld at every iOS launch while the build stays green
 
 ## Project overview
 

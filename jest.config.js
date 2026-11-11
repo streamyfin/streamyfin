@@ -6,10 +6,7 @@ module.exports = {
     "<rootDir>/test-utils/idleCallback.ts",
     "./node_modules/react-native-gesture-handler/jestSetup.js",
   ],
-  setupFilesAfterEnv: [
-    "<rootDir>/test-utils/assetRegistry.ts",
-    "<rootDir>/test-utils/unitSetup.ts",
-  ],
+  setupFilesAfterEnv: ["<rootDir>/test-utils/unitSetup.ts"],
   moduleNameMapper: {
     "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
     "^expo-file-system$": "<rootDir>/test-utils/fileSystemModule.ts",

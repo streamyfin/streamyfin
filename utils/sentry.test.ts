@@ -100,6 +100,14 @@ describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () 
         data: { url: "https://[server]/Sessions" },
       }),
     ).toBe(false);
+    // Since 8.34 the SDK also records expo/fetch, the global fetch on native.
+    expect(
+      isUserInteractionBreadcrumb({
+        type: "http",
+        category: "fetch",
+        data: { url: "https://[server]/Sessions" },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -206,6 +214,28 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
       extra: {
         urls: ["http://[server]"],
         detail: { path: "/Documents/[media].mkv" },
+      },
+    });
+  });
+
+  test("scrubs a fetch breadcrumb's URL as it does an XHR one", () => {
+    expect(
+      scrubDeep({
+        type: "http",
+        category: "fetch",
+        data: {
+          method: "GET",
+          url: "https://jellyfin.example.com:8096/Sessions?api_key=secret",
+          status_code: 200,
+        },
+      }),
+    ).toEqual({
+      type: "http",
+      category: "fetch",
+      data: {
+        method: "GET",
+        url: "https://[server]/Sessions",
+        status_code: 200,
       },
     });
   });
