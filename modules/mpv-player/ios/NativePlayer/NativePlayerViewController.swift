@@ -368,73 +368,123 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	#if os(iOS)
-	// MARK: - Hardware keyboard (iPad)
+	// MARK: - Hardware keyboard
 
 	// Key commands and key presses only reach this controller while it is in
 	// the responder chain, so it claims first responder once on screen.
 	override var canBecomeFirstResponder: Bool { true }
 
+	/// The presses pressesBegan kept. UIKit sends the later phases of a press
+	/// to the responder that got it, and one that keeps a press from super has
+	/// to keep its end and cancel too.
+	private var handledPresses = Set<UIPress>()
+
 	override var keyCommands: [UIKeyCommand]? {
-		// The arrows repeat while held, so holding one keeps seeking. The space
-		// bar is not a key command: a command repeats too and a held space bar
-		// would flip play and pause, a press fires once.
-		// With an overlay up the commands are withdrawn: a command with priority
-		// swallows the arrow before the focus system sees it, and the overlays
-		// are navigated with Full Keyboard Access.
-		// In SyncPlay every seek is a request to the group, and each repeat would
-		// ask for the same target until the group answers: the arrows go through
-		// pressesBegan there, one seek per press.
-		guard keyboardInputAllowed, !viewModel.isSyncPlayActive else { return [] }
+		// The arrows are key commands, which repeat, so a held arrow keeps
+		// seeking. The space bar is a press: a held one toggles once. A command
+		// with priority swallows the arrow before the focus system sees it, so the
+		// commands are only there while nothing else on screen wants the arrows.
+		guard PlayerKeyboardPolicy.registersArrowCommands(in: keyboardState) else { return [] }
 		let commands = [
-			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowKey)),
-			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowKey)),
+			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowCommand)),
+			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowCommand)),
 		]
 		for command in commands { command.wantsPriorityOverSystemBehavior = true }
 		return commands
 	}
 
 	override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-		let keys = presses.compactMap { $0.key?.keyCode }
+		var forwarded = Set<UIPress>()
+		for press in presses {
+			if let action = pressAction(for: press) {
+				handledPresses.insert(press)
+				perform(action)
+			} else {
+				forwarded.insert(press)
+			}
+		}
 		// Anything not ours goes up the chain, space included while an overlay
 		// is up, so it can still activate the focused button there.
-		guard keyboardInputAllowed else {
-			super.pressesBegan(presses, with: event)
-			return
+		if !forwarded.isEmpty { super.pressesBegan(forwarded, with: event) }
+	}
+
+	override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		let forwarded = presses.subtracting(handledPresses)
+		if !forwarded.isEmpty { super.pressesChanged(forwarded, with: event) }
+	}
+
+	override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		let forwarded = releaseHandledPresses(presses)
+		if !forwarded.isEmpty { super.pressesEnded(forwarded, with: event) }
+	}
+
+	override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		let forwarded = releaseHandledPresses(presses)
+		if !forwarded.isEmpty { super.pressesCancelled(forwarded, with: event) }
+	}
+
+	/// Forgets the handled presses among these, which are over, and returns
+	/// the others for super.
+	private func releaseHandledPresses(_ presses: Set<UIPress>) -> Set<UIPress> {
+		let forwarded = presses.subtracting(handledPresses)
+		handledPresses.subtract(presses)
+		return forwarded
+	}
+
+	/// The prompts, the sheets, the error overlay and the lock mode own the
+	/// input, same as the touch controls. Without the sheets here, the arrows
+	/// seek while the search sheet is up.
+	private var keyboardState: PlayerKeyboardState {
+		PlayerKeyboardState(
+			overlayOwnsInput: viewModel.showStillWatching || viewModel.showEpisodeList
+				|| viewModel.showSubtitleSearch || viewModel.showSyncPlayQueue
+				|| viewModel.controlsLocked || viewModel.errorMessage != nil,
+			subtitleScaleShown: viewModel.showSubtitleScaleControl,
+			isScrubbing: viewModel.isScrubbing,
+			canSeek: viewModel.isReadyToSeek && viewModel.duration > 0,
+			syncPlayActive: viewModel.isSyncPlayActive
+		)
+	}
+
+	private func pressAction(for press: UIPress) -> PlayerKeyAction? {
+		guard let key = press.key else { return nil }
+		let playerKey: PlayerKey
+		switch key.keyCode {
+		case .keyboardSpacebar: playerKey = .space
+		case .keyboardLeftArrow: playerKey = .leftArrow
+		case .keyboardRightArrow: playerKey = .rightArrow
+		default: return nil
 		}
-		if keys.contains(.keyboardSpacebar) {
-			viewModel.showControls()
-			viewModel.togglePlayPause()
-		} else if viewModel.isSyncPlayActive && keys.contains(.keyboardLeftArrow) {
-			handleLeftArrowKey()
-		} else if viewModel.isSyncPlayActive && keys.contains(.keyboardRightArrow) {
-			handleRightArrowKey()
+		// Not .numericPad: most keyboards report it on the arrows.
+		let modified = !key.modifierFlags.isDisjoint(with: [.shift, .control, .alternate, .command])
+		return PlayerKeyboardPolicy.pressAction(for: playerKey, modified: modified, in: keyboardState)
+	}
+
+	@objc private func handleLeftArrowCommand() {
+		if let action = PlayerKeyboardPolicy.commandAction(for: .leftArrow, in: keyboardState) {
+			perform(action)
+		}
+	}
+
+	@objc private func handleRightArrowCommand() {
+		if let action = PlayerKeyboardPolicy.commandAction(for: .rightArrow, in: keyboardState) {
+			perform(action)
+		}
+	}
+
+	private func perform(_ action: PlayerKeyAction) {
+		// As a touch does: a key shows hidden controls, and only keeps shown
+		// ones up, so each repeat of a held arrow does not show them again.
+		if viewModel.controlsVisible {
+			viewModel.scheduleAutoHide()
 		} else {
-			super.pressesBegan(presses, with: event)
+			viewModel.showControls()
 		}
-	}
-
-	/// The prompts, the sheets, the subtitle scale control, the error overlay
-	/// and the lock mode own the input, same as the touch controls: nothing may
-	/// resume or move playback under them. Without the sheets and the scale
-	/// control here, the arrows seek while the search sheet or the scale slider
-	/// is up.
-	private var keyboardInputAllowed: Bool {
-		!viewModel.showStillWatching && !viewModel.showEpisodeList
-			&& !viewModel.showSubtitleSearch && !viewModel.showSyncPlayQueue
-			&& !viewModel.showSubtitleScaleControl && !viewModel.controlsLocked
-			&& viewModel.errorMessage == nil
-	}
-
-	@objc private func handleLeftArrowKey() {
-		guard keyboardInputAllowed else { return }
-		viewModel.showControls()
-		viewModel.seekBackward()
-	}
-
-	@objc private func handleRightArrowKey() {
-		guard keyboardInputAllowed else { return }
-		viewModel.showControls()
-		viewModel.seekForward()
+		switch action {
+		case .togglePlayPause: viewModel.togglePlayPause()
+		case .seekBackward: viewModel.seekBackward()
+		case .seekForward: viewModel.seekForward()
+		}
 	}
 	#endif
 
