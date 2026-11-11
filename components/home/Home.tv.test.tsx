@@ -13,6 +13,7 @@ import type { makeApi } from "@/test-utils/jellyfinApi";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import type { Home as HomeLayout } from "@/utils/atoms/settings";
 import { Home } from "./Home.tv";
+import { resetHomeInitialFocus } from "./useHomeInitialFocus";
 
 const defaultSettings = {
   home: null as HomeLayout | null,
@@ -241,6 +242,8 @@ const withSettings = (overrides: Partial<HomeSettings>) => {
 
 describe("Home.tv behaviours", () => {
   beforeEach(() => {
+    // Each test is a new launch: its first Home may take the initial focus.
+    resetHomeInitialFocus();
     jest.useFakeTimers({ doNotFake: ["performance"] });
     mockPush.mockClear();
     tvItemActionModalMock.showItemActions.mockClear();
@@ -253,6 +256,33 @@ describe("Home.tv behaviours", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  // Android TV's tab bar replaces the route: Home mounts again on every press
+  // of its tab, and each new Home pulled the focus off the bar into its first
+  // poster. Only the launch's Home may.
+  test("a Home mounted again in the same session asks for no focus", async () => {
+    withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
+    const first = await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    await first.unmount();
+
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+
+    const hasPreferred = (node: unknown): boolean => {
+      if (!node || typeof node !== "object") return false;
+      if (Array.isArray(node)) return node.some(hasPreferred);
+      const { props, children } = node as {
+        props?: { hasTVPreferredFocus?: boolean };
+        children?: unknown[];
+      };
+      return (
+        props?.hasTVPreferredFocus === true ||
+        (children ?? []).some(hasPreferred)
+      );
+    };
+    expect(hasPreferred(screen.toJSON())).toBe(false);
   });
 
   test("initial focus (hasTVPreferredFocus) is given to the first poster when hero is hidden", async () => {

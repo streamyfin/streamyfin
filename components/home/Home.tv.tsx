@@ -30,6 +30,7 @@ import {
   TVHomeBackdrop,
   type TVHomeBackdropRef,
 } from "@/components/home/TVHomeBackdrop";
+import { useHomeInitialFocus } from "@/components/home/useHomeInitialFocus";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
@@ -74,6 +75,8 @@ export const Home = () => {
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  // Only the first Home of a session may pull the focus off the tab bar.
+  const takesInitialFocus = useHomeInitialFocus(user?.Id);
   const cacheVersion = useAtomValue(cacheVersionAtom);
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
@@ -577,7 +580,11 @@ export const Home = () => {
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
         {showHero && heroItems && (
-          <TVHeroCarousel items={heroItems} onItemLongPress={showItemActions} />
+          <TVHeroCarousel
+            items={heroItems}
+            onItemLongPress={showItemActions}
+            takesInitialFocus={takesInitialFocus}
+          />
         )}
 
         <View
@@ -630,7 +637,8 @@ export const Home = () => {
 
             if (section.type === "InfiniteScrollingCollectionList") {
               // First section only gets preferred focus if hero is not shown
-              const isFirstSection = index === 0 && !showHero;
+              const isFirstSection =
+                takesInitialFocus && index === 0 && !showHero;
               return (
                 <View key={index} style={{ gap: SECTION_GAP }}>
                   <InfiniteScrollingCollectionList
