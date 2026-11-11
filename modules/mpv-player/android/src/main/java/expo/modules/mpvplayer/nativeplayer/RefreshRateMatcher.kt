@@ -43,18 +43,30 @@ object RefreshRateMatcher {
      * (jellyfin-androidtv #1482).
      */
     fun pickMode(display: Display, contentFrameRate: Double): Display.Mode? {
+        val id = pickModeId(
+            display.mode.toCandidate(),
+            display.supportedModes.map { it.toCandidate() },
+            contentFrameRate,
+        ) ?: return null
+        return display.supportedModes.firstOrNull { it.modeId == id }
+    }
+
+    private fun Display.Mode.toCandidate() =
+        ModeCandidate(modeId, physicalWidth, physicalHeight, refreshRate)
+
+    /** [pickMode] on plain values, so the policy runs without a display. */
+    internal fun pickModeId(
+        current: ModeCandidate,
+        supported: List<ModeCandidate>,
+        contentFrameRate: Double,
+    ): Int? {
         if (contentFrameRate <= 0.0) return null
-        val current = display.mode
-        var best: Display.Mode? = null
+        var best: ModeCandidate? = null
         var bestMultiple = Float.MAX_VALUE
         var bestDistance = Float.MAX_VALUE
         var bestIsCurrent = false
-        for (mode in display.supportedModes) {
-            if (mode.physicalWidth != current.physicalWidth ||
-                mode.physicalHeight != current.physicalHeight
-            ) {
-                continue
-            }
+        for (mode in supported) {
+            if (mode.width != current.width || mode.height != current.height) continue
             // Lowest multiple wins: the panel divides it back down to the
             // content rate, and lower multiples drift less. First hit at a
             // multiple stops the scan for this mode.
@@ -63,12 +75,12 @@ object RefreshRateMatcher {
                 val distance = abs(mode.refreshRate - target)
                 if (distance > tolerance(multiple)) continue
                 val isCurrent = mode.modeId == current.modeId
+                // At the same multiple the active mode wins (a switch is a
+                // visible blank on a TV panel), then the closest rate.
                 val better =
                     multiple < bestMultiple ||
-                        (multiple == bestMultiple &&
-                            (distance < bestDistance ||
-                                (distance == bestDistance &&
-                                    isCurrent && !bestIsCurrent)))
+                        (multiple == bestMultiple && !bestIsCurrent &&
+                            (isCurrent || distance < bestDistance))
                 if (better) {
                     best = mode
                     bestMultiple = multiple
@@ -78,6 +90,14 @@ object RefreshRateMatcher {
                 break
             }
         }
-        return best
+        return best?.modeId
     }
 }
+
+/** A display mode as [RefreshRateMatcher.pickModeId] weighs it. */
+internal data class ModeCandidate(
+    val modeId: Int,
+    val width: Int,
+    val height: Int,
+    val refreshRate: Float,
+)
