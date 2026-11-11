@@ -6,10 +6,11 @@ package expo.modules.mpvplayer.nativeplayer
  * Intro-or-credits branch in one place and miss another — Recap, Commercial
  * and Preview used to read "Skip Credits" on TV.
  */
+// The English fallbacks live in PlayerStrings.DEFAULTS, once.
 internal fun segmentSkipLabel(type: String, strings: PlayerStrings): String = when (type) {
-    "Outro" -> strings.get("skipCredits", "Skip credits")
-    "Recap" -> strings.get("skipRecap", "Skip recap")
-    "Commercial" -> strings.get("skipCommercial", "Skip commercial")
-    "Preview" -> strings.get("skipPreview", "Skip preview")
-    else -> strings.get("skipIntro", "Skip intro")
+    "Outro" -> strings.get("skipCredits")
+    "Recap" -> strings.get("skipRecap")
+    "Commercial" -> strings.get("skipCommercial")
+    "Preview" -> strings.get("skipPreview")
+    else -> strings.get("skipIntro")
 }
