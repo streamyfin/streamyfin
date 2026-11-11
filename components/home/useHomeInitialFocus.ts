@@ -1,33 +1,38 @@
 import { useEffect, useRef } from "react";
 
-/** The session whose first Home already took the initial focus. */
+/** The sign-in whose first Home already took the initial focus. */
 let takenFor: string | null = null;
 
 /**
  * Whether this Home may ask for the initial focus: only the first Home of a
- * session. Android TV's tab bar replaces the route, so Home mounts again on
- * every press of its tab, and clearing the cache remounts it on tvOS; asking
- * again then pulled the focus off the tab bar, which only the launch may do
- * (docs/conventions/tv.md). Covered by useHomeInitialFocus.test.ts.
+ * sign-in, for the sign-in it was mounted with. Android TV's tab bar replaces
+ * the route, so Home mounts again on every press of its tab, and asking again
+ * then pulled the focus off the tab bar, which only the launch may do
+ * (docs/conventions/tv.md). `sessionKey` changes with every sign-in, the same
+ * user's included. A Home whose sign-in changes under it (an account switch
+ * while Home stays mounted on tvOS) neither takes the focus for the new one nor
+ * uses up its turn. Covered by useHomeInitialFocus.test.ts.
  */
 export const useHomeInitialFocus = (
   sessionKey: string | undefined,
 ): boolean => {
+  const mountedFor = useRef(sessionKey);
   // Decided once per mount, and claimed only once committed, so a render
-  // that never commits does not use up the session's turn.
+  // that never commits does not use up the sign-in's turn.
   const decided = useRef<boolean | null>(null);
   if (decided.current === null) {
     decided.current = !!sessionKey && takenFor !== sessionKey;
   }
+  const takes = decided.current && sessionKey === mountedFor.current;
 
   useEffect(() => {
-    if (decided.current && sessionKey) takenFor = sessionKey;
-  }, [sessionKey]);
+    if (takes && sessionKey) takenFor = sessionKey;
+  }, [takes, sessionKey]);
 
-  return decided.current;
+  return takes;
 };
 
-/** Forgets which session took the focus; for tests. */
+/** Forgets which sign-in took the focus; for tests. */
 export const resetHomeInitialFocus = () => {
   takenFor = null;
 };

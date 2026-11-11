@@ -76,12 +76,13 @@ export const Home = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const cacheVersion = useAtomValue(cacheVersionAtom);
-  // Only the first Home of a session may pull the focus off the tab bar, and
+  // Only the first Home of a sign-in may pull the focus off the tab bar, and
   // only its first content: clearing the cache rebuilds the content under the
   // same Home (keyed on cacheVersion), and the new first card would ask again.
   const firstCacheVersion = useRef(cacheVersion);
   const takesInitialFocus =
-    useHomeInitialFocus(user?.Id) && cacheVersion === firstCacheVersion.current;
+    useHomeInitialFocus(api?.accessToken) &&
+    cacheVersion === firstCacheVersion.current;
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
   const scrollRef = useRef<ScrollViewInstance>(null);

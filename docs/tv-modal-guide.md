@@ -372,7 +372,11 @@ const TVFocusableButton = React.forwardRef<
 
 // 3. Pass disabled to all background components when modal is open
 const openerRef = useRef<ViewInstance>(null);
-<TVFocusableButton ref={openerRef} onPress={openModal} disabled={isModalOpen} />
+<TVFocusableButton
+  ref={openerRef}
+  onPress={() => setOpenModal("subtitles")}
+  disabled={isModalOpen}
+/>
 
 // 4. When the overlay closes, hand the focus back to what opened it: the
 // overlay took the focus with it. A tab root may not use hasTVPreferredFocus
