@@ -79,6 +79,11 @@ class MpvPlayerModule : Module() {
                 view.setBackgroundPlayback(enabled == true)
             }
 
+            // Live TV: no seek from the media session or the notification.
+            Prop("liveStream") { view: MpvPlayerView, live: Boolean? ->
+                view.setLiveStream(live == true)
+            }
+
             // The user's skip settings, for the session's fast forward and rewind.
             Prop("sessionSkipSeconds") { view: MpvPlayerView, skip: Map<String, Any?>? ->
                 view.setSessionSkipSeconds(

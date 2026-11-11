@@ -105,6 +105,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // The user's skip settings, from the player screen (sessionSkipSeconds).
     private var sessionSkipForward = 30.0
     private var sessionSkipBack = 10.0
+    // Live TV (the liveStream prop): no seek from the session.
+    private var liveStream = false
 
     private val mediaPlaybackTarget = object : MediaPlaybackTarget {
         override val isPlaying get() = rendererStarted && !playbackFailed && !isPaused()
@@ -117,6 +119,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         override val nowPlaying get() = this@MpvPlayerView.nowPlaying
         override val seekForwardSeconds get() = sessionSkipForward
         override val seekBackSeconds get() = sessionSkipBack
+        override val canSeek get() = !liveStream
 
         override fun play() = this@MpvPlayerView.play()
         override fun pause() = this@MpvPlayerView.pause()
@@ -337,6 +340,13 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     // MARK: - Background playback
+
+    /** Live TV: the session offers no seek, fast forward, rewind or restart. */
+    fun setLiveStream(live: Boolean) {
+        if (liveStream == live) return
+        liveStream = live
+        mediaPlayback?.updatePlaybackState()
+    }
 
     /** How far the session's fast forward and rewind go: the user's skip settings. */
     fun setSessionSkipSeconds(forward: Double?, backward: Double?) {

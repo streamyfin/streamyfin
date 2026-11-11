@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class SessionSkipTest {
-    private class Target : MediaPlaybackTarget {
+    private class Target(override val canSeek: Boolean = true) : MediaPlaybackTarget {
         val seeks = mutableListOf<Double>()
         override val isPlaying = false
         override val isBuffering = false
@@ -42,5 +42,17 @@ class SessionSkipTest {
         controller.handleAction(PlaybackService.ACTION_REWIND)
 
         assertEquals(listOf(15.0, -30.0), target.seeks)
+    }
+
+    // Live TV: a headset's fast forward went past the live edge, its Previous to the start.
+    @Test
+    fun aLiveStreamIsNotSought() {
+        val target = Target(canSeek = false)
+        val controller = MediaPlaybackController(RuntimeEnvironment.getApplication(), target, "Test")
+
+        controller.handleAction(PlaybackService.ACTION_FORWARD)
+        controller.handleAction(PlaybackService.ACTION_REWIND)
+
+        assertEquals(emptyList<Double>(), target.seeks)
     }
 }

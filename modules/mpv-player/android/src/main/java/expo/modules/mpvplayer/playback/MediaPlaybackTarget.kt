@@ -29,6 +29,13 @@ interface MediaPlaybackTarget {
     val seekForwardSeconds: Double get() = 30.0
     val seekBackSeconds: Double get() = 10.0
 
+    /**
+     * A live stream cannot be sought: no seek, fast forward, rewind or restart
+     * is offered for it, so a headset cannot jump past the live edge or back
+     * to the start of the stream.
+     */
+    val canSeek: Boolean get() = true
+
     val canSkipToNext: Boolean get() = false
 
     /** Previous restarts the item when solo, so it is offered by default. */

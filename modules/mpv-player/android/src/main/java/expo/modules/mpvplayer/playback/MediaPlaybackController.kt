@@ -120,14 +120,20 @@ class MediaPlaybackController(
             setCallback(object : MediaSession.Callback() {
                 override fun onPlay() = target.play()
                 override fun onPause() = target.pause()
-                override fun onSeekTo(pos: Long) = target.seekTo(pos / 1000.0)
-                override fun onFastForward() = target.seekBy(target.seekForwardSeconds)
-                override fun onRewind() = target.seekBy(-target.seekBackSeconds)
+                override fun onSeekTo(pos: Long) {
+                    if (target.canSeek) target.seekTo(pos / 1000.0)
+                }
+                override fun onFastForward() {
+                    if (target.canSeek) target.seekBy(target.seekForwardSeconds)
+                }
+                override fun onRewind() {
+                    if (target.canSeek) target.seekBy(-target.seekBackSeconds)
+                }
                 override fun onSkipToNext() {
                     if (target.canSkipToNext) target.skipToNext()
                 }
                 override fun onSkipToPrevious() {
-                    if (target.canSkipToPrevious) target.skipToPrevious()
+                    if (target.canSkipToPrevious && target.canSeek) target.skipToPrevious()
                 }
                 override fun onStop() = target.stop()
             })
@@ -173,11 +179,14 @@ class MediaPlaybackController(
 
         var actions = PlaybackState.ACTION_PLAY or
             PlaybackState.ACTION_PAUSE or
-            PlaybackState.ACTION_PLAY_PAUSE or
-            PlaybackState.ACTION_SEEK_TO or
-            PlaybackState.ACTION_FAST_FORWARD or
-            PlaybackState.ACTION_REWIND
-        if (target.canSkipToPrevious) actions = actions or PlaybackState.ACTION_SKIP_TO_PREVIOUS
+            PlaybackState.ACTION_PLAY_PAUSE
+        if (target.canSeek) {
+            actions = actions or
+                PlaybackState.ACTION_SEEK_TO or
+                PlaybackState.ACTION_FAST_FORWARD or
+                PlaybackState.ACTION_REWIND
+            if (target.canSkipToPrevious) actions = actions or PlaybackState.ACTION_SKIP_TO_PREVIOUS
+        }
         if (target.canSkipToNext) actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT
 
         session.setPlaybackState(
@@ -360,15 +369,24 @@ class MediaPlaybackController(
 
         // Android 13+ draws the controls from the session; these actions are
         // what older versions show.
-        builder.addAction(action(service, android.R.drawable.ic_media_rew, "Rewind", PlaybackService.ACTION_REWIND))
+        val canSeek = target.canSeek
+        if (canSeek) {
+            builder.addAction(action(service, android.R.drawable.ic_media_rew, "Rewind", PlaybackService.ACTION_REWIND))
+        }
         if (playing) {
             builder.addAction(action(service, android.R.drawable.ic_media_pause, "Pause", PlaybackService.ACTION_PAUSE))
         } else {
             builder.addAction(action(service, android.R.drawable.ic_media_play, "Play", PlaybackService.ACTION_PLAY))
         }
-        builder.addAction(action(service, android.R.drawable.ic_media_ff, "Fast forward", PlaybackService.ACTION_FORWARD))
+        if (canSeek) {
+            builder.addAction(action(service, android.R.drawable.ic_media_ff, "Fast forward", PlaybackService.ACTION_FORWARD))
+        }
 
-        val style = Notification.MediaStyle().setShowActionsInCompactView(0, 1, 2)
+        val style = if (canSeek) {
+            Notification.MediaStyle().setShowActionsInCompactView(0, 1, 2)
+        } else {
+            Notification.MediaStyle().setShowActionsInCompactView(0)
+        }
         mediaSession?.sessionToken?.let { style.setMediaSession(it) }
         builder.setStyle(style)
 
@@ -383,8 +401,8 @@ class MediaPlaybackController(
         when (action) {
             PlaybackService.ACTION_PLAY -> target.play()
             PlaybackService.ACTION_PAUSE -> target.pause()
-            PlaybackService.ACTION_REWIND -> target.seekBy(-target.seekBackSeconds)
-            PlaybackService.ACTION_FORWARD -> target.seekBy(target.seekForwardSeconds)
+            PlaybackService.ACTION_REWIND -> if (target.canSeek) target.seekBy(-target.seekBackSeconds)
+            PlaybackService.ACTION_FORWARD -> if (target.canSeek) target.seekBy(target.seekForwardSeconds)
         }
     }
 

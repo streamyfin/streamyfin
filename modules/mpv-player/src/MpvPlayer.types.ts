@@ -99,6 +99,12 @@ export type MpvPlayerViewProps = {
    * notification (a headset, a car, the lock screen). The user's skip settings.
    */
   sessionSkipSeconds?: { forward: number; backward: number };
+  /**
+   * Android: a live stream. The media session and the notification then offer
+   * no seek, fast forward, rewind or restart, which went past the live edge or
+   * back to the start of the stream.
+   */
+  liveStream?: boolean;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;

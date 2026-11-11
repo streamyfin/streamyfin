@@ -1761,6 +1761,9 @@ export default function DirectPlayerPage() {
                 // session took Play/Pause again and undid the toggle.
                 backgroundPlayback={!Platform.isTV}
                 sessionSkipSeconds={sessionSkipSeconds}
+                liveStream={
+                  item?.Type === "Program" || item?.Type === "TvChannel"
+                }
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}

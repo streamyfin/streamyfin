@@ -110,6 +110,7 @@ public class MpvPlayerModule: Module {
       // audio session, so there is nothing to turn on here.
       Prop("backgroundPlayback") { (_: MpvPlayerView, _: Bool?) in }
       Prop("sessionSkipSeconds") { (_: MpvPlayerView, _: [String: Any]?) in }
+      Prop("liveStream") { (_: MpvPlayerView, _: Bool?) in }
 
       // Now Playing metadata for iOS Control Center and Lock Screen
       Prop("nowPlayingMetadata") { (view: MpvPlayerView, metadata: [String: Any]?) in
