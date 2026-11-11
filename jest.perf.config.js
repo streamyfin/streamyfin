@@ -1,20 +1,15 @@
 const base = require("./jest.config");
 
-// `expo-router` is mocked explicitly by the scenarios, `react-i18next` must
-// translate for real, and the file-system and icon doubles would stand in for
-// the real packages. The unit setup file (`ServerImage`, haptics, the device
-// id) is replaced below, so the scenarios measure the real modules.
-const {
-  "^expo-router$": _expoRouter,
-  "^react-i18next$": _i18next,
-  "^expo-file-system$": _fileSystem,
-  "^@expo/vector-icons$": _vectorIcons,
-  ...moduleNameMapper
-} = base.moduleNameMapper;
+// The scenarios measure the real packages, so none of the unit config's
+// package doubles are mapped here: a double a scenario needs is mocked in
+// `test-utils/perfSetup.ts` or in the scenario, where `jest.unmock` can take it
+// back. Only the `tsx/cjs` stub stays, which keeps a require hook off the Jest
+// worker.
+const { "^tsx/cjs$": tsxRequireHook } = base.moduleNameMapper;
 
 module.exports = {
   ...base,
-  moduleNameMapper,
+  moduleNameMapper: { "^tsx/cjs$": tsxRequireHook },
   // The unit setup file is not loaded: perfSetup takes its place.
   setupFilesAfterEnv: ["<rootDir>/test-utils/perfSetup.ts"],
   // Reassure runs each scenario 11 times, which outlasts the default 5s.

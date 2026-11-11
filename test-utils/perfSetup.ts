@@ -27,9 +27,8 @@ jest.mock(
   "react-native-safe-area-context",
   () => jest.requireActual("react-native-safe-area-context/jest/mock").default,
 );
-// Mapped for every unit spec in jest.config.js, but the perf baseline runs this file on
-// the base branch's config, which has no such mapping: mocked here too, both sides
-// measure the same MMKV double.
+// MMKV is native. `jest.perf.config.js` maps none of the unit doubles, so this
+// is the scenarios' only one, on the PR and on the baseline alike.
 jest.mock(
   "react-native-mmkv",
   () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
