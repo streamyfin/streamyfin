@@ -381,7 +381,10 @@ final class NativePlayerViewController: UIViewController {
 		// With an overlay up the commands are withdrawn: a command with priority
 		// swallows the arrow before the focus system sees it, and the overlays
 		// are navigated with Full Keyboard Access.
-		guard keyboardInputAllowed else { return [] }
+		// In SyncPlay every seek is a request to the group, and each repeat would
+		// ask for the same target until the group answers: the arrows go through
+		// pressesBegan there, one seek per press.
+		guard keyboardInputAllowed, !viewModel.isSyncPlayActive else { return [] }
 		let commands = [
 			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowKey)),
 			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowKey)),
@@ -391,24 +394,33 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+		let keys = presses.compactMap { $0.key?.keyCode }
 		// Anything not ours goes up the chain, space included while an overlay
 		// is up, so it can still activate the focused button there.
-		guard presses.contains(where: { $0.key?.keyCode == .keyboardSpacebar }), keyboardInputAllowed else {
+		guard keyboardInputAllowed else {
 			super.pressesBegan(presses, with: event)
 			return
 		}
-		viewModel.showControls()
-		viewModel.togglePlayPause()
+		if keys.contains(.keyboardSpacebar) {
+			viewModel.showControls()
+			viewModel.togglePlayPause()
+		} else if viewModel.isSyncPlayActive && keys.contains(.keyboardLeftArrow) {
+			handleLeftArrowKey()
+		} else if viewModel.isSyncPlayActive && keys.contains(.keyboardRightArrow) {
+			handleRightArrowKey()
+		} else {
+			super.pressesBegan(presses, with: event)
+		}
 	}
 
-	/// The prompts, the sheets and the lock mode own the input, same as the
-	/// touch controls: nothing may resume or move playback under them. The
-	/// subtitle search and the SyncPlay queue are sheets too: without them
-	/// here, the arrows seek while the search sheet is up.
+	/// The prompts, the sheets, the subtitle scale control and the lock mode own
+	/// the input, same as the touch controls: nothing may resume or move
+	/// playback under them. Without the sheets and the scale control here, the
+	/// arrows seek while the search sheet or the scale slider is up.
 	private var keyboardInputAllowed: Bool {
 		!viewModel.showStillWatching && !viewModel.showEpisodeList
 			&& !viewModel.showSubtitleSearch && !viewModel.showSyncPlayQueue
-			&& !viewModel.controlsLocked
+			&& !viewModel.showSubtitleScaleControl && !viewModel.controlsLocked
 	}
 
 	@objc private func handleLeftArrowKey() {
