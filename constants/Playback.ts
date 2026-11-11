@@ -76,6 +76,26 @@ export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
 export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
 
 /**
+ * How long the native player may spend fetching an item's sidecar subtitles
+ * onto disk before starting playback, in ms, and the cap for one subtitle.
+ * A subtitle the engine fetches itself wedges the whole pipeline on a slow
+ * path (ExoPlayer #8566), so the player prefetches them; these bound how long
+ * that may delay the start and stop one dead sidecar starving the rest. The
+ * session's subtitle keeps its remote URL when it misses the budget; any other
+ * one is left out until picked, which renegotiates the stream.
+ */
+export const SUBTITLE_PREFETCH_BUDGET_MS = 6_000;
+export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
+
+/**
+ * Where the subtitle prefetch keeps its files under Paths.cache (emptied for
+ * every new player), and how long after a cancelled transfer its staging file
+ * is swept once more.
+ */
+export const SUBTITLE_PREFETCH_CACHE_DIR = "subtitles";
+export const SUBTITLE_PREFETCH_LATE_SWEEP_MS = 60_000;
+
+/**
  * The query families that show watch progress, refetched after the server's
  * played state changed under them: by a stop report, a pull to refresh, or
  * offline progress being pushed once the connection is back.
