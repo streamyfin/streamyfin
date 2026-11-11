@@ -183,4 +183,29 @@ class LogRedactionTest {
             redactStreamUrls("http://provider.example/USER/PASS/Videos/0123456789abcdef0123456789abcdef/stream"),
         )
     }
+
+    // An email as the user name, or an @ in the password: userinfo runs to the last @ of the
+    // authority, or the password survives after the first one.
+    @Test
+    fun redactsUserinfoThatHoldsAnAt() {
+        val url = "http://john@gmail.com:S3cret@iptv.example:8080/live/1.ts"
+        assertEquals("http://[redacted]@iptv.example:8080/live/1.ts", redactCredentials(url))
+        assertEquals("http://iptv.example:8080/[redacted]", redactStreamUrls(url))
+        assertEquals("http://[redacted]@host.example/x", redactCredentials("http://user:p@ss@host.example/x"))
+    }
+
+    // Jellyfin serves its routes in any case (a TranscodingUrl is lowercase), the fMP4 init
+    // segment is -1, and a subtitle route can go without its start ticks.
+    @Test
+    fun keepsEveryFormOfAJellyfinRoute() {
+        val id = "2b5e727fd61e95f0ca3fd552b1132d22"
+        for (route in listOf(
+            "/videos/$id/master.m3u8?api_key=[redacted]",
+            "/videos/$id/hls1/main/-1.mp4",
+            "/videos/$id/hls1/main/12.mp4",
+            "/Videos/$id/$id/Subtitles/3/Stream.srt",
+        )) {
+            assertEquals("https://jf.example$route", redactStreamUrls("https://jf.example${route.replace("[redacted]", "SECRET")}"))
+        }
+    }
 }

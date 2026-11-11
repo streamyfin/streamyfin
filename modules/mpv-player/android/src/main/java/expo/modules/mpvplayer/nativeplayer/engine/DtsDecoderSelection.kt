@@ -2,7 +2,8 @@ package expo.modules.mpvplayer.nativeplayer.engine
 
 import androidx.media3.common.MimeTypes
 
-// TWIN: modules/exoplayer-player/.../DtsDecoderSelection.kt, kept in lockstep.
+// TWIN: one copy per ExoPlayer module, identical but for the package
+// (modules/exoplayer-player/src/upgradeRedirectDataSource.test.ts checks it).
 /**
  * The platform decoders to offer for [mimeType] while FFmpeg takes over the DTS formats it
  * decodes, which the platform's DTS decoders get wrong (see ensurePlayer).

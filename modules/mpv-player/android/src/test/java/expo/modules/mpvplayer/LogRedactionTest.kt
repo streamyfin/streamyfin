@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class LogRedactionTest {
@@ -13,6 +14,49 @@ class LogRedactionTest {
             redactCredentials(
                 "https://media.example.com/Videos/item-1/source-1/Subtitles/3/0/Stream.srt?ApiKey=SECRET"
             )
+        )
+    }
+
+    // Every name the JS-side redaction masks, in the mixed case a server or a
+    // proxy happens to emit.
+    @Test
+    fun redactsEverySensitiveParameterName() {
+        val url = "https://x.example/a" +
+            "?api_key=v1" +
+            "&ApiKey=v2" +
+            "&x-emby-token=v3" +
+            "&X-Emby-Token=v4" +
+            "&access_token=v5" +
+            "&Access_Token=v6" +
+            "&token=v7" +
+            "&Token=v8" +
+            "&userid=v9" +
+            "&UserId=v10" +
+            "&deviceid=v11" +
+            "&DeviceId=v12"
+
+        val redacted = redactCredentials(url)
+
+        assertFalse(redacted.contains("v1"))
+        assertFalse(redacted.contains("v2"))
+        assertFalse(redacted.contains("v3"))
+        assertFalse(redacted.contains("v4"))
+        assertFalse(redacted.contains("v5"))
+        assertFalse(redacted.contains("v6"))
+        assertFalse(redacted.contains("v7"))
+        assertFalse(redacted.contains("v8"))
+        assertFalse(redacted.contains("v9"))
+        assertFalse(redacted.contains("v10"))
+        assertFalse(redacted.contains("v11"))
+        assertFalse(redacted.contains("v12"))
+        assertEquals(12, Regex("\\[redacted]").findAll(redacted).count())
+    }
+
+    @Test
+    fun redactsSeveralParametersInOneUrl() {
+        assertEquals(
+            "https://x.example/a?token=[redacted]&keep=1&deviceid=[redacted]",
+            redactCredentials("https://x.example/a?token=s1&keep=1&deviceid=d9"),
         )
     }
 
@@ -138,5 +182,30 @@ class LogRedactionTest {
             "http://provider.example/[base]/Videos/0123456789abcdef0123456789abcdef/stream",
             redactStreamUrls("http://provider.example/USER/PASS/Videos/0123456789abcdef0123456789abcdef/stream"),
         )
+    }
+
+    // An email as the user name, or an @ in the password: userinfo runs to the last @ of the
+    // authority, or the password survives after the first one.
+    @Test
+    fun redactsUserinfoThatHoldsAnAt() {
+        val url = "http://john@gmail.com:S3cret@iptv.example:8080/live/1.ts"
+        assertEquals("http://[redacted]@iptv.example:8080/live/1.ts", redactCredentials(url))
+        assertEquals("http://iptv.example:8080/[redacted]", redactStreamUrls(url))
+        assertEquals("http://[redacted]@host.example/x", redactCredentials("http://user:p@ss@host.example/x"))
+    }
+
+    // Jellyfin serves its routes in any case (a TranscodingUrl is lowercase), the fMP4 init
+    // segment is -1, and a subtitle route can go without its start ticks.
+    @Test
+    fun keepsEveryFormOfAJellyfinRoute() {
+        val id = "2b5e727fd61e95f0ca3fd552b1132d22"
+        for (route in listOf(
+            "/videos/$id/master.m3u8?api_key=[redacted]",
+            "/videos/$id/hls1/main/-1.mp4",
+            "/videos/$id/hls1/main/12.mp4",
+            "/Videos/$id/$id/Subtitles/3/Stream.srt",
+        )) {
+            assertEquals("https://jf.example$route", redactStreamUrls("https://jf.example${route.replace("[redacted]", "SECRET")}"))
+        }
     }
 }
