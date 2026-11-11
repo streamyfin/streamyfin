@@ -47,7 +47,7 @@ struct TVPosterScrim: View {
 	}
 }
 
-/// Skip intro/credits pill — non-focusable on purpose, and shown only while
+/// Skip pill for the segment under the playhead, non-focusable on purpose, and shown only while
 /// the chrome is hidden: Select triggers the skip via the VC recognizers
 /// (Play/Pause stays playback-only). In the full chrome the controls row
 /// hosts a focusable Skip button instead.
@@ -57,11 +57,7 @@ struct TVSkipPill: View {
 	let segment: MediaSegmentRecord
 
 	var body: some View {
-		Text(
-			segment.type == "Intro"
-				? viewModel.str("skipIntro", "Skip Intro")
-				: viewModel.str("skipCredits", "Skip Credits")
-		)
+		Text(viewModel.skipLabel(for: segment.type))
 		.font(.callout.weight(.semibold))
 		.foregroundStyle(.white)
 		.padding(.horizontal, 28)
