@@ -36,6 +36,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posterGridColumns } from "@/components/cards/posterGridColumns";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
@@ -496,13 +497,8 @@ const LibraryPage = () => {
       // TV uses flexWrap, so nrOfCols is just for mobile
       return 1;
     }
-    if (windowWidth < 300) return 2;
-    if (windowWidth < 500) return 3;
-    if (windowWidth < 800) return 5;
-    if (windowWidth < 1000) return 6;
-    if (windowWidth < 1500) return 7;
-    return 6;
-  }, [windowWidth, orientation]);
+    return posterGridColumns(windowWidth);
+  }, [windowWidth]);
 
   const { data: library, isLoading: isLibraryLoading } = useQuery({
     queryKey: ["library", libraryId],
