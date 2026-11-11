@@ -80,8 +80,9 @@ export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
  * onto disk before starting playback, in ms, and the cap for one subtitle.
  * A subtitle the engine fetches itself wedges the whole pipeline on a slow
  * path (ExoPlayer #8566), so the player prefetches them; these bound how long
- * that may delay the start and stop one dead sidecar starving the rest. A
- * subtitle that misses the budget is undelivered for the session.
+ * that may delay the start and stop one dead sidecar starving the rest. The
+ * session's subtitle keeps its remote URL when it misses the budget; any other
+ * one is left out until picked, which renegotiates the stream.
  */
 export const SUBTITLE_PREFETCH_BUDGET_MS = 6_000;
 export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
@@ -93,3 +94,23 @@ export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
  */
 export const SUBTITLE_PREFETCH_CACHE_DIR = "subtitles";
 export const SUBTITLE_PREFETCH_LATE_SWEEP_MS = 60_000;
+
+/**
+ * The query families that show watch progress, refetched after the server's
+ * played state changed under them: by a stop report, a pull to refresh, or
+ * offline progress being pushed once the connection is back.
+ */
+export const PLAYBACK_PROGRESS_QUERY_KEYS: readonly (readonly string[])[] = [
+  ["item"],
+  ["resumeItems"],
+  ["continueWatching"],
+  ["nextUp-all"],
+  ["nextUp"],
+  ["episodes"],
+  ["seasons"],
+  ["home"],
+  ["downloadedItems"],
+  // A similar-items row shows each poster's watched state, and its list
+  // never goes stale by itself.
+  ["similarItems"],
+];
