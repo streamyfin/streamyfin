@@ -47,6 +47,13 @@ export const BITRATE_TEST_CACHE_CONTROL = "no-cache, no-store";
 export const BITRATE_DETECTION_TTL_MS = 60 * 60 * 1000;
 
 /**
+ * Seconds short of the end of a file that the player's cache may stop at for
+ * its stream to count as downloaded. A swap over a stream still downloading
+ * keeps Auto's measure before; past that, the link is free to measure.
+ */
+export const AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS = 2;
+
+/**
  * How long a detection that measured nothing is remembered, so the plays
  * after it do not each wait on the same failed tests and their timeouts.
  */
