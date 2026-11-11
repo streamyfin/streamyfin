@@ -401,10 +401,14 @@ final class NativePlayerViewController: UIViewController {
 		viewModel.togglePlayPause()
 	}
 
-	/// The prompts and the lock mode own the input, same as the touch controls:
-	/// nothing may resume or move playback under them.
+	/// The prompts, the sheets and the lock mode own the input, same as the
+	/// touch controls: nothing may resume or move playback under them. The
+	/// subtitle search and the SyncPlay queue are sheets too: without them
+	/// here, the arrows seek while the search sheet is up.
 	private var keyboardInputAllowed: Bool {
-		!viewModel.showStillWatching && !viewModel.showEpisodeList && !viewModel.controlsLocked
+		!viewModel.showStillWatching && !viewModel.showEpisodeList
+			&& !viewModel.showSubtitleSearch && !viewModel.showSyncPlayQueue
+			&& !viewModel.controlsLocked
 	}
 
 	@objc private func handleLeftArrowKey() {

@@ -7,3 +7,5 @@
 ## Detail
 
 On iPhone and iPad the native player is the default (`isNativeChromeActive`, an unset `videoPlayer`). It is presented as its own view controller with SwiftUI controls, so `Controls.tsx` never mounts and anything wired there, hooks like `useKeyEventListener` included, does nothing in the default player. Input that must work in both players needs a native counterpart: the hardware keyboard is handled in `NativePlayerViewController`, which claims first responder in `viewDidAppear`: the arrows are `UIKeyCommand`s (they repeat while held), space is handled in `pressesBegan` (a held key toggles once).
+
+Every overlay that owns the input there (the still-watching prompt, the episode list, the subtitle search and SyncPlay queue sheets, the lock mode) has to be listed in `keyboardInputAllowed`. A sheet left out keeps the controller in the responder chain with its priority arrow commands, so the arrows seek under it: on an iPad simulator, three presses of Right with the subtitle search open moved playback 90 seconds.
