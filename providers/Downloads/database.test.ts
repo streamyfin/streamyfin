@@ -1,10 +1,6 @@
 const mockDocuments =
   "file:///var/mobile/Containers/Data/Application/9F8E7D6C-0000-4000-8000-000000000002/Documents/";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-file-system", () => ({
   Paths: { document: { uri: mockDocuments } },
 }));

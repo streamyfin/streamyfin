@@ -36,6 +36,8 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
 | `constants/TVSheet.ts` | How TV sheets come in: backdrop fade, slide, and the delays before their cards mount and take focus |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
+| `constants/TVDetailLayout.ts` | A TV detail page's layout shares of the window: the poster beside the header, the overview's widest, the header's lowest, which the loading skeleton reads too |
+| `constants/LiveTVGuide.ts` | The phone's Live TV guide: an hour's width, the channel column, and how far before a program's end its pinned title stops |
 | `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, how often the stats overlay polls the transcode progress, how long a new native player waits for a closing one, and the query families that show watch progress |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
@@ -54,6 +56,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/QuickConnect.ts` | Quick Connect: how long a code stays valid, the wait between two polls of it, and how long one request may take |
 | `constants/QueryPersistence.ts` | The query cache written to disk: which query key families are kept, and how many pages of an infinite query |
 | `constants/Cast.ts` | Official Jellyfin Cast receiver: its session client name, the name it gets for a TV whose own name it cannot take, how long a cast waits for the TV to start, how many times its channel is tried, and the window and waits used to tell a stopped receiver from a live one |
+| `constants/CastCrew.ts` | Cast and crew on item detail pages: how many actors the TV text line and the TV cast cards show, and how many get a "more movies with" row. |
 
 Add a new domain file when a group grows its own identity (playback, downloads,
 networking). Do not let `Values.ts` become the place where everything lands.

@@ -33,6 +33,10 @@ import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
+import {
+  SingleItemDownloadedIcon,
+  SingleItemDownloadIcon,
+} from "./common/DownloadIcons";
 import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
@@ -603,10 +607,8 @@ export const DownloadSingleItem: React.FC<{
       }
       subtitle={item.Name!}
       items={[item]}
-      MissingDownloadIconComponent={() => <HeaderIcon name='downloads' />}
-      DownloadedIconComponent={() => (
-        <HeaderIcon name='downloaded' tintColor={Colors.primary} />
-      )}
+      MissingDownloadIconComponent={SingleItemDownloadIcon}
+      DownloadedIconComponent={SingleItemDownloadedIcon}
     />
   );
 };

@@ -359,28 +359,40 @@ Add a `disabled` prop to every focusable component and pass `disabled={isModalOp
 const [openModal, setOpenModal] = useState<ModalType | null>(null);
 const isModalOpen = openModal !== null;
 
-// 2. Each focusable component accepts disabled prop
-const TVFocusableButton: React.FC<{
-  onPress: () => void;
-  disabled?: boolean;
-}> = ({ onPress, disabled }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    focusable={!disabled}
-    hasTVPreferredFocus={isFirst && !disabled}
-  >
+// 2. Each focusable component accepts disabled prop, and forwards a ref to
+// its pressable so the screen can give it the focus back
+const TVFocusableButton = React.forwardRef<
+  ViewInstance,
+  { onPress: () => void; disabled?: boolean }
+>(({ onPress, disabled }, ref) => (
+  <Pressable ref={ref} onPress={onPress} disabled={disabled} focusable={!disabled}>
     {/* content */}
   </Pressable>
-);
+));
 
 // 3. Pass disabled to all background components when modal is open
-<TVFocusableButton onPress={handlePress} disabled={isModalOpen} />
+const openerRef = useRef<ViewInstance>(null);
+<TVFocusableButton
+  ref={openerRef}
+  onPress={() => setOpenModal("subtitles")}
+  disabled={isModalOpen}
+/>
+
+// 4. When the overlay closes, hand the focus back to what opened it: the
+// overlay took the focus with it. A tab root may not use hasTVPreferredFocus
+// for this (docs/conventions/tv.md).
+const wasOpen = useRef(false);
+useEffect(() => {
+  if (wasOpen.current && !isModalOpen) requestTVFocus(openerRef.current);
+  wasOpen.current = isModalOpen;
+}, [isModalOpen]);
 ```
 
 ### Reference Implementation
 
-See `settings.tv.tsx` for a complete example with `TVSettingsOptionButton`, `TVSettingsToggle`, `TVSettingsStepper`, etc.
+`settings.tv.tsx` gives the focus back to its Switch user row when the PIN or password
+prompt closes (step 4). It disables only that row while a prompt is up, not every row of
+the page, so it is not a full example of step 3.
 
 ---
 

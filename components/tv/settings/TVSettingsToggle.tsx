@@ -10,7 +10,6 @@ export interface TVSettingsToggleProps {
   label: string;
   value: boolean;
   onToggle: (value: boolean) => void;
-  isFirst?: boolean;
   disabled?: boolean;
   /**
    * Locked by the Streamyfin plugin. Distinct from `disabled` because the row
@@ -24,7 +23,6 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
   label,
   value,
   onToggle,
-  isFirst,
   disabled,
   disabledByAdmin,
 }) => {
@@ -39,7 +37,6 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
       onPress={() => onToggle(!value)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirst && !isDisabled}
       disabled={isDisabled}
       focusable={!isDisabled}
     >

@@ -10,6 +10,20 @@ import { pendingIdleCallbacks } from "@/test-utils/idleCallback";
 const mockPeopleByItem: Record<string, BaseItemPerson[]> = {
   "movie-1": [{ Id: "person-1", Name: "Ada Actor", Type: "Actor" }],
   "movie-2": [{ Id: "person-2", Name: "Bea Actor", Type: "Actor" }],
+  // A server lists the cast before the crew, so the crew only reached the
+  // first three when the cast had fewer than three people.
+  "movie-3": [
+    { Id: "a", Name: "Ana", Type: "Actor", Role: "Hero" },
+    { Id: "a", Name: "Ana", Type: "Actor", Role: "Mother" },
+    { Id: "b", Name: "Ben", Type: "Actor" },
+    { Id: "director", Name: "Director", Type: "Director" },
+  ],
+  // An episode whose cast is all guest stars, as the beta's specials are.
+  "episode-1": [
+    { Id: "g1", Name: "Gil", Type: "GuestStar" },
+    { Id: "g2", Name: "Gwen", Type: "GuestStar" },
+    { Id: "director", Name: "Director", Type: "Director" },
+  ],
 };
 let mockOffline = false;
 /** Whether the page asked the server for its people. */
@@ -35,12 +49,20 @@ const MockCastAndCrew = ({ item }: { item: BaseItemDto }) => (
 jest.mock("@/components/series/CastAndCrew", () => ({
   CastAndCrew: (props: { item: BaseItemDto }) => MockCastAndCrew(props),
 }));
+// Labelled apart from the names the cast row shows, so each section is found
+// on its own.
+const MockMoreMoviesWithActor = ({ actorName }: { actorName: string }) => (
+  <Text>{`More with ${actorName}`}</Text>
+);
 jest.mock("@/components/MoreMoviesWithActor", () => ({
-  MoreMoviesWithActor: () => null,
+  MoreMoviesWithActor: (props: { actorName: string }) =>
+    MockMoreMoviesWithActor(props),
 }));
 
 const item = { Id: "movie-1", Name: "Movie" } as BaseItemDto;
 const otherItem = { Id: "movie-2", Name: "Other movie" } as BaseItemDto;
+const crewedItem = { Id: "movie-3", Name: "Crewed movie" } as BaseItemDto;
+const guestItem = { Id: "episode-1", Name: "Special" } as BaseItemDto;
 
 describe("ItemPeopleSections", () => {
   beforeEach(() => {
@@ -123,5 +145,30 @@ describe("ItemPeopleSections", () => {
 
     await view.unmount();
     expect(pendingIdleCallbacks()).toBe(0);
+  });
+
+  // The first three people got a row each: an actor with two roles took two
+  // rows, and a director the last one when the cast was short.
+  test("cast sections skip crew and count each actor once", async () => {
+    await render(<ItemPeopleSections item={crewedItem} />);
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(
+      screen.getAllByText(/^More with /).map((row) => row.props.children),
+    ).toEqual(["More with Ana", "More with Ben"]);
+  });
+
+  // With only actors counted, a guest-only episode lost every row.
+  test("gives an episode's guest stars their sections", async () => {
+    await render(<ItemPeopleSections item={guestItem} />);
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    expect(
+      screen.getAllByText(/^More with /).map((row) => row.props.children),
+    ).toEqual(["More with Gil", "More with Gwen"]);
   });
 });

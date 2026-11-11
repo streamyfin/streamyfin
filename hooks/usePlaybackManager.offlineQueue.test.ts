@@ -3,11 +3,6 @@ import { clearMmkv } from "@/test-utils/mmkv";
 import { getOfflineProgress } from "@/utils/offlineProgressQueue";
 import { usePlaybackManager } from "./usePlaybackManager";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 const RUNTIME = 1_000_000_000;
 let mockIsConnected = true;
 let mockUserId = "alice";

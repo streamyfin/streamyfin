@@ -24,10 +24,6 @@ let mockDownloads: Record<string, unknown> = {};
 
 // The native-module doubles test-utils/perfSetup.ts registers for the perf
 // spec that renders Controls.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-notifications", () => ({
   scheduleNotificationAsync: jest.fn(),
 }));

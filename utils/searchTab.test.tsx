@@ -2,13 +2,6 @@ import { render } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/components/tv/TVNavBar", () => ({ TVNavBar: () => null }));
 // The unit config maps expo-router to a stub with no navigators. The layout
 // renders a Stack on TV and a Redirect, which none of these tests look at, and

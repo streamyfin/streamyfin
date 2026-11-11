@@ -2,7 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemNavigation, itemRouter } from "./TouchableItemRouter";
 
 // Only the two route resolvers are under test, not the pressable around them.
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: () => {} }),

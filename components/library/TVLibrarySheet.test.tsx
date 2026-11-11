@@ -1,25 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { pressTVBack } from "@/test-utils/tvBackPress";
 import type {
   TVLibrarySheetGroup,
   TVLibrarySheetState,
 } from "@/utils/atoms/tvLibrarySheet";
 import { TVLibrarySheet } from "./TVLibrarySheet";
 
-let mockBackPress: (() => boolean | null | undefined) | undefined;
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
 
-jest.mock("@/hooks/useTVBackPress", () => ({
-  useTVBackPress: (handler: () => boolean) => {
-    mockBackPress = handler;
-  },
-}));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 18 }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 const group = (
@@ -51,10 +43,6 @@ const renderSheet = async (
 describe.each(["bottom", "right"] as const)(
   "TVLibrarySheet at the %s",
   (placement) => {
-    beforeEach(() => {
-      mockBackPress = undefined;
-    });
-
     test("lists its groups with what each is set to", async () => {
       await renderSheet(
         {
@@ -132,13 +120,13 @@ describe.each(["bottom", "right"] as const)(
 
       const { act } = require("@testing-library/react-native");
       await act(async () => {
-        expect(mockBackPress?.()).toBe(true);
+        expect(pressTVBack()).toBe(true);
       });
       expect(screen.getByText("Years")).toBeTruthy();
       expect(onClose).not.toHaveBeenCalled();
 
       await act(async () => {
-        mockBackPress?.();
+        pressTVBack();
       });
       expect(onClose).toHaveBeenCalledTimes(1);
     });

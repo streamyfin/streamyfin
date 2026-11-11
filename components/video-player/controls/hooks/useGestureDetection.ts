@@ -17,8 +17,8 @@ export interface SwipeGestureOptions {
   onTap?: () => void;
   onLongPressStart?: () => void;
   onLongPressEnd?: () => void;
-  screenWidth?: number;
-  screenHeight?: number;
+  windowWidth?: number;
+  windowHeight?: number;
 }
 
 export const useGestureDetection = ({
@@ -33,8 +33,8 @@ export const useGestureDetection = ({
   onTap,
   onLongPressStart,
   onLongPressEnd,
-  screenWidth = 400,
-  screenHeight = 800,
+  windowWidth = 400,
+  windowHeight = 800,
 }: SwipeGestureOptions = {}) => {
   const touchStartTime = useRef(0);
   const touchStartPosition = useRef({ x: 0, y: 0 });
@@ -67,8 +67,8 @@ export const useGestureDetection = ({
       const startY = event.nativeEvent.pageY;
 
       // Define exclusion zones (15% from top and bottom)
-      const topExclusionZone = screenHeight * 0.15;
-      const bottomExclusionZone = screenHeight * 0.85;
+      const topExclusionZone = windowHeight * 0.15;
+      const bottomExclusionZone = windowHeight * 0.85;
 
       // Check if touch started in exclusion zones
       if (startY < topExclusionZone || startY > bottomExclusionZone) {
@@ -101,7 +101,7 @@ export const useGestureDetection = ({
         }, longPressDuration) as unknown as number;
       }
     },
-    [screenHeight, cancelLongPressTimer, longPressDuration, onLongPressStart],
+    [windowHeight, cancelLongPressTimer, longPressDuration, onLongPressStart],
   );
 
   const handleTouchMove = useCallback(
@@ -138,7 +138,7 @@ export const useGestureDetection = ({
           // Vertical gesture - start drag immediately
           gestureType.current = "vertical";
           const side =
-            touchStartPosition.current.x < screenWidth / 2 ? "left" : "right";
+            touchStartPosition.current.x < windowWidth / 2 ? "left" : "right";
           isDragging.current = true;
           dragSide.current = side;
           onVerticalDragStart?.(side, touchStartPosition.current.y);
@@ -167,7 +167,7 @@ export const useGestureDetection = ({
     [
       onVerticalDragStart,
       onVerticalDragMove,
-      screenWidth,
+      windowWidth,
       cancelLongPressTimer,
     ],
   );

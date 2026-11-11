@@ -11,11 +11,11 @@ import React, {
 } from "react";
 import {
   Animated,
-  Dimensions,
   Easing,
   FlatList,
   Platform,
   Pressable,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,12 +40,12 @@ import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById"
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 interface TVHeroCarouselProps {
   items: BaseItemDto[];
   onItemFocus?: (item: BaseItemDto) => void;
   onItemLongPress?: (item: BaseItemDto) => void;
+  /** Whether the first card asks for the initial focus (Home's first mount). */
+  takesInitialFocus?: boolean;
 }
 
 interface HeroCardProps {
@@ -217,12 +217,14 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
   onItemLongPress,
+  takesInitialFocus = true,
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // Active item for featured display (debounced)
   const [activeItem, setActiveItem] = useState<BaseItemDto | null>(
@@ -380,14 +382,20 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
     ({ item, index }: { item: BaseItemDto; index: number }) => (
       <HeroCard
         item={item}
-        isFirst={index === 0}
+        isFirst={takesInitialFocus && index === 0}
         sizes={sizes}
         onFocus={handleCardFocus}
         onPress={handleCardPress}
         onLongPress={onItemLongPress}
       />
     ),
-    [handleCardFocus, handleCardPress, onItemLongPress, sizes],
+    [
+      handleCardFocus,
+      handleCardPress,
+      onItemLongPress,
+      sizes,
+      takesInitialFocus,
+    ],
   );
 
   // Memoize keyExtractor
@@ -397,7 +405,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
 
   // Extra top padding for tvOS to clear the menu bar
   const tvosTopPadding = scaleSize(145);
-  const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
+  const heroHeight = windowHeight * sizes.padding.heroHeight;
 
   return (
     <View
@@ -510,7 +518,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
             source={{ uri: logoUrl }}
             style={{
               height: scaleSize(100),
-              width: SCREEN_WIDTH * 0.35,
+              width: windowWidth * 0.35,
               marginBottom: scaleSize(16),
             }}
             contentFit='contain'
@@ -551,7 +559,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
               fontSize: typography.body,
               color: "rgba(255,255,255,0.8)",
               marginBottom: scaleSize(16),
-              maxWidth: SCREEN_WIDTH * 0.5,
+              maxWidth: windowWidth * 0.5,
               lineHeight: typography.body * 1.4,
             }}
             numberOfLines={2}
