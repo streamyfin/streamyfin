@@ -86,6 +86,9 @@ wrapper adds the offline parameter. A double of it would decide the result of th
 | `@expo/react-native-action-sheet` | Boundary | Draws the native sheet; the user's choice is the only answer |
 | `@shopify/flash-list` | Boundary | Measures natively; the library's own `jestSetup` stubs only that |
 | `expo-blur`, `react-native-qrcode-svg` | Boundary | Drawn natively |
+| `@expo/ui/swift-ui`, `@expo/ui/jetpack-compose` | Boundary | Native views; each double stands in as what it carries |
+| `@/utils/device` | Boundary | Reads the native device name; the double gives a fixed id and name |
+| `@/modules/wifi-ssid` | Boundary | Reads the Wi-Fi network natively |
 | `@/utils/atoms/settings` | App logic | Callers branch on every setting |
 | `@/providers/JellyfinProvider` | App logic | The session decides what each request carries |
 | `@/hooks/useAppRouter` | App logic | Adds `offline=true` inside an offline context |
@@ -95,9 +98,15 @@ The mock count is a clue, not the rule. If most specs only silence a module, it 
 in global setup. If they need different answers from it, keep the mock local.
 `@/constants/TVTypography` is often silenced, but it reads settings, so it stays app logic.
 
-`react-i18next` and `i18next` are a separate case. They return `undefined` before the app
-initializes them, so their shared doubles return the key until a spec boots i18n. Packages
-that need app start-up configuration belong in global setup too.
+`react-i18next` and `i18next` are a separate case: they return `undefined` before the app
+initializes them, so both are wired. The `i18next` double reads through to the real
+singleton: `t` returns its key until a spec calls `init`, then translates. The
+`react-i18next` double always returns the key from `useTranslation`, booted or not, and
+reports `i18n.language` as `en-US` (`SPEC_LANGUAGE` in `test-utils/i18next.ts`), so a date
+or a number formatted with it comes out the same on every machine. A spec that needs real
+translations from the hook mocks `react-i18next` with `@/test-utils/realI18next`
+(`components/series/SeasonDropdown.test.tsx`). Packages that need app start-up
+configuration belong in global setup too.
 
 ### The rules
 
@@ -124,7 +133,10 @@ that need app start-up configuration belong in global setup too.
    rewriting the double: `jest.mocked(writeErrorLog)`, `jest.mocked(toast.error)`,
    `jest.mocked(Notifications.getPermissionsAsync)`, `jest.mocked(Sentry.captureException)`,
    `pressTVBack()`, `chooseAction(index)`, `jest.mocked(jellyfinProbe)`,
-   `appRouter`, `fakeFiles`, `clearMmkv()`, `clearSecureStore()`, `setJellyfinHeaders()`.
+   `appRouter`, `clearMmkv()`, `clearSecureStore()`, `secureStoreValues`,
+   `lockSecureStore()` (the keychain of a locked phone), `setJellyfinHeaders()`, and
+   `fakeFiles` with `fakeFiles.remaining()`, `fakeFiles.deleted()` and
+   `fakeFiles.downloads()`.
    If the real function is pure, use it.
 6. **Do not depend on mock state left by another test.** `clearMocks` is on, so call counts
    reset before each test. Implementations set with `mockReturnValue` or
@@ -150,7 +162,19 @@ that need app start-up configuration belong in global setup too.
 
 ### What is wired
 
-- **Packages** are mapped in `jest.config.js` (`moduleNameMapper`).
+- **Packages** are mapped in `jest.config.js` (`moduleNameMapper`) when their double is a
+  whole module file (`test-utils/*Module.ts`), and mocked in `test-utils/unitSetup.ts` when
+  it is a factory exported next to the handles specs import: `expo-secure-store`,
+  `sonner-native`, `i18next`, `@sentry/react-native`, `@expo/react-native-action-sheet`,
+  `expo-blur`, `react-native-qrcode-svg`, `expo-notifications`, `@expo/ui/swift-ui` and
+  `@expo/ui/jetpack-compose`.
+- **`@expo/ui/swift-ui`** is `test-utils/swiftUi.tsx`. Each `Menu` keeps the modifiers it
+  was given, which `renderedMenuModifiers(screen)` reads back, and
+  `@expo/ui/swift-ui/modifiers` stays real. `swiftUi.test.ts` fails when the app takes a
+  view the double lacks.
+- **`tsx/cjs`** maps to a stub, `test-utils/tsxRequireHook.ts`. The real module registers a
+  require hook on the Jest worker's own loader, which outlives the spec and breaks the next
+  specs in that worker (`.claude/learned-facts/require-hooks-leak-across-jest-specs.md`).
 - **`requestIdleCallback`**, which React Native provides and Node lacks, comes from
   `test-utils/idleCallback.ts` through `setupFiles`, built on timers so fake timers drive it.
   `pendingIdleCallbacks()` counts the ones still waiting, which is how a spec proves an
@@ -188,9 +212,6 @@ jest.mock(
   `stubReactNative()` or `requireOnPlatform()` instead.
 - `stubModules` also exports `expoWithoutNativeModule`, `onlineModule` and
   `emptyTVTypographyModule`.
-- `test-utils/expoUi.tsx`'s `swiftUiModule`: for a spec that checks what a native `Menu`
-  is given. Each `Menu` keeps its modifiers, which `renderedMenuModifiers(screen)` reads
-  back, with `@expo/ui/swift-ui/modifiers` left real.
 - `draxModule`: for `react-native-drax`, since a real drag needs gestures and layout Jest
   does not have. Rows render from drax's own copy, which a drop the parent accepts leaves
   in the old order (`shownItems()` reads the order drax shows), each sortable item keeps
@@ -202,8 +223,8 @@ jest.mock(
 ### Writing your own mock
 
 ```typescript
-jest.mock("expo-secure-store", () => ({
-  getItemAsync: async () => null,
+jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
+  getDownloadStreamUrl: jest.fn(),
 }));
 ```
 
@@ -218,10 +239,10 @@ jest.mock("expo-secure-store", () => ({
 
 ### Perf scenarios
 
-`jest.perf.config.js` replaces the unit setup with `test-utils/perfSetup.ts` and leaves
-`expo-router`, `react-i18next`, `expo-file-system` and `@expo/vector-icons` out of the
-unit package mappings. Performance scenarios can then measure the cost of translation,
-the file system, icons, settings, images and network work with their own scenario setup.
+`jest.perf.config.js` replaces the unit setup with `test-utils/perfSetup.ts` and maps none
+of the unit package doubles, only the `tsx/cjs` stub. Performance scenarios can then
+measure the cost of translation, the file system, icons, settings, images and network work
+with their own scenario setup, and a `jest.unmock` in a scenario reaches the real package.
 See [performance.md](performance.md).
 
 ## React Native components
