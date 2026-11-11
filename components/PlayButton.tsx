@@ -21,7 +21,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { SheetView } from "@/components/common/SheetContent";
+import { SheetScrollView } from "@/components/common/SheetContent";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import { useActionSheet } from "@/hooks/useActionSheet";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -255,50 +255,45 @@ export const PlayButton: React.FC<Props> = ({
         if (Platform.OS === "android") {
           // Show bottom sheet for Android
           showModal(
-            <SheetView>
-              <View>
-                <View className='pb-6'>
-                  <Text className='text-2xl font-bold mb-2'>
-                    {t("player.downloaded_file_title")}
-                  </Text>
-                  <Text className='opacity-70 text-base'>
-                    {t("player.downloaded_file_message")}
-                  </Text>
-                </View>
-                <View className='space-y-3'>
-                  <Button
-                    onPress={() => {
-                      hideModal();
-                      void playMedia(
-                        {
-                          itemId: item.Id!,
-                          offline: true,
-                          playbackPositionTicks: positionTicks,
-                        },
-                        { item },
-                      );
-                    }}
-                    color='purple'
-                  >
-                    {Platform.OS === "android"
-                      ? "Play downloaded file"
-                      : t("player.downloaded_file_yes")}
-                  </Button>
-                  <Button
-                    onPress={() => {
-                      hideModal();
-                      handleNormalPlayFlow(positionTicks);
-                    }}
-                    color='white'
-                    variant='border'
-                  >
-                    {Platform.OS === "android"
-                      ? "Stream file"
-                      : t("player.downloaded_file_no")}
-                  </Button>
-                </View>
+            // Scrolls, so a short window still reaches the second button.
+            <SheetScrollView>
+              <View className='pb-6'>
+                <Text className='text-2xl font-bold mb-2'>
+                  {t("player.downloaded_file_title")}
+                </Text>
+                <Text className='opacity-70 text-base'>
+                  {t("player.downloaded_file_message")}
+                </Text>
               </View>
-            </SheetView>,
+              <View className='space-y-3'>
+                <Button
+                  onPress={() => {
+                    hideModal();
+                    void playMedia(
+                      {
+                        itemId: item.Id!,
+                        offline: true,
+                        playbackPositionTicks: positionTicks,
+                      },
+                      { item },
+                    );
+                  }}
+                  color='purple'
+                >
+                  {t("player.play_downloaded_file")}
+                </Button>
+                <Button
+                  onPress={() => {
+                    hideModal();
+                    handleNormalPlayFlow(positionTicks);
+                  }}
+                  color='white'
+                  variant='border'
+                >
+                  {t("player.stream_file")}
+                </Button>
+              </View>
+            </SheetScrollView>,
             { enablePanDownToClose: true },
           );
         } else {
