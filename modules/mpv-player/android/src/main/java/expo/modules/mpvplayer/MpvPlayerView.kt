@@ -769,8 +769,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 // Only the player screen plays on with the screen off (the
                 // service is what keeps it going): leaving the app with the
                 // screen on is leaving the video.
-                if (backgroundPlaybackEnabled && shouldPauseOnActivityStop(
+                if (shouldPauseOnActivityStop(
                         isTelevision = DeviceKind.isTelevision(activity),
+                        backgroundPlayback = backgroundPlaybackEnabled,
                         screenInteractive = (activity.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true,
                         inPictureInPicture = isInPictureInPicture,
                         changingConfigurations = activity.isChangingConfigurations,

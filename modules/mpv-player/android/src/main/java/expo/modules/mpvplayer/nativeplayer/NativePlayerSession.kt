@@ -515,6 +515,8 @@ class NativePlayerSession(
                 }
                 if (!viewModel.syncPlayActive && shouldPauseOnActivityStop(
                         isTelevision = DeviceKind.isTelevision(activity),
+                        // The native chrome always runs its media session.
+                        backgroundPlayback = true,
                         screenInteractive = isScreenInteractive(activity),
                         inPictureInPicture = inPictureInPicture,
                         changingConfigurations = activity.isChangingConfigurations,
