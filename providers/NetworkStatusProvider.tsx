@@ -32,7 +32,7 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
 // of a HEAD on the server root: subpath reverse proxies, auth-gated web roots
 // and HEAD-blocking setups made the root check report the server offline
 // while the API worked fine, leaving the home screen empty (#1257).
-async function checkApiReachable(basePath?: string): Promise<boolean> {
+export async function checkApiReachable(basePath?: string): Promise<boolean> {
   if (!basePath) return false;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);

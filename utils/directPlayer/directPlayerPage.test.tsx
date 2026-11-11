@@ -44,6 +44,13 @@ const mockPlayer = {
   play: jest.fn(),
   pause: jest.fn(async () => {}),
   setSpeed: jest.fn(async () => {}),
+  // The embedded subtitles of the file, as MPV lists them.
+  getSubtitleTracks: jest.fn(async () => [
+    { id: 1, lang: "eng", title: "English", codec: "subrip", external: false },
+    { id: 2, lang: "fre", title: "French", codec: "subrip", external: false },
+  ]),
+  setSubtitleTrack: jest.fn(async (_id: number) => {}),
+  disableSubtitles: jest.fn(async () => {}),
 };
 let mockPlayerProps: MpvPlayerViewProps | null = null;
 /** How many MPV views have mounted: each one loads its source from scratch. */
@@ -63,6 +70,7 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+let mockDownloads: Record<string, unknown> = {};
 const mockSettings = {};
 const mockNoop = () => {};
 /** The volume commands the page handed the session socket. */
@@ -105,7 +113,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     getDownloadedItems: () => [],
-    getDownloadedItemById: () => undefined,
+    getDownloadedItemById: (id: string) => mockDownloads[id],
   }),
 }));
 jest.mock("@/providers/InactivityProvider", () => ({
@@ -723,5 +731,76 @@ describe("direct player stop report", () => {
     });
 
     expect(mockVolumeCalls).toEqual(["async read", "set 0.50", "set 0.60"]);
+  });
+});
+
+describe("direct player subtitles", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    mockPlayer.setSubtitleTrack.mockClear();
+    mockPlayer.disableSubtitles.mockClear();
+    const embedded = (Index: number, Language: string) => ({
+      Type: "Subtitle",
+      Index,
+      Language,
+      Codec: "subrip",
+      IsTextSubtitleStream: true,
+      DeliveryMethod: "Embed",
+    });
+    mockDownloads = {
+      "item-1": {
+        item: { Id: "item-1", Type: "Episode", RunTimeTicks: RUNTIME_TICKS },
+        mediaSource: {
+          Id: "source-1",
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            { Type: "Audio", Index: 1, Language: "eng" },
+            embedded(2, "eng"),
+            embedded(3, "fre"),
+          ],
+        },
+        videoFilePath: "file:///downloads/item-1.mkv",
+        userData: {
+          audioStreamIndex: 1,
+          subtitleStreamIndex: 3,
+          isTranscoded: false,
+        },
+      },
+    };
+    mockParams.offline = "true";
+  });
+
+  afterEach(() => {
+    mockDownloads = {};
+    mockParams.offline = "false";
+    mockParams.subtitleIndex = "";
+  });
+
+  /** Opens the player and lets MPV announce its track list. */
+  const openWithTracks = async () => {
+    await render(<DirectPlayerPage />);
+    await waitFor(() => expect(screen.getByTestId("mpv-view")).toBeTruthy());
+    await act(async () => {
+      mockPlayerProps?.onTracksReady?.({ nativeEvent: {} } as Parameters<
+        NonNullable<MpvPlayerViewProps["onTracksReady"]>
+      >[0]);
+    });
+  };
+
+  // French is the second embedded subtitle of the file, so MPV's track 2.
+  test("starts a download on the subtitle it was downloaded with", async () => {
+    await openWithTracks();
+
+    await waitFor(() =>
+      expect(mockPlayer.setSubtitleTrack).toHaveBeenLastCalledWith(2),
+    );
+  });
+
+  test("starts a download on the subtitle the route asks for", async () => {
+    mockParams.subtitleIndex = "-1";
+    await openWithTracks();
+
+    await waitFor(() => expect(mockPlayer.disableSubtitles).toHaveBeenCalled());
+    expect(mockPlayer.setSubtitleTrack).not.toHaveBeenCalled();
   });
 });
