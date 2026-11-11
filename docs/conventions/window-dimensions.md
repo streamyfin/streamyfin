@@ -17,9 +17,14 @@ const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 ```
 
 The canonical names are `windowWidth` and `windowHeight`. Derive per-render values
-from them (`const artworkSize = windowWidth * 0.5`), and list them in `useMemo` /
+from them (`const columns = windowWidth < 600 ? 3 : 5`), and list them in `useMemo` /
 `useEffect` deps like any other reactive value. A `useMemo` keyed on `windowWidth`
 is correct; caching the dimension itself, or a derivation whose deps omit it, is not.
+
+A square sized on the window, artwork for one, goes through `squareArtworkSide`
+(`utils/artworkSize.ts`). It takes the window's short side: sized on the width, a
+phone turned to landscape got a square wider than the window is tall, and the title
+and controls under it went off screen.
 
 ## What not to do
 

@@ -20,6 +20,7 @@ import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 export default function ArtistDetailScreen() {
@@ -30,8 +31,9 @@ export default function ArtistDetailScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { playQueue } = useMusicPlayer();
-  const { width: windowWidth } = useWindowDimensions();
-  const artworkSize = windowWidth * 0.4;
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { ratio: 0.4 });
 
   const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);

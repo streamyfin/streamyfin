@@ -27,6 +27,7 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -40,8 +41,9 @@ export default function AlbumDetailScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { playQueue } = useMusicPlayer();
-  const { width: windowWidth } = useWindowDimensions();
-  const artworkSize = windowWidth * 0.5;
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { ratio: 0.5 });
 
   const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);

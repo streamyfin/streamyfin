@@ -47,6 +47,7 @@ import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
 
@@ -407,8 +408,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onOptionsPress,
   isCastConnected,
 }) => {
-  const { width: windowWidth } = useWindowDimensions();
-  const artworkSize = windowWidth - 80;
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { inset: 80 });
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
