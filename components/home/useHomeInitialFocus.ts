@@ -11,7 +11,8 @@ let takenFor: string | null = null;
  * (docs/conventions/tv.md). `sessionKey` changes with every sign-in, the same
  * user's included. A Home whose sign-in changes under it (an account switch
  * while Home stays mounted on tvOS) neither takes the focus for the new one nor
- * uses up its turn. Covered by useHomeInitialFocus.test.ts.
+ * uses up its turn, and does not get it back if the first one returns. Covered
+ * by useHomeInitialFocus.test.ts.
  */
 export const useHomeInitialFocus = (
   sessionKey: string | undefined,
@@ -23,7 +24,11 @@ export const useHomeInitialFocus = (
   if (decided.current === null) {
     decided.current = !!sessionKey && takenFor !== sessionKey;
   }
-  const takes = decided.current && sessionKey === mountedFor.current;
+  // Lost for good once the sign-in changes: switching back to the account can
+  // reuse its sign-in, and the old Home would get its permission back.
+  const lost = useRef(false);
+  if (sessionKey !== mountedFor.current) lost.current = true;
+  const takes = decided.current && !lost.current;
 
   useEffect(() => {
     if (takes && sessionKey) takenFor = sessionKey;

@@ -54,6 +54,20 @@ describe("useHomeInitialFocus", () => {
     expect(next.result.current).toBe(true);
   });
 
+  // Switching back to an account can reuse its sign-in: A, then B, then A
+  // again gave the old Home its permission back, and its next card could take
+  // the focus out of the tab bar.
+  test("does not give the focus back when the sign-in returns", async () => {
+    const mounted = await renderHook(
+      ({ key }: { key: string }) => useHomeInitialFocus(key),
+      { initialProps: { key: "sign-in-1" } },
+    );
+    await mounted.rerender({ key: "sign-in-2" });
+    await mounted.rerender({ key: "sign-in-1" });
+
+    expect(mounted.result.current).toBe(false);
+  });
+
   test("asks for nothing before a session exists", async () => {
     const { result } = await renderHook(() => useHomeInitialFocus(undefined));
     expect(result.current).toBe(false);
