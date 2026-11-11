@@ -101,7 +101,6 @@ import {
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
 import {
-  AUTO_BITRATE,
   type BitrateRequest,
   bitrateLabel,
   fromNativeQualityIndex,
@@ -250,9 +249,9 @@ interface NativePlayerContextValue {
    * back to the JS route. Resolves true when the request was taken,
    * including when the player was closed while it was in flight: there is
    * nothing to fall back to for an item the user just closed. A request
-   * superseded by a newer one before it took the player resolves false; one
-   * superseded after its load was issued resolves true, since the newer
-   * request owns the player.
+   * overtaken by a newer one (or a Stop) resolves true as well, before or
+   * after it took the player: the newer one owns playback, and a fallback to
+   * the JS route would play under it.
    */
   presentFromRequest: (
     req: PlayRequest,
@@ -966,6 +965,8 @@ const NativePlayerProviderInner: React.FC<{
         /** The session a swap is for, when the caller holds it. */
         over?: NativeSession;
         isCurrent?: () => boolean;
+        /** The cap of a same-item, same-quality swap, see the builder. */
+        maxStreamingBitrate?: { value: number | undefined };
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -997,8 +998,9 @@ const NativePlayerProviderInner: React.FC<{
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
-        autoQualityLabel: bitrateLabel(t, AUTO_BITRATE),
+        qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
+        maxStreamingBitrate: options.maxStreamingBitrate,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,
@@ -1007,9 +1009,10 @@ const NativePlayerProviderInner: React.FC<{
       });
       if (!built) return false;
       if (options.isCurrent?.() === false) {
-        // The build may have opened a live stream nothing will play.
+        // The build may have opened a live stream nothing will play. Not a
+        // decline either: the caller moved on.
         releaseLiveStream(built.seed);
-        return false;
+        return true;
       }
       if (syncRef.current.enabled && !req.offline) {
         built.config.syncPlay = nativeSyncStateRef.current || undefined;
@@ -1053,9 +1056,10 @@ const NativePlayerProviderInner: React.FC<{
       ) {
         // A newer play request started while this stream was negotiating —
         // abandon before touching sessionRef or the native player, and close
-        // the live stream this build just opened on the server.
+        // the live stream this build just opened on the server. Not a
+        // decline: the newer request plays.
         releaseLiveStream(session);
-        return false;
+        return true;
       }
 
       const previous = sessionRef.current;
@@ -1134,7 +1138,7 @@ const NativePlayerProviderInner: React.FC<{
             options.isCurrent?.() === false
           ) {
             releaseLiveStream(session);
-            return false;
+            return true;
           }
           // A dismiss landed during the round trip (teardownSession clears
           // sessionRef at once): there is no `previous` to swap out, and a
@@ -1165,7 +1169,7 @@ const NativePlayerProviderInner: React.FC<{
             options.isCurrent?.() === false
           ) {
             releaseLiveStream(session);
-            return false;
+            return true;
           }
           // Lock orientation BEFORE presenting: expo-screen-orientation owns
           // the window orientation mask, and presenting a landscape-only VC
@@ -1322,6 +1326,10 @@ const NativePlayerProviderInner: React.FC<{
         item: session.item,
         replace: true,
         over: session,
+        // The same quality: the cap the stream plays at, not a new measure.
+        ...(overrides.bitrateValue === undefined && {
+          maxStreamingBitrate: { value: session.maxStreamingBitrate },
+        }),
       });
     },
     [beginSession],
@@ -1457,7 +1465,7 @@ const NativePlayerProviderInner: React.FC<{
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
           originalLabel: t("common.original_audio"),
-          autoQualityLabel: bitrateLabel(t, AUTO_BITRATE),
+          qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {

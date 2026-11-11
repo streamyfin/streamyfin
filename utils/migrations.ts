@@ -7,13 +7,11 @@ import {
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
 import { AUTO_BITRATE } from "@/utils/bitrate";
+import { isPlainObject } from "@/utils/errors";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
-import {
-  PLUGIN_APPLIED_DEFAULTS_KEY,
-  SETTINGS_KEY,
-} from "@/utils/storedSettings";
+import { SETTINGS_KEY } from "@/utils/storedSettings";
 
 /**
  * One-off migrations for locally stored (MMKV) data.
@@ -66,9 +64,7 @@ const readStoredObject = (
   if (stored === undefined) return undefined;
   try {
     const value: unknown = JSON.parse(stored);
-    return value !== null && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : undefined;
+    return isPlainObject(value) ? value : undefined;
   } catch {
     return undefined;
   }
@@ -125,15 +121,11 @@ const MIGRATIONS: Migration[] = [
       const settings = readStoredObject(store, SETTINGS_KEY);
       const quality = settings?.defaultBitrate as { key?: unknown } | undefined;
       // Saving any setting stored every default with it, so a Max on the
-      // device cannot be told from one nobody picked: they all move.
+      // device cannot be told from one nobody picked: they all move. So does
+      // one a plugin default wrote: the plugin's Max is a default without a
+      // value, which is Auto now. A locked one is in the plugin's settings,
+      // which stay as they are and win over these anyway.
       if (!settings || quality?.key !== MAX_BITRATE_KEY) return;
-      // But for the Max a plugin default wrote there: that one is the server
-      // admin's. A locked one is in the plugin's settings, which stay as they
-      // are and win over these anyway.
-      const seeded = readStoredObject(store, PLUGIN_APPLIED_DEFAULTS_KEY);
-      if (JSON.stringify(seeded?.defaultBitrate) === JSON.stringify(quality)) {
-        return;
-      }
       settings.defaultBitrate = AUTO_BITRATE;
       store.set(SETTINGS_KEY, JSON.stringify(settings));
     },

@@ -63,6 +63,12 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** Holds the next stream negotiation until `release` is called. */
+const mockStreamHold: {
+  held: boolean;
+  release?: () => void;
+  liveStreamId?: string;
+} = { held: false };
 /** The max streaming bitrate of each stream the page asked the server for. */
 const mockAskedBitrates: (number | undefined)[] = [];
 const mockSettings: { defaultBitrate?: { key: string; value?: number } } = {};
@@ -195,11 +201,15 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
     maxStreamingBitrate?: number;
   }) => {
     mockAskedBitrates.push(maxStreamingBitrate);
+    if (mockStreamHold.held) {
+      await new Promise<void>((resolve) => (mockStreamHold.release = resolve));
+    }
     return {
       mediaSource: {
         Id: "source-1",
         MediaStreams: [],
         TranscodingUrl: mockTranscodingUrl,
+        LiveStreamId: mockStreamHold.liveStreamId,
       },
       sessionId: `session-${item.Id}`,
       url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
@@ -803,5 +813,59 @@ describe("direct player quality", () => {
     await openPlayer();
 
     expect(mockAskedBitrates).toEqual([8_000_000]);
+  });
+
+  // A Play command from another client opens a channel with no quality: it
+  // played at the default, where every other way in plays it uncapped.
+  test("asks for no cap for live television whose route names no quality", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([undefined]);
+  });
+});
+
+describe("a player left while its stream is negotiated", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    api.mock.reset();
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    api.mock.onPost().reply(204);
+    mockStreamHold.held = true;
+    mockStreamHold.liveStreamId = "live-1";
+  });
+
+  afterEach(() => {
+    mockStreamHold.held = false;
+    mockStreamHold.release = undefined;
+    mockStreamHold.liveStreamId = undefined;
+    jest.restoreAllMocks();
+  });
+
+  // The live stream the server opened for it came back after the page was
+  // gone: nothing closed it, and it held its tuner until the server reaped it.
+  test("closes the live stream that comes back after it", async () => {
+    await render(<DirectPlayerPage />);
+    await waitFor(() => expect(mockStreamHold.release).toBeDefined());
+    screen.unmount();
+
+    await act(async () => mockStreamHold.release?.());
+
+    await waitFor(() =>
+      expect(
+        api.mock.history.post.map((request) => request.url ?? ""),
+      ).toContainEqual(
+        expect.stringContaining("/LiveStreams/Close?liveStreamId=live-1"),
+      ),
+    );
+    expect(startReports()).toHaveLength(0);
   });
 });

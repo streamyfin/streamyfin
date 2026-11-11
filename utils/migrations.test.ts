@@ -213,9 +213,9 @@ describe("the default quality", () => {
     expect(storedQuality()).toEqual({ key: "8 Mb/s", value: 8_000_000 });
   });
 
-  // An unlocked plugin default is written into the settings once. That Max is
-  // the server admin's, not the old default.
-  test("keeps a Max the server's plugin set", () => {
+  // The plugin's Max is a default without a value, which the app now reads as
+  // its own default, Auto: the Max it seeded moves with the others.
+  test("moves a Max the server's plugin set to Auto too", () => {
     settings({ defaultBitrate: { key: "Max" } });
     data.set(
       "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS",
@@ -224,7 +224,7 @@ describe("the default quality", () => {
 
     runStorageMigrations(store);
 
-    expect(storedQuality()).toEqual({ key: "Max" });
+    expect(storedQuality()).toEqual({ key: "Auto" });
   });
 
   test("leaves the plugin's own settings as they are", () => {

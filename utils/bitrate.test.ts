@@ -1,10 +1,12 @@
 import type { TFunction } from "i18next";
+import { BITRATES } from "@/constants/Playback";
 import {
   AUTO_BITRATE,
   bitrateLabel,
   fromNativeQualityIndex,
   liveTvBitrateRequest,
   MAX_BITRATE,
+  PLAYBACK_BITRATES,
   parseBitrateParam,
   routeBitrateParam,
   toBitrateParam,
@@ -15,6 +17,31 @@ import {
 } from "./bitrate";
 
 const EIGHT_MBPS = { key: "8 Mb/s", value: 8_000_000 };
+
+const CAPS = [
+  "Max",
+  "8 Mb/s",
+  "4 Mb/s",
+  "2 Mb/s",
+  "1 Mb/s",
+  "500 Kb/s",
+  "250 Kb/s",
+];
+
+describe("the qualities", () => {
+  // Auto first in the shared table changed what its first entry meant for
+  // every reader, the remote quality of the Cast stack among them.
+  test("list the caps from Max down, without Auto", () => {
+    expect(BITRATES.map((bitrate) => bitrate.key)).toEqual(CAPS);
+  });
+
+  test("offer Auto first on this device's pickers, then every cap", () => {
+    expect(PLAYBACK_BITRATES.map((bitrate) => bitrate.key)).toEqual([
+      "Auto",
+      ...CAPS,
+    ]);
+  });
+});
 
 describe("a quality on its way to the player", () => {
   test("stays Auto, for the player to measure", () => {

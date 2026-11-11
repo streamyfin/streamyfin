@@ -18,10 +18,12 @@ describe("the quality choices", () => {
     });
   });
 
-  test("offer every quality there is", () => {
-    expect(bitrateOptions(t, MAX).map((option) => option.value)).toEqual(
-      BITRATES,
-    );
+  // The table holds the caps only; the pickers put Auto in front of them.
+  test("offer Auto, then every cap there is", () => {
+    expect(bitrateOptions(t, MAX).map((option) => option.value)).toEqual([
+      AUTO,
+      ...BITRATES,
+    ]);
   });
 
   // Neither carries a bitrate, so they are told apart by their key.

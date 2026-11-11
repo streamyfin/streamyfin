@@ -1,5 +1,4 @@
 import type { TFunction } from "i18next";
-import type { Bitrate } from "@/components/BitrateSelector";
 import {
   AUTO_BITRATE_KEY,
   AUTO_BITRATE_VALUE,
@@ -8,6 +7,8 @@ import {
   NATIVE_AUTO_QUALITY_INDEX,
   NATIVE_MAX_QUALITY_INDEX,
 } from "@/constants/Bitrate";
+import { BITRATES, type Bitrate } from "@/constants/Playback";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 
 export const formatBitrate = (bitrate?: number | null) => {
   if (!bitrate) return "N/A";
@@ -28,6 +29,12 @@ export const AUTO_BITRATE: Bitrate = {
 export const MAX_BITRATE: Bitrate = { key: MAX_BITRATE_KEY, value: undefined };
 
 /**
+ * The qualities the pickers of this device offer, the default first: Auto,
+ * measured on the connection, then the caps.
+ */
+export const PLAYBACK_BITRATES: Bitrate[] = [AUTO_BITRATE, ...BITRATES];
+
+/**
  * A quality as a play request carries it to the player: a bitrate in bit/s,
  * Auto until the player measures it, or Max, no cap. A request that carries
  * none plays at the default quality.
@@ -40,13 +47,14 @@ export type BitrateRequest =
 /**
  * Live TV plays without a cap unless a bitrate was picked by hand, as the
  * guide and the channel grid do: Auto never measures for it, and a request
- * with no quality stands for the default, Auto too.
+ * with no quality stands for none, whatever the default. Applied before the
+ * default, where the players negotiate the stream.
  */
 export const liveTvBitrateRequest = <T extends BitrateRequest | undefined>(
   item: { Type?: string | null } | null | undefined,
   request: T,
 ): T | typeof MAX_BITRATE_VALUE =>
-  (item?.Type === "Program" || item?.Type === "TvChannel") &&
+  isLiveTvItem(item) &&
   (request === undefined || request === AUTO_BITRATE_VALUE)
     ? MAX_BITRATE_VALUE
     : request;
@@ -93,6 +101,24 @@ export const routeBitrateParam = (
   defaultBitrate: Bitrate | null | undefined,
 ): string =>
   withDefaultBitrate(parseBitrateParam(param), defaultBitrate).toString();
+
+/**
+ * The JS player's quality menu, on the phone and on TV: every quality as the
+ * route writes it, the one playing marked, and a route that names none at the
+ * default quality.
+ */
+export const playerQualityOptions = (
+  t: TFunction,
+  routeParam: string | null | undefined,
+  defaultBitrate: Bitrate | null | undefined,
+) => {
+  const playing = routeBitrateParam(routeParam, defaultBitrate);
+  return PLAYBACK_BITRATES.map((bitrate) => ({
+    label: bitrateLabel(t, bitrate),
+    value: toBitrateParam(bitrate),
+    selected: playing === toBitrateParam(bitrate),
+  }));
+};
 
 export const toNativeQualityIndex = (request: BitrateRequest): number => {
   if (request === AUTO_BITRATE_VALUE) return NATIVE_AUTO_QUALITY_INDEX;

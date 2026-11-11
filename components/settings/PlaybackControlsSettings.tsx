@@ -3,7 +3,6 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { bitrateOptions } from "@/components/BitrateSelector";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
@@ -13,7 +12,6 @@ import { STILL_WATCHING_PRESET_ORDER } from "@/constants/StillWatching";
 import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
-import { bitrateLabel } from "@/utils/bitrate";
 import { coerceStillWatchingPreset } from "@/utils/stillWatching";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -70,23 +68,6 @@ export const PlaybackControlsSettings: React.FC = () => {
       },
     ],
     [orientations, settings?.defaultVideoOrientation, t, updateSettings],
-  );
-
-  const qualityOptions = useMemo(
-    () => [
-      {
-        options: bitrateOptions(t, settings?.defaultBitrate).map(
-          ({ label, value: bitrate, selected }) => ({
-            type: "radio" as const,
-            label,
-            value: bitrate.key,
-            selected,
-            onPress: () => updateSettings({ defaultBitrate: bitrate }),
-          }),
-        ),
-      },
-    ],
-    [settings?.defaultBitrate, t, updateSettings],
   );
 
   const stillWatchingOptions = useMemo(
@@ -161,29 +142,6 @@ export const PlaybackControlsSettings: React.FC = () => {
             onValueChange={(value) =>
               updateSettings({ safeAreaInControlsEnabled: value })
             }
-          />
-        </ListItem>
-
-        <ListItem
-          title={t("home.settings.other.default_quality")}
-          disabled={pluginSettings?.defaultBitrate?.locked}
-        >
-          <PlatformDropdown
-            groups={qualityOptions}
-            trigger={
-              <View className='flex flex-row items-center justify-between pl-3 py-1.5 '>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {settings.defaultBitrate &&
-                    bitrateLabel(t, settings.defaultBitrate)}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.other.default_quality")}
           />
         </ListItem>
 

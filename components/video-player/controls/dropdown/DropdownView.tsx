@@ -18,7 +18,6 @@ import {
 import { Slider } from "react-native-awesome-slider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSharedValue } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Stepper } from "@/components/inputs/Stepper";
 import {
@@ -29,11 +28,7 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import {
-  bitrateLabel,
-  routeBitrateParam,
-  toBitrateParam,
-} from "@/utils/bitrate";
+import { playerQualityOptions } from "@/utils/bitrate";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -311,17 +306,17 @@ const DropdownView = ({
     // Quality Section. A route that names no quality plays at the default
     // one, marked as such.
     if (!isOffline) {
-      const playing = routeBitrateParam(bitrateValue, settings.defaultBitrate);
       groups.push({
         title: t("player.menu.quality"),
-        options:
-          BITRATES?.map((bitrate) => ({
-            type: "radio" as const,
-            label: bitrateLabel(t, bitrate),
-            value: toBitrateParam(bitrate),
-            selected: playing === toBitrateParam(bitrate),
-            onPress: () => changeBitrate(toBitrateParam(bitrate)),
-          })) || [],
+        options: playerQualityOptions(
+          t,
+          bitrateValue,
+          settings.defaultBitrate,
+        ).map((option) => ({
+          type: "radio" as const,
+          ...option,
+          onPress: () => changeBitrate(option.value),
+        })),
       });
     }
 

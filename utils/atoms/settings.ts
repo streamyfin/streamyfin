@@ -13,11 +13,16 @@ import { isAxiosError } from "axios";
 import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import {
+  BITRATE_DETECTION_TTL_MS,
+  DETECTED_BITRATE_RATIO,
+  IN_NETWORK_MIN_BITRATE,
+} from "@/constants/Bitrate";
 import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
 } from "@/constants/Music";
+import type { Bitrate } from "@/constants/Playback";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import {
   DEFAULT_STILL_WATCHING_PRESET,
@@ -25,7 +30,7 @@ import {
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
-import { AUTO_BITRATE, MAX_BITRATE } from "@/utils/bitrate";
+import { AUTO_BITRATE, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
@@ -186,11 +191,11 @@ const normalizePluginValue = (
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
       // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
-        // Jellyfin leaves a null out of the plugin's JSON, so its "no cap"
-        // comes without a value. That is Max, never Auto, which has no value
-        // either and comes first.
-        if (value === undefined || value === null) return MAX_BITRATE;
-        const match = BITRATES.find(
+        // Jellyfin leaves a null out of the plugin's JSON, so a default
+        // without a value is the one the plugin ships: the app's own, Auto.
+        // The plugin's Max is that null, so an admin's Max is Auto too.
+        if (value === undefined || value === null) return AUTO_BITRATE;
+        const match = PLAYBACK_BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
         if (match) return match;
@@ -428,6 +433,12 @@ export type Settings = {
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
+  /** Auto: the share of the measured speed a stream may take. */
+  autoBitrateRatio: number;
+  /** Auto: how long a measure is used before the next, in minutes. */
+  autoBitrateTtlMinutes: number;
+  /** Auto: the least a stream gets in the server's network, in bit/s; 0 for none. */
+  autoBitrateInNetworkMin: number;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -630,6 +641,9 @@ export const defaultValues: Settings = {
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
   defaultBitrate: AUTO_BITRATE,
+  autoBitrateRatio: DETECTED_BITRATE_RATIO,
+  autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,
+  autoBitrateInNetworkMin: IN_NETWORK_MIN_BITRATE,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",

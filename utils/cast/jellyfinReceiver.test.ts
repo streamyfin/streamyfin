@@ -738,6 +738,83 @@ describe("castToJellyfinReceiver", () => {
     expect(await second).toEqual({ status: "loaded" });
   });
 
+  const playNowBitrate = () =>
+    mockChannels
+      .flatMap((channel) => channel.sendMessage.mock.calls)
+      .find(([message]) => message.command === "PlayNow")?.[0].maxBitrate;
+
+  // A music cast named none, and the receiver kept the cap of the video cast
+  // before it for the whole album.
+  test("hands the receiver its ceiling when the cast names no bitrate", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      session(),
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(120_000_000);
+  });
+
+  // Auto in the server's network gives at least 140 Mb/s, more than a
+  // Chromecast takes, which the receiver applies as it is.
+  test("hands the receiver no more than its ceiling", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      { ...session(), maxBitrate: 140_000_000 },
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(120_000_000);
+  });
+
+  test("hands the receiver a lower bitrate as it is", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      { ...session(), maxBitrate: 8_000_000 },
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(8_000_000);
+  });
+
+  // The session waited on Auto's measure before the cast took its turn: a
+  // cast picked after it, at a fixed quality, loaded first and was replaced.
+  test("takes its turn before its session is ready", async () => {
+    const client = makeClient();
+    let ready: (value: ReturnType<typeof session>) => void = () => {};
+    const first = castToJellyfinReceiver(
+      client as never,
+      new Promise<ReturnType<typeof session>>((resolve) => (ready = resolve)),
+      { items: [movie] },
+      1_000,
+    );
+    const second = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [{ Id: "item-2", Type: "Movie" }] },
+      1_000,
+    );
+    await sent();
+    ready(session());
+    await sent();
+
+    expect(await settledWith(first)).toEqual({ status: "superseded" });
+    const playNows = mockChannels
+      .flatMap((channel) => channel.sendMessage.mock.calls)
+      .filter(([message]) => message.command === "PlayNow");
+    expect(playNows.map(([message]) => message.options.items[0].Id)).toEqual([
+      "item-2",
+    ]);
+    client.emit(status("buffering", "item-2", "session-b"));
+    expect(await second).toEqual({ status: "loaded" });
+  });
+
   test("rejects when the command cannot be sent", async () => {
     mockConnectOnAdd = false;
 

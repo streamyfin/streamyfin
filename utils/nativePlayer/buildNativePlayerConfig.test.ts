@@ -26,20 +26,13 @@ jest.mock("@/utils/customHeaders", () =>
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),
 }));
-// The settings module and the bitrate list drag the settings UI in behind
-// them, and none of it has a say in the headers.
+// The settings module drags the settings UI in behind it, and none of it has
+// a say in the headers.
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
 }));
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [
-    { key: "Auto", value: undefined },
-    { key: "Max", value: undefined },
-    { key: "8 Mb/s", value: 8_000_000 },
-  ],
-}));
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
-  detectBitrate: (api: unknown) => mockDetectBitrate(api),
+  detectBitrate: (...args: unknown[]) => mockDetectBitrate(...args),
 }));
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
@@ -48,7 +41,7 @@ jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   buildSubtitleStyle: () => ({}),
 }));
 
-const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
+const mockDetectBitrate = jest.fn(async (..._args: unknown[]) => 12_000_000);
 
 const SERVER = "https://jellyfin.example";
 const api = { basePath: SERVER, accessToken: "token" } as Api;
@@ -82,7 +75,8 @@ const streamHeaders = async (stream: {
     getDownloadedItemById: () => undefined,
     strings: {} as NativePlayerStrings,
     originalLabel: "Original",
-    autoQualityLabel: "Auto",
+    qualityLabel: (bitrate: { key: string }) =>
+      bitrate.key === "Auto" ? "Auto" : bitrate.key,
     item,
   });
   return built?.config.stream.headers;
@@ -166,7 +160,8 @@ describe("the native player's exit confirmation", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
-      autoQualityLabel: "Auto",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,
     });
     return built?.config.ui?.confirmExitEnabled;
@@ -184,9 +179,17 @@ describe("the native player's exit confirmation", () => {
 describe("the native player's quality", () => {
   const AUTO = { key: "Auto", value: undefined };
 
+  const CHANNEL: BaseItemDto = {
+    Id: "item-1",
+    Name: "Channel",
+    Type: "TvChannel",
+  };
+
   const build = async (
     bitrateValue?: number | "auto" | "max",
     defaultBitrate: Settings["defaultBitrate"] = AUTO,
+    played: BaseItemDto = item,
+    maxStreamingBitrate?: { value: number | undefined },
   ) => {
     jest.mocked(getStreamUrl).mockResolvedValue({
       url: `${SERVER}/Videos/1/stream.mkv`,
@@ -206,8 +209,10 @@ describe("the native player's quality", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
-      autoQualityLabel: "Automatique",
-      item,
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Automatique" : bitrate.key,
+      item: played,
+      maxStreamingBitrate,
     });
   };
 
@@ -219,11 +224,52 @@ describe("the native player's quality", () => {
     mockDetectBitrate.mockClear();
   });
 
+  // A Play command from another client names no quality: Live TV played at
+  // the default there, measured or capped, and uncapped everywhere else.
+  test("plays live television that names no quality uncapped, without measuring", async () => {
+    await build(undefined, AUTO, CHANNEL);
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBeUndefined();
+  });
+
+  test("plays live television that names no quality uncapped under a fixed default", async () => {
+    await build(undefined, { key: "4 Mb/s", value: 4_000_000 }, CHANNEL);
+
+    expect(askedBitrate()).toBeUndefined();
+  });
+
+  test("plays live television at a bitrate picked by hand", async () => {
+    await build(8_000_000, AUTO, CHANNEL);
+
+    expect(askedBitrate()).toBe(8_000_000);
+  });
+
   test("asks the server for what Auto measures", async () => {
     await build("auto");
 
-    expect(mockDetectBitrate).toHaveBeenCalledWith(api);
+    expect(mockDetectBitrate).toHaveBeenCalledWith(
+      api,
+      false,
+      expect.objectContaining({ ratio: 0.7 }),
+    );
     expect(askedBitrate()).toBe(12_000_000);
+  });
+
+  // A track change re-negotiates the same item: measured again an hour on,
+  // Auto measured the old stream's leftovers and could turn a direct play
+  // into a transcode.
+  test("re-negotiates at the cap it is handed, without measuring", async () => {
+    await build("auto", AUTO, item, { value: 9_000_000 });
+
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+    expect(askedBitrate()).toBe(9_000_000);
+  });
+
+  test("keeps the cap Auto measured with the session", async () => {
+    const built = await build("auto");
+
+    expect(built?.seed.maxStreamingBitrate).toBe(12_000_000);
   });
 
   // Carried to the next episode and to every re-negotiation, where the
@@ -253,6 +299,11 @@ describe("the native player's quality", () => {
         jellyfinIndex: 8_000_000,
         selected: false,
       }),
+      expect.objectContaining({ label: "4 Mb/s", selected: false }),
+      expect.objectContaining({ label: "2 Mb/s", selected: false }),
+      expect.objectContaining({ label: "1 Mb/s", selected: false }),
+      expect.objectContaining({ label: "500 Kb/s", selected: false }),
+      expect.objectContaining({ label: "250 Kb/s", selected: false }),
     ]);
   });
 
@@ -305,7 +356,8 @@ describe("the native player's quality, when the request names none", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
-      autoQualityLabel: "Auto",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,
     });
   };
@@ -321,7 +373,11 @@ describe("the native player's quality, when the request names none", () => {
   test("is the default one, measured when it is Auto", async () => {
     const built = await build({ key: "Auto", value: undefined });
 
-    expect(mockDetectBitrate).toHaveBeenCalledWith(api);
+    expect(mockDetectBitrate).toHaveBeenCalledWith(
+      api,
+      false,
+      expect.objectContaining({ ratio: 0.7 }),
+    );
     expect(askedBitrate()).toBe(12_000_000);
     expect(built?.seed.bitrateValue).toBe("auto");
   });

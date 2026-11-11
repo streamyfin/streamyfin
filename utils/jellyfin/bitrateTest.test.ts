@@ -7,9 +7,9 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 type Answer =
   /**
    * Sends the body in `parts` equal parts over `ms`, after `wait` ms for the
-   * headers.
+   * headers: `bytes` of it, or the size asked for.
    */
-  | { ms: number; wait?: number; parts?: number }
+  | { ms: number; wait?: number; parts?: number; bytes?: number }
   /** Answers with an error of its own. */
   | { status: number }
   /** Never answers. */
@@ -20,6 +20,14 @@ type Answer =
 const mockAnswers: Answer[] = [];
 /** How many bodies were cancelled while they were still coming. */
 let mockCanceledBodies = 0;
+/** The abort signal of every request, in order. */
+const mockSignals: AbortSignal[] = [];
+/** What NetInfo calls when the device changes networks. */
+const mockNetworkListeners: ((state: unknown) => void)[] = [];
+/** The network the device is on. */
+let mockNetworkState: unknown;
+/** What the app stores, kept across a relaunch (`relaunch`). */
+const mockStored = new Map<string, string>();
 
 const canceled = () => new Error("fetch request has been canceled");
 
@@ -51,6 +59,7 @@ const streamedBody = (size: number, ms: number, parts: number) => {
 const mockFetch = jest.fn(async (url: string, init: RequestInit) => {
   const answer = mockAnswers.shift() ?? "fail";
   const signal = init.signal as AbortSignal;
+  mockSignals.push(signal);
   if (answer === "fail") {
     throw new Error("fetch failed: java.net.SocketException: Connection reset");
   }
@@ -64,7 +73,7 @@ const mockFetch = jest.fn(async (url: string, init: RequestInit) => {
   }
   jest.advanceTimersByTime(answer.wait ?? 0);
   if (signal.aborted) throw canceled();
-  const size = Number(/[?&]Size=(\d+)/.exec(url)?.[1]);
+  const size = answer.bytes ?? Number(/[?&]Size=(\d+)/.exec(url)?.[1]);
   return {
     ok: true,
     status: 200,
@@ -78,6 +87,36 @@ jest.mock("expo/fetch", () => ({
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
+jest.mock("@/utils/mmkv", () => ({
+  storage: {
+    getString: (key: string) => mockStored.get(key),
+    set: (key: string, value: string) => mockStored.set(key, value),
+    remove: (key: string) => mockStored.delete(key),
+  },
+}));
+jest.mock("@react-native-community/netinfo", () => ({
+  __esModule: true,
+  default: {
+    // NetInfo calls a new listener with the current state soon after it
+    // subscribes, then with every change.
+    addEventListener: (listener: (state: unknown) => void) => {
+      mockNetworkListeners.push(listener);
+      if (mockNetworkState !== undefined) listener(mockNetworkState);
+      return () => {};
+    },
+    fetch: async () => mockNetworkState,
+  },
+}));
+
+/** The device on a network, as NetInfo tells it. */
+const joinNetwork = (type: "wifi" | "cellular", ipAddress?: string) => {
+  mockNetworkState = {
+    type,
+    isConnected: true,
+    details: ipAddress ? { ipAddress } : {},
+  };
+  for (const listener of mockNetworkListeners) listener(mockNetworkState);
+};
 
 const SERVER = "https://jellyfin.example.com";
 const TEST_SIZES = [500_000, 1_000_000, 3_000_000];
@@ -92,6 +131,7 @@ const requestedSizes = () =>
   mockFetch.mock.calls.map(([url]) => Number(/[?&]Size=(\d+)/.exec(url)?.[1]));
 
 let detectBitrate: typeof import("./bitrateTest").detectBitrate;
+let AppState: typeof import("react-native").AppState;
 let setJellyfinHeaders: typeof import("@/test-utils/customHeaders").setJellyfinHeaders;
 let api: ReturnType<typeof makeApi>;
 
@@ -111,11 +151,26 @@ beforeEach(() => {
   jest.resetModules();
   ({ detectBitrate } =
     require("./bitrateTest") as typeof import("./bitrateTest"));
+  ({ AppState } = require("react-native") as typeof import("react-native"));
+  Object.defineProperty(AppState, "currentState", {
+    value: "active",
+    configurable: true,
+    writable: true,
+  });
   ({ setJellyfinHeaders } =
     require("@/test-utils/customHeaders") as typeof import("@/test-utils/customHeaders"));
   mockFetch.mockClear();
   mockAnswers.length = 0;
   mockCanceledBodies = 0;
+  mockSignals.length = 0;
+  mockNetworkListeners.length = 0;
+  mockStored.clear();
+  // The home Wi-Fi, unless a test moves the device.
+  mockNetworkState = {
+    type: "wifi",
+    isConnected: true,
+    details: { ipAddress: "192.168.1.10" },
+  };
   api = makeApi();
 });
 
@@ -424,5 +479,322 @@ describe("a detection", () => {
     await expect(detectBitrate(api)).resolves.toBe(7_000_000);
 
     expect(mockFetch).toHaveBeenCalledTimes(5);
+  });
+});
+
+describe("a test's size", () => {
+  // Jellyfin answers from a pooled buffer, a power of two: 4 MiB for the
+  // 3 MB test. Timed against the 3 MB asked for, 100 Mb/s read as 71.5.
+  test("is the bytes the server sent, not the ones asked for", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(
+      ...[524_288, 1_048_576, 4_194_304].map((bytes) => ({
+        bytes,
+        ms: (bytes * 8) / (100 * 1_000),
+      })),
+    );
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+  });
+});
+
+describe("a test's request", () => {
+  // Cancelling the body only stops reading it: iOS goes on downloading the
+  // rest of the test behind the next one, and behind the stream.
+  test("is aborted when its deadline cuts the body", async () => {
+    answerEndpoint(false);
+    mockAnswers.push({ ms: 10_000, parts: 10 });
+
+    await detectBitrate(api);
+
+    expect(mockSignals).toHaveLength(1);
+    expect(mockSignals[0].aborted).toBe(true);
+  });
+
+  test("is aborted when the server answers with an error", async () => {
+    answerEndpoint(false);
+    mockAnswers.push({ status: 403 });
+
+    await expect(detectBitrate(api)).rejects.toThrow();
+
+    expect(mockSignals[0].aborted).toBe(true);
+  });
+});
+
+describe("a detection that measures nothing", () => {
+  // It came back with the earlier detection stamped as new, so a stale one,
+  // even a floor from another network, stood for another hour.
+  test("leaves the earlier detection its own time", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), "fail", ...bodiesAt(10, 10));
+    await detectBitrate(api);
+    jest.advanceTimersByTime(61 * 60_000);
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+
+    jest.advanceTimersByTime(3 * 60_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(6);
+  });
+
+  // Every play repeated the endpoint and the first test, with their timeouts,
+  // before playing at Max anyway.
+  test("is remembered for two minutes, with its cause", async () => {
+    answerEndpoint(false);
+    mockAnswers.push({ status: 403 }, ...bodiesAt(10, 10));
+
+    await expect(detectBitrate(api)).rejects.toThrow("403");
+    jest.advanceTimersByTime(119_000);
+    await expect(detectBitrate(api)).rejects.toThrow("403");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(2_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+});
+
+describe("a detection on another network", () => {
+  // One server address at home and on 4G: the home measure, or the floor of
+  // the server's network, played over cellular for up to an hour.
+  test("is measured again once the device changes networks", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    joinNetwork("wifi", "192.168.1.10");
+    await detectBitrate(api);
+
+    joinNetwork("cellular");
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+
+  test("is kept when the network NetInfo first reports is the one it ran on", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    joinNetwork("wifi", "192.168.1.10");
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("that ends after the change is not kept for the new one", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    joinNetwork("wifi", "192.168.1.10");
+    const first = detectBitrate(api);
+    joinNetwork("cellular");
+    await first;
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+});
+
+describe("a detection out of the foreground", () => {
+  afterEach(() => {
+    Object.defineProperty(AppState, "currentState", { value: "active" });
+  });
+
+  // Android holds JS timers while the app is paused, the 5 s deadline with
+  // them: a stalled test held every Auto playback until the app came back.
+  test("does not measure, and the detection before stands", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+    jest.advanceTimersByTime(61 * 60_000);
+    Object.defineProperty(AppState, "currentState", { value: "background" });
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("does not measure when none was made before", async () => {
+    Object.defineProperty(AppState, "currentState", { value: "background" });
+
+    await expect(detectBitrate(api)).rejects.toThrow();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("the network check", () => {
+  // Asked first, it put a round trip, up to its 5 s timeout, before the tests.
+  test("runs alongside the first test", async () => {
+    let answer: (value: [number, unknown]) => void = () => {};
+    api.mock
+      .onGet(`${api.basePath}/System/Endpoint`)
+      .reply(() => new Promise((resolve) => (answer = resolve)));
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+
+    const detection = detectBitrate(api);
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(mockFetch).toHaveBeenCalled();
+    answer([200, { IsInNetwork: false }]);
+    await expect(detection).resolves.toBe(70_000_000);
+  });
+});
+
+describe("the Auto settings", () => {
+  const settings = {
+    ratio: 0.5,
+    ttlMs: 15 * 60_000,
+    inNetworkMinBitrate: 80_000_000,
+  };
+
+  test("give the share of the rate a stream takes", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+
+    await expect(detectBitrate(api, false, settings)).resolves.toBe(50_000_000);
+  });
+
+  test("give the floor of the server's network", async () => {
+    answerEndpoint(true);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+
+    await expect(detectBitrate(api, false, settings)).resolves.toBe(80_000_000);
+  });
+
+  test("set no floor with a floor of nothing", async () => {
+    answerEndpoint(true);
+    mockAnswers.push(...bodiesAt(100, 10));
+
+    await expect(
+      detectBitrate(api, false, { ...settings, inNetworkMinBitrate: 0 }),
+    ).resolves.toBe(5_000_000);
+  });
+
+  // The rate is kept, not the bitrate made of it: a new share needs no test.
+  test("apply to a detection already made", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    await expect(detectBitrate(api, false, settings)).resolves.toBe(50_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("give how long a detection is used", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api, false, settings);
+
+    jest.advanceTimersByTime(16 * 60_000);
+
+    await expect(detectBitrate(api, false, settings)).resolves.toBe(5_000_000);
+  });
+});
+
+describe("the last detection", () => {
+  let lastDetection: typeof import("./bitrateTest").lastDetection;
+  beforeEach(() => {
+    ({ lastDetection } =
+      require("./bitrateTest") as typeof import("./bitrateTest"));
+  });
+
+  test("is nothing before the first", () => {
+    expect(lastDetection(api)).toEqual({});
+  });
+
+  // What the settings show: the bitrate Auto streams at now, which a new
+  // share gives without measuring again.
+  test("gives the bitrate Auto streams at, with the settings of now, and when it was measured", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    expect(lastDetection(api)).toEqual({
+      bitrate: 70_000_000,
+      at: Date.now(),
+    });
+    expect(
+      lastDetection(api, {
+        ratio: 0.5,
+        ttlMs: 60_000,
+        inNetworkMinBitrate: 0,
+      }).bitrate,
+    ).toBe(50_000_000);
+  });
+
+  test("gives why the last one measured nothing", async () => {
+    answerEndpoint(false);
+    mockAnswers.push({ status: 403 });
+    await detectBitrate(api).catch(() => {});
+
+    expect(lastDetection(api).failure).toContain("403");
+  });
+});
+
+/** The app quit and opened again: the module starts over, what it stored stays. */
+const relaunch = () => {
+  jest.resetModules();
+  mockNetworkListeners.length = 0;
+  ({ detectBitrate } =
+    require("./bitrateTest") as typeof import("./bitrateTest"));
+  ({ AppState } = require("react-native") as typeof import("react-native"));
+};
+
+describe("a detection across launches", () => {
+  // It lived in memory only: every launch measured again at the first play.
+  test("is kept on the same network while its time lasts", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    relaunch();
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("is measured again on another network", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api);
+
+    relaunch();
+    joinNetwork("cellular");
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+
+  test("is measured again once its time is over", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api);
+    jest.advanceTimersByTime(61 * 60_000);
+
+    relaunch();
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+
+  // Out to 4G and home again within the hour: the home measure still holds.
+  test("is found again on a network the device comes back to", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    joinNetwork("wifi", "192.168.1.10");
+    await detectBitrate(api);
+    joinNetwork("cellular");
+    await detectBitrate(api);
+
+    joinNetwork("wifi", "192.168.1.10");
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+  });
+
+  test("shows in the settings after a launch", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    relaunch();
+    const bitrateTest =
+      require("./bitrateTest") as typeof import("./bitrateTest");
+    await bitrateTest.ensureNetworkKnown();
+
+    expect(bitrateTest.lastDetection(api).bitrate).toBe(70_000_000);
   });
 });

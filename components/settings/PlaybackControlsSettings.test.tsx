@@ -1,9 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  within,
-} from "@testing-library/react-native";
+import { render, screen } from "@testing-library/react-native";
 import type { OptionGroup } from "@/components/PlatformDropdown";
 import { PlaybackControlsSettings } from "./PlaybackControlsSettings";
 
@@ -39,7 +34,6 @@ jest.mock("@/utils/atoms/settings", () => ({
   },
   useSettings: () => ({
     settings: {
-      defaultBitrate: { key: "Max", value: undefined },
       defaultVideoOrientation: 0,
       defaultPlaybackSpeed: 1,
       stillWatchingPreset: "disabled",
@@ -76,40 +70,17 @@ jest.mock("@/components/PlatformDropdown", () => {
   };
 });
 
-const qualityChoices = () =>
-  within(screen.getByLabelText("home.settings.other.default_quality"));
-
 beforeEach(() => {
   mockUpdateSettings.mockClear();
 });
 
-describe("the default quality setting", () => {
-  test("offers Auto first, under its name in the app language", async () => {
+// The default quality moved to the quality group, with Auto's settings.
+describe("the other settings", () => {
+  test("no longer hold the default quality", async () => {
     await render(<PlaybackControlsSettings />);
 
     expect(
-      qualityChoices()
-        .getAllByText(/./)
-        .map((choice) => choice.props.children),
-    ).toEqual([
-      "item_card.quality_auto",
-      "Max",
-      "8 Mb/s",
-      "4 Mb/s",
-      "2 Mb/s",
-      "1 Mb/s",
-      "500 Kb/s",
-      "250 Kb/s",
-    ]);
-  });
-
-  test("stores Auto when it is picked", async () => {
-    await render(<PlaybackControlsSettings />);
-
-    await fireEvent.press(qualityChoices().getByText("item_card.quality_auto"));
-
-    expect(mockUpdateSettings).toHaveBeenCalledWith({
-      defaultBitrate: { key: "Auto", value: undefined },
-    });
+      screen.queryByLabelText("home.settings.other.default_quality"),
+    ).toBeNull();
   });
 });

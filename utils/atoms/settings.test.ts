@@ -712,6 +712,26 @@ describe("refreshing the plugin settings", () => {
     expect(store.get(pluginSettingsAtom)).toEqual(stored);
   });
 
+  // The plugin ships its quality unlocked and without a value. Seeded as Max,
+  // it wrote Max over Auto on the first refresh of every install.
+  test("leaves the default quality on Auto when the plugin's carries no value", async () => {
+    store.set(settingsAtom, null);
+    try {
+      await refreshAgainst(async () => ({
+        defaultBitrate: { locked: false },
+      }));
+
+      expect(store.get(settingsAtom)?.defaultBitrate).toEqual({
+        key: "Auto",
+        value: undefined,
+      });
+    } finally {
+      // Unmount first: a null atom under a mounted useSettings reloads it.
+      await cleanup();
+      store.set(settingsAtom, null);
+    }
+  });
+
   test("takes what the server sends", async () => {
     const sent = { showCustomMenuLinks: { locked: false, value: false } };
     const refreshed = await refreshAgainst(async () => sent);
@@ -808,6 +828,13 @@ describe("the default quality", () => {
     });
   });
 
+  // jellyfin-web's choices, which the settings let the user change.
+  test("measures Auto with 70 % of the speed, for an hour, at least 140 Mb/s in the server's network", () => {
+    expect(defaultValues.autoBitrateRatio).toBe(0.7);
+    expect(defaultValues.autoBitrateTtlMinutes).toBe(60);
+    expect(defaultValues.autoBitrateInNetworkMin).toBe(140_000_000);
+  });
+
   test("is Auto when the plugin sends Auto as its key", () => {
     store.set(pluginSettingsAtom, {
       defaultBitrate: { locked: true, value: "Auto" },
@@ -816,14 +843,15 @@ describe("the default quality", () => {
     expect(effectiveQuality()).toEqual({ key: "Auto", value: undefined });
   });
 
-  // Jellyfin leaves a null out of the plugin's JSON, so the plugin's "no cap"
-  // comes without a value. Auto, listed before Max, has no value either.
-  test("is Max when the plugin locks it without a value", () => {
+  // Jellyfin leaves a null out of the plugin's JSON, so a default without a
+  // value is the one the plugin ships: the app's own, Auto. Read as Max, it
+  // kept Auto from ever being the default on a server with the plugin.
+  test("is Auto when the plugin locks it without a value", () => {
     store.set(pluginSettingsAtom, {
       defaultBitrate: { locked: true },
     } as unknown as PluginLockableSettings);
 
-    expect(effectiveQuality()).toEqual({ key: "Max", value: undefined });
+    expect(effectiveQuality()).toEqual({ key: "Auto", value: undefined });
   });
 
   test("is the one the plugin locks, over the user's Auto", () => {

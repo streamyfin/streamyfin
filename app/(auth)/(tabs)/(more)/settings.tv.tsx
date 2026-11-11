@@ -15,6 +15,7 @@ import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
+import { TVAutoQualitySettings } from "@/components/settings/TVAutoQualitySettings";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVBelowTabBar,
@@ -960,6 +961,8 @@ export default function SettingsTV() {
               })
             }
           />
+
+          <TVAutoQualitySettings />
 
           <TVSettingsToggle
             disabledByAdmin={pluginSettings?.showResumeDialog?.locked}

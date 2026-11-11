@@ -132,9 +132,9 @@ const castBitrate = async () => {
   await waitFor(() => expect(mockCast).toHaveBeenCalled());
   const [, session] = mockCast.mock.calls[0] as [
     unknown,
-    { maxBitrate?: number },
+    Promise<{ maxBitrate?: number }> | { maxBitrate?: number },
   ];
-  return session.maxBitrate;
+  return (await session).maxBitrate;
 };
 
 beforeEach(() => {
@@ -151,6 +151,21 @@ describe("casting from the item page", () => {
 
     expect(await castBitrate()).toBe(12_000_000);
     expect(mockDetectBitrate).toHaveBeenCalledTimes(1);
+  });
+
+  // The cast took its turn only once Auto had measured: one picked meanwhile,
+  // at a fixed quality, went out first and was then replaced by it.
+  test("goes out when picked, while Auto still measures", async () => {
+    let measured: (bitrate: number) => void = () => {};
+    mockDetectBitrate.mockImplementationOnce(
+      () => new Promise<number>((resolve) => (measured = resolve)),
+    );
+
+    await play(AUTO, "Chromecast");
+
+    await waitFor(() => expect(mockCast).toHaveBeenCalled());
+    measured(12_000_000);
+    expect(await castBitrate()).toBe(12_000_000);
   });
 
   test("hands the receiver a fixed quality as it is", async () => {

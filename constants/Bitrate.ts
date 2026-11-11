@@ -40,8 +40,17 @@ export const BITRATE_TEST_PATH = "/Playback/BitrateTest";
 /** Sent with every speed test, so no cache on the way answers in its place. */
 export const BITRATE_TEST_CACHE_CONTROL = "no-cache, no-store";
 
-/** How long a detected bitrate is used before the server is measured again. */
+/**
+ * How long a detected bitrate is used before the server is measured again,
+ * unless the settings say otherwise.
+ */
 export const BITRATE_DETECTION_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * How long a detection that measured nothing is remembered, so the plays
+ * after it do not each wait on the same failed tests and their timeouts.
+ */
+export const BITRATE_DETECTION_RETRY_MS = 2 * 60 * 1000;
 
 /**
  * How long each request of a detection may take, the body of a speed test
@@ -63,6 +72,26 @@ export const BITRATE_TESTS = [
 
 /** The share of the measured rate a stream may take: the link varies. */
 export const DETECTED_BITRATE_RATIO = 0.7;
+
+/**
+ * MMKV key of Auto's last measures, per server address and per network, so a
+ * launch on a network measured lately does not measure it again.
+ */
+export const AUTO_BITRATE_MEASURES_STORAGE_KEY = "autoBitrateMeasures";
+
+/** The shares of the measured speed the Auto settings offer. */
+export const AUTO_BITRATE_RATIO_CHOICES = [0.5, 0.6, 0.7, 0.8, 0.9] as const;
+
+/**
+ * How long a measure may be used, in minutes, as the Auto settings offer it:
+ * the durations the inactivity timeout already names.
+ */
+export const AUTO_BITRATE_TTL_CHOICES = [15, 30, 60, 240, 1440] as const;
+
+/** The floors in the server's network the Auto settings offer; 0 is none. */
+export const AUTO_BITRATE_IN_NETWORK_MIN_CHOICES = [
+  0, 40_000_000, 80_000_000, 140_000_000, 200_000_000,
+] as const;
 
 /** The server reads the bitrate it is asked for as a 32 bit integer. */
 export const MAX_DETECTED_BITRATE = 2_147_483_647;

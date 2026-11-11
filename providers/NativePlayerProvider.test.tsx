@@ -105,6 +105,8 @@ const mockNegotiation = {
   held: false,
   waiting: [] as Array<() => void>,
   count: 0,
+  /** What each build was asked for, in order. */
+  params: [] as Array<{ maxStreamingBitrate?: { value?: number } }>,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
 };
@@ -112,13 +114,13 @@ const mockNegotiation = {
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
   buildTrackMenus: () => ({}),
-  buildNativePlayerConfig: async ({
-    req,
-    item,
-  }: {
+  buildNativePlayerConfig: async (params: {
     req: { itemId: string; bitrateValue?: number };
     item?: object;
+    maxStreamingBitrate?: { value?: number };
   }) => {
+    const { req, item } = params;
+    mockNegotiation.params.push(params);
     if (mockNegotiation.held) {
       await new Promise<void>((resolve) =>
         mockNegotiation.waiting.push(resolve),
@@ -150,6 +152,7 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
+        maxStreamingBitrate: 12_000_000,
         subtitleIndex: -1,
         startTicks: 0,
         playMethod: "DirectPlay",
@@ -429,6 +432,7 @@ beforeEach(() => {
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
+  mockNegotiation.params = [];
   mockNegotiation.live = false;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
@@ -656,6 +660,69 @@ describe("a play while the player is up", () => {
     expect(mockNative.loaded).toHaveLength(1);
     // The first stream never took the player, so it never started.
     expect(serverReports()).toEqual(["start play-session-2"]);
+  });
+});
+
+// An audio track the stream does not carry needs another stream. Under Auto,
+// an hour on, it measured the connection again with the old stream still
+// downloading over it.
+describe("a track change that needs another stream", () => {
+  test("asks for it at the cap the stream plays at", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 2,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toEqual({
+      value: 12_000_000,
+    });
+  });
+
+  test("asks for a new quality without it", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toBeUndefined();
+  });
+});
+
+// Two Play taps while Auto measures the connection: the first, overtaken
+// before it took the player, said it declined, and its caller opened the JS
+// player under the native one the second presented.
+describe("a play overtaken before it took the player", () => {
+  test("is not a decline, the newer one plays", async () => {
+    await mount();
+    holdNegotiations();
+    const first = await start(() => play("item-1"));
+    const second = await start(() => play("item-3"));
+
+    await releaseNegotiations();
+
+    await act(async () => {
+      await expect(first.done).resolves.toBe(true);
+      await expect(second.done).resolves.toBe(true);
+    });
+    await settle();
+    expect(mockNative.presented).toEqual([
+      expect.stringContaining("/Videos/item-3/"),
+    ]);
   });
 });
 

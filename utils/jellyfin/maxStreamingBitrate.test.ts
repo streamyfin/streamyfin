@@ -1,5 +1,6 @@
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { writeToLog } from "@/utils/log";
+import { autoBitrateOptions } from "./autoBitrateOptions";
 import { resolveMaxStreamingBitrate } from "./maxStreamingBitrate";
 
 const mockDetectBitrate = jest.fn();
@@ -26,7 +27,20 @@ describe("resolveMaxStreamingBitrate", () => {
     await expect(resolveMaxStreamingBitrate(api, "auto")).resolves.toBe(
       12_000_000,
     );
-    expect(mockDetectBitrate).toHaveBeenCalledWith(api);
+    expect(mockDetectBitrate).toHaveBeenCalledWith(
+      api,
+      false,
+      autoBitrateOptions(undefined),
+    );
+  });
+
+  test("measures Auto with the options of the settings", async () => {
+    mockDetectBitrate.mockResolvedValue(12_000_000);
+    const options = { ratio: 0.5, ttlMs: 900_000, inNetworkMinBitrate: 0 };
+
+    await resolveMaxStreamingBitrate(api, "auto", options);
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(api, false, options);
   });
 
   // The stream then goes out as it did under Max, the default until Auto.

@@ -6,6 +6,7 @@ import GoogleCast, {
   type MediaStatus,
   type RemoteMediaClient,
 } from "react-native-google-cast";
+import { RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
 import {
   RECEIVER_CHANNEL_OPEN_ATTEMPTS,
   RECEIVER_FALLBACK_ID_LENGTH,
@@ -409,10 +410,15 @@ let castCount = 0;
  * cannot reach the server fails on its first request without a word back, and
  * one that replaces playing media goes idle before loading the new item, which
  * closes Android's expanded controls if they were opened on the send.
+ *
+ * The cast takes its turn when called, and `session` may still be on its way
+ * (Auto measuring the bitrate): a cast made while it is replaces this one.
+ * The receiver applies the bitrate a cast names as it is and keeps it for the
+ * casts after it, so every cast names one, its ceiling at most.
  */
 export const castToJellyfinReceiver = async (
   client: RemoteMediaClient,
-  session: JellyfinCastSession,
+  session: JellyfinCastSession | Promise<JellyfinCastSession>,
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
 ): Promise<ReceiverLoadOutcome> => {
@@ -423,12 +429,21 @@ export const castToJellyfinReceiver = async (
   const itemId = sent.items[sent.startIndex ?? 0]?.Id;
   // Every load gets a new play session, which is what tells a recast of the
   // item already on the TV from the media it replaces.
-  const previous = receiverMediaData(
-    await client.getMediaStatus().catch(() => null),
-  );
-  // A cast started while this one read the media status owns the TV now:
-  // sending this one after it would replace it there.
+  const [ready, status] = await Promise.all([
+    session,
+    client.getMediaStatus().catch(() => null),
+  ]);
+  const previous = receiverMediaData(status);
+  // A cast started while this one got ready owns the TV now: sending this one
+  // after it would replace it there.
   if (cast !== castCount) return { status: "superseded" };
+  const loadSession: JellyfinCastSession = {
+    ...ready,
+    maxBitrate: Math.min(
+      ready.maxBitrate ?? RECEIVER_MAX_BITRATE,
+      RECEIVER_MAX_BITRATE,
+    ),
+  };
 
   return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
     let settled = false;
@@ -471,7 +486,7 @@ export const castToJellyfinReceiver = async (
       timeoutMs,
     );
 
-    playOnJellyfinReceiver(session, request).catch((error) =>
+    playOnJellyfinReceiver(loadSession, request).catch((error) =>
       settle(() => reject(error)),
     );
   });

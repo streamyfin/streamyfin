@@ -30,7 +30,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import {
   TVControlButton,
@@ -56,10 +55,8 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import {
   type BitrateRequest,
-  bitrateLabel,
   parseBitrateParam,
-  routeBitrateParam,
-  toBitrateParam,
+  playerQualityOptions,
 } from "@/utils/bitrate";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import { episodeSubtitle } from "@/utils/episodeLabel";
@@ -67,6 +64,7 @@ import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { requestTVFocus } from "@/utils/requestTVFocus";
@@ -367,14 +365,10 @@ export const Controls: FC<Props> = ({
   // string, "max" Max (no limit) and "auto" Auto — same encoding as the
   // bitrateValue route param, so selection matching is a plain string compare.
   // A route that names none plays at the default quality, marked as such.
-  const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
-    const playing = routeBitrateParam(bitrateValue, settings.defaultBitrate);
-    return BITRATES.map((bitrate) => ({
-      label: bitrateLabel(t, bitrate),
-      value: toBitrateParam(bitrate),
-      selected: playing === toBitrateParam(bitrate),
-    }));
-  }, [bitrateValue, settings.defaultBitrate, t]);
+  const bitrateOptions: TVOptionItem<string>[] = useMemo(
+    () => playerQualityOptions(t, bitrateValue, settings.defaultBitrate),
+    [bitrateValue, settings.defaultBitrate, t],
+  );
 
   const handleBitrateChange = useCallback(
     (value: string) => {
@@ -587,7 +581,7 @@ export const Controls: FC<Props> = ({
   ]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
-  const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
+  const isLiveTV = isLiveTvItem(item);
 
   // For live TV, determine if we're at the live edge (within 5 seconds of max)
   const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms

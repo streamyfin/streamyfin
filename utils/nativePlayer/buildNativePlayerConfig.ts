@@ -8,7 +8,7 @@ import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
-import { BITRATES } from "@/components/BitrateSelector";
+import type { Bitrate } from "@/constants/Playback";
 import type {
   NativePlayerConfig,
   NativePlayerStrings,
@@ -25,7 +25,8 @@ import type { Settings } from "@/utils/atoms/settings";
 import { getActivePlayerType } from "@/utils/atoms/settings";
 import {
   type BitrateRequest,
-  isAutoBitrate,
+  liveTvBitrateRequest,
+  PLAYBACK_BITRATES,
   toBitrateRequest,
   toNativeQualityIndex,
   withDefaultBitrate,
@@ -36,6 +37,7 @@ import {
   hasHeaders,
 } from "@/utils/customHeaders";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -85,8 +87,17 @@ export interface NativePlayerSessionSeed {
   downloadedItem: DownloadedItem | null;
   stream: NativePlayerStreamSeed;
   mediaSourceId?: string;
-  /** Kept as Auto, which every re-negotiation measures again. */
+  /**
+   * Kept as Auto, which the next item measures again once the detection is
+   * old enough.
+   */
   bitrateValue: BitrateRequest;
+  /**
+   * The cap the stream was asked at, Auto's measure included; none for Max
+   * or offline. A re-negotiation of the same item at the same quality reuses
+   * it.
+   */
+  maxStreamingBitrate?: number;
   audioIndex?: number;
   subtitleIndex: number;
   startTicks: number;
@@ -304,8 +315,8 @@ export const buildTrackMenus = (options: {
   offLabel: string;
   /** Localized tag for the original-language audio track. */
   originalLabel: string;
-  /** Localized name of the Auto quality. */
-  autoQualityLabel: string;
+  /** The localized name of a quality (`bitrateLabel`). */
+  qualityLabel: (bitrate: Bitrate) => string;
   /** The quality the stream plays at, marked in the quality menu. */
   bitrateValue: BitrateRequest;
   /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
@@ -356,12 +367,10 @@ export const buildTrackMenus = (options: {
   // always re-negotiates the stream, so every entry is requiresReload.
   const qualityItems: NativePlayerTrackMenuItem[] = options.offline
     ? []
-    : BITRATES.map((bitrate) => {
+    : PLAYBACK_BITRATES.map((bitrate) => {
         const index = toNativeQualityIndex(toBitrateRequest(bitrate));
         return {
-          label: isAutoBitrate(bitrate)
-            ? options.autoQualityLabel
-            : bitrate.key,
+          label: options.qualityLabel(bitrate),
           jellyfinIndex: index,
           selected: index === toNativeQualityIndex(options.bitrateValue),
           requiresReload: true,
@@ -416,10 +425,16 @@ export async function buildNativePlayerConfig(params: {
    * track labels are finished in JS, the native chrome never composes them.
    */
   originalLabel: string;
-  /** Name of the Auto quality, finished in JS for the same reason. */
-  autoQualityLabel: string;
+  /** The name of a quality, finished in JS for the same reason. */
+  qualityLabel: (bitrate: Bitrate) => string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
+  /**
+   * The cap of a re-negotiation of the same item at the same quality (a
+   * track change): the stream it replaces was asked at it, and measuring Auto
+   * again while that stream still downloads would measure what it leaves.
+   */
+  maxStreamingBitrate?: { value: number | undefined };
 }): Promise<{
   config: NativePlayerConfig;
   seed: NativePlayerSessionSeed;
@@ -462,15 +477,17 @@ export async function buildNativePlayerConfig(params: {
     },
   });
   // A request that names no quality (a Play command from another client, a
-  // Top Shelf tile, a SyncPlay group) plays at the default one.
+  // Top Shelf tile, a SyncPlay group) plays at the default one, but for Live
+  // TV, which plays uncapped.
   const bitrateValue = withDefaultBitrate(
-    req.bitrateValue,
+    liveTvBitrateRequest(item, req.bitrateValue),
     settings.defaultBitrate,
   );
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
   // mpv device profile — the native player renders through the MPV engine)
   let stream: NativePlayerStreamSeed;
+  let maxStreamingBitrate: number | undefined;
   if (offline && downloadedItem) {
     stream = {
       url: downloadedItem.videoFilePath,
@@ -479,13 +496,20 @@ export async function buildNativePlayerConfig(params: {
     };
   } else {
     if (!api || !userId) return null;
+    maxStreamingBitrate = params.maxStreamingBitrate
+      ? params.maxStreamingBitrate.value
+      : await resolveMaxStreamingBitrate(
+          api,
+          bitrateValue,
+          autoBitrateOptions(settings),
+        );
     const res = await getStreamUrl({
       api,
       item,
       startTimeTicks: startTicks,
       userId,
       audioStreamIndex: audioIndex,
-      maxStreamingBitrate: await resolveMaxStreamingBitrate(api, bitrateValue),
+      maxStreamingBitrate,
       mediaSourceId: req.mediaSourceId,
       subtitleStreamIndex: subtitleIndex,
       deviceProfile: generateDeviceProfile({
@@ -600,7 +624,7 @@ export async function buildNativePlayerConfig(params: {
       downloadedItem,
       offLabel: strings.off ?? "None",
       originalLabel: params.originalLabel,
-      autoQualityLabel: params.autoQualityLabel,
+      qualityLabel: params.qualityLabel,
       bitrateValue,
     }),
     subtitleStyle: {
@@ -666,6 +690,7 @@ export async function buildNativePlayerConfig(params: {
       stream,
       mediaSourceId: req.mediaSourceId ?? mediaSource.Id ?? undefined,
       bitrateValue,
+      maxStreamingBitrate,
       audioIndex,
       subtitleIndex,
       startTicks,

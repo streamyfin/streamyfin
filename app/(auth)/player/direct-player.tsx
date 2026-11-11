@@ -72,6 +72,7 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import {
   type BitrateRequest,
+  liveTvBitrateRequest,
   parseBitrateParam,
   withDefaultBitrate,
 } from "@/utils/bitrate";
@@ -84,6 +85,7 @@ import {
 import { createVolumeStepper } from "@/utils/directPlayer/volumeStepper";
 import { isExpectedError } from "@/utils/errors";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -546,6 +548,10 @@ export default function DirectPlayerPage() {
   }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
 
   useEffect(() => {
+    // False once the page is left or the effect runs again (a new api on a
+    // Wi-Fi change, a new quality): this run's answer, which Auto's measure
+    // can hold up for seconds, then neither plays nor fails anything.
+    let current = true;
     const fetchStreamData = async (): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
@@ -585,16 +591,24 @@ export default function DirectPlayerPage() {
             return null;
           }
 
+          // Live TV, known once the item is, plays uncapped when the route
+          // names no quality, whatever the default.
+          const maxStreamingBitrate = await resolveMaxStreamingBitrate(
+            api,
+            withDefaultBitrate(
+              liveTvBitrateRequest(item, parseBitrateParam(bitrateValueStr)),
+              settings.defaultBitrate,
+            ),
+            autoBitrateOptions(settings),
+          );
+          if (!current) return null;
           const res = await getStreamUrl({
             api,
             item,
             startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
-            maxStreamingBitrate: await resolveMaxStreamingBitrate(
-              api,
-              bitrateValue,
-            ),
+            maxStreamingBitrate,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
             // Match the device profile to the player that will render the
@@ -605,6 +619,12 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
+          if (!current) {
+            // The server opened it for a page that is gone: nothing else
+            // closes it.
+            releaseLiveStream(res?.mediaSource?.LiveStreamId ?? null);
+            return null;
+          }
           if (!res) {
             // Without flipping isError this path used to leave the loading
             // spinner up forever.
@@ -639,6 +659,7 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
+        if (!current) return null;
         logAndCaptureError("Failed to fetch stream", error, {
           itemType: item?.Type,
           player: getActivePlayerType(settings),
@@ -664,6 +685,9 @@ export default function DirectPlayerPage() {
     // Store the fetch function in ref for use by refresh handler
     refetchStreamRef.current = fetchStreamData;
     fetchStreamData();
+    return () => {
+      current = false;
+    };
   }, [
     itemId,
     mediaSourceId,
