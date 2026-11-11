@@ -1,7 +1,15 @@
 // One `t` for every render, as react-i18next keeps it.
 const t = (key: string) => key;
+/**
+ * The language `useTranslation` reports in the specs. What a component formats
+ * with `i18n.language` (an air day, a pause end) comes out the same on every
+ * machine, as `timeZone.ts` does for the clock: left unset, it follows the
+ * machine's locale, and a French runner reads "mardi 3 mars".
+ */
+export const SPEC_LANGUAGE = "en-US";
+const i18n = { language: SPEC_LANGUAGE };
 export const identityTranslationModule = {
-  useTranslation: () => ({ t }),
+  useTranslation: () => ({ t, i18n }),
 };
 
 /**
