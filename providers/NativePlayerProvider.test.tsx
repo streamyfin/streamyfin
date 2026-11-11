@@ -152,7 +152,10 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
-        maxStreamingBitrate: 12_000_000,
+        // The cap a swap asked for, 12 Mb/s otherwise.
+        maxStreamingBitrate: params.maxStreamingBitrate
+          ? params.maxStreamingBitrate.value
+          : 12_000_000,
         subtitleIndex: -1,
         startTicks: 0,
         playMethod: "DirectPlay",
@@ -175,7 +178,13 @@ const mockPlayback = {
   nextItem: mockNextEpisode,
   previousItem: null,
 };
-const mockSettings = {};
+const mockSettings: { autoBitrateAdapt?: boolean } = {};
+const mockDetectBitrate = jest.fn();
+const mockKeepPlaybackRate = jest.fn();
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: (...args: unknown[]) => mockDetectBitrate(...args),
+  keepPlaybackRate: (...args: unknown[]) => mockKeepPlaybackRate(...args),
+}));
 const mockUpdateSettings = () => undefined;
 const mockT = (key: string) => key;
 const mockNoop = () => undefined;
@@ -818,4 +827,119 @@ test("a play waits for a player that is still closing", async () => {
 
   expect(mockNative.presented).toHaveLength(2);
   expect(log.logAndCaptureError).not.toHaveBeenCalled();
+});
+
+describe("Auto during playback", () => {
+  const playAt = async (bitrateValue: "auto" | number) => {
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        bitrateValue,
+      });
+    });
+    await settle();
+    await loaded();
+  };
+  /** The latest stream loaded: a swap loads into the player on screen. */
+  const loaded = () =>
+    act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded.at(-1) ?? mockNative.presented.at(-1) ?? "",
+      }),
+    );
+  const playerState = (isLoading: boolean) =>
+    act(async () =>
+      mockNative.emit("onPlaybackStateChange", { isPlaying: true, isLoading }),
+    );
+  const wait = (ms: number) =>
+    act(async () => {
+      jest.advanceTimersByTime(ms);
+    });
+  /** Plays past the grace, then stalls for three seconds. */
+  const stall = async () => {
+    await playerState(false);
+    await wait(6_000);
+    await playerState(true);
+    await wait(3_000);
+    await settle();
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: 1_000_000 });
+    mockDetectBitrate.mockReset();
+    mockKeepPlaybackRate.mockReset();
+    delete mockSettings.autoBitrateAdapt;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("asks for a lower stream when the one playing stalls, and keeps what it learned", async () => {
+    await mount();
+    await playAt("auto");
+
+    await stall();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toEqual({
+      value: 8_000_000,
+    });
+    // Nothing read the link: the next playback starts at the lowered cap.
+    expect(mockKeepPlaybackRate).toHaveBeenCalledWith(
+      expect.anything(),
+      8_000_000 / 0.7,
+    );
+  });
+
+  test("leaves a quality the user picked alone", async () => {
+    await mount();
+    await playAt(4_000_000);
+
+    await stall();
+
+    expect(mockNegotiation.params).toHaveLength(1);
+  });
+
+  test("leaves the stream alone when the setting is off", async () => {
+    mockSettings.autoBitrateAdapt = false;
+    await mount();
+    await playAt("auto");
+
+    await stall();
+
+    expect(mockNegotiation.params).toHaveLength(1);
+  });
+
+  test("steps back up once the lowered stream plays steadily and the link allows", async () => {
+    mockDetectBitrate.mockResolvedValue(60_000_000);
+    await mount();
+    await playAt("auto");
+    await stall();
+    await loaded();
+    await playerState(false);
+
+    await wait(2 * 60_000);
+    await act(async () =>
+      mockNative.emit("onProgress", {
+        position: 300,
+        duration: 1800,
+        progress: 0,
+        cacheSeconds: 9,
+      }),
+    );
+    await settle();
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(
+      expect.anything(),
+      true,
+      expect.objectContaining({ ratio: 0.7 }),
+    );
+    expect(mockNegotiation.params).toHaveLength(3);
+    // No higher than the 12 Mb/s Auto started at.
+    expect(mockNegotiation.params[2].maxStreamingBitrate).toEqual({
+      value: 12_000_000,
+    });
+  });
 });

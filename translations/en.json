@@ -562,11 +562,12 @@
       },
       "quality": {
         "title": "Quality",
-        "description": "Auto measures the connection to the server before a stream and asks for one that fits in it. The rows under the default quality set how it measures.",
+        "description": "Auto measures the connection to the server before a stream and asks for one that fits in it. During playback it steps down when the stream stalls, and back up once the connection allows. The rows under the default quality set how it measures.",
         "share": "Share of the measured speed",
         "remeasure_after": "Measure again after",
         "in_network_min": "Minimum in the server's network",
         "in_network_min_none": "None",
+        "adapt": "Adapt during playback",
         "last_measure": "Auto streams at",
         "last_measure_none": "Not measured yet",
         "last_measure_failed": "Could not measure: {{cause}}",

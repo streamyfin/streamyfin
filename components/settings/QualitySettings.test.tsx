@@ -33,6 +33,7 @@ jest.mock("@/utils/atoms/settings", () => ({
       autoBitrateRatio: 0.7,
       autoBitrateTtlMinutes: 60,
       autoBitrateInNetworkMin: 140_000_000,
+      autoBitrateAdapt: true,
     },
     updateSettings: mockUpdateSettings,
     pluginSettings: undefined,
@@ -70,6 +71,16 @@ jest.mock("@/components/PlatformDropdown", () => {
       </View>
     ),
   };
+});
+
+test("turn off adapting Auto during playback", async () => {
+  await render(<QualitySettings />);
+  const toggle = screen.getByRole("switch");
+  expect(toggle.props.value).toBe(true);
+
+  fireEvent(toggle, "valueChange", false);
+
+  expect(mockUpdateSettings).toHaveBeenCalledWith({ autoBitrateAdapt: false });
 });
 
 const choicesOf = (title: string) =>

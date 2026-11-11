@@ -798,3 +798,51 @@ describe("a detection across launches", () => {
     expect(bitrateTest.lastDetection(api).bitrate).toBe(70_000_000);
   });
 });
+
+describe("a rate a playback showed", () => {
+  let bitrateTest: typeof import("./bitrateTest");
+  beforeEach(() => {
+    bitrateTest = require("./bitrateTest") as typeof import("./bitrateTest");
+  });
+
+  // A stream that stalled carried less than the speed test said: the next
+  // playback on that network starts from what the stream showed.
+  test("is what the next playback on the network starts from", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(3_500_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("is kept across launches", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    relaunch();
+
+    await expect(detectBitrate(api)).resolves.toBe(3_500_000);
+  });
+
+  test("leaves the minimum of the server's network in place", async () => {
+    answerEndpoint(true);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(140_000_000);
+  });
+
+  test("is not kept before the network is known", async () => {
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+    await bitrateTest.ensureNetworkKnown();
+
+    expect(bitrateTest.lastDetection(api)).toEqual({});
+  });
+});

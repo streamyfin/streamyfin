@@ -32,6 +32,7 @@ jest.mock("@/utils/atoms/settings", () => ({
       autoBitrateRatio: 0.7,
       autoBitrateTtlMinutes: 60,
       autoBitrateInNetworkMin: 140_000_000,
+      autoBitrateAdapt: true,
     },
     updateSettings: mockUpdateSettings,
   }),
@@ -49,6 +50,19 @@ jest.mock("@/components/tv", () => {
       value: string;
       onPress: () => void;
     }) => <Text onPress={onPress}>{`${label}: ${value}`}</Text>,
+    TVSettingsToggle: ({
+      label,
+      value,
+      onToggle,
+    }: {
+      label: string;
+      value: boolean;
+      onToggle: (value: boolean) => void;
+    }) => (
+      <Text onPress={() => onToggle(!value)}>
+        {`${label}: ${value ? "on" : "off"}`}
+      </Text>
+    ),
   };
 });
 
@@ -66,6 +80,16 @@ beforeEach(() => {
 });
 
 describe("the Auto quality settings on TV", () => {
+  test("turn off adapting Auto during playback", async () => {
+    await render(<TVAutoQualitySettings />);
+
+    fireEvent.press(screen.getByText("home.settings.quality.adapt: on"));
+
+    expect(mockUpdateSettings).toHaveBeenCalledWith({
+      autoBitrateAdapt: false,
+    });
+  });
+
   test("show each setting with what it is set to", async () => {
     await render(<TVAutoQualitySettings />);
 

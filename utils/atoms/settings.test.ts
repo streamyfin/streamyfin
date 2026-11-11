@@ -835,6 +835,10 @@ describe("the default quality", () => {
     expect(defaultValues.autoBitrateInNetworkMin).toBe(140_000_000);
   });
 
+  test("adapts Auto during playback", () => {
+    expect(defaultValues.autoBitrateAdapt).toBe(true);
+  });
+
   test("is Auto when the plugin sends Auto as its key", () => {
     store.set(pluginSettingsAtom, {
       defaultBitrate: { locked: true, value: "Auto" },
