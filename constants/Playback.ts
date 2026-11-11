@@ -114,3 +114,11 @@ export const PLAYBACK_PROGRESS_QUERY_KEYS: readonly (readonly string[])[] = [
   // never goes stale by itself.
   ["similarItems"],
 ];
+
+/**
+ * First index given to an audio track only the player found, far above any
+ * index a server gives its streams. withPlayerAudioTracks numbers such tracks
+ * from here, and serverAudioIndex keeps every index from here up out of what
+ * the server is asked for.
+ */
+export const PLAYER_AUDIO_INDEX_BASE = 1000;

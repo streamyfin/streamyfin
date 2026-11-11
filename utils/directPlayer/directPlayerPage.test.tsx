@@ -5,6 +5,7 @@ import type { MediaStream } from "@jellyfin/sdk/lib/generated-client";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import i18next from "i18next";
 import DirectPlayerPage from "@/app/(auth)/player/direct-player";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
 import type { MpvAudioTrack, MpvPlayerViewProps } from "@/modules";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
@@ -12,7 +13,6 @@ import {
   holdSharedValueWrites,
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
-import { PLAYER_AUDIO_INDEX_BASE } from "@/utils/jellyfin/subtitleUtils";
 
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;

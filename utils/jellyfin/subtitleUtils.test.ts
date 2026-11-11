@@ -2,6 +2,7 @@ import type {
   MediaStream,
   SubtitleDeliveryMethod,
 } from "@jellyfin/sdk/lib/generated-client";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
 import {
   applyMpvSubtitleSelection,
   compareTracksForMenu,
@@ -9,7 +10,6 @@ import {
   getMpvAudioId,
   isExternalSubtitle,
   langEq,
-  PLAYER_AUDIO_INDEX_BASE,
   type PlayerSubtitleTrack,
   pickAutoSubtitleTrack,
   requiresStreamRestart,
@@ -1234,5 +1234,177 @@ describe("withPlayerAudioTracks", () => {
       expect(serverAudioIndex(named, s.Index)).toBeUndefined();
     }
     expect(serverAudioIndex({}, 7)).toBe(7);
+  });
+
+  // The stream's own position went to another stream by language: it moves
+  // to the first free track rather than out of the list.
+  it("moves a listed stream whose position another took to the first free track", () => {
+    const merged = withPlayerAudioTracks(
+      {
+        MediaStreams: [
+          { Type: "Audio", Index: 1 },
+          { Type: "Audio", Index: 2, Language: "fre" },
+        ] as MediaStream[],
+      },
+      [{ lang: "fre" }, { lang: "eng" }, { lang: "ger" }],
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([2, 1, PLAYER_AUDIO_INDEX_BASE + 2]);
+  });
+
+  it("places a listed stream on the track of its language however loosely the tags agree", () => {
+    const merged = withPlayerAudioTracks(
+      { MediaStreams: [{ Type: "Audio", Index: 1, Language: "sr" }] },
+      [{ lang: "eng" }, { lang: "sr-Latn-RS-ekavsk" }],
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([PLAYER_AUDIO_INDEX_BASE, 1]);
+  });
+
+  it("does not take a subtitle's index for a listed audio stream", () => {
+    expect(
+      serverAudioIndex(
+        {
+          MediaStreams: [
+            { Type: "Audio", Index: 1 },
+            { Type: "Subtitle", Index: 2 },
+          ],
+        },
+        2,
+      ),
+    ).toBeUndefined();
+  });
+
+  // The untagged track is more likely the French one than a track that says
+  // it is English.
+  it("puts a listed stream no tag matches on an untagged track before one tagged otherwise", () => {
+    const merged = withPlayerAudioTracks(
+      { MediaStreams: [{ Type: "Audio", Index: 1, Language: "fre" }] },
+      [{ lang: "eng" }, {}],
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map((s) => [
+        s.Index,
+        s.Language,
+      ]),
+    ).toEqual([
+      [PLAYER_AUDIO_INDEX_BASE, "eng"],
+      [1, "fre"],
+    ]);
+  });
+
+  it("keeps a listed stream no tag matches at its position when every free track names a language", () => {
+    const merged = withPlayerAudioTracks(
+      { MediaStreams: [{ Type: "Audio", Index: 1, Language: "fre" }] },
+      [{ lang: "eng" }, { lang: "ger" }],
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map(
+        (s) => s.Index,
+      ),
+    ).toEqual([1, PLAYER_AUDIO_INDEX_BASE + 1]);
+  });
+
+  it("keeps the listed stream's language on a track the player only titled", () => {
+    const merged = withPlayerAudioTracks(
+      { MediaStreams: [{ Type: "Audio", Index: 1, Language: "fre" }] },
+      [{ title: "Stereo" }, { lang: "eng" }],
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.Type === "Audio").map((s) => [
+        s.Index,
+        s.Language,
+        s.DisplayTitle,
+      ]),
+    ).toEqual([
+      [1, "fre", "Stereo"],
+      [PLAYER_AUDIO_INDEX_BASE + 1, "eng", "eng"],
+    ]);
+  });
+
+  // A default index that names no merged row (an external stream) leaves
+  // the first track the default, as before the merge.
+  it("marks the first track default when the default index names no merged row", () => {
+    const merged = withPlayerAudioTracks(
+      {
+        DefaultAudioStreamIndex: 5,
+        MediaStreams: [
+          { Type: "Audio", Index: 5, IsExternal: true },
+          { Type: "Audio", Index: 1 },
+        ],
+      },
+      played,
+    );
+    expect(
+      merged.MediaStreams?.filter((s) => s.IsDefault).map((s) => s.Index),
+    ).toEqual([1]);
+  });
+
+  it("keeps an index the merge made up out of the server request even when the server lists it", () => {
+    expect(
+      serverAudioIndex(
+        {
+          MediaStreams: [
+            { Type: "Audio", Index: 1 },
+            { Type: "Audio", Index: PLAYER_AUDIO_INDEX_BASE },
+          ],
+        },
+        PLAYER_AUDIO_INDEX_BASE,
+      ),
+    ).toBeUndefined();
+  });
+
+  // With no list at all the merge still numbers every track from the base:
+  // none of those is the server's.
+  it("keeps a track only the player found out of what a server with no list is asked for", () => {
+    const empty = { MediaStreams: [] as MediaStream[] };
+    const audio =
+      withPlayerAudioTracks(empty, played).MediaStreams?.filter(
+        (s) => s.Type === "Audio",
+      ) ?? [];
+    expect(audio).toHaveLength(3);
+    for (const s of audio) {
+      expect(serverAudioIndex(empty, s.Index)).toBeUndefined();
+    }
+  });
+
+  // An untagged file says nothing about its tracks; the server's guess is
+  // the only description of the track its stream was placed on.
+  it("describes an untagged track with the listed stream placed on it", () => {
+    const merged = withPlayerAudioTracks(
+      {
+        MediaStreams: [
+          { Type: "Audio", Index: 1, Language: "fre", DisplayTitle: "French" },
+        ] as MediaStream[],
+      },
+      [{}, {}],
+    );
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.map((s) => [s.Index, s.Language, s.DisplayTitle])).toEqual([
+      [1, "fre", "French"],
+      [PLAYER_AUDIO_INDEX_BASE + 1, undefined, undefined],
+    ]);
+  });
+
+  // The source keeps the server's DefaultAudioStreamIndex; the row marked
+  // default has to be that one, wherever the merge placed it.
+  it("marks as default the row the source's default index names", () => {
+    const merged = withPlayerAudioTracks(
+      {
+        DefaultAudioStreamIndex: 1,
+        MediaStreams: [
+          { Type: "Audio", Index: 1, Language: "fre", IsDefault: true },
+        ] as MediaStream[],
+      },
+      played,
+    );
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.filter((s) => s.IsDefault).map((s) => s.Index)).toEqual([1]);
   });
 });
