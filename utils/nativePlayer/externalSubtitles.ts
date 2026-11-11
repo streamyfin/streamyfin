@@ -8,7 +8,6 @@ import { Directory, File, Paths } from "expo-file-system";
 import {
   SUBTITLE_PREFETCH_BUDGET_MS,
   SUBTITLE_PREFETCH_CACHE_DIR,
-  SUBTITLE_PREFETCH_CACHE_MAX_AGE_MS,
   SUBTITLE_PREFETCH_LATE_SWEEP_MS,
   SUBTITLE_PREFETCH_PER_SUBTITLE_MS,
 } from "@/constants/Playback";
@@ -82,18 +81,29 @@ export const localSubtitleFileName = (
   return `${item.Id ?? "item"}-${mediaSourceId ?? "source"}-${sub.Index}-${identity}.${extensionFromUrl(url, sub.Codec)}`;
 };
 
-/** Drops cached subtitles past their age: a re-synced sidecar keeps its name. */
-const evictStale = (dir: Directory) => {
-  const cutoff = Date.now() - SUBTITLE_PREFETCH_CACHE_MAX_AGE_MS;
+/**
+ * Empties the prefetch cache, for a new player. A sidecar re-synced on the
+ * server in place keeps its cache name, so a file kept from an earlier player
+ * could serve the old cues; the cache only has to carry a file from the
+ * next-episode warm to its swap, both inside one player.
+ */
+export const clearSubtitlePrefetchCache = (): void => {
   try {
-    for (const entry of dir.list()) {
-      if (!(entry instanceof File)) continue;
-      const modified = entry.info().modificationTime;
-      if (modified !== undefined && modified < cutoff) entry.delete();
-    }
+    const dir = new Directory(Paths.cache, SUBTITLE_PREFETCH_CACHE_DIR);
+    if (dir.exists) dir.delete();
   } catch {
-    // Best effort: a stale file only costs a stale subtitle until the next pass.
+    // Best effort: the next new player tries again.
   }
+};
+
+/** Which sidecars a prefetch left where, by stream index. */
+export type SubtitlePrefetchOutcome = {
+  /** Read from disk by the engine. */
+  onDisk: number[];
+  /** Fetched by the engine itself: the session's subtitle the budget missed. */
+  keptRemote: number[];
+  /** Without a URL for the session: picking one renegotiates the stream. */
+  leftOut: number[];
 };
 
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
@@ -147,12 +157,13 @@ export const prefetchExternalSubtitles = async (params: {
   preferredIndex?: number | null;
   budgetMs?: number;
   perSubtitleMs?: number;
-}): Promise<void> => {
+}): Promise<SubtitlePrefetchOutcome> => {
   const externals =
     params.mediaSource.MediaStreams?.filter(
       (s) => s.Type === "Subtitle" && s.DeliveryMethod === "External",
     ) ?? [];
-  if (externals.length === 0) return;
+  if (externals.length === 0)
+    return { onDisk: [], keptRemote: [], leftOut: [] };
   const startedAt = Date.now();
   const isPreferred = (sub: MediaStream) =>
     params.preferredIndex != null && sub.Index === params.preferredIndex;
@@ -166,7 +177,6 @@ export const prefetchExternalSubtitles = async (params: {
   try {
     cacheDir = new Directory(Paths.cache, SUBTITLE_PREFETCH_CACHE_DIR);
     if (!cacheDir.exists) cacheDir.create();
-    evictStale(cacheDir);
   } catch {
     // Nowhere to cache means no downloads; the sweep below leaves the
     // preferred subtitle remote and every other one out.
@@ -214,8 +224,15 @@ export const prefetchExternalSubtitles = async (params: {
       sub.DeliveryUrl = destination.uri;
       continue;
     }
+    // The wait above can spend the rest of the budget; a download started
+    // now would be dispatched before its zero timeout aborts it, a second
+    // request beside the one still running.
+    if (Date.now() >= deadline) break;
 
     const pending = new File(cacheDir, stagingName(fileName));
+    // The path, not the object: a File repoints at its destination once its
+    // move succeeds, and a cleanup through it would delete the final file.
+    const stagingUri = pending.uri;
     // No Jellyfin credentials on a URL the server does not host.
     const proxyHeaders = getJellyfinHeadersForUrl(url, params.api.basePath);
     const headers = sub.IsExternalUrl
@@ -255,7 +272,10 @@ export const prefetchExternalSubtitles = async (params: {
     })();
     inFlight.set(key, task);
     void task
-      .finally(() => inFlight.delete(key))
+      .finally(() => {
+        // Only this task's own entry: a later caller may have taken the key.
+        if (inFlight.get(key) === task) inFlight.delete(key);
+      })
       .catch(() => {
         // Handled by the await below.
       });
@@ -267,9 +287,9 @@ export const prefetchExternalSubtitles = async (params: {
       // A timeout before the transfer opened its output leaves nothing to
       // delete; the late sweep removes whatever the cancelled transfer still
       // wrote before its cancel landed.
-      removeStaging(pending);
+      removeStaging(new File(stagingUri));
       const sweep = setTimeout(
-        () => removeStaging(pending),
+        () => removeStaging(new File(stagingUri)),
         SUBTITLE_PREFETCH_LATE_SWEEP_MS,
       );
       // A Node timer (Jest) keeps the process alive for the whole minute;
@@ -307,4 +327,5 @@ export const prefetchExternalSubtitles = async (params: {
     `Subtitle prefetch: ${onDisk.length} of ${externals.length} on disk in ${Date.now() - startedAt} ms`,
     { itemId: params.item.Id, onDisk, keptRemote, leftOut },
   );
+  return { onDisk, keptRemote, leftOut };
 };

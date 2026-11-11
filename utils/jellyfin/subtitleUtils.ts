@@ -798,17 +798,21 @@ export const resolveAudioSwitch = (
  * True when switching to this subtitle forces the server to re-process the
  * stream, which cuts playback and reseeks.
  *
- * Mirrors the two guards the player already applies, so callers that want to
+ * Mirrors the guards the player already applies, so callers that want to
  * avoid an interruption can filter on the same rule: the burned-in check in
- * {@link applyMpvSubtitleSelection}, and the transcode + image-based check in
- * `direct-player`'s `handleSubtitleIndexChange`. Note that during direct play an
+ * {@link applyMpvSubtitleSelection}, the transcode + image-based check in
+ * `direct-player`'s `handleSubtitleIndexChange`, and a sidecar the native
+ * player's subtitle prefetch left out of the session, which has no URL and
+ * comes back only through a renegotiation. Note that during direct play an
  * image-based track is a real player track and needs no restart at all.
  */
 export const requiresStreamRestart = (
   sub: MediaStream,
   opts: { isTranscoding: boolean },
 ): boolean =>
-  isBurnedInSubtitle(sub) || (opts.isTranscoding && isImageBasedSubtitle(sub));
+  isBurnedInSubtitle(sub) ||
+  (opts.isTranscoding && isImageBasedSubtitle(sub)) ||
+  (sub.DeliveryMethod === EXTERNAL_DELIVERY && !sub.DeliveryUrl);
 
 /**
  * What a subtitle track is, independently of its position in the stream list.

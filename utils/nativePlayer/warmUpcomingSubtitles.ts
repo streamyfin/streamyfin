@@ -7,7 +7,9 @@ import { prefetchExternalSubtitles } from "./externalSubtitles";
 /**
  * Fetch the sidecar subtitles of an item that is about to play — the next
  * episode of the queue — into the cache while something else is still on
- * screen. The next-episode swap runs this same prefetch inline
+ * screen. Resolves true when every sidecar landed on disk, false when the swap
+ * would still have to fetch one (a failed negotiation, a budget miss), so the
+ * caller can try again. The next-episode swap runs this same prefetch inline
  * (`buildNativePlayerConfig`), and on a slow path that wait is the delay
  * between one episode ending and the next one starting to load; warming
  * turns it into a cache hit.
@@ -33,8 +35,8 @@ export const warmUpcomingSubtitles = async (params: {
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   maxStreamingBitrate?: number;
-}): Promise<void> => {
-  if (!params.item.Id) return;
+}): Promise<boolean> => {
+  if (!params.item.Id) return true;
   try {
     // A negotiation, not a playback start: PlaybackInfo hands back the
     // MediaSources with their DeliveryUrls without opening a session.
@@ -48,15 +50,20 @@ export const warmUpcomingSubtitles = async (params: {
       maxStreamingBitrate: params.maxStreamingBitrate,
       deviceProfile: params.deviceProfile,
       mediaSourceId: params.mediaSourceId ?? undefined,
+      // Nothing plays this negotiation: a source that needs opening must not
+      // be opened for it, it would never be closed.
+      autoOpenLiveStream: false,
     });
-    if (!res?.mediaSource) return;
-    await prefetchExternalSubtitles({
+    if (!res?.mediaSource) return false;
+    const outcome = await prefetchExternalSubtitles({
       mediaSource: res.mediaSource,
       item: params.item,
       api: params.api,
       preferredIndex: params.subtitleStreamIndex,
     });
+    return outcome.keptRemote.length === 0 && outcome.leftOut.length === 0;
   } catch {
-    // The swap prefetches on its own; a failed warm is invisible.
+    // The swap prefetches on its own; a failed warm costs nothing.
+    return false;
   }
 };

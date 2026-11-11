@@ -20,8 +20,11 @@ jest.mock("@/utils/log", () => ({ writeInfoLog: jest.fn() }));
 
 const { File } = jest.requireActual("@/test-utils/fileSystem")
   .fileSystemModule as typeof import("@/test-utils/fileSystem")["fileSystemModule"];
-const { localSubtitleFileName, prefetchExternalSubtitles } =
-  require("./externalSubtitles") as typeof import("./externalSubtitles");
+const {
+  clearSubtitlePrefetchCache,
+  localSubtitleFileName,
+  prefetchExternalSubtitles,
+} = require("./externalSubtitles") as typeof import("./externalSubtitles");
 const { writeInfoLog }: { writeInfoLog: jest.Mock } =
   jest.requireMock("@/utils/log");
 
@@ -433,30 +436,79 @@ test("never names another track's file after an index shift, nor another server'
   );
 });
 
-test("drops cached subtitles past their age, so a re-synced sidecar is fetched again", async () => {
-  const stale = `${CACHE}/subtitles/old-item-ms-1-3-00000000.srt`;
-  fakeFiles.add(`${CACHE}/subtitles`, stale, FINAL_URI);
-  const now = Date.now();
-  const info = jest
-    .spyOn(File.prototype, "info")
-    .mockImplementation(function (this: { uri: string }) {
-      return {
-        exists: true,
-        size: 0,
-        modificationTime:
-          this.uri === stale ? now - 8 * 24 * 60 * 60 * 1000 : now,
-      } as ReturnType<InstanceType<typeof File>["info"]>;
+test("a new player's cache clear empties the folder, so a re-synced sidecar is fetched again", async () => {
+  fakeFiles.add(`${CACHE}/subtitles`, FINAL_URI);
+
+  clearSubtitlePrefetchCache();
+  await prefetchExternalSubtitles({
+    mediaSource: mediaSourceWith([externalSub()]),
+    item,
+    api,
+  });
+
+  expect(fakeFiles.downloads().map((d) => d.url)).toEqual([REMOTE_URL]);
+});
+
+test("a caller whose wait spent its budget starts no download of its own", async () => {
+  // The first caller's transfer hangs until it is cancelled.
+  // The real download takes the options the prefetch passes; the double's
+  // signature leaves them out.
+  const hangUntilCancelled = (
+    _url: string,
+    _destination: unknown,
+    options?: { signal?: AbortSignal },
+  ) =>
+    new Promise<never>((_resolve, reject) => {
+      options?.signal?.addEventListener("abort", () =>
+        reject(new Error("cancelled")),
+      );
     });
-  try {
-    await prefetchExternalSubtitles({
+  const download = jest
+    .spyOn(File, "downloadFileAsync")
+    .mockImplementation(hangUntilCancelled as never);
+
+  await Promise.all([
+    prefetchExternalSubtitles({
       mediaSource: mediaSourceWith([externalSub()]),
       item,
       api,
-    });
-  } finally {
-    info.mockRestore();
-  }
+      budgetMs: 200,
+      perSubtitleMs: 200,
+    }),
+    prefetchExternalSubtitles({
+      mediaSource: mediaSourceWith([externalSub()]),
+      item,
+      api,
+      budgetMs: 20,
+      perSubtitleMs: 20,
+    }),
+  ]);
 
-  expect(fakeFiles.remaining()).not.toContain(stale);
+  // A second request beside the running one is what corrupts Jellyfin's first
+  // extraction.
+  expect(download).toHaveBeenCalledTimes(1);
+});
+
+test("a time-out during the move never deletes the moved file", async () => {
+  // expo-file-system 58 repoints a File at its destination once its move
+  // succeeds; the cleanup has to go through the staging path.
+  const realMove = File.prototype.move;
+  jest.spyOn(File.prototype, "move").mockImplementation(function (
+    this: { location: string },
+    destination,
+  ) {
+    realMove.call(this, destination);
+    this.location = (destination as { uri: string }).uri;
+    return new Promise((resolve) => setTimeout(resolve, 80)) as never;
+  });
+
+  await prefetchExternalSubtitles({
+    mediaSource: mediaSourceWith([externalSub()]),
+    item,
+    api,
+    budgetMs: 40,
+    perSubtitleMs: 40,
+  });
+
   expect(fakeFiles.remaining()).toContain(FINAL_URI);
 });

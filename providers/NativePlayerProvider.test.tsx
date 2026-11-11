@@ -112,7 +112,12 @@ const mockNegotiation = {
 // The warm negotiates the next episode in the background; its import chain
 // reaches the custom-header store (MMKV), which this spec does not mount.
 jest.mock("@/utils/nativePlayer/warmUpcomingSubtitles", () => ({
-  warmUpcomingSubtitles: jest.fn(),
+  warmUpcomingSubtitles: jest.fn(async () => true),
+}));
+// The prefetch module reaches expo-file-system; only the new-player clear is
+// observed here.
+jest.mock("@/utils/nativePlayer/externalSubtitles", () => ({
+  clearSubtitlePrefetchCache: jest.fn(),
 }));
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
@@ -320,6 +325,11 @@ const api: ReturnType<typeof makeApi> = jest.requireMock(
 const log: { logAndCaptureError: jest.Mock } = jest.requireMock("@/utils/log");
 const { warmUpcomingSubtitles }: { warmUpcomingSubtitles: jest.Mock } =
   jest.requireMock("@/utils/nativePlayer/warmUpcomingSubtitles");
+const {
+  clearSubtitlePrefetchCache,
+}: { clearSubtitlePrefetchCache: jest.Mock } = jest.requireMock(
+  "@/utils/nativePlayer/externalSubtitles",
+);
 
 const REPORTS: Record<string, string> = {
   "https://jellyfin.example.com/Sessions/Playing": "start",
@@ -451,6 +461,8 @@ beforeEach(() => {
   mockEngine = "mpv";
   mockDefaultPlaySettings.mockClear();
   warmUpcomingSubtitles.mockClear();
+  warmUpcomingSubtitles.mockImplementation(async () => true);
+  clearSubtitlePrefetchCache.mockClear();
 });
 
 // Sentry REACT-NATIVE-BR: every event carried replace: true, so each was a
@@ -810,5 +822,48 @@ describe("the next episode's subtitle warm", () => {
     await open("item-1");
 
     expect(warmUpcomingSubtitles).not.toHaveBeenCalled();
+  });
+
+  // A sidecar re-synced on the server keeps its cache name: only the warm to
+  // swap hand-off inside one player may reuse a cached file.
+  test("a new player empties the subtitle cache and warms its next item again", async () => {
+    mockEngine = "exoplayer";
+    await mount();
+    await open("item-1");
+    expect(clearSubtitlePrefetchCache).toHaveBeenCalledTimes(1);
+    expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(1);
+
+    await startClosing();
+    finishClosing();
+    await waitForClosedPlayer();
+    await open("item-1");
+
+    expect(clearSubtitlePrefetchCache).toHaveBeenCalledTimes(2);
+    expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(2);
+  });
+
+  test("a warm that left a sidecar off disk is tried again", async () => {
+    mockEngine = "exoplayer";
+    warmUpcomingSubtitles.mockImplementationOnce(async () => false);
+    await mount();
+    await open("item-1");
+    expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(1);
+
+    // A same-item renegotiation pushes the next-episode payload again.
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 60,
+      }),
+    );
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await settle();
+
+    expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(2);
   });
 });

@@ -87,11 +87,9 @@ export const SUBTITLE_PREFETCH_BUDGET_MS = 6_000;
 export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
 
 /**
- * Where the subtitle prefetch keeps its files under Paths.cache, how long a
- * cached subtitle is served before it is fetched again (a sidecar re-synced in
- * place keeps its name), and how long after a cancelled transfer its staging
- * file is swept once more.
+ * Where the subtitle prefetch keeps its files under Paths.cache (emptied for
+ * every new player), and how long after a cancelled transfer its staging file
+ * is swept once more.
  */
 export const SUBTITLE_PREFETCH_CACHE_DIR = "subtitles";
-export const SUBTITLE_PREFETCH_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const SUBTITLE_PREFETCH_LATE_SWEEP_MS = 60_000;

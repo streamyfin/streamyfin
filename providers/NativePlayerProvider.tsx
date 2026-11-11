@@ -126,6 +126,7 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
+import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
 import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
@@ -849,7 +850,8 @@ const NativePlayerProviderInner: React.FC<{
         next.Id &&
         !warmedSubtitleItemIdsRef.current.has(next.Id)
       ) {
-        warmedSubtitleItemIdsRef.current.add(next.Id);
+        const nextId = next.Id;
+        warmedSubtitleItemIdsRef.current.add(nextId);
         // Resolved as playAdjacentItem resolves the swap (version matched to
         // the playing one, tracks carried, the session's bitrate cap), so the
         // warm negotiates the very source and sidecars the swap will ask for.
@@ -873,6 +875,9 @@ const NativePlayerProviderInner: React.FC<{
             player: getActivePlayerType(currentSettings),
             audioMode: currentSettings?.audioTranscodeMode,
           }),
+        }).then((complete) => {
+          // A sidecar is still off disk: the next payload push tries again.
+          if (!complete) warmedSubtitleItemIdsRef.current.delete(nextId);
         });
       }
       // Decided once per episode, against its projected end at 1x. A pause
@@ -1321,7 +1326,12 @@ const NativePlayerProviderInner: React.FC<{
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
-      // stream is negotiated.
+      // stream is negotiated. A new player starts from an empty subtitle
+      // cache (see clearSubtitlePrefetchCache) and warms its next items again.
+      if (sessionRef.current === null) {
+        clearSubtitlePrefetchCache();
+        warmedSubtitleItemIdsRef.current.clear();
+      }
       return beginSession(req, {
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,

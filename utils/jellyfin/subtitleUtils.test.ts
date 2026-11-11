@@ -715,10 +715,41 @@ describe("requiresStreamRestart", () => {
   test("text subtitles never require a restart", () => {
     expect(requiresStreamRestart(emb(0), { isTranscoding: true })).toBe(false);
   });
+
+  // The native player's subtitle prefetch left it out of the session: only a
+  // renegotiation, which reloads the stream, brings it back.
+  test("a sidecar without a URL requires a restart", () => {
+    const leftOut = sub({ Index: 3, DeliveryMethod: External });
+    expect(requiresStreamRestart(leftOut, { isTranscoding: false })).toBe(true);
+    expect(
+      requiresStreamRestart(
+        sub({
+          Index: 3,
+          DeliveryMethod: External,
+          DeliveryUrl: "file:///cache/subtitles/a.srt",
+        }),
+        { isTranscoding: false },
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("pickAutoSubtitleTrack", () => {
   const base = { isTranscoding: false, allowStreamRestart: false };
+
+  // Picking it would renegotiate the stream on a volume press.
+  test("passes over a sidecar the subtitle prefetch left out", () => {
+    expect(
+      pickAutoSubtitleTrack({
+        ...base,
+        preferredLanguage: "eng",
+        subtitleStreams: [
+          sub({ Index: 2, Language: "eng", DeliveryMethod: External }),
+          emb(3, { Language: "fre" }),
+        ],
+      }).index,
+    ).toBe(3);
+  });
 
   test("prefers the user's subtitle language over everything else", () => {
     expect(

@@ -69,6 +69,11 @@ beforeEach(() => {
   jest.mocked(getStreamUrl).mockReset();
 });
 
+// A download spy left in place would answer the next test's downloads too.
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 test("negotiates the item and prefetches its subtitles into the cache", async () => {
   jest.mocked(getStreamUrl).mockResolvedValue({
     url: "https://jf.example/Videos/next-1/stream",
@@ -76,15 +81,20 @@ test("negotiates the item and prefetches its subtitles into the cache", async ()
     mediaSource: mediaSourceWithExternalSub(),
   } as Awaited<ReturnType<typeof getStreamUrl>>);
 
-  await warmUpcomingSubtitles({
-    api,
-    item,
-    deviceProfile,
-    mediaSourceId: "ms-1",
-  });
+  await expect(
+    warmUpcomingSubtitles({
+      api,
+      item,
+      deviceProfile,
+      mediaSourceId: "ms-1",
+    }),
+  ).resolves.toBe(true);
 
   const negotiated = jest.mocked(getStreamUrl).mock.calls[0]?.[0];
   expect(negotiated?.deviceProfile).toBe(deviceProfile);
+  // Nothing plays this negotiation: a source that needs opening would be
+  // opened and never closed.
+  expect(negotiated?.autoOpenLiveStream).toBe(false);
   // The version the swap would pick, so both negotiations land on the same
   // source and the warm warms the right subtitles.
   expect(negotiated?.mediaSourceId).toBe("ms-1");
@@ -163,7 +173,7 @@ test("a failed negotiation is swallowed — the warm is best effort", async () =
 
   await expect(
     warmUpcomingSubtitles({ api, item, deviceProfile }),
-  ).resolves.toBeUndefined();
+  ).resolves.toBe(false);
   expect(fakeFiles.downloads()).toEqual([]);
 });
 
@@ -187,4 +197,22 @@ test("an item without an id never negotiates", async () => {
   });
 
   expect(jest.mocked(getStreamUrl)).not.toHaveBeenCalled();
+});
+
+test("resolves false when a sidecar is still off disk, so the warm is tried again", async () => {
+  jest.mocked(getStreamUrl).mockResolvedValue({
+    url: "https://jf.example/Videos/next-1/stream",
+    sessionId: "session-1",
+    mediaSource: mediaSourceWithExternalSub(),
+  } as Awaited<ReturnType<typeof getStreamUrl>>);
+  jest
+    .spyOn(
+      jest.requireActual("@/test-utils/fileSystem").fileSystemModule.File,
+      "downloadFileAsync",
+    )
+    .mockRejectedValueOnce(new Error("extraction still running"));
+
+  await expect(
+    warmUpcomingSubtitles({ api, item, deviceProfile, mediaSourceId: "ms-1" }),
+  ).resolves.toBe(false);
 });
