@@ -58,6 +58,20 @@ describe("redactCredentials", () => {
     expect(redactCredentials(text)).toBe(text);
   });
 
+  // A quotation mark cannot sit in a URL: in a JSON log line it closes the
+  // string, and the fields after it are not userinfo.
+  test("stops the authority at a quotation mark", () => {
+    const text =
+      '{"url":"https://media.example","requestId":"bob@example.com"}';
+
+    expect(redactCredentials(text)).toBe(text);
+    expect(
+      redactCredentials(
+        '{"url":"https://user:secret@proxy.example.com/x","requestId":"r1"}',
+      ),
+    ).toBe('{"url":"https://[redacted]@proxy.example.com/x","requestId":"r1"}');
+  });
+
   test("leaves text without credential parameters untouched", () => {
     const text =
       "/Videos/1/master.m3u8?MediaSourceId=abc&VideoCodec=av1,h264&SegmentContainer=mp4";

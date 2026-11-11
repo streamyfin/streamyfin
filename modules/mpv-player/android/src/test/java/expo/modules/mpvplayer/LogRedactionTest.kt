@@ -106,6 +106,18 @@ class LogRedactionTest {
         )
     }
 
+    // No URL holds a double quote: in a JSON log line it closes the string, and the fields
+    // after it are not userinfo.
+    @Test
+    fun stopsTheAuthorityAtADoubleQuote() {
+        val line = "{\"url\":\"https://media.example\",\"requestId\":\"bob@example.com\"}"
+        assertEquals(line, redactCredentials(line))
+        assertEquals(
+            "{\"url\":\"https://[redacted]@proxy.example.com/x\",\"requestId\":\"r1\"}",
+            redactCredentials("{\"url\":\"https://user:secret@proxy.example.com/x\",\"requestId\":\"r1\"}"),
+        )
+    }
+
     // An empty user before the password, or a token as the user alone, is still userinfo.
     @Test
     fun redactsUserinfoWithAnEmptyUserOrATokenAlone() {

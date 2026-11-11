@@ -5,9 +5,10 @@ package expo.modules.mpvplayer
 // Whatever sits before an @ in the authority is userinfo: user:password, an empty user
 // (:password@), a token alone (token@), a password holding a colon, or an @ (an email as
 // the user name): it runs to the last @ of the authority. A scheme is case insensitive, and
-// userinfo never runs past the authority: a / ? or # ends it (RFC 3986).
+// userinfo never runs past the authority: a / ? or # ends it (RFC 3986), and so does a
+// double quote, which no URL holds and which closes the string in a JSON log line.
 private val USERINFO = Regex(
-    "([a-z][a-z0-9+.-]*://)[^\\s/?#]*@",
+    "([a-z][a-z0-9+.-]*://)[^\\s/?#\"]*@",
     RegexOption.IGNORE_CASE
 )
 private val CREDENTIAL_PARAM = Regex(
