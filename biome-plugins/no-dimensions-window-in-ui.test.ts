@@ -1,8 +1,9 @@
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { pluginLines } from "./lintProbes";
 
 const ROOT = path.resolve(__dirname, "..");
+const PLUGIN = "./biome-plugins/no-dimensions-window-in-ui.grit";
 
 const DIMENSIONS_CASES = `const moduleSnapshot = Dimensions.get("window").width;
 const singleQuoted = Dimensions.get('window').height;
@@ -18,77 +19,88 @@ const Component = () => {
 const DIMENSIONS_FLAGGED = [1, 2, 3, 7];
 const DIMENSIONS_ALLOWED = [4, 5];
 
-const lintFile = (file: string, fileName: string): number[] => {
-  const result = spawnSync(
-    "bunx",
-    ["biome", "lint", "--colors=off", "--max-diagnostics=100", file],
-    { cwd: ROOT, encoding: "utf8" },
-  );
-  const output = `${result.stdout}${result.stderr}`;
-  if (result.error || !output.includes("Checked 1 file")) {
-    throw new Error(
-      `biome lint did not check the probe: ${result.error ?? output}`,
-    );
-  }
-  const re = new RegExp(
-    `${fileName.replace(".", "\\.")}:(\\d+):\\d+ plugin`,
-    "g",
-  );
-  return [...output.matchAll(re)].map((m) => Number(m[1]));
-};
-
-const withProbe = (
-  dir: string,
-  content: string,
-  fileName = "Probe.tsx",
-): number[] => {
-  const tmp = fs.mkdtempSync(path.join(ROOT, dir, ".lint-probe-"));
-  const file = path.join(tmp, fileName);
-  fs.writeFileSync(file, content);
-  try {
-    return lintFile(file, fileName);
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
-};
+// Every case in one Biome run. No probe goes under app/: Expo Router takes
+// every file there for a route, for as long as it exists.
+const lines = pluginLines(
+  [
+    { dir: "components", name: "WindowProbe.tsx", content: DIMENSIONS_CASES },
+    { dir: "components", name: "windowProbe.ts", content: DIMENSIONS_CASES },
+    {
+      dir: "components",
+      name: "WindowProbe.test.tsx",
+      content: DIMENSIONS_CASES,
+    },
+    { dir: "hooks", name: "useWindowProbe.ts", content: DIMENSIONS_CASES },
+    {
+      dir: "providers",
+      name: "WindowProbeProvider.tsx",
+      content: DIMENSIONS_CASES,
+    },
+    {
+      dir: "components/tv",
+      name: "TVWindowProbe.tsx",
+      content: DIMENSIONS_CASES,
+    },
+    {
+      dir: "components/tv",
+      name: "TVFontProbe.tsx",
+      content: "const styles = {\n  fontSize: 20,\n};\n",
+    },
+    {
+      dir: "components/tv",
+      name: "tvLayout.ts",
+      content:
+        'const windowWidth = Dimensions.get("window").width;\nconst layout = { fontSize: 20 };\n',
+    },
+  ],
+  ["hooks/useOrientation.ts"],
+);
 
 describe("no-dimensions-window-in-ui", () => {
-  const appLines = withProbe("app", DIMENSIONS_CASES);
-  const tvLines = withProbe(
-    "components/tv",
-    `const styles = {\n  fontSize: 20,\n};\n`,
-  );
-
-  it.each(DIMENSIONS_FLAGGED)("flags line %i in app/**/*.tsx", (line) => {
-    expect(appLines).toContain(line);
+  it.each(DIMENSIONS_FLAGGED)("flags line %i in a component", (line) => {
+    expect(lines["WindowProbe.tsx"]).toContain(line);
   });
 
-  it.each(DIMENSIONS_ALLOWED)("allows line %i in app/**/*.tsx", (line) => {
-    expect(appLines).not.toContain(line);
+  it.each(DIMENSIONS_ALLOWED)("allows line %i in a component", (line) => {
+    expect(lines["WindowProbe.tsx"]).not.toContain(line);
   });
 
-  it("flags Dimensions.get('window') on TV paths too", () => {
-    expect(withProbe("components/tv", DIMENSIONS_CASES)).toEqual(
-      expect.arrayContaining(DIMENSIONS_FLAGGED),
-    );
+  it.each([
+    ["a .ts file beside the components", "windowProbe.ts"],
+    ["a hook", "useWindowProbe.ts"],
+    ["a provider", "WindowProbeProvider.tsx"],
+    ["a TV component", "TVWindowProbe.tsx"],
+  ])("flags the same reads in %s", (_, name) => {
+    expect(lines[name]).toEqual(DIMENSIONS_FLAGGED);
+  });
+
+  // A spec may read the window it mocks to work out what it expects.
+  it("leaves specs alone", () => {
+    expect(lines["WindowProbe.test.tsx"]).toEqual([]);
   });
 
   it("still flags hardcoded TV font sizes alongside it", () => {
-    expect(tvLines).toContain(2);
+    expect(lines["TVFontProbe.tsx"]).toEqual([2]);
   });
 
-  it("leaves TV .ts helpers to the font plugin alone", () => {
-    const lines = withProbe(
-      "components/tv",
-      'const windowWidth = Dimensions.get("window").width;\nconst layout = { fontSize: 20 };\n',
-      "Probe.ts",
+  it("flags a TV .ts helper for both rules", () => {
+    expect(lines["tvLayout.ts"]).toEqual([1, 2]);
+  });
+
+  it("lets hooks/useOrientation.ts read the window once, with its reason", () => {
+    expect(lines["useOrientation.ts"]).toEqual([]);
+  });
+
+  // Read from the config, since a probe cannot go there.
+  it("covers app/ too", () => {
+    const config = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "biome.json"), "utf8"),
     );
-    expect(lines).toEqual([2]);
-  });
-
-  it("allows the non-UI helper in hooks/useOrientation.ts", () => {
-    expect(
-      lintFile(path.join(ROOT, "hooks/useOrientation.ts"), "useOrientation.ts"),
-    ).toEqual([]);
+    const override = config.overrides.find((entry: { plugins?: string[] }) =>
+      entry.plugins?.includes(PLUGIN),
+    );
+    expect(override.includes).toEqual(
+      expect.arrayContaining(["app/**/*.ts", "app/**/*.tsx"]),
+    );
   });
 });

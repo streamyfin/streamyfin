@@ -71,7 +71,19 @@
       "plugins": ["./biome-plugins/tv-no-hardcoded-font-size.grit"]
     },
     {
-      "includes": ["app/**/*.tsx", "components/**/*.tsx"],
+      "includes": [
+        "app/**/*.ts",
+        "app/**/*.tsx",
+        "components/**/*.ts",
+        "components/**/*.tsx",
+        "hooks/**/*.ts",
+        "hooks/**/*.tsx",
+        "providers/**/*.ts",
+        "providers/**/*.tsx",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!**/*.perf-test.tsx"
+      ],
       "plugins": ["./biome-plugins/no-dimensions-window-in-ui.grit"]
     },
     {
