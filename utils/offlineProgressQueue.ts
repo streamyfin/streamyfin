@@ -9,9 +9,9 @@ import { storage } from "@/utils/mmkv";
  * offline would be pushed into whichever account is signed in when the
  * connection returns. Persisted so it survives the app being closed offline.
  *
- * Each item keeps the LastPlayedDate its local progress was saved with ("" if
- * unknown). The local progress is shared by every account on the device, so
- * the sync only pushes it while it is still the one this user saved, and an
+ * Each item keeps the LastPlayedDate its local progress was saved with. The
+ * local progress is shared by every account on the device, so the sync only
+ * pushes it while it is still the one this user saved (isQueuedSave), and an
  * entry is only cleared while it is still the one the sync read.
  */
 export type OfflineProgress = Record<string, string>;
@@ -62,12 +62,22 @@ const write = (pending: PendingByUser) => {
 export const markOfflineProgress = (
   userId: string,
   itemId: string,
-  lastPlayed: string | null | undefined,
+  lastPlayed: string,
 ) => {
   const pending = read();
-  pending[userId] = { ...pending[userId], [itemId]: lastPlayed ?? "" };
+  pending[userId] = { ...pending[userId], [itemId]: lastPlayed };
   write(pending);
 };
+
+/**
+ * Whether a download's record is still the save a user queued with [stamp]:
+ * one saved again since, by another account on the device or by this one, is
+ * not this user's to send, nor to write over.
+ */
+export const isQueuedSave = (
+  recordLastPlayed: string | null | undefined,
+  stamp: string,
+) => recordLastPlayed === stamp;
 
 export const getOfflineProgress = (userId: string): OfflineProgress =>
   read()[userId] ?? {};

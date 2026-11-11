@@ -21,11 +21,7 @@ describe("offlineProgressQueue", () => {
   test("queues an item once per user, with its latest save", () => {
     markOfflineProgress("alice", "episode-1", T1);
     markOfflineProgress("alice", "episode-1", T2);
-    markOfflineProgress("alice", "episode-2", undefined);
-    expect(getOfflineProgress("alice")).toEqual({
-      "episode-1": T2,
-      "episode-2": "",
-    });
+    expect(getOfflineProgress("alice")).toEqual({ "episode-1": T2 });
   });
 
   // Downloads have no owner: what one account watched offline must not be
