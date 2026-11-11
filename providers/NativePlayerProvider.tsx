@@ -33,6 +33,7 @@ import {
   ADAPTIVE_CACHE_TARGET_SECONDS,
   ADAPTIVE_STALL_CHECK_MS,
   AUTO_BITRATE_VALUE,
+  AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS,
 } from "@/constants/Bitrate";
 import {
   NATIVE_PLAYER_CLOSE_POLL_MS,
@@ -221,6 +222,11 @@ interface NativeSession extends NativePlayerSessionSeed {
    * (resolveTeardownReport).
    */
   awaitingLoad: boolean;
+  /**
+   * The player's cache holds the stream to its end, or the stream ended: it
+   * downloads nothing more, and a swap over it leaves Auto the link.
+   */
+  cachedToEnd: boolean;
   /**
    * Set on the edge where the present/load promise resolved with sessionRef
    * still pointing here: the start report goes out on that edge, and only a
@@ -1107,8 +1113,12 @@ const NativePlayerProviderInner: React.FC<{
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
         maxStreamingBitrate: options.maxStreamingBitrate,
-        // The stream on screen goes on downloading while this one is asked.
-        linkInUse: !!requestedOver && !requestedOver.offline,
+        // The stream on screen goes on downloading while this one is asked,
+        // unless its cache already holds it to the end.
+        linkInUse:
+          !!requestedOver &&
+          !requestedOver.offline &&
+          !requestedOver.cachedToEnd,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,
@@ -1154,6 +1164,7 @@ const NativePlayerProviderInner: React.FC<{
         hasPlaybackStarted: false,
         reportedStopKey: null,
         awaitingLoad: true,
+        cachedToEnd: false,
         committed: false,
         lastProgressReportAt: 0,
         subtitleSearchResults: null,
@@ -2157,6 +2168,12 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onProgress", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
+        // A seek's own tick carries its target, not what the cache holds.
+        if (!payload.trackingOnly && payload.duration > 0) {
+          session.cachedToEnd =
+            payload.position + payload.cacheSeconds >=
+            payload.duration - AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS;
+        }
         const due = applyProgressTick(
           session,
           payload,
@@ -2488,6 +2505,7 @@ const NativePlayerProviderInner: React.FC<{
         // not arrived (resolveTeardownReport).
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        session.cachedToEnd = true;
         if (
           syncRef.current.enabled &&
           session.isReady &&

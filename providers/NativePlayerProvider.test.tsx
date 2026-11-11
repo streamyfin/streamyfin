@@ -729,6 +729,77 @@ describe("a play while the player is up", () => {
 // An audio track the stream does not carry needs another stream. Under Auto,
 // an hour on, it measured the connection again with the old stream still
 // downloading over it.
+// Auto keeps the measure before while the stream it replaces still downloads,
+// however old. Past that download, an episode change lets it measure again,
+// or one measure would serve a whole queue.
+describe("an episode change under Auto", () => {
+  const progress = (position: number, cacheSeconds: number) =>
+    act(async () =>
+      mockNative.emit("onProgress", {
+        position,
+        duration: 1800,
+        progress: 0,
+        cacheSeconds,
+      }),
+    );
+  const nextEpisode = async () => {
+    await act(async () =>
+      mockNative.emit("onNextEpisodeRequested", {
+        reason: "userTap",
+        positionSec: 1790,
+      }),
+    );
+    await settle();
+  };
+
+  test("asks with the link in use while the stream played still downloads", async () => {
+    await mount();
+    await open("item-1");
+    await progress(300, 30);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
+  });
+
+  test("leaves the link to the measure once the stream played is downloaded", async () => {
+    await mount();
+    await open("item-1");
+    await progress(1780, 20);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(false);
+  });
+
+  test("leaves the link to the measure once the stream played ended", async () => {
+    await mount();
+    await open("item-1");
+    await act(async () =>
+      mockNative.emit("onPlaybackEnded", { positionSec: 1800 }),
+    );
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(false);
+  });
+
+  // A seek back puts the rest of the file to download again.
+  test("asks with the link in use again after a seek back", async () => {
+    await mount();
+    await open("item-1");
+    await progress(1780, 20);
+    await progress(600, 30);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
+  });
+});
+
 describe("a track change that needs another stream", () => {
   test("asks for it at the cap the stream plays at", async () => {
     await mount();
