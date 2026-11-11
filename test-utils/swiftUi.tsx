@@ -1,5 +1,6 @@
+import type { screen as Screen } from "@testing-library/react-native";
 import React, { Children } from "react";
-import { View as Box, Text as Row } from "react-native";
+import { View as Box, Text as Row, type ViewProps } from "react-native";
 
 export const swiftUiHostProps = jest.fn();
 export const swiftUiPickerProps = jest.fn();
@@ -9,8 +10,20 @@ type Tagged = React.ReactElement<{
   children: React.ReactNode;
 }>;
 
-// The SwiftUI views are native. Each stands in as what it carries: the Host
-// records its props, the Menu is its label and its items, a Button a row.
+const Stack = ({ children }: { children?: React.ReactNode }) => (
+  <Box>{children}</Box>
+);
+const nothing = () => null;
+
+/**
+ * `@expo/ui/swift-ui` for every unit spec, wired in `unitSetup.ts`. The SwiftUI
+ * views are native. Each stands in as what it carries: the Host records its
+ * props, a Menu is its label and its items and keeps the modifiers it was
+ * given, a Button is a row, a stack is its children. Views that only draw
+ * native pixels (an image, a spinner, a spacer, a text) draw nothing. The
+ * modifiers stay real: `@expo/ui/swift-ui/modifiers` is plain JavaScript and
+ * loads under jest-expo.
+ */
 export const swiftUiModule = {
   Host: (props: { children: React.ReactNode }) => {
     swiftUiHostProps(props);
@@ -19,16 +32,20 @@ export const swiftUiModule = {
   Menu: ({
     label,
     children,
+    modifiers,
   }: {
-    label: React.ReactNode;
-    children: React.ReactNode;
+    label?: React.ReactNode;
+    children?: React.ReactNode;
+    modifiers?: unknown[];
   }) => (
-    <Box>
-      {label}
+    <Box
+      {...({ testID: "swiftui-menu", menuModifiers: modifiers } as ViewProps)}
+    >
+      {typeof label === "string" ? <Row>{label}</Row> : label}
       {children}
     </Box>
   ),
-  Button: ({ label, onPress }: { label: string; onPress: () => void }) => (
+  Button: ({ label, onPress }: { label?: string; onPress?: () => void }) => (
     <Row accessibilityRole='menuitem' onPress={onPress}>
       {label}
     </Row>
@@ -59,5 +76,20 @@ export const swiftUiModule = {
       </Box>
     );
   },
-  Text: () => null,
+  HStack: Stack,
+  Spacer: nothing,
+  Image: nothing,
+  ProgressView: nothing,
+  Text: nothing,
 };
+
+/**
+ * The modifiers of every Menu on screen, outermost first. Takes the spec's
+ * `screen` so this module never loads the testing library itself: it is also
+ * required from module mocks, where a second copy would register its hooks
+ * inside a running test.
+ */
+export const renderedMenuModifiers = (queries: typeof Screen) =>
+  queries
+    .getAllByTestId("swiftui-menu")
+    .map((menu) => menu.props.menuModifiers as unknown[] | undefined);

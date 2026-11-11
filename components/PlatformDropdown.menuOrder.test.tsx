@@ -5,12 +5,8 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
-import { renderedMenuModifiers } from "@/test-utils/expoUi";
+import { renderedMenuModifiers } from "@/test-utils/swiftUi";
 
-jest.mock(
-  "@expo/ui/swift-ui",
-  () => jest.requireActual("@/test-utils/expoUi").swiftUiModule,
-);
 jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetScrollView: jest.requireActual("react-native").View,
 }));
