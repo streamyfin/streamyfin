@@ -193,7 +193,7 @@ const normalizePluginValue = (
       if (settingsKey === "defaultBitrate") {
         // Jellyfin leaves a null out of the plugin's JSON, so a default
         // without a value is the one the plugin ships: the app's own, Auto.
-        // The plugin's Max is that null, so an admin's Max is Auto too.
+        // The plugin names Max by its key, which the lookup below finds.
         if (value === undefined || value === null) return AUTO_BITRATE;
         const match = PLAYBACK_BITRATES.find(
           (b) => b.key === value || b.value === value,

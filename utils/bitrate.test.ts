@@ -8,6 +8,7 @@ import {
   MAX_BITRATE,
   PLAYBACK_BITRATES,
   parseBitrateParam,
+  playerQualityOptions,
   routeBitrateParam,
   toBitrateParam,
   toBitrateRequest,
@@ -101,6 +102,17 @@ describe("a playback that names no quality", () => {
 
   // The players' quality menus read the route: one that names no quality
   // marks the default.
+  test("is marked at Max in the player's menu for live TV that names none", () => {
+    const options = playerQualityOptions(
+      ((key: string) => key) as never,
+      undefined,
+      { key: "4 Mb/s", value: 4_000_000 },
+      { Type: "TvChannel" },
+    );
+
+    expect(options.find((option) => option.selected)?.value).toBe("max");
+  });
+
   test("is marked at the default quality in the player's menu", () => {
     expect(routeBitrateParam("", AUTO_BITRATE)).toBe("auto");
     expect(routeBitrateParam(undefined, EIGHT_MBPS)).toBe("8000000");

@@ -3,10 +3,47 @@ import {
   autoBitrateFloorLabel,
   autoBitrateRatioLabel,
   autoBitrateTtlLabel,
+  lastMeasureLabel,
   megabitsLabel,
 } from "./autoBitrateLabels";
 
 const t = ((key: string) => key) as unknown as TFunction;
+
+describe("the last measure", () => {
+  const tWith = ((key: string, values?: Record<string, string>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key) as unknown as TFunction;
+
+  test("is the bitrate Auto streams at", () => {
+    expect(lastMeasureLabel(tWith, { bitrate: 48_500_000 }, "en")).toBe(
+      "48.5 Mb/s",
+    );
+  });
+
+  // A failed remeasure leaves the earlier measure in use: it says both.
+  test("keeps the bitrate still in use next to why the last measure failed", () => {
+    expect(
+      lastMeasureLabel(
+        tWith,
+        { bitrate: 48_500_000, failure: "the server answered 503" },
+        "en",
+      ),
+    ).toBe(
+      'home.settings.quality.last_measure_kept {"bitrate":"48.5 Mb/s","cause":"the server answered 503"}',
+    );
+  });
+
+  test("says why it failed when nothing was measured before", () => {
+    expect(lastMeasureLabel(tWith, { failure: "timeout" }, "en")).toBe(
+      'home.settings.quality.last_measure_failed {"cause":"timeout"}',
+    );
+  });
+
+  test("says when nothing was measured yet", () => {
+    expect(lastMeasureLabel(tWith, {}, "en")).toBe(
+      "home.settings.quality.last_measure_none",
+    );
+  });
+});
 
 describe("the Auto settings' labels", () => {
   test("give a share as a percentage of the language", () => {

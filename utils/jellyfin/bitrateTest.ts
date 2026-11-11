@@ -31,7 +31,15 @@ const DEFAULT_AUTO_BITRATE_OPTIONS = autoBitrateOptions(undefined);
 type Measure = { rate?: number; inNetwork: boolean; at: number };
 
 /** A detection that measured nothing: why, and what it handed back. */
-type Failure = { at: number; cause: string; bitrate?: number };
+/**
+ * A detection that measured nothing: why, and the measure that stood in for
+ * it, which the settings of the moment turn into a bitrate.
+ */
+type Failure = {
+  at: number;
+  cause: string;
+  fallback: Pick<Measure, "rate" | "inNetwork">;
+};
 
 /**
  * What the Auto quality streams at, measured the way jellyfin-web's bitrate
@@ -119,16 +127,27 @@ let network: string | undefined;
 let networkChanges = 0;
 let watchingNetwork = false;
 
+/**
+ * What tells a network from another: mobile data has no address, so its
+ * generation and carrier stand in for one, and a Wi-Fi's name needs the
+ * location permission, so its address and subnet do without it.
+ */
 const networkKey = (state: NetInfoState | null | undefined) => {
   const details = state?.details as {
     ipAddress?: string;
+    subnet?: string;
     ssid?: string;
+    cellularGeneration?: string | null;
+    carrier?: string | null;
   } | null;
   return [
     state?.type ?? "unknown",
     state?.isConnected,
     details?.ipAddress ?? "",
+    details?.subnet ?? "",
     details?.ssid ?? "",
+    details?.cellularGeneration ?? "",
+    details?.carrier ?? "",
   ].join("|");
 };
 
@@ -139,6 +158,13 @@ const watchNetwork = () => {
     const key = networkKey(state);
     if (network !== undefined && key !== network) networkChanges += 1;
     network = key;
+  });
+  // iOS may not tell a network change made while the app was away: back in
+  // the foreground, the network is asked again before a measure is reused.
+  AppState.addEventListener("change", (state) => {
+    if (state !== "active") return;
+    network = undefined;
+    networkChanges += 1;
   });
 };
 
@@ -295,16 +321,17 @@ const detect = async (
   // worth. The failure is remembered for a while, so the plays after it do
   // not each wait on the same tests.
   const before = sameNetwork ? measureOn(api.basePath, net) : undefined;
-  const bitrate = toBitrate(
-    { rate: before?.rate, inNetwork: inNetwork || !!before?.inNetwork },
-    options,
-  );
+  const fallback = {
+    rate: before?.rate,
+    inNetwork: inNetwork || !!before?.inNetwork,
+  };
+  const bitrate = toBitrate(fallback, options);
   const why = cause ?? "no test ran";
   if (sameNetwork) {
     failed.set(failureKey(api.basePath, net), {
       at: Date.now(),
       cause: why,
-      bitrate,
+      fallback,
     });
   }
   if (bitrate === undefined) throw failure(why);
@@ -351,8 +378,10 @@ const resolveDetection = async (
     lastFailure &&
     now - lastFailure.at <= BITRATE_DETECTION_RETRY_MS
   ) {
-    if (lastFailure.bitrate === undefined) throw failure(lastFailure.cause);
-    return lastFailure.bitrate;
+    // With the settings of now, as the settings show it.
+    const bitrate = toBitrate(lastFailure.fallback, options);
+    if (bitrate === undefined) throw failure(lastFailure.cause);
+    return bitrate;
   }
   if (
     AppState.currentState === "background" ||

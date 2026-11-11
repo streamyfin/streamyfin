@@ -570,6 +570,7 @@
         "last_measure": "Auto streams at",
         "last_measure_none": "Not measured yet",
         "last_measure_failed": "Could not measure: {{cause}}",
+        "last_measure_kept": "{{bitrate}}, the last measure failed: {{cause}}",
         "measure_now": "Measure now",
         "measuring": "Measuring…"
       },

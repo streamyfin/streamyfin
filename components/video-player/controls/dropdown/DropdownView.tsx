@@ -312,6 +312,7 @@ const DropdownView = ({
           t,
           bitrateValue,
           settings.defaultBitrate,
+          item,
         ).map((option) => ({
           type: "radio" as const,
           ...option,

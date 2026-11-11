@@ -366,8 +366,8 @@ export const Controls: FC<Props> = ({
   // bitrateValue route param, so selection matching is a plain string compare.
   // A route that names none plays at the default quality, marked as such.
   const bitrateOptions: TVOptionItem<string>[] = useMemo(
-    () => playerQualityOptions(t, bitrateValue, settings.defaultBitrate),
-    [bitrateValue, settings.defaultBitrate, t],
+    () => playerQualityOptions(t, bitrateValue, settings.defaultBitrate, item),
+    [bitrateValue, settings.defaultBitrate, t, item],
   );
 
   const handleBitrateChange = useCallback(

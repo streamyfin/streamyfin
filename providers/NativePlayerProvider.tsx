@@ -1007,7 +1007,14 @@ const NativePlayerProviderInner: React.FC<{
         });
         return null;
       });
-      if (!built) return false;
+      // A newer play took over while this one's stream failed: not a
+      // decline, or its caller would open the JS player under that one.
+      if (!built) {
+        return (
+          token !== playRequestTokenRef.current ||
+          options.isCurrent?.() === false
+        );
+      }
       if (options.isCurrent?.() === false) {
         // The build may have opened a live stream nothing will play. Not a
         // decline either: the caller moved on.
