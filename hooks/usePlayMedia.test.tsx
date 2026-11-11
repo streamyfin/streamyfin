@@ -115,6 +115,26 @@ describe("usePlayMedia", () => {
     );
   });
 
+  // Live TV used to skip the native player and open the JS route. The native
+  // player closes the live stream it opens on every way out, as the route did.
+  test("plays live television in the native player when it is on", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+
+    await play({ Id: "channel-1", Type: "TvChannel" });
+    await play({ Id: "program-1", Type: "Program" });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith({
+      itemId: "channel-1",
+      offline: false,
+    });
+    expect(mockPresentFromRequest).toHaveBeenCalledWith({
+      itemId: "program-1",
+      offline: false,
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
   test("shares the complete queue and selected resume point with the group", async () => {
     mockSyncPlayEnabled = true;
     const { result } = await renderHook(() => usePlayMedia());

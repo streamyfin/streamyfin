@@ -23,9 +23,9 @@ interface PlayMediaOptions {
   /** Complete ordered video queue; the requested item selects its start index. */
   queueItemIds?: string[];
   /**
-   * Pass when available: lets the chooser route Live TV (Program/TvChannel)
-   * straight to the JS route, which owns live-stream lifecycle handling, and
-   * refuse an item that has nothing to play before a player is opened.
+   * Pass when available: lets the chooser refuse an item that has nothing to
+   * play before a player is opened, and keep Live TV (Program/TvChannel) out
+   * of a SyncPlay group.
    */
   item?: BaseItemDto | null;
 }
@@ -33,7 +33,7 @@ interface PlayMediaOptions {
 /**
  * Single entry point for starting video playback on mobile and TV. Routes to
  * the presented native player (isNativeChromeActive) or the JS player route;
- * any native decline (unsupported platform, Live TV, config/present failure)
+ * any native decline (unsupported platform, config/present failure)
  * falls through to the route, so a broken native path can never block
  * playback. The engine — selected via settings.videoPlayer — travels inside
  * the presented config and renders in the JS route's VideoPlayerView.
@@ -96,14 +96,7 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
-      const isLiveTv =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
-      if (
-        isNativeChromeActive(settings) &&
-        !isLiveTv &&
-        (await presentFromRequest(req))
-      ) {
+      if (isNativeChromeActive(settings) && (await presentFromRequest(req))) {
         return;
       }
 
