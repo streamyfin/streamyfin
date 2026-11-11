@@ -259,12 +259,12 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
 
 ## Axis-Scoped Trapping for Page Content
 
-`trapFocus*` is not only for modals. A focusable row spanning the full page
-width above a centred grid — a toolbar or tab row — is seen by Android's focus
-finder as **one** candidate reaching further sideways than any centred row: a
-left or right press with no card in the beam (a grid edge) lands on it, however
-far it sits above. Trap the grid's own directions so horizontal presses stop at
-the edge:
+`trapFocus*` is not only for modals. The TV tab bar (`components/tv/TVNavBar.tsx`)
+centres its tabs and makes each one focusable on its own. From the end of page
+content narrower than that row, a single short row of posters for instance,
+Android's focus search finds the outermost tab, and a left or right press leaves
+the content for it. Trap the content's horizontal directions so those presses
+stay inside it:
 
 ```typescript
 <TVFocusGuideView autoFocus trapFocusLeft trapFocusRight>
@@ -272,11 +272,18 @@ the edge:
 </TVFocusGuideView>
 ```
 
-Keep the vertical directions free so the toolbar stays reachable from the grid.
-Only do this when nothing focusable sits beside the grid — a trap blocks every
-horizontal exit. The mechanism and the boundary condition are written up in
-`.claude/learned-facts/android-focus-guide-row-steals-horizontal-edge-presses.md`.
-Reference implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
+Keep the vertical directions free so the toolbar and the tab bar stay reachable.
+A trap only scopes the search to the guide's own descendants: on a centred short
+last row, an edge press still moves to the nearest card of the row above. Only
+do this when nothing focusable sits beside the content, as a trap blocks every
+horizontal exit.
+
+A full-width `TVFocusGuideView` row, such as the library toolbar, is never the
+target of these presses: while it does not hold the focus, Android exposes the
+guide as one rectangle, and a rectangle wider than the card on both sides is no
+left or right candidate (`FocusFinder.isCandidate`). The mechanism is in
+`.claude/learned-facts/tv-nav-tab-catches-short-grid-edge-press.md`. Reference
+implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
 
 ## Tips and Gotchas
 

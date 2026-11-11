@@ -1669,14 +1669,12 @@ const LibraryPage = () => {
         // A focus guide as wide as the page: tvOS only moves the focus to what
         // lies straight ahead, and a short grid is narrower than the toolbar.
         //
-        // trapFocusLeft/trapFocusRight: the toolbar above is a focus guide too,
-        // and on Android a guide that does not hold the focus counts as one
-        // candidate spanning its whole row. The rows here are centred, so each
-        // one ends short of the toolbar on both sides, and a left or right
-        // press with no card in the beam (a row edge) finds the toolbar as the
-        // nearest candidate however far it sits above. Trapped, horizontal
-        // presses search the cards only and stop at the edge; up and down stay
-        // free, so the toolbar keeps its own way in.
+        // trapFocusLeft/trapFocusRight: the tab bar (TVNavBar) centres its
+        // tabs and makes each one focusable, so from the end of a grid
+        // narrower than the tab bar (a single short row) Android's focus
+        // search finds the outermost tab, and a left or right press left the
+        // grid for it. Trapped, horizontal presses stay inside the grid; up
+        // and down stay free for the toolbar and the tab bar.
         <TVFocusGuideView
           autoFocus
           trapFocusLeft

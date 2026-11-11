@@ -98,7 +98,7 @@ TV platform:
 - `streamystats-components-location` | components/home/Streamystats*.tv.tsx, watchlists/[watchlistId].tsx
 - `platform-specific-file-suffix-does-not-work` | .tv.* only resolves under EXPO_TV=1; require the TV file explicitly behind Platform.isTV
 - `tvfocusguideview-ignores-display-style` | TVFocusGuideView sets its own display last, so `display: "none"` in its style is ignored; hide it with `enabled={false}`
-- `android-focus-guide-row-steals-horizontal-edge-presses` | a full-width guide row above a centred grid counts as one focusable target sideways of every card; trap left/right on the grid so edge presses stay on the cards
+- `tv-nav-tab-catches-short-grid-edge-press` | from the end of a grid narrower than the TV tab bar, a left or right press goes to the outermost tab; trap left/right on the grid (a full-width guide row is never the target)
 - `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
 - `amlogic-fra-fires-before-real-framerate` | the vendor HDMI frame-rate adaptation switches on the codec's 30fps default, before MKV's real rate is known, and never corrects; app-side preferredDisplayModeId matching (matchRefreshRate setting) is the fix
 
