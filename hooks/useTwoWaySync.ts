@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { logAndCaptureError } from "@/utils/log";
+import { isQueuedSave } from "@/utils/offlineProgressQueue";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 import { useNetworkStatus } from "./useNetworkStatus";
 
@@ -13,7 +14,8 @@ import { useNetworkStatus } from "./useNetworkStatus";
  */
 /**
  * How one item's playback state was reconciled: the local state was sent to
- * the server, the server's was taken, both already agreed, the item no longer
+ * the server, the server's was taken, nothing was applied (both already
+ * agreed, or the local state is not this user's to send), the item no longer
  * exists on the server, or it could not be settled (offline, the request
  * failed).
  */
@@ -34,14 +36,14 @@ export const useTwoWaySync = () => {
    * Syncs the playback state of an offline item with the server.
    * It determines if the local or remote state is more recent and applies the necessary update.
    *
-   * @returns A Promise<boolean> indicating whether a server update was made (true) or not (false).
+   * @param stamp - The LastPlayedDate this user's queued save wrote. The local
+   *   progress is shared by every account on the device, so only a sync that
+   *   knows this user queued it may send it (useOfflineProgressSync); without
+   *   a stamp, only the server's state is taken.
    */
   const syncPlaybackStateDetailed = async (
     itemId: string,
-    // false only takes the server's state: the local progress is shared by every
-    // account on the device, so only a sync that knows this user queued it may
-    // send it (useOfflineProgressSync).
-    { push = true }: { push?: boolean } = {},
+    { stamp }: { stamp?: string } = {},
   ): Promise<PlaybackSyncResult> => {
     if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
@@ -78,6 +80,17 @@ export const useTwoWaySync = () => {
     const currentItem = getDownloadedItemById(itemId);
     if (!currentItem) return "unchanged";
     const localItem = currentItem;
+    // Saved again while the fetch was out, by another account switched to in
+    // the meantime or by this one playing on: no longer the save this user
+    // queued, so neither sent as theirs nor written over with their server
+    // state. An offline save of theirs queued its own stamp for the next run;
+    // an online one reached the server through its report.
+    if (
+      stamp !== undefined &&
+      !isQueuedSave(localItem.item.UserData?.LastPlayedDate, stamp)
+    ) {
+      return "unchanged";
+    }
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
       ? new Date(localItem.item.UserData.LastPlayedDate)
@@ -107,7 +120,7 @@ export const useTwoWaySync = () => {
       });
       return "pulled";
     } else if (remoteLastPlayed < localLastPlayed) {
-      if (!push) return "unchanged";
+      if (stamp === undefined) return "unchanged";
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
       try {
         await getUserDataApi(api).updateItemUserData({
@@ -137,9 +150,5 @@ export const useTwoWaySync = () => {
     return "unchanged";
   };
 
-  /** Whether the server's state was updated. */
-  const syncPlaybackState = async (itemId: string): Promise<boolean> =>
-    (await syncPlaybackStateDetailed(itemId)) === "pushed";
-
-  return { syncPlaybackState, syncPlaybackStateDetailed };
+  return { syncPlaybackStateDetailed };
 };

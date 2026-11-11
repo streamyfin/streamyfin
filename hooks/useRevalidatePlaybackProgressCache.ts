@@ -28,12 +28,13 @@ export function useInvalidatePlaybackProgressCache() {
     if (downloadedFiles) {
       // Takes the server's newer state into the downloads, and sends none: the
       // local progress belongs to whoever watched offline, and only the offline
-      // sync knows who that was (useOfflineProgressSync pushes it per user).
+      // sync knows who that was (useOfflineProgressSync pushes it per user,
+      // with the stamp of their save).
       // allSettled: one item failing must not reject the whole batch (the
       // callers fire-and-forget this promise).
       const syncResults = await Promise.allSettled(
         downloadedFiles.map((downloadedItem) =>
-          syncPlaybackStateDetailed(downloadedItem.item.Id!, { push: false }),
+          syncPlaybackStateDetailed(downloadedItem.item.Id!),
         ),
       );
       // syncPlaybackStateDetailed handles its own errors and resolves to a

@@ -6,7 +6,7 @@ import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgr
 let mockDownloads: { item: { Id: string } }[] = [];
 const mockTriggerRefresh = jest.fn();
 const mockSync = jest.fn(
-  async (_id: string, _options?: { push?: boolean }) => "unchanged",
+  async (_id: string, _options?: { stamp?: string }) => "unchanged",
 );
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -69,10 +69,7 @@ describe("useInvalidatePlaybackProgressCache", () => {
 
     await revalidateWith(new QueryClient());
 
-    expect(mockSync.mock.calls).toEqual([
-      ["episode-1", { push: false }],
-      ["episode-2", { push: false }],
-    ]);
+    expect(mockSync.mock.calls).toEqual([["episode-1"], ["episode-2"]]);
   });
 
   test("refreshes the downloads views once a download took the server's state", async () => {
