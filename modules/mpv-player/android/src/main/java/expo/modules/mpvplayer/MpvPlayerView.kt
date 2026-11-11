@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer
 
+import expo.modules.mpvplayer.playback.shouldPauseOnPictureInPictureEnd
+import expo.modules.mpvplayer.playback.shouldPauseOnActivityStop
+import android.os.PowerManager
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -96,6 +99,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // view that just shows a clip, the subtitle preview in Settings, took the
     // audio focus and a wake lock, and stopped the user's music.
     private var backgroundPlaybackEnabled = false
+    // The host activity is stopped: backgrounded, or the screen is off.
+    private var hostStopped = false
     private var nowPlaying: NowPlayingInfo? = null
     private var isLoadingMedia = false
     // mpv keeps its last pause state after a failed load or stream.
@@ -176,6 +181,16 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
             override fun onPictureInPictureModeChanged(isInPiP: Boolean) {
                 isInPictureInPicture = isInPiP
+                // Closed, the window leaves its activity stopped behind it,
+                // and the video played on with nothing to show it.
+                if (backgroundPlaybackEnabled && shouldPauseOnPictureInPictureEnd(
+                        inPictureInPicture = isInPiP,
+                        activityStopped = hostStopped,
+                        dismissing = false
+                    )) {
+                    Log.i(TAG, "Picture in picture closed: pausing")
+                    pause()
+                }
                 if (isInPiP) {
                     // Post size syncs after the PiP layout settles. Two passes
                     // catch both the immediate surface re-attach and the
@@ -715,7 +730,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
         lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityStarted(activity: Activity) {
+                if (activity === hostActivity) hostStopped = false
+            }
             override fun onActivityResumed(activity: Activity) {
                 val host = hostActivity ?: findActivity().also { hostActivity = it }
                 if (activity !== host) {
@@ -745,8 +762,21 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 }
             }
             override fun onActivityStopped(activity: Activity) {
-                if (activity === hostActivity) {
-                    Log.i(TAG, "[Recover] onActivityStopped — host stopped")
+                if (activity !== hostActivity) return
+                Log.i(TAG, "[Recover] onActivityStopped — host stopped")
+                hostStopped = true
+                // Only the player screen plays on with the screen off (the
+                // service is what keeps it going): leaving the app with the
+                // screen on is leaving the video.
+                if (backgroundPlaybackEnabled && shouldPauseOnActivityStop(
+                        isTelevision = DeviceKind.isTelevision(activity),
+                        screenInteractive = (activity.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true,
+                        inPictureInPicture = isInPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = false
+                    )) {
+                    Log.i(TAG, "Player left with no picture in picture: pausing")
+                    pause()
                 }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}

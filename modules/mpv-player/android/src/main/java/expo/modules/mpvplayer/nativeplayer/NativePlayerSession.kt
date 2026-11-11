@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import expo.modules.mpvplayer.playback.shouldPauseOnPictureInPictureEnd
+import expo.modules.mpvplayer.playback.shouldPauseOnActivityStop
+import android.os.PowerManager
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.BroadcastReceiver
@@ -498,17 +501,28 @@ class NativePlayerSession(
                 hostActivityStopped = true
                 val inPictureInPicture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                     activity.isInPictureInPictureMode
-                if (!shouldLeaveSyncPlayOnActivityStop(
+                if (shouldLeaveSyncPlayOnActivityStop(
                         ownsActivity = activity === hostActivity,
                         syncPlayActive = viewModel.syncPlayActive,
                         inPictureInPicture = inPictureInPicture,
                         changingConfigurations = activity.isChangingConfigurations,
                         dismissing = isDismissing
-                    )) return
-
-                // AppState can report background before the PiP change reaches
-                // JS. Android's stopped/PiP state owns this decision instead.
-                suspendSyncPlayInBackground("stopped non-PiP host activity")
+                    )) {
+                    // AppState can report background before the PiP change reaches
+                    // JS. Android's stopped/PiP state owns this decision instead.
+                    suspendSyncPlayInBackground("stopped non-PiP host activity")
+                    return
+                }
+                if (!viewModel.syncPlayActive && shouldPauseOnActivityStop(
+                        isTelevision = DeviceKind.isTelevision(activity),
+                        screenInteractive = isScreenInteractive(activity),
+                        inPictureInPicture = inPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = isDismissing
+                    )) {
+                    Log.i(TAG, "Player left with no picture in picture: pausing")
+                    viewModel.pause()
+                }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
@@ -516,6 +530,9 @@ class NativePlayerSession(
         app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
         lifecycleRegistered = true
     }
+
+    private fun isScreenInteractive(context: Context): Boolean =
+        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true
 
     private fun unregisterLifecycleCallbacks() {
         mainHandler.removeCallbacks(recoverResumeRunnable)
@@ -577,6 +594,14 @@ class NativePlayerSession(
                 syncPlayActive = viewModel.syncPlayActive,
                 dismissing = isDismissing
             )) suspendSyncPlayInBackground("picture in picture closed")
+        else if (!viewModel.syncPlayActive && shouldPauseOnPictureInPictureEnd(
+                inPictureInPicture = isInPiP,
+                activityStopped = hostActivityStopped,
+                dismissing = isDismissing
+            )) {
+            Log.i(TAG, "Picture in picture closed: pausing")
+            viewModel.pause()
+        }
         if (isInPiP) {
             viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
