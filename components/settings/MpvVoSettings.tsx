@@ -4,7 +4,12 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { type MpvVoDriver, useSettings } from "@/utils/atoms/settings";
+import {
+  getActiveVideoPlayerEngine,
+  type MpvVoDriver,
+  useSettings,
+  VideoPlayer,
+} from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -44,6 +49,12 @@ export const MpvVoSettings: React.FC = () => {
   if (Platform.OS !== "android") return null;
 
   if (!settings) return null;
+
+  // Same gate as MpvBufferSettings: the VO driver is a libmpv concept and
+  // does not steer ExoPlayer playback.
+  if (getActiveVideoPlayerEngine(settings) === VideoPlayer.ExoPlayer) {
+    return null;
+  }
 
   return (
     <ListGroup title={t("home.settings.vo_driver.title")} className='mb-4'>
