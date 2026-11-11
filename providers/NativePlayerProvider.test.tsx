@@ -111,6 +111,8 @@ const mockNegotiation = {
   live: false,
   /** The file's bitrate the negotiated streams carry, when a spec sets one. */
   bitrate: undefined as number | undefined,
+  /** Items whose stream negotiation fails. */
+  failing: new Set<string>(),
 };
 
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
@@ -127,6 +129,9 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
       await new Promise<void>((resolve) =>
         mockNegotiation.waiting.push(resolve),
       );
+    }
+    if (mockNegotiation.failing.has(req.itemId)) {
+      throw new Error("PlaybackInfo failed");
     }
     mockNegotiation.count += 1;
     const playSessionId = `play-session-${mockNegotiation.count}`;
@@ -450,6 +455,7 @@ beforeEach(() => {
   mockNegotiation.params = [];
   mockNegotiation.live = false;
   mockNegotiation.bitrate = undefined;
+  mockNegotiation.failing.clear();
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -723,6 +729,23 @@ describe("a track change that needs another stream", () => {
 // before it took the player, said it declined, and its caller opened the JS
 // player under the native one the second presented.
 describe("a play overtaken before it took the player", () => {
+  // Its caller would open the JS player under the native one the newer play
+  // presents.
+  test("whose stream fails is not a decline either", async () => {
+    await mount();
+    holdNegotiations();
+    mockNegotiation.failing.add("item-1");
+    const first = await start(() => play("item-1"));
+    const second = await start(() => play("item-3"));
+
+    await releaseNegotiations();
+
+    await act(async () => {
+      await expect(first.done).resolves.toBe(true);
+      await expect(second.done).resolves.toBe(true);
+    });
+  });
+
   test("is not a decline, the newer one plays", async () => {
     await mount();
     holdNegotiations();

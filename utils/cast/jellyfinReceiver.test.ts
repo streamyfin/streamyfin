@@ -716,6 +716,58 @@ describe("castToJellyfinReceiver", () => {
     },
   );
 
+  // Auto measuring the bitrate holds a cast's session: a newer cast settles
+  // it at once, and its session failing after that is no failure.
+  test("settles a cast still waiting for its session when a newer one starts", async () => {
+    const client = makeClient();
+    let failSession: (error: Error) => void = () => {};
+    const pending = new Promise<ReturnType<typeof session>>((_, reject) => {
+      failSession = reject;
+    });
+    const first = castToJellyfinReceiver(
+      client as never,
+      pending,
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+    const second = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [{ Id: "item-2", Type: "Movie" }] },
+      1_000,
+    );
+    await sent();
+
+    expect(await settledWith(first)).toEqual({ status: "superseded" });
+    failSession(new Error("The bitrate test answered 503"));
+    await expect(first).resolves.toEqual({ status: "superseded" });
+    client.emit(status("buffering", "item-2", "session-b"));
+    expect(await second).toEqual({ status: "loaded" });
+  });
+
+  test("gives up on a session that never comes", async () => {
+    jest.useFakeTimers();
+    try {
+      const client = makeClient();
+      let result: unknown = "pending";
+      void castToJellyfinReceiver(
+        client as never,
+        new Promise<never>(() => {}),
+        { items: [movie] },
+        1_000,
+      ).then((value) => {
+        result = value;
+      });
+
+      await jest.advanceTimersByTimeAsync(1_000);
+
+      expect(result).toEqual({ status: "timed_out" });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("settles an older cast as replaced when a newer one starts", async () => {
     const client = makeClient();
     const first = castToJellyfinReceiver(

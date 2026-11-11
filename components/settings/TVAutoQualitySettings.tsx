@@ -13,7 +13,7 @@ import {
   autoBitrateFloorLabel,
   autoBitrateRatioLabel,
   autoBitrateTtlLabel,
-  megabitsLabel,
+  lastMeasureLabel,
 } from "@/utils/autoBitrateLabels";
 
 /**
@@ -50,13 +50,7 @@ export const TVAutoQualitySettings: React.FC = () => {
   const floor = t("home.settings.quality.in_network_min");
   const lastMeasure = measuring
     ? t("home.settings.quality.measuring")
-    : last.failure !== undefined
-      ? t("home.settings.quality.last_measure_failed", {
-          cause: last.failure,
-        })
-      : last.bitrate !== undefined
-        ? megabitsLabel(last.bitrate, i18n.language)
-        : t("home.settings.quality.last_measure_none");
+    : lastMeasureLabel(t, last, i18n.language);
 
   return (
     <>

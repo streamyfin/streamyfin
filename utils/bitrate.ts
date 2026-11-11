@@ -95,12 +95,19 @@ export const withDefaultBitrate = (
 ): BitrateRequest =>
   request ?? toBitrateRequest(defaultBitrate ?? AUTO_BITRATE);
 
-/** The quality the player's route plays at, as its quality menus mark it. */
+/**
+ * The quality the player's route plays at, as its quality menus mark it:
+ * live TV that names none plays at Max, whatever the default.
+ */
 export const routeBitrateParam = (
   param: string | null | undefined,
   defaultBitrate: Bitrate | null | undefined,
+  item?: { Type?: string | null } | null,
 ): string =>
-  withDefaultBitrate(parseBitrateParam(param), defaultBitrate).toString();
+  withDefaultBitrate(
+    liveTvBitrateRequest(item, parseBitrateParam(param)),
+    defaultBitrate,
+  ).toString();
 
 /**
  * The JS player's quality menu, on the phone and on TV: every quality as the
@@ -111,8 +118,9 @@ export const playerQualityOptions = (
   t: TFunction,
   routeParam: string | null | undefined,
   defaultBitrate: Bitrate | null | undefined,
+  item?: { Type?: string | null } | null,
 ) => {
-  const playing = routeBitrateParam(routeParam, defaultBitrate);
+  const playing = routeBitrateParam(routeParam, defaultBitrate, item);
   return PLAYBACK_BITRATES.map((bitrate) => ({
     label: bitrateLabel(t, bitrate),
     value: toBitrateParam(bitrate),

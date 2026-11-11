@@ -16,7 +16,7 @@ import {
   autoBitrateFloorLabel,
   autoBitrateRatioLabel,
   autoBitrateTtlLabel,
-  megabitsLabel,
+  lastMeasureLabel,
 } from "@/utils/autoBitrateLabels";
 import { bitrateLabel } from "@/utils/bitrate";
 import { Text } from "../common/Text";
@@ -66,14 +66,7 @@ export const QualitySettings: React.FC = () => {
   const share = t("home.settings.quality.share");
   const remeasureAfter = t("home.settings.quality.remeasure_after");
   const floor = t("home.settings.quality.in_network_min");
-  const lastMeasure =
-    last.failure !== undefined
-      ? t("home.settings.quality.last_measure_failed", {
-          cause: last.failure,
-        })
-      : last.bitrate !== undefined
-        ? megabitsLabel(last.bitrate, i18n.language)
-        : t("home.settings.quality.last_measure_none");
+  const lastMeasure = lastMeasureLabel(t, last, i18n.language);
 
   return (
     <ListGroup

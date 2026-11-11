@@ -852,21 +852,19 @@ describe("a rate a playback showed", () => {
   });
 
   test("of nothing, stored by an earlier build, is measured again", async () => {
-    mockStored.set(
-      "autoBitrateMeasures",
-      JSON.stringify({
-        [SERVER]: {
-          "wifi|true|192.168.1.10|": {
-            rate: 0,
-            inNetwork: false,
-            at: Date.now(),
-          },
-        },
-      }),
-    );
-    relaunch();
     answerEndpoint(false);
-    mockAnswers.push(...bodiesAt(10, 10));
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api);
+    const stored = JSON.parse(mockStored.get("autoBitrateMeasures") ?? "{}");
+    for (const byNetwork of Object.values(stored) as Record<
+      string,
+      { rate: number }
+    >[]) {
+      for (const measure of Object.values(byNetwork)) measure.rate = 0;
+    }
+    mockStored.set("autoBitrateMeasures", JSON.stringify(stored));
+
+    relaunch();
 
     await expect(detectBitrate(api)).resolves.toBe(7_000_000);
   });
@@ -876,5 +874,71 @@ describe("a rate a playback showed", () => {
     await bitrateTest.ensureNetworkKnown();
 
     expect(bitrateTest.lastDetection(api)).toEqual({});
+  });
+});
+
+/** The device on mobile data of a generation, as NetInfo tells it. */
+const onCellular = (generation: string) => {
+  mockNetworkState = {
+    type: "cellular",
+    isConnected: true,
+    details: { cellularGeneration: generation, carrier: "Carrier" },
+  };
+  for (const listener of mockNetworkListeners) listener(mockNetworkState);
+};
+
+describe("a detection on mobile data", () => {
+  // Mobile data has no address in NetInfo: 5G and 3G read as one network.
+  test("is measured again on another generation", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    onCellular("5g");
+    await detectBitrate(api);
+
+    onCellular("3g");
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+});
+
+describe("a detection after the app comes back", () => {
+  // iOS may not tell a network change made while the app was away.
+  test("is measured again on the network the device came back on", async () => {
+    const listen = jest.spyOn(AppState, "addEventListener");
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api);
+    mockNetworkState = {
+      type: "wifi",
+      isConnected: true,
+      details: { ipAddress: "10.0.0.7" },
+    };
+
+    const onChange = listen.mock.calls.find(
+      ([event]) => event === "change",
+    )?.[1] as ((state: string) => void) | undefined;
+    onChange?.("active");
+
+    expect(onChange).toBeDefined();
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+});
+
+describe("a failed detection remembered", () => {
+  // It gave the bitrate of the settings it failed under for its two minutes.
+  test("gives the rate before it with the settings of now", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), { status: 503 });
+    await detectBitrate(api);
+    jest.advanceTimersByTime(61 * 60_000);
+    await detectBitrate(api);
+
+    await expect(
+      detectBitrate(api, false, {
+        ratio: 0.5,
+        ttlMs: 60 * 60_000,
+        inNetworkMinBitrate: 0,
+      }),
+    ).resolves.toBe(50_000_000);
   });
 });

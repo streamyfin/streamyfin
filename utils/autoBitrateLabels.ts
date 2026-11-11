@@ -28,3 +28,27 @@ export const megabitsLabel = (bitrate: number, language: string) =>
   `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(
     bitrate / 1_000_000,
   )} Mb/s`;
+
+/**
+ * What the settings say of Auto's last measure: the bitrate it streams at,
+ * kept next to why a later measure failed, as playback still uses it.
+ */
+export const lastMeasureLabel = (
+  t: TFunction,
+  last: { bitrate?: number; failure?: string },
+  language: string,
+): string => {
+  const bitrate =
+    last.bitrate === undefined
+      ? undefined
+      : megabitsLabel(last.bitrate, language);
+  if (last.failure !== undefined) {
+    return bitrate === undefined
+      ? t("home.settings.quality.last_measure_failed", { cause: last.failure })
+      : t("home.settings.quality.last_measure_kept", {
+          bitrate,
+          cause: last.failure,
+        });
+  }
+  return bitrate ?? t("home.settings.quality.last_measure_none");
+};

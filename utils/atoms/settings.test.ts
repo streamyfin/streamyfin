@@ -839,6 +839,15 @@ describe("the default quality", () => {
     expect(defaultValues.autoBitrateAdapt).toBe(true);
   });
 
+  // The plugin's own Max: what an admin locked as no cap stays no cap.
+  test("is Max when the plugin sends Max as its key", () => {
+    store.set(pluginSettingsAtom, {
+      defaultBitrate: { locked: true, value: "Max" },
+    } as unknown as PluginLockableSettings);
+
+    expect(effectiveQuality()).toEqual({ key: "Max", value: undefined });
+  });
+
   test("is Auto when the plugin sends Auto as its key", () => {
     store.set(pluginSettingsAtom, {
       defaultBitrate: { locked: true, value: "Auto" },
