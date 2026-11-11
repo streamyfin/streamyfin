@@ -132,6 +132,15 @@ const preferredFocusNodes = (container: {
       typeof node.type === "string" && node.props.hasTVPreferredFocus === true,
   );
 
+/** Every string a rendered element holds, its children's included. */
+const textsOf = (node: unknown): string[] => {
+  if (typeof node === "string") return [node];
+  if (Array.isArray(node)) return node.flatMap(textsOf);
+  const children = (node as { props?: { children?: unknown } } | null)?.props
+    ?.children;
+  return children === undefined ? [] : textsOf(children);
+};
+
 beforeEach(() => {
   mockServers = [];
   mockSyncPlayAvailable = true;
@@ -181,7 +190,7 @@ describe("TV settings tab", () => {
       wrapper: QueryWrapper,
     });
 
-    fireEvent.press(getByText("home.settings.switch_user.switch_user"));
+    await fireEvent.press(getByText("home.settings.switch_user.switch_user"));
     const { onAccountSelect } = mockShowUserSwitchModal.mock.calls[0][2];
     await act(async () => {
       await onAccountSelect(mockServers[0].accounts[1]);
@@ -195,6 +204,9 @@ describe("TV settings tab", () => {
 
     await waitFor(() => expect(mockPinPrompt?.visible).toBe(false));
     expect(mockRequestTVFocus).toHaveBeenCalledTimes(1);
-    expect(mockRequestTVFocus.mock.calls[0][0]).toBeTruthy();
+    // The row that opened the prompt, not just any view.
+    expect(
+      textsOf(mockRequestTVFocus.mock.calls[0][0]?.props?.children),
+    ).toContain("home.settings.switch_user.switch_user");
   });
 });
