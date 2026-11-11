@@ -49,6 +49,9 @@ internal class OffscreenSurfaceSink private constructor(
         const val WIDTH = 64
         const val HEIGHT = 36
         private const val MAX_IMAGES = 3
+        // The one of the two consumer usages ImageReader documents for PRIVATE that
+        // fits frames nobody reads; mpv's EGL surface adds its own render usage.
+        internal const val CONSUMER_USAGE = HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
 
         /** Null below Android 10, where ImageReader cannot be a GPU target. */
         fun create(): OffscreenSurfaceSink? {
@@ -60,7 +63,7 @@ internal class OffscreenSurfaceSink private constructor(
                     HEIGHT,
                     ImageFormat.PRIVATE,
                     MAX_IMAGES,
-                    HardwareBuffer.USAGE_GPU_COLOR_OUTPUT,
+                    CONSUMER_USAGE,
                 )
                 reader.setOnImageAvailableListener({ r ->
                     try {
