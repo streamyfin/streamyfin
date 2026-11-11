@@ -6,6 +6,10 @@ import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
 import {
+  SingleItemDownloadedIcon,
+  SingleItemDownloadIcon,
+} from "@/components/common/DownloadIcons";
+import {
   HeaderButton,
   HeaderButtonGroup,
 } from "@/components/common/HeaderButton";
@@ -23,7 +27,6 @@ import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { useSeriesQueries } from "@/components/series/useSeriesQueries";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
-import { Colors } from "@/constants/Colors";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
@@ -177,12 +180,8 @@ const page: React.FC = () => {
                 size='large'
                 title={t("item_card.download.download_series")}
                 items={allEpisodes}
-                MissingDownloadIconComponent={() => (
-                  <HeaderIcon name='downloads' />
-                )}
-                DownloadedIconComponent={() => (
-                  <HeaderIcon name='downloaded' tintColor={Colors.primary} />
-                )}
+                MissingDownloadIconComponent={SingleItemDownloadIcon}
+                DownloadedIconComponent={SingleItemDownloadedIcon}
               />
             )}
           </HeaderButtonGroup>

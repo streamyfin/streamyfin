@@ -11,10 +11,16 @@ export const SingleItemDownloadedIcon = () => (
   <HeaderIcon name='downloaded' tintColor={Colors.primary} />
 );
 
-/** Use the smaller row glyph beside the season selector. */
+/** The smaller row glyph beside the season selector, for both states. */
+const SEASON_ICON_SIZE = 18;
+
 export const SeasonDownloadIcon = () => (
-  <HeaderIcon name='downloads' size={18} />
+  <HeaderIcon name='downloads' size={SEASON_ICON_SIZE} />
 );
 export const SeasonDownloadedIcon = () => (
-  <HeaderIcon name='downloaded' tintColor={Colors.primary} size={18} />
+  <HeaderIcon
+    name='downloaded'
+    tintColor={Colors.primary}
+    size={SEASON_ICON_SIZE}
+  />
 );
