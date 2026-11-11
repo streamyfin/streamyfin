@@ -45,7 +45,10 @@ jest.mock("../notifications", () => ({
 const mockToastError = jest.mocked(toast.error);
 const mockToastDismiss = jest.mocked(toast.dismiss);
 
-import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
+import {
+  DOWNLOAD_FAILURE_TOAST_DURATION_MS,
+  FAILED_DOWNLOAD_CARD_REMOVAL_DELAY_MS,
+} from "@/constants/Downloads";
 import { clearAllDownloadedItems, getDownloadedItemById } from "../database";
 import {
   finalizePendingDownload,
@@ -256,14 +259,14 @@ describe("a download that fails", () => {
     error,
   });
 
-  it("removes the failed download card after three seconds", async () => {
+  it("removes the failed download card after its delay", async () => {
     savePendingDownload(record);
     const removeProcess = jest.fn();
     const error = await listenerFor("error", removeProcess);
 
     await error(failed("HTTP error: 404"));
     expect(removeProcess).not.toHaveBeenCalled();
-    jest.advanceTimersByTime(2_999);
+    jest.advanceTimersByTime(FAILED_DOWNLOAD_CARD_REMOVAL_DELAY_MS - 1);
     expect(removeProcess).not.toHaveBeenCalled();
     jest.advanceTimersByTime(1);
     expect(removeProcess).toHaveBeenCalledTimes(1);
