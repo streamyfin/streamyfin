@@ -23,15 +23,20 @@ believes playback is fine.
 
 **Shipped fix** (both engine files, lockstep — see the LoadControl ⚠ TWIN):
 on bitstream-capable output, set a `MediaCodecSelector` that returns no
-decoders for `audio/vnd.dts*` mimes, so the DTS track falls through to
-FfmpegAudioRenderer (which decodes DTS/DTS-HD to PCM). DTS *passthrough* is
-unaffected — a sink that accepts DTS bitstream routes through the static
-`MediaCodecSelector.getPassthroughDecoderInfos()`, which never consults the
-custom selector. PCM-only output keeps the default selector: `PREFER` mode
-already orders FFmpeg ahead of MediaCodec, which is why this only bites on
-Dolby-capable sinks. Gated on `Class.forName(FfmpegAudioRenderer)` so a
-future build without the FFmpeg extension keeps the platform decoder instead
-of losing DTS audio entirely.
+platform decoders for the DTS formats FFmpeg decodes (`FfmpegLibrary
+.supportsFormat`: `audio/vnd.dts` and `audio/vnd.dts.hd` in the Jellyfin
+1.9.0 build), so those tracks fall through to FfmpegAudioRenderer, which
+decodes them to PCM. DTS Express and DTS-UHD, which that build does not
+decode, keep their platform decoders, and DTS-UHD keeps the DTS core fallback
+media3 looks up under `audio/vnd.dts` (`MediaCodecUtil
+.getAlternativeCodecMimeType`): see `dtsAwareDecoderInfos`. A build whose
+FFmpeg library fails to load decodes nothing, so every DTS lookup stays with
+the platform. DTS *passthrough* is unaffected: when the sink accepts the
+bitstream, `MediaCodecAudioRenderer.supportsFormat` (media3 1.11.1) hands the
+track to it directly and asks the selector for no decoder unless the track has
+DRM. PCM-only output keeps the default selector: `PREFER` mode already orders
+FFmpeg ahead of MediaCodec, which is why this only bites on Dolby-capable
+sinks.
 
 **⚠ TWIN**: the selector is duplicated in both engine files (the Kotlin
 modules are independent). Change them in lockstep.
