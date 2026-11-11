@@ -12,7 +12,6 @@ jest.mock("react-i18next", () => ({
       values ? `${key} ${Object.values(values).join(" ")}` : key,
   }),
 }));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Name: "Fredrik" }),
 }));

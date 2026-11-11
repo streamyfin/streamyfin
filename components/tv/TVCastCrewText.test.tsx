@@ -2,16 +2,15 @@ import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVCastCrewText } from "./TVCastCrewText";
 
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 // The real hook reads the settings atom, whose module graph is the whole app.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 
 const PEOPLE: BaseItemPerson[] = [
   { Id: "gilligan", Name: "Vince Gilligan", Type: "Creator" },

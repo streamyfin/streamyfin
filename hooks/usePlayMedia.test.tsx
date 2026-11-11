@@ -40,10 +40,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const play = async (item: BaseItemDto) => {
   const { result } = await renderHook(() => usePlayMedia());
