@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.playback
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -39,6 +40,11 @@ class PlaybackTaskRemovedTest {
     }
 
     private val app = RuntimeEnvironment.getApplication()
+
+    // Starts the other tests leave unanswered (Robolectric runs no onStartCommand) would keep the
+    // service from stopping itself.
+    @Before
+    fun forgetEarlierStarts() = PlaybackService.resetForTests()
 
     @Test
     fun aPlayerThatSaysNothingElsePauses() {

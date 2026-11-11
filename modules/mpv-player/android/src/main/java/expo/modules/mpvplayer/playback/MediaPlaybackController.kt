@@ -56,6 +56,10 @@ class MediaPlaybackController(
         // A position report further than this from where the session's
         // extrapolation says it should be is a seek or a stall: republish.
         private const val POSITION_DRIFT_REPUBLISH_MS = 1500L
+        // The locks hold while playback advances. A load that failed or a stream
+        // that died never leaves the playing state (mpv reports neither), and they
+        // were held until the player closed, all night with the phone locked.
+        internal const val LOCKS_WITHOUT_PROGRESS_MS = 10 * 60 * 1000L
 
         private const val ARTWORK_MAX_PX = 512
         // A poster is a few hundred KB; anything past this is not one.
@@ -234,6 +238,11 @@ class MediaPlaybackController(
      */
     fun onPositionTick() {
         if (mediaSession == null) return
+        val position = (target.positionSeconds * 1000).toLong()
+        if (target.isPlaying && position != progressMarkMs) {
+            progressMarkMs = position
+            if (wakeLock?.isHeld != true) acquireLocks() else armStallWatch()
+        }
         val durationMs = (target.durationSeconds * 1000).toLong()
         if (durationMs > 0 && abs(durationMs - publishedDurationMs) > 1000) {
             updateMetadata()
@@ -518,7 +527,23 @@ class MediaPlaybackController(
     // MARK: - Wake and Wi-Fi locks
 
     @SuppressLint("WakelockTimeout")
+    private var progressMarkMs = -1L
+    private var stallWatchArmed = false
+    private val stalledRunnable = Runnable {
+        stallWatchArmed = false
+        if (released) return@Runnable
+        Log.i(TAG, "No progress for ${LOCKS_WITHOUT_PROGRESS_MS / 60_000} min — releasing the playback locks")
+        releaseLocks()
+    }
+
+    private fun armStallWatch() {
+        mainHandler.removeCallbacks(stalledRunnable)
+        mainHandler.postDelayed(stalledRunnable, LOCKS_WITHOUT_PROGRESS_MS)
+        stallWatchArmed = true
+    }
+
     private fun acquireLocks() {
+        if (!stallWatchArmed) armStallWatch()
         try {
             val wl = wakeLock ?: (context.getSystemService(Context.POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "streamyfin:playback")
@@ -550,6 +575,8 @@ class MediaPlaybackController(
     }
 
     private fun releaseLocks() {
+        mainHandler.removeCallbacks(stalledRunnable)
+        stallWatchArmed = false
         try {
             wakeLock?.takeIf { it.isHeld }?.release()
             wifiLock?.takeIf { it.isHeld }?.release()

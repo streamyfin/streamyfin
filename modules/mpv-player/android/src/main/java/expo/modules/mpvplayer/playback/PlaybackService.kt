@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 
 /**
@@ -93,6 +94,14 @@ class PlaybackService : Service() {
             running = false
             if (startPending) return
             context.stopService(Intent(context, PlaybackService::class.java))
+        }
+
+        /** Forgets the owner and the start state, which outlive one test. */
+        @VisibleForTesting
+        internal fun resetForTests() {
+            owner = null
+            running = false
+            startPending = false
         }
 
         fun ensureChannel(context: Context) {
