@@ -86,6 +86,14 @@ export type MpvPlayerViewProps = {
   style?: StyleProp<ViewStyle>;
   /** Metadata for iOS Control Center and Lock Screen now playing info */
   nowPlayingMetadata?: NowPlayingMetadata;
+  /**
+   * Android: the media session, the playback notification and the foreground
+   * service that keep playback going with the screen off, with the audio
+   * focus and wake lock they take. For the player screen only, off by
+   * default: a view that just shows a clip (the subtitle preview) stopped the
+   * user's music. iOS ignores it.
+   */
+  backgroundPlayback?: boolean;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;

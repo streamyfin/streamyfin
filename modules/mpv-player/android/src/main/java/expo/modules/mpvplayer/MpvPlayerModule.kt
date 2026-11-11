@@ -73,6 +73,12 @@ class MpvPlayerModule : Module() {
                 view.setNowPlayingMetadata(metadata)
             }
 
+            // The media session and the media playback service, for the player
+            // screen only (MpvPlayerView.setBackgroundPlayback).
+            Prop("backgroundPlayback") { view: MpvPlayerView, enabled: Boolean? ->
+                view.setBackgroundPlayback(enabled == true)
+            }
+
             // Async function to play video
             AsyncFunction("play") { view: MpvPlayerView ->
                 view.play()

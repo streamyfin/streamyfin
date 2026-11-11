@@ -588,9 +588,26 @@ describe("direct player stop report", () => {
     }
   });
 
+  // The media session, notification and foreground service are for this
+  // screen: a view that only shows a clip (the subtitle preview) took the
+  // audio focus and stopped the user's music.
+  test("asks the player to keep playing with the screen off", async () => {
+    await openPlayer();
+
+    expect(mockPlayerProps?.backgroundPlayback).toBe(true);
+  });
+
   describe("on TV, where the controls re-negotiate the stream through the page", () => {
     beforeEach(() => stubReactNative({ isTV: true }));
     afterEach(() => stubReactNative());
+
+    // The remote's keys go to JS on TV. An active session took Play/Pause
+    // again and undid the toggle.
+    test("leaves background playback off", async () => {
+      await openPlayer();
+
+      expect(mockPlayerProps?.backgroundPlayback).toBe(false);
+    });
 
     test("restarts from the start position when the bitrate changes before MPV has a position", async () => {
       await openPlayer();

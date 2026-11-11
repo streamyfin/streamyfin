@@ -1747,6 +1747,9 @@ export default function DirectPlayerPage() {
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
                 nowPlayingMetadata={nowPlayingMetadata}
+                // Not on TV: the remote's keys go to JS there, and an active
+                // session took Play/Pause again and undid the toggle.
+                backgroundPlayback={!Platform.isTV}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}

@@ -92,6 +92,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // the next episode loaded into this view with the screen off still has
     // it; released when the view leaves the window.
     private var mediaPlayback: MediaPlaybackController? = null
+    // Asked for by the player screen only (the backgroundPlayback prop): a
+    // view that just shows a clip, the subtitle preview in Settings, took the
+    // audio focus and a wake lock, and stopped the user's music.
+    private var backgroundPlaybackEnabled = false
     private var nowPlaying: NowPlayingInfo? = null
     private var isLoadingMedia = false
     // mpv keeps its last pause state after a failed load or stream.
@@ -328,8 +332,15 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // MARK: - Background playback
 
+    /** Turns the media session and service on or off, before a load or after it. */
+    fun setBackgroundPlayback(enabled: Boolean) {
+        if (backgroundPlaybackEnabled == enabled) return
+        backgroundPlaybackEnabled = enabled
+        if (!enabled) releaseMediaPlayback() else if (currentUrl != null) ensureMediaPlayback()
+    }
+
     private fun ensureMediaPlayback() {
-        if (mediaPlayback != null) return
+        if (!backgroundPlaybackEnabled || mediaPlayback != null) return
         mediaPlayback = MediaPlaybackController(context, mediaPlaybackTarget, "StreamyfinPlayer").also {
             it.start()
         }
