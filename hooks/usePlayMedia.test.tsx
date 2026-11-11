@@ -124,14 +124,14 @@ describe("usePlayMedia", () => {
     await play({ Id: "channel-1", Type: "TvChannel" });
     await play({ Id: "program-1", Type: "Program" });
 
-    expect(mockPresentFromRequest).toHaveBeenCalledWith({
-      itemId: "channel-1",
-      offline: false,
-    });
-    expect(mockPresentFromRequest).toHaveBeenCalledWith({
-      itemId: "program-1",
-      offline: false,
-    });
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "channel-1", offline: false },
+      { isCurrent: expect.any(Function) },
+    );
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "program-1", offline: false },
+      { isCurrent: expect.any(Function) },
+    );
     expect(mockPush).not.toHaveBeenCalled();
   });
 
@@ -178,6 +178,46 @@ describe("usePlayMedia", () => {
 
     expect(mockPresentFromRequest).toHaveBeenCalledTimes(2);
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // The provider drops a request whose isCurrent() turns false while it
+  // negotiates, and closes the live stream it opened.
+  const presentAfterLeaving = async (item: BaseItemDto) => {
+    mockNativeChromeActive = true;
+    let settle: () => void = () => {};
+    mockPresentFromRequest.mockImplementationOnce(
+      (_req: unknown, options?: { isCurrent?: () => boolean }) =>
+        new Promise<boolean>((resolve) => {
+          settle = () => resolve(options?.isCurrent?.() !== false);
+        }),
+    );
+    const { result, unmount } = await renderHook(() => usePlayMedia());
+    let playing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      playing = result.current({ itemId: item.Id!, offline: false }, { item });
+    });
+    await unmount();
+    await act(async () => {
+      settle();
+      await playing;
+    });
+    return mockPresentFromRequest.mock.results[0].value as Promise<boolean>;
+  };
+
+  // A tuner takes seconds to open a channel. A viewer who went back meanwhile
+  // got the player over the screen they went to, seconds later.
+  test("a live play the viewer left before it opened is dropped", async () => {
+    await expect(
+      presentAfterLeaving({ Id: "channel-1", Type: "TvChannel" }),
+    ).resolves.toBe(false);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // The top shelf route replaces itself with Home before it plays.
+  test("a video still opens after the screen that asked for it left", async () => {
+    await expect(
+      presentAfterLeaving({ Id: "episode-1", Type: "Episode" }),
+    ).resolves.toBe(true);
   });
 
   test("shares the complete queue and selected resume point with the group", async () => {

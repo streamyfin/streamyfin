@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
@@ -50,6 +50,15 @@ export const usePlayMedia = () => {
   const syncPlay = useSyncPlay();
   const { t } = useTranslation();
 
+  // False once the screen that asked for the play is gone.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
       // A Book, a Season or a folder has no stream: both players would open,
@@ -60,12 +69,12 @@ export const usePlayMedia = () => {
         return;
       }
 
+      const isLive =
+        options?.item?.Type === "Program" ||
+        options?.item?.Type === "TvChannel";
+
       if (syncPlay.enabled) {
-        if (
-          req.offline ||
-          options?.item?.Type === "Program" ||
-          options?.item?.Type === "TvChannel"
-        ) {
+        if (req.offline || isLive) {
           Alert.alert(t("syncplay.title"), t("syncplay.online_video_only"));
           return;
         }
@@ -101,14 +110,23 @@ export const usePlayMedia = () => {
       }
 
       const request = ++latestPlayRequest;
-      if (isNativeChromeActive(settings) && (await presentFromRequest(req))) {
+      // A tuner takes seconds to open a channel. A viewer who went back
+      // meanwhile gave up on it, and the player must not open over wherever
+      // they went. Live only: the top shelf route replaces itself with Home
+      // before it plays a video, which must still open.
+      const isCurrent = isLive ? () => mountedRef.current : undefined;
+      if (
+        isNativeChromeActive(settings) &&
+        (await presentFromRequest(req, { isCurrent }))
+      ) {
         return;
       }
 
       // A newer play started while this one negotiated (a live channel takes
-      // seconds to open, long enough to press it again). This one was
-      // replaced, not declined: the newer request owns the player.
-      if (request !== latestPlayRequest) return;
+      // seconds to open, long enough to press it again), or the viewer left.
+      // Neither is a decline: the newer request owns the player, and nobody
+      // is waiting for this one.
+      if (request !== latestPlayRequest || isCurrent?.() === false) return;
 
       // Never stack the JS route under a still-presented native player (a
       // failed in-place swap keeps the old native session on screen). From
