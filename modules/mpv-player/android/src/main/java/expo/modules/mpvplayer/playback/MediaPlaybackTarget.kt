@@ -36,6 +36,12 @@ interface MediaPlaybackTarget {
      */
     fun pauseForInterruption() = pause()
 
+    /**
+     * Pause because a play could not get the audio focus: a call holds it.
+     * Defaults to [pauseForInterruption].
+     */
+    fun pauseForRefusedFocus() = pauseForInterruption()
+
     fun seekTo(seconds: Double)
     fun seekBy(seconds: Double)
     fun skipToNext() {}

@@ -51,6 +51,15 @@ class MediaSessionController(
             viewModel.pause()
         }
 
+        /**
+         * In a group a refused focus is this member's own business: pausing the
+         * group re-paused everyone on each resume for as long as the call
+         * lasted. Only this player stops.
+         */
+        override fun pauseForRefusedFocus() {
+            if (viewModel.syncPlayActive) viewModel.pauseLocal() else viewModel.pause()
+        }
+
         override fun seekTo(seconds: Double) = viewModel.seekTo(seconds)
         override fun seekBy(seconds: Double) = viewModel.seekBy(seconds)
         override fun skipToNext() = viewModel.playNextEpisodeNow()

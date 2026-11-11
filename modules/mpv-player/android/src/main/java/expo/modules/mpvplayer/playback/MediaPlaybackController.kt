@@ -197,7 +197,7 @@ class MediaPlaybackController(
             // the player pauses and this runs again with playing false.
             if (!hasAudioFocus && !requestAudioFocus()) {
                 Log.i(TAG, "Audio focus refused — pausing")
-                target.pauseForInterruption()
+                target.pauseForRefusedFocus()
                 return
             }
             acquireLocks()
