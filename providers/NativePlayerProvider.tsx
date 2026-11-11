@@ -2021,7 +2021,12 @@ const NativePlayerProviderInner: React.FC<{
           measured: action.measured,
         });
       }
-      void replaceStream(session, { cap: { value: action.cap } });
+      void replaceStream(session, { cap: { value: action.cap } }).then(
+        (replaced) => {
+          // The stream asked for could not start: the one playing plays on.
+          if (!replaced) session.adaptive?.swapFailed(Date.now());
+        },
+      );
     };
 
     /** A stall sends no event while it lasts: Auto looks at it meanwhile. */

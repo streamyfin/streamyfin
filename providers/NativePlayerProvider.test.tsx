@@ -959,6 +959,20 @@ describe("Auto during playback", () => {
     );
   });
 
+  test("asks again after a while when the lower stream could not start", async () => {
+    await mount();
+    await playAt("auto");
+    mockNegotiation.failing.add("item-1");
+
+    await stall();
+    expect(mockNegotiation.params).toHaveLength(2);
+    mockNegotiation.failing.delete("item-1");
+    await wait(33_000);
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(3);
+  });
+
   test("leaves a quality the user picked alone", async () => {
     await mount();
     await playAt(4_000_000);

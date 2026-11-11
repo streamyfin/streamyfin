@@ -159,9 +159,13 @@ export const QualitySettings: React.FC = () => {
           title={floor}
         />
       </ListItem>
-      <ListItem title={t("home.settings.quality.adapt")}>
+      <ListItem
+        title={t("home.settings.quality.adapt")}
+        disabled={pluginSettings?.autoBitrateAdapt?.locked}
+      >
         <SettingSwitch
           value={settings.autoBitrateAdapt}
+          disabled={pluginSettings?.autoBitrateAdapt?.locked}
           onValueChange={(autoBitrateAdapt) =>
             updateSettings({ autoBitrateAdapt })
           }

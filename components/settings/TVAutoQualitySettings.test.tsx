@@ -26,6 +26,7 @@ jest.mock("@/hooks/useAutoBitrateMeasure", () => ({
     measure: mockMeasure,
   }),
 }));
+let mockPluginSettings: Record<string, { locked: boolean }> | undefined;
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({
     settings: {
@@ -35,6 +36,7 @@ jest.mock("@/utils/atoms/settings", () => ({
       autoBitrateAdapt: true,
     },
     updateSettings: mockUpdateSettings,
+    pluginSettings: mockPluginSettings,
   }),
 }));
 // A row is its label and its value, and opens what it opens when pressed.
@@ -54,13 +56,15 @@ jest.mock("@/components/tv", () => {
       label,
       value,
       onToggle,
+      disabledByAdmin,
     }: {
       label: string;
       value: boolean;
       onToggle: (value: boolean) => void;
+      disabledByAdmin?: boolean;
     }) => (
       <Text onPress={() => onToggle(!value)}>
-        {`${label}: ${value ? "on" : "off"}`}
+        {`${label}: ${value ? "on" : "off"}${disabledByAdmin ? " (locked)" : ""}`}
       </Text>
     ),
   };
@@ -80,6 +84,16 @@ beforeEach(() => {
 });
 
 describe("the Auto quality settings on TV", () => {
+  test("show the admin's lock on adapting Auto during playback", async () => {
+    mockPluginSettings = { autoBitrateAdapt: { locked: true } };
+    await render(<TVAutoQualitySettings />);
+
+    expect(
+      screen.getByText("home.settings.quality.adapt: on (locked)"),
+    ).toBeTruthy();
+    mockPluginSettings = undefined;
+  });
+
   test("turn off adapting Auto during playback", async () => {
     await render(<TVAutoQualitySettings />);
 

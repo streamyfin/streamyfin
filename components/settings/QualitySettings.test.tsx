@@ -12,6 +12,7 @@ const mockUpdateSettings = jest.fn();
 const mockDetectBitrate = jest.fn();
 const mockLast: { bitrate?: number; at?: number; failure?: string } = {};
 let mockNetworkKnown = true;
+let mockPluginSettings: Record<string, { locked: boolean }> | undefined;
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -36,7 +37,7 @@ jest.mock("@/utils/atoms/settings", () => ({
       autoBitrateAdapt: true,
     },
     updateSettings: mockUpdateSettings,
-    pluginSettings: undefined,
+    pluginSettings: mockPluginSettings,
   }),
 }));
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
@@ -73,6 +74,13 @@ jest.mock("@/components/PlatformDropdown", () => {
   };
 });
 
+test("lock adapting Auto during playback when the admin locked it", async () => {
+  mockPluginSettings = { autoBitrateAdapt: { locked: true } };
+  await render(<QualitySettings />);
+
+  expect(screen.getByRole("switch").props.disabled).toBe(true);
+});
+
 test("turn off adapting Auto during playback", async () => {
   await render(<QualitySettings />);
   const toggle = screen.getByRole("switch");
@@ -89,6 +97,7 @@ const choicesOf = (title: string) =>
     .map((choice) => choice.props.children);
 
 beforeEach(() => {
+  mockPluginSettings = undefined;
   mockNetworkKnown = true;
   mockUpdateSettings.mockClear();
   mockDetectBitrate.mockReset();

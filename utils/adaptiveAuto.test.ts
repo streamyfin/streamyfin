@@ -155,6 +155,36 @@ describe("stepping down", () => {
     expect(auto.check(10_000)).toBeNull();
   });
 
+  // The user paused a stall: there is nothing to replace while paused.
+  test("ask nothing once the user pauses a stalled stream", () => {
+    const auto = started();
+    auto.state(7_000, true, true);
+
+    expect(auto.state(9_500, false, true)).toBeNull();
+    expect(auto.check(12_000)).toBeNull();
+  });
+
+  test("leave a stall at the end of a file alone", () => {
+    const auto = started();
+    ticks(auto, 7_000, [5, 4], 3_588, 3_600);
+    auto.state(9_000, true, true);
+
+    expect(auto.check(12_000)).toBeNull();
+  });
+
+  // The lower stream could not start: the stalled one plays on, and Auto
+  // asks again after a while instead of never again.
+  test("ask again, after a while, when the stream it asked for could not start", () => {
+    const auto = started();
+    auto.state(7_000, true, true);
+    expect(auto.check(9_100)).toMatchObject({ kind: "stepDown" });
+
+    auto.swapFailed(9_200);
+
+    expect(auto.check(20_000)).toBeNull();
+    expect(auto.check(41_300)).toMatchObject({ kind: "stepDown" });
+  });
+
   test("ask once, until the next stream starts", () => {
     const auto = started();
     auto.state(7_000, true, true);

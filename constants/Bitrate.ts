@@ -147,5 +147,7 @@ export const ADAPTIVE_MIN_BITRATE = 250_000;
  */
 export const ADAPTIVE_PROBE_AFTER_MS = 2 * 60_000;
 export const ADAPTIVE_PROBE_MAX_DELAY_MS = 30 * 60_000;
+/** A lower stream that could not start is asked for again after this. */
+export const ADAPTIVE_RETRY_AFTER_FAILURE_MS = 30_000;
 export const ADAPTIVE_PROBE_CACHE_SHARE = 0.8;
 export const ADAPTIVE_STEP_UP_MARGIN = 1.5;

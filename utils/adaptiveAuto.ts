@@ -10,6 +10,7 @@ import {
   ADAPTIVE_PROBE_AFTER_MS,
   ADAPTIVE_PROBE_CACHE_SHARE,
   ADAPTIVE_PROBE_MAX_DELAY_MS,
+  ADAPTIVE_RETRY_AFTER_FAILURE_MS,
   ADAPTIVE_STALL_BUDGET_MS,
   ADAPTIVE_STALL_WINDOW_MS,
   ADAPTIVE_STEP_DOWN_FACTOR,
@@ -108,6 +109,8 @@ export class AdaptiveAuto {
   private loading = false;
   private loadingSince: number | undefined;
   private lowSince: number | undefined;
+  /** In the last seconds of a file, where the cache empties by itself. */
+  private nearEnd = false;
   private graceUntil = 0;
   private busy = false;
   private probing = false;
@@ -130,6 +133,7 @@ export class AdaptiveAuto {
     this.loading = false;
     this.loadingSince = undefined;
     this.lowSince = undefined;
+    this.nearEnd = false;
     this.busy = false;
     this.probing = false;
     this.graceUntil = stream.now + ADAPTIVE_GRACE_MS;
@@ -142,7 +146,21 @@ export class AdaptiveAuto {
     this.graceUntil = now + ADAPTIVE_GRACE_MS;
     this.samples = [];
     this.lowSince = undefined;
+    this.nearEnd = false;
     this.loadingSince = this.playing && this.loading ? now : undefined;
+  }
+
+  /**
+   * The stream it asked for could not start: the one playing plays on, and
+   * is looked at again after a while, not hammered with new requests.
+   */
+  swapFailed(now: number): void {
+    this.busy = false;
+    this.stalls = [];
+    this.samples = [];
+    this.lowSince = undefined;
+    this.loadingSince = this.playing && this.loading ? now : undefined;
+    this.graceUntil = now + ADAPTIVE_RETRY_AFTER_FAILURE_MS;
   }
 
   /** The player's state: playing (or meant to be), and loading. */
@@ -179,6 +197,7 @@ export class AdaptiveAuto {
       const nearEnd =
         tick.duration > 0 &&
         tick.position >= tick.duration - ADAPTIVE_END_MARGIN_SECONDS;
+      this.nearEnd = nearEnd;
       if (
         !this.loading &&
         !nearEnd &&
@@ -226,7 +245,11 @@ export class AdaptiveAuto {
   }
 
   private evaluate(now: number): AdaptiveAction | null {
-    if (this.busy || !this.started) return null;
+    // Nothing to replace while paused, nor while the end of the file drains
+    // the cache by itself.
+    if (this.busy || !this.started || !this.playing || this.nearEnd) {
+      return null;
+    }
     // A load that outlasts the grace counts from its end.
     if (
       this.loadingSince !== undefined &&
