@@ -1,6 +1,6 @@
 package expo.modules.mpvplayer
 
-import android.graphics.PixelFormat
+import android.graphics.ImageFormat
 import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.os.Build
@@ -23,7 +23,10 @@ import android.view.Surface
  * nothing to seek.
  *
  * Frames are drained and dropped as soon as they arrive, so the producer never
- * blocks on a full queue. Kept tiny: nothing is shown.
+ * blocks on a full queue. Kept tiny: nothing is shown. The format is PRIVATE,
+ * the one for pixels nobody reads: with RGBA_8888, a producer that picks
+ * another format (mpv's EGL config can give RGBX_8888) makes every acquire
+ * throw until Android 17, frame after frame with the screen off.
  */
 internal class OffscreenSurfaceSink private constructor(
     private val reader: ImageReader,
@@ -55,7 +58,7 @@ internal class OffscreenSurfaceSink private constructor(
                 val reader = ImageReader.newInstance(
                     WIDTH,
                     HEIGHT,
-                    PixelFormat.RGBA_8888,
+                    ImageFormat.PRIVATE,
                     MAX_IMAGES,
                     HardwareBuffer.USAGE_GPU_COLOR_OUTPUT,
                 )
