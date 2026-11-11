@@ -50,6 +50,7 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
+import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -573,22 +574,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // Get cast (first 3 for text display)
-    const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
-
-    // Get full cast for visual display (up to 10 actors)
-    const fullCast = useMemo(() => {
-      return (
-        item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 10) ?? []
-      );
-    }, [item?.People]);
-
-    // Whether to show visual cast section
-    const showVisualCast =
-      (item?.Type === "Movie" ||
-        item?.Type === "Series" ||
-        item?.Type === "Episode") &&
-      fullCast.length > 0;
+    // The cast cards, and whether the text line names the cast instead.
+    const { cards: fullCast, castInText } = useTVCast(item);
 
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
@@ -1053,7 +1040,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             />
 
             {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
-            {showVisualCast && (
+            {fullCast.length > 0 && (
               <TVCastSection
                 cast={fullCast}
                 apiBasePath={api?.basePath}
@@ -1078,8 +1065,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             <TVCastCrewText
               people={item.People}
               onPersonPress={isOffline ? undefined : handleActorPress}
-              cast={cast}
-              hideCast={showVisualCast}
+              showCast={castInText}
             />
 
             {/* Technical details */}

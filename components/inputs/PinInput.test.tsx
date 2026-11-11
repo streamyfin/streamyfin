@@ -3,12 +3,6 @@ import { Pressable } from "react-native";
 import { PinInput } from "@/components/inputs/PinInput";
 import { NO_KEYBOARD_TOOLBAR } from "@/constants/Keyboard";
 
-// The sheet's input is a plain TextInput as far as this spec is concerned;
-// the real one pulls in Reanimated.
-jest.mock("@gorhom/bottom-sheet", () => ({
-  BottomSheetTextInput: jest.requireActual("react-native").TextInput,
-}));
-
 describe("PinInput", () => {
   // react-native-tvos puts a toolbar with a "Default" button above every iOS
   // number pad; upstream React Native and native apps show none. Naming an

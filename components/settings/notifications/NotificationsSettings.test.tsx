@@ -4,6 +4,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import * as Notifications from "expo-notifications";
 import type React from "react";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { NotificationsSettings } from "./NotificationsSettings";
@@ -15,7 +16,6 @@ const mockStopWaiting = jest.fn();
 let mockState: Record<string, unknown> = {};
 let mockAwaited: Record<string, unknown> = {};
 let mockAwaitedOptions: unknown;
-let mockPermission = "granted";
 
 jest.mock("@/hooks/useMyNotifications", () => ({
   useMyNotifications: () => mockState,
@@ -25,12 +25,6 @@ jest.mock("@/hooks/useAwaitedTitles", () => ({
     mockAwaitedOptions = options;
     return mockAwaited;
   },
-}));
-jest.mock("expo-notifications", () => ({
-  getPermissionsAsync: () => Promise.resolve({ status: mockPermission }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/components/PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
@@ -62,11 +56,12 @@ const state = (mine: unknown, extra: Record<string, unknown> = {}) => ({
 
 describe("the Notifications screen", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     stubReactNative();
     mockState = state(base);
     mockAwaited = { supported: true, titles: [], remove: mockStopWaiting };
-    mockPermission = "granted";
+    jest
+      .mocked(Notifications.getPermissionsAsync)
+      .mockResolvedValue({ status: "granted" } as never);
   });
 
   test("shows no server alerts to somebody who gets none", async () => {
@@ -199,7 +194,9 @@ describe("the Notifications screen", () => {
 
   // A phone that blocks notifications says so, and the choices stay editable.
   test("says when the phone blocks notifications", async () => {
-    mockPermission = "denied";
+    jest
+      .mocked(Notifications.getPermissionsAsync)
+      .mockResolvedValue({ status: "denied" } as never);
 
     await render(<NotificationsSettings />);
 

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+// i18n starts in the stored app language, which it reads from storage.
 import i18n, { APP_LANGUAGES } from "./i18n";
 
 type Catalogue = Record<string, unknown>;
@@ -15,12 +16,6 @@ const flatten = (catalogue: Catalogue, prefix = ""): [string, string][] =>
   );
 
 const english = new Map(flatten(readCatalogue("en.json")));
-
-// i18n starts in the stored app language, which it reads from storage.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 // Crowdin's sync writes one catalogue per language into translations/, but i18n.ts
 // lists them one by one. A catalogue it never lists is synced, translated and never

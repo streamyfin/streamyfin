@@ -10,23 +10,17 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { LibraryItemCard } from "./LibraryItemCard";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({
-    settings: { libraryOptions: { display: "row", showStats: true } },
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule({
+    libraryOptions: { display: "row", showStats: true },
   }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+);
 // The row layout these specs render draws no image.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // Navigation is not what is under test; the card shows up as its content.
 jest.mock("../common/TouchableItemRouter", () => ({
   TouchableItemRouter: ({ children }: { children: React.ReactNode }) =>

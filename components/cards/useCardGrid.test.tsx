@@ -9,16 +9,12 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");
   // The cards build their image URLs from the api; nothing is requested.
   return { apiAtom: atom(makeApi()) };
 });
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: () => {} }),

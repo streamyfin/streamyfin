@@ -10,7 +10,6 @@ describe("opening the phone's notification settings", () => {
   const openSettings = jest.spyOn(Linking, "openSettings");
 
   beforeEach(() => {
-    jest.clearAllMocks();
     openSettings.mockResolvedValue(undefined as never);
   });
 

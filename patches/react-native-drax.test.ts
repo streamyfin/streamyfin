@@ -90,7 +90,6 @@ describe.each(Object.entries(builds))("react-native-drax %s", (_, build) => {
       }),
     }));
   });
-  beforeEach(() => mockUsePanGesture.mockClear());
 
   it("reports a drop as a success", async () => {
     const onFinalize = await finalizeWith(build.dir, false);

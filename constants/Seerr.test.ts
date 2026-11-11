@@ -1,3 +1,4 @@
+import { requireOnPlatform } from "@/test-utils/reactNative";
 import * as stored from "./Seerr";
 
 // The legacy names are what earlier builds wrote to devices: the migrations
@@ -17,15 +18,12 @@ test("the names Seerr data is stored under", () => {
 // A phone draws a backdrop at most 1206 pixels wide: Seerr's web size, made for a desktop
 // screen, weighs three times its 1000 pixel version. A TV draws it full screen.
 describe("the backdrop size", () => {
-  const sizeOn = (isTV: boolean): string => {
-    let size = "";
-    jest.isolateModules(() => {
-      jest.doMock("react-native", () => ({ Platform: { isTV } }));
-      size = (require("./Seerr") as typeof import("./Seerr"))
-        .SEERR_BACKDROP_SIZE;
-    });
-    return size;
-  };
+  const sizeOn = (isTV: boolean): string =>
+    requireOnPlatform(
+      { isTV },
+      () =>
+        (require("./Seerr") as typeof import("./Seerr")).SEERR_BACKDROP_SIZE,
+    );
 
   test("is the 1000 pixel crop on a phone", () => {
     expect(sizeOn(false)).toBe("w1000_and_h450_multi_faces");

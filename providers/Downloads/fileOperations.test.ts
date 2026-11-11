@@ -2,10 +2,6 @@ import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
 import type { PendingDownload } from "./pendingDownloads";
 import type { DownloadedItem } from "./types";
 
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 // Downloads and pending records the cleanup must leave alone.
 let mockDownloaded: unknown[] = [];
 let mockPending: unknown[] = [];

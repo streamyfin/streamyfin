@@ -37,9 +37,9 @@
   },
   "dependencies": {
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
-    "@expo/metro-runtime": "~58.0.16",
+    "@expo/metro-runtime": "~58.0.17",
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@expo/ui": "~58.0.26",
+    "@expo/ui": "~58.0.27",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "5.2.14",
     "@jellyfin/sdk": "1.0.2",
@@ -52,9 +52,9 @@
     "@tanstack/react-query-persist-client": "5.107.1",
     "axios": "1.21.1",
     "eventemitter3": "^5.0.4",
-    "expo": "58.0.22",
+    "expo": "58.0.23",
     "expo-application": "~58.1.2",
-    "expo-asset": "~58.0.19",
+    "expo-asset": "~58.0.20",
     "expo-audio": "~58.0.11",
     "expo-background-task": "~58.0.12",
     "expo-blur": "~58.0.5",
@@ -62,7 +62,7 @@
     "expo-build-properties": "~58.0.12",
     "expo-camera": "~58.0.14",
     "expo-clipboard": "~58.0.4",
-    "expo-constants": "~58.0.14",
+    "expo-constants": "~58.0.15",
     "expo-crypto": "~58.0.7",
     "expo-dev-client": "~58.0.18",
     "expo-device": "~58.0.5",
@@ -73,15 +73,15 @@
     "expo-image": "~58.0.18",
     "expo-key-event": "^1.9.0",
     "expo-linear-gradient": "~58.0.3",
-    "expo-linking": "~58.0.15",
+    "expo-linking": "~58.0.16",
     "expo-localization": "~58.0.5",
     "expo-location": "~58.0.20",
-    "expo-notifications": "~58.1.7",
-    "expo-router": "~58.0.29",
-    "expo-screen-orientation": "~58.0.3",
+    "expo-notifications": "~58.1.8",
+    "expo-router": "~58.0.30",
+    "expo-screen-orientation": "~58.0.4",
     "expo-secure-store": "~58.0.2",
-    "expo-sharing": "~58.0.21",
-    "expo-splash-screen": "~58.0.12",
+    "expo-sharing": "~58.0.22",
+    "expo-splash-screen": "~58.0.13",
     "expo-symbols": "~58.0.4",
     "expo-task-manager": "~58.0.13",
     "expo-web-browser": "~58.0.7",
@@ -91,15 +91,15 @@
     "nativewind": "^2.0.11",
     "react": "19.3.0",
     "react-i18next": "18.0.1",
-    "react-native": "npm:react-native-tvos@0.88.0-0",
+    "react-native": "npm:react-native-tvos@0.88.1-0",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-drax": "1.1.0",
     "react-native-edge-to-edge": "1.8.2",
-    "react-native-gesture-handler": "3.4.0",
+    "react-native-gesture-handler": "3.5.0",
     "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.1",
     "react-native-mmkv": "4.3.2",
-    "react-native-nitro-modules": "0.37.1",
+    "react-native-nitro-modules": "0.37.2",
     "react-native-pager-view": "10.0.0",
     "react-native-qrcode-svg": "^6.3.49",
     "react-native-reanimated": "4.7.1",
@@ -132,7 +132,7 @@
     "husky": "9.1.7",
     "ignore": "7.0.14",
     "jest": "30.5.2",
-    "jest-expo": "~58.0.13",
+    "jest-expo": "~58.0.14",
     "lint-staged": "17.6.0",
     "openapi-typescript": "7.13.0",
     "reassure": "1.6.1",
@@ -192,32 +192,5 @@
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
     "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
     "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch"
-  },
-  "jest": {
-    "preset": "jest-expo",
-    "globalSetup": "<rootDir>/test-utils/timeZone.ts",
-    "setupFiles": [
-      "<rootDir>/test-utils/idleCallback.ts",
-      "./node_modules/react-native-gesture-handler/jestSetup.js"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/test-utils/assetRegistry.ts"
-    ],
-    "moduleNameMapper": {
-      "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
-      "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg|standard-navigation|jotai))"
-    ],
-    "collectCoverageFrom": [
-      "utils/**/*.{ts,tsx}",
-      "hooks/**/*.{ts,tsx}",
-      "providers/**/*.{ts,tsx}",
-      "components/**/*.{ts,tsx}",
-      "!**/*.test.{ts,tsx}",
-      "!**/*.perf-test.{ts,tsx}",
-      "!utils/jellyseerr/**"
-    ]
   }
 }
