@@ -4,7 +4,6 @@ import {
   localSubtitleIndex,
   localSubtitlePosition,
   SUBTITLES_OFF,
-  toServerSubtitleIndex,
 } from "./subtitleIndex";
 
 describe("isLocalSubtitleIndex", () => {
@@ -52,26 +51,5 @@ describe("localSubtitleIndex / localSubtitlePosition", () => {
     // showing; a single shared sentinel could not.
     const indexes = [0, 1, 2].map(localSubtitleIndex);
     expect(new Set(indexes).size).toBe(3);
-  });
-});
-
-describe("toServerSubtitleIndex", () => {
-  it("passes server stream indexes through", () => {
-    expect(toServerSubtitleIndex(0)).toBe(0);
-    expect(toServerSubtitleIndex(4)).toBe(4);
-    expect(toServerSubtitleIndex(SUBTITLES_OFF)).toBe(SUBTITLES_OFF);
-  });
-
-  it("maps every sidecar to off", () => {
-    // A sidecar has no server identity; re-negotiating while one shows must ask
-    // for "no subtitles" or the server picks an unrelated stream.
-    expect(toServerSubtitleIndex(localSubtitleIndex(0))).toBe(SUBTITLES_OFF);
-    expect(toServerSubtitleIndex(localSubtitleIndex(3))).toBe(SUBTITLES_OFF);
-    expect(toServerSubtitleIndex(-1000)).toBe(SUBTITLES_OFF);
-  });
-
-  it("maps absent input to off", () => {
-    expect(toServerSubtitleIndex(undefined)).toBe(SUBTITLES_OFF);
-    expect(toServerSubtitleIndex(null)).toBe(SUBTITLES_OFF);
   });
 });

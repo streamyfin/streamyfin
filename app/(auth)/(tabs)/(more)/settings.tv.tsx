@@ -57,8 +57,6 @@ import {
   defaultValues,
   getActiveVideoPlayerEngine,
   InactivityTimeout,
-  isNativeChromeActive,
-  isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
   type SegmentSkipMode,
@@ -342,16 +340,9 @@ export default function SettingsTV() {
   const currentVoDriver = settings.mpvVoDriver ?? "gpu-next";
   const currentLanguage = settings.preferedLanguage;
 
-  // Video player selection. MPV is the default; ExoPlayer is only offered
-  // as an opt-in alternative on Android TV. The selector is hidden on
-  // other platforms. Apple TV instead gets an opt-in toggle for the
-  // experimental fully-native tvOS player (default off).
-  //
-  // Both read the ENGINE (getActiveVideoPlayerEngine), not the effective
-  // renderer: the native toggle picks the controls layer only, and the
-  // chrome decodes with the selected engine — so with the toggle on, the
-  // ExoPlayer row and the engine-specific sections below must still
-  // reflect the ExoPlayer pick.
+  // Engine selection. MPV is the default; ExoPlayer is only offered as an
+  // opt-in alternative on Android TV. The selector is hidden on other
+  // platforms.
   const isAndroidTv = Platform.OS === "android" && Platform.isTV;
   const currentVideoPlayer = getActiveVideoPlayerEngine(settings);
   const isMpv = currentVideoPlayer !== VideoPlayer.ExoPlayer;
@@ -930,47 +921,10 @@ export default function SettingsTV() {
             </>
           )}
 
-          {/* Native tvOS player — Apple TV on tvOS 26+, default on */}
-          {isNativePlayerSupportedTV && (
-            <>
-              <TVSettingsToggle
-                disabledByAdmin={pluginSettings?.nativeVideoPlayerTV?.locked}
-                label={t("home.settings.video_player.native_tv")}
-                value={settings.nativeVideoPlayerTV}
-                onToggle={(value) =>
-                  updateSettings({ nativeVideoPlayerTV: value })
-                }
-              />
-              <Text style={playerNoteStyle}>
-                {t("home.settings.video_player.native_tv_note")}
-              </Text>
-            </>
-          )}
-
-          {/* Native Android TV player opt-in — Android TV, default off */}
+          {/* Refresh-rate matching — Android TV only, default off: the
+              display mode switch is non-seamless on most panels, a brief
+              black flash on frame-rate changes. */}
           {isAndroidTv && (
-            <>
-              <TVSettingsToggle
-                disabledByAdmin={
-                  pluginSettings?.nativeVideoPlayerAndroidTV?.locked
-                }
-                label={t("home.settings.video_player.native_tv")}
-                value={settings.nativeVideoPlayerAndroidTV === true}
-                onToggle={(value) =>
-                  updateSettings({ nativeVideoPlayerAndroidTV: value })
-                }
-              />
-              <Text style={playerNoteStyle}>
-                {t("home.settings.video_player.native_android_tv_note")}
-              </Text>
-            </>
-          )}
-
-          {/* Refresh-rate matching — native Android TV player only (the JS
-              route reads no contentFrameRate), default off: the display mode
-              switch is non-seamless on most panels, a brief black flash on
-              frame-rate changes. */}
-          {isAndroidTv && isNativeChromeActive(settings) && (
             <>
               <TVSettingsToggle
                 disabledByAdmin={pluginSettings?.matchRefreshRate?.locked}
@@ -1004,9 +958,8 @@ export default function SettingsTV() {
             }
           />
 
-          {/* Only the native TV players ask "Still watching?", and only
-              instead of an autoplay */}
-          {isNativeChromeActive(settings) && settings.autoPlayNextEpisode && (
+          {/* "Still watching?" is only asked instead of an autoplay */}
+          {settings.autoPlayNextEpisode && (
             <TVSettingsOptionButton
               disabledByAdmin={pluginSettings?.stillWatchingPreset?.locked}
               label={t("home.settings.other.still_watching")}

@@ -67,8 +67,7 @@ export type NativePlayerSegmentType =
 
 /**
  * What the player does with a segment. Resolved on the JS side from the
- * per-type skip settings so the native player never has to read settings, and
- * so both stay in step with the JS players.
+ * per-type skip settings so the native player never has to read settings.
  */
 export type NativePlayerSegmentSkipMode = "none" | "ask" | "auto";
 

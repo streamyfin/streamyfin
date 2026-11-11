@@ -26,7 +26,6 @@ export const PlaybackControlsSettings: React.FC = () => {
   const disabled = useMemo(
     () =>
       pluginSettings?.defaultVideoOrientation?.locked === true &&
-      pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
       pluginSettings?.disableHapticFeedback?.locked === true,
     [pluginSettings],
   );
@@ -145,19 +144,6 @@ export const PlaybackControlsSettings: React.FC = () => {
               </View>
             }
             title={t("home.settings.other.orientation")}
-          />
-        </ListItem>
-
-        <ListItem
-          title={t("home.settings.other.safe_area_in_controls")}
-          disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
-        >
-          <SettingSwitch
-            value={settings.safeAreaInControlsEnabled}
-            disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
-            onValueChange={(value) =>
-              updateSettings({ safeAreaInControlsEnabled: value })
-            }
           />
         </ListItem>
 

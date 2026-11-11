@@ -1,6 +1,17 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { atom } from "jotai";
-import type { Track } from "@/components/video-player/controls/types";
+
+/** A subtitle track the modal can list, with the callback that selects it. */
+export type Track = {
+  name: string;
+  index: number;
+  mpvIndex?: number;
+  setTrack: () => void;
+  /** True for client-side downloaded subtitles (e.g., from OpenSubtitles) */
+  isLocal?: boolean;
+  /** File path for local subtitles */
+  localPath?: string;
+};
 
 export type TVSubtitleModalState = {
   item: BaseItemDto;

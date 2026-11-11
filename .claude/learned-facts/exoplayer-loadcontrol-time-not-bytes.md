@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-02 (updated 2026-11-05: OOM rerun evidence, pool shipped)
 **Category**: native-modules
-**Key files**: `modules/exoplayer-player/android/src/main/java/expo/modules/exoplayerplayer/ExoPlayerView.kt`, `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/nativeplayer/engine/ExoPlayerEngine.kt`
+**Key files**: `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/nativeplayer/engine/ExoPlayerEngine.kt`
 
 ## Detail
 
@@ -19,7 +19,7 @@ buffer stuck at ~0.x until a seek discarded back-buffer bytes (media3 logs
 that state). Pausing accelerated it: the idle connection dies while paused,
 and on resume the drained buffer met a vetoed loader.
 
-**Shipped fix** (both engines, lockstep): `setPrioritizeTimeOverSizeThresholds(true)`
+**Shipped fix**: `setPrioritizeTimeOverSizeThresholds(true)`
 — below `minBufferMs` loading is then forced on regardless of bytes, making
 the stuck-at-0.x state impossible.
 
@@ -84,7 +84,3 @@ crashes happened — `adb shell dumpsys dropbox --print data_app_crash`
 persists them (full stack, process runtime). A process that dies with
 `DeadObjectException` + `Sending signal. PID ... SIG: 9` and no crash entry
 is a kill, not a crash.
-
-**⚠ TWIN**: the LoadControl constants live duplicated in both files (the
-Kotlin modules are independent). The original bug survived in one copy after
-being fixed in the other — change them in lockstep.

@@ -1,9 +1,5 @@
 import type { Settings } from "../atoms/settings";
-import {
-  applySubtitleStyle,
-  buildSubtitleStyle,
-  type SubtitleStyleTarget,
-} from "./subtitleStyle";
+import { buildSubtitleStyle } from "./subtitleStyle";
 
 const baseSettings = {
   subtitleSize: 1,
@@ -61,34 +57,5 @@ describe("buildSubtitleStyle", () => {
         subtitleMarginY: undefined,
       } as unknown as Settings).assOverride,
     ).toBe("no");
-  });
-});
-
-describe("applySubtitleStyle", () => {
-  it("applies the style in order", async () => {
-    const calls: string[] = [];
-    const player: SubtitleStyleTarget = {
-      setSubtitleScale: async (value) => void calls.push(`scale:${value}`),
-      setSubtitleMarginY: async (value) => void calls.push(`margin:${value}`),
-      setSubtitleAlignX: async (value) => void calls.push(`x:${value}`),
-      setSubtitleAlignY: async (value) => void calls.push(`y:${value}`),
-      setSubtitleStyle: async (value) =>
-        void calls.push(`style:${value.background}`),
-      setSubtitleAssOverride: async (value) => void calls.push(`ass:${value}`),
-    };
-
-    await applySubtitleStyle(
-      player,
-      buildSubtitleStyle({ ...baseSettings, subtitleBackground: true }),
-    );
-
-    expect(calls).toEqual([
-      "scale:1",
-      "margin:25",
-      "x:center",
-      "y:bottom",
-      "style:#99000000",
-      "ass:force",
-    ]);
   });
 });

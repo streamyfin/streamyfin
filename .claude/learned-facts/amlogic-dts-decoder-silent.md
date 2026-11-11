@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-11
 **Category**: native-modules
-**Key files**: `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/nativeplayer/engine/ExoPlayerEngine.kt`, `modules/exoplayer-player/android/src/main/java/expo/modules/exoplayerplayer/ExoPlayerView.kt`
+**Key files**: `modules/mpv-player/android/src/main/java/expo/modules/mpvplayer/nativeplayer/engine/ExoPlayerEngine.kt`
 
 ## Detail
 
@@ -21,7 +21,7 @@ retry (`recoverFromAudioRendererError`) needs a `TYPE_RENDERER` exception.
 A decoder that accepts frames and emits nothing defeats both — ExoPlayer
 believes playback is fine.
 
-**Shipped fix** (both engine files, lockstep — see the LoadControl ⚠ TWIN):
+**Shipped fix**:
 on bitstream-capable output, set a `MediaCodecSelector` that returns no
 platform decoders for the DTS formats FFmpeg decodes (`FfmpegLibrary
 .supportsFormat`: `audio/vnd.dts` and `audio/vnd.dts.hd` in the Jellyfin
@@ -37,9 +37,6 @@ track to it directly and asks the selector for no decoder unless the track has
 DRM. PCM-only output keeps the default selector: `PREFER` mode already orders
 FFmpeg ahead of MediaCodec, which is why this only bites on Dolby-capable
 sinks.
-
-**⚠ TWIN**: the selector is duplicated in both engine files (the Kotlin
-modules are independent). Change them in lockstep.
 
 Diagnostic help: the "Audio output bitstream-capable=..." log line now also
 prints DTS/DTSHD caps, and `onAudioDecoderInitialized` + `getTechnicalInfo()`

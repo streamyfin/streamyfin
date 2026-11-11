@@ -175,7 +175,7 @@ export const getStreamUrl = async ({
     return null;
   }
 
-  // Both players negotiate their stream here, so this is the last place an
+  // Every play negotiates its stream here, so this is the last place an
   // item with no stream (a Book, a Season, a folder) can be stopped whatever
   // route it took: a deep link, a remote Play command, a screen that still
   // shows a Play button. The server would answer with a 400; saying so

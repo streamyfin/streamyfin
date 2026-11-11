@@ -7,11 +7,7 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
-import {
-  getActiveVideoPlayer,
-  useSettings,
-  VideoPlayer,
-} from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -22,15 +18,6 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   const { settings, updateSettings, pluginSettings } = useSettings();
-
-  // Pinch-to-zoom and double-tap-to-seek are implemented by the native player
-  // only (iOS by default, Android opt-in) — the JS player has neither, and the
-  // Siri remote has no equivalent, so the rows stay hidden everywhere else.
-  const isNativeTouchPlayer = useMemo(
-    () =>
-      !Platform.isTV && getActiveVideoPlayer(settings) === VideoPlayer.Native,
-    [settings],
-  );
 
   const disabled = useMemo(
     () =>
@@ -116,11 +103,10 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
 
-        {/* Hold-to-speed also exists in the JS player, so it is not
-            iOS-only, but it is still a touch gesture with no Siri remote
-            equivalent. Each item is gated individually: ListGroup clones
-            its children to inject separator styles, which a Fragment
-            can't accept. */}
+        {/* Hold-to-speed, pinch-to-zoom and double-tap-to-seek are touch
+            gestures with no Siri remote equivalent. Each item is gated
+            individually: ListGroup clones its children to inject separator
+            styles, which a Fragment can't accept. */}
         {!Platform.isTV && (
           <ListItem
             title={t("home.settings.gesture_controls.hold_to_speed")}
@@ -173,7 +159,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           </DisabledSetting>
         )}
 
-        {isNativeTouchPlayer && (
+        {!Platform.isTV && (
           <ListItem
             title={t("home.settings.gesture_controls.pinch_to_zoom")}
             subtitle={t(
@@ -191,7 +177,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           </ListItem>
         )}
 
-        {isNativeTouchPlayer && (
+        {!Platform.isTV && (
           <ListItem
             title={t("home.settings.gesture_controls.double_tap_to_seek")}
             subtitle={t(

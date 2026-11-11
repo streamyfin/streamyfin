@@ -204,72 +204,41 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
-// Video player enum. MPV is the universal default; ExoPlayer is an
-// opt-in alternative on Android TV, selectable via settings.videoPlayer.
-// Native is the fully-native chrome (iOS/Android mobile, plus the TV
-// toggles) — it decodes with the selected engine, see
-// getActiveVideoPlayerEngine.
+// The decoding engine. MPV is the universal default; ExoPlayer is an opt-in
+// alternative on Android TV, selectable via settings.videoPlayer. 2 was the
+// player picker's "Native" while the JS player existed: installs that stored
+// it resolve to MPV, so the number must not be reused.
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
-  Native = 2,
 }
 
 /**
- * Whether ExoPlayer's native module is available on the current platform.
- * ExoPlayer only ships for Android TV; on any other platform a persisted
- * `videoPlayer: ExoPlayer` preference (e.g. MMKV roaming) must fall back
- * to MPV rather than crash on requireNativeView().
+ * Whether ExoPlayer is available on the current platform. It only ships for
+ * Android TV; on any other platform a persisted `videoPlayer: ExoPlayer`
+ * preference (e.g. MMKV roaming) must fall back to MPV.
  */
 export const isExoPlayerSupported =
   Platform.OS === "android" && Platform.isTV === true;
 
 /**
- * Whether the fully-native player is available on the current platform.
- * It ships for iPhone/iPad and Android mobile/tablet (not TV); on iOS it is
- * the default, on Android it is currently opt-in via settings.
+ * Whether the player can run on the current platform. False only on an Apple
+ * TV below tvOS 26: the TV chrome is built on native glass Menus and other
+ * 26-era APIs, and there is no other player to fall back to.
  */
-export const isNativePlayerSupported =
-  (Platform.OS === "ios" || Platform.OS === "android") &&
-  Platform.isTV !== true;
+export const isPlayerSupported =
+  Platform.OS === "android" ||
+  (Platform.OS === "ios" &&
+    (Platform.isTV !== true ||
+      Number.parseInt(String(Platform.Version), 10) >= 26));
 
 /**
- * Whether the fully-native player can run on the current platform as the
- * Apple TV variant. Like iPhone/iPad it is the default, with the
- * `nativeVideoPlayerTV` setting as the opt-out, and it requires tvOS 26+ —
- * the chrome is built on native glass Menus and other 26-era APIs, so older
- * boxes keep the JS player unconditionally.
- */
-export const isNativePlayerSupportedTV =
-  Platform.OS === "ios" &&
-  Platform.isTV === true &&
-  Number.parseInt(String(Platform.Version), 10) >= 26;
-
-/**
- * Whether the fully-native player can run on the current platform as the
- * Android TV variant. It is opt-in via `nativeVideoPlayerAndroidTV` (default false),
- * and requires Android TV.
- */
-export const isNativePlayerSupportedAndroidTV =
-  Platform.OS === "android" && Boolean(Platform.isTV);
-
-/**
- * The DECODING ENGINE for the current settings — never `Native`. MPV is the
- * universal default; ExoPlayer is an opt-in alternative on Android TV. The
- * engine axis is independent of the controls axis: the fully-native chrome
- * decodes with this same engine (see NativePlayerConfig.engine), so the
- * device profile and the chrome's engine must both resolve from here.
+ * The decoding engine for the current settings. MPV is the universal default;
+ * ExoPlayer is an opt-in alternative on Android TV. The device profile and the
+ * player's engine (see NativePlayerConfig.engine) must both resolve from here.
  */
 export const getActiveVideoPlayerEngine = (
-  settings:
-    | Partial<
-        Pick<
-          Settings,
-          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
-        >
-      >
-    | null
-    | undefined,
+  settings: Partial<Pick<Settings, "videoPlayer">> | null | undefined,
 ): VideoPlayer => {
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
@@ -278,84 +247,12 @@ export const getActiveVideoPlayerEngine = (
 };
 
 /**
- * Resolve what actually RENDERS for the current settings: the fully-native
- * chrome when it is active, otherwise the JS-route engine view. The native
- * toggles pick the CONTROLS layer only — the chrome decodes with
- * getActiveVideoPlayerEngine, so this function says nothing about the
- * engine (use getActivePlayerType for that).
- *
- * On iPhone/iPad the chrome is the default: an unset `videoPlayer` (user
- * never chose) or an explicit `Native` selection resolves to Native, while
- * an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+) the
- * chrome is likewise the default with `nativeVideoPlayerTV` as the opt-out;
- * on Android TV it is opt-in via `nativeVideoPlayerAndroidTV`. The platform
- * capability gates are folded in here so a caller is never told one thing
- * renders while another actually does — that mismatch would let Jellyfin
- * pick a stream for the wrong renderer.
- */
-export const getActiveVideoPlayer = (
-  settings:
-    | Partial<
-        Pick<
-          Settings,
-          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
-        >
-      >
-    | null
-    | undefined,
-): VideoPlayer => {
-  if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV !== false) {
-    return VideoPlayer.Native;
-  }
-  if (
-    isNativePlayerSupportedAndroidTV &&
-    settings?.nativeVideoPlayerAndroidTV === true
-  ) {
-    return VideoPlayer.Native;
-  }
-  if (
-    isNativePlayerSupported &&
-    ((Platform.OS === "ios" && settings?.videoPlayer === undefined) ||
-      settings?.videoPlayer === VideoPlayer.Native)
-  ) {
-    return VideoPlayer.Native;
-  }
-  return getActiveVideoPlayerEngine(settings);
-};
-
-/**
- * Should a play request be handed to the fully-native chrome? The routing
- * predicate for usePlayMedia and the WS "Play" handler — the engine choice
- * travels along inside the presented config.
- */
-export const isNativeChromeActive = (
-  settings:
-    | Partial<
-        Pick<
-          Settings,
-          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
-        >
-      >
-    | null
-    | undefined,
-): boolean => getActiveVideoPlayer(settings) === VideoPlayer.Native;
-
-/**
  * The lowercase player-type identifier that `generateDeviceProfile` expects.
- * This is the ENGINE, always — even while the chrome presents. A chrome-on-
- * ExoPlayer session must negotiate the ExoPlayer profile, and
+ * An ExoPlayer session must negotiate the ExoPlayer profile, and
  * buildNativePlayerConfig passes the same value as the config's engine.
  */
 export const getActivePlayerType = (
-  settings:
-    | Partial<
-        Pick<
-          Settings,
-          "videoPlayer" | "nativeVideoPlayerTV" | "nativeVideoPlayerAndroidTV"
-        >
-      >
-    | null
-    | undefined,
+  settings: Partial<Pick<Settings, "videoPlayer">> | null | undefined,
 ): "mpv" | "exoplayer" => {
   return getActiveVideoPlayerEngine(settings) === VideoPlayer.ExoPlayer
     ? "exoplayer"
@@ -412,7 +309,7 @@ export type Settings = {
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
   searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
-  /** Video player backend. Defaults to MPV when unset (see getActiveVideoPlayer). */
+  /** The decoding engine. Defaults to MPV when unset (see getActiveVideoPlayerEngine). */
   videoPlayer?: VideoPlayer;
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;
@@ -453,7 +350,6 @@ export type Settings = {
   subtitleMarginY?: number;
   subtitleAlignX?: "left" | "center" | "right";
   subtitleAlignY?: "top" | "center" | "bottom";
-  safeAreaInControlsEnabled: boolean;
   seerrServerUrl?: string;
   /** Seerr admin API key: signs the user in via their Jellyfin ID, no password. */
   seerrApiKey?: string;
@@ -518,10 +414,6 @@ export type Settings = {
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
-  /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
-  nativeVideoPlayerTV: boolean;
-  /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
-  nativeVideoPlayerAndroidTV?: boolean;
   /**
    * Android TV only: switch the display to a refresh rate matching the
    * video's frame rate (default off — the mode switch is non-seamless on
@@ -622,7 +514,7 @@ export const defaultValues: Settings = {
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
   // videoPlayer intentionally undefined — resolved at runtime via
-  // getActiveVideoPlayer() so existing installs are unaffected.
+  // getActiveVideoPlayerEngine() so existing installs are unaffected.
   marlinServerUrl: "",
   streamyStatsServerUrl: "",
   streamyStatsMovieRecommendations: false,
@@ -661,7 +553,6 @@ export const defaultValues: Settings = {
   subtitleMarginY: 25,
   subtitleAlignX: "center",
   subtitleAlignY: "bottom",
-  safeAreaInControlsEnabled: true,
   seerrServerUrl: undefined,
   seerrApiKey: undefined,
   autoLoginSeerr: true,
@@ -711,8 +602,6 @@ export const defaultValues: Settings = {
   hiddenHomeHeroMediaTypes: [],
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
-  nativeVideoPlayerTV: true,
-  nativeVideoPlayerAndroidTV: false,
   matchRefreshRate: false,
   showHomeBackdrop: true,
   showHeroCarousel: true,

@@ -40,8 +40,7 @@ data class VideoLoadConfig(
  * decoder. All track ids are the bridge-facing 1-based-per-kind ids both
  * engines already speak.
  *
- * Methods documented "mpv-only" are no-ops on engines without the concept —
- * the same no-op set the JS-route ExoPlayerView already accepts.
+ * Methods documented "mpv-only" are no-ops on engines without the concept.
  */
 interface PlayerEngine {
 

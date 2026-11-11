@@ -34,8 +34,8 @@ Shared fixtures and doubles go in `test-utils/`.
 The one exception is a screen under `app/`. Expo Router turns every `.ts` and `.tsx`
 file there into a route, a spec included, so the spec lives with the logic the screen
 uses and the screen carries a comment pointing at it:
-`app/(auth)/player/direct-player.tsx` is covered by
-`utils/directPlayer/directPlayerPage.test.tsx`.
+the Live TV guide under `app/` is covered by
+`components/livetv/liveTvGuidePage.test.tsx`.
 
 ## Writing a test
 

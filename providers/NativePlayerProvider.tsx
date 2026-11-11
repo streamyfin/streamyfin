@@ -10,7 +10,6 @@ import {
   getSessionApi,
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import {
@@ -23,12 +22,8 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, BackHandler, Platform } from "react-native";
+import { Alert, AppState, BackHandler, Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
-import {
-  PlaybackSpeedScope,
-  updatePlaybackSpeedSettings,
-} from "@/components/video-player/controls/utils/playback-speed-settings";
 import {
   NATIVE_PLAYER_CLOSE_POLL_MS,
   NATIVE_PLAYER_CLOSE_WAIT_MS,
@@ -88,10 +83,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   getActivePlayerType,
-  isNativeChromeActive,
-  isNativePlayerSupported,
-  isNativePlayerSupportedAndroidTV,
-  isNativePlayerSupportedTV,
+  isPlayerSupported,
   type SegmentSkipMode,
   useSettings,
 } from "@/utils/atoms/settings";
@@ -129,10 +121,7 @@ import {
 import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
 import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
-import {
-  type PlayRequest,
-  toDirectPlayerQuery,
-} from "@/utils/nativePlayer/playRequest";
+import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
@@ -142,6 +131,10 @@ import {
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
 import { warmUpcomingSubtitles } from "@/utils/nativePlayer/warmUpcomingSubtitles";
+import {
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "@/utils/playbackSpeedSettings";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import {
   fetchAndParseSegments,
@@ -172,9 +165,9 @@ import { useVideoSession } from "@/utils/videoSession";
 const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 
 /**
- * One presented native-player session. Mirrors the ref discipline of
- * direct-player.tsx: everything the event handlers read must live here, not
- * in React state, so a tick already in flight can't observe a stale value.
+ * One presented native-player session. Everything the event handlers read
+ * must live here, not in React state, so a tick already in flight can't
+ * observe a stale value.
  */
 interface NativeSession extends NativePlayerSessionSeed {
   isReady: boolean;
@@ -191,8 +184,7 @@ interface NativeSession extends NativePlayerSessionSeed {
    * True from session creation until the new stream's onLoad arrives. The
    * engine is swapped in place, so events from the OUTGOING stream can still
    * arrive after sessionRef points at the new session — the handlers that
-   * write playback state drop events while this is set (the fix for the
-   * class of races direct-player guards with currentItemIdRef). onDismiss
+   * write playback state drop events while this is set. onDismiss
    * still tears the session down, but the position it carries belongs to
    * the outgoing stream, so a committed session's teardown reports the
    * tracked position instead and an uncommitted one reports nothing
@@ -232,8 +224,7 @@ interface NativeSession extends NativePlayerSessionSeed {
   isMuted: boolean;
   /**
    * Automatic-subtitles-on-mute policy state. The rules live in
-   * `utils/autoSubtitleOnMute`, shared verbatim with the JS player controls so
-   * both players pick the same track and undo the same way.
+   * `utils/autoSubtitleOnMute`.
    */
   autoSubtitle: AutoSubtitleState;
   /** Mute value the policy last acted on; mirror of the JS hook's wasMutedRef. */
@@ -243,18 +234,20 @@ interface NativeSession extends NativePlayerSessionSeed {
 interface NativePlayerContextValue {
   /**
    * Fetch the item, negotiate the stream and present the native player.
-   * Resolves false when it declined (unsupported platform, config-build
-   * failure, a native throw with the player still up) so the caller can fall
-   * back to the JS route. Resolves true when the request was taken,
-   * including when the player was closed while it was in flight: there is
-   * nothing to fall back to for an item the user just closed. A request
-   * superseded by a newer one before it took the player resolves false; one
-   * superseded after its load was issued resolves true, since the newer
-   * request owns the player.
+   * Resolves false when it could not (unsupported platform, config-build
+   * failure, a native throw with the player still up). Resolves true when the
+   * request was taken, including when the player was closed while it was in
+   * flight: the user just closed that item. A request superseded by a newer
+   * one before it took the player resolves false; one superseded after its
+   * load was issued resolves true, since the newer request owns the player.
+   *
+   * There is no other player to try, so `alertOnFailure` has a play that
+   * leaves the user without one say why. A superseded request stays quiet,
+   * and so does a failed swap that left the item on screen playing.
    */
   presentFromRequest: (
     req: PlayRequest,
-    options?: { isCurrent?: () => boolean },
+    options?: { isCurrent?: () => boolean; alertOnFailure?: boolean },
   ) => Promise<boolean>;
   isActive: boolean;
 }
@@ -352,46 +345,59 @@ const waitForClosingNativePlayer = async () => {
 export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  // Apple TV mounts the coordinator too — whether a play actually goes
-  // native is decided per-request by isNativeChromeActive (the TV opt-in
-  // toggle); the inner WS "Play" handler already respects it.
-  const enabled =
-    (isNativePlayerSupported ||
-      isNativePlayerSupportedTV ||
-      isNativePlayerSupportedAndroidTV) &&
-    isNativePlayerModuleAvailable();
+  const enabled = isPlayerSupported && isNativePlayerModuleAvailable();
 
   if (!enabled) {
-    // The server-initiated "Play" command still needs a handler on platforms
-    // without the native player (Android, stale iOS binaries) — the app
-    // advertises the "Play" command everywhere.
-    return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
+    return <NativePlayerUnavailable>{children}</NativePlayerUnavailable>;
   }
 
   return <NativePlayerProviderInner>{children}</NativePlayerProviderInner>;
 };
 
-/** Routes WS "Play" commands to the JS player route (pre-native behavior). */
-const PlayCommandRouteFallback: React.FC<{
+/**
+ * No player on this device (an Apple TV below tvOS 26): a play, from here or
+ * from another client, says why instead of doing nothing.
+ */
+const NativePlayerUnavailable: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
   const { subscribe } = useWebSocketContext();
+  const { t } = useTranslation();
 
+  const explain = useCallback(() => {
+    Alert.alert(
+      t("player.error"),
+      isPlayerSupported
+        ? t("player.an_error_occurred_while_playing_the_video")
+        : t("player.requires_tvos_26"),
+    );
+  }, [t]);
+
+  // The app advertises the "Play" command everywhere.
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
-        if (!req) return;
-        // Someone chose this play, from another client: a new session.
-        resetStillWatchingSession();
-        router.push(
-          `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
-        );
+        if (parseRemotePlayCommand(data)) explain();
       }),
-    [subscribe],
+    [subscribe, explain],
   );
 
-  return <>{children}</>;
+  const value = useMemo<NativePlayerContextValue>(
+    () => ({
+      presentFromRequest: async (_req, options) => {
+        if (options?.alertOnFailure) explain();
+        return false;
+      },
+      isActive: false,
+    }),
+    [explain],
+  );
+
+  return (
+    <NativePlayerContext.Provider value={value}>
+      {children}
+    </NativePlayerContext.Provider>
+  );
 };
 
 const NativePlayerProviderInner: React.FC<{
@@ -405,8 +411,7 @@ const NativePlayerProviderInner: React.FC<{
   const { lockOrientation, unlockOrientation } = useOrientation();
   const downloadUtils = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
-  const { subscribe, clearLastMessage, retainInBackground } =
-    useWebSocketContext();
+  const { subscribe, retainInBackground } = useWebSocketContext();
   const syncPlay = useSyncPlay();
   const syncRef = useRef(syncPlay);
   syncRef.current = syncPlay;
@@ -578,7 +583,7 @@ const NativePlayerProviderInner: React.FC<{
   });
 
   // usePlaybackManager returns a fresh object per render; handlers below live
-  // in refs, so mirror the pieces they need (same pattern as direct-player).
+  // in refs, so mirror the pieces they need.
   const saveLocalProgressRef = useRef(
     playbackManager.saveLocalPlaybackProgress,
   );
@@ -661,7 +666,7 @@ const NativePlayerProviderInner: React.FC<{
     (session: NativeSession) => {
       const currentApi = apiRef.current;
       // Gate on connectivity, not on the offline flag: a downloaded item
-      // played with the server reachable still reports (direct-player.tsx).
+      // played with the server reachable still reports.
       if (!currentApi || !isConnectedRef.current) return;
       const playbackStartInfo = {
         ...buildProgressInfo(session),
@@ -781,13 +786,12 @@ const NativePlayerProviderInner: React.FC<{
       if (sessionRef.current !== session) return;
 
       // The skip mode is resolved here rather than natively, so the native
-      // player never reads settings and stays in step with the JS players.
+      // player never reads settings.
       const currentSettings = settingsRef.current;
-      // Emitted in the same overlap priority the JS players use
+      // Emitted in overlap priority
       // (Commercial > Recap > Intro > Preview > Outro). The native side picks
       // the first segment containing the playhead, so array order IS the
-      // priority: a flat by-bucket order would resolve overlaps differently
-      // from the JS players.
+      // priority.
       const bucketsByType: Array<
         [NativePlayerSegmentType, MediaTimeSegment[], SegmentSkipMode]
       > = [
@@ -896,9 +900,6 @@ const NativePlayerProviderInner: React.FC<{
                   session.stream.mediaSource,
                 ),
               ) - session.positionMs,
-            // The native chrome reports no touches to JS, so idle time is
-            // unknown and only the episode count can trip the prompt.
-            tracksInput: false,
           }),
         );
       const autoplayAllowed = autoplayWanted && !stillWatchingRequired;
@@ -1011,6 +1012,8 @@ const NativePlayerProviderInner: React.FC<{
         /** The session a swap is for, when the caller holds it. */
         over?: NativeSession;
         isCurrent?: () => boolean;
+        /** See presentFromRequest. */
+        alertOnFailure?: boolean;
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -1049,7 +1052,19 @@ const NativePlayerProviderInner: React.FC<{
         });
         return null;
       });
-      if (!built) return false;
+      if (!built) {
+        // With a player up, its item keeps playing. With none, and no newer
+        // request on its way to open one, the user is left with nothing.
+        if (
+          options.alertOnFailure &&
+          sessionRef.current === null &&
+          token === playRequestTokenRef.current &&
+          options.isCurrent?.() !== false
+        ) {
+          Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+        }
+        return false;
+      }
       if (options.isCurrent?.() === false) {
         // The build may have opened a live stream nothing will play.
         releaseLiveStream(built.seed);
@@ -1253,7 +1268,7 @@ const NativePlayerProviderInner: React.FC<{
           // dismiss() with nothing presented resolves silently. Restoring
           // `previous` here left a session nothing could clear once its own
           // teardown had finished, so every later play took the replace path
-          // against no player and fell back to the JS player.
+          // against no player.
           releaseLiveStream(session);
           sessionRef.current = null;
           setActiveItem(null);
@@ -1266,12 +1281,18 @@ const NativePlayerProviderInner: React.FC<{
           releaseLiveStream(session);
           sessionRef.current = null;
           unlockOrientation();
+          if (options.alertOnFailure) {
+            Alert.alert(
+              t("player.error"),
+              t("player.an_error_occurred_while_playing_the_video"),
+            );
+          }
         }
         // "closed": onDismiss or a newer request already moved sessionRef and
         // released this session's stream. Both it and "player-gone" resolve
         // true: the player was closed under this request or a newer request
-        // took it, and a false return would send the caller to the JS player
-        // for an item the user just closed.
+        // took it, and a false return would report a failure for an item the
+        // user just closed.
         return outcome === "closed" || outcome === "player-gone";
       }
 
@@ -1279,16 +1300,12 @@ const NativePlayerProviderInner: React.FC<{
       // tap, or the outgoing stream reaching its end; iOS load() still
       // resolves during the dismiss fade). onDismiss has already torn this
       // session down: a start report now would describe a player that no
-      // longer exists, and a false return would send the caller to the JS
-      // player for an item the user just closed.
+      // longer exists, and a false return would report a failure for an item
+      // the user just closed.
       if (sessionRef.current !== session) return true;
       session.committed = true;
       setActiveItem(session.item);
       setIsActive(true);
-      // Empty the legacy single-slot state before playback starts: it is
-      // still read by hooks/useWebsockets, and a stale coalesced "Stop" or
-      // "Seek" left over from browsing must not fire at the player.
-      clearLastMessage();
       reportPlaybackStart(session);
       void pushSegments(session);
       void pushEpisodeList(session);
@@ -1311,7 +1328,6 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStopped,
       releaseLiveStream,
       revalidateProgressCache,
-      clearLastMessage,
       pushSegments,
       pushEpisodeList,
       buildNextEpisodePayload,
@@ -1322,7 +1338,7 @@ const NativePlayerProviderInner: React.FC<{
   const presentFromRequest = useCallback(
     async (
       req: PlayRequest,
-      options?: { isCurrent?: () => boolean },
+      options?: { isCurrent?: () => boolean; alertOnFailure?: boolean },
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
@@ -1335,6 +1351,7 @@ const NativePlayerProviderInner: React.FC<{
       return beginSession(req, {
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
+        alertOnFailure: options?.alertOnFailure,
       });
     },
     [beginSession],
@@ -1656,11 +1673,8 @@ const NativePlayerProviderInner: React.FC<{
   );
 
   /**
-   * Run the shared automatic-subtitles-on-mute policy for this session.
-   *
-   * Same rules and same track picker as the JS player controls
-   * (`useAutoSubtitlesOnMute`): the only difference is where the mute signal
-   * comes from and how a selection is applied.
+   * Run the automatic-subtitles-on-mute policy (`utils/autoSubtitleOnMute`)
+   * for this session.
    */
   const evaluateAutoSubtitle = useCallback(
     (session: NativeSession, isMuted: boolean, positionSec: number) => {
@@ -1671,7 +1685,7 @@ const NativePlayerProviderInner: React.FC<{
       const subtitleStreams = streams.filter((s) => s.Type === "Subtitle");
       // A client-side sidecar shows without a server index. Report it in the
       // sentinel block so the policy sees "a subtitle is already on" rather
-      // than "off", exactly like the JS player does.
+      // than "off".
       const currentSubtitleIndex = session.localSubtitle?.active
         ? localSubtitleIndex(0)
         : session.currentSubtitleIndex;
@@ -2038,8 +2052,7 @@ const NativePlayerProviderInner: React.FC<{
         const changed = session.isPlaying !== nowPlaying;
         session.isPlaying = nowPlaying;
         if (nowPlaying) session.hasPlaybackStarted = true;
-        // Pause/resume transitions report immediately (mirror of the
-        // state-transition effect in direct-player).
+        // Pause/resume transitions report immediately.
         if (changed && session.hasPlaybackStarted && !session.reportedStopKey) {
           void reportNativeProgress(session, buildProgressInfo(session)).catch(
             () => {},
@@ -2061,9 +2074,9 @@ const NativePlayerProviderInner: React.FC<{
           // without a URL, so it always resolves to a track here.
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
-        // Mirror of the JS player, which waits for tracksReady before letting
-        // the automation act: a track picked before mpv has enumerated them
-        // would resolve to notFound and pointlessly re-negotiate the stream.
+        // The automation waits for tracksReady: a track picked before mpv has
+        // enumerated them would resolve to notFound and pointlessly
+        // re-negotiate the stream.
         // Covers both a player opened muted and a track carried over from the
         // previous episode while the sound stayed off.
         evaluateAutoSubtitle(
@@ -2247,8 +2260,7 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onSubtitleScaleChange", (payload) => {
         const session = sessionRef.current;
         if (!session) return;
-        // Global setting, same as the JS player's in-menu subtitle scale.
-        // Native already applied it live on the engine.
+        // Global setting. Native already applied it live on the engine.
         updateSettings({ subtitleSize: payload.scale });
       }),
 
@@ -2266,8 +2278,8 @@ const NativePlayerProviderInner: React.FC<{
       }),
 
       addNativePlayerListener("onSpeedChange", (payload) => {
-        // Persist like the JS player's plain speed rows (scope "all") so the
-        // next stream load resolves the same speed instead of a stale one.
+        // Persisted for every item (scope "all") so the next stream load
+        // resolves the same speed instead of a stale one.
         const session = sessionRef.current;
         const currentSettings = settingsRef.current;
         if (!session || session.awaitingLoad || !currentSettings) return;
@@ -2356,9 +2368,8 @@ const NativePlayerProviderInner: React.FC<{
 
   // MARK: - Remote control (Jellyfin WebSocket)
 
-  // Server-initiated "Play me this item". Moved here from WebSocketProvider so
-  // the native/route decision lives next to the session logic. Falls back to
-  // the JS route when the native player declines.
+  // Server-initiated "Play me this item". Lives here, not in
+  // WebSocketProvider, so it sits next to the session logic.
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
@@ -2372,31 +2383,12 @@ const NativePlayerProviderInner: React.FC<{
         }
         // Someone chose this play, from another client: a new session.
         resetStillWatchingSession();
-        void (async () => {
-          // The WS Play path must pick the same player the play button would.
-          const useNative = isNativeChromeActive(settingsRef.current);
-          const presented = useNative && (await presentFromRequest(req));
-          if (!presented) {
-            // Never stack the JS route under a still-presented native player
-            // (e.g. a config-build failure left the old session playing).
-            if (isNativePlayerPresented()) return;
-            router.push(
-              `/(auth)/player/direct-player?${toDirectPlayerQuery(req)}` as any,
-            );
-          }
-        })();
+        void presentFromRequest(req, { alertOnFailure: true });
       }),
     [subscribe, presentFromRequest],
   );
 
-  // Remote control while the native player is up. The JS player route and a
-  // native session are mutually exclusive, so handling these here cannot
-  // double-handle with hooks/useWebsockets.
-  //
-  // Subscribed rather than read off `lastMessage`: that slot keeps only the
-  // newest message, and the socket carries session broadcasts continuously, so
-  // a command could be overwritten before the effect ever ran. It made remote
-  // control look like it worked and then quietly stop.
+  // Remote control while the native player is up.
   useEffect(() => {
     const handle = (
       command: string | undefined,

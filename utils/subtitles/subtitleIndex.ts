@@ -43,15 +43,3 @@ export const isLocalSubtitleIndex = (
   index: number | null | undefined,
 ): index is number =>
   typeof index === "number" && index <= LOCAL_SUBTITLE_INDEX_BASE;
-
-/**
- * Map a client-side selection to what the Jellyfin stream API understands.
- *
- * A sidecar has no server-side identity, so re-negotiating a stream while one is
- * showing must ask for "no subtitles" — passing the sentinel through would have
- * the server either error or silently pick a real stream.
- */
-export const toServerSubtitleIndex = (
-  index: number | null | undefined,
-): number =>
-  index == null || isLocalSubtitleIndex(index) ? SUBTITLES_OFF : index;

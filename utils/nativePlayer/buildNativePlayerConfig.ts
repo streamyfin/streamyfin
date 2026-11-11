@@ -147,9 +147,8 @@ export const buildNativePlayerStrings = (
 });
 
 /**
- * The route/player validates the resume position as a whole non-negative
- * integer (deep-linkable params), falling back to the item's stored resume
- * position — mirror of direct-player.tsx startTicks.
+ * The resume position is validated as a whole non-negative integer (it can
+ * come from a deep link), falling back to the item's stored resume position.
  */
 const resolveStartTicks = (
   raw: number | undefined,
@@ -171,7 +170,7 @@ const mapOrientationLock = (
       return "none";
     default:
       // LANDSCAPE / LANDSCAPE_LEFT / LANDSCAPE_RIGHT and the unset case:
-      // video playback defaults to landscape like the JS player route.
+      // video playback defaults to landscape.
       return "landscape";
   }
 };
@@ -384,8 +383,8 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
 };
 
 /**
- * Replicates direct-player.tsx's fetchItemData + fetchStreamData + videoSource
- * as one async function for the presented native player. Segments, the
+ * Fetches the item, negotiates its stream and builds the config the
+ * presented native player opens with, as one async function. Segments, the
  * next-episode preview and the episode list arrive later via updateSegments /
  * updateNextEpisode / updateEpisodeList (they need queries the caller owns).
  */
@@ -631,11 +630,10 @@ export async function buildNativePlayerConfig(params: {
       }),
       renderScaleMultiplier:
         Platform.OS === "android"
-          ? // Per-ENGINE calibration — the same value getEffectiveSubtitleScale
-            // applies on the JS route for the same engine: mpv keeps its
-            // renderer calibration, ExoPlayer its tested 0.6x Android TV
-            // compensation (its SubtitleView renders larger). Calibrating the
-            // exo chrome as mpv made its subtitles oversized.
+          ? // Per-ENGINE calibration: mpv keeps its renderer calibration,
+            // ExoPlayer its tested 0.6x Android TV compensation (its
+            // SubtitleView renders larger). Calibrating the exo chrome as mpv
+            // made its subtitles oversized.
             getSubtitleBaseScaleMultiplier(getActivePlayerType(settings))
           : undefined,
     },

@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback } from "react";
-import type { Track } from "@/components/video-player/controls/types";
 import useRouter from "@/hooks/useAppRouter";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { store } from "@/utils/store";
 

@@ -150,7 +150,7 @@ const getVideoAudioCodecs = (
  * the rest fall through to FFmpeg software decode via the Jellyfin-published
  * `org.jellyfin.media3:media3-ffmpeg-decoder` extension wired up with
  * `DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER` (see
- * ExoPlayerView.kt:ensurePlayer).
+ * ExoPlayerEngine.kt:ensurePlayer).
  *
  * Cross-checked against the reference-device probe in
  * docs/research/hdr-dv-atmos-tv-plan.md (Amlogic Android 14 TV; HDMI sink

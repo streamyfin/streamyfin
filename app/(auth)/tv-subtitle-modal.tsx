@@ -22,7 +22,6 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
-import type { Track } from "@/components/video-player/controls/types";
 import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -32,6 +31,7 @@ import {
 } from "@/hooks/useRemoteSubtitles";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useSettings } from "@/utils/atoms/settings";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { deferToMicrotask } from "@/utils/deferToMicrotask";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";

@@ -18,9 +18,9 @@ Everything else may stay next to the code that uses it, but it still gets a name
 
 ## Why this rule exists
 
-`PROGRESS_REPORT_INTERVAL` was defined twice, as `10000` in
-`app/(auth)/player/direct-player.tsx` and as `10_000` in
-`providers/NativePlayerProvider.tsx`. Same policy, two owners. Changing the reporting
+`PROGRESS_REPORT_INTERVAL` was defined twice, as `10000` in the JS player's screen
+(since removed) and as `10_000` in `providers/NativePlayerProvider.tsx`. Same policy,
+two owners. Changing the reporting
 cadence meant knowing both existed, and nothing would have failed if only one had moved.
 
 ## Where each kind goes
@@ -38,7 +38,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/TVPosterSizes.ts` | TV poster size keys |
 | `constants/TVDetailLayout.ts` | A TV detail page's layout shares of the window: the poster beside the header, the overview's widest, the header's lowest, which the loading skeleton reads too |
 | `constants/LiveTVGuide.ts` | The phone's Live TV guide: an hour's width, the channel column, and how far before a program's end its pinned title stops |
-| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, how often the stats overlay polls the transcode progress, how long a new native player waits for a closing one, and the query families that show watch progress |
+| `constants/Playback.ts` | Playback policy (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, how often the stats overlay polls the transcode progress, how long a new native player waits for a closing one, and the query families that show watch progress |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |

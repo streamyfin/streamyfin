@@ -53,14 +53,13 @@ import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 /**
  * Media3/ExoPlayer implementation of [PlayerEngine] for the native chrome.
  *
- * The engine logic mirrors the JS-route ExoPlayerView (modules/exoplayer-player):
- * same Dolby passthrough probe, same mpv-cache→LoadControl mapping, same
- * 1-based-per-kind track id scheme, same side-loaded subtitle id stamping, and
- * the same mpv-matched 1.5x subtitle size baseline. Differences are the
- * hosting model: the session owns the SurfaceView (the engine resizes it for
+ * It speaks the bridge as the mpv engine does: a Dolby passthrough probe, an
+ * mpv-cache→LoadControl mapping, a 1-based-per-kind track id scheme,
+ * side-loaded subtitle id stamping, and an mpv-matched 1.5x subtitle size
+ * baseline. The session owns the SurfaceView (the engine resizes it for
  * zoom), subtitles render into the engine-owned [subtitleOverlay] stacked
  * between the video surface and the ComposeView, and callbacks drive the
- * shared [PlayerEngine.Delegate] instead of JS events.
+ * shared [PlayerEngine.Delegate].
  *
  * Threading: the chrome's module layer reads track lists and technical info
  * on a background HandlerThread, and some setters arrive off-main. Media3's
@@ -116,12 +115,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // the 256 MB heap: the allocator shares it with React Native. Full
         // recipe and history in
         // .claude/learned-facts/exoplayer-loadcontrol-time-not-bytes.md.
-        //
-        // ⚠ TWIN: modules/exoplayer-player/.../ExoPlayerView.kt carries the
-        // same mapping for the JS-route view — these were duplicated, not
-        // shared, because the Kotlin modules are independent. Keep them in
-        // lockstep; this divergence is how the bug survived in one engine
-        // after being fixed in the other.
         private const val MIN_BUFFER_MS = 5_000
         private const val MAX_BUFFER_MS = 30_000
         private const val BUFFER_FOR_PLAYBACK_MS = 2_500
@@ -1060,12 +1053,12 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     }
 
     override fun setSubtitleAssOverride(mode: String) {
-        // libass-specific; Media3 has no equivalent (same no-op as the JS route).
+        // libass-specific; Media3 has no equivalent.
     }
 
     override fun setSubtitleDelay(seconds: Double) {
         // mpv-only; Media3 subtitle offsets would need a custom TimeBar/
-        // MediaPeriod shift — not wired for the chrome (JS route matches).
+        // MediaPeriod shift — not wired for the chrome.
     }
 
     override fun setAudioDelay(seconds: Double) {

@@ -355,14 +355,6 @@ function Layout() {
                                           }}
                                         />
                                         <Stack.Screen
-                                          name='(auth)/player'
-                                          options={{
-                                            headerShown: false,
-                                            title: "",
-                                            header: () => null,
-                                          }}
-                                        />
-                                        <Stack.Screen
                                           name='(auth)/now-playing'
                                           options={{
                                             headerShown: false,

@@ -9,9 +9,7 @@ const optionalNumber = (value: unknown): number | undefined => {
 
 /**
  * Turns the payload of a Jellyfin WebSocket "Play" command into the item the
- * player should start, or null when the command names nothing. The one reader
- * for both "Play" subscribers, so the native player and the JS player route
- * cannot read a command differently.
+ * player should start, or null when the command names nothing.
  *
  * `ItemIds` never holds a container. The server expands a series, a season, a
  * collection or a playlist into the items inside it before it forwards the
@@ -19,8 +17,8 @@ const optionalNumber = (value: unknown): number | undefined => {
  * this side: a remote Play of a show arrives as the list of its episodes.
  *
  * `StartIndex` says which of the listed items to start with. The rest of the
- * list and `PlayCommand` (PlayNext, PlayLast) describe a queue, and neither
- * player has one, so only the starting item is read.
+ * list and `PlayCommand` (PlayNext, PlayLast) describe a queue, and the
+ * player has none, so only the starting item is read.
  */
 export const parseRemotePlayCommand = (
   command: unknown,

@@ -17,8 +17,9 @@ the JS `onError` listener nor the chrome's error overlay fired.
 `prepare()` **on the same ExoPlayer instance that had just played the outgoing
 episode to `STATE_ENDED`**. That in-place handover wedged on this box (Amlogic,
 256 MB heap): minutes of BUFFERING, then the stream effectively restarting.
-The JS-route view (`ExoPlayerView`) never sees this — direct-player remounts
-the whole view per episode, so every episode plays on a fresh player.
+The JS player's view (`ExoPlayerView`, since removed) never saw this: its
+screen remounted the whole view per episode, so every episode played on a
+fresh player.
 
 Fix: `load()` calls `releasePlayer()` before `ensurePlayer()` — every accepted
 load (item switch, quality re-negotiation, forced recovery) builds a fresh
@@ -26,19 +27,6 @@ ExoPlayer. That also drops state a source-replace silently keeps on one
 instance: the previous item's `trackSelectionParameters` overrides and
 text-disable, per-item loader/codec state. Cost is one player re-init per swap
 (~200 ms) behind a spinner that was already up.
-
-## Deliberate divergence: ExoPlayerView.kt does NOT rebuild per load
-
-The twin keeps one instance across in-mount URL swaps on purpose:
-
-- Episodes get a fresh mount on the JS route anyway (same protection, arrived
-  at differently).
-- Its `onTracksReady` is once-per-view by contract; the JS subtitle resolver
-  matches side-loaded tracks by URL identity on that event. Rebuilding the
-  player without changing that contract would strand the resolver.
-
-The note lives in `ExoPlayerView.loadVideo`. Revisit both together if the JS
-route ever shows the same stall.
 
 ## Diagnostics added (keep them when triaging swaps)
 
@@ -49,7 +37,7 @@ which reads as "started over from 0:00" when it fires early). The existing
 `Rebuffer:` / `Load error` analytics lines complete the picture:
 
 ```
-adb logcat -s ExoPlayerEngine ExoPlayerView NativePlayerSession
+adb logcat -s ExoPlayerEngine NativePlayerSession
 ```
 
 ## Follow-up (2026-10-30, same day): the stall's real root cause was network-side

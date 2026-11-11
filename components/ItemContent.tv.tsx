@@ -51,7 +51,6 @@ import {
   TVTechnicalDetails,
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
-import type { Track } from "@/components/video-player/controls/types";
 import {
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
@@ -75,6 +74,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
