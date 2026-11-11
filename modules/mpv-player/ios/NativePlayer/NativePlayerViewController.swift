@@ -389,7 +389,12 @@ final class NativePlayerViewController: UIViewController {
 			UIKeyCommand(input: UIKeyCommand.inputLeftArrow, modifierFlags: [], action: #selector(handleLeftArrowCommand)),
 			UIKeyCommand(input: UIKeyCommand.inputRightArrow, modifierFlags: [], action: #selector(handleRightArrowCommand)),
 		]
-		for command in commands { command.wantsPriorityOverSystemBehavior = true }
+		for command in commands {
+			command.wantsPriorityOverSystemBehavior = true
+			// The physical key, as the press path reads it: a mirrored command
+			// would swap the arrows in a right-to-left interface.
+			command.allowsAutomaticMirroring = false
+		}
 		return commands
 	}
 
