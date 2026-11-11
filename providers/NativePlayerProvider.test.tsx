@@ -106,7 +106,10 @@ const mockNegotiation = {
   waiting: [] as Array<() => void>,
   count: 0,
   /** What each build was asked for, in order. */
-  params: [] as Array<{ maxStreamingBitrate?: { value?: number } }>,
+  params: [] as Array<{
+    maxStreamingBitrate?: { value?: number };
+    linkInUse?: boolean;
+  }>,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
   /** Items whose stream negotiation fails. */
@@ -739,6 +742,24 @@ describe("a track change that needs another stream", () => {
 
     expect(mockNegotiation.params).toHaveLength(2);
     expect(mockNegotiation.params[1].maxStreamingBitrate).toBeUndefined();
+  });
+
+  // The stream it replaces still downloads over the link while Auto measures.
+  test("asks for it as the link is in use, and the first stream without", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[0].linkInUse).toBe(false);
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
   });
 });
 

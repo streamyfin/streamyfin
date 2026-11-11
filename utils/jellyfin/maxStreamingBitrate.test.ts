@@ -31,6 +31,7 @@ describe("resolveMaxStreamingBitrate", () => {
       api,
       false,
       autoBitrateOptions(undefined),
+      { linkInUse: false },
     );
   });
 
@@ -40,7 +41,21 @@ describe("resolveMaxStreamingBitrate", () => {
 
     await resolveMaxStreamingBitrate(api, "auto", options);
 
-    expect(mockDetectBitrate).toHaveBeenCalledWith(api, false, options);
+    expect(mockDetectBitrate).toHaveBeenCalledWith(api, false, options, {
+      linkInUse: false,
+    });
+  });
+
+  // A swap asks it with the stream it replaces still downloading.
+  test("tells the detection when a stream plays over the link", async () => {
+    mockDetectBitrate.mockResolvedValue(12_000_000);
+    const options = autoBitrateOptions(undefined);
+
+    await resolveMaxStreamingBitrate(api, "auto", options, { linkInUse: true });
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(api, false, options, {
+      linkInUse: true,
+    });
   });
 
   // The stream then goes out as it did under Max, the default until Auto.

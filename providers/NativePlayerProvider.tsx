@@ -1052,6 +1052,8 @@ const NativePlayerProviderInner: React.FC<{
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
         maxStreamingBitrate: options.maxStreamingBitrate,
+        // The stream on screen goes on downloading while this one is asked.
+        linkInUse: !!requestedOver && !requestedOver.offline,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,

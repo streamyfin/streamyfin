@@ -190,6 +190,7 @@ describe("the native player's quality", () => {
     defaultBitrate: Settings["defaultBitrate"] = AUTO,
     played: BaseItemDto = item,
     maxStreamingBitrate?: { value: number | undefined },
+    linkInUse?: boolean,
   ) => {
     jest.mocked(getStreamUrl).mockResolvedValue({
       url: `${SERVER}/Videos/1/stream.mkv`,
@@ -213,6 +214,7 @@ describe("the native player's quality", () => {
         bitrate.key === "Auto" ? "Automatique" : bitrate.key,
       item: played,
       maxStreamingBitrate,
+      linkInUse,
     });
   };
 
@@ -252,8 +254,21 @@ describe("the native player's quality", () => {
       api,
       false,
       expect.objectContaining({ ratio: 0.7 }),
+      { linkInUse: false },
     );
     expect(askedBitrate()).toBe(12_000_000);
+  });
+
+  // A swap: the stream it replaces still downloads over the link.
+  test("measures Auto as the link in use when a stream plays over it", async () => {
+    await build("auto", AUTO, item, undefined, true);
+
+    expect(mockDetectBitrate).toHaveBeenCalledWith(
+      api,
+      false,
+      expect.objectContaining({ ratio: 0.7 }),
+      { linkInUse: true },
+    );
   });
 
   // A track change re-negotiates the same item: measured again an hour on,
@@ -377,6 +392,7 @@ describe("the native player's quality, when the request names none", () => {
       api,
       false,
       expect.objectContaining({ ratio: 0.7 }),
+      { linkInUse: false },
     );
     expect(askedBitrate()).toBe(12_000_000);
     expect(built?.seed.bitrateValue).toBe("auto");
