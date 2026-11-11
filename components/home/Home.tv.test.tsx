@@ -8,7 +8,7 @@ import {
   TV_BACKDROP_CROSSFADE_MS,
   TV_BACKDROP_DEBOUNCE_MS,
 } from "@/constants/TVSizes";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, cacheVersionAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import type { Home as HomeLayout } from "@/utils/atoms/settings";
@@ -240,6 +240,20 @@ const withSettings = (overrides: Partial<HomeSettings>) => {
   mockSettings = { ...defaultSettings, ...overrides };
 };
 
+/** Whether any rendered node asks for the TV focus. */
+const hasPreferredFocus = (node: unknown): boolean => {
+  if (!node || typeof node !== "object") return false;
+  if (Array.isArray(node)) return node.some(hasPreferredFocus);
+  const { props, children } = node as {
+    props?: { hasTVPreferredFocus?: boolean };
+    children?: unknown[];
+  };
+  return (
+    props?.hasTVPreferredFocus === true ||
+    (children ?? []).some(hasPreferredFocus)
+  );
+};
+
 describe("Home.tv behaviours", () => {
   beforeEach(() => {
     // Each test is a new launch: its first Home may take the initial focus.
@@ -258,6 +272,22 @@ describe("Home.tv behaviours", () => {
     jest.useRealTimers();
   });
 
+  // Clearing the cache rebuilds Home's content under the same Home: the new
+  // first card asked for the focus again and could pull it off the tab bar.
+  test("a cache clear asks for no focus again", async () => {
+    withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
+
+    await act(async () => {
+      getDefaultStore().set(cacheVersionAtom, (version) => version + 1);
+    });
+    await screen.findByText("Resume 0");
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
   // Android TV's tab bar replaces the route: Home mounts again on every press
   // of its tab, and each new Home pulled the focus off the bar into its first
   // poster. Only the launch's Home may.
@@ -270,19 +300,7 @@ describe("Home.tv behaviours", () => {
     await render(<Home />, { wrapper: Wrapper });
     await screen.findByText("Resume 0");
 
-    const hasPreferred = (node: unknown): boolean => {
-      if (!node || typeof node !== "object") return false;
-      if (Array.isArray(node)) return node.some(hasPreferred);
-      const { props, children } = node as {
-        props?: { hasTVPreferredFocus?: boolean };
-        children?: unknown[];
-      };
-      return (
-        props?.hasTVPreferredFocus === true ||
-        (children ?? []).some(hasPreferred)
-      );
-    };
-    expect(hasPreferred(screen.toJSON())).toBe(false);
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
   });
 
   test("initial focus (hasTVPreferredFocus) is given to the first poster when hero is hidden", async () => {
