@@ -13,6 +13,7 @@ import { logAndCaptureError, writeToLog } from "@/utils/log";
 import {
   clearOfflineProgress,
   getOfflineProgress,
+  isQueuedSave,
   type OfflineProgress,
 } from "@/utils/offlineProgressQueue";
 import { onAppForeground } from "@/utils/onAppForeground";
@@ -101,9 +102,10 @@ export function useOfflineProgressSync() {
       // progress is not this user's to send.
       const stale = ids.filter((id) => {
         const local = current.getDownloadedItemById(id);
-        if (!local) return true;
-        const saved = queued[id];
-        return saved !== "" && local.item.UserData?.LastPlayedDate !== saved;
+        return (
+          !local ||
+          !isQueuedSave(local.item.UserData?.LastPlayedDate, queued[id])
+        );
       });
       const items = ids.filter((id) => !stale.includes(id));
       if (stale.length > 0) clearOfflineProgress(user, only(stale));
@@ -121,7 +123,9 @@ export function useOfflineProgressSync() {
       if (fresh.userId !== user) return;
 
       const results = await Promise.allSettled(
-        items.map((id) => fresh.syncPlaybackStateDetailed(id)),
+        items.map((id) =>
+          fresh.syncPlaybackStateDetailed(id, { stamp: queued[id] }),
+        ),
       );
       const outcome = (i: number) => {
         const result = results[i];

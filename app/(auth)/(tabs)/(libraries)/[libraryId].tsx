@@ -138,7 +138,6 @@ import { store } from "@/utils/store";
 const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
-const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;
 /**
@@ -1669,8 +1668,17 @@ const LibraryPage = () => {
       ) : (
         // A focus guide as wide as the page: tvOS only moves the focus to what
         // lies straight ahead, and a short grid is narrower than the toolbar.
+        //
+        // trapFocusLeft/trapFocusRight: the tab bar (TVNavBar) centres its
+        // tabs and makes each one focusable, so from the end of a grid
+        // narrower than the tab bar (a single short row) Android's focus
+        // search finds the outermost tab, and a left or right press left the
+        // grid for it. Trapped, horizontal presses stay inside the grid; up
+        // and down stay free for the toolbar and the tab bar.
         <TVFocusGuideView
           autoFocus
+          trapFocusLeft
+          trapFocusRight
           style={{
             flexDirection: "row",
             flexWrap: "wrap",
