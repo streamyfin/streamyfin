@@ -213,6 +213,7 @@ describe("stepping up", () => {
     expect(auto.probeResult(130_000, 60 * MB)).toEqual({
       kind: "stepUp",
       cap: 48.5 * MB,
+      measured: 60 * MB,
     });
   });
 
@@ -230,6 +231,7 @@ describe("stepping up", () => {
     expect(auto.probeResult(130_000, 60 * MB)).toEqual({
       kind: "stepUp",
       cap: 60 * MB,
+      measured: 60 * MB,
     });
   });
 

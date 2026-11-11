@@ -1997,8 +1997,22 @@ const NativePlayerProviderInner: React.FC<{
         return;
       }
       if (action.kind === "stepDown") {
-        // The next playback on this network starts from what this one showed.
-        keepPlaybackRate(api, action.throughput ?? action.cap / options.ratio);
+        // The next playback on this network starts at the cap this one stepped
+        // to: its share of what the link carried, never under the lowest cap.
+        // A link that carried nothing reads as 0, which the server takes for
+        // no cap at all.
+        keepPlaybackRate(api, action.cap / options.ratio);
+        writeToLog("INFO", "Auto quality stepped down", {
+          from: session.maxStreamingBitrate,
+          to: action.cap,
+          linkCarried: action.throughput,
+        });
+      } else {
+        writeToLog("INFO", "Auto quality stepped up", {
+          from: session.maxStreamingBitrate,
+          to: action.cap,
+          measured: action.measured,
+        });
       }
       void replaceStream(session, { cap: { value: action.cap } });
     };

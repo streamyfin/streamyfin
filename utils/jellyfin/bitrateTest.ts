@@ -57,7 +57,9 @@ const isMeasure = (value: unknown): value is Measure =>
   isPlainObject(value) &&
   typeof value.at === "number" &&
   typeof value.inNetwork === "boolean" &&
-  (value.rate === undefined || typeof value.rate === "number");
+  // A rate of nothing would ask the server for no cap at all.
+  (value.rate === undefined ||
+    (typeof value.rate === "number" && value.rate > 0));
 
 const putMeasure = (
   target: Measures,
@@ -342,7 +344,7 @@ export const lastDetection = (
  * kept before the network is known.
  */
 export const keepPlaybackRate = (api: Api, rate: number): void => {
-  if (network === undefined) return;
+  if (network === undefined || !(rate > 0)) return;
   const before = measureOn(api.basePath, network);
   keepMeasure(api.basePath, network, {
     rate,

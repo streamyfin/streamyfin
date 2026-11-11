@@ -839,6 +839,38 @@ describe("a rate a playback showed", () => {
     await expect(detectBitrate(api)).resolves.toBe(140_000_000);
   });
 
+  // A link that carried nothing read as a rate of 0, which gave the next
+  // playback a cap of 0: the server reads it as no cap at all.
+  test("is never kept at nothing", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 0);
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+  });
+
+  test("of nothing, stored by an earlier build, is measured again", async () => {
+    mockStored.set(
+      "autoBitrateMeasures",
+      JSON.stringify({
+        [SERVER]: {
+          "wifi|true|192.168.1.10|": {
+            rate: 0,
+            inNetwork: false,
+            at: Date.now(),
+          },
+        },
+      }),
+    );
+    relaunch();
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(10, 10));
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+
   test("is not kept before the network is known", async () => {
     bitrateTest.keepPlaybackRate(api, 5_000_000);
     await bitrateTest.ensureNetworkKnown();

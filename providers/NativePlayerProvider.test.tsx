@@ -109,6 +109,8 @@ const mockNegotiation = {
   params: [] as Array<{ maxStreamingBitrate?: { value?: number } }>,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
+  /** The file's bitrate the negotiated streams carry, when a spec sets one. */
+  bitrate: undefined as number | undefined,
 };
 
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
@@ -147,6 +149,9 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
             Id: `source-${req.itemId}`,
             ...(mockNegotiation.live && {
               LiveStreamId: `live-${playSessionId}`,
+            }),
+            ...(mockNegotiation.bitrate && {
+              Bitrate: mockNegotiation.bitrate,
             }),
           },
         },
@@ -316,7 +321,8 @@ jest.mock("@/utils/syncplay/queueDisplay", () => ({
 const api: ReturnType<typeof makeApi> = jest.requireMock(
   "@/providers/JellyfinProvider",
 ).apiAtom.init;
-const log: { logAndCaptureError: jest.Mock } = jest.requireMock("@/utils/log");
+const log: { logAndCaptureError: jest.Mock; writeToLog: jest.Mock } =
+  jest.requireMock("@/utils/log");
 
 const REPORTS: Record<string, string> = {
   "https://jellyfin.example.com/Sessions/Playing": "start",
@@ -443,6 +449,7 @@ beforeEach(() => {
   mockNegotiation.count = 0;
   mockNegotiation.params = [];
   mockNegotiation.live = false;
+  mockNegotiation.bitrate = undefined;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -869,6 +876,7 @@ describe("Auto during playback", () => {
     jest.useFakeTimers({ now: 1_000_000 });
     mockDetectBitrate.mockReset();
     mockKeepPlaybackRate.mockReset();
+    log.writeToLog.mockClear();
     delete mockSettings.autoBitrateAdapt;
   });
 
@@ -890,6 +898,41 @@ describe("Auto during playback", () => {
     expect(mockKeepPlaybackRate).toHaveBeenCalledWith(
       expect.anything(),
       8_000_000 / 0.7,
+    );
+    // The app's log says why the quality changed.
+    expect(log.writeToLog).toHaveBeenCalledWith(
+      "INFO",
+      "Auto quality stepped down",
+      expect.objectContaining({ from: 12_000_000, to: 8_000_000 }),
+    );
+  });
+
+  // The link carried nothing: the cache emptied as fast as the file played.
+  test("keeps the lowest cap, never nothing, when the link carried nothing", async () => {
+    mockNegotiation.bitrate = 10_000_000;
+    await mount();
+    await playAt("auto");
+    await playerState(false);
+    await wait(6_000);
+    for (let second = 0; second < 12; second++) {
+      await act(async () =>
+        mockNative.emit("onProgress", {
+          position: 6 + Math.min(second, 8),
+          duration: 1800,
+          progress: 0,
+          cacheSeconds: Math.max(0, 8 - second),
+        }),
+      );
+      await wait(1_000);
+    }
+    await settle();
+
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toEqual({
+      value: 250_000,
+    });
+    expect(mockKeepPlaybackRate).toHaveBeenCalledWith(
+      expect.anything(),
+      250_000 / 0.7,
     );
   });
 
@@ -941,5 +984,14 @@ describe("Auto during playback", () => {
     expect(mockNegotiation.params[2].maxStreamingBitrate).toEqual({
       value: 12_000_000,
     });
+    expect(log.writeToLog).toHaveBeenCalledWith(
+      "INFO",
+      "Auto quality stepped up",
+      expect.objectContaining({
+        from: 8_000_000,
+        to: 12_000_000,
+        measured: 60_000_000,
+      }),
+    );
   });
 });

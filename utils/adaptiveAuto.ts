@@ -67,7 +67,8 @@ export type AdaptiveAction =
   | { kind: "stepDown"; cap: number; throughput?: number }
   /** Measure the link, then hand the bitrate to `probeResult`. */
   | { kind: "probe" }
-  | { kind: "stepUp"; cap: number };
+  /** Ask for the stream again at `cap`, which the link `measured` allows. */
+  | { kind: "stepUp"; cap: number; measured: number };
 
 type Sample = { at: number; position: number; cache: number };
 type Stall = { from: number; to?: number };
@@ -213,7 +214,11 @@ export class AdaptiveAuto {
         this.busy = true;
         this.lastStepUpAt = now;
         this.nextProbeAt = now + this.probeDelay;
-        return { kind: "stepUp", cap: Math.round(target) };
+        return {
+          kind: "stepUp",
+          cap: Math.round(target),
+          measured: Math.round(bitrate),
+        };
       }
     }
     this.waitLonger(now);
