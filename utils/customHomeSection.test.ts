@@ -87,7 +87,6 @@ const customSection = (
 ): HomeSection => ({ custom: { endpoint, query } });
 
 beforeEach(() => {
-  mockWriteToLog.mockClear();
   resetLoggedHomeSections();
 });
 

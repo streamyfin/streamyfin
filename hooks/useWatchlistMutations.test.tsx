@@ -79,7 +79,6 @@ const httpError = (status: number, data: unknown) =>
   );
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockSettings = { streamyStatsServerUrl: "http://stats" };
   for (const call of Object.values(mockApi)) {
     call.mockResolvedValue({ data: {} });

@@ -67,7 +67,6 @@ const answer = (mine: Partial<MyNotifications>) => ({
 
 describe("the buttons on a notification", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     mockLast = null;
     mockListener = null;
     client.clear();

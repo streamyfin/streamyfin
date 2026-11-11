@@ -32,8 +32,6 @@ jest.mock("@gorhom/bottom-sheet", () => {
 
 describe("QuickConnectCodeModal", () => {
   beforeEach(() => {
-    mockPresent.mockClear();
-    mockDismiss.mockClear();
     mockSheetChange = undefined;
   });
 

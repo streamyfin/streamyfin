@@ -22,11 +22,6 @@ import {
 const mockWriteToLog = jest.mocked(writeToLog);
 const mockToastError = jest.mocked(toast.error);
 
-beforeEach(() => {
-  mockWriteToLog.mockClear();
-  mockToastError.mockClear();
-});
-
 // A Seerr that answers 200 with `body`, as the wire carries it: axios parses
 // it, and hands back a string it could not parse as it came.
 const answering = (body: string) => {

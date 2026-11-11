@@ -8,7 +8,6 @@ import { LibraryTabs } from "./LibraryTabs";
 // the same tabs to whoever uses them.
 describe.each(["ios", "android"] as const)("LibraryTabs on %s", (OS) => {
   beforeEach(() => {
-    jest.clearAllMocks();
     stubReactNative({ OS });
   });
 
@@ -47,8 +46,6 @@ describe.each(["ios", "android"] as const)("LibraryTabs on %s", (OS) => {
 });
 
 describe("LibraryTabs", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   // The segmented style is what makes it the glass control of iOS 26: a
   // picker left on its default style would draw a menu instead.
   test("is the system's segmented control on iOS", async () => {

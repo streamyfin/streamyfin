@@ -26,7 +26,6 @@ const props = {
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockMessage = null;
   stubReactNative({ isTV: false });
 });

@@ -81,7 +81,6 @@ const pick = async (name: string) => {
 };
 
 beforeEach(async () => {
-  jest.clearAllMocks();
   audioTracks = null;
   await render(
     <VideoProvider>

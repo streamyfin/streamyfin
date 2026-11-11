@@ -74,8 +74,6 @@ const leavesAfter = (times: number) => {
 };
 
 describe("signInToSeerrAtLogin", () => {
-  beforeEach(() => mockWriteErrorLog.mockClear());
-
   // Quick Connect needs no password, so a server that supports it never sees
   // one and nothing is stored.
   test("takes Quick Connect's session and never sends the password", async () => {
@@ -226,8 +224,6 @@ const keySteps = (
 // sign-out or an account switch clears the Seerr data, and a sign-in still on
 // its way would bring the previous account's session back for the next one.
 describe("signInToSeerrWithApiKey", () => {
-  beforeEach(() => mockWriteErrorLog.mockClear());
-
   test("takes Quick Connect's session and never uses the key", async () => {
     const { steps: s, calls } = keySteps({
       quickConnect: async () => QUICK_CONNECTED,

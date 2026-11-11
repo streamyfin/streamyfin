@@ -22,7 +22,6 @@ jest.mock("@/providers/OfflineModeProvider", () => ({
 
 describe("useAppRouter replace", () => {
   beforeEach(() => {
-    mockReplace.mockClear();
     mockOffline = false;
   });
 

@@ -16,10 +16,6 @@ const sentRequest = (api: ReturnType<typeof makeApi>) => {
   return { path: url.pathname, query: url.searchParams };
 };
 
-afterEach(() => {
-  jest.clearAllMocks();
-});
-
 const person = (name: string): BaseItemDto => ({
   Id: name,
   Type: "Person",

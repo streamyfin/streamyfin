@@ -116,7 +116,6 @@ jest.mock("@/components/login/TVAddServerForm", () => ({
 
 describe("TVLogin", () => {
   beforeEach(() => {
-    mockInitiateQuickConnect.mockClear();
     mockInitiateQuickConnect.mockImplementation(async () => "123456");
     mockStopQuickConnectPolling.mockReset();
     mockSaveCurrentAccount.mockReset();

@@ -45,8 +45,6 @@ const layOut = async (contentHeight: number) => {
 };
 
 describe("TVStudioPage", () => {
-  beforeEach(() => mockLoadMore.mockClear());
-
   // The next page is asked for on scroll, and a grid no taller than the
   // screen never scrolls: at the smallest poster size a page fits on it.
   test("asks for the next page when the first does not fill the screen", async () => {

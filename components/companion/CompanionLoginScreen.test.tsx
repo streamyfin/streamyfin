@@ -100,7 +100,6 @@ const scan = async (data: string) => {
 
 describe("CompanionLoginScreen", () => {
   beforeEach(() => {
-    mockAuthorize.mockClear();
     mockAuthorize.mockImplementation(async () => ({ status: 200, data: true }));
     mockEnabled.mockClear();
     mockEnabled.mockImplementation(async () => ({ data: true }));

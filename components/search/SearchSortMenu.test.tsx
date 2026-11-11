@@ -34,11 +34,6 @@ const openMenu = () =>
   );
 
 describe("SearchSortMenu on Android", () => {
-  beforeEach(() => {
-    onSort.mockClear();
-    onOrder.mockClear();
-  });
-
   // As on iOS: one button, and the sort and the order in the menu it opens.
   test("shows one filter button that opens both choices", async () => {
     await renderMenu();

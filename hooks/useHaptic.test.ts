@@ -43,7 +43,6 @@ const loadHook = (isTV = false) => {
 
 describe("useHaptic", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     mockSettings = {};
   });
 

@@ -107,8 +107,6 @@ jest.mock("@/utils/jellyfin/checkServer", () => ({
 
 describe("Login Quick Connect", () => {
   beforeEach(() => {
-    mockStopPolling.mockClear();
-    mockJellyfin.initiateQuickConnect.mockClear();
     mockJellyfin.quickConnectStatus = "waiting";
     getDefaultStore().set(userAtom as never, null as never);
     getDefaultStore().set(pendingAccountSaveAtom as never, null as never);
@@ -215,7 +213,6 @@ describe("Login Quick Connect", () => {
 
 describe("Login with a password", () => {
   beforeEach(() => {
-    mockJellyfin.login.mockClear();
     getDefaultStore().set(userAtom as never, null as never);
   });
 

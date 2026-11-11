@@ -23,7 +23,6 @@ const register = BackgroundTask.registerTaskAsync as jest.Mock;
 const isRegistered = TaskManager.isTaskRegisteredAsync as jest.Mock;
 
 beforeEach(() => {
-  jest.clearAllMocks();
   storage.clearAll();
   jest.spyOn(console, "log").mockImplementation(() => {});
   isRegistered.mockResolvedValue(false);

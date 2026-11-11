@@ -56,7 +56,6 @@ const state = (mine: unknown, extra: Record<string, unknown> = {}) => ({
 
 describe("the Notifications screen", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     stubReactNative();
     mockState = state(base);
     mockAwaited = { supported: true, titles: [], remove: mockStopWaiting };

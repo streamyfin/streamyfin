@@ -28,11 +28,6 @@ const sortButtons = {
 };
 
 describe("TVSearchTabBadges", () => {
-  beforeEach(() => {
-    onSortPress.mockClear();
-    onOrderPress.mockClear();
-  });
-
   // As the TV library page does: one button for the sort, one for the order,
   // each opening its sheet.
   test("shows the sort and the order beside the tabs", async () => {
