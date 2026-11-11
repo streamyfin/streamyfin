@@ -1,6 +1,10 @@
 import { resolveRouteTrackIndexes } from "./routeTrackIndexes";
 
-const downloaded = { audioStreamIndex: 1, subtitleStreamIndex: 2 };
+const downloaded = {
+  audioStreamIndex: 1,
+  subtitleStreamIndex: 2,
+  isTranscoded: false,
+};
 
 // PlayButton opens a download with both params blank.
 test("falls back to the download record offline", () => {
@@ -43,6 +47,19 @@ test("reads subtitles as off when neither the route nor a record has one", () =>
       subtitleIndex: undefined,
       offline: true,
       downloaded: null,
+    }),
+  ).toEqual({ audioIndex: undefined, subtitleIndex: -1 });
+});
+
+// Records written by 0.51 and older hold 0 for both tracks as a placeholder,
+// and no isTranscoded: index 0 is then a sidecar the user never picked.
+test("ignores the placeholders of a record from before tracks were recorded", () => {
+  expect(
+    resolveRouteTrackIndexes({
+      audioIndex: "",
+      subtitleIndex: "",
+      offline: true,
+      downloaded: { audioStreamIndex: 0, subtitleStreamIndex: 0 },
     }),
   ).toEqual({ audioIndex: undefined, subtitleIndex: -1 });
 });

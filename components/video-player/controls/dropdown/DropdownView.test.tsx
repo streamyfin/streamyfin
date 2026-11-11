@@ -38,7 +38,11 @@ jest.mock("../contexts/PlayerContext", () => ({
     item: { Id: "item-1" },
     mediaSource: { Id: "source-1" },
     downloadedItem: {
-      userData: { audioStreamIndex: 1, subtitleStreamIndex: 2 },
+      userData: {
+        audioStreamIndex: 1,
+        subtitleStreamIndex: 2,
+        isTranscoded: false,
+      },
     },
   }),
 }));

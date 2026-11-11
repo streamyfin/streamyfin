@@ -36,6 +36,7 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
+import { routeTrackSelection } from "@/utils/directPlayer/routeTrackIndexes";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import {
   getAdjacentStartTicks,
@@ -57,6 +58,7 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { usePlayerContext } from "./contexts/PlayerContext";
 import { AndroidSubtitleScaleOverlay } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
@@ -154,6 +156,7 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
+  const { downloadedItem } = usePlayerContext();
   const { settings } = useSettings();
   // Decides where a matched alternate version starts, see
   // getAdjacentStartTicks. Whatever is cached will do: a server does not go
@@ -615,12 +618,14 @@ export const Controls: FC<Props> = ({
       }
       stillWatchingArmedRef.current = false;
       lightHapticFeedback();
-      const previousIndexes = {
-        subtitleIndex: subtitleIndex
-          ? Number.parseInt(subtitleIndex, 10)
-          : undefined,
-        audioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
-      };
+      // What plays now, as the player and its menus resolve it: a download
+      // opens with no track in its route and plays the ones its record names.
+      const previousIndexes = routeTrackSelection({
+        audioIndex,
+        subtitleIndex,
+        offline,
+        downloaded: downloadedItem?.userData,
+      });
 
       const {
         mediaSource: newMediaSource,
@@ -654,6 +659,7 @@ export const Controls: FC<Props> = ({
       settings,
       subtitleIndex,
       audioIndex,
+      downloadedItem,
       mediaSource,
       bitrateValue,
       router,

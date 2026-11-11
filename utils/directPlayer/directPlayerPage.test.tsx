@@ -44,6 +44,13 @@ const mockPlayer = {
   play: jest.fn(),
   pause: jest.fn(async () => {}),
   setSpeed: jest.fn(async () => {}),
+  // The embedded subtitles of the file, as MPV lists them.
+  getSubtitleTracks: jest.fn(async () => [
+    { id: 1, lang: "eng", title: "English", codec: "subrip", external: false },
+    { id: 2, lang: "fre", title: "French", codec: "subrip", external: false },
+  ]),
+  setSubtitleTrack: jest.fn(async (_id: number) => {}),
+  disableSubtitles: jest.fn(async () => {}),
 };
 let mockPlayerProps: MpvPlayerViewProps | null = null;
 /** How many MPV views have mounted: each one loads its source from scratch. */
@@ -64,7 +71,6 @@ let mockSeekReaction:
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
 let mockDownloads: Record<string, unknown> = {};
-const mockApplySubtitleSelection = jest.fn(async (..._args: unknown[]) => {});
 const mockSettings = {};
 const mockNoop = () => {};
 /** The volume commands the page handed the session socket. */
@@ -196,11 +202,6 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
     sessionId: `session-${item.Id}`,
     url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
   }),
-}));
-jest.mock("@/utils/jellyfin/subtitleUtils", () => ({
-  ...jest.requireActual("@/utils/jellyfin/subtitleUtils"),
-  applyMpvSubtitleSelection: (...args: unknown[]) =>
-    mockApplySubtitleSelection(...args),
 }));
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
@@ -736,15 +737,32 @@ describe("direct player stop report", () => {
 describe("direct player subtitles", () => {
   beforeEach(() => {
     jest.spyOn(console, "log").mockImplementation(() => {});
-    mockApplySubtitleSelection.mockClear();
+    mockPlayer.setSubtitleTrack.mockClear();
+    mockPlayer.disableSubtitles.mockClear();
+    const embedded = (Index: number, Language: string) => ({
+      Type: "Subtitle",
+      Index,
+      Language,
+      Codec: "subrip",
+      IsTextSubtitleStream: true,
+      DeliveryMethod: "Embed",
+    });
     mockDownloads = {
       "item-1": {
         item: { Id: "item-1", Type: "Episode", RunTimeTicks: RUNTIME_TICKS },
-        mediaSource: { Id: "source-1", MediaStreams: [] },
+        mediaSource: {
+          Id: "source-1",
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            { Type: "Audio", Index: 1, Language: "eng" },
+            embedded(2, "eng"),
+            embedded(3, "fre"),
+          ],
+        },
         videoFilePath: "file:///downloads/item-1.mkv",
         userData: {
           audioStreamIndex: 1,
-          subtitleStreamIndex: 2,
+          subtitleStreamIndex: 3,
           isTranscoded: false,
         },
       },
@@ -769,12 +787,12 @@ describe("direct player subtitles", () => {
     });
   };
 
+  // French is the second embedded subtitle of the file, so MPV's track 2.
   test("starts a download on the subtitle it was downloaded with", async () => {
     await openWithTracks();
 
-    expect(mockApplySubtitleSelection).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ jellyfinSubtitleIndex: 2 }),
+    await waitFor(() =>
+      expect(mockPlayer.setSubtitleTrack).toHaveBeenLastCalledWith(2),
     );
   });
 
@@ -782,9 +800,7 @@ describe("direct player subtitles", () => {
     mockParams.subtitleIndex = "-1";
     await openWithTracks();
 
-    expect(mockApplySubtitleSelection).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ jellyfinSubtitleIndex: -1 }),
-    );
+    await waitFor(() => expect(mockPlayer.disableSubtitles).toHaveBeenCalled());
+    expect(mockPlayer.setSubtitleTrack).not.toHaveBeenCalled();
   });
 });
