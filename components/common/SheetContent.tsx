@@ -2,14 +2,14 @@ import { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import type { ComponentProps } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SHEET_PADDING, SHEET_PADDING_TOP } from "@/constants/Values";
+import { sideInsetPadding } from "@/utils/sideInsetPadding";
 
 /** Sheet content padding that keeps clear of the navigation bar. */
 export const useSheetContentPadding = () => {
   const insets = useSafeAreaInsets();
   return {
     paddingTop: SHEET_PADDING_TOP,
-    paddingLeft: Math.max(SHEET_PADDING, insets.left),
-    paddingRight: Math.max(SHEET_PADDING, insets.right),
+    ...sideInsetPadding(insets, SHEET_PADDING),
     paddingBottom: insets.bottom + SHEET_PADDING,
   };
 };
