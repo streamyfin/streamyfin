@@ -111,7 +111,7 @@ class BackgroundDownloaderModule : Module() {
 
     AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
       try {
-        Log.d(TAG, "Enqueuing download: url=$urlString")
+        Log.d(TAG, "Enqueuing download: url=${redactCredentials(urlString)}")
 
         val taskId = synchronized(stateLock) {
           // Add to queue
@@ -158,7 +158,7 @@ class BackgroundDownloaderModule : Module() {
         downloadQueue.removeAll { queuedItem ->
           queuedItem.url == url
         }
-        Log.d(TAG, "Removed queued download: $url, queue size: ${downloadQueue.size}")
+        Log.d(TAG, "Removed queued download: ${redactCredentials(url)}, queue size: ${downloadQueue.size}")
       }
     }
 
@@ -229,7 +229,7 @@ class BackgroundDownloaderModule : Module() {
     startDownloadService()
     syncServiceLocked()
 
-    Log.d(TAG, "Starting download: taskId=$taskId, url=$urlString")
+    Log.d(TAG, "Starting download: taskId=$taskId, url=${redactCredentials(urlString)}")
 
     // Send started event
     val payload = mutableMapOf<String, Any>(
@@ -274,7 +274,7 @@ class BackgroundDownloaderModule : Module() {
 
     // Get next item from queue
     val next = downloadQueue.removeAt(0)
-    Log.d(TAG, "Processing next in queue: ${next.url}")
+    Log.d(TAG, "Processing next in queue: ${redactCredentials(next.url)}")
 
     return try {
       startDownloadLocked(next.url, next.destinationPath, next.itemId, next.headers)

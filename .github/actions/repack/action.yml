@@ -129,15 +129,16 @@ runs:
           exit 0
         fi
         if [ "$PLATFORM" = "ios" ]; then
-          args=(-p ios --source-app "$RUNNER_TEMP/source.ipa")
-        else
-          # With no keystore, repack-app signs with the standard React Native
-          # debug key, the key the Gradle release build signs with. A different
-          # key would stop a repacked APK from installing over an earlier one.
-          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
-          args=(-p android --source-app "$RUNNER_TEMP/source.apk" --android-build-tools-dir "$build_tools")
+          bunx repack-app -p ios --source-app "$RUNNER_TEMP/source.ipa" -w "$RUNNER_TEMP/repack" -o "$OUTPUT" .
+          exit 0
         fi
-        bunx repack-app "${args[@]}" -w "$RUNNER_TEMP/repack" -o "$OUTPUT" .
+        # Through repack-app's API, which lets the script rebuild resources
+        # that R8 shrank. With no keystore, repack-app signs with the standard
+        # React Native debug key, the key the Gradle release build signs with.
+        # A different key would stop a repacked APK from installing over an
+        # earlier one.
+        build_tools=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+        bun scripts/ci/repack-android.ts "$RUNNER_TEMP/source.apk" "$build_tools" "$OUTPUT" "$RUNNER_TEMP/repack"
 
     - name: 🧹 Delete the signing files
       if: always() && inputs.platform == 'ios' && inputs.expo-token != ''

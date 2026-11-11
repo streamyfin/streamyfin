@@ -87,6 +87,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
+  getActivePlayerType,
   isNativeChromeActive,
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
@@ -125,6 +126,7 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
+import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
 import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
@@ -139,6 +141,8 @@ import {
   type SyncPlayQueueDisplay,
 } from "@/utils/nativePlayer/syncPlay";
 import { NativeSyncPlayBufferingReporter } from "@/utils/nativePlayer/syncPlayBuffering";
+import { warmUpcomingSubtitles } from "@/utils/nativePlayer/warmUpcomingSubtitles";
+import { generateDeviceProfile } from "@/utils/profiles/native";
 import {
   fetchAndParseSegments,
   getSegmentsForItem,
@@ -824,11 +828,58 @@ const NativePlayerProviderInner: React.FC<{
   // Sessions whose countdown already advanced; see onNextEpisodeRequested.
   const [countdownAdvanced] = useState(() => new WeakSet<NativeSession>());
   const countdownAdvancedRef = useRef(countdownAdvanced);
+  // Items whose subtitles a background warm already started; one negotiation
+  // per item, not one per payload push.
+  const warmedSubtitleItemIdsRef = useRef(new Set<string>());
 
   const buildNextEpisodePayload = useCallback(
     (session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
+      // The swap's inline prefetch (buildNativePlayerConfig) blocks the
+      // next-episode load for the whole subtitle budget on a slow path; warm
+      // the files now, while this episode still plays, so the swap finds them
+      // cached. Best effort and once per item.
+      const api = apiRef.current;
+      // Only ExoPlayer prefetches its sidecars (buildNativePlayerConfig).
+      if (
+        api &&
+        !session.offline &&
+        !syncRef.current.enabled &&
+        getActivePlayerType(currentSettings) === "exoplayer" &&
+        next.Id &&
+        !warmedSubtitleItemIdsRef.current.has(next.Id)
+      ) {
+        const nextId = next.Id;
+        warmedSubtitleItemIdsRef.current.add(nextId);
+        // Resolved as playAdjacentItem resolves the swap (version matched to
+        // the playing one, tracks carried, the session's bitrate cap), so the
+        // warm negotiates the very source and sidecars the swap will ask for.
+        const nextSettings = getDefaultPlaySettings(next, currentSettings, {
+          indexes: {
+            subtitleIndex: session.currentSubtitleIndex,
+            audioIndex: session.currentAudioIndex,
+          },
+          source: session.stream.mediaSource,
+          offline: session.offline,
+        });
+        void warmUpcomingSubtitles({
+          api,
+          item: next,
+          userId: userRef.current?.Id,
+          mediaSourceId: nextSettings.mediaSource?.Id,
+          audioStreamIndex: nextSettings.audioIndex,
+          subtitleStreamIndex: nextSettings.subtitleIndex,
+          maxStreamingBitrate: session.bitrateValue,
+          deviceProfile: generateDeviceProfile({
+            player: getActivePlayerType(currentSettings),
+            audioMode: currentSettings?.audioTranscodeMode,
+          }),
+        }).then((complete) => {
+          // A sidecar is still off disk: the next payload push tries again.
+          if (!complete) warmedSubtitleItemIdsRef.current.delete(nextId);
+        });
+      }
       // Decided once per episode, against its projected end at 1x. A pause
       // makes the prompt come an episode late; a faster speed can bring it
       // early.
@@ -1275,7 +1326,12 @@ const NativePlayerProviderInner: React.FC<{
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
-      // stream is negotiated.
+      // stream is negotiated. A new player starts from an empty subtitle
+      // cache (see clearSubtitlePrefetchCache) and warms its next items again.
+      if (sessionRef.current === null) {
+        clearSubtitlePrefetchCache();
+        warmedSubtitleItemIdsRef.current.clear();
+      }
       return beginSession(req, {
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
@@ -1576,7 +1632,13 @@ const NativePlayerProviderInner: React.FC<{
 
       session.currentSubtitleIndex = jellyfinIndex;
       const result = await applySubtitleSelection(session, jellyfinIndex);
+      // The native round trip is not session-bound: a swap landing during it
+      // makes `session` the outgoing one.
+      if (sessionRef.current !== session) return;
       if (result.kind === "notFound" || result.kind === "burnedIn") {
+        // A sidecar the prefetch left out has no track yet: renegotiating
+        // prefetches it again, first and with a fresh budget, and keeps its
+        // remote URL if the budget runs out, so the pick is never lost.
         await replaceStream(session, {
           subtitleIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -1995,6 +2057,8 @@ const NativePlayerProviderInner: React.FC<{
           // Jellyfin-index resolver knows nothing about.
           void applyLocalSubtitleSelection(session);
         } else {
+          // The session's subtitle is the prefetch's preferred one, never left
+          // without a URL, so it always resolves to a track here.
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
         // Mirror of the JS player, which waits for tracksReady before letting

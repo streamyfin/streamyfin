@@ -41,6 +41,7 @@ import {
   getMpvAudioId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
+import { logAndCaptureError } from "@/utils/log";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
@@ -57,6 +58,7 @@ import {
 } from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo, trickplaySheetUrl } from "@/utils/trickplay";
+import { prefetchExternalSubtitles } from "./externalSubtitles";
 import type { PlayRequest } from "./playRequest";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
@@ -444,6 +446,9 @@ export async function buildNativePlayerConfig(params: {
     },
   });
   const bitrateValue = req.bitrateValue ?? BITRATES[0].value;
+  // The decoding engine — device profile and config must agree on it (see
+  // getActivePlayerType).
+  const engine = getActivePlayerType(settings);
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
   // mpv device profile — the native player renders through the MPV engine)
@@ -466,7 +471,7 @@ export async function buildNativePlayerConfig(params: {
       mediaSourceId: req.mediaSourceId,
       subtitleStreamIndex: subtitleIndex,
       deviceProfile: generateDeviceProfile({
-        player: getActivePlayerType(settings),
+        player: engine,
         audioMode: settings.audioTranscodeMode,
       }),
     });
@@ -477,6 +482,30 @@ export async function buildNativePlayerConfig(params: {
       mediaSource: res.mediaSource,
       requiredHttpHeaders: res.requiredHttpHeaders,
     };
+
+    // ExoPlayer only: prefetch the sidecar subtitles onto disk and point their
+    // DeliveryUrl at the local files before the config is built. A sidecar
+    // Exo fetches itself over a slow path wedges its pipeline, observed as a
+    // minutes-long next-episode stall behind a reverse proxy. mpv opens each
+    // sidecar on a thread of its own with its core unlocked (sub-add), so a
+    // slow one delays only that track: it keeps fetching them itself and
+    // starts without this wait. Budgeted, the session's subtitle first.
+    if (engine === "exoplayer") {
+      try {
+        await prefetchExternalSubtitles({
+          mediaSource: res.mediaSource,
+          item,
+          api,
+          preferredIndex: subtitleIndex,
+        });
+      } catch (error) {
+        // Subtitles are optional: an unexpected failure here plays the stream
+        // with whatever URLs the sidecars have, rather than not at all.
+        logAndCaptureError("NativePlayer subtitle prefetch failed", error, {
+          itemId: item.Id,
+        });
+      }
+    }
   }
 
   const mediaSource = stream.mediaSource;
@@ -537,18 +566,31 @@ export async function buildNativePlayerConfig(params: {
       initialAudioMpvId: initialAudioId,
       playMethod,
       transcodeReasons: parseTranscodeReasons(mediaSource.TranscodingUrl),
-      cacheConfig: {
-        enabled: settings.mpvCacheEnabled,
-        cacheSeconds: settings.mpvCacheSeconds,
-        maxBytes: settings.mpvDemuxerMaxBytes,
-        maxBackBytes: settings.mpvDemuxerMaxBackBytes,
-      },
+      // MPV-only: mpv's demuxer-cache knobs. ExoPlayer derives its
+      // LoadControl internally and the settings UI hides these when it is
+      // the engine — sending them would imply stale hidden values still
+      // steer Exo playback.
+      cacheConfig:
+        engine === "mpv"
+          ? {
+              enabled: settings.mpvCacheEnabled,
+              cacheSeconds: settings.mpvCacheSeconds,
+              maxBytes: settings.mpvDemuxerMaxBytes,
+              maxBackBytes: settings.mpvDemuxerMaxBackBytes,
+            }
+          : undefined,
       videoWidth: videoDimensions.width,
       videoHeight: videoDimensions.height,
+      // Only sent when the user opted in — the native side never reads
+      // settings, so an opted-out player must not carry the rate at all.
+      contentFrameRate:
+        settings.matchRefreshRate === true
+          ? (videoStream?.RealFrameRate ?? undefined)
+          : undefined,
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.
-    engine: getActivePlayerType(settings),
+    engine,
     metadata: buildMetadata(item, api),
     // Episode-list and next-episode thumbnails are fetched natively, so they
     // need the headers as well. Offline URLs are local and match nothing.

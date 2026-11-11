@@ -16,6 +16,7 @@ export const downloadModule = {
     downloadedItems: [],
     processes: [],
     getDownloadedItems: () => [],
+    getDownloadedItemById: () => undefined,
     cleanCacheDirectory: async () => {},
   }),
 };

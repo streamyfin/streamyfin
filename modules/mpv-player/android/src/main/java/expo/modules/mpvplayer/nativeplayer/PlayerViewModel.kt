@@ -1086,13 +1086,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     /** Pill label for a segment type. */
-    fun skipLabel(type: String): String = when (type) {
-        "Outro" -> strings.get("skipCredits", "Skip credits")
-        "Recap" -> strings.get("skipRecap", "Skip recap")
-        "Commercial" -> strings.get("skipCommercial", "Skip commercial")
-        "Preview" -> strings.get("skipPreview", "Skip preview")
-        else -> strings.get("skipIntro", "Skip intro")
-    }
+    fun skipLabel(type: String): String = segmentSkipLabel(type, strings)
 
     /**
      * "… skipped" notice for a segment type. Whole sentences rather than a

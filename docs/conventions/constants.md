@@ -34,8 +34,9 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Images.ts` | Server image requests: the detail page logo height, and the pixel caps and steps on what is asked for |
 | `constants/TVSizes.ts` | TV poster sizes, gaps, padding, animation timings, how close to the end a growing grid asks for more, where Android TV's top tab bar ends |
 | `constants/TVTypography.ts` | TV type scale and the `useScaledTVTypography` hook |
+| `constants/TVSheet.ts` | How TV sheets come in: backdrop fade, slide, and the delays before their cards mount and take focus |
 | `constants/TVPosterSizes.ts` | TV poster size keys |
-| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, how often the stats overlay polls the transcode progress, and how long a new native player waits for a closing one |
+| `constants/Playback.ts` | Playback policy shared by the JS and native players (progress report cadence, next-episode countdown window, play queue size cap), how long a remote repeat or shuffle change waits to be confirmed, how often the stats overlay polls the transcode progress, how long a new native player waits for a closing one, and the query families that show watch progress |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
@@ -45,7 +46,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
 | `constants/Query.ts` | The app's query client: how many times a failed query is tried again |
-| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, and how long that info is trusted |
+| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, how long that info is trusted, the two ways it writes an item id, and the bracketed forms it also reads one in |
 | `constants/Upcoming.ts` | Upcoming episodes: how many are asked per request, on the screen and in the home row |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |
 | `constants/Recommendations.ts` | Similar item rows: how many items a detail page asks the server for, and for which kinds of item |

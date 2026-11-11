@@ -25,10 +25,11 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -65,6 +66,39 @@ export type SelectedOptions = {
   subtitleIndex: number;
 };
 
+/** A track picked in the sheet, with the version it was picked on. */
+interface TrackPick {
+  source: MediaSourceInfo;
+  index: number;
+}
+
+interface TrackPicks {
+  audio?: TrackPick;
+  subtitle?: TrackPick;
+}
+
+/**
+ * The tracks to download from `version`. Stream indexes are per version, so
+ * each pick is matched again from the version it was made on: a version that
+ * lacks the track falls back to its own default and the pick stays as it was.
+ */
+const tracksOnVersion = (
+  item: BaseItemDto,
+  version: MediaSourceInfo,
+  settings: Settings | null,
+  { audio, subtitle }: TrackPicks,
+): { audioIndex?: number; subtitleIndex: number } => {
+  const { audioIndex, subtitleIndex } = getDefaultPlaySettings(
+    { ...item, MediaSources: [version] },
+    settings,
+    {
+      indexes: { audioIndex: audio?.index, subtitleIndex: subtitle?.index },
+      pickedOn: { audio: audio?.source, subtitle: subtitle?.source },
+    },
+  );
+  return { audioIndex, subtitleIndex: subtitleIndex ?? SUBTITLES_OFF };
+};
+
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
   MissingDownloadIconComponent: () => React.ReactElement;
@@ -96,6 +130,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+  // A default is not a choice, so only a picked track follows a version change.
+  const [picks, setPicks] = useState<TrackPicks>({});
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -145,6 +181,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       subtitleIndex: defaultSubtitleIndex ?? -1,
       audioIndex: defaultAudioIndex,
     }));
+    setPicks({});
   }, [
     defaultAudioIndex,
     defaultBitrate,
@@ -381,15 +418,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       return progress === 0 ? (
         <Loader />
       ) : (
-        <View className='-rotate-45'>
-          <ProgressCircle
-            size={PROGRESS_RING_SIZE}
-            fill={progress}
-            width={PROGRESS_RING_WIDTH}
-            tintColor={Colors.primary}
-            backgroundColor='white'
-          />
-        </View>
+        <ProgressCircle
+          size={PROGRESS_RING_SIZE}
+          fill={progress}
+          width={PROGRESS_RING_WIDTH}
+          tintColor={Colors.primary}
+          backgroundColor='white'
+        />
       );
     }
 
@@ -454,7 +489,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             <View className='flex flex-col space-y-2 w-full'>
               <View className='items-start'>
                 <BitrateSelector
-                  inverted
                   onChange={(val) =>
                     setSelectedOptions(
                       (prev) => prev && { ...prev, bitrate: val },
@@ -478,13 +512,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     <MediaSourceSelector
                       item={optionsItem}
                       onChange={(val) =>
-                        setSelectedOptions(
-                          (prev) =>
-                            prev && {
-                              ...prev,
-                              mediaSource: val,
-                            },
-                        )
+                        setSelectedOptions((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            mediaSource: val,
+                            ...tracksOnVersion(
+                              optionsItem,
+                              val,
+                              settings,
+                              picks,
+                            ),
+                          };
+                        })
                       }
                       selected={selectedOptions?.mediaSource}
                     />
@@ -501,6 +541,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 audioIndex: val,
                               },
                           );
+                          const source = selectedOptions.mediaSource;
+                          if (source) {
+                            setPicks((prev) => ({
+                              ...prev,
+                              audio: { source, index: val },
+                            }));
+                          }
                         }}
                         selected={selectedOptions.audioIndex}
                       />
@@ -514,6 +561,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 subtitleIndex: val,
                               },
                           );
+                          const source = selectedOptions.mediaSource;
+                          if (source) {
+                            setPicks((prev) => ({
+                              ...prev,
+                              subtitle: { source, index: val },
+                            }));
+                          }
                         }}
                         selected={selectedOptions.subtitleIndex}
                       />
