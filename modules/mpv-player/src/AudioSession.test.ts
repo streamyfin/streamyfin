@@ -61,10 +61,11 @@ describe("iOS audio session", () => {
 
   // A play() or an mpv callback can still arrive once the player has closed.
   // An activation queued behind the teardown would take the session back
-  // with no player left to give it up. A shutdown is also the only reason to
-  // skip a request: any other condition here is the "already applied" flag
-  // again.
-  test("a shutdown is the engine's only reason to skip the session", () => {
+  // with no player left to give it up. The other reason to skip a request is
+  // an engine without background playback (the subtitle preview), which never
+  // takes the session at all. Any further condition here is the "already
+  // applied" flag again.
+  test("a shutdown or no background playback are the only reasons to skip the session", () => {
     expect(engineSource.split("audioSession.activate(")).toHaveLength(2);
 
     const helper = section(
@@ -74,7 +75,7 @@ describe("iOS audio session", () => {
     );
 
     expect(helper).toMatch(
-      /^[^\n]*\{\s*guard !isShutDown else \{ return \}\s*audioSession\.activate\(completion: completion\)\s*$/,
+      /^[^\n]*\{\s*guard !isShutDown else \{ return \}\s*guard backgroundPlayback else \{\s*completion\?\(\)\s*return\s*\}\s*tookMediaSession = true\s*audioSession\.activate\(completion: completion\)\s*$/,
     );
   });
 

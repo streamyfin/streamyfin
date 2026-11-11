@@ -986,6 +986,16 @@ export default function DirectPlayerPage() {
   );
 
   /** Prepare metadata for iOS native media controls (Control Center, Lock Screen) */
+  // Fast forward and rewind from a headset, a car or the notification skip
+  // what the on-screen buttons do.
+  const sessionSkipSeconds = useMemo(
+    () => ({
+      forward: settings.forwardSkipTime,
+      backward: settings.rewindSkipTime,
+    }),
+    [settings.forwardSkipTime, settings.rewindSkipTime],
+  );
+
   const nowPlayingMetadata = useMemo(() => {
     if (!item || !api) return undefined;
 
@@ -1747,6 +1757,13 @@ export default function DirectPlayerPage() {
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
                 nowPlayingMetadata={nowPlayingMetadata}
+                // Not on TV: the remote's keys go to JS there, and an active
+                // session took Play/Pause again and undid the toggle.
+                backgroundPlayback={!Platform.isTV}
+                sessionSkipSeconds={sessionSkipSeconds}
+                liveStream={
+                  item?.Type === "Program" || item?.Type === "TvChannel"
+                }
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}

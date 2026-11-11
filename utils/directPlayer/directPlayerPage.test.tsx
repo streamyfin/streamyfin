@@ -576,9 +576,62 @@ describe("direct player stop report", () => {
     }
   });
 
+  // The media session, notification and foreground service are for this
+  // screen: a view that only shows a clip (the subtitle preview) took the
+  // audio focus and stopped the user's music.
+  test("asks the player to keep playing with the screen off", async () => {
+    await openPlayer();
+
+    expect(mockPlayerProps?.backgroundPlayback).toBe(true);
+  });
+
+  test("tells the player an episode is not live", async () => {
+    await openPlayer();
+
+    expect(mockPlayerProps?.liveStream).toBe(false);
+  });
+
+  // A headset's Previous or fast forward on Live TV jumped to the start of the
+  // stream or past its live edge.
+  test("tells the player a TV channel is live", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    await openPlayer();
+
+    expect(mockPlayerProps?.liveStream).toBe(true);
+  });
+
+  // Fast forward and rewind from a headset or the notification went +30 and
+  // -10 s whatever the user had set.
+  test("hands the session the user's skip settings", async () => {
+    Object.assign(mockSettings, { forwardSkipTime: 15, rewindSkipTime: 30 });
+    try {
+      await openPlayer();
+
+      expect(mockPlayerProps?.sessionSkipSeconds).toEqual({
+        forward: 15,
+        backward: 30,
+      });
+    } finally {
+      for (const key of ["forwardSkipTime", "rewindSkipTime"])
+        delete (mockSettings as Record<string, unknown>)[key];
+    }
+  });
+
   describe("on TV, where the controls re-negotiate the stream through the page", () => {
     beforeEach(() => stubReactNative({ isTV: true }));
     afterEach(() => stubReactNative());
+
+    // The remote's keys go to JS on TV. An active session took Play/Pause
+    // again and undid the toggle.
+    test("leaves background playback off", async () => {
+      await openPlayer();
+
+      expect(mockPlayerProps?.backgroundPlayback).toBe(false);
+    });
 
     test("restarts from the start position when the bitrate changes before MPV has a position", async () => {
       await openPlayer();
