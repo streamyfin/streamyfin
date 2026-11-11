@@ -45,7 +45,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-/** The last back handler a screen registered, to press back from the spec. */
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 20, heading: 28 }),

@@ -17,9 +17,6 @@ import {
   SETTINGS_KEY,
 } from "@/utils/storedSettings";
 
-// This spec is about the real settings, not the double `test-utils/unitSetup.ts` installs.
-jest.unmock("@/utils/atoms/settings");
-
 // The api atoms read expo-device (native at test time);
 // settings.ts only reads the atoms.
 jest.mock("@/utils/atoms/api", () => ({

@@ -10,8 +10,6 @@ import { InactivityProvider, useInactivity } from "./InactivityProvider";
 import { userAtom } from "./JellyfinProvider";
 
 const mockLogout = jest.fn(async () => {});
-// The real provider is under test, not the double `test-utils/unitSetup.ts` installs.
-jest.unmock("@/providers/InactivityProvider");
 jest.mock("./JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom(null),
   useJellyfin: () => ({ logout: mockLogout }),

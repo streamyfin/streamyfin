@@ -13,8 +13,6 @@ jest.mock(
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test, so it is stubbed with the surface the modules under test call.
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,

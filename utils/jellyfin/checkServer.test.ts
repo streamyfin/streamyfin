@@ -1,11 +1,4 @@
-import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import type { CustomHeader } from "@/utils/customHeaders/types";
-
-// checkServer pulls the two helpers through the barrel file, which also
-// re-exports modules with native dependencies (MMKV, SecureStore) — so the
-// barrel is replaced with the real pure helpers plus stubbed resolvers.
-// No proxy headers in these specs.
-beforeEach(() => setJellyfinHeaders());
 
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // this spec's module under test actually calls.

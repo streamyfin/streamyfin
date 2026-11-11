@@ -1,8 +1,6 @@
 import type { User as SeerrUser } from "@/utils/seerr/types";
 import type { QuickConnectSteps } from "./seerrQuickConnect";
 
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// this spec's module under test actually calls.
 import {
   attemptQuickConnectSignIn,
   seerrPasswordNeeded,

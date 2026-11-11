@@ -1,8 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { clearMmkv } from "@/test-utils/mmkv";
 import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// this spec's module under test actually calls.
 import {
   getSeriesTrackMemory,
   rememberSeriesTrackFromRow,

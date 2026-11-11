@@ -17,8 +17,6 @@ let mockIconMounts: Record<string, number> = {};
 // The icons on screen now, by name: a remount and a vanished icon both show.
 let mockIconsShown: Record<string, number> = {};
 
-// The real bitrate selector is rendered here, not the `BITRATES` double `test-utils/unitSetup.ts` installs.
-jest.unmock("@/components/BitrateSelector");
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
     processes: mockProcesses,
