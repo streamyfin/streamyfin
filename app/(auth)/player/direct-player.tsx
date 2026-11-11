@@ -13,7 +13,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, usePreventRemove } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,13 +56,14 @@ import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useServerVersion } from "@/hooks/useServerVersion";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import {
-  type MpvOnErrorEventPayload,
-  type MpvOnPlaybackStateChangePayload,
-  type MpvOnProgressEventPayload,
-  type MpvPlayerViewRef,
-  type MpvVideoSource,
+import type {
+  MpvOnErrorEventPayload,
+  MpvOnPlaybackStateChangePayload,
+  MpvOnProgressEventPayload,
+  MpvPlayerViewRef,
+  MpvVideoSource,
 } from "@/modules";
+import { getSystemVolumeAsync, setSystemVolume } from "@/modules/system-volume";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
@@ -71,11 +72,13 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
   resolveStartTicks,
 } from "@/utils/directPlayer/sessionPosition";
+import { createVolumeStepper } from "@/utils/directPlayer/volumeStepper";
 import { isExpectedError } from "@/utils/errors";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import {
@@ -122,7 +125,6 @@ export default function DirectPlayerPage() {
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
-  const navigation = useNavigation();
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
   // Decides where a matched alternate version starts, see
@@ -190,10 +192,6 @@ export default function DirectPlayerPage() {
   const livePositionStreamRef = useRef<Stream | null>(null);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-  const VolumeManager = Platform.isTV
-    ? null
-    : require("react-native-volume-manager");
-
   const downloadUtils = useDownload();
   // Call directly instead of useMemo - the function reference doesn't change
   // when data updates, only when the provider initializes
@@ -236,14 +234,6 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  // Audio index: use URL param if provided, otherwise use stored index for offline playback
-  // This is computed after downloadedItem is available, see audioIndexResolved below
-  const audioIndexFromUrl = audioIndexStr
-    ? Number.parseInt(audioIndexStr, 10)
-    : undefined;
-  const subtitleIndex = subtitleIndexStr
-    ? Number.parseInt(subtitleIndexStr, 10)
-    : -1;
   const bitrateValue = bitrateValueStr
     ? Number.parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
@@ -299,16 +289,12 @@ export default function DirectPlayerPage() {
     reportProgressRef.current = playbackManager.reportPlaybackProgress;
   });
 
-  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
-  const audioIndex = useMemo(() => {
-    if (audioIndexFromUrl !== undefined) {
-      return audioIndexFromUrl;
-    }
-    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
-      return downloadedItem.userData.audioStreamIndex;
-    }
-    return undefined;
-  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+  const { audioIndex, subtitleIndex } = resolveRouteTrackIndexes({
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+    offline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to
@@ -817,16 +803,16 @@ export default function DirectPlayerPage() {
     };
   }, [itemId, item?.Id, stream?.sessionId, mediaSourceId]);
 
-  // Stop on navigation-away. Re-subscribing when the navigation object identity
-  // changes (e.g. after a setParams) no longer reports anything on its own.
-  useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", () =>
-      stopRef.current(),
-    );
-    return () => {
-      beforeRemoveListener();
-    };
-  }, [navigation]);
+  // Stop before the screen is removed, whichever way it is left: stop()
+  // destroys the decoder, which has to happen before the next screen mounts.
+  // Expo Router 58 removed `beforeRemove`, so the removal is held long enough
+  // to stop, then let through.
+  const [leaving, setLeaving] = useState(false);
+  usePreventRemove(!leaving, ({ repeat }) => {
+    stopRef.current();
+    setLeaving(true);
+    repeat();
+  });
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
@@ -1129,18 +1115,17 @@ export default function DirectPlayerPage() {
     settings.mpvVoDriver,
   ]);
 
+  // Commands a server sends back to back each make a step: covered by
+  // utils/directPlayer/volumeStepper.test.ts.
+  const remoteVolume = useMemo(
+    () => createVolumeStepper(getSystemVolumeAsync, setSystemVolume),
+    [],
+  );
+
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
-
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const newVolume = Math.min(currentVolume + 0.1, 1.0);
-
-      await VolumeManager.setVolume(newVolume);
-    } catch (error) {
-      console.error("Error adjusting volume:", error);
-    }
-  }, []);
+    await remoteVolume.step(0.1);
+  }, [remoteVolume]);
   // Mutes the player, not the device. The previous implementation zeroed the
   // system volume and kept the old value in component state, so leaving the
   // player while muted stranded the device at zero with nothing to restore it.
@@ -1151,33 +1136,16 @@ export default function DirectPlayerPage() {
 
   const volumeDownCb = useCallback(async () => {
     if (Platform.isTV) return;
+    await remoteVolume.step(-0.1);
+  }, [remoteVolume]);
 
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const newVolume = Math.max(currentVolume - 0.1, 0); // Decrease by 10%
-      console.log(
-        "Volume Down",
-        Math.round(currentVolume * 100),
-        "→",
-        Math.round(newVolume * 100),
-      );
-      await VolumeManager.setVolume(newVolume);
-    } catch (error) {
-      console.error("Error adjusting volume:", error);
-    }
-  }, []);
-
-  const setVolumeCb = useCallback(async (newVolume: number) => {
-    if (Platform.isTV) return;
-
-    try {
-      const clampedVolume = Math.max(0, Math.min(newVolume, 100));
-      console.log("Setting volume to", clampedVolume);
-      await VolumeManager.setVolume(clampedVolume / 100);
-    } catch (error) {
-      console.error("Error setting volume:", error);
-    }
-  }, []);
+  const setVolumeCb = useCallback(
+    async (newVolume: number) => {
+      if (Platform.isTV) return;
+      remoteVolume.set(Math.max(0, Math.min(newVolume, 100)) / 100);
+    },
+    [remoteVolume],
+  );
 
   useWebSocket({
     isPlaying: isPlaying,
@@ -1564,7 +1532,7 @@ export default function DirectPlayerPage() {
       // keeps the correct local sub.
       const locals = itemId ? getSubtitlesForItem(itemId) : [];
       const pos = locals.findIndex((s) => s.filePath === path);
-      setCurrentSubtitleIndex(localSubtitleIndex(pos >= 0 ? pos : 0));
+      setCurrentSubtitleIndex(localSubtitleIndex(Math.max(pos, 0)));
       await videoRef.current?.addSubtitleFile?.(path, true);
     },
     [itemId],

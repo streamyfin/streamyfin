@@ -15,9 +15,11 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ScrollView,
+  type ScrollViewInstance,
   TVFocusGuideView,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
@@ -96,13 +98,15 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
 
   // Focus guide refs (using useState to trigger re-renders when refs are set)
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [firstEpisodeRef, setFirstEpisodeRef] = useState<ViewInstance | null>(
+    null,
+  );
 
   // ScrollView ref for page scrolling
-  const mainScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<ScrollViewInstance>(null);
   // ScrollView ref for scrolling back
-  const episodeListRef = useRef<ScrollView>(null);
+  const episodeListRef = useRef<ScrollViewInstance>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 

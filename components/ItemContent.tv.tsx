@@ -17,7 +17,13 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  useWindowDimensions,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AwardsBadge } from "@/components/AwardsBadge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
@@ -125,7 +131,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     useTVThemeMusic(item?.Id);
 
     // State for first episode card ref (used for focus guide)
-    const [_firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+    const [_firstEpisodeRef, setFirstEpisodeRef] =
+      useState<ViewInstance | null>(null);
 
     // Fetch season episodes for episodes
     const { data: seasonEpisodes = [] } = useQuery({
@@ -282,9 +289,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { showSubtitleModal } = useTVSubtitleModal();
 
     // State for first actor card ref (used for focus guide)
-    const [_firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
-      null,
-    );
+    const [_firstActorCardRef, setFirstActorCardRef] =
+      useState<ViewInstance | null>(null);
 
     /** Existing label format on this screen; kept so the menus read the same. */
     const tvTrackLabel = useCallback(
