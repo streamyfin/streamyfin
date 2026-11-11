@@ -1,5 +1,6 @@
-import { render } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
+import type { SavedServer } from "@/utils/secureCredentials";
 
 /**
  * Covers `app/(auth)/(tabs)/(more)/settings.tv.tsx`, the TV settings tab root.
@@ -33,8 +34,22 @@ jest.mock("@/components/tv", () => ({
 jest.mock("@/components/login/TVPasswordEntryModal", () => ({
   TVPasswordEntryModal: () => null,
 }));
+/** Saved servers the screen reads; the current one lists other accounts. */
+let mockServers: SavedServer[] = [];
+let mockSyncPlayAvailable = true;
+/** What the PIN prompt was last rendered with. */
+let mockPinPrompt: { visible: boolean; onClose: () => void } | null = null;
+const mockShowUserSwitchModal = jest.fn();
+const mockRequestTVFocus = jest.fn();
+
 jest.mock("@/components/login/TVPINEntryModal", () => ({
-  TVPINEntryModal: () => null,
+  TVPINEntryModal: (props: { visible: boolean; onClose: () => void }) => {
+    mockPinPrompt = props;
+    return null;
+  },
+}));
+jest.mock("@/utils/requestTVFocus", () => ({
+  requestTVFocus: (view: unknown) => mockRequestTVFocus(view),
 }));
 jest.mock(
   "react-native-mmkv",
@@ -63,7 +78,7 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 jest.mock("@/providers/SyncPlayProvider", () => ({
-  useSyncPlay: () => ({ available: true }),
+  useSyncPlay: () => ({ available: mockSyncPlayAvailable }),
 }));
 jest.mock("@/providers/AudioStorage", () => ({ clearCache: jest.fn() }));
 jest.mock("@/hooks/useMediaPreferences", () => ({
@@ -73,11 +88,13 @@ jest.mock("@/hooks/useTVOptionModal", () => ({
   useTVOptionModal: () => ({ showOptions: jest.fn() }),
 }));
 jest.mock("@/hooks/useTVUserSwitchModal", () => ({
-  useTVUserSwitchModal: () => ({ showUserSwitchModal: jest.fn() }),
+  useTVUserSwitchModal: () => ({
+    showUserSwitchModal: mockShowUserSwitchModal,
+  }),
 }));
 jest.mock("@/i18n", () => ({ APP_LANGUAGES: [] }));
 jest.mock("@/utils/secureCredentials", () => ({
-  getPreviousServers: () => [],
+  getPreviousServers: () => mockServers,
 }));
 jest.mock("@/utils/topshelf/cache", () => ({
   clearTopShelfCacheSafely: jest.fn(),
@@ -93,6 +110,36 @@ const SettingsTV = jest.requireActual(
   "@/app/(auth)/(tabs)/(more)/settings.tv",
 ).default;
 
+/** The test api's server, with the signed-in user and a second, PIN protected account. */
+const serverWithTwoAccounts = (): SavedServer => ({
+  address: "https://jellyfin.example.com",
+  accounts: [
+    { userId: "user-1", username: "me", securityType: "none", savedAt: 1 },
+    { userId: "user-2", username: "kid", securityType: "pin", savedAt: 2 },
+  ],
+});
+
+const preferredFocusNodes = (container: {
+  queryAll: (
+    predicate: (node: {
+      type: unknown;
+      props: Record<string, unknown>;
+    }) => boolean,
+  ) => unknown[];
+}) =>
+  container.queryAll(
+    (node) =>
+      typeof node.type === "string" && node.props.hasTVPreferredFocus === true,
+  );
+
+beforeEach(() => {
+  mockServers = [];
+  mockSyncPlayAvailable = true;
+  mockPinPrompt = null;
+  mockShowUserSwitchModal.mockReset();
+  mockRequestTVFocus.mockReset();
+});
+
 describe("TV settings tab", () => {
   // Swiping across the tvOS tab bar landed on the first settings row. The row
   // rendered with `isFirst` set hasTVPreferredFocus, and a tab root that sets
@@ -106,12 +153,48 @@ describe("TV settings tab", () => {
     getByText("syncplay.ignore_wait");
     getByText("home.settings.security.inactivity_timeout.title");
 
-    expect(
-      container.queryAll(
-        (node) =>
-          typeof node.type === "string" &&
-          node.props.hasTVPreferredFocus === true,
-      ),
-    ).toHaveLength(0);
+    expect(preferredFocusNodes(container)).toHaveLength(0);
+  });
+
+  // Each of the first rows set it in its own configuration: Switch user with a
+  // second account, inactivity without SyncPlay. One configuration only
+  // guarded the SyncPlay row.
+  test("leaves it there with another account and without SyncPlay", async () => {
+    mockServers = [serverWithTwoAccounts()];
+    mockSyncPlayAvailable = false;
+    const { container, getByText } = await render(<SettingsTV />, {
+      wrapper: QueryWrapper,
+    });
+
+    getByText("home.settings.switch_user.switch_user");
+    getByText("home.settings.security.inactivity_timeout.title");
+
+    expect(preferredFocusNodes(container)).toHaveLength(0);
+  });
+
+  // The PIN prompt is an overlay in this page. The row's hasTVPreferredFocus
+  // turned true again as it closed, which handed the focus back; without it
+  // the focus stayed nowhere once the prompt went away.
+  test("gives the focus back to Switch user when the PIN prompt closes", async () => {
+    mockServers = [serverWithTwoAccounts()];
+    const { getByText } = await render(<SettingsTV />, {
+      wrapper: QueryWrapper,
+    });
+
+    fireEvent.press(getByText("home.settings.switch_user.switch_user"));
+    const { onAccountSelect } = mockShowUserSwitchModal.mock.calls[0][2];
+    await act(async () => {
+      await onAccountSelect(mockServers[0].accounts[1]);
+    });
+    expect(mockPinPrompt?.visible).toBe(true);
+    expect(mockRequestTVFocus).not.toHaveBeenCalled();
+
+    await act(async () => {
+      mockPinPrompt?.onClose();
+    });
+
+    await waitFor(() => expect(mockPinPrompt?.visible).toBe(false));
+    expect(mockRequestTVFocus).toHaveBeenCalledTimes(1);
+    expect(mockRequestTVFocus.mock.calls[0][0]).toBeTruthy();
   });
 });
