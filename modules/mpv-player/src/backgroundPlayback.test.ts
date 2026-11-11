@@ -6,8 +6,8 @@ const read = (path: string) =>
 const engine = read("PlayerEngine.swift");
 const embeddedHost = read("MpvPlayerView.swift");
 const viewModule = read("MpvPlayerModule.swift");
-const _nowPlaying = read("MPVNowPlayingManager.swift");
-const _nativeSession = read("NativePlayer/NativePlayerSession.swift");
+const nowPlaying = read("MPVNowPlayingManager.swift");
+const nativeSession = read("NativePlayer/NativePlayerSession.swift");
 
 const section = (source: string, start: string, end: string) =>
   source.split(start, 2)[1]?.split(end, 1)[0] ?? "";
@@ -63,5 +63,14 @@ describe("iOS background playback", () => {
       ),
     ).toContain("setPictureInPictureAutoStartEnabled(backgroundPlayback)");
     expect(engine).not.toContain("setPictureInPictureAutoStartEnabled(true)");
+  });
+
+  // The lock screen offered 15 seconds both ways while the player skipped by
+  // the user's settings.
+  it("gives the lock screen the presented player's skip times", () => {
+    expect(nowPlaying).not.toContain("preferredIntervals = [15]");
+    expect(nativeSession).toContain(
+      "engine.setSkipIntervals(forward: viewModel.seekForwardSec, backward: viewModel.seekBackwardSec)",
+    );
   });
 });

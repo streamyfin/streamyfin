@@ -501,6 +501,12 @@ final class MPVPlayerEngine: NSObject {
 		return cachedDuration
 	}
 
+	/// The skip buttons of the lock screen and Control Center: the player's own
+	/// skip times rather than a fixed 15 seconds.
+	func setSkipIntervals(forward: Double, backward: Double) {
+		nowPlayingManager.setSkipIntervals(forward: forward, backward: backward)
+	}
+
 	// MARK: - Picture in Picture
 
 	func setPictureInPictureAutoStartEnabled(_ enabled: Bool) {

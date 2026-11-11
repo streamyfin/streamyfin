@@ -17,10 +17,23 @@ class MPVNowPlayingManager {
     private var position: TimeInterval = 0
     private var isPlaying: Bool = false
     private var isCommandsSetup = false
+    private var skipForwardSeconds: Double = 15
+    private var skipBackwardSeconds: Double = 15
     
     private var artworkTask: URLSessionDataTask?
     
     private init() {}
+
+    /// The lock screen and Control Center skip by the interval they show, so
+    /// the player's skip times go to both. Values that are not a positive
+    /// number keep the previous interval.
+    func setSkipIntervals(forward: Double, backward: Double) {
+        if forward.isFinite, forward > 0 { skipForwardSeconds = forward }
+        if backward.isFinite, backward > 0 { skipBackwardSeconds = backward }
+        let cc = MPRemoteCommandCenter.shared()
+        cc.skipForwardCommand.preferredIntervals = [NSNumber(value: skipForwardSeconds)]
+        cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipBackwardSeconds)]
+    }
     
     // MARK: - Remote Commands
     
@@ -51,14 +64,14 @@ class MPVNowPlayingManager {
         cc.togglePlayPauseCommand.addTarget { _ in toggleHandler(); return .success }
         
         cc.skipForwardCommand.isEnabled = true
-        cc.skipForwardCommand.preferredIntervals = [15]
+        cc.skipForwardCommand.preferredIntervals = [NSNumber(value: skipForwardSeconds)]
         cc.skipForwardCommand.addTarget { e in
             if let ev = e as? MPSkipIntervalCommandEvent { skipForward(ev.interval) }
             return .success
         }
         
         cc.skipBackwardCommand.isEnabled = true
-        cc.skipBackwardCommand.preferredIntervals = [15]
+        cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipBackwardSeconds)]
         cc.skipBackwardCommand.addTarget { e in
             if let ev = e as? MPSkipIntervalCommandEvent { skipBackward(ev.interval) }
             return .success
