@@ -32,12 +32,14 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
+import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
 import { routeTrackSelection } from "@/utils/directPlayer/routeTrackIndexes";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
+import { recordedTracks } from "@/utils/downloads/recordedTracks";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -157,6 +159,7 @@ export const Controls: FC<Props> = ({
 }) => {
   const offline = useOfflineMode();
   const { downloadedItem } = usePlayerContext();
+  const { getDownloadedItemById } = useDownload();
   const { settings } = useSettings();
   // Decides where a matched alternate version starts, see
   // getAdjacentStartTicks. Whatever is cached will do: a server does not go
@@ -627,23 +630,44 @@ export const Controls: FC<Props> = ({
         downloaded: downloadedItem?.userData,
       });
 
+      // Offline the next episode plays its own file, which can be another
+      // version than the server's first, with the tracks its download recorded.
+      const nextDownload =
+        offline && item.Id ? getDownloadedItemById(item.Id) : undefined;
       const {
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(item, settings, {
-        indexes: previousIndexes,
-        source: mediaSource ?? undefined,
-        offline,
-      });
+        carried,
+      } = getDefaultPlaySettings(
+        nextDownload?.mediaSource
+          ? { ...item, MediaSources: [nextDownload.mediaSource] }
+          : item,
+        settings,
+        {
+          indexes: previousIndexes,
+          source: mediaSource ?? undefined,
+          offline,
+        },
+      );
+      // What does not carry over is what the download recorded.
+      const recorded = recordedTracks(nextDownload?.userData);
+      const nextAudioIndex =
+        recorded && !carried?.audio
+          ? recorded.audioStreamIndex
+          : defaultAudioIndex;
+      const nextSubtitleIndex =
+        recorded && !carried?.subtitle
+          ? recorded.subtitleStreamIndex
+          : defaultSubtitleIndex;
 
       // Use setParams instead of replace to avoid unmounting/remounting the player,
       // which would create a new MPV native view and crash with "mp_initialize already initialized".
       router.setParams({
         ...(offline && { offline: "true" }),
         itemId: item.Id ?? "",
-        audioIndex: defaultAudioIndex?.toString() ?? "",
-        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+        audioIndex: nextAudioIndex?.toString() ?? "",
+        subtitleIndex: nextSubtitleIndex?.toString() ?? "",
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
@@ -660,6 +684,7 @@ export const Controls: FC<Props> = ({
       subtitleIndex,
       audioIndex,
       downloadedItem,
+      getDownloadedItemById,
       mediaSource,
       bitrateValue,
       router,

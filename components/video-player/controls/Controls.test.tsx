@@ -19,6 +19,8 @@ let mockDownloadedItem: {
     isTranscoded: boolean;
   };
 } | null = null;
+/** The downloads on disk, by item id: the next episode's own file and tracks. */
+let mockDownloads: Record<string, unknown> = {};
 
 // The native-module doubles test-utils/perfSetup.ts registers for the perf
 // spec that renders Controls.
@@ -142,10 +144,14 @@ jest.mock(
   "@/providers/NetworkStatusProvider",
   () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
 );
-jest.mock(
-  "@/providers/DownloadProvider",
-  () => jest.requireActual("@/test-utils/appProviders").downloadModule,
-);
+jest.mock("@/providers/DownloadProvider", () => ({
+  useDownload: () => ({
+    ...jest
+      .requireActual("@/test-utils/appProviders")
+      .downloadModule.useDownload(),
+    getDownloadedItemById: (id: string) => mockDownloads[id],
+  }),
+}));
 jest.mock(
   "@/providers/GlobalModalProvider",
   () => jest.requireActual("@/test-utils/appProviders").globalModalModule,
@@ -224,6 +230,7 @@ const advanceFrom = async (route: Record<string, string>) => {
 beforeEach(() => {
   mockOffline = true;
   mockDownloadedItem = null;
+  mockDownloads = {};
   mockNextItem = episode("ep2");
 });
 
@@ -287,5 +294,92 @@ describe("Controls, moving to the next episode", () => {
     expect(next).toEqual(
       expect.objectContaining({ itemId: "ep2", subtitleIndex: "2" }),
     );
+  });
+  // The next episode was downloaded as the second server version, a remux
+  // with an extra audio track: its subtitles are numbered one higher than on
+  // the first version, which the carry-over used to be resolved against.
+  describe("when the next download is another version", () => {
+    const remux: MediaSourceInfo = {
+      Id: "ep2-remux",
+      Name: "2160p",
+      DefaultAudioStreamIndex: 1,
+      DefaultSubtitleStreamIndex: -1,
+      MediaStreams: [
+        video,
+        audio,
+        { ...audio, Index: 2, Codec: "truehd" },
+        subtitle(3, "eng"),
+        subtitle(4, "fre"),
+      ],
+    };
+
+    beforeEach(() => {
+      mockNextItem = {
+        ...episode("ep2"),
+        MediaSources: [release("ep2-source"), remux],
+      };
+    });
+
+    test("resolves the carry-over on the file it plays", async () => {
+      mockDownloadedItem = {
+        userData: {
+          audioStreamIndex: 1,
+          subtitleStreamIndex: 3,
+          isTranscoded: false,
+        },
+      };
+      mockDownloads = {
+        ep2: {
+          mediaSource: remux,
+          userData: {
+            audioStreamIndex: 1,
+            subtitleStreamIndex: 3,
+            isTranscoded: false,
+          },
+        },
+      };
+
+      const next = await advanceFrom({
+        offline: "true",
+        audioIndex: "",
+        subtitleIndex: "",
+      });
+
+      expect(next).toEqual(
+        expect.objectContaining({
+          mediaSourceId: "ep2-remux",
+          subtitleIndex: "4",
+        }),
+      );
+    });
+
+    // Nothing names the episode playing's tracks, so nothing carries over:
+    // the file plays the tracks its download recorded.
+    test("keeps the tracks the download recorded when nothing carries over", async () => {
+      mockDownloads = {
+        ep2: {
+          mediaSource: remux,
+          userData: {
+            audioStreamIndex: 2,
+            subtitleStreamIndex: 4,
+            isTranscoded: false,
+          },
+        },
+      };
+
+      const next = await advanceFrom({
+        offline: "true",
+        audioIndex: "",
+        subtitleIndex: "",
+      });
+
+      expect(next).toEqual(
+        expect.objectContaining({
+          mediaSourceId: "ep2-remux",
+          audioIndex: "2",
+          subtitleIndex: "4",
+        }),
+      );
+    });
   });
 });
