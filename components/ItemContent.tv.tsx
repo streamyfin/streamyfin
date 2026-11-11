@@ -50,11 +50,10 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
+import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
-import { TV_CAST_CARD_LIMIT } from "@/constants/CastCrew";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useCastCrew } from "@/hooks/useCastCrew";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useItemCollections } from "@/hooks/useItemCollections";
@@ -575,18 +574,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // The text line selects its own actors.
-    const fullCast = useCastCrew(item?.People, {
-      kind: "Actor",
-      limit: TV_CAST_CARD_LIMIT,
-    });
-
-    // Whether to show visual cast section
-    const showVisualCast =
-      (item?.Type === "Movie" ||
-        item?.Type === "Series" ||
-        item?.Type === "Episode") &&
-      fullCast.length > 0;
+    // The cast cards, and whether the text line names the cast instead.
+    const { cards: fullCast, castInText } = useTVCast(item);
 
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
@@ -1051,7 +1040,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             />
 
             {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
-            {showVisualCast && (
+            {fullCast.length > 0 && (
               <TVCastSection
                 cast={fullCast}
                 apiBasePath={api?.basePath}
@@ -1076,7 +1065,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             <TVCastCrewText
               people={item.People}
               onPersonPress={isOffline ? undefined : handleActorPress}
-              showCast={!showVisualCast}
+              showCast={castInText}
             />
 
             {/* Technical details */}
