@@ -166,6 +166,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         // Initialize PiP controller with Expo's AppContext for proper activity access
         pipController = PiPController(context, appContext)
+        pipController?.autoEnterAllowed = backgroundPlaybackEnabled
         pipController?.setPlayerView(surfaceView)
         pipController?.delegate = object : PiPController.Delegate {
             override fun onPlay() {
@@ -374,6 +375,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setBackgroundPlayback(enabled: Boolean) {
         if (backgroundPlaybackEnabled == enabled) return
         backgroundPlaybackEnabled = enabled
+        pipController?.autoEnterAllowed = enabled
         if (!enabled) releaseMediaPlayback() else if (currentUrl != null) ensureMediaPlayback()
     }
 

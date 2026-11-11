@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer
 
+import androidx.annotation.VisibleForTesting
 import android.app.Activity
 import android.app.Application
 import android.app.PictureInPictureParams
@@ -49,6 +50,25 @@ class PiPController(private val context: Context, private val appContext: AppCon
     // (e.g. when the player unmounts) doesn't corrupt the play/pause icon
     // state that buildPiPActions() derives from playbackRate.
     private var autoEnterEnabled: Boolean = false
+
+    /**
+     * Off for a view that only shows a clip (the subtitle preview): playing it
+     * must not arm the automatic picture in picture, which on Home shrank the
+     * whole app into a PiP window. A manual start is unaffected, and arming
+     * waits for the next play once it is turned back on.
+     */
+    var autoEnterAllowed: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            if (!value) {
+                unregisterLifecycleCallbacks()
+                if (autoEnterEnabled) setPlaybackRate(playbackRate)
+            }
+        }
+
+    @VisibleForTesting
+    internal val isAutoEnterArmed: Boolean get() = autoEnterEnabled
 
     private var videoWidth: Int = 0
     private var videoHeight: Int = 0
@@ -153,9 +173,9 @@ class PiPController(private val context: Context, private val appContext: AppCon
 
     fun setPlaybackRate(rate: Double) {
         playbackRate = rate
-        autoEnterEnabled = rate > 0
+        autoEnterEnabled = autoEnterAllowed && rate > 0
 
-        if (rate > 0) {
+        if (autoEnterEnabled) {
             registerLifecycleCallbacks()
         }
 
