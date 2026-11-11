@@ -473,6 +473,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun updateNextEpisode(next: NextEpisodeRecord?) {
         nextEpisode = next
         checkSegmentsAndCountdown(displayPosition)
+        // The media session offers Next from it. Published only with the next
+        // pause or seek, a next episode that came mid-playback left the lock
+        // screen and a headset without Next for the rest of the episode.
+        onPlaybackStateSync?.invoke()
     }
 
     fun updateChapters(newChapters: List<ChapterRecord>) {

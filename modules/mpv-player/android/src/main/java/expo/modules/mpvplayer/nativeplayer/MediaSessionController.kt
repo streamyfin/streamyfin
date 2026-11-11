@@ -22,14 +22,7 @@ class MediaSessionController(
         override val durationSeconds get() = viewModel.duration
         override val playbackSpeed get() = viewModel.speed
         override val isNetworkSource get() = viewModel.sourceUrl.startsWith("http", ignoreCase = true)
-        override val nowPlaying: NowPlayingInfo?
-            get() = viewModel.metadata?.let {
-                NowPlayingInfo(
-                    title = it.title ?: "Video",
-                    subtitle = it.subtitle,
-                    artworkUri = it.artworkUri,
-                )
-            }
+        override val nowPlaying get() = nowPlayingInfo(viewModel.metadata)
         // In a group Next goes to the group's next item, and only that.
         override val canSkipToNext get() =
             if (viewModel.syncPlayActive) viewModel.syncPlay?.hasNext == true
@@ -89,4 +82,21 @@ class MediaSessionController(
     fun updateMetadata() = controller.updateMetadata()
     fun onPositionTick() = controller.onPositionTick()
     fun release() = controller.release()
+}
+
+/**
+ * The lock screen and notification metadata of the native player. The artwork
+ * headers are the user's custom proxy headers: without them a server behind
+ * such a proxy refused the artwork, retried every 30 s.
+ */
+internal fun nowPlayingInfo(metadata: MetadataRecord?): NowPlayingInfo? = metadata?.let {
+    NowPlayingInfo(
+        title = it.title ?: "Video",
+        subtitle = it.subtitle,
+        artworkUri = it.artworkUri,
+        artworkHeaders = it.artworkHeaders
+            ?.mapNotNull { (name, value) -> (value as? String)?.let { name to it } }
+            ?.toMap()
+            ?.takeIf { headers -> headers.isNotEmpty() },
+    )
 }

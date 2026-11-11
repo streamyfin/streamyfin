@@ -50,6 +50,8 @@ class MetadataRecord : Record {
     @Field var title: String? = null
     @Field var subtitle: String? = null
     @Field var artworkUri: String? = null
+    // Typed loosely: a value Expo cannot convert would reject the whole config.
+    @Field var artworkHeaders: Map<String, Any?>? = null
     @Field var isEpisode: Boolean = false
 }
 
