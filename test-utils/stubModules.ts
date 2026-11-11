@@ -22,8 +22,12 @@ export const appRouterModule = {
   default: () => appRouter,
 };
 
-/** `@/utils/device` with a fixed device id. */
-export const deviceModule = { getOrSetDeviceId: () => "device-1" };
+/** `@/utils/device` with a fixed device id and name. */
+export const deviceModule = {
+  getOrSetDeviceId: () => "device-1",
+  getDeviceId: () => "device-1",
+  getDeviceName: () => "Spec device",
+};
 
 /** `@/modules/wifi-ssid` with no network name and a no-op settings action. */
 export const wifiSsidModule = {
