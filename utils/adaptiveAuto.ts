@@ -156,6 +156,8 @@ export class AdaptiveAuto {
    */
   swapFailed(now: number): void {
     this.busy = false;
+    // A measure still out then has nobody left to take its result.
+    this.probing = false;
     this.stalls = [];
     this.samples = [];
     this.lowSince = undefined;

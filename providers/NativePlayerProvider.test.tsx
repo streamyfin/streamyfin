@@ -1209,6 +1209,79 @@ describe("Auto during playback", () => {
     );
   });
 
+  // The provider went away while the measure ran: its result still asked for
+  // a stream.
+  test("asks for nothing once the provider is gone, when a measure ends", async () => {
+    let finish: (bitrate: number) => void = () => undefined;
+    mockDetectBitrate.mockReturnValue(
+      new Promise<number>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const view = await mount();
+    await playAt("auto");
+    await stall();
+    await loaded();
+    await playerState(false);
+    await wait(2 * 60_000);
+    await act(async () =>
+      mockNative.emit("onProgress", {
+        position: 300,
+        duration: 1800,
+        progress: 0,
+        cacheSeconds: 9,
+      }),
+    );
+    await settle();
+    expect(mockDetectBitrate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await view.unmount();
+    });
+    await act(async () => finish(60_000_000));
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+  });
+
+  // A quality picked during a stall, still negotiating when the stall stepped
+  // down: the step down took over, and Auto stayed on.
+  test("leaves a quality picked during a stall ahead of a step down", async () => {
+    await mount();
+    await playAt("auto");
+    await playerState(false);
+    await wait(6_000);
+    await playerState(true);
+    holdNegotiations();
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 6,
+      }),
+    );
+    await wait(3_000);
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toBeUndefined();
+  });
+
+  // A remote Play started Auto while a SyncPlay join was pending: in the
+  // group, a stall swapped the stream under it, which holds the group.
+  test("stops adapting once the player is in a SyncPlay group", async () => {
+    await mount();
+    await playAt("auto");
+    mockSyncPlay.enabled = true;
+    try {
+      await stall();
+    } finally {
+      mockSyncPlay.enabled = false;
+    }
+
+    expect(mockNegotiation.params).toHaveLength(1);
+  });
+
   // A track change while the measure ran: the replaced stream's callback took
   // the measure the new stream had joined, and threw its step up away.
   test("steps up from the stream the measure is for, after a track change during it", async () => {

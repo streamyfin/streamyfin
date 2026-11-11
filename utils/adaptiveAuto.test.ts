@@ -218,6 +218,32 @@ describe("stepping up", () => {
     expect(due).toEqual({ kind: "probe" });
   });
 
+  // A measure whose result nobody took, the user's pick having asked for
+  // another stream meanwhile, which could not start: Auto measured never again.
+  test("measure again after a stream it was asked for could not start", () => {
+    const auto = started(lowered(0));
+    ticks(auto, 100_000, [9, 9, 9]);
+    expect(
+      auto.tick({
+        now: 121_000,
+        position: 121,
+        duration: 3_600,
+        cacheSeconds: 9,
+      }),
+    ).toEqual({ kind: "probe" });
+
+    auto.swapFailed(122_000);
+
+    expect(
+      auto.tick({
+        now: 160_000,
+        position: 160,
+        duration: 3_600,
+        cacheSeconds: 9,
+      }),
+    ).toEqual({ kind: "probe" });
+  });
+
   test("not measure while the cache is low", () => {
     const auto = started(lowered(0));
 

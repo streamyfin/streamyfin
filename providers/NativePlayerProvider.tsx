@@ -520,6 +520,14 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // A measure can end after the provider is gone, its session still in the ref.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   const reportQueue = useRef(new NativePlaybackReportQueue()).current;
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
@@ -2062,12 +2070,18 @@ const NativePlayerProviderInner: React.FC<{
     const adapt = (session: NativeSession, action: AdaptiveAction | null) => {
       const api = apiRef.current;
       if (!action || !api || sessionRef.current !== session) return;
+      // In a SyncPlay group a swap holds every member: a stream that joined
+      // one stops adapting, whatever it was about to do.
+      if (syncRef.current.enabled) {
+        session.adaptive = undefined;
+        return;
+      }
       const options = autoBitrateOptions(settingsRef.current);
       if (action.kind === "probe") {
         // The controller rides a same-quality swap: a measure that ends after
         // one is the new stream's to take, which may have joined it.
         const settle = (bitrate: number | undefined) => {
-          if (sessionRef.current !== session) return;
+          if (!aliveRef.current || sessionRef.current !== session) return;
           adapt(
             session,
             session.adaptive?.probeResult(Date.now(), bitrate) ?? null,
@@ -2436,9 +2450,17 @@ const NativePlayerProviderInner: React.FC<{
         // "Auto" stays Auto, measured by the re-negotiation.
         const requested = fromNativeQualityIndex(payload.bitrateValue);
         if (requested === session.bitrateValue) return;
+        // The user's pick goes first: this stream stops adapting while it is
+        // asked for, and adapts again only if it could not start.
+        const { adaptive } = session;
+        session.adaptive = undefined;
         void replaceStream(session, {
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),
+        }).then((replaced) => {
+          if (replaced || sessionRef.current !== session) return;
+          session.adaptive = adaptive;
+          adaptive?.swapFailed(Date.now());
         });
       }),
 
