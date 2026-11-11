@@ -22,8 +22,6 @@ const response = (
   }) as never;
 
 describe("a notification's buttons", () => {
-  beforeEach(() => jest.clearAllMocks());
-
   test("pause everything for eight hours", async () => {
     expect(await handleNotificationAction(response("pause"), api)).toEqual({
       done: "paused",

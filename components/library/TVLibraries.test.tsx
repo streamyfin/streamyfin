@@ -6,34 +6,17 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 import { logAndCaptureError } from "@/utils/log";
 import { TVLibraries } from "./TVLibraries";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { hiddenLibraries: [] } }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-// The real log writes to MMKV, which no test environment has.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-// The real scale reads the settings enum the mock above leaves out.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => new Proxy({}, { get: () => 16 }),
-}));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
+jest.mock("@/utils/atoms/settings", () =>
+  jest
+    .requireActual("@/test-utils/settings")
+    .makeSettingsModule({ hiddenLibraries: [] }),
+);
 // The rows draw a backdrop only when a preview item has one.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 
 const LIVE_TV = { Id: "livetv-1", Name: "Live TV", CollectionType: "livetv" };
 const MOVIES = { Id: "movies-1", Name: "Movies", CollectionType: "movies" };

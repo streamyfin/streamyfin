@@ -13,10 +13,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: mockPush }),
 }));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: mockShowItemActions }),
 }));
@@ -26,15 +22,6 @@ jest.mock("@/hooks/useItemActionSheet", () => ({
   useItemActionSheet: () => ({}),
 }));
 // The TV sizes read the type scale from the settings, and its enum with it.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-}));
 // The poster itself is not under test: a pressable carrying the item's name
 // stands for it, with the handlers the row gives it.
 jest.mock("@/components/tv/TVPosterCard", () => {

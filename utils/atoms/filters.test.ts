@@ -16,10 +16,6 @@ import {
   useFilterOptions,
 } from "./filters";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // settings.ts drags in the provider stack; the filter options only read the
 // Kefin Tweaks toggle from it.
 jest.mock("./settings", () => ({

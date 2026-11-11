@@ -5,20 +5,10 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
-import { renderedMenuModifiers } from "@/test-utils/expoUi";
+import { renderedMenuModifiers } from "@/test-utils/swiftUi";
 
-jest.mock(
-  "@expo/ui/swift-ui",
-  () => jest.requireActual("@/test-utils/expoUi").swiftUiModule,
-);
 jest.mock("@gorhom/bottom-sheet", () => ({
   BottomSheetScrollView: jest.requireActual("react-native").View,
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({

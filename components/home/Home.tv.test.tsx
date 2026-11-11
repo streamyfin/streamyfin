@@ -21,6 +21,11 @@ import type { Home as HomeLayout } from "@/utils/atoms/settings";
 import { Home } from "./Home.tv";
 import { resetHomeInitialFocus } from "./useHomeInitialFocus";
 
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+
 const defaultSettings = {
   home: null as HomeLayout | null,
   hiddenLibraries: [] as string[],
@@ -81,32 +86,12 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
-
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) =>
       params?.libraryName ? `${key}:${params.libraryName}` : key,
   }),
 }));
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
-jest.mock("expo-router", () => ({ useSegments: () => ["(auth)", "(tabs)"] }));
-
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: (item: BaseItemDto, from: string) =>
@@ -143,11 +128,6 @@ jest.mock("@/hooks/useRemapHiddenLibraries", () => ({
 jest.mock("@/utils/tvDiscovery/sync", () => ({
   updateTVDiscovery: () => {},
 }));
-
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
 
 // A plain child of Home: it renders exactly when Home does, which makes it
 // the test's measure of Home's own renders.

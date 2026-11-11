@@ -27,14 +27,10 @@ jest.mock("@/providers/JellyfinProvider", () => ({
   ...jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
   cacheVersionAtom: jest.requireActual("jotai").atom(0),
 }));
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: () => "/items/page",
 }));

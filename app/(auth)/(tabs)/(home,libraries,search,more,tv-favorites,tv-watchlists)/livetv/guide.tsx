@@ -2,14 +2,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
+import { LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH } from "@/constants/LiveTVGuide";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HOUR_HEIGHT = 30;
@@ -17,12 +23,19 @@ const ITEMS_PER_PAGE = 20;
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
-// Covered by components/livetv/liveTvGuidePage.test.tsx.
+// Covered by components/livetv/liveTvGuidePage.test.tsx and
+// components/livetv/liveTvGuidePage.layout.test.tsx.
 export default function LiveTvGuidePage() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
   const [date, _setDate] = useState<Date>(new Date());
+  // The header and every channel row count from the start of this hour.
+  const guideStart = useMemo(() => {
+    const start = new Date(date);
+    start.setMinutes(0, 0, 0);
+    return start.getTime();
+  }, [date]);
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data: channels } = useQuery({
@@ -76,7 +89,12 @@ export default function LiveTvGuidePage() {
     enabled: !!api && !!channels,
   });
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: windowWidth } = useWindowDimensions();
+  const guideViewportWidth =
+    windowWidth -
+    insets.left -
+    insets.right -
+    LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH;
 
   const [scrollX, setScrollX] = useState(0);
 
@@ -109,7 +127,10 @@ export default function LiveTvGuidePage() {
       />
 
       <View className='flex flex-row'>
-        <View className='flex flex-col w-[64px]'>
+        <View
+          style={{ width: LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH }}
+          className='flex flex-col'
+        >
           <View
             style={{
               height: HOUR_HEIGHT,
@@ -131,7 +152,7 @@ export default function LiveTvGuidePage() {
         </View>
         <ScrollView
           style={{
-            width: screenWidth - 64,
+            width: guideViewportWidth,
           }}
           horizontal
           scrollEnabled
@@ -140,11 +161,12 @@ export default function LiveTvGuidePage() {
           }}
         >
           <View className='flex flex-col'>
-            <HourHeader height={HOUR_HEIGHT} />
+            <HourHeader height={HOUR_HEIGHT} startTime={guideStart} />
             {channels?.Items?.map((c, _i) => (
               <MemoizedLiveTVGuideRow
                 channel={c}
                 programs={programs?.Items}
+                startTime={guideStart}
                 key={c.Id}
                 scrollX={scrollX}
               />

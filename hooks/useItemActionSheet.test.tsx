@@ -3,22 +3,19 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
+import { showActionSheetWithOptions } from "@/test-utils/actionSheet";
 import { useItemActionSheet } from "./useItemActionSheet";
 
 type SheetCallback = (selectedIndex?: number) => void | Promise<void>;
 
-const mockShowActionSheet = jest.fn<
-  void,
-  [{ options: string[] }, SheetCallback]
->();
+const mockShowActionSheet = jest.mocked(
+  showActionSheetWithOptions as jest.Mock<
+    void,
+    [{ options: string[] }, SheetCallback]
+  >,
+);
 const mockMarkAsPlayed = jest.fn(async (_played: boolean) => {});
 
-jest.mock("@/hooks/useActionSheet", () => ({
-  useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@/hooks/useMarkAsPlayed", () => ({
   useMarkAsPlayed: () => mockMarkAsPlayed,
 }));
@@ -28,9 +25,10 @@ jest.mock("@/hooks/useFavorite", () => ({
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({ deleteFile: () => {} }),
 }));
-jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
-}));
+jest.mock(
+  "@/providers/OfflineModeProvider",
+  () => jest.requireActual("@/test-utils/stubModules").onlineModule,
+);
 
 // Hands the "sheet closed" promise back inside an object: returned bare,
 // awaiting the render would also wait for a sheet nobody has answered yet.

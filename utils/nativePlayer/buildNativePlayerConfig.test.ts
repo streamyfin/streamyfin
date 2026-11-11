@@ -7,22 +7,10 @@ import type { Settings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { buildNativePlayerConfig } from "./buildNativePlayerConfig";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
+
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),
 }));
@@ -30,9 +18,6 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
 // them, and none of it has a say in the headers.
 jest.mock("@/utils/atoms/settings", () => ({
   getActivePlayerType: () => "mpv",
-}));
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
 }));
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),

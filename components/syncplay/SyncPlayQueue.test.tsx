@@ -15,13 +15,8 @@ jest.mock(
   "react-native-drax",
   () => jest.requireActual("@/test-utils/drax").draxModule,
 );
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://host" }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => mockState,
