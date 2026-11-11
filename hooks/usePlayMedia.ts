@@ -30,6 +30,10 @@ interface PlayMediaOptions {
   item?: BaseItemDto | null;
 }
 
+// Module level, not per hook: the channel grid, the guide and the Play button
+// each hold their own usePlayMedia, and any of them can replace the others.
+let latestPlayRequest = 0;
+
 /**
  * Single entry point for starting video playback on mobile and TV. Routes to
  * the presented native player (isNativeChromeActive) or the JS player route;
@@ -96,9 +100,15 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
+      const request = ++latestPlayRequest;
       if (isNativeChromeActive(settings) && (await presentFromRequest(req))) {
         return;
       }
+
+      // A newer play started while this one negotiated (a live channel takes
+      // seconds to open, long enough to press it again). This one was
+      // replaced, not declined: the newer request owns the player.
+      if (request !== latestPlayRequest) return;
 
       // Never stack the JS route under a still-presented native player (a
       // failed in-place swap keeps the old native session on screen). From

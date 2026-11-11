@@ -135,6 +135,51 @@ describe("usePlayMedia", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  test("a native decline still opens the JS route", async () => {
+    mockNativeChromeActive = true;
+
+    await play({ Id: "movie-1", Type: "Movie" });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("/player/direct-player?itemId=movie-1"),
+    );
+  });
+
+  // A live channel takes seconds to open, long enough to press it again. The
+  // second press replaces the first, whose present then resolves false: that
+  // is not a decline, and opening the JS route for it put a second player and
+  // a second live stream under the native one.
+  test("a play replaced by a newer one does not open the JS route", async () => {
+    mockNativeChromeActive = true;
+    let settleFirst: (presented: boolean) => void = () => {};
+    mockPresentFromRequest
+      .mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            settleFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(true);
+    const channel = { Id: "channel-1", Type: "TvChannel" } as BaseItemDto;
+    const { result } = await renderHook(() => usePlayMedia());
+
+    await act(async () => {
+      const first = result.current(
+        { itemId: "channel-1", offline: false },
+        { item: channel },
+      );
+      await result.current(
+        { itemId: "channel-1", offline: false },
+        { item: channel },
+      );
+      settleFirst(false);
+      await first;
+    });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledTimes(2);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
   test("shares the complete queue and selected resume point with the group", async () => {
     mockSyncPlayEnabled = true;
     const { result } = await renderHook(() => usePlayMedia());
