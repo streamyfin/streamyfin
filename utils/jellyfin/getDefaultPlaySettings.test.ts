@@ -396,6 +396,78 @@ describe("precedence", () => {
   });
 });
 
+describe("picks made on another version of the item", () => {
+  const version = (id: string, streams: MediaStream[]) => ({
+    ...source(streams),
+    Id: id,
+  });
+  const a = version("a", [
+    audio(1, "eng"),
+    audio(2, "fre"),
+    sub(3, "eng"),
+    sub(4, "fre"),
+  ]);
+  const b = version("b", [
+    audio(1, "eng"),
+    audio(2, "ger"),
+    audio(3, "fre"),
+    sub(4, "eng"),
+    sub(5, "fre"),
+  ]);
+  const onVersion = (target: MediaSourceInfo) => ({
+    ...episode(target),
+    MediaSources: [target],
+  });
+
+  // The remember settings carry a track to the next item, not to another
+  // version of the same one.
+  test("carries a pick whatever the remember settings say", () => {
+    const result = getDefaultPlaySettings(
+      onVersion(b),
+      settingsWith({ rememberSubtitleSelections: false }),
+      { indexes: { subtitleIndex: 4 }, pickedOn: { subtitle: a } },
+    );
+    expect(result.subtitleIndex).toBe(5);
+  });
+
+  test("leaves the series memory to the remember settings", () => {
+    rememberSeriesTrack("series-1", { subtitleLang: "fre" });
+    const result = getDefaultPlaySettings(
+      onVersion({ ...b, DefaultSubtitleStreamIndex: 4 }),
+      settingsWith({ rememberSubtitleSelections: false }),
+      { indexes: { audioIndex: 2 }, pickedOn: { audio: a } },
+    );
+    expect(result.subtitleIndex).toBe(4);
+  });
+
+  test("matches each pick from the version it was made on", () => {
+    const c = version("c", [audio(1, "fre"), sub(2, "fre"), sub(3, "eng")]);
+    const result = getDefaultPlaySettings(onVersion(c), settingsWith({}), {
+      indexes: { audioIndex: 2, subtitleIndex: 4 },
+      pickedOn: { audio: a, subtitle: b },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({ audioIndex: 1, subtitleIndex: 3 }),
+    );
+  });
+
+  // Smart turns subtitles on for audio in another language than the one the
+  // subtitles are wanted in: it must read the audio the pick resolved to.
+  test("applies the subtitle mode to the audio the pick resolved to", () => {
+    const result = getDefaultPlaySettings(
+      onVersion({ ...b, DefaultAudioStreamIndex: 1 }),
+      settingsWith({
+        subtitleMode: "Smart" as never,
+        defaultSubtitleLanguage: lang("eng"),
+      }),
+      { indexes: { audioIndex: 2 }, pickedOn: { audio: a } },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ audioIndex: 3, subtitleIndex: 4 }),
+    );
+  });
+});
+
 describe("version carry-over on sequential play", () => {
   // Jellyfin 12 groups alternate episode versions in MediaSources like movie
   // versions. Advancing an episode keeps the version the user was watching,

@@ -1,13 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { Settings } from "@/utils/atoms/settings";
+import {
+  type DownloadedTrackIndexes,
+  recordedTracks,
+} from "@/utils/downloads/recordedTracks";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
-
-/** The track indexes a download record pinned when the file was pulled down. */
-export interface DownloadedTrackIndexes {
-  audioStreamIndex?: number;
-  subtitleStreamIndex?: number;
-}
 
 /**
  * Decide which audio/subtitle streams a playback session starts on.
@@ -37,7 +35,8 @@ export function resolveTrackIndexes(params: {
     mediaSourceId?: string;
   };
 }): { audioIndex: number | undefined; subtitleIndex: number } {
-  const { item, settings, offline, downloaded, requested } = params;
+  const { item, settings, offline, requested } = params;
+  const downloaded = recordedTracks(params.downloaded);
 
   // getDefaultPlaySettings always reads MediaSources[0], so when the caller
   // named a different version resolve against that one — stream indexes are
