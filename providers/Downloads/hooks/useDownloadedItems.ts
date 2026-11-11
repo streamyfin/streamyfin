@@ -1,34 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import { getAllDownloadedItems } from "../database";
 import type { DownloadedItem } from "../types";
 
+const NO_ITEMS: DownloadedItem[] = [];
+
 /**
  * Reads the downloaded items, and reads them again whenever `refreshKey`
- * changes. The storage read and JSON parse run a tick after mount, so a launch
- * that never shows downloaded content does not pay for them inside the
- * provider's first render. Consumers get `[]` until that tick. TV never reads:
- * downloads do not exist there.
+ * changes. Only the first read waits: it runs a tick after mount, outside the
+ * provider's first render, and consumers get `[]` until then. Every later read
+ * runs in the render that brings the new key, so a refresh commits once, with
+ * the key and the list in step. TV never reads: downloads do not exist there.
  */
 export const useDownloadedItems = (refreshKey: number): DownloadedItem[] => {
-  const [downloadedItems, setDownloadedItems] = useState<DownloadedItem[]>([]);
-  const [readError, setReadError] = useState<{ error: unknown } | null>(null);
+  const [firstReadDue, setFirstReadDue] = useState(false);
 
   useEffect(() => {
     if (Platform.isTV) return;
-    const timer = setTimeout(() => {
-      try {
-        setDownloadedItems(getAllDownloadedItems());
-      } catch (error) {
-        setReadError({ error });
-      }
-    }, 0);
+    const timer = setTimeout(() => setFirstReadDue(true), 0);
     return () => clearTimeout(timer);
-  }, [refreshKey]);
+  }, []);
 
-  // A damaged index must reach the root error boundary as it did when the read
-  // ran in render. Thrown from the timer, it bypasses every boundary.
-  if (readError) throw readError.error;
-
-  return downloadedItems;
+  // refreshKey is the signal to read again. Read in render, a damaged index
+  // throws to the nearest error boundary.
+  return useMemo(
+    () => (firstReadDue ? getAllDownloadedItems() : NO_ITEMS),
+    [firstReadDue, refreshKey],
+  );
 };

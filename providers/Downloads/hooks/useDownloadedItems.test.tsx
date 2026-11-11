@@ -55,6 +55,28 @@ test("reads again when the refresh key changes", async () => {
   expect(result.current).toEqual([downloaded("a"), downloaded("b")]);
 });
 
+// Each refresh is a finished or deleted download. Deferred like the launch
+// read, it rendered the provider twice, the first time with the new key and
+// the old list, and every useDownload() consumer with it.
+test("reads a changed refresh key in the render that brings it", async () => {
+  const seen: DownloadedItem[][] = [];
+  const { rerender } = await renderHook(
+    ({ refreshKey }: { refreshKey: number }) => {
+      const items = useDownloadedItems(refreshKey);
+      seen.push(items);
+      return items;
+    },
+    { initialProps: { refreshKey: 0 } },
+  );
+  await act(async () => jest.runAllTimers());
+
+  mockGetAllDownloadedItems.mockReturnValue([downloaded("a"), downloaded("b")]);
+  seen.length = 0;
+  await rerender({ refreshKey: 1 });
+
+  expect(seen).toEqual([[downloaded("a"), downloaded("b")]]);
+});
+
 test("does not read after unmounting before the tick", async () => {
   const { unmount } = await renderHook(() => useDownloadedItems(0));
 
