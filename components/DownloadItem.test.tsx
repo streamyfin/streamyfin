@@ -1,9 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { toast } from "sonner-native";
+import { clearMmkv } from "@/test-utils/mmkv";
 import type { Settings } from "@/utils/atoms/settings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import { DownloadItems, DownloadSingleItem } from "./DownloadItem";
 import type { OptionGroup } from "./PlatformDropdown";
 
@@ -721,6 +723,76 @@ describe("DownloadSingleItem, picks made on two versions", () => {
       sessionId: null,
       mediaSource: twoVersions.MediaSources?.[0],
     });
+  });
+
+  // With remembering off, a series' remembered subtitle stays out of it: no
+  // track was picked, so the version keeps its own default.
+  test("leaves the series memory out when remembering is off", async () => {
+    clearMmkv();
+    rememberSeriesTrack("series-1", { subtitleLang: "fre" });
+    const episode: BaseItemDto = {
+      ...twoVersions,
+      Type: "Episode",
+      SeriesId: "series-1",
+    };
+    await render(<DownloadSingleItem item={episode} />);
+
+    await fireEvent.press(screen.getByText("Version B"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaSourceId: "source-b",
+        subtitleStreamIndex: -1,
+      }),
+    );
+    clearMmkv();
+  });
+
+  // Smart turns subtitles on for audio in another language than the one the
+  // subtitles are wanted in. French audio picked on A, German subtitles picked
+  // on B: C has no German, and Smart must read the French it carried.
+  test("applies the subtitle mode to the audio picked on another version", async () => {
+    mockSettings = {
+      subtitleMode: "Smart" as never,
+      defaultSubtitleLanguage: { ThreeLetterISOLanguageName: "eng" } as never,
+    };
+    const third: BaseItemDto = {
+      ...twoVersions,
+      MediaSources: [
+        ...(twoVersions.MediaSources ?? []),
+        {
+          Id: "source-c",
+          Name: "Version C",
+          DefaultAudioStreamIndex: 1,
+          DefaultSubtitleStreamIndex: -1,
+          MediaStreams: [
+            { Type: "Video", Index: 0 },
+            track("Audio", 1, "eng", "English audio C"),
+            track("Audio", 2, "fre", "French audio C"),
+            track("Subtitle", 3, "eng", "English subtitles C"),
+          ],
+        },
+      ],
+    };
+    third.MediaSources?.[1]?.MediaStreams?.push(
+      track("Subtitle", 6, "ger", "German subtitles B"),
+    );
+    await render(<DownloadSingleItem item={third} />);
+
+    await fireEvent.press(screen.getByText("French audio A"));
+    await fireEvent.press(screen.getByText("Version B"));
+    await fireEvent.press(screen.getByText("German subtitles B"));
+    await fireEvent.press(screen.getByText("Version C"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaSourceId: "source-c",
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 3,
+      }),
+    );
   });
 
   // Each pick is matched from the version it was made on: B's subtitle 5 read

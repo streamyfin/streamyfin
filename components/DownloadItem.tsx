@@ -26,10 +26,7 @@ import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
-import {
-  getDefaultPlaySettings,
-  type PreviousIndexes,
-} from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -84,8 +81,6 @@ interface TrackPicks {
  * The tracks to download from `version`. Stream indexes are per version, so
  * each pick is matched again from the version it was made on: a version that
  * lacks the track falls back to its own default and the pick stays as it was.
- * The remember settings do not apply: they carry a track to the next item, and
- * this is the same one.
  */
 const tracksOnVersion = (
   item: BaseItemDto,
@@ -93,35 +88,15 @@ const tracksOnVersion = (
   settings: Settings | null,
   { audio, subtitle }: TrackPicks,
 ): { audioIndex?: number; subtitleIndex: number } => {
-  const carrying = settings && {
-    ...settings,
-    rememberAudioSelections: true,
-    rememberSubtitleSelections: true,
-  };
-  const resolve = (source?: MediaSourceInfo, indexes?: PreviousIndexes) =>
-    getDefaultPlaySettings(
-      { ...item, MediaSources: [version] },
-      carrying,
-      source && { source, indexes },
-    );
-  // Picks made on one version are matched together, so the subtitle mode
-  // reads the audio its pick resolved to.
-  if (!audio || !subtitle || audio.source.Id === subtitle.source.Id) {
-    const resolved = resolve(audio?.source ?? subtitle?.source, {
-      audioIndex: audio?.index,
-      subtitleIndex: subtitle?.index,
-    });
-    return {
-      audioIndex: resolved.audioIndex,
-      subtitleIndex: resolved.subtitleIndex ?? SUBTITLES_OFF,
-    };
-  }
-  return {
-    audioIndex: resolve(audio.source, { audioIndex: audio.index }).audioIndex,
-    subtitleIndex:
-      resolve(subtitle.source, { subtitleIndex: subtitle.index })
-        .subtitleIndex ?? SUBTITLES_OFF,
-  };
+  const { audioIndex, subtitleIndex } = getDefaultPlaySettings(
+    { ...item, MediaSources: [version] },
+    settings,
+    {
+      indexes: { audioIndex: audio?.index, subtitleIndex: subtitle?.index },
+      pickedOn: { audio: audio?.source, subtitle: subtitle?.source },
+    },
+  );
+  return { audioIndex, subtitleIndex: subtitleIndex ?? SUBTITLES_OFF };
 };
 
 interface DownloadProps extends ViewProps {
