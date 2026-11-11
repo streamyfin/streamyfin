@@ -73,13 +73,31 @@ class MpvPlayerModule : Module() {
                 view.loadVideo(config)
             }
 
-            // Now Playing metadata for media controls (iOS-only, no-op on Android)
-            // Android handles media session differently via MediaSessionCompat.
+            // Now Playing metadata for the media notification and lock screen.
             // Typed loosely on purpose: the metadata carries nested values
             // (artworkHeaders), and a Map<String, String> signature makes Expo
             // reject the whole prop rather than ignore what it can't convert.
-            Prop("nowPlayingMetadata") { _: MpvPlayerView, _: Map<String, Any?>? ->
-                // No-op on Android - media session integration would require MediaSessionCompat
+            Prop("nowPlayingMetadata") { view: MpvPlayerView, metadata: Map<String, Any?>? ->
+                view.setNowPlayingMetadata(metadata)
+            }
+
+            // The media session and the media playback service, for the player
+            // screen only (MpvPlayerView.setBackgroundPlayback).
+            Prop("backgroundPlayback") { view: MpvPlayerView, enabled: Boolean? ->
+                view.setBackgroundPlayback(enabled == true)
+            }
+
+            // Live TV: no seek from the media session or the notification.
+            Prop("liveStream") { view: MpvPlayerView, live: Boolean? ->
+                view.setLiveStream(live == true)
+            }
+
+            // The user's skip settings, for the session's fast forward and rewind.
+            Prop("sessionSkipSeconds") { view: MpvPlayerView, skip: Map<String, Any?>? ->
+                view.setSessionSkipSeconds(
+                    (skip?.get("forward") as? Number)?.toDouble(),
+                    (skip?.get("backward") as? Number)?.toDouble(),
+                )
             }
 
             // Async function to play video
