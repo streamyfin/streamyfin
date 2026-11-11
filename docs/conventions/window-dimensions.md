@@ -12,7 +12,6 @@ exception below.
 ```typescript
 import { useWindowDimensions } from "react-native";
 
-const { width: windowWidth } = useWindowDimensions();
 const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 ```
 
