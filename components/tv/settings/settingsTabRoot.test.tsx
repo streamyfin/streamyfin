@@ -2,7 +2,7 @@ import { render } from "@testing-library/react-native";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
 
 /**
- * Covers `app/(auth)/(tabs)/(home)/settings.tv.tsx`, the TV settings tab root.
+ * Covers `app/(auth)/(tabs)/(more)/settings.tv.tsx`, the TV settings tab root.
  * Expo Router would turn a spec under `app/` into a route.
  */
 
@@ -90,7 +90,7 @@ jest.mock("react-native-safe-area-context", () => ({
 }));
 
 const SettingsTV = jest.requireActual(
-  "@/app/(auth)/(tabs)/(home)/settings.tv",
+  "@/app/(auth)/(tabs)/(more)/settings.tv",
 ).default;
 
 describe("TV settings tab", () => {
