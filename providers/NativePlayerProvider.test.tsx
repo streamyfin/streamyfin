@@ -32,7 +32,10 @@ const mockNative = {
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
-  /** presentPlayer rejects, as iOS does with no view controller to present from. */
+  /**
+   * presentPlayer rejects, as iOS does with no view controller to present
+   * from. Held as well, the refusal arrives when the presentation is released.
+   */
   refusePresentation: false,
   emit<K extends keyof NativePlayerEvents>(
     event: K,
@@ -57,6 +60,11 @@ jest.mock("@/modules/mpv-player", () => {
     presentNativePlayer: async (config: MockConfig) => {
       mockNative.presented.push(config.stream.url);
       if (mockNative.refusePresentation) {
+        if (mockNative.holdPresentation) {
+          await new Promise<void>((resolve) =>
+            mockNative.pendingPresentations.push(resolve),
+          );
+        }
         throw new Error(
           "NoPresenterException: Could not find a view controller to present the native player from",
         );
@@ -993,6 +1001,37 @@ describe("a play the player cannot start", () => {
     expect(mockNative.presented).toEqual([
       "https://jellyfin.example.com/Videos/item-3/stream?PlaySessionId=play-session-1",
     ]);
+  });
+
+  // The refusal comes back from the native side after the call, and by then
+  // the viewer may have asked for something else.
+  test("stays quiet when its player is refused after a newer play started", async () => {
+    await mount();
+    mockNative.holdPresentation = true;
+    mockNative.refusePresentation = true;
+    const first = await start(() => playForViewer("item-1"));
+    await settle();
+    mockNative.holdPresentation = false;
+    mockNative.refusePresentation = false;
+    holdNegotiations();
+    const second = await start(() => playForViewer("item-3"));
+    await settle();
+
+    await act(async () => {
+      for (const refuse of mockNative.pendingPresentations.splice(0)) refuse();
+    });
+    await act(async () => {
+      await expect(first.done).resolves.toBe(false);
+    });
+    await releaseNegotiations();
+    await act(async () => {
+      await expect(second.done).resolves.toBe(true);
+    });
+    await settle();
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockNative.session).not.toBeNull();
+    expect(serverReports()).toEqual(["start play-session-2"]);
   });
 
   // In picture in picture the viewer can start another item. When that one

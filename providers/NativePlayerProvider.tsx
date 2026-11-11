@@ -475,6 +475,9 @@ const NativePlayerProviderInner: React.FC<{
     session: NativeSession;
     reason: NativePlayerDismissReason;
   } | null>(null);
+  // The last session whose player never opened, for a request that was
+  // meant to swap into it.
+  const unpresentedRef = useRef<NativeSession | null>(null);
 
   useEffect(() => {
     if (isActive && syncPlay.enabled && isNativePlayerSyncPlayAvailable())
@@ -1131,6 +1134,10 @@ const NativePlayerProviderInner: React.FC<{
         lastDismissalRef.current?.session === closed &&
         lastDismissalRef.current.reason === "playbackEnded" &&
         closed.item.Id !== session.item.Id;
+      // A swap whose player never opened (its presentation was refused while
+      // this request negotiated) reopens nothing: it plays, in a new player.
+      const neverOpened = (target: NativeSession | null) =>
+        target !== null && unpresentedRef.current === target;
       const dropSwap = () => {
         writeToLog(
           "INFO",
@@ -1141,7 +1148,8 @@ const NativePlayerProviderInner: React.FC<{
       if (
         options.replace &&
         !previous &&
-        !continuesAfterStreamEnd(requestedOver)
+        !continuesAfterStreamEnd(requestedOver) &&
+        !neverOpened(requestedOver)
       ) {
         dropSwap();
         return true;
@@ -1200,7 +1208,7 @@ const NativePlayerProviderInner: React.FC<{
           // load issued now would land on a dismissing session. The rule
           // above decides between a new player and none.
           if (sessionRef.current !== previous) {
-            if (!continuesAfterStreamEnd(previous)) {
+            if (!continuesAfterStreamEnd(previous) && !neverOpened(previous)) {
               dropSwap();
               return true;
             }
@@ -1280,8 +1288,14 @@ const NativePlayerProviderInner: React.FC<{
           // a request whose own player closed has none to restore.
           releaseLiveStream(session);
           sessionRef.current = null;
+          unpresentedRef.current = session;
           unlockOrientation();
-          if (options.alertOnFailure) {
+          // A newer request that is still negotiating opens its own player.
+          if (
+            options.alertOnFailure &&
+            token === playRequestTokenRef.current &&
+            options.isCurrent?.() !== false
+          ) {
             Alert.alert(
               t("player.error"),
               t("player.an_error_occurred_while_playing_the_video"),
