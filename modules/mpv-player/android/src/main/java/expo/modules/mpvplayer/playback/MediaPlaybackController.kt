@@ -211,7 +211,10 @@ class MediaPlaybackController(
                 target.pauseForRefusedFocus()
                 return
             }
-            acquireLocks()
+            // After a stall only progress takes the locks back: a frozen
+            // position drifts from the session's extrapolation, and that
+            // republish lands here.
+            if (!stalled) acquireLocks()
             // A start refused while the app was in the background is
             // retried on the next play the user makes in front of it.
             PlaybackService.ensureStarted(context, this)
@@ -241,6 +244,7 @@ class MediaPlaybackController(
         val position = (target.positionSeconds * 1000).toLong()
         if (target.isPlaying && position != progressMarkMs) {
             progressMarkMs = position
+            stalled = false
             if (wakeLock?.isHeld != true) acquireLocks() else armStallWatch()
         }
         val durationMs = (target.durationSeconds * 1000).toLong()
@@ -529,10 +533,13 @@ class MediaPlaybackController(
     @SuppressLint("WakelockTimeout")
     private var progressMarkMs = -1L
     private var stallWatchArmed = false
+    /** The watchdog let the locks go; cleared by the next progress. */
+    private var stalled = false
     private val stalledRunnable = Runnable {
         stallWatchArmed = false
         if (released) return@Runnable
         Log.i(TAG, "No progress for ${LOCKS_WITHOUT_PROGRESS_MS / 60_000} min — releasing the playback locks")
+        stalled = true
         releaseLocks()
     }
 
