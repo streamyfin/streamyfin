@@ -21,14 +21,14 @@ class StallWatchdogTest {
 
     @Test
     fun aStreamThatNeverDeliveredIsADeadServerNotAStall() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
 
         assertFalse(starvedFor(from = 0, ms = 60_000))
     }
 
     @Test
     fun rebuildsOnceTheStallOutlastsItsDelay() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
 
         assertFalse(starvedFor(from = 0, ms = 9_000))
@@ -38,13 +38,13 @@ class StallWatchdogTest {
 
     @Test
     fun aReloadThatLandsInTheSameWedgeIsRetriedUntilTheBudgetIsSpent() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
         var now = 0L
         repeat(5) {
             assertTrue("attempt ${it + 1}", starvedFor(from = now, ms = 10_000))
             // The rebuilt player never reaches READY: the wedge holds.
-            watchdog.onLoad(forced = true)
+            watchdog.onReload(retry = true)
             now += 11_000
         }
 
@@ -54,11 +54,11 @@ class StallWatchdogTest {
 
     @Test
     fun aNewLoadEarnsAFreshBudget() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
         repeat(5) { starvedFor(from = it * 11_000L, ms = 10_000) }
 
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
 
         assertTrue(starvedFor(from = 100_000, ms = 10_000))
@@ -67,7 +67,7 @@ class StallWatchdogTest {
 
     @Test
     fun aSlowSeekIsLeftToFinishUntilMediaFlowsAgain() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
 
         watchdog.onSeek()
@@ -79,11 +79,27 @@ class StallWatchdogTest {
 
     @Test
     fun mediaFlowingAgainRestartsTheStallClock() {
-        watchdog.onLoad(forced = false)
+        watchdog.onNewLoad()
         watchdog.onReady()
 
         assertFalse(starvedFor(from = 0, ms = 8_000))
         assertFalse(watchdog.shouldReload(starved = false, nowMs = 9_000))
         assertFalse(starvedFor(from = 10_000, ms = 8_000))
+    }
+
+    // Resume recovery rebuilds a pipeline that has no media yet: a slow first segment must not
+    // be torn down as a stall, and the rebuild still spends no fresh budget.
+    @Test
+    fun aRecoveryReloadWaitsForItsFirstMedia() {
+        watchdog.onNewLoad()
+        watchdog.onReady()
+        assertTrue(starvedFor(from = 0, ms = 10_000))
+
+        watchdog.onReload(retry = false)
+        assertFalse(starvedFor(from = 20_000, ms = 60_000))
+
+        watchdog.onReady()
+        assertTrue(starvedFor(from = 90_000, ms = 10_000))
+        assertEquals(2, watchdog.reloads)
     }
 }

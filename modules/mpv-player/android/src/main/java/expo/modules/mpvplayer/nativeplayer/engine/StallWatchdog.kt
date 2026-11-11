@@ -5,13 +5,14 @@ package expo.modules.mpvplayer.nativeplayer.engine
  * playback has been buffering while playing, against an (almost) empty forward
  * buffer, for [stallAfterMs], after media flowed since the last load or seek.
  *
- * At most [maxReloads] rebuilds until a genuinely new load. The engine's own
- * forced reloads keep counting, and keep the media they replaced: one that
- * lands in the same wedge is retried, which is what the budget is for.
+ * At most [maxReloads] rebuilds until a genuinely new load. Its own reloads
+ * keep counting and stay armed: one that lands in the same wedge is retried,
+ * which is what the budget is for.
  *
- * A seek disarms it until media flows again: the first media after a seek can
- * take long to come (a transcode starting over at the new position), and a
- * rebuild would abandon the very request the server is producing.
+ * A seek, or a reload that is not its own (resume recovery), disarms it until
+ * media flows again: the first media of a new request can take long to come (a
+ * transcode starting over at the position), and a rebuild would abandon the
+ * very request the server is producing.
  */
 internal class StallWatchdog(
     private val stallAfterMs: Long,
@@ -24,13 +25,17 @@ internal class StallWatchdog(
     var reloads = 0
         private set
 
-    /** [forced] is the engine's own reload of the same stream. */
-    fun onLoad(forced: Boolean) {
+    /** A new load: an item or a quality. It earns a fresh budget. */
+    fun onNewLoad() {
         stalledSinceMs = null
-        if (!forced) {
-            mediaFlowed = false
-            reloads = 0
-        }
+        mediaFlowed = false
+        reloads = 0
+    }
+
+    /** The engine's reload of the same stream; [retry] when it is this watchdog's. */
+    fun onReload(retry: Boolean) {
+        stalledSinceMs = null
+        if (!retry) mediaFlowed = false
     }
 
     fun onSeek() {

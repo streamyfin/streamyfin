@@ -342,14 +342,21 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     override fun load(config: VideoLoadConfig) = load(config, force = false)
 
-    private fun load(config: VideoLoadConfig, force: Boolean) {
+    /** [retry] is the stall watchdog's own reload; see [StallWatchdog.onReload]. */
+    private fun load(config: VideoLoadConfig, force: Boolean, retry: Boolean = false) {
         // Same-URL guard, mirroring the JS-route view: a redundant load of the
         // running stream (e.g. a replayed startStream) is skipped. Quality and
         // track re-negotiations always change the URL. Recovery callers must
         // pass force=true — they reload the SAME url/loop on purpose, and the
         // guard would silently no-op them (the player is still non-null after
         // an error; STATE_IDLE just means the pipeline needs prepare() again).
-        if (!force && currentUrl == config.url && currentLoop == config.loop && player != null) {
+        // The sidecars count too: a renegotiation that brings a left-out
+        // sidecar back keeps the URL of a remote-path source (an IPTV or .strm
+        // item streams its Path on every negotiation) and changes only them.
+        if (!force && currentUrl == config.url && currentLoop == config.loop &&
+            currentExternalSubtitles == (config.externalSubtitles ?: emptyList<String>()) &&
+            player != null
+        ) {
             return
         }
 
@@ -389,10 +396,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         tracksReadyFired = false
         // Only a genuinely new load (item switch, quality re-negotiation)
         // earns a fresh reload budget. The engine's own reloads pass force=true
-        // and keep counting, or the per-episode cap never binds, and keep the
-        // media they replaced, or one that lands in the same wedge is never
-        // retried.
-        stallWatchdog.onLoad(forced = force)
+        // and keep counting, or the per-episode cap never binds.
+        if (force) stallWatchdog.onReload(retry) else stallWatchdog.onNewLoad()
         cachedVideoWidth = 0
         cachedVideoHeight = 0
         currentVideoAspectRatio = null
@@ -501,10 +506,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // silence without throwing, so neither decoder fallback nor the
             // audio-renderer recovery retry ever fires. Excluding the platform
             // decoders hands DTS to FFmpeg. DTS passthrough is unaffected: a
-            // sink that accepts DTS bitstream routes through
-            // MediaCodecSelector.getPassthroughDecoderInfos(), which never
-            // consults this selector. PCM-only output keeps DEFAULT — PREFER
-            // already orders FFmpeg ahead of MediaCodec there.
+            // sink that accepts the DTS bitstream gets the track directly
+            // (MediaCodecAudioRenderer.supportsFormat in media3 1.11.1), with
+            // no decoder asked of this selector unless the track has DRM.
+            // PCM-only output keeps DEFAULT — PREFER already orders FFmpeg
+            // ahead of MediaCodec there.
             .setMediaCodecSelector(
                 if (bitstreamCapable && hasFfmpegAudioRenderer) {
                     dtsExcludingMediaCodecSelector
@@ -580,10 +586,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         if (!subs.isNullOrEmpty()) {
             val subtitleConfigs = subs.mapNotNull { subUrl ->
                 val mime = mimeTypeForSubtitleUrl(subUrl) ?: return@mapNotNull null
+                // No default flag: the player is rebuilt on every load, and a
+                // fresh one would select a default-flagged sidecar on its own
+                // and draw its cues, subtitles off included, until the
+                // session's selection lands after onTracksReady.
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
                     .setMimeType(mime)
                     .setId(SIDELOAD_ID_PREFIX + subUrl)
-                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
             }
             sideLoadedSubs = subtitleConfigs
@@ -728,7 +737,9 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         return listOfNotNull(message, error.errorCodeName, cause).joinToString(" | ")
     }
 
-    override fun reloadCurrentItem() {
+    override fun reloadCurrentItem() = reloadCurrent(retry = false)
+
+    private fun reloadCurrent(retry: Boolean) {
         val url = currentUrl ?: return
         load(
             VideoLoadConfig(
@@ -741,6 +752,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 externalSubtitles = currentExternalSubtitles,
             ),
             force = true,
+            retry = retry,
         )
     }
 
@@ -1592,7 +1604,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 MAX_STALL_RELOADS_PER_EPISODE + ")",
         )
         playbackResumeIntent = true
-        reloadCurrentItem()
+        reloadCurrent(retry = true)
         play()
     }
 

@@ -551,10 +551,11 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // silence without throwing, so neither decoder fallback nor
             // recoverFromAudioRendererError ever fires. Excluding the platform
             // decoders hands DTS to FFmpeg. DTS passthrough is unaffected: a
-            // sink that accepts DTS bitstream routes through
-            // MediaCodecSelector.getPassthroughDecoderInfos(), which never
-            // consults this selector. PCM-only output keeps DEFAULT — PREFER
-            // already orders FFmpeg ahead of MediaCodec there.
+            // sink that accepts the DTS bitstream gets the track directly
+            // (MediaCodecAudioRenderer.supportsFormat in media3 1.11.1), with
+            // no decoder asked of this selector unless the track has DRM.
+            // PCM-only output keeps DEFAULT — PREFER already orders FFmpeg
+            // ahead of MediaCodec there.
             .setMediaCodecSelector(
                 if (bitstreamCapable && hasFfmpegAudioRenderer) {
                     dtsExcludingMediaCodecSelector

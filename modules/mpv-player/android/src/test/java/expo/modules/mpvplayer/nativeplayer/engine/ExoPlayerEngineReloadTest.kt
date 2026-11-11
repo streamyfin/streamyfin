@@ -4,6 +4,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -78,4 +79,35 @@ class ExoPlayerEngineReloadTest {
 
         assertEquals(listOf(true), pauses)
     }
+
+    // A remote-path source (IPTV, .strm) streams the same URL on every negotiation: a load that
+    // only brings a sidecar back must not be dropped as the stream already playing.
+    @Test
+    fun aLoadThatChangesOnlyTheSidecarsIsNotDropped() {
+        engine.load(config.copy(externalSubtitles = listOf("file:///cache/subtitles/a.srt")))
+        val before = player()
+
+        engine.load(config.copy(externalSubtitles = listOf("file:///cache/subtitles/a.srt")))
+        assertSame(before, player())
+
+        engine.load(
+            config.copy(
+                externalSubtitles = listOf("file:///cache/subtitles/a.srt", "file:///cache/subtitles/b.srt"),
+            ),
+        )
+        assertNotSame(before, player())
+        assertEquals(2, sidecarFlags().size)
+    }
+
+    // Default-flagged, a sidecar was selected by every rebuilt player on its own and its cues
+    // drawn, subtitles off included, until the session's selection landed.
+    @Test
+    fun sidecarsWaitForTheSessionToSelectThem() {
+        engine.load(config.copy(externalSubtitles = listOf("file:///cache/subtitles/a.srt")))
+
+        assertEquals(listOf(0), sidecarFlags())
+    }
+
+    private fun sidecarFlags(): List<Int> =
+        player().currentMediaItem!!.localConfiguration!!.subtitleConfigurations.map { it.selectionFlags }
 }
