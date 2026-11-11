@@ -26,9 +26,10 @@ The cost grows with the position, which is why a test a minute into a file never
 showed it, and an emulator (software decode) seemed fine.
 
 Fix: never leave mpv without a surface while it runs. `detachSurface` attaches
-an `OffscreenSurfaceSink` (an ImageReader that drops every frame) in place of
-the real surface, so the VO and the video track survive and the only seek is a
-short hop near the position. The sink is kept until `stop()`: closing it right
+an `OffscreenSurfaceSink` (an ImageReader in the PRIVATE format that drops every
+frame) in place of the real surface, so the VO and the video track survive and
+the only seek is a short hop near the position. It exists from Android 10 only:
+below that an ImageReader cannot be a GPU target, and the track is still dropped. The sink is kept until `stop()`: closing it right
 after the real surface returns could pull it away under a frame in flight.
 
 ## Symptom pattern

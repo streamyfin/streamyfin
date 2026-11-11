@@ -90,10 +90,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
     // Background playback: media session, notification and the media
-    // playback foreground service (see MediaPlaybackController). Created on
-    // the first load, while the app is visible, and kept across destroy() so
-    // the next episode loaded into this view with the screen off still has
-    // it; released when the view leaves the window.
+    // playback foreground service (see MediaPlaybackController), for the
+    // player screen only (backgroundPlayback). Created on the first load,
+    // while the app is visible, kept across destroy() (the JS stop) and
+    // released when the view leaves the window. direct-player unmounts the
+    // view between items, so the next item starts it again.
     private var mediaPlayback: MediaPlaybackController? = null
     // Asked for by the player screen only (the backgroundPlayback prop): a
     // view that just shows a clip, the subtitle preview in Settings, took the

@@ -26,15 +26,23 @@ not frozen (`isFrozen=false`, proc state TOP_SLEEPING), which is why battery
 settings, the cached apps freezer and wake locks change nothing. It hits
 downloaded files and streams alike; a stream also loses its connection.
 
-The surface loss on screen off is NOT the cause: mpv's VO fails, the video track
-is deselected ("Video: no video") and audio carries on, and the resume recovery
-brings the picture back.
+The surface loss on screen off is not what mutes it: mpv's VO fails, the video
+track is deselected ("Video: no video") and audio carries on, and the resume
+recovery brings the picture back. The refresh seek that follows can still stall
+the sound in a file with no usable seek index
+(`mpv-surface-loss-drops-video-track-and-seeks`).
 
 The fix is a `mediaPlayback` foreground service, started while the app is still
-visible (the play request), and kept for the player's lifetime, paused included:
-starting it again from the background is refused. `MpvPlayerView` keeps its
-controller across `destroy()` because direct-player reuses the view for the next
-episode, possibly with the screen off.
+visible (the play request), and kept while the player screen is open, paused
+included: starting it again from the background is refused. A start refused
+that way leaves that player without the service until the next play the user
+makes with the app in front (`PlaybackService.ensureStarted`). Only the player
+screen asks for it: the native player, and `MpvPlayerView` with its
+`backgroundPlayback` prop, which direct-player sets off TV; a view that just
+shows a clip, the subtitle preview, takes no session, focus or wake lock.
+direct-player unmounts the view between items (its loader), so an item change
+with the screen off starts the next view's service from the background, where
+it is refused.
 
 To check: `adb logcat | grep AudioHardening`, or force the behavior with
 `adb shell cmd audio set-enable-hardening enable|disable|throw`.
