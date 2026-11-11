@@ -14,6 +14,8 @@ let mockDownloadedItems: { item: BaseItemDto }[] = [];
 let mockSettings: Partial<Settings> | null = null;
 let mockProcesses: { item: BaseItemDto; progress: number }[] = [];
 let mockIconMounts: Record<string, number> = {};
+// The icons on screen now, by name: a remount and a vanished icon both show.
+let mockIconsShown: Record<string, number> = {};
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -79,6 +81,10 @@ jest.mock("@/components/common/HeaderIcon", () => ({
     const { useEffect } = jest.requireActual("react");
     useEffect(() => {
       mockIconMounts[name] = (mockIconMounts[name] ?? 0) + 1;
+      mockIconsShown[name] = (mockIconsShown[name] ?? 0) + 1;
+      return () => {
+        mockIconsShown[name] -= 1;
+      };
     }, []);
     return null;
   },
@@ -185,6 +191,7 @@ beforeEach(() => {
   mockSettings = null;
   mockProcesses = [];
   mockIconMounts = {};
+  mockIconsShown = {};
 });
 
 afterEach(() => {
@@ -202,11 +209,12 @@ describe("DownloadSingleItem", () => {
       mockDownloadedItems = isDownloaded ? [{ item }] : [];
       const view = await render(<DownloadSingleItem item={item} />);
       const mountsBeforeDownload = mockIconMounts[name] ?? 0;
-      expect(mountsBeforeDownload).toBeGreaterThan(0);
+      expect(mockIconsShown[name]).toBe(1);
 
       mockDownloadedItems = [...mockDownloadedItems, { item: episode(2) }];
       await view.rerender(<DownloadSingleItem item={item} />);
 
+      expect(mockIconsShown[name]).toBe(1);
       expect(mockIconMounts[name]).toBe(mountsBeforeDownload);
     },
   );
