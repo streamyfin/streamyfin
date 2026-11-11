@@ -2,7 +2,7 @@
 
 **Date**: 2026-09-27
 **Category**: navigation
-**Key files**: `app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/_layout.tsx`, `app/(auth)/(tabs)/(libraries)/music/[libraryId]/_layout.tsx`, `package.json`
+**Key files**: `app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/_layout.tsx`, `app/(auth)/(tabs)/(libraries)/music/[libraryId]/_layout.tsx`, `package.json`
 
 ## Detail
 
