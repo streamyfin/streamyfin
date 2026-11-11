@@ -1,6 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { useState } from "react";
 import { prefetchServerImage } from "@/components/common/ServerImage";
@@ -185,8 +191,10 @@ const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
     UserData: { Key: "", PlayedPercentage: 40 },
   }));
 
-const stubServer = () => {
+/** Answers Home's requests. `first` registers handlers ahead of the rest. */
+const stubServer = (first?: (mock: typeof api.mock) => void) => {
   api.mock.reset();
+  first?.(api.mock);
   api.mock.onGet(/\/UserViews\?/).reply(200, {
     Items: [
       { Id: "movies", Name: "Movies", CollectionType: "movies" },
@@ -301,6 +309,57 @@ describe("Home.tv behaviours", () => {
     await screen.findByText("Resume 0");
 
     expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
+  // The hero can turn up after the rows: empty at launch, then filled by its
+  // refetch. The first row's card had taken the initial focus, and the new
+  // hero asked for it again, out of the tab bar if the user had gone there.
+  test("a hero that turns up after the rows asks for no focus", async () => {
+    withSettings({ showHeroCarousel: true, showHomeBackdrop: true });
+    let heroItems: BaseItemDto[] = [];
+    // Only the hero's two requests ask for the overview.
+    stubServer((mock) =>
+      mock.onGet(/fields=Overview/).reply(() => [200, { Items: heroItems }]),
+    );
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
+
+    heroItems = items("Hero", "Movie");
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    // The hero shows the resumed items itself, so their row goes.
+    await waitFor(() => expect(screen.queryByText("Resume 0")).toBeNull());
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
+  // The hero's answer can come after the rows'. The rows wait for it: had the
+  // first row taken the focus, the hero would have replaced that row and left
+  // the focus on nothing.
+  test("the hero takes the initial focus when it answers after the rows", async () => {
+    withSettings({ showHeroCarousel: true, showHomeBackdrop: true });
+    let answerHero!: () => void;
+    const heroAnswered = new Promise<void>((resolve) => {
+      answerHero = resolve;
+    });
+    stubServer((mock) =>
+      mock.onGet(/fields=Overview/).reply(async () => {
+        await heroAnswered;
+        return [200, { Items: items("Hero", "Movie") }];
+      }),
+    );
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+
+    await act(async () => {
+      answerHero();
+    });
+    await waitFor(() => expect(screen.queryByText("Resume 0")).toBeNull());
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
   });
 
   test("initial focus (hasTVPreferredFocus) is given to the first poster when hero is hidden", async () => {
