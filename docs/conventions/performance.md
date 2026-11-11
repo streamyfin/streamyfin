@@ -55,7 +55,7 @@ Everything else is up to the scenario. Native modules only one feature uses, lik
 ```tsx
 import { fireEvent, screen } from "@testing-library/react-native";
 import { measureRenders } from "reassure";
-import AppearancePage from "@/app/(auth)/(tabs)/(home)/settings/appearance/page";
+import AppearancePage from "@/app/(auth)/(tabs)/(more)/settings/appearance/page";
 
 test("toggling a setting re-renders the appearance page", async () => {
   await measureRenders(<AppearancePage />, {

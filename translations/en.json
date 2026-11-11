@@ -7,7 +7,6 @@
     "invalid_url": "Enter a valid address"
   },
   "login": {
-    "username_required": "Username is required",
     "error_title": "Error",
     "login_title": "Log in",
     "login_to_title": "Log in to",
@@ -252,7 +251,9 @@
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
         "native_tv": "Native player (experimental)",
         "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
-        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues."
+        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues.",
+        "match_refresh_rate": "Match display refresh rate",
+        "match_refresh_rate_note": "Switch the TV to a refresh rate matching the video's frame rate, for example 50 Hz for 25 fps, so motion plays smoothly instead of juddering. The screen flashes briefly when the rate changes. Android TV only."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -501,7 +502,7 @@
           "enable_movie_recommendations": "Movie recommendations",
           "enable_series_recommendations": "Series recommendations",
           "enable_promoted_watchlists": "Promoted watchlists",
-          "hide_watchlists_tab": "Hide watchlists tab",
+          "hide_watchlists_tab": "Hide watchlists",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended movies",
           "recommended_series": "Recommended series",
@@ -864,8 +865,8 @@
     "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
-    "no_links": "No links",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Could not open this link",
+    "load_failed": "Couldn't load the custom links"
   },
   "player": {
     "live": "LIVE",
@@ -1238,7 +1239,11 @@
     "library": "Library",
     "custom_links": "Custom links",
     "favorites": "Favorites",
-    "settings": "Settings"
+    "settings": "Settings",
+    "more": "More"
+  },
+  "more": {
+    "your_media": "Your media"
   },
   "music": {
     "title": "Music",

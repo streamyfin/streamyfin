@@ -7,7 +7,7 @@ import {
   Animated as RNAnimated,
   StyleSheet,
   TVFocusGuideView,
-  type View,
+  type ViewInstance,
 } from "react-native";
 import Animated, {
   Easing,
@@ -47,11 +47,11 @@ export interface TVSkipSegmentCardProps {
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
   /** Callback ref setter for focus guide destination pattern */
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
   /** Destination used when moving down from this card */
-  playButtonRef?: View | null;
+  playButtonRef?: ViewInstance | null;
 }
 
 // Position constants — kept in sync with TVNextEpisodeCountdown (the two

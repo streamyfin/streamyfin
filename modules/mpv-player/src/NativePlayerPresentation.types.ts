@@ -31,6 +31,14 @@ export type NativePlayerStreamConfig = {
   /** Source video dimensions (for zoom-to-fill subtitle compensation). */
   videoWidth?: number;
   videoHeight?: number;
+  /**
+   * Content frame rate in fps (MediaStreams.RealFrameRate), sent only when
+   * the user's match-refresh-rate setting is on — the native side never reads
+   * settings. Android picks a display mode with this rate: direct-played MKV
+   * gives the platform no frame rate, so 25fps content otherwise stays on a
+   * 60Hz panel and judders. Ignored by iOS.
+   */
+  contentFrameRate?: number;
 };
 
 export type NativePlayerMetadata = {

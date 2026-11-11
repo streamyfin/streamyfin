@@ -5,7 +5,7 @@ import type React from "react";
 import { initReactI18next } from "react-i18next";
 // Number.prototype.bytesToReadable, which the app loads at startup.
 import "@/augmentations/number";
-import MusicSettingsPage from "@/app/(auth)/(tabs)/(home)/settings/music/page";
+import MusicSettingsPage from "@/app/(auth)/(tabs)/(more)/settings/music/page";
 import en from "@/translations/en.json";
 
 const mockSettings = {
@@ -63,7 +63,6 @@ jest.mock("@/components/PlatformDropdown", () => ({
 beforeAll(() =>
   i18n.use(initReactI18next).init({
     lng: "en",
-    compatibilityJSON: "v4",
     resources: {
       en: { translation: en },
       fr: {
