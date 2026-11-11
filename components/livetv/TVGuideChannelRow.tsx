@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React, { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type ViewInstance } from "react-native";
 import { TVGuideProgramCell } from "./TVGuideProgramCell";
 
 interface TVGuideChannelRowProps {
@@ -11,7 +11,7 @@ interface TVGuideChannelRowProps {
   hoursToShow: number;
   onProgramPress: (program: BaseItemDto) => void;
   disabled?: boolean;
-  firstProgramRefSetter?: (ref: View | null) => void;
+  firstProgramRefSetter?: (ref: ViewInstance | null) => void;
 }
 
 export const TVGuideChannelRow: React.FC<TVGuideChannelRowProps> = ({

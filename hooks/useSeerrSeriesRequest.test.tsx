@@ -48,8 +48,9 @@ describe("useSeerrSeriesRequest", () => {
   test.each([
     ["(libraries)", "(libraries)"],
     ["(search)", "(search)"],
-    ["(favorites)", "(favorites)"],
-    ["(watchlists)", "(watchlists)"],
+    ["(more)", "(more)"],
+    ["(tv-favorites)", "(tv-favorites)"],
+    ["(tv-watchlists)", "(tv-watchlists)"],
     // A group without the route falls back to home's copy of it.
     ["(settings)", "(home)"],
   ])("opens the series' Seerr page through %s as %s", async (segment, tab) => {

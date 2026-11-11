@@ -13,18 +13,13 @@ import {
 } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as BackgroundTask from "expo-background-task";
-import * as Device from "expo-device";
 import { Image } from "expo-image";
-import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { OfflineProgressSync } from "@/components/OfflineProgressSync";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
-import {
-  NOTIFICATION_PERMISSIONS,
-  PERMISSION_ASKED_KEY,
-} from "@/constants/Notifications";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -44,25 +39,16 @@ import { useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   BACKGROUND_FETCH_TASK_SESSIONS,
-  registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import {
-  LogProvider,
-  writeErrorLog,
-  writeInfoLog,
-  writeToLog,
-} from "@/utils/log";
+import { LogProvider } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
-import {
-  isPlainTap,
-  notificationRoute,
-  responseRoute,
-} from "@/utils/notificationRoute";
+import { responseRoute } from "@/utils/notificationRoute";
 import {
   queryDehydrateOptions,
   withoutPersistedMutations,
+  withoutRedundantSaves,
 } from "@/utils/queryPersistence";
+import { shouldRetryQuery } from "@/utils/queryRetry";
 import { reportDataError } from "@/utils/reportDataError";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
@@ -72,17 +58,11 @@ const JellyfinCastStopReporter = Platform.isTV
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
-import type { EventSubscription } from "expo-modules-core";
-import type {
-  Notification,
-  NotificationResponse,
-} from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { Stack, useSegments } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider, useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Provider as JotaiProvider, useAtomValue } from "jotai";
+import { useEffect } from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance, LogBox } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
@@ -98,9 +78,9 @@ import { useAppLanguage } from "@/hooks/useAppLanguage";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
 import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useNotificationRegistration } from "@/hooks/useNotificationRegistration";
 import { useNotificationSettingsLink } from "@/hooks/useNotificationSettingsLink";
 import { usePushRegistration } from "@/hooks/usePushRegistration";
-import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
   applySentryConsent,
@@ -113,6 +93,10 @@ import {
   ReanimatedLogLevel,
 } from "react-native-reanimated";
 import { Toaster } from "sonner-native";
+
+// Back from a deep link lands on the tabs. Expo Router 58 dropped the
+// navigator's initialRouteName prop in favour of the layout's anchor.
+export const unstable_settings = { anchor: "(auth)/(tabs)" };
 
 // Disable strict mode warnings for reading shared values during render
 configureReanimatedLogger({
@@ -231,53 +215,6 @@ if (!Platform.isTV) {
   });
 }
 
-/**
- * Asks for notifications once per install, and says whether they are allowed.
- */
-const checkAndRequestPermissions = async () => {
-  try {
-    const hasAskedBefore = storage.getString(PERMISSION_ASKED_KEY);
-    let granted = false;
-    if (hasAskedBefore !== "true") {
-      const { status } = await Notifications.requestPermissionsAsync(
-        NOTIFICATION_PERMISSIONS,
-      );
-      granted = status === "granted";
-      if (granted) {
-        writeToLog("INFO", "Notification permissions granted.");
-        console.log("Notification permissions granted.");
-      } else {
-        writeToLog("ERROR", "Notification permissions denied.");
-        console.log("Notification permissions denied.");
-      }
-      storage.set(PERMISSION_ASKED_KEY, "true");
-    } else {
-      // Already asked before, check current status
-      const { status } = await Notifications.getPermissionsAsync();
-      granted = status === "granted";
-      if (granted && Platform.OS === "ios") {
-        await offerSettingsLinkOnce(Notifications, storage);
-      }
-      if (!granted) {
-        writeToLog(
-          "ERROR",
-          "Notification permissions denied (already asked before).",
-        );
-        console.log("Notification permissions denied (already asked before).");
-      }
-    }
-    return granted;
-  } catch (error) {
-    writeToLog(
-      "ERROR",
-      "Error checking/requesting notification permissions:",
-      error,
-    );
-    console.error("Error checking/requesting notification permissions:", error);
-    return false;
-  }
-};
-
 function RootLayout() {
   Appearance.setColorScheme("dark");
 
@@ -327,10 +264,7 @@ const queryClient = new QueryClient({
       refetchOnMount: true, // Refetch when component mounts
       refetchOnReconnect: true, // Refetch when network reconnects
       refetchOnWindowFocus: false, // Not needed for mobile
-      retry: (failureCount) => {
-        if (!onlineManager.isOnline()) return false;
-        return failureCount < 3;
-      },
+      retry: shouldRetryQuery, // Never offline, nor for a stale id
     },
     mutations: {
       networkMode: "online", // Only run mutations when online
@@ -341,21 +275,21 @@ const queryClient = new QueryClient({
 // Create MMKV-based persister for offline support. What it writes and what it
 // restores is in utils/queryPersistence.ts.
 const mmkvPersister = withoutPersistedMutations(
-  createSyncStoragePersister({
-    storage: {
-      getItem: (key) => storage.getString(key) ?? null,
-      setItem: (key, value) => storage.set(key, value),
-      removeItem: (key) => storage.remove(key),
-    },
-  }),
+  withoutRedundantSaves(
+    createSyncStoragePersister({
+      storage: {
+        getItem: (key) => storage.getString(key) ?? null,
+        setItem: (key, value) => storage.set(key, value),
+        removeItem: (key) => storage.remove(key),
+      },
+    }),
+  ),
 );
 
 function Layout() {
   const { settings } = useSettings();
   const settingsLoaded = useAtomValue(settingsAtom) !== null;
-  const [user] = useAtom(userAtom);
   const _segments = useSegments();
-  const router = useRouter();
 
   // Enable TV menu key interception so React Native handles it instead of tvOS
   useEffect(() => {
@@ -374,102 +308,9 @@ function Layout() {
   useNotificationSettingsLink();
   useNativePlayerLogBridge();
 
-  const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-  const notificationListener = useRef<EventSubscription>(null);
-  const responseListener = useRef<EventSubscription>(null);
+  const expoPushToken = useNotificationRegistration();
 
   usePushRegistration(expoPushToken?.data, language);
-
-  const registerNotifications = useCallback(async () => {
-    if (Platform.OS === "android") {
-      await Notifications?.setNotificationChannelAsync("default", {
-        name: "default",
-      });
-
-      // Create dedicated channel for download notifications
-      await Notifications?.setNotificationChannelAsync("downloads", {
-        name: "Downloads",
-        importance: Notifications.AndroidImportance.DEFAULT,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    const granted = await checkAndRequestPermissions();
-    if (!granted) {
-      console.log(
-        "Notification permissions not granted, skipping background fetch and push token registration.",
-      );
-      return;
-    }
-
-    if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
-      await registerBackgroundFetchAsyncSessions();
-    }
-
-    // only create push token for real devices (pointless for emulators)
-    if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync({
-        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
-      })
-        .then((token: ExpoPushToken) => {
-          if (token) {
-            console.log("Expo push token obtained:", token.data);
-            setExpoPushToken(token);
-          }
-        })
-        .catch((reason: any) => {
-          console.error("Failed to get push token:", reason);
-          writeErrorLog("Failed to get Expo push token", reason);
-        });
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!Platform.isTV) {
-      void registerNotifications();
-
-      notificationListener.current =
-        Notifications?.addNotificationReceivedListener(
-          (notification: Notification) => {
-            // Log only the title — serializing the whole notification touches
-            // the deprecated dataString getter (deprecation warning) and dumps
-            // noisy payloads into the console.
-            console.log(
-              "Notification received while app running:",
-              notification.request.content.title,
-            );
-          },
-        );
-
-      responseListener.current =
-        Notifications?.addNotificationResponseReceivedListener(
-          (response: NotificationResponse) => {
-            // A button is carried out by useNotificationActions, and opens nothing.
-            if (
-              !isPlainTap(response, Notifications.DEFAULT_ACTION_IDENTIFIER)
-            ) {
-              return;
-            }
-            // Currently the notifications supported by the plugin will send data for deep links.
-            const { title, data } = response.notification.request.content;
-            writeInfoLog(`Notification ${title} opened`, data);
-
-            const url = notificationRoute(data);
-
-            writeInfoLog(`Notification attempting to redirect to ${url}`);
-            if (url) {
-              router.push(url as never);
-            }
-          },
-        );
-
-      return () => {
-        notificationListener.current?.remove();
-        responseListener.current?.remove();
-      };
-    }
-  }, [user]);
 
   return (
     <PersistQueryClientProvider
@@ -504,7 +345,7 @@ function Layout() {
                                       {JellyfinCastStopReporter && (
                                         <JellyfinCastStopReporter />
                                       )}
-                                      <Stack initialRouteName='(auth)/(tabs)'>
+                                      <Stack>
                                         <Stack.Screen
                                           name='(auth)/(tabs)'
                                           options={{
@@ -647,6 +488,7 @@ function Layout() {
                                         <PendingAccountSaveModal />
                                       )}
                                       <SeerrAutoLogin />
+                                      <OfflineProgressSync />
                                     </ThemeProvider>
                                   </IntroSheetProvider>
                                 </BottomSheetModalProvider>

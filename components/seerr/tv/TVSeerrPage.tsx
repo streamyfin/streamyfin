@@ -15,11 +15,11 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Dimensions,
-  InteractionManager,
   Pressable,
   ScrollView,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
@@ -32,8 +32,9 @@ import { SeerrRequestIcon } from "@/components/seerr/SeerrRequestIcon";
 import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { BACKGROUND_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
+import { BACKGROUND_IMAGE_TRANSITION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
@@ -66,7 +67,7 @@ interface TVCastCardProps {
   };
   imageProxy: (path: string, size?: string) => string;
   onPress: () => void;
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 }
 
 const TVCastCard: React.FC<TVCastCardProps> = ({
@@ -201,11 +202,12 @@ export const TVSeerrPage: React.FC = () => {
   const { showIssueModal } = useTVIssueModal();
 
   // Refs for TVFocusGuideView destinations (useState triggers re-render when set)
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [firstCastCardRef, setFirstCastCardRef] = useState<View | null>(null);
-  const [firstSeasonCardRef, setFirstSeasonCardRef] = useState<View | null>(
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [firstCastCardRef, setFirstCastCardRef] = useState<ViewInstance | null>(
     null,
   );
+  const [firstSeasonCardRef, setFirstSeasonCardRef] =
+    useState<ViewInstance | null>(null);
 
   const {
     data: details,
@@ -254,10 +256,8 @@ export const TVSeerrPage: React.FC = () => {
 
   // Backdrop URL
   const backdropUrl = useMemo(() => {
-    const path = result.backdropPath || details?.backdropPath;
-    return path
-      ? seerrApi?.imageProxy(path, "w1920_and_h800_multi_faces")
-      : null;
+    const path = details?.backdropPath || result.backdropPath;
+    return path ? seerrApi?.imageProxy(path, SEERR_BACKDROP_SIZE) : null;
   }, [details, result.backdropPath, seerrApi]);
 
   // Poster URL
@@ -465,10 +465,8 @@ export const TVSeerrPage: React.FC = () => {
     }
     if (!modalWasOpenRef.current || !isFocused) return;
     modalWasOpenRef.current = false;
-    const task = InteractionManager.runAfterInteractions(() =>
-      setFocusEpoch((epoch) => epoch + 1),
-    );
-    return () => task.cancel();
+    const task = requestIdleCallback(() => setFocusEpoch((epoch) => epoch + 1));
+    return () => cancelIdleCallback(task);
   }, [isFocused, modalOpen]);
 
   const handlePlay = useCallback(() => {
@@ -530,7 +528,7 @@ export const TVSeerrPage: React.FC = () => {
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
             cachePolicy='memory-disk'
-            transition={BACKGROUND_IMAGE_TRANSITION_DURATION}
+            transition={BACKGROUND_IMAGE_TRANSITION}
           />
         ) : (
           <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />

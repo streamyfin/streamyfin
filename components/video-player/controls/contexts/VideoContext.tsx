@@ -64,6 +64,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
   applyMpvSubtitleSelection,
   getExternalSubtitleUrl,
@@ -71,10 +72,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { tagOriginalAudioTrack } from "@/utils/jellyfin/trackLabel";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
-import {
-  isLocalSubtitleIndex,
-  SUBTITLES_OFF,
-} from "@/utils/subtitles/subtitleIndex";
+import { isLocalSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 import {
   buildAudioMenu,
   buildSubtitleMenu,
@@ -142,14 +140,13 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
 
   const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-  // Route params are strings; a missing/blank one parses to NaN, which must not
-  // be read as a real selection.
-  const asIndex = (raw: string | undefined): number | undefined => {
-    const parsed = Number.parseInt(raw ?? "", 10);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  };
-  const currentSubtitleIndex = asIndex(subtitleIndex) ?? SUBTITLES_OFF;
-  const currentAudioIndex = asIndex(audioIndex);
+  const { audioIndex: currentAudioIndex, subtitleIndex: currentSubtitleIndex } =
+    resolveRouteTrackIndexes({
+      audioIndex,
+      subtitleIndex,
+      offline,
+      downloaded: downloadedItem?.userData,
+    });
 
   /** Client-side downloads that still exist on disk (the cache may be cleared). */
   const localSubFiles = useMemo(() => {

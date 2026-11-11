@@ -32,8 +32,9 @@ export const useSeerrSeriesRequest = (
   const from =
     segment === "(search)" ||
     segment === "(libraries)" ||
-    segment === "(favorites)" ||
-    segment === "(watchlists)"
+    segment === "(more)" ||
+    segment === "(tv-favorites)" ||
+    segment === "(tv-watchlists)"
       ? segment
       : "(home)";
 

@@ -7,6 +7,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getLibraryApi, getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { redactCredentials } from "@/utils/redactCredentials";
 import { markExpectedError } from "../../errors";
 import { generateDownloadProfile } from "../../profiles/download";
 import type { AudioTranscodeModeType } from "../../profiles/native";
@@ -57,7 +58,7 @@ const getPlaybackUrl = (
       );
     }
 
-    console.log("Video is being transcoded:", transcodeUrl);
+    console.log("Video is being transcoded:", redactCredentials(transcodeUrl));
     return `${api.basePath}${transcodeUrl}`;
   }
 
@@ -68,7 +69,9 @@ const getPlaybackUrl = (
     mediaSource?.Protocol === "Http" &&
     mediaSource?.Path
   ) {
-    console.log("Video is remote stream, using direct Path:", mediaSource.Path);
+    // Not the URL itself: an external stream's credentials can sit in its
+    // userinfo or its path, which redactCredentials does not cover.
+    console.log("Video is remote stream, using its direct Path");
     return mediaSource.Path;
   }
 
@@ -102,7 +105,10 @@ const getPlaybackUrl = (
   // the negotiated resume, stream-selection and authentication parameters.
   const directPlayUrl = api.getUri(`/Videos/${itemId}/stream`, streamParams);
 
-  console.log("Video is being direct played:", directPlayUrl);
+  console.log(
+    "Video is being direct played:",
+    redactCredentials(directPlayUrl),
+  );
   return directPlayUrl;
 };
 
@@ -139,6 +145,7 @@ export const getStreamUrl = async ({
   subtitleStreamIndex = undefined,
   mediaSourceId,
   deviceId,
+  autoOpenLiveStream = true,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -152,6 +159,11 @@ export const getStreamUrl = async ({
   height?: number;
   mediaSourceId?: string | null;
   deviceId?: string | null;
+  /**
+   * Off for a negotiation that plays nothing (the next-episode subtitle warm):
+   * a source that needs opening would be opened and never closed.
+   */
+  autoOpenLiveStream?: boolean;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -238,7 +250,7 @@ export const getStreamUrl = async ({
     SubtitleStreamIndex: subtitleStreamIndex,
     StartTimeTicks: startTimeTicks,
     isPlayback: true,
-    AutoOpenLiveStream: true,
+    AutoOpenLiveStream: autoOpenLiveStream,
     MaxStreamingBitrate: maxStreamingBitrate,
     AudioStreamIndex: audioStreamIndex,
     MediaSourceId: mediaSourceId,

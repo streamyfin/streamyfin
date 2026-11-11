@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
+import { Colors } from "@/constants/Colors";
 import { Text } from "../common/Text";
 
 interface Props extends ViewProps {
@@ -101,8 +102,8 @@ const ListItemContent = ({
     <>
       <View className='flex flex-row items-center w-full'>
         {icon && (
-          <View className='border border-neutral-800 rounded-md h-8 w-8 flex items-center justify-center mr-2'>
-            <Ionicons name='person-circle-outline' size={18} color='white' />
+          <View className='mr-3'>
+            <Ionicons name={icon} size={20} color={Colors.primary} />
           </View>
         )}
         {/* The label sizes to its content and only shrinks if it alone
@@ -120,14 +121,12 @@ const ListItemContent = ({
                   ? "text-red-600"
                   : "text-white"
             }
-            numberOfLines={1}
           >
             {title}
           </Text>
           {subtitle && (
             <Text
               className={`text-[12px] mt-0.5 ${subtitleColor === "red" ? "text-red-600" : "text-[#9899A1]"}`}
-              numberOfLines={2}
             >
               {subtitle}
             </Text>
@@ -143,7 +142,12 @@ const ListItemContent = ({
             </Text>
           </View>
         )}
-        {children && <View className='ml-auto'>{children}</View>}
+        {/* Capped so a control that sizes to its content, a text field
+            holding a URL, cannot squeeze the label, which wraps, to a column
+            of single letters. */}
+        {children && (
+          <View className='ml-auto pl-3 max-w-[70%]'>{children}</View>
+        )}
         {showArrow && (
           <View className={children ? "ml-1" : "ml-auto"}>
             <Ionicons name='chevron-forward' size={18} color='#5A5960' />

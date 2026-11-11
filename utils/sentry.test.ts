@@ -100,6 +100,14 @@ describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () 
         data: { url: "https://[server]/Sessions" },
       }),
     ).toBe(false);
+    // Since 8.34 the SDK also records expo/fetch, the global fetch on native.
+    expect(
+      isUserInteractionBreadcrumb({
+        type: "http",
+        category: "fetch",
+        data: { url: "https://[server]/Sessions" },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -206,6 +214,28 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
       extra: {
         urls: ["http://[server]"],
         detail: { path: "/Documents/[media].mkv" },
+      },
+    });
+  });
+
+  test("scrubs a fetch breadcrumb's URL as it does an XHR one", () => {
+    expect(
+      scrubDeep({
+        type: "http",
+        category: "fetch",
+        data: {
+          method: "GET",
+          url: "https://jellyfin.example.com:8096/Sessions?api_key=secret",
+          status_code: 200,
+        },
+      }),
+    ).toEqual({
+      type: "http",
+      category: "fetch",
+      data: {
+        method: "GET",
+        url: "https://[server]/Sessions",
+        status_code: 200,
       },
     });
   });
@@ -481,6 +511,42 @@ describe("classifyOutgoingEvent — axios errors on the unhandledrejection path"
       classifyOutgoingEvent(event, { originalException: new Error("x") }),
     ).toBe(event);
     expect(classifyOutgoingEvent(event, undefined)).toBe(event);
+  });
+
+  // The rule of the explicit capture paths: a library renamed, asked for
+  // again from an earlier session's cache.
+  test("an id the server no longer has is dropped, a series' 404 is not", () => {
+    const answered = (path: string, status: number, data: string): AxiosError =>
+      new AxiosError(
+        `Request failed with status code ${status}`,
+        AxiosError.ERR_BAD_REQUEST,
+        { method: "get", url: `https://server${path}`, headers: {} as never },
+        {},
+        { status, headers: {}, data, config: {} } as never,
+      );
+    const libraryGone = answered(
+      "/Items?userId=u1&parentId=5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9",
+      400,
+      "Error processing request.",
+    );
+    // Jellyfin also sends it for an id that is not a series, an episode's
+    // passed by mistake among them, so it is no proof of anything gone.
+    const seriesNotFound = answered(
+      "/Shows/5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9/Episodes?userId=u1",
+      404,
+      "Series not found",
+    );
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: libraryGone }),
+    ).toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, { originalException: seriesNotFound }),
+    ).not.toBeNull();
+    expect(
+      classifyOutgoingEvent({} as never, {
+        originalException: axiosError(404),
+      }),
+    ).not.toBeNull();
   });
 
   test("a Cloudflare tunnel that is down is dropped", () => {
