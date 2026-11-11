@@ -1,10 +1,16 @@
-import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemPerson,
+  PersonKind,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 interface Options {
-  /** Keep only people credited as this kind (`"Actor"`, `"Director"`, ...). */
-  kind?: string;
+  /**
+   * Keep only people credited as one of these kinds. Pass a constant
+   * (`constants/CastCrew.ts`): a new array on every render gives a new answer.
+   */
+  kinds?: readonly PersonKind[];
   /**
    * A person with no role gets the name of their credit instead, in the
    * user's language. Left off, such a person has no role.
@@ -74,36 +80,34 @@ const mergePeopleById = (
  */
 export const useCastCrew = (
   people: BaseItemPerson[] | null | undefined,
-  { kind, labelRoles = false, limit }: Options = {},
+  { kinds, labelRoles = false, limit }: Options = {},
 ): CastCrewPerson[] => {
   const { t } = useTranslation();
 
   return useMemo(
     () =>
       mergePeopleById(
-        kind ? people?.filter((p) => p.Type === kind) : people,
+        kinds
+          ? people?.filter((p) => !!p.Type && kinds.includes(p.Type))
+          : people,
         // A missing kind label falls back to the server's own word for it,
         // which is what a kind newer than the catalogue shows as.
         labelRoles
           ? (k) => t(`item_card.person_kind.${k}`, { defaultValue: k })
           : undefined,
       ).slice(0, limit),
-    [people, kind, labelRoles, limit, t],
+    [people, kinds, labelRoles, limit, t],
   );
 };
 
-/**
- * Person kinds that get a labelled credits line, in the order the lines are
- * drawn. Plain strings rather than the SDK's `PersonKind`: Narrator only
- * exists from Jellyfin 12, which the SDK does not describe yet.
- */
+/** Person kinds that get a labelled credits line, in the order the lines are drawn. */
 const CREDIT_KINDS = [
   "Director",
   "Writer",
   "Creator",
   "Author",
   "Narrator",
-] as const;
+] as const satisfies readonly PersonKind[];
 
 type CreditKind = (typeof CREDIT_KINDS)[number];
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
-import { MORE_MOVIES_ACTORS_LIMIT } from "@/constants/CastCrew";
+import { CAST_KINDS, MORE_MOVIES_ACTORS_LIMIT } from "@/constants/CastCrew";
 import { type CastCrewPerson, useCastCrew } from "@/hooks/useCastCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -44,9 +44,10 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
     return { ...item, People: people } as BaseItemDto;
   }, [item, people]);
 
-  // The first distinct actors get a "more movies with" section of their own.
+  // The first distinct cast members get a "more movies with" section of their
+  // own. Crew is left out: a director took one of the three rows from an actor.
   const topActors = useCastCrew(people, {
-    kind: "Actor",
+    kinds: CAST_KINDS,
     limit: MORE_MOVIES_ACTORS_LIMIT,
   });
 

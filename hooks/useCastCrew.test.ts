@@ -18,10 +18,13 @@ const PEOPLE: BaseItemPerson[] = [
   { Name: "No Id", Type: "Actor" },
 ];
 
+/** Stable, as the app's callers pass it: a new array each render is a new answer. */
+const ACTORS = ["Actor"] as const;
+
 describe("useCastCrew", () => {
   test("a person credited twice is one entry with both roles", async () => {
     const { result } = await renderHook(() =>
-      useCastCrew(PEOPLE, { kind: "Actor" }),
+      useCastCrew(PEOPLE, { kinds: ["Actor"] }),
     );
 
     expect(result.current.map((p) => p.Id)).toEqual(["a", "b"]);
@@ -55,7 +58,7 @@ describe("useCastCrew", () => {
 
   test("kind and labelRoles apply together", async () => {
     const { result } = await renderHook(() =>
-      useCastCrew(PEOPLE, { kind: "Director", labelRoles: true }),
+      useCastCrew(PEOPLE, { kinds: ["Director"], labelRoles: true }),
     );
 
     expect(result.current.map((p) => p.Role)).toEqual([
@@ -75,7 +78,7 @@ describe("useCastCrew", () => {
 
   test("limit counts people, not credits", async () => {
     const { result } = await renderHook(() =>
-      useCastCrew(PEOPLE, { kind: "Actor", limit: 1 }),
+      useCastCrew(PEOPLE, { kinds: ["Actor"], limit: 1 }),
     );
 
     expect(result.current.map((p) => p.Id)).toEqual(["a"]);
@@ -86,7 +89,7 @@ describe("useCastCrew", () => {
   // the limited cut included, would defeat them.
   test("the result keeps its identity while the people do", async () => {
     const { result, rerender } = await renderHook(() =>
-      useCastCrew(PEOPLE, { kind: "Actor", limit: 2 }),
+      useCastCrew(PEOPLE, { kinds: ACTORS, limit: 2 }),
     );
     const first = result.current;
 
@@ -95,15 +98,29 @@ describe("useCastCrew", () => {
     expect(result.current).toBe(first);
   });
 
+  // An episode's guest stars are its cast: with only Actor kept, an episode
+  // whose cast is all guests had no "More with" row at all.
+  test("keeps every kind it is given, in the server's order", async () => {
+    const { result } = await renderHook(() =>
+      useCastCrew(
+        [
+          { Id: "g", Name: "Guest", Type: "GuestStar" },
+          { Id: "d", Name: "Director", Type: "Director" },
+          { Id: "a", Name: "Actor", Type: "Actor" },
+        ],
+        { kinds: ["Actor", "GuestStar"] },
+      ),
+    );
+
+    expect(result.current.map((person) => person.Id)).toEqual(["g", "a"]);
+  });
+
   // A kind newer than the translation catalogue shows as the server's word.
   test("a kind without a translation falls back to the server's word", async () => {
     mockT.mockImplementation((key, options) => options?.defaultValue ?? key);
     try {
       const { result } = await renderHook(() =>
-        useCastCrew(
-          [{ Id: "a", Type: "Narrator" } as unknown as BaseItemPerson],
-          { labelRoles: true },
-        ),
+        useCastCrew([{ Id: "a", Type: "Narrator" }], { labelRoles: true }),
       );
 
       expect(result.current[0].Role).toBe("Narrator");
@@ -221,12 +238,11 @@ describe("useCreditLines", () => {
   });
 
   test("covers the book and audiobook kinds", async () => {
-    // Narrator is new in Jellyfin 12 and not in the SDK's PersonKind yet.
-    const narrator = {
+    const narrator: BaseItemPerson = {
       Id: "n",
       Name: "Narrator",
       Type: "Narrator",
-    } as unknown as BaseItemPerson;
+    };
 
     const lines = await linesOf([
       narrator,

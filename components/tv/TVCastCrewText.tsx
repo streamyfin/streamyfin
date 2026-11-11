@@ -3,7 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { TVFocusGuideView, View, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TV_CAST_TEXT_LIMIT } from "@/constants/CastCrew";
+import { TV_CAST_KINDS, TV_CAST_TEXT_LIMIT } from "@/constants/CastCrew";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useCastCrew, useCreditLines } from "@/hooks/useCastCrew";
 import { scaleSize } from "@/utils/scaleSize";
@@ -31,7 +31,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
     const { t } = useTranslation();
     const credits = useCreditLines(people);
     const cast = useCastCrew(showCast ? people : undefined, {
-      kind: "Actor",
+      kinds: TV_CAST_KINDS,
       limit: TV_CAST_TEXT_LIMIT,
     });
     const showCastLine = cast.length > 0;
