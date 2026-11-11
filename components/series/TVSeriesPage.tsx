@@ -33,6 +33,10 @@ import { TVSimilarItems } from "@/components/TVSimilarItems";
 import { TVButton } from "@/components/tv/TVButton";
 import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useShuffleQueue } from "@/hooks/useShuffleQueue";
@@ -56,7 +60,6 @@ import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
 const HORIZONTAL_PADDING = scaleSize(80);
 const TOP_PADDING = scaleSize(140);
-const POSTER_WIDTH_PERCENT = 0.22;
 const SCALE_PADDING = scaleSize(20);
 
 interface TVSeriesPageProps {
@@ -436,7 +439,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View
           style={{
             flexDirection: "row",
-            minHeight: windowHeight * 0.45,
+            minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
           }}
         >
           {/* Left side - Content */}
@@ -530,7 +533,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           {/* Right side - Poster */}
           <View
             style={{
-              width: windowWidth * POSTER_WIDTH_PERCENT,
+              width: windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
               marginLeft: scaleSize(50),
             }}
           >

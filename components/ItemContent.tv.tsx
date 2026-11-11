@@ -51,6 +51,11 @@ import {
   TVTechnicalDetails,
 } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -693,7 +698,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           <View
             style={{
               flexDirection: "row",
-              minHeight: windowHeight * 0.45,
+              minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
             }}
           >
             {/* Left side - Content */}
@@ -772,7 +777,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   style={{
                     borderRadius: scaleSize(8),
                     overflow: "hidden",
-                    maxWidth: windowWidth * 0.45,
+                    maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
                     marginBottom: scaleSize(24),
                   }}
                 >
@@ -975,7 +980,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 width:
                   item.Type === "Episode"
                     ? windowWidth * 0.35
-                    : windowWidth * 0.22,
+                    : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
                 marginLeft: scaleSize(50),
               }}
             >

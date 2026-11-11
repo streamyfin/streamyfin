@@ -1,5 +1,9 @@
 import { render } from "@testing-library/react-native";
 import type { TestInstance } from "test-renderer";
+import {
+  TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { ItemContentSkeletonTV } from "./ItemContentSkeleton.tv";
 
 let mockWindowWidth = 1920;
@@ -42,13 +46,17 @@ describe("ItemContentSkeletonTV", () => {
   test("resizes the placeholders when the window width changes", async () => {
     const { root, rerender } = await render(<ItemContentSkeletonTV />);
 
-    expect(overviewMaxWidth(root)).toBe(1920 * 0.45);
-    expect(posterWidth(root)).toBe(1920 * 0.22);
+    expect(overviewMaxWidth(root)).toBe(
+      1920 * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+    );
+    expect(posterWidth(root)).toBe(1920 * TV_DETAIL_POSTER_WIDTH_RATIO);
 
     mockWindowWidth = 1280;
     await rerender(<ItemContentSkeletonTV />);
 
-    expect(overviewMaxWidth(root)).toBe(1280 * 0.45);
-    expect(posterWidth(root)).toBe(1280 * 0.22);
+    expect(overviewMaxWidth(root)).toBe(
+      1280 * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+    );
+    expect(posterWidth(root)).toBe(1280 * TV_DETAIL_POSTER_WIDTH_RATIO);
   });
 });

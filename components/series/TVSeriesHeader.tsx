@@ -9,6 +9,7 @@ import { Badge } from "@/components/Badge";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
+import { TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO } from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -114,7 +115,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
           style={{
             borderRadius: scaleSize(8),
             overflow: "hidden",
-            maxWidth: windowWidth * 0.45,
+            maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
             alignSelf: "flex-start",
           }}
         >

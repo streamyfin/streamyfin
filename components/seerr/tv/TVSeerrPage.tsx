@@ -26,6 +26,11 @@ import { TVSeerrSeasons } from "@/components/seerr/tv/TVSeerrSeasons";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { SEERR_BACKDROP_SIZE } from "@/constants/Seerr";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { BACKGROUND_IMAGE_TRANSITION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
@@ -495,13 +500,13 @@ export const TVSeerrPage: React.FC = () => {
         <View
           style={{
             flexDirection: "row",
-            minHeight: windowHeight * 0.45,
+            minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
           }}
         >
           {/* Left side - Poster */}
           <View
             style={{
-              width: windowWidth * 0.22,
+              width: windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
               marginRight: 50,
             }}
           >
@@ -595,7 +600,7 @@ export const TVSeerrPage: React.FC = () => {
                 style={{
                   borderRadius: 8,
                   overflow: "hidden",
-                  maxWidth: windowWidth * 0.45,
+                  maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
                   marginBottom: 32,
                 }}
               >

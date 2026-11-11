@@ -27,6 +27,7 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { Loader } from "@/components/Loader";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO } from "@/constants/TVDetailLayout";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -443,7 +444,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
                   fontSize: typography.body,
                   color: "#D1D5DB",
                   lineHeight: typography.body * 1.4,
-                  maxWidth: windowWidth * 0.45,
+                  maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
                 }}
                 numberOfLines={4}
               >
