@@ -2445,9 +2445,22 @@ const NativePlayerProviderInner: React.FC<{
       }),
     ];
 
+    // Listeners replaced while a stall lasts: the look at it moves to them.
+    const current = sessionRef.current;
+    if (current?.stallWatch) {
+      clearInterval(current.stallWatch);
+      current.stallWatch = undefined;
+      if (current.isBuffering && current.isPlaying) watchStall(current);
+    }
+
     return () => {
       for (const subscription of subscriptions) {
         subscription?.remove();
+      }
+      const session = sessionRef.current;
+      if (session?.stallWatch) {
+        clearInterval(session.stallWatch);
+        session.stallWatch = undefined;
       }
     };
   }, [

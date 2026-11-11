@@ -265,6 +265,20 @@ describe("stepping up", () => {
     });
   });
 
+  // A step up would load a new stream, which plays: not while the user paused.
+  test("not step up on a measure that comes back after the user paused", () => {
+    const auto = started(lowered(0));
+    auto.tick({
+      now: 121_000,
+      position: 121,
+      duration: 3_600,
+      cacheSeconds: 9,
+    });
+    auto.state(125_000, false, false);
+
+    expect(auto.probeResult(130_000, 60 * MB)).toBeNull();
+  });
+
   test("wait twice as long after a measure that allows no step up", () => {
     const auto = started(lowered(0));
     auto.tick({

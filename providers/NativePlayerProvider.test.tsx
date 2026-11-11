@@ -355,12 +355,13 @@ const Probe = () => {
 };
 
 const mount = async () => {
-  await render(
+  const view = await render(
     <NativePlayerProvider>
       <Probe />
     </NativePlayerProvider>,
   );
   await settle();
+  return view;
 };
 
 const play = (itemId: string) =>
@@ -971,6 +972,23 @@ describe("Auto during playback", () => {
     await settle();
 
     expect(mockNegotiation.params).toHaveLength(3);
+  });
+
+  // The look at a stall outlived the provider: it went on asking for streams.
+  test("stops looking at a stall once the provider is gone", async () => {
+    const view = await mount();
+    await playAt("auto");
+    await playerState(false);
+    await wait(6_000);
+    await playerState(true);
+
+    await act(async () => {
+      await view.unmount();
+    });
+    await wait(5_000);
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(1);
   });
 
   test("leaves a quality the user picked alone", async () => {

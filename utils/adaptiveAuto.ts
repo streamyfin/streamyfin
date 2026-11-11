@@ -222,6 +222,11 @@ export class AdaptiveAuto {
     if (!this.probing) return null;
     this.probing = false;
     if (this.busy) return null;
+    // Paused meanwhile: a new stream would start playing on its own.
+    if (!this.playing) {
+      this.nextProbeAt = now + this.probeDelay;
+      return null;
+    }
     const { cap } = this.stream;
     if (
       bitrate !== undefined &&
