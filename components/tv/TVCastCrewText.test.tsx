@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVCastCrewText } from "./TVCastCrewText";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 // The real hook reads the settings atom, whose module graph is the whole app.

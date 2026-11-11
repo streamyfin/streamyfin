@@ -6,7 +6,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVCollectionsSection } from "./TVCollectionsSection";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 const trilogy = {

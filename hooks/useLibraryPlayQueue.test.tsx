@@ -15,7 +15,7 @@ import { usePlaybackManager } from "./usePlaybackManager";
 import { useShuffleQueue } from "./useShuffleQueue";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 jest.mock(
   "@/hooks/useNetworkStatus",
@@ -110,10 +110,6 @@ const neighbours = async (
 };
 
 describe("library Play All and Shuffle", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   test("Shuffle on a filtered movie library plays a random filtered movie and continues the queue", async () => {
     // The server already answers in a random order.
     const picked = [movie("c"), movie("a"), movie("b")];

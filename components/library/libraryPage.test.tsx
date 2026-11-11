@@ -16,7 +16,7 @@ import { stubReactNative } from "@/test-utils/reactNative";
 import { writeToLog } from "@/utils/log";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 const mockParams: { current: Record<string, unknown> } = { current: {} };
@@ -187,10 +187,6 @@ const renderLibrary = async (
   await act(async () => {});
   return { requested: api.mock.history.get.map((get) => get.url), errors };
 };
-
-beforeEach(() => {
-  mockWriteToLog.mockClear();
-});
 
 describe.each([
   ["phone", false],

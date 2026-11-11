@@ -18,7 +18,7 @@ import { Favorites as PhoneFavorites } from "./Favorites";
 import { Favorites as TVFavorites } from "./Favorites.tv";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 // The TV sizes read the type scale from the settings, and its enum with it.

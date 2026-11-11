@@ -11,7 +11,7 @@ import { offerSettingsLinkOnce } from "@/utils/notificationPermissions";
 import { useNotificationRegistration } from "./useNotificationRegistration";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 const mockPush = jest.fn();
@@ -60,7 +60,6 @@ const setTV = (isTV: boolean) =>
   Object.defineProperty(Platform, "isTV", { value: isTV, configurable: true });
 
 beforeEach(() => {
-  jest.clearAllMocks();
   store = createStore();
   setTV(false);
   Object.defineProperty(Platform, "OS", { value: "ios", configurable: true });

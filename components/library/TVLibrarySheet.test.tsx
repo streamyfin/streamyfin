@@ -7,7 +7,7 @@ import type {
 import { TVLibrarySheet } from "./TVLibrarySheet";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 jest.mock("@/constants/TVTypography", () => ({

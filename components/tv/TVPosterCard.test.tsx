@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react-native";
 import { TVPosterCard } from "./TVPosterCard";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 jest.mock("@/components/WatchedIndicator", () => ({

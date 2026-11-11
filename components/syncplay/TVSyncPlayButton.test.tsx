@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVSyncPlayButton } from "./TVSyncPlayButton";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 const mockOpen = jest.fn();
@@ -22,7 +22,6 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 }));
 
 beforeEach(() => {
-  mockOpen.mockClear();
   mockState = { group: null, available: true };
 });
 

@@ -1,7 +1,7 @@
 import { stubReactNative } from "@/test-utils/reactNative";
 
 jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireActual("@/test-utils/jellyfinProviderModule"),
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
 
 // TV builds leave this native module out (react-native.config.js), and loading it there
