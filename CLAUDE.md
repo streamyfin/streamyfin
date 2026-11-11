@@ -36,6 +36,7 @@ Read the relevant one before writing code in that area.
 | [docs/conventions/performance.md](docs/conventions/performance.md) | Claiming a change is faster, or writing a Reassure scenario |
 | [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, adding or unmocking a `jest.mock`, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
+| [docs/conventions/window-dimensions.md](docs/conventions/window-dimensions.md) | Reading window width or height in a component, screen, or hook |
 
 Deep dives: [tv-modal-guide.md](docs/tv-modal-guide.md),
 [tv-focus-guide.md](docs/tv-focus-guide.md), [tv-discovery.md](docs/tv-discovery.md),

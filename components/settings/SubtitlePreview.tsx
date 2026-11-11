@@ -31,7 +31,7 @@ const SAMPLE_VIDEO = require("@/assets/sample_subtitled.mp4");
 export const SubtitlePreview = React.memo(() => {
   const { t } = useTranslation();
   const { settings } = useSettings();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [assetUri, setAssetUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [assetError, setAssetError] = useState(false);
@@ -76,8 +76,8 @@ export const SubtitlePreview = React.memo(() => {
       settings.subtitleSize ?? 1,
       SUBTITLE_PREVIEW_VIDEO_WIDTH,
       SUBTITLE_PREVIEW_VIDEO_HEIGHT,
-      screenWidth * PixelRatio.get(),
-      screenHeight * PixelRatio.get(),
+      windowWidth * PixelRatio.get(),
+      windowHeight * PixelRatio.get(),
     );
 
     const previewScaleMultiplier =
@@ -119,7 +119,7 @@ export const SubtitlePreview = React.memo(() => {
         console.error("Failed to apply subtitle preview style:", error);
       }
     }
-  }, [settings, screenWidth, screenHeight, playerReady, playerRef]);
+  }, [settings, windowWidth, windowHeight, playerReady, playerRef]);
 
   useEffect(() => {
     applyStyle().catch((err: unknown) =>

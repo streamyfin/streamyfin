@@ -18,6 +18,7 @@ import { Orientation } from "../packages/expo-screen-orientation.tv";
  */
 const windowOrientationLock =
   (): (typeof OrientationLock)[keyof typeof OrientationLock] => {
+    // biome-ignore lint/plugin/no-dimensions-window-in-ui: read once, for the first orientation; the module's events keep it current
     const { width, height } = Dimensions.get("window");
     return width > height
       ? OrientationLock.LANDSCAPE
