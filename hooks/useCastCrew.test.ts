@@ -98,6 +98,28 @@ describe("useCastCrew", () => {
     expect(result.current).toBe(first);
   });
 
+  // Merged on the first credit, a person whose first credit had no name showed
+  // an empty name, though a later credit had it.
+  test("takes the name from a later credit when the first has none", async () => {
+    const { result } = await renderHook(() =>
+      useCastCrew(
+        [
+          { Id: "a", Type: "Actor", Role: "Hero" },
+          { Id: "a", Name: "Ana", Type: "Actor", Role: "Mother" },
+          { Id: "c", Name: "Cy", Type: "Actor" },
+        ],
+        { kinds: ACTORS, limit: 2 },
+      ),
+    );
+
+    expect(
+      result.current.map((person) => [person.Id, person.Name, person.Role]),
+    ).toEqual([
+      ["a", "Ana", "Hero, Mother"],
+      ["c", "Cy", null],
+    ]);
+  });
+
   // An episode's guest stars are its cast: with only Actor kept, an episode
   // whose cast is all guests had no "More with" row at all.
   test("keeps every kind it is given, in the server's order", async () => {

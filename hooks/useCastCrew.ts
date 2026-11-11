@@ -57,6 +57,9 @@ const mergePeopleById = (
     if (!entry) {
       entry = { person, roles: [] };
       merged.set(person.Id, entry);
+    } else if (!entry.person.Name?.trim() && person.Name?.trim()) {
+      // A later credit can carry the name the first one lacked.
+      entry.person = { ...entry.person, Name: person.Name };
     }
 
     const text = creditText(person, kindLabel);
