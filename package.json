@@ -90,7 +90,6 @@
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
     "react": "19.3.0",
-    "react-dom": "19.3.0",
     "react-i18next": "18.0.1",
     "react-native": "npm:react-native-tvos@0.88.1-0",
     "react-native-awesome-slider": "^2.9.0",
