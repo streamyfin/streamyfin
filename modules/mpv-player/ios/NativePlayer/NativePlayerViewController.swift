@@ -413,14 +413,16 @@ final class NativePlayerViewController: UIViewController {
 		}
 	}
 
-	/// The prompts, the sheets, the subtitle scale control and the lock mode own
-	/// the input, same as the touch controls: nothing may resume or move
-	/// playback under them. Without the sheets and the scale control here, the
-	/// arrows seek while the search sheet or the scale slider is up.
+	/// The prompts, the sheets, the subtitle scale control, the error overlay
+	/// and the lock mode own the input, same as the touch controls: nothing may
+	/// resume or move playback under them. Without the sheets and the scale
+	/// control here, the arrows seek while the search sheet or the scale slider
+	/// is up.
 	private var keyboardInputAllowed: Bool {
 		!viewModel.showStillWatching && !viewModel.showEpisodeList
 			&& !viewModel.showSubtitleSearch && !viewModel.showSyncPlayQueue
 			&& !viewModel.showSubtitleScaleControl && !viewModel.controlsLocked
+			&& viewModel.errorMessage == nil
 	}
 
 	@objc private func handleLeftArrowKey() {
