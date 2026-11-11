@@ -2,16 +2,16 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useRef } from "react";
 import { View } from "react-native";
 import {
+  LIVE_TV_GUIDE_HOUR_MS,
   LIVE_TV_GUIDE_HOUR_WIDTH,
   LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH,
 } from "@/constants/LiveTVGuide";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
-const HOUR_MS = 3_600_000;
-
 /** The guide width a span of time takes. */
-const toGuideWidth = (ms: number) => (ms / HOUR_MS) * LIVE_TV_GUIDE_HOUR_WIDTH;
+const toGuideWidth = (ms: number) =>
+  (ms / LIVE_TV_GUIDE_HOUR_MS) * LIVE_TV_GUIDE_HOUR_WIDTH;
 
 export const LiveTVGuideRow = ({
   channel,

@@ -2,6 +2,10 @@
 // takes this many points across, in the header and in every channel row.
 export const LIVE_TV_GUIDE_HOUR_WIDTH = 200;
 
+// An hour of the guide in milliseconds: the header steps by it, and the rows
+// turn a program's time into a width with it.
+export const LIVE_TV_GUIDE_HOUR_MS = 3_600_000;
+
 // The column of channel logos left of the programs.
 export const LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH = 64;
 
