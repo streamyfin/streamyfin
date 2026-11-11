@@ -62,10 +62,21 @@ jest.mock("@/components/cards/CardRow", () => {
       items.map((item) => <Text key={item.Id}>{item.Name}</Text>),
   };
 });
+/** Names of the TV cards rendered with `hasTVPreferredFocus`. */
+const mockPreferredFocusCards = new Set<string>();
 jest.mock("@/components/tv/TVPosterCard", () => {
   const { Text } = jest.requireActual("react-native");
   return {
-    TVPosterCard: ({ item }: { item: BaseItemDto }) => <Text>{item.Name}</Text>,
+    TVPosterCard: ({
+      item,
+      hasTVPreferredFocus,
+    }: {
+      item: BaseItemDto;
+      hasTVPreferredFocus?: boolean;
+    }) => {
+      if (hasTVPreferredFocus) mockPreferredFocusCards.add(item.Name!);
+      return <Text>{item.Name}</Text>;
+    },
   };
 });
 
@@ -178,5 +189,39 @@ describe.each([
     expect(await screen.findByText("Arrival")).toBeTruthy();
     await flushQueryUpdates();
     expect(errors).toEqual([]);
+  });
+});
+
+describe("Favorites on TV", () => {
+  // A tab root that sets hasTVPreferredFocus pulls the focus off the tvOS tab
+  // bar the moment the tab first mounts. The series row is the first one, so
+  // a favorite series is what armed it. See docs/conventions/tv.md.
+  it("leaves the initial focus on the tab bar", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Items\?/).reply(200, { Items: [ALIEN] });
+    const store = createStore();
+    store.set(apiAtom, api);
+    store.set(userAtom, USER);
+    mockPreferredFocusCards.clear();
+
+    await render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+            },
+          })
+        }
+      >
+        <JotaiProvider store={store}>
+          <TVFavorites />
+        </JotaiProvider>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByText("Alien")).toHaveLength(6));
+    await flushQueryUpdates();
+
+    expect([...mockPreferredFocusCards]).toEqual([]);
   });
 });

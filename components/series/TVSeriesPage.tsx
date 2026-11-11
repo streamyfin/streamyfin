@@ -51,6 +51,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import {
   buildOfflineSeasons,
+  downloadsKeyPart,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
@@ -86,7 +87,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const isOffline = useOfflineMode();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { getDownloadedItems, refreshKey } = useDownload();
   const { showSeasonModal } = useTVSeriesSeasonModal();
   const { showItemActions } = useTVItemActionModal();
   const { startShuffle } = useShuffleQueue();
@@ -128,7 +129,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
 
   // Fetch seasons
   const seasonsQuery = useQuery({
-    queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
+    queryKey: [
+      "seasons",
+      item.Id,
+      isOffline,
+      downloadsKeyPart(isOffline, refreshKey),
+    ],
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeasons(getDownloadedItems(), item.Id!);
@@ -202,7 +208,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       item.Id,
       isOffline ? selectedSeasonNumber : selectedSeasonId,
       isOffline,
-      downloadedItems.length,
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {

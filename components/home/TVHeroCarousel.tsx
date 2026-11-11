@@ -44,6 +44,8 @@ interface TVHeroCarouselProps {
   items: BaseItemDto[];
   onItemFocus?: (item: BaseItemDto) => void;
   onItemLongPress?: (item: BaseItemDto) => void;
+  /** Whether the first card asks for the initial focus (Home's first mount). */
+  takesInitialFocus?: boolean;
 }
 
 interface HeroCardProps {
@@ -215,6 +217,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
   onItemLongPress,
+  takesInitialFocus = true,
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
@@ -379,14 +382,20 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
     ({ item, index }: { item: BaseItemDto; index: number }) => (
       <HeroCard
         item={item}
-        isFirst={index === 0}
+        isFirst={takesInitialFocus && index === 0}
         sizes={sizes}
         onFocus={handleCardFocus}
         onPress={handleCardPress}
         onLongPress={onItemLongPress}
       />
     ),
-    [handleCardFocus, handleCardPress, onItemLongPress, sizes],
+    [
+      handleCardFocus,
+      handleCardPress,
+      onItemLongPress,
+      sizes,
+      takesInitialFocus,
+    ],
   );
 
   // Memoize keyExtractor
