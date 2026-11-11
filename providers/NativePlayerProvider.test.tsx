@@ -239,6 +239,9 @@ const mockDownloads = {
   getDownloadedItemById: () => undefined,
   getDownloadedItems: () => [],
 };
+// What useDownload returns: a new object re-runs the provider's listener
+// effect, as a download state change does.
+let mockDownloadUtils = mockDownloads;
 const mockOrientation = {
   lockOrientation: mockNoop,
   unlockOrientation: mockNoop,
@@ -258,7 +261,7 @@ jest.mock(
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
 );
 jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => mockDownloads,
+  useDownload: () => mockDownloadUtils,
 }));
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => mockSyncPlay,
@@ -1023,6 +1026,36 @@ describe("Auto during playback", () => {
     await settle();
 
     expect(mockNegotiation.params).toHaveLength(1);
+  });
+
+  // The listeners were replaced while a stall lasted: their cleanup stopped
+  // looking at it and nothing looked again, so it never stepped down.
+  test("goes on looking at a stall when the listeners are replaced during it", async () => {
+    const view = await mount();
+    await playAt("auto");
+    await playerState(false);
+    await wait(6_000);
+    await playerState(true);
+
+    mockDownloadUtils = { ...mockDownloads };
+    try {
+      await act(async () => {
+        await view.rerender(
+          <NativePlayerProvider>
+            <Probe />
+          </NativePlayerProvider>,
+        );
+      });
+      await wait(3_000);
+      await settle();
+    } finally {
+      mockDownloadUtils = mockDownloads;
+    }
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toEqual({
+      value: 8_000_000,
+    });
   });
 
   test("leaves a quality the user picked alone", async () => {

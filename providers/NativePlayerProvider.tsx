@@ -2509,12 +2509,16 @@ const NativePlayerProviderInner: React.FC<{
       }),
     ];
 
-    // Listeners replaced while a stall lasts: the look at it moves to them.
+    // Listeners replaced while a stall lasts: the cleanup stopped looking at
+    // it, these listeners look on, from the session's own state.
     const current = sessionRef.current;
-    if (current?.stallWatch) {
-      clearInterval(current.stallWatch);
-      current.stallWatch = undefined;
-      if (current.isBuffering && current.isPlaying) watchStall(current);
+    if (
+      current?.adaptive &&
+      !current.awaitingLoad &&
+      current.isBuffering &&
+      current.isPlaying
+    ) {
+      watchStall(current);
     }
 
     return () => {
