@@ -7,11 +7,6 @@ import {
   markOfflineProgress,
 } from "./offlineProgressQueue";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 const T1 = "2026-11-05T10:00:00.000Z";
 const T2 = "2026-11-05T11:00:00.000Z";
 
