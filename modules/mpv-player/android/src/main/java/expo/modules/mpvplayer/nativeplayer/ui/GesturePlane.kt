@@ -25,6 +25,14 @@ import kotlin.math.abs
 
 private enum class DragAxis { HORIZONTAL, VERTICAL }
 
+/**
+ * Whether a touch that went down at [y] on a gesture plane [height] tall
+ * began in one of the edge strips, [edgePx] high, that are left to the
+ * system. See [PlayerConstants.EDGE_DRAG_DEAD_ZONE_DP].
+ */
+internal fun startsAtScreenEdge(y: Float, height: Float, edgePx: Float): Boolean =
+    y < edgePx || y >= height - edgePx
+
 @Composable
 fun GesturePlane(
     viewModel: PlayerViewModel,
@@ -32,6 +40,7 @@ fun GesturePlane(
 ) {
     val density = LocalDensity.current
     val verticalTravelPx = with(density) { PlayerConstants.VERTICAL_DRAG_RANGE_DP.dp.toPx() }
+    val edgeDeadZonePx = with(density) { PlayerConstants.EDGE_DRAG_DEAD_ZONE_DP.dp.toPx() }
 
     var dragAxis by remember { mutableStateOf<DragAxis?>(null) }
     var dragOnLeftHalf by remember { mutableStateOf(false) }
@@ -77,13 +86,14 @@ fun GesturePlane(
                     }
                 }
             }
-            .pointerInput(verticalTravelPx, viewModel.controlsLocked) {
+            .pointerInput(verticalTravelPx, edgeDeadZonePx, viewModel.controlsLocked) {
                 if (viewModel.controlsLocked) return@pointerInput
 
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val width = size.width.toFloat()
                     val height = size.height.toFloat()
+                    val startedAtEdge = startsAtScreenEdge(down.position.y, height, edgeDeadZonePx)
 
                     dragAxis = null
                     dragOnLeftHalf = down.position.x < (width / 2)
@@ -127,6 +137,11 @@ fun GesturePlane(
                             pointers.forEach { it.consume() }
                             continue
                         }
+
+                        // A swipe in from the top or bottom edge is the
+                        // system's. Nothing is consumed, so a tap in the
+                        // strip still toggles the controls.
+                        if (startedAtEdge) continue
 
                         val pan = event.calculatePan()
                         totalPanX += pan.x

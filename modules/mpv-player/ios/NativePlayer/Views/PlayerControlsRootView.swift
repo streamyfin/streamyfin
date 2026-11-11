@@ -44,9 +44,7 @@ struct PlayerControlsRootView: View {
 			// gesture surface — controls layered above receive their own
 			// touches first, so drags here only start on empty video area.
 			tapSurface(size: size)
-				.gesture(
-					surfaceDragGesture(size: size, bottomSafeAreaInset: bottomSafeAreaInset)
-				)
+				.gesture(surfaceDragGesture(size: size))
 				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
@@ -306,7 +304,7 @@ struct PlayerControlsRootView: View {
 	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
 	/// brightness on the left half, volume on the right (JS GestureOverlay
 	/// parity), with the edge pills transiently revealed as feedback.
-	private func surfaceDragGesture(size: CGSize, bottomSafeAreaInset: CGFloat) -> some Gesture {
+	private func surfaceDragGesture(size: CGSize) -> some Gesture {
 		DragGesture(minimumDistance: 12)
 			.onChanged { value in
 				guard !viewModel.controlsLocked,
@@ -314,10 +312,12 @@ struct PlayerControlsRootView: View {
 					viewModel.errorMessage == nil
 				else { return }
 
-				// iOS briefly delivers a home-indicator swipe before taking
-				// ownership. Ignore the sequence before it changes player state.
-				if bottomSafeAreaInset > 0,
-					value.startLocation.y >= size.height - bottomSafeAreaInset {
+				// iOS briefly delivers an edge swipe (Notification Centre,
+				// Control Centre, the home indicator) before taking ownership.
+				// Ignore the sequence before it changes player state.
+				if surfaceDragStartsAtScreenEdge(
+					startY: value.startLocation.y, surfaceHeight: size.height
+				) {
 					return
 				}
 
