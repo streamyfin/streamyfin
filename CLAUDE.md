@@ -101,7 +101,7 @@ TV platform:
 - `tv-nav-tab-catches-short-grid-edge-press` | from the end of a grid narrower than the TV tab bar, a left or right press goes to the outermost tab; trap left/right on the grid (a full-width guide row is never the target)
 - `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
 - `amlogic-fra-fires-before-real-framerate` | the vendor HDMI frame-rate adaptation switches on the codec's 30fps default, before MKV's real rate is known, and never corrects; app-side preferredDisplayModeId matching (matchRefreshRate setting) is the fix
-- `tv-preferred-focus-grabs-on-mount` | on tvOS hasTVPreferredFocus takes the focus for the whole app as the view mounts, the tab bar included; tab roots other than Home must not set it
+- `tv-preferred-focus-grabs-on-mount` | hasTVPreferredFocus takes the focus as the view mounts, out of the tab bar too (tvOS when the bar lands on a tab, Android TV on the first press); tab roots other than Home must not set it
 
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope

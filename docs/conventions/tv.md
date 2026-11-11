@@ -120,8 +120,10 @@ Reference implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
 A screen that is the root of a tab must not set `hasTVPreferredFocus`, on itself or on
 a row it renders. On tvOS the prop takes the focus for the whole app as the view mounts,
 and a tab mounts the first time the tab bar lands on it. Swiping across the bar then
-drops the focus into that tab instead of the next tab. The user expects to keep moving
-along the bar and swipe down when they choose; the focus engine then picks the top item.
+drops the focus into that tab instead of the next tab. Android TV opens a tab on a
+press instead, and the prop takes the focus there too, so the first press on a tab
+leaves the bar. The user expects to keep moving along the bar and swipe down when they
+choose; the focus engine then picks the top item.
 
 Home is the one exception. It mounts at launch, before the user touches the bar, so its
 first poster may take the initial focus. Pushed screens and modals keep their preferred

@@ -2,7 +2,8 @@
 
 **Date**: 2026-11-08
 **Category**: tv
-**Key files**: `node_modules/react-native/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm`
+**Key files**: `node_modules/react-native/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm`,
+`node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/views/view/ReactViewManager.kt`
 
 ## Detail
 
@@ -18,7 +19,14 @@ Search, but Libraries and Settings pulled it down to their first row. Their firs
 set the prop, and a tab mounts the first time the bar lands on it. Favorites did the
 same once the user had a favorite series. Home only escaped because it mounts at launch.
 
+Android TV does the same through `ReactViewManager.setTVPreferredFocus`, which calls
+`requestFocus()` when the prop turns true. Its tab bar opens a tab on a press rather
+than on focus, so there the jump comes with the first press on a tab: pressing Library
+put the focus on the first library row, Settings on its first enabled row, and
+Favorites on the first favorite series.
+
 ## Symptom pattern
 
 The focus jumps into a screen the moment it mounts, out of the tab bar or another
-zone, with no press. The rule it led to is in `docs/conventions/tv.md`.
+zone, without the user moving into it. The rule it led to is in
+`docs/conventions/tv.md`.
