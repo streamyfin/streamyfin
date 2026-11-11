@@ -287,7 +287,7 @@ fun PlayerTopBar(
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(if (offset == 0.0) "0 s" else "${offset} s")
+                                        Text(syncOffsetLabel(offset))
                                         if (kotlin.math.abs(viewModel.audioDelay - offset) < 0.01) {
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -452,7 +452,7 @@ fun PlayerTopBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (offset == 0.0) "0 s" else "${offset} s")
+                                    Text(syncOffsetLabel(offset))
                                     if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
