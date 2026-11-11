@@ -521,10 +521,13 @@ class MediaPlaybackController(
         }
     }
 
-    // HIGH_PERF, as Media3's WifiLockManager: LOW_LATENCY only holds while
-    // the screen is on and the app in front, the opposite of what this is for.
+    // HIGH_PERF, as Media3's WifiLockManager, before Android 14 only. From 14
+    // on the platform hands out LOW_LATENCY for it, which only holds while the
+    // screen is on and the app in front, the opposite of what this is for: no
+    // lock is taken there, and the CPU wake lock is the protection left.
     @Suppress("DEPRECATION")
-    private fun createWifiLock(): WifiManager.WifiLock? {
+    internal fun createWifiLock(): WifiManager.WifiLock? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
         val wifi = context.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return null
         return wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "streamyfin:playback")
             .apply { setReferenceCounted(false) }
