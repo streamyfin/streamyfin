@@ -1,43 +1,65 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useRef } from "react";
 import { View } from "react-native";
+import {
+  LIVE_TV_GUIDE_HOUR_WIDTH,
+  LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH,
+} from "@/constants/LiveTVGuide";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+
+const HOUR_MS = 3_600_000;
+
+/** The guide width a span of time takes. */
+const toGuideWidth = (ms: number) => (ms / HOUR_MS) * LIVE_TV_GUIDE_HOUR_WIDTH;
 
 export const LiveTVGuideRow = ({
   channel,
   programs,
+  startTime,
   scrollX = 0,
   isVisible = true,
 }: {
   channel: BaseItemDto;
   programs?: BaseItemDto[] | null;
+  /** The guide's first hour, the one `HourHeader` starts at. */
+  startTime: number;
   scrollX?: number;
   isVisible?: boolean;
 }) => {
   const _positionRefs = useRef<{ [key: string]: number }>({});
 
-  const calculateWidth = (s?: string | null, e?: string | null) => {
-    if (!s || !e) return 0;
-    const start = new Date(s);
-    const end = new Date(e);
-    const duration = end.getTime() - start.getTime();
-    const minutes = duration / 60000;
-    const width = (minutes / 60) * 200;
-    return width;
-  };
+  // Each program sits at its start time, counted from the guide's first hour:
+  // summed from the channel's first program, a program that began before that
+  // hour or a gap in the listing moved every later one against the header.
+  const programsWithPositions = useMemo(
+    () =>
+      programs
+        ?.filter((p) => p.ChannelId === channel.Id)
+        .flatMap((p) => {
+          if (!p.StartDate || !p.EndDate) return [];
+          // A program already running at the first hour starts at the edge.
+          const start = Math.max(new Date(p.StartDate).getTime(), startTime);
+          const end = new Date(p.EndDate).getTime();
+          if (end <= start) return [];
+          return [
+            {
+              ...p,
+              position: toGuideWidth(start - startTime),
+              width: toGuideWidth(end - start),
+            },
+          ];
+        }),
+    [programs, channel.Id, startTime],
+  );
 
-  const programsWithPositions = useMemo(() => {
-    let cumulativeWidth = 0;
-    return programs
-      ?.filter((p) => p.ChannelId === channel.Id)
-      .map((p) => {
-        const width = calculateWidth(p.StartDate, p.EndDate);
-        const position = cumulativeWidth;
-        cumulativeWidth += width;
-        return { ...p, width, position };
-      });
-  }, [programs, channel.Id]);
+  // How far a title follows the left edge into its program, keeping it the
+  // room it needs: a short program never moves its title.
+  const pinnedTitleOffset = (position: number, width: number) =>
+    Math.min(
+      Math.max(scrollX - position, 0),
+      Math.max(width - LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH, 0),
+    );
 
   const isCurrentlyLive = (program: BaseItemDto) => {
     if (!program.StartDate || !program.EndDate) return false;
@@ -71,10 +93,7 @@ export const LiveTVGuideRow = ({
               return (
                 <View
                   style={{
-                    marginLeft:
-                      scrollX > p.position && scrollX < p.position + p.width
-                        ? scrollX - p.position
-                        : 0,
+                    marginLeft: pinnedTitleOffset(p.position, p.width),
                   }}
                   className='px-4 self-start'
                 >

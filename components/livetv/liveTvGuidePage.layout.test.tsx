@@ -1,9 +1,13 @@
+// Spec for app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide.tsx,
+// its layout against the window. It lives here rather than next to the page
+// because Expo Router turns every file under app/ into a route.
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { StyleSheet } from "react-native";
 import type { TestInstance } from "test-renderer";
 import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide";
+import { LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH } from "@/constants/LiveTVGuide";
 
 let mockWindowWidth = 400;
 
@@ -83,6 +87,12 @@ const renderPage = () =>
 describe("LiveTvGuidePage layout", () => {
   beforeEach(() => {
     mockWindowWidth = 400;
+    // Ten past the program's first hour, which the guide then starts at.
+    jest.useFakeTimers({ now: new Date("2026-01-01T20:10:00Z") });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   test("sizes the guide viewport by window minus insets and keeps titles pinned", async () => {
@@ -108,6 +118,7 @@ describe("LiveTvGuidePage layout", () => {
     await fireEvent.scroll(horizontalScrollView(root), {
       nativeEvent: { contentOffset: { x: 300 } },
     });
-    expect(marginLeftOf()).toBe(300);
+    // 350 wide: the title stops short of the end, keeping its room.
+    expect(marginLeftOf()).toBe(350 - LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH);
   });
 });
