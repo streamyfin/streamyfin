@@ -126,6 +126,47 @@ describe("cacheConfig is mpv-only wire data", () => {
   });
 });
 
+// The "Video output" setting is mpv's `vo`. The native player started mpv on
+// gpu-next whatever the setting said, so a device that only plays on gpu had
+// no way to choose it there.
+describe("the video output driver", () => {
+  test("is the one the setting names", async () => {
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: { ...defaultValues, mpvVoDriver: "gpu" },
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+    });
+
+    expect(result?.config.engine).toBe("mpv");
+    expect(result?.config.voDriver).toBe("gpu");
+  });
+
+  // Like cacheConfig: the settings UI hides the section for ExoPlayer, and a
+  // hidden value must not ride along as if it steered playback.
+  test("is omitted when ExoPlayer is the engine", async () => {
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: {
+        ...defaultValues,
+        videoPlayer: VideoPlayer.ExoPlayer,
+        mpvVoDriver: "gpu",
+      },
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+    });
+
+    expect(result?.config.engine).toBe("exoplayer");
+    expect(result?.config.voDriver).toBeUndefined();
+  });
+});
+
 // ExoPlayer wedges on a sidecar it must fetch over a slow path, so it gets
 // its sidecars on disk first; mpv opens each one on a thread of its own and
 // starts without that wait.
