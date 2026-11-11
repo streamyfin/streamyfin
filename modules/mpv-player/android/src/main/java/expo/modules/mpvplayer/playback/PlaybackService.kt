@@ -137,7 +137,12 @@ class PlaybackService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         owner?.onTaskRemoved()
-        stopSelf()
+        // Nothing may post to a service on its way out: a refresh landing
+        // before onDestroy re-posted the media notification as a plain one
+        // nothing cancelled. A start not answered yet is answered, then
+        // stopped, in onStartCommand: stopping it here kills the process.
+        running = false
+        if (!startPending) stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 

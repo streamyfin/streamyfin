@@ -392,7 +392,7 @@ class MediaPlaybackController(
 
     /** The user swiped the app away from recents. */
     internal fun onTaskRemoved() {
-        target.pause()
+        target.onTaskRemoved()
     }
 
     private fun action(service: Context, icon: Int, title: String, action: String): Notification.Action {

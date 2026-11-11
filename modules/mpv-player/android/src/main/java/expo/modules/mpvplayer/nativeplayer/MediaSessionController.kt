@@ -11,7 +11,9 @@ import expo.modules.mpvplayer.playback.NowPlayingInfo
  */
 class MediaSessionController(
     context: Context,
-    private val viewModel: PlayerViewModel
+    private val viewModel: PlayerViewModel,
+    /** Ends the player when the app is swiped away from recents. */
+    private val onTaskRemoved: () -> Unit,
 ) {
     private val target = object : MediaPlaybackTarget {
         override val isPlaying get() = viewModel.isPlaying
@@ -65,6 +67,10 @@ class MediaSessionController(
         override fun duck(percent: Int?) {
             viewModel.engine?.setVolumeBoost(percent ?: viewModel.volumeBoostPercent)
         }
+
+        // Swiped away, the app keeps running for the foreground service, and a
+        // player left presented made every later play request fail.
+        override fun onTaskRemoved() = this@MediaSessionController.onTaskRemoved()
     }
 
     private val controller = MediaPlaybackController(context, target, "StreamyfinNativePlayer")

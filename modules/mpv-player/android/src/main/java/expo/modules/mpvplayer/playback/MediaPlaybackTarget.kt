@@ -44,6 +44,9 @@ interface MediaPlaybackTarget {
 
     /** Lower the volume for a transient duck; null restores it. */
     fun duck(percent: Int?) {}
+
+    /** The user swiped the app away from recents. Defaults to [pause]. */
+    fun onTaskRemoved() = pause()
 }
 
 data class NowPlayingInfo(

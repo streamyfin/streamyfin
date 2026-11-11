@@ -191,7 +191,9 @@ class NativePlayerSession(
                     viewModel.onDeviceMuteChanged(volumeCtrl.volume <= 0.001f, seed = true)
                 }
 
-                val mediaCtrl = MediaSessionController(activity, viewModel)
+                // Swiped away from recents, it ends as if the user closed it:
+                // the progress is saved and a new play request can present.
+                val mediaCtrl = MediaSessionController(activity, viewModel) { dismiss("closeButton") }
                 mediaSessionController = mediaCtrl
                 mediaCtrl.start()
 
