@@ -1137,6 +1137,57 @@ describe("Auto during playback", () => {
       }),
     );
   });
+
+  // A track change while the measure ran: the replaced stream's callback took
+  // the measure the new stream had joined, and threw its step up away.
+  test("steps up from the stream the measure is for, after a track change during it", async () => {
+    let finish: (bitrate: number) => void = () => undefined;
+    // Every probe joins the measure running, as detectBitrate does.
+    mockDetectBitrate.mockReturnValue(
+      new Promise<number>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const steady = () =>
+      act(async () =>
+        mockNative.emit("onProgress", {
+          position: 300,
+          duration: 1800,
+          progress: 0,
+          cacheSeconds: 9,
+        }),
+      );
+    await mount();
+    await playAt("auto");
+    await stall();
+    await loaded();
+    await playerState(false);
+    await wait(2 * 60_000);
+    await steady();
+    await settle();
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 2,
+        positionSec: 300,
+      }),
+    );
+    await settle();
+    await loaded();
+    await playerState(false);
+    await wait(6_000);
+    await steady();
+    await settle();
+    await act(async () => finish(60_000_000));
+    await settle();
+
+    expect(mockDetectBitrate).toHaveBeenCalledTimes(2);
+    expect(mockNegotiation.params).toHaveLength(4);
+    expect(mockNegotiation.params[3].maxStreamingBitrate).toEqual({
+      value: 12_000_000,
+    });
+  });
 });
 
 // Only ExoPlayer waits on its sidecars before a load (buildNativePlayerConfig),

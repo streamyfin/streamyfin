@@ -2053,18 +2053,16 @@ const NativePlayerProviderInner: React.FC<{
       if (!action || !api || sessionRef.current !== session) return;
       const options = autoBitrateOptions(settingsRef.current);
       if (action.kind === "probe") {
-        detectBitrate(api, true, options).then(
-          (bitrate) =>
-            adapt(
-              session,
-              session.adaptive?.probeResult(Date.now(), bitrate) ?? null,
-            ),
-          () =>
-            adapt(
-              session,
-              session.adaptive?.probeResult(Date.now(), undefined) ?? null,
-            ),
-        );
+        // The controller rides a same-quality swap: a measure that ends after
+        // one is the new stream's to take, which may have joined it.
+        const settle = (bitrate: number | undefined) => {
+          if (sessionRef.current !== session) return;
+          adapt(
+            session,
+            session.adaptive?.probeResult(Date.now(), bitrate) ?? null,
+          );
+        };
+        detectBitrate(api, true, options).then(settle, () => settle(undefined));
         return;
       }
       if (action.kind === "stepDown") {
