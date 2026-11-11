@@ -7,7 +7,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react-native";
+import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -164,20 +164,25 @@ const VALIDATION_PROBLEM = {
   errors: { itemId: ["The value is not valid."] },
 };
 
-const libraryServer = () => {
+const libraryServer = (items: { Id: string; Name: string }[] = []) => {
   const api = makeApi();
   api.mock.onGet(/\/Items\/Filters\?/).reply(200, { Genres: [], Years: [] });
   api.mock
     .onGet(new RegExp(`/Items/${LIBRARY_ID}\\?`))
     .reply(200, { Id: LIBRARY_ID, Name: "Films", CollectionType: "movies" });
   api.mock.onGet(/\/Items\/[^/?]+\?/).reply(400, VALIDATION_PROBLEM);
-  api.mock.onGet(/\/Items\?/).reply(200, { Items: [], TotalRecordCount: 0 });
+  api.mock
+    .onGet(/\/Items\?/)
+    .reply(200, { Items: items, TotalRecordCount: items.length });
   return api;
 };
 
-const renderLibrary = async (libraryId: unknown) => {
+const renderLibrary = async (
+  libraryId: unknown,
+  items: { Id: string; Name: string }[] = [],
+) => {
   mockParams.current = { libraryId };
-  const api = libraryServer();
+  const api = libraryServer(items);
   const errors: Error[] = [];
   // No retry, and nothing collected: either keeps Jest from exiting.
   const client = new QueryClient({
@@ -258,4 +263,40 @@ test("asks for nothing when the library id arrives as a list", async () => {
   const { requested } = await renderLibrary([LIBRARY_ID, LIBRARY_ID]);
 
   expect(requested).toEqual([]);
+});
+
+// The TV tab bar centres its tabs and makes each one focusable, so from the end
+// of a grid narrower than it Android's focus search reaches the outermost tab
+// and a left or right press leaves the grid. The grid traps those directions,
+// and leaves up and down free for the toolbar and the tab bar.
+test("keeps left and right presses inside the TV grid", async () => {
+  stubReactNative({ OS: "android", isTV: true });
+  await renderLibrary(LIBRARY_ID, [
+    { Id: "a", Name: "A" },
+    { Id: "b", Name: "B" },
+    { Id: "c", Name: "C" },
+  ]);
+
+  type Node = {
+    props?: Record<string, unknown>;
+    children?: (Node | string)[] | null;
+  };
+  const { StyleSheet } = require("react-native");
+  const wrapping = (node: Node | Node[] | string | null): Node[] => {
+    if (!node || typeof node === "string") return [];
+    if (Array.isArray(node)) return node.flatMap(wrapping);
+    const self =
+      StyleSheet.flatten(node.props?.style)?.flexWrap === "wrap" ? [node] : [];
+    return [...self, ...(node.children ?? []).flatMap(wrapping)];
+  };
+  // The grid renders once the items arrive.
+  await waitFor(() =>
+    expect(wrapping(screen.toJSON() as Node)).not.toHaveLength(0),
+  );
+  const [grid] = wrapping(screen.toJSON() as Node);
+  expect(grid?.props).toEqual(
+    expect.objectContaining({ trapFocusLeft: true, trapFocusRight: true }),
+  );
+  expect(grid?.props?.trapFocusUp).toBeFalsy();
+  expect(grid?.props?.trapFocusDown).toBeFalsy();
 });

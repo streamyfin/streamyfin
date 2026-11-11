@@ -5,7 +5,12 @@ import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Stepper } from "@/components/inputs/Stepper";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { type MpvCacheMode, useSettings } from "@/utils/atoms/settings";
+import {
+  getActiveVideoPlayerEngine,
+  type MpvCacheMode,
+  useSettings,
+  VideoPlayer,
+} from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -43,6 +48,13 @@ export const MpvBufferSettings: React.FC = () => {
   }, [settings?.mpvCacheEnabled, t]);
 
   if (!settings) return null;
+
+  // These knobs steer mpv's demuxer cache. ExoPlayer derives its LoadControl
+  // internally and hides them in settings when it is the engine — a stale
+  // persisted value must not appear to steer playback it cannot affect.
+  if (getActiveVideoPlayerEngine(settings) === VideoPlayer.ExoPlayer) {
+    return null;
+  }
 
   return (
     <ListGroup title={t("home.settings.buffer.title")} className='mb-4'>

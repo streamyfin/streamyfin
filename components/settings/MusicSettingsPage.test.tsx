@@ -63,7 +63,6 @@ jest.mock("@/components/PlatformDropdown", () => ({
 beforeAll(() =>
   i18n.use(initReactI18next).init({
     lng: "en",
-    compatibilityJSON: "v4",
     resources: {
       en: { translation: en },
       fr: {

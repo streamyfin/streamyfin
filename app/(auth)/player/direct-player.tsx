@@ -77,6 +77,7 @@ import {
   withDefaultBitrate,
 } from "@/utils/bitrate";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
@@ -240,14 +241,6 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  // Audio index: use URL param if provided, otherwise use stored index for offline playback
-  // This is computed after downloadedItem is available, see audioIndexResolved below
-  const audioIndexFromUrl = audioIndexStr
-    ? Number.parseInt(audioIndexStr, 10)
-    : undefined;
-  const subtitleIndex = subtitleIndexStr
-    ? Number.parseInt(subtitleIndexStr, 10)
-    : -1;
   // A route that names no quality (a Play command from another client, a Top
   // Shelf tile) plays at the default one. Auto stays Auto in the route, so
   // every stream asked for, the next episode's included, is asked at what the
@@ -308,16 +301,12 @@ export default function DirectPlayerPage() {
     reportProgressRef.current = playbackManager.reportPlaybackProgress;
   });
 
-  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
-  const audioIndex = useMemo(() => {
-    if (audioIndexFromUrl !== undefined) {
-      return audioIndexFromUrl;
-    }
-    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
-      return downloadedItem.userData.audioStreamIndex;
-    }
-    return undefined;
-  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+  const { audioIndex, subtitleIndex } = resolveRouteTrackIndexes({
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+    offline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to

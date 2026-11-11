@@ -15,6 +15,9 @@ jest.mock("@/utils/customHeaders", () =>
 jest.mock("./resolveTrackIndexes", () => ({}));
 jest.mock("@/utils/jellyfin/maxStreamingBitrate", () => ({}));
 
+// The subtitle prefetch logs its outcome; the log module reaches MMKV.
+jest.mock("@/utils/log", () => ({ writeInfoLog: () => undefined }));
+
 const menus = (streams: Jellyfin12MediaStream[]) =>
   buildTrackMenus({
     mediaSource: { MediaStreams: streams } as MediaSourceInfo,

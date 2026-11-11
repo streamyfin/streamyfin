@@ -16,6 +16,7 @@ import * as BackgroundTask from "expo-background-task";
 import { Image } from "expo-image";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { OfflineProgressSync } from "@/components/OfflineProgressSync";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
@@ -487,6 +488,7 @@ function Layout() {
                                         <PendingAccountSaveModal />
                                       )}
                                       <SeerrAutoLogin />
+                                      <OfflineProgressSync />
                                     </ThemeProvider>
                                   </IntroSheetProvider>
                                 </BottomSheetModalProvider>
