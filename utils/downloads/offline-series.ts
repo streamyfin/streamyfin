@@ -3,6 +3,7 @@
  * Centralizes common filtering patterns to reduce duplication.
  */
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { hashKey, type QueryKey } from "@tanstack/react-query";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 
 /** Sort episodes by season then episode number */
@@ -129,4 +130,23 @@ export function downloadsKeyPart(
   refreshKey: number,
 ): number | null {
   return isOffline ? refreshKey : null;
+}
+
+/**
+ * `placeholderData` for a series query whose key ends with downloadsKeyPart.
+ * Offline, a download refresh moves only that last part, and closing the
+ * player is one. The query keeps its previous answer while it reads the
+ * downloads again, so the page neither blanks nor remounts for a refresh that
+ * may change nothing on it. Any other change of key, another season for one,
+ * starts from nothing as before.
+ */
+export function keepThroughDownloadRefresh(queryKey: QueryKey) {
+  const head = hashKey(queryKey.slice(0, -1));
+  return <T>(
+    previous: T | undefined,
+    previousQuery?: { queryKey: QueryKey },
+  ): T | undefined =>
+    previousQuery && hashKey(previousQuery.queryKey.slice(0, -1)) === head
+      ? previous
+      : undefined;
 }

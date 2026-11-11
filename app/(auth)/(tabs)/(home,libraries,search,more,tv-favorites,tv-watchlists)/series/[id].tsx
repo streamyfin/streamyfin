@@ -1,5 +1,3 @@
-import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -23,24 +21,17 @@ import {
 } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
+import { useSeriesQueries } from "@/components/series/useSeriesQueries";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
 import { Colors } from "@/constants/Colors";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-import {
-  buildOfflineSeriesFromEpisodes,
-  downloadsKeyPart,
-  getDownloadedEpisodesForSeries,
-} from "@/utils/downloads/offline-series";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
-import { isJellyfinItem, refetchUnlessItem } from "@/utils/jellyfin/jellyfin";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -72,39 +63,17 @@ const page: React.FC = () => {
   }, [seasonIndex]);
 
   const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-  const { getDownloadedItems, refreshKey } = useDownload();
   const { startShuffle } = useShuffleQueue();
 
-  // For offline mode, construct series data from downloaded episodes
-  const { data: item } = useQuery({
-    queryKey: [
-      "series",
-      seriesId,
-      isOffline,
-      downloadsKeyPart(isOffline, refreshKey),
-    ],
-    queryFn: async () => {
-      if (isOffline) {
-        return buildOfflineSeriesFromEpisodes(getDownloadedItems(), seriesId);
-      }
-      return await getUserItemData({
-        api,
-        userId: user?.Id,
-        itemId: seriesId,
-      });
-    },
-    // A cache saved by an earlier version can hold an answer that was not an
-    // item: read as none, and fetched again on mount even while fresh.
-    select: (data) => (isJellyfinItem(data) ? data : null),
-    refetchOnMount: refetchUnlessItem,
-    staleTime: isOffline ? Infinity : 60 * 1000,
-    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
-    enabled: isOffline || (!!api && !!user?.Id),
-  });
+  // The series and its episodes, from the server or, offline, from the
+  // downloads. Covered by components/series/useSeriesQueries.test.tsx.
+  const { item, allEpisodes, isLoading } = useSeriesQueries(
+    seriesId,
+    isOffline,
+  );
 
-  // Offline, the series is nothing but its downloaded episodes, so the query
-  // above answers null once the last one is deleted. There is nothing left to
+  // Offline, the series is nothing but its downloaded episodes, so the series
+  // query answers null once the last one is deleted. There is nothing left to
   // show here: go back to the downloads instead of leaving an empty screen.
   useLeaveWhenGone(isOffline && item === null);
 
@@ -138,38 +107,6 @@ const page: React.FC = () => {
       item,
     });
   }, [isOffline, api, item]);
-
-  const { data: allEpisodes, isLoading } = useQuery({
-    queryKey: [
-      "AllEpisodes",
-      seriesId,
-      isOffline,
-      downloadsKeyPart(isOffline, refreshKey),
-    ],
-    queryFn: async () => {
-      if (isOffline) {
-        return getDownloadedEpisodesForSeries(getDownloadedItems(), seriesId);
-      }
-      if (!api || !user?.Id) return [];
-
-      const res = await getShowApi(api).getEpisodes({
-        seriesId: seriesId,
-        userId: user.Id,
-        enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
-      });
-      return res?.data.Items || [];
-    },
-    select: (data) =>
-      [...(data || [])].sort(
-        (a, b) =>
-          (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
-          (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
-      ),
-    staleTime: isOffline ? Infinity : 60 * 1000,
-    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
-    enabled: isOffline || (!!api && !!user?.Id),
-  });
 
   useEffect(() => {
     if (requestedSeasonIndex === undefined) {

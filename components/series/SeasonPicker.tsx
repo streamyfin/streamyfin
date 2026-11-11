@@ -18,6 +18,7 @@ import {
   buildOfflineSeasons,
   downloadsKeyPart,
   getDownloadedEpisodesForSeason,
+  keepThroughDownloadRefresh,
 } from "@/utils/downloads/offline-series";
 import {
   findRememberedSeason,
@@ -58,13 +59,15 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     [item, seasonIndexState],
   );
 
+  const seasonsKey = [
+    "seasons",
+    item.Id,
+    isOffline,
+    downloadsKeyPart(isOffline, refreshKey),
+  ];
   const seasonsQuery = useQuery({
-    queryKey: [
-      "seasons",
-      item.Id,
-      isOffline,
-      downloadsKeyPart(isOffline, refreshKey),
-    ],
+    queryKey: seasonsKey,
+    placeholderData: keepThroughDownloadRefresh(seasonsKey),
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeasons(getDownloadedItems(), item.Id!);
@@ -111,14 +114,16 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     return findRememberedSeason(seasons, seasonIndex)?.IndexNumber ?? null;
   }, [isOffline, seasons, seasonIndex]);
 
+  const episodesKey = [
+    "episodes",
+    item.Id,
+    isOffline ? selectedSeasonNumber : selectedSeasonId,
+    isOffline,
+    downloadsKeyPart(isOffline, refreshKey),
+  ];
   const episodesQuery = useQuery({
-    queryKey: [
-      "episodes",
-      item.Id,
-      isOffline ? selectedSeasonNumber : selectedSeasonId,
-      isOffline,
-      downloadsKeyPart(isOffline, refreshKey),
-    ],
+    queryKey: episodesKey,
+    placeholderData: keepThroughDownloadRefresh(episodesKey),
     queryFn: async () => {
       if (isOffline) {
         return getDownloadedEpisodesForSeason(

@@ -12,6 +12,9 @@ let mockOffline = true;
 let mockTrackIcon = false;
 let mockIconMounts = 0;
 let mockLiveIcons = 0;
+/** Episode rows and loaders mounted, to tell a list kept from one rebuilt. */
+const mockRowMounts: string[] = [];
+let mockLoaderMounts = 0;
 /** What the show API answers online: a season, and episodes held until released. */
 const mockShowApi = {
   getSeasons: jest.fn(),
@@ -55,7 +58,20 @@ jest.mock("../cards/useItemCardBehavior", () => ({
 jest.mock("../cards/CardListRow", () => ({
   CardListRow: ({ card }: { card: { title?: string } }) => {
     const { Text: RowText } = jest.requireActual("react-native");
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      mockRowMounts.push(card.title ?? "");
+    }, []);
     return <RowText>{card.title}</RowText>;
+  },
+}));
+jest.mock("../Loader", () => ({
+  Loader: () => {
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      mockLoaderMounts++;
+    }, []);
+    return null;
   },
 }));
 jest.mock("../DownloadItem", () => ({
@@ -173,6 +189,27 @@ describe("SeasonPicker offline", () => {
 
     await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
     expect(screen.queryByText("Pilot")).toBeNull();
+  });
+
+  // Offline, every download refresh moves the keys, and closing the player
+  // after an episode is one: the list went blank, the loader showed and the
+  // rows mounted again, for a refresh that changed nothing on this series.
+  test("keeps the episodes on screen through a download refresh", async () => {
+    mockDownloads = [episode(1, "Pilot")];
+    const store = createStore();
+    store.set(seasonIndexAtom, { [SERIES.Id!]: 1 });
+
+    const { tree, view } = await renderPicker(store);
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    mockRowMounts.length = 0;
+    mockLoaderMounts = 0;
+
+    mockRefreshKey++;
+    await view.rerender(tree());
+
+    await waitFor(() => expect(screen.getByText("Pilot")).toBeTruthy());
+    expect(mockLoaderMounts).toBe(0);
+    expect(mockRowMounts).toEqual([]);
   });
 });
 

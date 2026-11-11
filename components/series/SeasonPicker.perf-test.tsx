@@ -14,13 +14,17 @@ import { QueryWrapper } from "@/test-utils/queryWrapper";
 
 // The downloads live in native storage; the picker reads them from the hook.
 const mockDownloaded = atom<DownloadedItem[]>([]);
+// The provider moves refreshKey on every refresh, as each episode finishes.
+const mockRefreshKey = atom(0);
 jest.mock("@/providers/DownloadProvider", () => {
   const { useAtomValue } = jest.requireActual("jotai");
   return {
     useDownload: () => {
       const downloadedItems = useAtomValue(mockDownloaded);
+      const refreshKey = useAtomValue(mockRefreshKey);
       return {
         downloadedItems,
+        refreshKey,
         getDownloadedItems: () => downloadedItems,
         processes: [],
         startBackgroundDownload: async () => {},
@@ -112,6 +116,7 @@ describe("SeasonPicker Performance", () => {
               mockDownloaded,
               EPISODES.slice(0, done).map(downloaded),
             );
+            activeStore.set(mockRefreshKey, done);
           });
           // On a phone the next episode lands seconds later, after any refetch.
           await screen.findAllByText("Episode 0");
