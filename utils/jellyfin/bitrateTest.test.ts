@@ -617,6 +617,32 @@ describe("a detection out of the foreground", () => {
   });
 });
 
+// A swap measured with the stream it replaces still downloading over the
+// link: the measure came out low, and stood for the hour.
+describe("a detection while a stream plays over the link", () => {
+  test("does not measure, and the detection before stands, however old", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+    jest.advanceTimersByTime(61 * 60_000);
+
+    await expect(
+      detectBitrate(api, false, undefined, { linkInUse: true }),
+    ).resolves.toBe(70_000_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("measures for that stream only when none was made before", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(10, 10), ...bodiesAt(100, 100, 100));
+
+    await expect(
+      detectBitrate(api, false, undefined, { linkInUse: true }),
+    ).resolves.toBe(7_000_000);
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+  });
+});
+
 describe("the network check", () => {
   // Asked first, it put a round trip, up to its 5 s timeout, before the tests.
   test("runs alongside the first test", async () => {

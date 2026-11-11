@@ -251,6 +251,13 @@ export default function DirectPlayerPage() {
   );
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
+  // What this item plays at: live TV whose route names no quality plays
+  // uncapped, whatever the default. A swap of the same item carries it; the
+  // next and previous items carry the route's own.
+  const effectiveBitrateValue = withDefaultBitrate(
+    liveTvBitrateRequest(item, parseBitrateParam(bitrateValueStr)),
+    settings.defaultBitrate,
+  );
   const initialSeekDoneRef = useRef(false);
 
   /** Position MPV is told to start from, see resolveStartTicks. */
@@ -580,14 +587,9 @@ export default function DirectPlayerPage() {
             return null;
           }
 
-          // Live TV, known once the item is, plays uncapped when the route
-          // names no quality, whatever the default.
           const maxStreamingBitrate = await resolveMaxStreamingBitrate(
             api,
-            withDefaultBitrate(
-              liveTvBitrateRequest(item, parseBitrateParam(bitrateValueStr)),
-              settings.defaultBitrate,
-            ),
+            effectiveBitrateValue,
             autoBitrateOptions(settings),
           );
           if (!current) return null;
@@ -680,7 +682,7 @@ export default function DirectPlayerPage() {
   }, [
     itemId,
     mediaSourceId,
-    bitrateValue,
+    effectiveBitrateValue,
     api,
     item,
     user?.Id,
@@ -1294,7 +1296,7 @@ export default function DirectPlayerPage() {
           // instance — the server must be asked for "none" (-1) instead.
           subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
-          bitrateValue: bitrateValue?.toString() ?? "",
+          bitrateValue: effectiveBitrateValue.toString(),
           playbackPosition: getSessionPositionTicks().toString(),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
@@ -1312,7 +1314,7 @@ export default function DirectPlayerPage() {
       stream?.mediaSource,
       item?.Id,
       currentSubtitleIndex,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],
@@ -1357,7 +1359,7 @@ export default function DirectPlayerPage() {
           params.subtitleIndex ??
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
-        bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
+        bitrateValue: params.bitrateValue ?? effectiveBitrateValue.toString(),
         playbackPosition: getSessionPositionTicks().toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
@@ -1371,7 +1373,7 @@ export default function DirectPlayerPage() {
       currentAudioIndex,
       currentSubtitleIndex,
       stream?.mediaSource?.Id,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],

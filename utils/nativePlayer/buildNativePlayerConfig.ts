@@ -437,6 +437,11 @@ export async function buildNativePlayerConfig(params: {
    * again while that stream still downloads would measure what it leaves.
    */
   maxStreamingBitrate?: { value: number | undefined };
+  /**
+   * Another stream still plays over the link, a swap's outgoing one: Auto
+   * keeps the measure before rather than measure what that stream leaves.
+   */
+  linkInUse?: boolean;
 }): Promise<{
   config: NativePlayerConfig;
   seed: NativePlayerSessionSeed;
@@ -507,6 +512,7 @@ export async function buildNativePlayerConfig(params: {
           api,
           bitrateValue,
           autoBitrateOptions(settings),
+          { linkInUse: params.linkInUse === true },
         );
     const res = await getStreamUrl({
       api,

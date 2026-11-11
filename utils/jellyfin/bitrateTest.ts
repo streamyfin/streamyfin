@@ -297,10 +297,20 @@ const toBitrate = (
 const failure = (cause: string) =>
   new Error(`The bitrate test could not measure the server: ${cause}`);
 
+/** What a detection is asked in. */
+export type DetectionContext = {
+  /**
+   * A stream still plays over the link, a swap's outgoing one: it shares the
+   * link with the tests and drags their measure down.
+   */
+  linkInUse?: boolean;
+};
+
 const detect = async (
   api: Api,
   net: string,
   options: AutoBitrateOptions,
+  keep: boolean,
 ): Promise<number> => {
   const changesAtStart = networkChanges;
   // Together: asked first, the network check put a round trip, up to its
@@ -309,7 +319,8 @@ const detect = async (
     isInServerNetwork(api),
     runTests(api),
   ]);
-  const sameNetwork = changesAtStart === networkChanges && network === net;
+  const sameNetwork =
+    keep && changesAtStart === networkChanges && network === net;
   if (rate !== undefined) {
     const measure = { rate, inNetwork, at: Date.now() };
     if (sameNetwork) {
@@ -385,6 +396,7 @@ const resolveDetection = async (
   api: Api,
   force: boolean,
   options: AutoBitrateOptions,
+  linkInUse: boolean,
 ): Promise<number> => {
   const net = await currentNetwork();
   const now = Date.now();
@@ -403,17 +415,17 @@ const resolveDetection = async (
     if (bitrate === undefined) throw failure(lastFailure.cause);
     return bitrate;
   }
-  if (
+  const away =
     AppState.currentState === "background" ||
-    AppState.currentState === "inactive"
-  ) {
+    AppState.currentState === "inactive";
+  if (away || linkInUse) {
     const before = last && toBitrate(last, options);
-    if (before === undefined) {
-      throw failure("the app is not in the foreground");
-    }
-    return before;
+    if (before !== undefined) return before;
+    if (away) throw failure("the app is not in the foreground");
   }
-  return detect(api, net, options);
+  // Under a stream, a first measure is for that stream only: kept, its low
+  // rate would stand for the network until the settings let it expire.
+  return detect(api, net, options, !linkInUse);
 };
 
 /**
@@ -425,17 +437,23 @@ const resolveDetection = async (
  * Out of the foreground nothing is measured: Android holds JS timers while
  * the app is paused, the deadline of a test with them, and a test that stalled
  * there held every Auto playback until the app came back. The detection before
- * stands there, however old.
+ * stands there, however old, and while a stream plays over the link too.
  */
 export const detectBitrate = (
   api: Api,
   force = false,
   options: AutoBitrateOptions = DEFAULT_AUTO_BITRATE_OPTIONS,
+  context: DetectionContext = {},
 ): Promise<number> => {
   const running = inProgress.get(api.basePath);
   if (running) return running;
 
-  const detection = resolveDetection(api, force, options).finally(() => {
+  const detection = resolveDetection(
+    api,
+    force,
+    options,
+    context.linkInUse === true,
+  ).finally(() => {
     inProgress.delete(api.basePath);
   });
   inProgress.set(api.basePath, detection);

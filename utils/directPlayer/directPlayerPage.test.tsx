@@ -61,6 +61,7 @@ type ControlsProps = {
   seek: (ms: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
   onAudioIndexChange?: (index: number) => void;
+  onSubtitleIndexChange?: (index: number) => void;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -906,6 +907,55 @@ describe("direct player quality", () => {
     await openPlayer();
 
     expect(mockAskedBitrates).toEqual([undefined]);
+  });
+
+  // On TV a track change asks the route for another stream: it named the
+  // default quality there, and the live channel came back capped at it.
+  test("keeps live television uncapped when a track change asks for another stream", async () => {
+    stubReactNative({ isTV: true });
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    mockRouter.replace.mockClear();
+    try {
+      await openPlayer();
+      await act(async () => mockControlsProps?.onSubtitleIndexChange?.(3));
+    } finally {
+      stubReactNative();
+    }
+
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    const [href] = mockRouter.replace.mock.calls[0];
+    expect(
+      new URLSearchParams(String(href).split("?")[1]).get("bitrateValue"),
+    ).toBe("max");
+  });
+
+  // The audio track of a transcode needs another stream too, asked the same way.
+  test("keeps live television uncapped when its audio track asks for another stream", async () => {
+    stubReactNative({ isTV: true });
+    mockTranscodingUrl = "/videos/item-1/master.m3u8";
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    mockRouter.replace.mockClear();
+    try {
+      await openPlayer();
+      await act(async () => mockControlsProps?.onAudioIndexChange?.(2));
+    } finally {
+      stubReactNative();
+      mockTranscodingUrl = undefined;
+    }
+
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    const [href] = mockRouter.replace.mock.calls[0];
+    expect(
+      new URLSearchParams(String(href).split("?")[1]).get("bitrateValue"),
+    ).toBe("max");
   });
 });
 
