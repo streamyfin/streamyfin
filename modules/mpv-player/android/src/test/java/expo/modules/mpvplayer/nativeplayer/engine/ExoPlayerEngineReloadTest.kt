@@ -110,4 +110,18 @@ class ExoPlayerEngineReloadTest {
 
     private fun sidecarFlags(): List<Int> =
         player().currentMediaItem!!.localConfiguration!!.subtitleConfigurations.map { it.selectionFlags }
+
+    // A subtitle added mid-play (a downloaded one) joins the running item; replayed, the same
+    // load must not rebuild the player at its start position and lose that subtitle.
+    @Test
+    fun aReplayedLoadIsTheSameStreamAfterASubtitleWasAdded() {
+        val withSidecar = config.copy(externalSubtitles = listOf("file:///cache/subtitles/a.srt"))
+        engine.load(withSidecar)
+        engine.addSubtitleFile("file:///downloads/b.srt", select = false)
+        val before = player()
+
+        engine.load(withSidecar)
+
+        assertSame(before, player())
+    }
 }

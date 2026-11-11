@@ -489,6 +489,34 @@ test("a caller whose wait spent its budget starts no download of its own", async
   expect(download).toHaveBeenCalledTimes(1);
 });
 
+test("three callers of one sidecar make one retry, not two, when the first download fails", async () => {
+  // The two that waited on the failed download resume together: only one may
+  // start the next request, as concurrent ones corrupt Jellyfin's first
+  // extraction. Later calls go through to the double.
+  const download = jest
+    .spyOn(File, "downloadFileAsync")
+    .mockImplementationOnce(
+      (() =>
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new Error("extraction failed")), 30),
+        )) as never,
+    );
+
+  await Promise.all(
+    [1, 2, 3].map(() =>
+      prefetchExternalSubtitles({
+        mediaSource: mediaSourceWith([externalSub()]),
+        item,
+        api,
+        budgetMs: 500,
+        perSubtitleMs: 500,
+      }),
+    ),
+  );
+
+  expect(download).toHaveBeenCalledTimes(2);
+});
+
 test("a time-out during the move never deletes the moved file", async () => {
   // expo-file-system 58 repoints a File at its destination once its move
   // succeeds; the cleanup has to go through the staging path.

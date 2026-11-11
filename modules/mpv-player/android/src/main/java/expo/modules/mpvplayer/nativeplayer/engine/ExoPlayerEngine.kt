@@ -193,6 +193,9 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private var currentHeaders: Map<String, String>? = null
     private var currentLoop: Boolean = false
     private var currentExternalSubtitles: List<String> = emptyList()
+    // The sidecars the last load was given, without the ones addSubtitleFile
+    // added since: the same-stream guard compares a new load with these.
+    private var suppliedExternalSubtitles: List<String> = emptyList()
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
@@ -350,15 +353,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // pass force=true — they reload the SAME url/loop on purpose, and the
         // guard would silently no-op them (the player is still non-null after
         // an error; STATE_IDLE just means the pipeline needs prepare() again).
-        // The sidecars count too: a renegotiation that brings a left-out
-        // sidecar back keeps the URL of a remote-path source (an IPTV or .strm
-        // item streams its Path on every negotiation) and changes only them.
-        if (!force && currentUrl == config.url && currentLoop == config.loop &&
-            currentExternalSubtitles == (config.externalSubtitles ?: emptyList<String>()) &&
-            player != null
-        ) {
-            return
-        }
+        if (!force && isRunning(config)) return
 
         Log.i(
             TAG,
@@ -389,6 +384,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         currentHeaders = config.headers
         currentLoop = config.loop
         currentExternalSubtitles = config.externalSubtitles ?: emptyList()
+        if (!force) suppliedExternalSubtitles = currentExternalSubtitles
         pendingConfig = config
         // The chrome coordinator re-applies carried subtitle selections on
         // every onTracksReady (mpv fires per FILE_LOADED), so the flag must
@@ -429,6 +425,19 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             onPause = { isPaused -> delegate?.onPauseChanged(isPaused) },
         )
     }
+
+    /**
+     * Whether [config] is the load already running. The sidecars count: a
+     * renegotiation that brings a left-out sidecar back keeps the URL of a
+     * remote-path source (an IPTV or .strm item streams its Path on every
+     * negotiation) and changes only them. They are the ones that load was
+     * given, so a sidecar added since does not make a replayed load new.
+     */
+    private fun isRunning(config: VideoLoadConfig): Boolean =
+        player != null &&
+            currentUrl == config.url &&
+            currentLoop == config.loop &&
+            suppliedExternalSubtitles == (config.externalSubtitles ?: emptyList<String>())
 
     private fun releasePlayer() {
         val p = player ?: return

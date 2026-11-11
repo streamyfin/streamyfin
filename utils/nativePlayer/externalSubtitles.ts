@@ -211,13 +211,16 @@ export const prefetchExternalSubtitles = async (params: {
 
     // The warm and the swap both land here for the same file; wait for the
     // other caller's download instead of starting a second one.
-    const running = inFlight.get(key);
-    if (running) {
+    // Read the entry again after each wait: when the download it waited on
+    // fails, another waiter may already have started the next one.
+    let running = inFlight.get(key);
+    while (running && Date.now() < deadline) {
       try {
         await withTimeout(running, deadline - Date.now());
       } catch {
-        // Failed or out of budget either way; fall through to the checks.
+        // Failed or out of budget either way; the checks below decide.
       }
+      running = inFlight.get(key);
     }
     // Cached already — by an earlier pass or by the warm that just finished.
     if (destination.exists) {
