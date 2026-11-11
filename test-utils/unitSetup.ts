@@ -47,10 +47,8 @@ jest.mock(
   "@expo/ui/swift-ui",
   () => jest.requireActual("@/test-utils/swiftUi").swiftUiModule,
 );
-jest.mock(
-  "@expo/ui/swift-ui/modifiers",
-  () => jest.requireActual("@/test-utils/swiftUi").swiftUiModifiersModule,
-);
+// `@expo/ui/swift-ui/modifiers` stays real: it is plain JavaScript, and specs read the
+// modifiers a view was given (`renderedMenuModifiers`, `menuOrder`).
 jest.mock(
   "@expo/ui/jetpack-compose",
   () => jest.requireActual("@/test-utils/jetpackCompose").jetpackComposeModule,

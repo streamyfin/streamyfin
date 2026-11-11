@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
 
-// The settings atoms reach the api atoms, which read react-native-device-info.
+// The settings atoms reach the api atoms, which read expo-device.
 jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom(null) };

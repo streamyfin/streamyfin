@@ -15,7 +15,12 @@ const {
 module.exports = {
   ...base,
   moduleNameMapper,
-  setupFilesAfterEnv: ["<rootDir>/test-utils/perfSetup.ts"],
+  // The asset registry fix stays: without it every rendered icon throws. The
+  // unit setup file does not, perfSetup takes its place.
+  setupFilesAfterEnv: [
+    "<rootDir>/test-utils/assetRegistry.ts",
+    "<rootDir>/test-utils/perfSetup.ts",
+  ],
   // Reassure runs each scenario 11 times, which outlasts the default 5s.
   testTimeout: 60_000,
 };

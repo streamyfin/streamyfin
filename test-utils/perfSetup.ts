@@ -31,10 +31,9 @@ jest.mock(
   "react-native-reanimated",
   () => jest.requireActual("@/test-utils/reanimated").reanimatedModule,
 );
-jest.mock("react-native-device-info", () => ({
-  getFreeDiskStorage: async () => 10_000_000_000,
-  getTotalDiskCapacity: async () => 64_000_000_000,
-}));
+jest.mock("@gorhom/bottom-sheet", () =>
+  jest.requireActual("@gorhom/bottom-sheet/mock"),
+);
 jest.mock(
   "@/providers/JellyfinProvider",
   () =>

@@ -3,7 +3,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
+import {
+  DISK_AVAILABLE,
+  DISK_TOTAL,
+  DOCUMENTS,
+  fakeFiles,
+} from "@/test-utils/fileSystem";
 import { clearMmkv } from "@/test-utils/mmkv";
 
 // The pending records are real, over the MMKV double: they are what cancel reads its files from.
@@ -481,5 +486,19 @@ describe("startBackgroundDownload", () => {
 
     expect(mockDownloadAdditionalAssets).not.toHaveBeenCalled();
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+});
+
+describe("appSizeUsage", () => {
+  // Storage settings draw their bar from this: the volume downloads are
+  // written to, and how much of it the app's downloads take.
+  it("reports the size and free space of the volume downloads go to", async () => {
+    const { operations } = await renderOperations();
+
+    expect(await operations.appSizeUsage()).toEqual({
+      total: DISK_TOTAL,
+      remaining: DISK_AVAILABLE,
+      appSize: 0,
+    });
   });
 });

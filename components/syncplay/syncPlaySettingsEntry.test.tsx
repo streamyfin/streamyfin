@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import Settings from "@/app/(auth)/(tabs)/(home)/settings";
+import Settings from "@/app/(auth)/(tabs)/(more)/settings";
 
 jest.mock(
   "@/hooks/useAppRouter",

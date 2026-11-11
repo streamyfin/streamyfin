@@ -41,7 +41,7 @@ describe("TVHomeBackdrop", () => {
     jest.spyOn(Animated, "parallel").mockImplementation(
       () =>
         ({
-          start: (done?: Animated.EndCallback) => {
+          start: (done?: (result: { finished: boolean }) => void) => {
             setTimeout(
               () => done?.({ finished: true }),
               TV_BACKDROP_CROSSFADE_MS,

@@ -12,6 +12,9 @@ jest.mock("@/components/BitrateSelector", () => ({ BITRATES: [] }));
 // it starts the logger (MMKV, and a Sentry timer that keeps Jest alive).
 jest.mock("./resolveTrackIndexes", () => ({}));
 
+// The subtitle prefetch logs its outcome; the log module reaches MMKV.
+jest.mock("@/utils/log", () => ({ writeInfoLog: () => undefined }));
+
 const menus = (streams: Jellyfin12MediaStream[]) =>
   buildTrackMenus({
     mediaSource: { MediaStreams: streams } as MediaSourceInfo,

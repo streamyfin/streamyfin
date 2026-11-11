@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Platform } from "react-native";
-import Settings from "@/app/(auth)/(tabs)/(home)/settings";
+import Settings from "@/app/(auth)/(tabs)/(more)/settings";
 
 const mockPush = jest.fn();
 jest.mock("@/hooks/useAppRouter", () => ({
@@ -46,7 +46,7 @@ describe("Settings, Log in on TV", () => {
 
     await fireEvent.press(screen.getByText("pairing.pair_with_phone"));
     expect(mockPush).toHaveBeenCalledWith(
-      "/(auth)/(tabs)/(home)/companion-login",
+      "/(auth)/(tabs)/(more)/companion-login",
     );
   });
 });

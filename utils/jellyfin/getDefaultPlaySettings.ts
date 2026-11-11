@@ -33,6 +33,8 @@ export interface PlaySettings {
   mediaSource?: MediaSourceInfo | null;
   audioIndex?: number;
   subtitleIndex?: number;
+  /** Which tracks a previous selection or the series memory decided. */
+  carried?: { audio: boolean; subtitle: boolean };
 }
 
 export interface PreviousIndexes {
@@ -206,7 +208,8 @@ export function getAdjacentStartTicks(
  * @param item - The media item to play
  * @param settings - User settings (language preferences, bitrate, etc.)
  * @param previous - Optional previous track selections to carry over (for sequential play)
- *   and, online, the version to keep
+ *   and, online, the version to keep. With `pickedOn`, the indexes are picks made
+ *   for this same item on another of its versions, each on the version named.
  */
 export function getDefaultPlaySettings(
   item: BaseItemDto | null | undefined,
@@ -216,6 +219,10 @@ export function getDefaultPlaySettings(
     source?: MediaSourceInfo;
     // A downloaded item lists every server version, not only the one on disk.
     offline?: boolean;
+    // Picks for this same item: carried whatever the remember settings say,
+    // which carry a track to the next item, and from the version each was
+    // picked on. The series memory still follows the remember settings.
+    pickedOn?: { audio?: MediaSourceInfo; subtitle?: MediaSourceInfo };
   },
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
@@ -244,9 +251,13 @@ export function getDefaultPlaySettings(
   let matchedPreviousSubtitle = false;
 
   // Try to match previous selections (sequential play)
-  if (previous?.indexes && previous?.source && settings) {
+  const picked = previous?.pickedOn;
+  const subtitleSource = picked ? picked.subtitle : previous?.source;
+  const audioSource = picked ? picked.audio : previous?.source;
+  if (previous?.indexes && settings) {
     if (
-      settings.rememberSubtitleSelections &&
+      subtitleSource &&
+      (picked || settings.rememberSubtitleSelections) &&
       previous.indexes.subtitleIndex !== undefined
     ) {
       const ranker = new StreamRanker(new SubtitleStreamRanker());
@@ -256,7 +267,7 @@ export function getDefaultPlaySettings(
       };
       ranker.rankStream(
         previous.indexes.subtitleIndex,
-        previous.source,
+        subtitleSource,
         streams,
         result,
       );
@@ -269,14 +280,15 @@ export function getDefaultPlaySettings(
     }
 
     if (
-      settings.rememberAudioSelections &&
+      audioSource &&
+      (picked || settings.rememberAudioSelections) &&
       previous.indexes.audioIndex !== undefined
     ) {
       const ranker = new StreamRanker(new AudioStreamRanker());
       const result = { DefaultAudioStreamIndex: audioIndex, matched: false };
       ranker.rankStream(
         previous.indexes.audioIndex,
-        previous.source,
+        audioSource,
         streams,
         result,
       );
@@ -389,5 +401,6 @@ export function getDefaultPlaySettings(
     mediaSource,
     audioIndex: audioIndex ?? undefined,
     subtitleIndex: subtitleIndex ?? undefined,
+    carried: { audio: matchedPreviousAudio, subtitle: matchedPreviousSubtitle },
   };
 }

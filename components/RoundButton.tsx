@@ -1,7 +1,9 @@
 import { BlurView } from "expo-blur";
 import type { PropsWithChildren } from "react";
 import { Platform, type ViewProps } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
+// Gesture Handler 3 renamed its 2.x Pressable to LegacyPressable, whose
+// native press handling the responder claim below is written for.
+import { LegacyPressable as Pressable } from "react-native-gesture-handler";
 import { useHaptic } from "@/hooks/useHaptic";
 
 interface Props extends ViewProps {

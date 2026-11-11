@@ -151,6 +151,10 @@ that need app start-up configuration belong in global setup too.
 ### What is wired
 
 - **Packages** are mapped in `jest.config.js` (`moduleNameMapper`).
+- **`requestIdleCallback`**, which React Native provides and Node lacks, comes from
+  `test-utils/idleCallback.ts` through `setupFiles`, built on timers so fake timers drive it.
+  `pendingIdleCallbacks()` counts the ones still waiting, which is how a spec proves an
+  unmounted component cancelled its own.
 - **Boundary app modules** are mocked by path in
   `test-utils/unitSetup.ts`. `moduleNameMapper` matches only the exact import string, so it
   cannot replace a module that other files import by a relative path.
@@ -184,6 +188,16 @@ jest.mock(
   `stubReactNative()` or `requireOnPlatform()` instead.
 - `stubModules` also exports `expoWithoutNativeModule`, `onlineModule` and
   `emptyTVTypographyModule`.
+- `test-utils/expoUi.tsx`'s `swiftUiModule`: for a spec that checks what a native `Menu`
+  is given. Each `Menu` keeps its modifiers, which `renderedMenuModifiers(screen)` reads
+  back, with `@expo/ui/swift-ui/modifiers` left real.
+- `draxModule`: for `react-native-drax`, since a real drag needs gestures and layout Jest
+  does not have. Rows render from drax's own copy, which a drop the parent accepts leaves
+  in the old order (`shownItems()` reads the order drax shows), each sortable item keeps
+  the props it was given, and `await dragRow(from, to)` ends the drag on release and
+  reports the reorder a frame later. `dropRowOutside(index)` drops a row off the list,
+  `sortableResets()` counts the resets of its rows, and `moveDraxRoot()` with
+  `draxRootOffset()` stand for the provider's place on screen.
 
 ### Writing your own mock
 

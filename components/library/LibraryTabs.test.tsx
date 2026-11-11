@@ -1,3 +1,4 @@
+import { pickerStyle } from "@expo/ui/swift-ui/modifiers";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { swiftUiPickerProps } from "@/test-utils/swiftUi";
@@ -63,7 +64,7 @@ describe("LibraryTabs", () => {
     expect(swiftUiPickerProps).toHaveBeenCalledWith(
       expect.objectContaining({
         selection: "items",
-        modifiers: [{ pickerStyle: "segmented" }],
+        modifiers: [pickerStyle("segmented")],
       }),
     );
   });

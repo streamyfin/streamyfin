@@ -61,9 +61,3 @@ export const swiftUiModule = {
   },
   Text: () => null,
 };
-
-export const swiftUiModifiersModule = {
-  disabled: jest.fn(),
-  pickerStyle: (style: string) => ({ pickerStyle: style }),
-  tag: (value: string) => ({ tag: value }),
-};
