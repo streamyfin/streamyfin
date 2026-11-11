@@ -13,6 +13,9 @@ const mockStartBackgroundDownload = jest.fn();
 let mockDownloadedItems: { item: BaseItemDto }[] = [];
 let mockSettings: Partial<Settings> | null = null;
 let mockProcesses: { item: BaseItemDto; progress: number }[] = [];
+let mockIconMounts: Record<string, number> = {};
+// The icons on screen now, by name: a remount and a vanished icon both show.
+let mockIconsShown: Record<string, number> = {};
 
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({
@@ -73,7 +76,19 @@ jest.mock("@gorhom/bottom-sheet", () => {
     BottomSheetBackdrop: () => null,
   };
 });
-jest.mock("@/components/common/HeaderIcon", () => ({ HeaderIcon: () => null }));
+jest.mock("@/components/common/HeaderIcon", () => ({
+  HeaderIcon: ({ name }: { name: string }) => {
+    const { useEffect } = jest.requireActual("react");
+    useEffect(() => {
+      mockIconMounts[name] = (mockIconMounts[name] ?? 0) + 1;
+      mockIconsShown[name] = (mockIconsShown[name] ?? 0) + 1;
+      return () => {
+        mockIconsShown[name] -= 1;
+      };
+    }, []);
+    return null;
+  },
+}));
 // The real module needs the native worklets runtime. The double lets the ring
 // render for real, with its animation landing at once.
 jest.mock("react-native-reanimated", () => ({
@@ -175,6 +190,8 @@ beforeEach(() => {
   mockDownloadedItems = [];
   mockSettings = null;
   mockProcesses = [];
+  mockIconMounts = {};
+  mockIconsShown = {};
 });
 
 afterEach(() => {
@@ -182,6 +199,26 @@ afterEach(() => {
 });
 
 describe("DownloadSingleItem", () => {
+  test.each([
+    ["downloads", false],
+    ["downloaded", true],
+  ])(
+    "keeps the %s icon mounted when another episode finishes",
+    async (name, isDownloaded) => {
+      const item = episode(1);
+      mockDownloadedItems = isDownloaded ? [{ item }] : [];
+      const view = await render(<DownloadSingleItem item={item} />);
+      const mountsBeforeDownload = mockIconMounts[name] ?? 0;
+      expect(mockIconsShown[name]).toBe(1);
+
+      mockDownloadedItems = [...mockDownloadedItems, { item: episode(2) }];
+      await view.rerender(<DownloadSingleItem item={item} />);
+
+      expect(mockIconsShown[name]).toBe(1);
+      expect(mockIconMounts[name]).toBe(mountsBeforeDownload);
+    },
+  );
+
   // Sentry REACT-NATIVE-FX: the item page shows the download button for an
   // item the server lists no media source for. Confirming the sheet threw "No
   // api or user or item" where nobody caught it, so the user saw nothing

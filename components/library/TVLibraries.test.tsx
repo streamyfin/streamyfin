@@ -38,6 +38,17 @@ jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 const LIVE_TV = { Id: "livetv-1", Name: "Live TV", CollectionType: "livetv" };
 const MOVIES = { Id: "movies-1", Name: "Movies", CollectionType: "movies" };
 
+type Node = ReturnType<typeof screen.toJSON>;
+const preferredFocusNodes = (node: Node | string): unknown[] => {
+  if (!node || typeof node === "string") return [];
+  if (Array.isArray(node)) return node.flatMap(preferredFocusNodes);
+  const self = node.props?.hasTVPreferredFocus === true ? [node] : [];
+  return [
+    ...self,
+    ...(node.children ?? []).flatMap((c) => preferredFocusNodes(c as Node)),
+  ];
+};
+
 const renderLibraries = async (
   views: object[],
   channels: [number, object] = [200, { Items: [], TotalRecordCount: 42 }],
@@ -89,5 +100,17 @@ describe("TVLibraries", () => {
       "Failed to count the Live TV channels",
       expect.anything(),
     );
+  });
+
+  // A tab root that sets hasTVPreferredFocus pulls the focus off the tvOS tab
+  // bar the moment the tab first mounts, so swiping across the bar landed on
+  // the first library. See docs/conventions/tv.md.
+  test("leaves the initial focus on the tab bar", async () => {
+    await renderLibraries([MOVIES, LIVE_TV]);
+
+    await waitFor(() =>
+      expect(screen.getByText("12 library.item_types.movies")).toBeTruthy(),
+    );
+    expect(preferredFocusNodes(screen.toJSON())).toHaveLength(0);
   });
 });

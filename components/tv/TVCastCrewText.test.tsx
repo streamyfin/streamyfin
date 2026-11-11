@@ -53,12 +53,30 @@ describe("TVCastCrewText", () => {
     expect(screen.getAllByText("Vince Gilligan")).toHaveLength(2);
   });
 
+  test("the cast line counts distinct actors, not credits", async () => {
+    await render(
+      <TVCastCrewText
+        people={[
+          { Id: "director", Name: "Director", Type: "Director" },
+          { Id: "a", Name: "Ana", Type: "Actor", Role: "Hero" },
+          { Id: "a", Name: "Ana", Type: "Actor", Role: "Mother" },
+          { Id: "b", Name: "Ben", Type: "Actor" },
+          { Name: "No Id", Type: "Actor" },
+          { Id: "c", Name: "Cy", Type: "Actor" },
+          { Id: "d", Name: "Dee", Type: "Actor" },
+        ]}
+        showCast
+      />,
+    );
+
+    expect(screen.getByText("Ana, Ben, Cy")).toBeTruthy();
+    expect(screen.queryByText("Ana, Ana, Ben")).toBeNull();
+  });
+
   test("draws nothing when nobody is credited and the cast is hidden", async () => {
     await render(
       <TVCastCrewText
         people={[{ Id: "a", Name: "An Actor", Type: "Actor" }]}
-        cast={[{ Id: "a", Name: "An Actor", Type: "Actor" }]}
-        hideCast
       />,
     );
 
