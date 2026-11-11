@@ -251,7 +251,9 @@
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
         "native_tv": "Native player (experimental)",
         "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
-        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues."
+        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues.",
+        "match_refresh_rate": "Match display refresh rate",
+        "match_refresh_rate_note": "Switch the TV to a refresh rate matching the video's frame rate, for example 50 Hz for 25 fps, so motion plays smoothly instead of juddering. The screen flashes briefly when the rate changes. Android TV only."
       },
       "buffer": {
         "title": "Buffer settings",

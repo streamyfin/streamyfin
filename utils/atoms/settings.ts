@@ -540,6 +540,12 @@ export type Settings = {
   nativeVideoPlayerTV: boolean;
   /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
   nativeVideoPlayerAndroidTV?: boolean;
+  /**
+   * Android TV only: switch the display to a refresh rate matching the
+   * video's frame rate (default off — the mode switch is non-seamless on
+   * most panels, a brief black flash on rate changes).
+   */
+  matchRefreshRate?: boolean;
   showHomeBackdrop: boolean;
   /**
    * The home hero carousel, on every platform — the TV one and the iOS one
@@ -729,6 +735,7 @@ export const defaultValues: Settings = {
   // TV-specific settings
   nativeVideoPlayerTV: true,
   nativeVideoPlayerAndroidTV: false,
+  matchRefreshRate: false,
   showHomeBackdrop: true,
   showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

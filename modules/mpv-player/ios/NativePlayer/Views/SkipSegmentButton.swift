@@ -1,8 +1,8 @@
 #if os(iOS)
 import SwiftUI
 
-/// "Skip Intro" / "Skip Credits" pill, shown while the position is inside a
-/// media segment — visible even when the rest of the chrome is hidden.
+/// Skip pill for the segment the position is in (intro, credits, recap,
+/// commercial or preview), visible even when the rest of the chrome is hidden.
 struct SkipSegmentButton: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let segment: MediaSegmentRecord
