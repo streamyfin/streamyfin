@@ -364,23 +364,27 @@ const TVFocusableButton: React.FC<{
   onPress: () => void;
   disabled?: boolean;
 }> = ({ onPress, disabled }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    focusable={!disabled}
-    hasTVPreferredFocus={isFirst && !disabled}
-  >
+  <Pressable onPress={onPress} disabled={disabled} focusable={!disabled}>
     {/* content */}
   </Pressable>
 );
 
 // 3. Pass disabled to all background components when modal is open
 <TVFocusableButton onPress={handlePress} disabled={isModalOpen} />
+
+// 4. When the overlay closes, hand the focus back to what opened it: the
+// overlay took the focus with it. A tab root may not use hasTVPreferredFocus
+// for this (docs/conventions/tv.md).
+useEffect(() => {
+  if (wasOpen.current && !isModalOpen) requestTVFocus(openerRef.current);
+  wasOpen.current = isModalOpen;
+}, [isModalOpen]);
 ```
 
 ### Reference Implementation
 
-See `settings.tv.tsx` for a complete example with `TVSettingsOptionButton`, `TVSettingsToggle`, `TVSettingsStepper`, etc.
+See `settings.tv.tsx`: its rows take `disabled={isAnyModalOpen}` while the PIN or password
+prompt is up, and the Switch user row gets the focus back when it closes.
 
 ---
 

@@ -117,17 +117,22 @@ Reference implementation: `app/(auth)/(tabs)/(libraries)/[libraryId].tsx`.
 
 ## Tab roots leave the focus on the tab bar
 
-A screen that is the root of a tab must not set `hasTVPreferredFocus`, on itself or on
-a row it renders. On tvOS the prop takes the focus for the whole app as the view mounts,
-and a tab mounts the first time the tab bar lands on it. Swiping across the bar then
-drops the focus into that tab instead of the next tab. Android TV opens a tab on a
-press instead, and the prop takes the focus there too, so the first press on a tab
-leaves the bar. The user expects to keep moving along the bar and swipe down when they
-choose; the focus engine then picks the top item.
+A screen that is the root of a tab must not set `hasTVPreferredFocus` on what it renders
+when it mounts, on itself or on a row. The prop takes the focus for the whole app, the tab
+bar included, as the view enters the window. On tvOS a tab's page enters it the first time
+the tab bar lands on the tab, so swiping across the bar dropped the focus into that tab
+instead of the next one. Android TV's bar replaces the route on a press, so the page
+mounts again on every press that opens the tab, and each one left the bar. The user
+expects to keep moving along the bar and swipe down when they choose; the focus engine
+then picks the top item.
 
-Home is the one exception. It mounts at launch, before the user touches the bar, so its
-first poster may take the initial focus. Pushed screens and modals keep their preferred
-focus, because the user has already left the bar. The learned fact
+Home is the one exception, once a session: `useHomeInitialFocus` lets the first Home take
+the initial focus, at launch, before the user touches the bar. Later Homes, on Android
+TV's presses or after a cache clear remounts it, ask for nothing. Content a page shows
+after the user acted inside it (Search's Discover cards), pushed screens and modals keep
+their preferred focus, because the user has already left the bar. A prompt drawn as an
+overlay in a tab root hands the focus back with `requestTVFocus` when it closes (the
+Switch user row in `settings.tv.tsx`). The learned fact
 `.claude/learned-facts/tv-preferred-focus-grabs-on-mount.md` explains why the prop
 behaves this way.
 
