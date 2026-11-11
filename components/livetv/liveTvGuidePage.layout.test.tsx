@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { StyleSheet } from "react-native";
 import type { TestInstance } from "test-renderer";
-import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/guide";
+import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide";
 
 let mockWindowWidth = 400;
 
