@@ -77,7 +77,7 @@
         "react-native-svg": "15.16.1",
         "react-native-tab-view": "4.3.4",
         "react-native-text-ticker": "1.16.0",
-        "react-native-track-player": "github:lovegaoshi/react-native-track-player#d371784",
+        "react-native-track-player": "github:lovegaoshi/react-native-track-player#a13e59d",
         "react-native-udp": "^4.1.7",
         "react-native-worklets": "0.13.1",
         "sonner-native": "0.27.0",
@@ -115,7 +115,6 @@
     "@sentry/cli",
   ],
   "patchedDependencies": {
-    "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch",
     "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
@@ -1884,7 +1883,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.16.0", "", {}, "sha512-UHZcIrXzNQ3CnGSA6d5foR9weqSCEk5w+eJGnUf5OQkKbuq/xtt1ZaNVnsgcG5+3f9EnRrNCt52/a46LXVKGGw=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#d371784", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"], "hasInstallScript": true }, "lovegaoshi-react-native-track-player-d371784", "sha512-SJ0COnlZg3FciHkanhaBf0LtawYiNwWzJ5UYEBhKEeK+7JpisP2qNNgXre8bPxVGj57Q0DvGLTp5uevjBuZOkw=="],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#a13e59d", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"], "hasInstallScript": true }, "lovegaoshi-react-native-track-player-a13e59d", "sha512-HTzEhLLiNzf0N3BNxyCA/v/aDohK+rEnaQ0Tsks4JiDtGaNVxRPR7wCOyjVWE8Hi+l2bL2OZyWWgaYcXvnrSdw=="],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 

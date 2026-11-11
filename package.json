@@ -108,7 +108,7 @@
     "react-native-svg": "15.16.1",
     "react-native-tab-view": "4.3.4",
     "react-native-text-ticker": "1.16.0",
-    "react-native-track-player": "github:lovegaoshi/react-native-track-player#d371784",
+    "react-native-track-player": "github:lovegaoshi/react-native-track-player#a13e59d",
     "react-native-udp": "^4.1.7",
     "react-native-worklets": "0.13.1",
     "sonner-native": "0.27.0",
