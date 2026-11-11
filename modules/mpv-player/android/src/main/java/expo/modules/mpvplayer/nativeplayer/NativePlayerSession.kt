@@ -240,7 +240,7 @@ class NativePlayerSession(
     private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
         return when (config.engine?.lowercase()) {
             "exoplayer" -> ExoPlayerEngine(activity)
-            else -> MPVLayerRenderer(activity, voDriver = "gpu-next")
+            else -> MPVLayerRenderer(activity, voDriver = resolveMpvVoDriver(config.voDriver))
         }
     }
 

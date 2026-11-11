@@ -364,6 +364,12 @@ export type NativePlayerConfig = {
   subtitleStyle?: NativePlayerSubtitleStyle;
   ui?: NativePlayerUIOptions;
   engine?: NativePlayerEngine;
+  /**
+   * mpv's video output driver, the "Video output" setting. Android-only and
+   * mpv-only: absent on iOS and for ExoPlayer. Defaults to "gpu-next" when
+   * absent.
+   */
+  voDriver?: "gpu-next" | "gpu";
   syncPlay?: NativePlayerSyncPlayState;
 };
 

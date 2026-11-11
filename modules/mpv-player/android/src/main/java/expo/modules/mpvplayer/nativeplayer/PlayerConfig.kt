@@ -183,4 +183,7 @@ class PlayerPresentConfigRecord : Record {
     // Which engine decodes the stream: "mpv" (default) or "exoplayer".
     // Ignored on iOS — its chrome always runs mpv.
     @Field var engine: String? = null
+    // mpv's video output driver: "gpu-next" (default) or "gpu". Not sent for
+    // ExoPlayer or on iOS.
+    @Field var voDriver: String? = null
 }

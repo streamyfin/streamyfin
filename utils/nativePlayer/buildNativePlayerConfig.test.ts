@@ -154,3 +154,33 @@ describe("the native player's exit confirmation", () => {
     expect(await confirmExit(false)).toBe(false);
   });
 });
+
+// The "Video output" setting is Android's and only shown there. A value that
+// roamed in with the settings must not reach iOS, whose player has one output.
+describe("the native player's video output driver", () => {
+  test("is not sent on iOS", async () => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        mpvVoDriver: "gpu",
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      item,
+    });
+
+    expect(built?.config.engine).toBe("mpv");
+    expect(built?.config.voDriver).toBeUndefined();
+  });
+});
