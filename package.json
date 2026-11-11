@@ -201,9 +201,6 @@
       "<rootDir>/test-utils/idleCallback.ts",
       "./node_modules/react-native-gesture-handler/jestSetup.js"
     ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/test-utils/assetRegistry.ts"
-    ],
     "moduleNameMapper": {
       "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
       "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts"
