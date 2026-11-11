@@ -479,6 +479,268 @@ describe("DownloadSingleItem, picking a version", () => {
         }),
       );
     });
+
+    // The remember settings carry a track to the next item. Another version
+    // of the same one is not that, so the pick follows it either way.
+    test("keeps the pick when remembering subtitles is off", async () => {
+      mockSettings = {};
+      await render(<DownloadSingleItem item={subtitledVersions} />);
+
+      await fireEvent.press(screen.getByText("item_card.none"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-b",
+          subtitleStreamIndex: -1,
+        }),
+      );
+    });
+
+    // The version menu calls back for the row already selected too.
+    test("keeps the pick when the same version is picked again", async () => {
+      mockSettings = {};
+      await render(<DownloadSingleItem item={subtitledVersions} />);
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version A"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-a",
+          subtitleStreamIndex: 2,
+        }),
+      );
+    });
+
+    // B has no French and falls back to its own default; that default is not
+    // the user's pick, which is still French back on A.
+    test("keeps the pick through a version that does not have it", async () => {
+      await render(
+        <DownloadSingleItem
+          item={{
+            ...subtitledVersions,
+            MediaSources: [
+              subtitledVersions.MediaSources?.[0] ?? {},
+              {
+                Id: "source-b",
+                Name: "Version B",
+                DefaultSubtitleStreamIndex: -1,
+                MediaStreams: [
+                  { Type: "Video", Index: 0 },
+                  subtitle(3, "eng", "English B"),
+                ],
+              },
+            ],
+          }}
+        />,
+      );
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await fireEvent.press(screen.getByText("Version A"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-a",
+          subtitleStreamIndex: 2,
+        }),
+      );
+    });
+  });
+
+  describe("with an audio track picked on the first version", () => {
+    const audio = (
+      index: number,
+      language: string,
+      title: string,
+      codec = "aac",
+    ) => ({
+      Type: "Audio" as const,
+      Index: index,
+      Language: language,
+      DisplayTitle: title,
+      Codec: codec,
+    });
+    const versionA = {
+      Id: "source-a",
+      Name: "Version A",
+      DefaultAudioStreamIndex: 1,
+      MediaStreams: [
+        { Type: "Video" as const, Index: 0 },
+        audio(1, "eng", "English A"),
+        audio(2, "fre", "French A"),
+      ],
+    };
+    const withVersionB = (
+      streams: ReturnType<typeof audio>[],
+      defaultIndex: number,
+    ): BaseItemDto => ({
+      ...MOVIE,
+      MediaSources: [
+        versionA,
+        {
+          Id: "source-b",
+          Name: "Version B",
+          DefaultAudioStreamIndex: defaultIndex,
+          MediaStreams: [{ Type: "Video", Index: 0 }, ...streams],
+        },
+      ],
+    });
+
+    test("keeps the pick when remembering audio is off", async () => {
+      mockSettings = {};
+      await render(
+        <DownloadSingleItem
+          item={withVersionB(
+            [audio(1, "eng", "English B"), audio(2, "fre", "French B")],
+            1,
+          )}
+        />,
+      );
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-b",
+          audioStreamIndex: 2,
+        }),
+      );
+    });
+
+    test("keeps the pick through a version that does not have it", async () => {
+      mockSettings = { rememberAudioSelections: true };
+      await render(
+        <DownloadSingleItem
+          item={withVersionB(
+            [audio(1, "eng", "English B"), audio(2, "ger", "German B")],
+            1,
+          )}
+        />,
+      );
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await fireEvent.press(screen.getByText("Version A"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-a",
+          audioStreamIndex: 2,
+        }),
+      );
+    });
+
+    // A remux of the same film: other codec, other title, French first.
+    test("keeps the pick's language on a version encoded differently", async () => {
+      mockSettings = { rememberAudioSelections: true };
+      await render(
+        <DownloadSingleItem
+          item={withVersionB(
+            [
+              audio(1, "fre", "French B", "truehd"),
+              audio(2, "eng", "English B", "truehd"),
+            ],
+            2,
+          )}
+        />,
+      );
+
+      await fireEvent.press(screen.getByText("French A"));
+      await fireEvent.press(screen.getByText("Version B"));
+      await confirmDownload();
+
+      expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mediaSourceId: "source-b",
+          audioStreamIndex: 1,
+        }),
+      );
+    });
+  });
+});
+
+describe("DownloadSingleItem, picks made on two versions", () => {
+  const track = (
+    type: "Audio" | "Subtitle",
+    index: number,
+    language: string,
+    title: string,
+  ) => ({
+    Type: type,
+    Index: index,
+    Language: language,
+    DisplayTitle: title,
+    Codec: type === "Audio" ? "aac" : "subrip",
+  });
+  // B has a third audio track, so its subtitles are numbered one higher.
+  const twoVersions: BaseItemDto = {
+    ...MOVIE,
+    MediaSources: [
+      {
+        Id: "source-a",
+        Name: "Version A",
+        DefaultAudioStreamIndex: 1,
+        DefaultSubtitleStreamIndex: -1,
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          track("Audio", 1, "eng", "English audio A"),
+          track("Audio", 2, "fre", "French audio A"),
+          track("Subtitle", 3, "eng", "English subtitles A"),
+          track("Subtitle", 4, "fre", "French subtitles A"),
+        ],
+      },
+      {
+        Id: "source-b",
+        Name: "Version B",
+        DefaultAudioStreamIndex: 1,
+        DefaultSubtitleStreamIndex: -1,
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          track("Audio", 1, "eng", "English audio B"),
+          track("Audio", 2, "fre", "French audio B"),
+          track("Audio", 3, "ger", "German audio B"),
+          track("Subtitle", 4, "eng", "English subtitles B"),
+          track("Subtitle", 5, "fre", "French subtitles B"),
+        ],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    mockSettings = {};
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: twoVersions.MediaSources?.[0],
+    });
+  });
+
+  // Each pick is matched from the version it was made on: B's subtitle 5 read
+  // on A, where no stream has that Index, would lose it.
+  test("matches each pick from its own version", async () => {
+    await render(<DownloadSingleItem item={twoVersions} />);
+
+    await fireEvent.press(screen.getByText("French audio A"));
+    await fireEvent.press(screen.getByText("Version B"));
+    await fireEvent.press(screen.getByText("French subtitles B"));
+    await fireEvent.press(screen.getByText("Version A"));
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaSourceId: "source-a",
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 4,
+      }),
+    );
   });
 });
 

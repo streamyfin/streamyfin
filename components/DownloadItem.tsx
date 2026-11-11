@@ -25,10 +25,14 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
+import {
+  getDefaultPlaySettings,
+  type PreviousIndexes,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -65,6 +69,61 @@ export type SelectedOptions = {
   subtitleIndex: number;
 };
 
+/** A track picked in the sheet, with the version it was picked on. */
+interface TrackPick {
+  source: MediaSourceInfo;
+  index: number;
+}
+
+interface TrackPicks {
+  audio?: TrackPick;
+  subtitle?: TrackPick;
+}
+
+/**
+ * The tracks to download from `version`. Stream indexes are per version, so
+ * each pick is matched again from the version it was made on: a version that
+ * lacks the track falls back to its own default and the pick stays as it was.
+ * The remember settings do not apply: they carry a track to the next item, and
+ * this is the same one.
+ */
+const tracksOnVersion = (
+  item: BaseItemDto,
+  version: MediaSourceInfo,
+  settings: Settings | null,
+  { audio, subtitle }: TrackPicks,
+): { audioIndex?: number; subtitleIndex: number } => {
+  const carrying = settings && {
+    ...settings,
+    rememberAudioSelections: true,
+    rememberSubtitleSelections: true,
+  };
+  const resolve = (source?: MediaSourceInfo, indexes?: PreviousIndexes) =>
+    getDefaultPlaySettings(
+      { ...item, MediaSources: [version] },
+      carrying,
+      source && { source, indexes },
+    );
+  // Picks made on one version are matched together, so the subtitle mode
+  // reads the audio its pick resolved to.
+  if (!audio || !subtitle || audio.source.Id === subtitle.source.Id) {
+    const resolved = resolve(audio?.source ?? subtitle?.source, {
+      audioIndex: audio?.index,
+      subtitleIndex: subtitle?.index,
+    });
+    return {
+      audioIndex: resolved.audioIndex,
+      subtitleIndex: resolved.subtitleIndex ?? SUBTITLES_OFF,
+    };
+  }
+  return {
+    audioIndex: resolve(audio.source, { audioIndex: audio.index }).audioIndex,
+    subtitleIndex:
+      resolve(subtitle.source, { subtitleIndex: subtitle.index })
+        .subtitleIndex ?? SUBTITLES_OFF,
+  };
+};
+
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
   MissingDownloadIconComponent: () => React.ReactElement;
@@ -97,10 +156,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     SelectedOptions | undefined
   >(undefined);
   // A default is not a choice, so only a picked track follows a version change.
-  const [pickedTracks, setPickedTracks] = useState({
-    audio: false,
-    subtitle: false,
-  });
+  const [picks, setPicks] = useState<TrackPicks>({});
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -150,7 +206,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       subtitleIndex: defaultSubtitleIndex ?? -1,
       audioIndex: defaultAudioIndex,
     }));
-    setPickedTracks({ audio: false, subtitle: false });
+    setPicks({});
   }, [
     defaultAudioIndex,
     defaultBitrate,
@@ -483,30 +539,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                       onChange={(val) =>
                         setSelectedOptions((prev) => {
                           if (!prev) return prev;
-                          // Stream indexes are per version, so the tracks are
-                          // resolved again on the new one, keeping the picked
-                          // languages where it has them.
-                          const { audioIndex, subtitleIndex } =
-                            getDefaultPlaySettings(
-                              { ...optionsItem, MediaSources: [val] },
-                              settings,
-                              prev.mediaSource && {
-                                source: prev.mediaSource,
-                                indexes: {
-                                  audioIndex: pickedTracks.audio
-                                    ? prev.audioIndex
-                                    : undefined,
-                                  subtitleIndex: pickedTracks.subtitle
-                                    ? prev.subtitleIndex
-                                    : undefined,
-                                },
-                              },
-                            );
                           return {
                             ...prev,
                             mediaSource: val,
-                            audioIndex,
-                            subtitleIndex: subtitleIndex ?? -1,
+                            ...tracksOnVersion(
+                              optionsItem,
+                              val,
+                              settings,
+                              picks,
+                            ),
                           };
                         })
                       }
@@ -525,7 +566,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 audioIndex: val,
                               },
                           );
-                          setPickedTracks((prev) => ({ ...prev, audio: true }));
+                          const source = selectedOptions.mediaSource;
+                          if (source) {
+                            setPicks((prev) => ({
+                              ...prev,
+                              audio: { source, index: val },
+                            }));
+                          }
                         }}
                         selected={selectedOptions.audioIndex}
                       />
@@ -539,10 +586,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                                 subtitleIndex: val,
                               },
                           );
-                          setPickedTracks((prev) => ({
-                            ...prev,
-                            subtitle: true,
-                          }));
+                          const source = selectedOptions.mediaSource;
+                          if (source) {
+                            setPicks((prev) => ({
+                              ...prev,
+                              subtitle: { source, index: val },
+                            }));
+                          }
                         }}
                         selected={selectedOptions.subtitleIndex}
                       />
