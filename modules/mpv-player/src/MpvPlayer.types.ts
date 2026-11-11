@@ -87,11 +87,13 @@ export type MpvPlayerViewProps = {
   /** Metadata for iOS Control Center and Lock Screen now playing info */
   nowPlayingMetadata?: NowPlayingMetadata;
   /**
-   * Android: the media session, the playback notification and the foreground
-   * service that keep playback going with the screen off, with the audio
-   * focus and wake lock they take. For the player screen only, off by
-   * default: a view that just shows a clip (the subtitle preview) stopped the
-   * user's music. iOS ignores it.
+   * What playing on outside the view takes from the system. Android: the media
+   * session, the playback notification and the foreground service that keep
+   * playback going with the screen off, with the audio focus and wake lock they
+   * take. iOS: the playback audio session, the lock screen controls and the
+   * automatic picture in picture. For the player screen only, off by default:
+   * a view that just shows a clip (the subtitle preview) stopped the user's
+   * music, and on iOS opened in picture in picture when they left the app.
    */
   backgroundPlayback?: boolean;
   /**
