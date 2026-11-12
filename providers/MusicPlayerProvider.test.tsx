@@ -252,6 +252,7 @@ const api: ReturnType<typeof makeApi> = jest.requireMock(
 
 const START_URL = "https://jellyfin.example.com/Sessions/Playing";
 const PROGRESS_URL = "https://jellyfin.example.com/Sessions/Playing/Progress";
+const STOPPED_URL = "https://jellyfin.example.com/Sessions/Playing/Stopped";
 
 const track = (id: string): BaseItemDto => ({
   Id: id,
@@ -835,6 +836,52 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(nativeIds()).toEqual([]);
     expect(mockNative.playing).toBe(false);
     await receiverLoads("t2");
+  });
+
+  // Seen on an iPhone: the TV played the queue while the server still listed
+  // the phone as playing it, from the last report before its pause.
+  test("play on a paused queue while a session is connected ends the phone's play session on the server", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await run((p) => p.pause());
+    await connectCast();
+    await settle();
+    expect(reports(STOPPED_URL)).toEqual([]);
+
+    await run((p) => p.togglePlayPause());
+
+    expect(reports(STOPPED_URL)).toEqual([
+      expect.objectContaining({ ItemId: "t0", PlaySessionId: "session-t0" }),
+    ]);
+    await receiverLoads("t0");
+  });
+
+  test("the queue the phone plays ends its play session on the server when a session connects", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    await connectCast();
+    await settle();
+
+    expect(reports(STOPPED_URL)).toEqual([
+      expect.objectContaining({ ItemId: "t0", PlaySessionId: "session-t0" }),
+    ]);
+    await receiverLoads("t0");
+  });
+
+  test("stopping the queue on the receiver does not end the phone's play session a second time", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+    await receiverStatus("t0", "playing", 5);
+
+    await run((p) => p.stop());
+
+    expect(
+      reports(STOPPED_URL).filter((r) => r.PlaySessionId === "session-t0"),
+    ).toHaveLength(1);
   });
 
   // A film cast from its page replaces the music on the TV.

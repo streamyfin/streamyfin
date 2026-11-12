@@ -1310,6 +1310,29 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   });
   const { begin: beginOnReceiver, end: endOnReceiver } = remote;
 
+  // The queue leaves the phone for the receiver: the phone's play session ends
+  // with it, or the server lists the phone playing next to the TV, from its
+  // last report. Ended once: a later stop finds no session to report.
+  const endPhoneSessionForReceiver = useCallback(() => {
+    const sessionId = state.playSessionId;
+    if (!state.currentTrack || !sessionId) return;
+    reportPlaybackStopped(
+      state.currentTrack,
+      state.progress * 10000000,
+      sessionId,
+    );
+    setState((prev) =>
+      prev.playSessionId === sessionId
+        ? { ...prev, playSessionId: null }
+        : prev,
+    );
+  }, [
+    state.currentTrack,
+    state.playSessionId,
+    state.progress,
+    reportPlaybackStopped,
+  ]);
+
   // A connected Cast session plays the music on the receiver, and the phone
   // stops so that one place plays. The player shows the queue from the send.
   const castOnReceiver = useCallback(
@@ -1343,11 +1366,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     if (!castConnected || previous === CastState.CONNECTED) return;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
+    endPhoneSessionForReceiver();
     void castOnReceiver(state.queue, Math.max(index, 0));
   }, [
     castState,
     castConnected,
     castOnReceiver,
+    endPhoneSessionForReceiver,
     state.isPlaying,
     state.queue,
     state.currentTrack,
@@ -1502,6 +1527,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const index = state.queue.findIndex(
         (t) => t.Id === state.currentTrack?.Id,
       );
+      endPhoneSessionForReceiver();
       void castOnReceiver(state.queue, Math.max(index, 0), state.progress);
       return;
     }
@@ -1609,6 +1635,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     loadRemainingTracksInBackground,
     castConnected,
     castOnReceiver,
+    endPhoneSessionForReceiver,
   ]);
 
   const togglePlayPause = useCallback(async () => {
