@@ -93,7 +93,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var controlsLocked = false
 	@Published var unlockButtonRevealed = false
 	/// Hardware volume press while the chrome is hidden briefly shows just the
-	/// volume slider (mirror of the JS AudioSlider auto-reveal).
+	/// volume slider.
 	@Published var volumeSliderRevealed = false
 	/// Vertical brightness drag while the chrome is hidden shows just the
 	/// brightness slider as feedback.
@@ -139,7 +139,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var autoSkippedSegmentIds: Set<String> = []
 	/// When playback last became genuinely stable. Auto-skip waits on this:
 	/// seeking a transcode the instant the first frame lands asks for a segment
-	/// it has not produced yet and stalls (JS parity: AUTO_SKIP_ARM_DELAY_MS).
+	/// it has not produced yet and stalls.
 	private var autoSkipStableSince: Date?
 	private var noticeDismissTask: Task<Void, Never>?
 	@Published var nextEpisode: NextEpisodeRecord?
@@ -173,8 +173,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published private(set) var isPlayerMuted = false
 
 	/// Output volume at zero or mpv muted. What the mute button draws and what
-	/// JS is told. Two sources OR-ed because neither covers every platform,
-	/// mirroring `useMuteState` in the JS player controls.
+	/// JS is told. Two sources OR-ed because neither covers every platform.
 	@Published private(set) var isMuted = false
 
 	#if os(iOS)
@@ -772,8 +771,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		isScrubbing = true
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
-		// Pause while scrubbing; endScrub resumes only if it was playing
-		// (mirror of the JS player's useVideoSlider).
+		// Pause while scrubbing; endScrub resumes only if it was playing.
 		wasPlayingBeforeScrub = isPlaying
 		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			engine?.pause()
@@ -971,7 +969,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	/// More than 3s into the current chapter restarts it; otherwise jumps to
-	/// the previous one (mirror of useChapterNavigation.ts).
+	/// the previous one.
 	func goToPreviousChapter() {
 		let idx = currentChapterIndex
 		guard idx >= 0 else { return }
@@ -1266,7 +1264,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	/// Applies live on the engine and notifies JS, which persists the global
-	/// subtitleSize setting (mirror of the JS in-player subtitle scale).
+	/// subtitleSize setting.
 	func setSubtitleScale(_ scale: Double) {
 		guard !subtitleScaleLocked else { return }
 		subtitleScale = min(max((scale * 10).rounded() / 10, 0.1), 3)
@@ -1312,7 +1310,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// The reported end of an outro sometimes overshoots the file. Land two
 		// seconds short so the natural end-of-video flow still runs, and do
 		// nothing at all when that target is already behind the playhead, which
-		// would otherwise rewind (JS parity: useSegmentSkipper).
+		// would otherwise rewind.
 		var target = segment.endSec
 		if segment.type == "Outro", duration > 0, target >= duration {
 			target = max(0, duration - 2)
@@ -1553,15 +1551,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 		// Only credits that run to (within 5s of) the video end auto-arm the
 		// countdown — auto-advancing out of credits with a mid/post-credits
-		// scene after them would skip content (JS parity: useCreditSkipper's
-		// hasContentAfterCredits gate). The Skip Credits pill stays available
+		// scene after them would skip content. The Skip Credits pill stays available
 		// in that case instead.
 		var inFinalCredits = false
 		if let active, active.type == "Outro", duration > 0 {
 			inFinalCredits = duration - active.endSec <= 5
 		}
-		// Items without credits markers still get the countdown near the end
-		// (JS parity: remainingTime < countdown length arms it too).
+		// Items without credits markers still get the countdown near the end,
+		// once the remaining time is under the countdown's length.
 		var nearEnd = false
 		guard !isSyncPlayActive else { return }
 		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {

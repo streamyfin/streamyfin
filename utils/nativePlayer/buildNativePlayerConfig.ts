@@ -138,7 +138,7 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
-  // Exit confirmation (TV Menu press — mirror of useRemoteControl's alert).
+  // Exit confirmation, asked on a TV Menu press.
   // Native substitutes %TITLE% with the current item's title.
   stop: t("common.stop"),
   stopPlayback: t("player.stopPlayback"),
@@ -175,7 +175,7 @@ const mapOrientationLock = (
   }
 };
 
-/** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */
+/** The saved speed for this item, else its series, else the default. */
 const resolveInitialPlaybackSpeed = (
   item: BaseItemDto,
   settings: Settings,
@@ -195,8 +195,8 @@ const toFileUri = (path: string): string =>
 
 /**
  * Trickplay descriptor with fully-formed per-sheet URLs so the native side
- * needs no URL templating (offline uses the downloaded sheet files — same
- * path shape as hooks/useTrickplay.ts getTrickplayUrl).
+ * needs no URL templating (offline uses the downloaded sheet files,
+ * `<path><index>.jpg`).
  */
 export const buildTrickplayDescriptor = (
   item: BaseItemDto,
@@ -342,8 +342,8 @@ export const buildTrackMenus = (options: {
     originalLabel: options.originalLabel,
   }).map(toMenuItem);
 
-  // Quality/bitrate menu (JS DropdownView parity): online only; changing it
-  // always re-negotiates the stream, so every entry is requiresReload.
+  // Quality/bitrate menu: online only; changing it always re-negotiates the
+  // stream, so every entry is requiresReload.
   const qualityItems: NativePlayerTrackMenuItem[] = options.offline
     ? []
     : BITRATES.map((bitrate) => ({

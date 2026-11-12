@@ -109,8 +109,7 @@ public class MpvPlayerModule: Module {
       Prop("backgroundPlayback") { (view: MpvPlayerView, enabled: Bool?) in
         view.setBackgroundPlayback(enabled ?? false)
       }
-      // Android only. On iOS the presented player sets its own skip times, and
-      // only the JS player, which is going away, passes these.
+      // Android only. Nothing passes these on iOS.
       Prop("sessionSkipSeconds") { (_: MpvPlayerView, _: [String: Any]?) in }
       Prop("liveStream") { (_: MpvPlayerView, _: Bool?) in }
 

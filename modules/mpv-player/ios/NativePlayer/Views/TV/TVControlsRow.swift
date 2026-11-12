@@ -1,10 +1,10 @@
 #if os(tvOS)
 import SwiftUI
 
-/// The focusable button row under the transport bar — same configuration as
-/// the JS TV player (Controls.tv.tsx): previous episode, previous chapter,
-/// play/pause, next chapter, next episode, then quality / audio / subtitles,
-/// plus the ±seconds jump buttons (technical info lives in the More menu).
+/// The focusable button row under the transport bar: previous episode,
+/// previous chapter, play/pause, next chapter, next episode, then quality /
+/// audio / subtitles, plus the ±seconds jump buttons (technical info lives in
+/// the More menu).
 ///
 /// Dropdowns are NATIVE SwiftUI Menus — the system Liquid Glass popup with
 /// system focus handling — mirroring the iOS PlayerTopBar pattern 1:1

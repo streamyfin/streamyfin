@@ -52,8 +52,8 @@ struct MediaSegmentRecord: Record {
 	@Field var startSec: Double = 0
 	@Field var endSec: Double = 0
 	/// "none" | "ask" | "auto". Resolved on the JS side from the per-type skip
-	/// settings so this player never reads settings and cannot drift from the
-	/// JS players. "none" segments are not sent at all; absent means "ask".
+	/// settings so this player never reads settings and cannot drift from them.
+	/// "none" segments are not sent at all; absent means "ask".
 	@Field var skipMode: String = "ask"
 }
 

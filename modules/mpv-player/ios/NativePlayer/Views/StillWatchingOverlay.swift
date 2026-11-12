@@ -2,7 +2,7 @@
 import SwiftUI
 
 /// "Are you still watching?" — shown at EOF when the autoplay episode cap is
-/// reached (mirror of the JS ContinueWatchingOverlay). Continue advances and
+/// reached. Continue advances and
 /// resets the chain counter JS-side; Go back closes the player. Modal by
 /// design: the scrim swallows taps so the chrome can't be toggled beneath it.
 struct StillWatchingOverlay: View {

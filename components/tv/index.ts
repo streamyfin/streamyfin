@@ -23,7 +23,6 @@ export type { TVCastSectionProps } from "./TVCastSection";
 export { TVCastSection } from "./TVCastSection";
 export type { TVCollectionsSectionProps } from "./TVCollectionsSection";
 export { TVCollectionsSection } from "./TVCollectionsSection";
-// Player control components
 export type { TVFavoriteButtonProps } from "./TVFavoriteButton";
 export { TVFavoriteButton } from "./TVFavoriteButton";
 export type { TVFilterButtonProps } from "./TVFilterButton";

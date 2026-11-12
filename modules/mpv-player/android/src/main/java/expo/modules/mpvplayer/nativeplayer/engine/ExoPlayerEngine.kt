@@ -340,8 +340,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     /** [retry] is the stall watchdog's own reload; see [StallWatchdog.onReload]. */
     private fun load(config: VideoLoadConfig, force: Boolean, retry: Boolean = false) {
-        // Same-URL guard, mirroring the JS-route view: a redundant load of the
-        // running stream (e.g. a replayed startStream) is skipped. Quality and
+        // Same-URL guard: a redundant load of the running stream (e.g. a
+        // replayed startStream) is skipped. Quality and
         // track re-negotiations always change the URL. Recovery callers must
         // pass force=true — they reload the SAME url/loop on purpose, and the
         // guard would silently no-op them (the player is still non-null after
@@ -362,8 +362,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // instance that had just played the outgoing stream to its end, and
         // that in-place handover stalled for minutes on this box before
         // restarting the stream from 0:00 — direct play, no error surfaced.
-        // The JS-route view never sees this: it builds a fresh view (and
-        // player) per episode. Rebuilding also drops state a source-replace
+        // Rebuilding also drops state a source-replace
         // silently keeps — the previous item's track-selection overrides and
         // text-disable among them. mpv is unaffected: loadfile always builds
         // a fresh demuxer.
@@ -381,7 +380,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         pendingConfig = config
         // The chrome coordinator re-applies carried subtitle selections on
         // every onTracksReady (mpv fires per FILE_LOADED), so the flag must
-        // reset per load — unlike the JS-route view, which fires once per view.
+        // reset per load.
         tracksReadyFired = false
         // Only a genuinely new load (item switch, quality re-negotiation)
         // earns a fresh reload budget. The engine's own reloads pass force=true
@@ -1287,8 +1286,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // SDR content usually declares no color metadata at all, which
             // would leave the page without any color line (mpv reads live
             // decoder properties and never goes quiet). State it explicitly.
-            // NOTE: deliberately not polluting hdrFormat — the JS-route
-            // overlay prints hdrFormat verbatim as an HDR label.
+            // NOTE: deliberately not polluting hdrFormat: the stats overlay
+            // (TechnicalInfoOverlay) prints it verbatim as an HDR label.
             if (f.colorInfo == null) {
                 info["colorTransfer"] = "SDR"
             }

@@ -227,7 +227,7 @@ interface NativeSession extends NativePlayerSessionSeed {
    * `utils/autoSubtitleOnMute`.
    */
   autoSubtitle: AutoSubtitleState;
-  /** Mute value the policy last acted on; mirror of the JS hook's wasMutedRef. */
+  /** Mute value the policy last acted on. */
   autoSubtitleWasMuted: boolean;
 }
 

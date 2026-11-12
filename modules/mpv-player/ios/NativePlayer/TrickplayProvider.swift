@@ -1,8 +1,7 @@
 import UIKit
 
 /// Fetches Jellyfin trickplay tile sheets (JPEG grids) and crops individual
-/// scrub-preview thumbnails out of them. Tile math is a port of
-/// hooks/useTrickplay.ts::calculateTrickplayTile. Sheet URLs are fully formed
+/// scrub-preview thumbnails out of them. Sheet URLs are fully formed
 /// by JS (online: ApiKey in the query; offline: file:// paths), so fetching is
 /// uniform here.
 actor TrickplayProvider {

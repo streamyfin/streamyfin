@@ -159,7 +159,7 @@ private struct TVTransportBar: View {
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
-		// The JS player renders hour12:false 2-digit — a fixed 24h format.
+		// A fixed 24h format, two digits each.
 		formatter.dateFormat = "HH:mm"
 		return formatter
 	}()
@@ -342,7 +342,7 @@ private struct TVTransportBar: View {
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;
 	/// translations without one (e.g. sv "slutar") get the time appended.
 	private func endsAtLabel(remaining: Double) -> String {
-		// Real remaining wall time, not speed-adjusted — matches the JS player.
+		// Real remaining wall time, not speed-adjusted.
 		let time = Self.endsAtFormatter.string(from: Date().addingTimeInterval(remaining))
 		let template = viewModel.str("endsAt", "Ends at %TIME%")
 		if template.contains("%TIME%") {

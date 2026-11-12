@@ -421,9 +421,8 @@ class NativePlayerSession(
 
     /**
      * Keep the screen on while playback is running and clear it on pause so
-     * the system screensaver can kick in — JS parity with the expo-keep-awake
-     * tag in direct-player (activates on play, releases on pause). Called from
-     * onPlaybackStateSync, which fires on play/pause, loading and seek.
+     * the system screensaver can kick in. Called from onPlaybackStateSync,
+     * which fires on play/pause, loading and seek.
      *
      * The flag only clears once playback has actually begun AND buffering has
      * finished — during the initial load (and replacement-stream swaps) before

@@ -1,4 +1,4 @@
-# The native player does not render the JS Controls
+# The native player's input needs native handlers
 
 **Date**: 2026-10-25
 **Category**: native-modules

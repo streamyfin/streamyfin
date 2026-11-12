@@ -24,8 +24,7 @@ struct PlayerCenterControls: View {
 			row(.compact)
 			row(.dense)
 			// Last resort (narrow portrait with chapters): drop the episode
-			// prev/next buttons — the JS player never has them in the center
-			// row either, and the episode list / countdown / top bar keep
+			// prev/next buttons: the episode list / countdown / top bar keep
 			// episode navigation reachable.
 			row(.dense, includeEpisodeButtons: false)
 		}

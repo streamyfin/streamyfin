@@ -95,8 +95,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     //
     // Two sources OR-ed because neither covers every device: the output
     // volume, invisible on a box wired to a receiver that reports a fixed
-    // volume, and mpv's own mute, driven by the controls. Mirrors
-    // `useMuteState` in the JS player controls.
+    // volume, and mpv's own mute, driven by the controls.
 
     /** mpv's own mute. Survives a stream swap: it belongs to the session. */
     var isPlayerMuted by mutableStateOf(false)

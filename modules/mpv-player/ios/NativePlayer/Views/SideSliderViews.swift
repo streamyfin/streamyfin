@@ -1,9 +1,8 @@
 #if os(iOS)
 import SwiftUI
 
-/// Vertical slider pill (volume / brightness), modeled on the JS player's
-/// rotated edge sliders: capsule track filling from the bottom with an icon
-/// underneath; drag anywhere on the pill to set the value.
+/// Vertical slider pill (volume / brightness): capsule track filling from the
+/// bottom with an icon underneath; drag anywhere on the pill to set the value.
 struct VerticalSliderPill: View {
 	let systemImage: String
 	/// 0–1.
