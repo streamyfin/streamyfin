@@ -350,26 +350,33 @@ class ReceiverTokensTests(unittest.TestCase):
 
     def test_a_token_is_never_both_held_and_orphaned(self):
         # Split over two files, a run stopped between the orphan's write and the held token's left
-        # the old token in both, and the next run revoked the token the receiver still held.
+        # the old token in both, and the next run revoked the token the receiver still held. Each
+        # write is stopped in turn: the store is the one before the put or the one after it.
         from bench.jellyfin import AuthSession
 
-        with tempfile.TemporaryDirectory() as tmp:
-            tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
-            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
-            replaced = []
-            # The patch replaces os.replace for every caller, this double included.
-            real_replace = os.replace
+        before = ("tok1", [])
+        after = ("tok2", ["tok1"])
+        for stopped in (1, 2):
+            with self.subTest(stopped_write=stopped), tempfile.TemporaryDirectory() as tmp:
+                tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
+                tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+                writes = []
+                # The patch replaces os.replace for every caller, this double included.
+                real_replace = os.replace
 
-            def stop_after_one_write(source, destination):
-                replaced.append(destination)
-                if len(replaced) > 1:
-                    raise OSError("run stopped between two writes")
-                real_replace(source, destination)
+                def stop_at_write(source, destination, stopped=stopped):
+                    writes.append(destination)
+                    if len(writes) == stopped:
+                        raise OSError("run stopped during a write")
+                    real_replace(source, destination)
 
-            with mock.patch("bench.sender.os.replace", side_effect=stop_after_one_write), contextlib.suppress(OSError):
-                tokens.put("beta13", "test", "Living room", AuthSession("tok2", "user-1"))
-            held = tokens.get("beta13", "test", "Living room")
-            self.assertNotIn(held.token, [orphan.token for orphan in tokens.orphans("beta13", "test")])
+                with mock.patch("bench.sender.os.replace", side_effect=stop_at_write), contextlib.suppress(OSError):
+                    tokens.put("beta13", "test", "Living room", AuthSession("tok2", "user-1"))
+                state = (tokens.get("beta13", "test", "Living room").token, [orphan.token for orphan in tokens.orphans("beta13", "test")])
+                self.assertIn(state, (before, after))
+                if stopped == 1:
+                    # Nothing reached the disk: the held token stays and no orphan is added.
+                    self.assertEqual(state, before)
 
     def test_a_receiver_driven_by_one_run_is_refused_to_another(self):
         with tempfile.TemporaryDirectory() as tmp:
