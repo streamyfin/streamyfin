@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,6 +163,16 @@ class CheckoutTests(unittest.TestCase):
         # Only a missing git means no commit to fear: one that exists and fails to start cannot vouch.
         path = self.scratch_copy(".local.json")
         with mock.patch("bench.config.subprocess.run", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(BenchConfigError) as caught:
+                self.load_from(path)
+        self.assertIn("could not check", str(caught.exception))
+
+    def test_a_git_that_fails_refuses_the_file(self):
+        # Status 128 is a fatal error (a checkout git calls dubious for its owner, say), not an
+        # ignored file: such a git cannot vouch for the passwords either.
+        path = self.scratch_copy(".json")
+        failed = subprocess.CompletedProcess(args=["git"], returncode=128, stdout=b"", stderr=b"fatal: detected dubious ownership")
+        with mock.patch("bench.config.subprocess.run", return_value=failed):
             with self.assertRaises(BenchConfigError) as caught:
                 self.load_from(path)
         self.assertIn("could not check", str(caught.exception))

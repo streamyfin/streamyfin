@@ -91,7 +91,7 @@ const itemCodes = (raw: string | undefined): string[] => {
 /**
  * Whether a `git add` in the checkout would take this file: it lies inside and git does not
  * ignore it, which the Python bench refuses too. A link is followed to its file, and only a
- * missing git counts as no: one that does not start or answer cannot vouch for the file.
+ * missing git counts as no: one that does not start, answer or succeed cannot vouch for the file.
  */
 export const gitCommittable =
   (
@@ -118,8 +118,9 @@ export const gitCommittable =
     if (result.error) {
       return (result.error as NodeJS.ErrnoException).code !== "ENOENT";
     }
-    // 0: ignored, 1: not ignored, 128: not a git checkout.
-    return result.status === 1;
+    // 0: ignored. 1 is not ignored, and 128 a fatal error (no checkout, a
+    // dubious owner), which leaves the file unchecked: both refuse it.
+    return result.status !== 0;
   };
 
 const fromBench = async (

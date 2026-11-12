@@ -236,4 +236,16 @@ describe("gitCommittable", () => {
     expect(failing("ETIMEDOUT")(inside)).toBe(true);
     expect(failing("ENOENT")(inside)).toBe(false);
   });
+
+  test("counts a git that fails as a yes", () => {
+    // Status 128 is a fatal error (a checkout git calls dubious for its
+    // owner, say), not an ignored file: it let the file load.
+    const exiting = (status: number) =>
+      gitCommittable(root, () => ({ status }))(
+        join(root, "e2e/bench/anything.json"),
+      );
+    expect(exiting(128)).toBe(true);
+    expect(exiting(1)).toBe(true);
+    expect(exiting(0)).toBe(false);
+  });
 });
