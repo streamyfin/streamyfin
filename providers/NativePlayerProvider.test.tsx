@@ -37,6 +37,8 @@ const mockNative = {
    * from. Held as well, the refusal arrives when the presentation is released.
    */
   refusePresentation: false,
+  /** load rejects with the player still up, as a native throw mid-swap does. */
+  refuseLoad: false,
   emit<K extends keyof NativePlayerEvents>(
     event: K,
     payload: Parameters<NativePlayerEvents[K]>[0],
@@ -83,6 +85,7 @@ jest.mock("@/modules/mpv-player", () => {
     },
     loadNativePlayerStream: async (config: MockConfig) => {
       mockNative.loaded.push(config.stream.url);
+      if (mockNative.refuseLoad) throw new Error("load failed");
       if (!mockNative.session) {
         throw new Error(
           "NoActivePlayerException: No native player is currently presented",
@@ -488,6 +491,7 @@ beforeEach(() => {
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
   mockNative.refusePresentation = false;
+  mockNative.refuseLoad = false;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
@@ -956,6 +960,41 @@ describe("a play the player cannot start", () => {
 
     expect(mockNative.session).not.toBeNull();
     expect(serverReports()).toEqual(["start play-session-2"]);
+  });
+
+  // The swap closed the outgoing session on the server and left the player
+  // in an unknown state, so the provider closes it: the viewer is left with
+  // no player at all.
+  test("says why when a failed swap closes the player", async () => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(async () => {
+      await expect(playForViewer("item-3")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.an_error_occurred_while_playing_the_video",
+    );
+  });
+
+  test("leaves a failed swap to a caller that did not ask to be told", async () => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(alert).not.toHaveBeenCalled();
   });
 
   test("says so for a play another client sent", async () => {

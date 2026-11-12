@@ -1269,6 +1269,18 @@ const NativePlayerProviderInner: React.FC<{
           releaseLiveStream(session);
           sessionRef.current = previous;
           void dismissNativePlayer();
+          // That leaves the viewer with no player, as a refused presentation
+          // does.
+          if (
+            options.alertOnFailure &&
+            token === playRequestTokenRef.current &&
+            options.isCurrent?.() !== false
+          ) {
+            Alert.alert(
+              t("player.error"),
+              t("player.an_error_occurred_while_playing_the_video"),
+            );
+          }
         } else if (outcome === "player-gone") {
           // The player closed while the swap was in flight (a close tap, or
           // the outgoing stream reaching its end) and no onDismiss can be
