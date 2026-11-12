@@ -26,6 +26,11 @@ private data class QueuedDownload(
   val headers: Map<String, String>?
 )
 
+private data class PausedDownload(
+  val url: String,
+  val destinationPath: String?
+)
+
 class BackgroundDownloaderModule : Module() {
   companion object {
     private const val TAG = "BackgroundDownloader"
@@ -42,6 +47,9 @@ class BackgroundDownloaderModule : Module() {
   private val stateLock = Any()
   private val downloadTasks = mutableMapOf<Int, DownloadTaskInfo>()
   private val downloadQueue = mutableListOf<QueuedDownload>()
+  /// Paused downloads by item id. While any is here the queue is held, as on iOS. Only in memory:
+  /// after a process death JS still has the pause, and resuming finds the .part file on its own.
+  private val pausedDownloads = mutableMapOf<String, PausedDownload>()
   private var taskIdCounter = 1
 
   @Volatile
@@ -152,6 +160,50 @@ class BackgroundDownloaderModule : Module() {
       }
     }
 
+    // "kept", "discarded" (stopped, but it has to start again: a transcode) or "failed".
+    AsyncFunction("pauseDownload") { taskId: Int, promise: Promise ->
+      val result = synchronized(stateLock) {
+        val info = downloadTasks[taskId]
+        val itemId = info?.itemId
+        if (info == null || itemId == null) {
+          "failed"
+        } else {
+          when (val kept = downloadManager.pauseDownload(taskId)) {
+            null -> "failed"
+            else -> {
+              downloadTasks.remove(taskId)
+              pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath)
+              syncServiceLocked()
+              if (kept) "kept" else "discarded"
+            }
+          }
+        }
+      }
+      promise.resolve(result)
+    }
+
+    AsyncFunction("resumeDownload") { itemId: String, urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
+      try {
+        val taskId = synchronized(stateLock) {
+          pausedDownloads.remove(itemId)
+          startDownloadLocked(urlString, destinationPath, itemId, headers, resume = true)
+        }
+        promise.resolve(taskId)
+      } catch (e: Exception) {
+        promise.reject("DOWNLOAD_ERROR", "Failed to resume download: ${e.message}", e)
+      }
+    }
+
+    Function("cancelPausedDownload") { itemId: String, destinationPath: String? ->
+      synchronized(stateLock) {
+        val paused = pausedDownloads.remove(itemId)
+        // JS passes the path too: after a process death this map has forgotten the pause.
+        (paused?.destinationPath ?: destinationPath)?.let { downloadManager.discardPartial(it) }
+        processNextInQueueLocked()
+        syncServiceLocked()
+      }
+    }
+
     Function("cancelQueuedDownload") { url: String ->
       synchronized(stateLock) {
         // Remove from queue by URL
@@ -168,6 +220,10 @@ class BackgroundDownloaderModule : Module() {
       synchronized(stateLock) {
         downloadTasks.clear()
         downloadQueue.clear()
+        pausedDownloads.values.forEach { paused ->
+          paused.destinationPath?.let { downloadManager.discardPartial(it) }
+        }
+        pausedDownloads.clear()
       }
       stopDownloadService()
     }
@@ -197,7 +253,17 @@ class BackgroundDownloaderModule : Module() {
             queuedItem.destinationPath?.let { entry["destinationPath"] = it }
             entry
           }
-          running + queued
+          val paused = pausedDownloads.map { (itemId, pausedItem) ->
+            val entry = mutableMapOf<String, Any>(
+              "taskId" to -1,
+              "url" to pausedItem.url,
+              "itemId" to itemId,
+              "state" to "paused"
+            )
+            pausedItem.destinationPath?.let { entry["destinationPath"] = it }
+            entry
+          }
+          running + queued + paused
         }
         promise.resolve(downloads)
       } catch (e: Exception) {
@@ -210,7 +276,8 @@ class BackgroundDownloaderModule : Module() {
     urlString: String,
     destinationPath: String?,
     itemId: String?,
-    headers: Map<String, String>? = null
+    headers: Map<String, String>? = null,
+    resume: Boolean = false
   ): Int {
     val taskId = taskIdCounter++
 
@@ -245,6 +312,7 @@ class BackgroundDownloaderModule : Module() {
       url = urlString,
       destinationPath = destinationPath,
       headers = headers,
+      resume = resume,
       onProgress = { bytesWritten, totalBytes ->
         handleProgress(taskId, bytesWritten, totalBytes)
       },
@@ -269,6 +337,12 @@ class BackgroundDownloaderModule : Module() {
     // Check if there are active downloads (one at a time)
     if (downloadTasks.isNotEmpty()) {
       Log.d(TAG, "Active downloads in progress (${downloadTasks.size}), waiting...")
+      return -1
+    }
+
+    // A paused download holds the queue until it is resumed or cancelled
+    if (pausedDownloads.isNotEmpty()) {
+      Log.d(TAG, "Queue held behind ${pausedDownloads.size} paused download(s)")
       return -1
     }
 

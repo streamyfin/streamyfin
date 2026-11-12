@@ -16,6 +16,9 @@ const mockDownloader = {
   enqueueDownload: jest.fn(),
   cancelDownload: jest.fn(),
   cancelQueuedDownload: jest.fn(),
+  pauseDownload: jest.fn(),
+  resumeDownload: jest.fn(),
+  cancelPausedDownload: jest.fn(),
 };
 jest.mock("@/modules", () => ({
   get BackgroundDownloader() {
@@ -49,6 +52,7 @@ import {
   removePendingDownload,
   savePendingDownload,
 } from "../pendingDownloads";
+import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
 import { useDownloadOperations } from "./useDownloadOperations";
 
@@ -500,5 +504,164 @@ describe("appSizeUsage", () => {
       remaining: DISK_AVAILABLE,
       appSize: 0,
     });
+  });
+});
+
+describe("pauseDownload and resumeDownload", () => {
+  const renderWithProcess = async () => {
+    const setProcesses = jest.fn();
+    const process = {
+      id: "item-1",
+      progress: 42,
+      bytesDownloaded: 420,
+    } as JobStatus;
+    const { result } = await renderHook(() =>
+      useDownloadOperations({
+        processes: [process],
+        setProcesses,
+        removeProcess: jest.fn(),
+        api: { basePath: "https://jellyfin.example" },
+        authHeader: "token",
+      }),
+    );
+    // What the hook's setProcesses updates did to the card.
+    const card = () =>
+      setProcesses.mock.calls.reduce(
+        (list: JobStatus[], [update]) => update(list),
+        [process],
+      )[0];
+    return { operations: result.current, card };
+  };
+
+  const startDownloading = async () => {
+    const { operations } = await renderOperations();
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+    expect(getPendingDownload("item-1")?.taskId).toBe(7);
+  };
+
+  beforeEach(() => {
+    mockDownloader.pauseDownload.mockResolvedValue("kept");
+    mockDownloader.resumeDownload.mockResolvedValue(9);
+  });
+
+  it("pauses the running task and keeps where it got to", async () => {
+    await startDownloading();
+    const { operations, card } = await renderWithProcess();
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(mockDownloader.pauseDownload).toHaveBeenCalledWith(7);
+    const record = getPendingDownload("item-1");
+    expect(record?.status).toBe("paused");
+    expect(record?.taskId).toBeUndefined();
+    expect(record?.progress).toBe(42);
+    expect(card()).toMatchObject({ status: "paused", progress: 42 });
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused",
+    );
+    // Its files stay: resuming needs them.
+    expect(fakeFiles.remaining()).toEqual(SIDECARS);
+  });
+
+  // A transcode is streamed as the server makes it, so nothing of it can be kept. Showing the
+  // old percentage would promise a resume that starts again from zero.
+  it("says so when a pause cannot keep the download's progress", async () => {
+    mockDownloader.pauseDownload.mockResolvedValue("discarded");
+    await startDownloading();
+    const { operations, card } = await renderWithProcess();
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(getPendingDownload("item-1")?.progress).toBe(0);
+    expect(card()).toMatchObject({ status: "paused", progress: 0 });
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused_will_restart",
+    );
+  });
+
+  it("leaves the download running when native had nothing to pause", async () => {
+    mockDownloader.pauseDownload.mockResolvedValue("failed");
+    await startDownloading();
+    const { operations, card } = await renderWithProcess();
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(getPendingDownload("item-1")?.status).toBe("downloading");
+    expect(card().status).toBeUndefined();
+    expect(toast.error).toHaveBeenCalledWith(
+      "home.downloads.toasts.could_not_pause_download",
+    );
+  });
+
+  // The transfer finished while native was pausing it: the completion handler has finalized it
+  // and told the user, so the pause says nothing.
+  it("stays quiet when the download ended while it was being paused", async () => {
+    mockDownloader.pauseDownload.mockImplementation(async () => {
+      removePendingDownload("item-1");
+      return "failed";
+    });
+    await startDownloading();
+    const { operations } = await renderWithProcess();
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(getPendingDownload("item-1")).toBeUndefined();
+  });
+
+  it("resumes with what the download was started with", async () => {
+    await startDownloading();
+    const { operations, card } = await renderWithProcess();
+    await act(() => operations.pauseDownload("item-1"));
+
+    await act(() => operations.resumeDownload("item-1"));
+
+    const [itemId, resumeUrl, destinationPath] =
+      mockDownloader.resumeDownload.mock.calls[0];
+    expect([itemId, resumeUrl]).toEqual(["item-1", url]);
+    expect(destinationPath).toBe(
+      mockDownloader.enqueueDownload.mock.calls[0][1],
+    );
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "downloading",
+      taskId: 9,
+    });
+    expect(card().status).toBe("downloading");
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_resumed",
+    );
+  });
+
+  it("stays paused when native cannot resume", async () => {
+    mockDownloader.resumeDownload.mockRejectedValue(new Error("no session"));
+    await startDownloading();
+    const { operations } = await renderWithProcess();
+    await act(() => operations.pauseDownload("item-1"));
+
+    await act(() => operations.resumeDownload("item-1"));
+
+    expect(getPendingDownload("item-1")?.status).toBe("paused");
+    expect(toast.error).toHaveBeenCalledWith(
+      "home.downloads.toasts.could_not_resume_download",
+    );
+  });
+
+  // A paused download has no task to cancel; native holds its saved bytes and the queue behind it.
+  it("cancels a paused download through native's paused list", async () => {
+    await startDownloading();
+    const { operations } = await renderWithProcess();
+    await act(() => operations.pauseDownload("item-1"));
+
+    await act(() => operations.cancelDownload("item-1"));
+
+    expect(mockDownloader.cancelPausedDownload).toHaveBeenCalledWith(
+      "item-1",
+      mockDownloader.enqueueDownload.mock.calls[0][1],
+    );
+    expect(mockDownloader.cancelDownload).not.toHaveBeenCalled();
+    expect(getPendingDownload("item-1")).toBeUndefined();
+    expect(fakeFiles.remaining()).toEqual([]);
   });
 });

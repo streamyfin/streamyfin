@@ -28,7 +28,7 @@ let hasReconciled = false;
 
 function jobFromRecord(
   record: PendingDownload,
-  status: "queued" | "downloading",
+  status: "queued" | "downloading" | "paused",
 ): JobStatus {
   return {
     id: record.itemId,
@@ -36,12 +36,12 @@ function jobFromRecord(
     item: record.item,
     itemId: record.itemId,
     deviceId: record.deviceId,
-    progress: 0,
+    progress: status === "paused" ? (record.progress ?? 0) : 0,
     status,
     timestamp: new Date(),
     mediaSource: record.mediaSource,
     maxBitrate: record.maxBitrate,
-    bytesDownloaded: 0,
+    bytesDownloaded: status === "paused" ? (record.bytesDownloaded ?? 0) : 0,
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,
@@ -93,6 +93,8 @@ async function reEnqueue(
  * matched against reality:
  *
  * - task still running natively → resurrect the UI process; progress events flow again
+ * - paused (by the record, or natively) → resurrect the UI process as paused. Native may have
+ *   forgotten the pause (Android keeps it in memory); resuming works without it
  * - still queued natively (iOS persists its queue and re-arms it on launch) → resurrect the UI
  *   process as queued; native starts it when its turn comes. Custom proxy headers don't survive
  *   that persistence, so a download that needs them is re-queued with them
@@ -154,6 +156,20 @@ export function useDownloadReconciliation({
             restored.push(jobFromRecord(record, "queued"));
           }
           continue;
+        }
+
+        // A pause whose answer never reached JS (the app died while native paused) is still a
+        // pause: native reports it, the record does not know it yet.
+        if (record.status === "paused" || nativeTask?.state === "paused") {
+          if (nativeTask?.state !== "running") {
+            console.log(`[RECONCILE] Still paused: ${record.item.Name}`);
+            updatePendingDownload(record.itemId, {
+              status: "paused",
+              taskId: undefined,
+            });
+            restored.push(jobFromRecord(record, "paused"));
+            continue;
+          }
         }
 
         if (nativeTask) {

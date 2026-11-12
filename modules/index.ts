@@ -5,6 +5,7 @@ export type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  PauseDownloadResult,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
 // ExoPlayer (Android TV)

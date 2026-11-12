@@ -29,12 +29,24 @@ import {
 import { buildDownloadActivityMetadata } from "../liveActivity";
 import {
   getPendingDownload,
+  type PendingDownload,
+  pendingDownloadFileUri,
   removePendingDownload,
   savePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
 import { generateFilename, getDownloadToastId, uriToFilePath } from "../utils";
+import { clearSpeedData } from "./useDownloadSpeedCalculator";
+
+/** Where native writes the record's video, or undefined for a record with an unsafe name. */
+function destinationPathOf(record: PendingDownload): string | undefined {
+  try {
+    return uriToFilePath(pendingDownloadFileUri(record));
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Starts that have not finished handing their download to native yet, by item id.
@@ -327,7 +339,15 @@ export function useDownloadOperations({
 
       const record = getPendingDownload(id);
 
-      if (record?.status === "downloading" && record.taskId !== undefined) {
+      if (record?.status === "paused") {
+        BackgroundDownloader.cancelPausedDownload(
+          id,
+          destinationPathOf(record),
+        );
+      } else if (
+        record?.status === "downloading" &&
+        record.taskId !== undefined
+      ) {
         // Cancel active download by taskId
         BackgroundDownloader.cancelDownload(record.taskId);
       } else if (record) {
@@ -353,6 +373,102 @@ export function useDownloadOperations({
       toast.info(t("home.downloads.toasts.download_cancelled"));
     },
     [removeProcess, t],
+  );
+
+  const patchProcess = useCallback(
+    (id: string, patch: Partial<JobStatus>) =>
+      setProcesses((prev) =>
+        prev.map((process) =>
+          process.id === id ? { ...process, ...patch } : process,
+        ),
+      ),
+    [setProcesses],
+  );
+
+  const pauseDownload = useCallback(
+    async (id: string) => {
+      const record = getPendingDownload(id);
+      if (record?.status !== "downloading" || record.taskId === undefined) {
+        toast.error(t("home.downloads.toasts.could_not_pause_download"));
+        return;
+      }
+
+      let result: Awaited<
+        ReturnType<typeof BackgroundDownloader.pauseDownload>
+      > = "failed";
+      try {
+        result = await BackgroundDownloader.pauseDownload(record.taskId);
+      } catch (error) {
+        logAndCaptureError("Pausing download failed", error, {
+          itemType: record.item?.Type,
+        });
+      }
+
+      // The transfer can finish, fail or be cancelled while native pauses it; each of those
+      // removes the record, and its own handler has told the user.
+      if (result === "failed" || !getPendingDownload(id)) {
+        if (getPendingDownload(id)) {
+          toast.error(t("home.downloads.toasts.could_not_pause_download"));
+        }
+        return;
+      }
+
+      const process = processes.find((p) => p.id === id);
+      const kept = result === "kept";
+      const progress = kept ? (process?.progress ?? 0) : 0;
+      const bytesDownloaded = kept ? (process?.bytesDownloaded ?? 0) : 0;
+      updatePendingDownload(id, {
+        status: "paused",
+        taskId: undefined,
+        progress,
+        bytesDownloaded,
+      });
+      patchProcess(id, {
+        status: "paused",
+        progress,
+        bytesDownloaded,
+        speed: undefined,
+      });
+      clearSpeedData(id);
+      toast.info(
+        t(
+          kept
+            ? "home.downloads.toasts.download_paused"
+            : "home.downloads.toasts.download_paused_will_restart",
+        ),
+      );
+    },
+    [processes, patchProcess, t],
+  );
+
+  const resumeDownload = useCallback(
+    async (id: string) => {
+      const record = getPendingDownload(id);
+      if (record?.status !== "paused") return;
+
+      try {
+        const taskId = await BackgroundDownloader.resumeDownload(
+          id,
+          record.inputUrl,
+          destinationPathOf(record),
+          record.activityMetadata,
+          getJellyfinHeadersForUrl(record.inputUrl, api?.basePath),
+        );
+        // Cancelled while native was starting it: the started handler has already cancelled
+        // the new task, as it does for any task without a record.
+        if (!getPendingDownload(id)) return;
+
+        updatePendingDownload(id, { status: "downloading", taskId });
+        patchProcess(id, { status: "downloading" });
+        toast.info(t("home.downloads.toasts.download_resumed"));
+      } catch (error) {
+        logAndCaptureError("Resuming download failed", error, {
+          itemType: record.item?.Type,
+        });
+        toast.error(t("home.downloads.toasts.could_not_resume_download"));
+      }
+    },
+    [api, patchProcess, t],
   );
 
   const deleteFile = useCallback(
@@ -492,6 +608,8 @@ export function useDownloadOperations({
   return {
     startBackgroundDownload,
     cancelDownload,
+    pauseDownload,
+    resumeDownload,
     deleteFile,
     deleteItems,
     deleteAllFiles,
