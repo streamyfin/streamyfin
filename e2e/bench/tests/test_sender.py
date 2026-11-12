@@ -113,6 +113,15 @@ class SilentCast(FakeCast):
         self.media_controller.update_status = lambda callback_function=None: None
 
 
+class FailingCast(FakeCast):
+    """A status request that failed: pychromecast calls the callback with False, after a closed socket
+    or a failed write, and keeps its last status."""
+
+    def __init__(self, states):
+        super().__init__(states)
+        self.media_controller.update_status = lambda callback_function=None: callback_function(False, None)
+
+
 class WatchTests(unittest.TestCase):
     # The receiver keeps the token of the last message for its own requests (progress,
     # transcoded segments); a sign-out while it still plays would cut them off.
@@ -149,6 +158,13 @@ class WatchTests(unittest.TestCase):
         self.assertFalse(status.answered)
         self.assertEqual(status.player_state, "IDLE")
         self.assertTrue(refresh_status(FakeCast([("IDLE", 0.0, {})]), timeout=0.5).answered)
+
+    def test_a_status_request_that_failed_is_not_an_answer(self):
+        # The callback ran, with False: the cached IDLE it leaves let the run revoke a token the
+        # receiver may still play with.
+        status = refresh_status(FailingCast([("IDLE", 0.0, {})]), timeout=0.5)
+        self.assertFalse(status.answered)
+        self.assertFalse(should_sign_out(status))
 
     def test_watch_raises_named_timeout_when_never_playing(self):
         cast = FakeCast([("IDLE", 0.0, {})])

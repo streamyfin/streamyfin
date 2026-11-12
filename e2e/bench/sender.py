@@ -163,10 +163,18 @@ def sample(cast: Any, answered: bool = True) -> MediaSample:
 
 def refresh_status(cast: Any, timeout: float | None = None) -> MediaSample:
     """Asks the receiver for its media status and waits for the answer before sampling; a sample
-    taken without one says so."""
+    taken without one says so. pychromecast also calls back with False when the request failed, a
+    closed socket or a failed write, which is no answer either."""
     answered = threading.Event()
-    cast.media_controller.update_status(callback_function=lambda *_: answered.set())
-    return sample(cast, answered=answered.wait(STATUS_TIMEOUT_SECONDS if timeout is None else timeout))
+    succeeded: list[bool] = []
+
+    def on_status(success, *_) -> None:
+        succeeded.append(bool(success))
+        answered.set()
+
+    cast.media_controller.update_status(callback_function=on_status)
+    waited = answered.wait(STATUS_TIMEOUT_SECONDS if timeout is None else timeout)
+    return sample(cast, answered=waited and all(succeeded))
 
 
 def wait_for(
