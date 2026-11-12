@@ -78,6 +78,12 @@ final class CastTargetProbe: RemoteTargetListener {
     return (keep || chained, back && !chained)
   }
 
+  /// How a chain arms the probe that switches: it takes the keep and back asked, so a hold, a lost receiver or
+  /// the disconnection run on the receiver it switched to.
+  static func secondOfChain(keep: Bool, back: Bool) -> (keep: Bool, back: Bool) {
+    (keep, back)
+  }
+
   static func level(_ volume: Double?) -> String {
     volume.map { String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), $0) } ?? "-"
   }

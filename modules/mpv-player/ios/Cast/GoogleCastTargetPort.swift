@@ -311,8 +311,12 @@ extension CastTargetProbe {
     if let next, !next.isEmpty {
       probe.onFinish = { result in
         guard result.hasPrefix("done") else { return }
+        let second = CastTargetProbe.secondOfChain(keep: keep, back: back)
         DispatchQueue.main.async {
-          run(deviceName: next, keep: true, holdMs: holdMs, back: back, stop: stop, volume: volume, mute: mute)
+          run(
+            deviceName: next, keep: second.keep, holdMs: holdMs, back: second.back, stop: stop, volume: volume,
+            mute: mute
+          )
         }
       }
     }

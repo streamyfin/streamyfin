@@ -961,6 +961,12 @@ enum RemoteTargetTests {
       let blank = CastTargetProbe.firstOfChain(keep: false, then: "", back: false)
       check("aNextReceiverKeepsTheFirstSessionUp", chained.keep && !lone.keep && !blank.keep)
       check("backBelongsToTheProbeThatSwitches", lone.back && !chained.back)
+      // The probe that switches is the one the README's hold and lost receiver run on, as each Android
+      // broadcast reads its own keep.
+      let released = CastTargetProbe.secondOfChain(keep: false, back: true)
+      let kept = CastTargetProbe.secondOfChain(keep: true, back: false)
+      check("theProbeThatSwitchesTakesTheKeepAsked", !released.keep && kept.keep)
+      check("theProbeThatSwitchesTakesBack", released.back && !kept.back)
     }
 
     // The bench proof of a switch asked back: the receiver held when the probe started is asked again
