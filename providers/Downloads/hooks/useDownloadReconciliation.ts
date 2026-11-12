@@ -42,6 +42,8 @@ function jobFromRecord(
     mediaSource: record.mediaSource,
     maxBitrate: record.maxBitrate,
     bytesDownloaded: status === "paused" ? (record.bytesDownloaded ?? 0) : 0,
+    estimatedTotalSizeBytes:
+      status === "paused" ? record.estimatedTotalSizeBytes : undefined,
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,

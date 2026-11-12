@@ -209,8 +209,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               </View>
             )}
 
-            {/* Row 1: Progress + Downloaded/Total */}
-            <View className='flex flex-row items-center gap-x-2 mt-1.5'>
+            {/* Row 1: Progress + Downloaded/Total. Wraps: "Paused · 39%" is wider than a bare
+                percentage, and the size would otherwise run under the action buttons. */}
+            <View className='flex flex-row flex-wrap items-center gap-x-2 mt-1.5'>
               {isPaused ? (
                 <Text className='text-xs font-semibold'>
                   {t("home.downloads.paused")}

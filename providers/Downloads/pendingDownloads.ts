@@ -54,6 +54,8 @@ export interface PendingDownload {
   /** Progress when paused, so the card can show it again after a relaunch. */
   progress?: number;
   bytesDownloaded?: number;
+  /** Size the server reported, so a relaunch shows it rather than a bitrate estimate. */
+  estimatedTotalSizeBytes?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
   activityMetadata?: DownloadActivityMetadata;
 }

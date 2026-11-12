@@ -422,6 +422,7 @@ export function useDownloadOperations({
         taskId: undefined,
         progress,
         bytesDownloaded,
+        estimatedTotalSizeBytes: process?.estimatedTotalSizeBytes,
       });
       patchProcess(id, {
         status: "paused",
