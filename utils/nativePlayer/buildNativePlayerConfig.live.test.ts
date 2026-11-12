@@ -71,6 +71,7 @@ const fileSource = {
 const build = (
   item: Record<string, unknown>,
   playbackInfo: { itemId: string; source: Record<string, unknown> },
+  mediaSourceId?: string,
 ) => {
   const api = makeApi();
   api.mock
@@ -87,7 +88,7 @@ const build = (
     api,
     userId: "user-1",
     settings: defaultValues,
-    req: { itemId: String(item.Id), offline: false },
+    req: { itemId: String(item.Id), offline: false, mediaSourceId },
     getDownloadedItemById: () => undefined,
     strings,
     originalLabel: "Original",
@@ -127,6 +128,19 @@ describe("a Live TV stream is marked live", () => {
     );
     expect(result?.config.stream.isLive).toBe(false);
   });
+});
+
+// A channel's page plays the channel's own source, which the server does not
+// take (see getStreamUrl). A quality or track change renegotiates naming the
+// session's source: the live stream opened for this play, which the server
+// shares, not the channel, which would open another on the tuner.
+test("a channel played from its page keeps the live stream it opened", async () => {
+  const result = await build(
+    { Id: "channel-1", Type: "TvChannel", Name: "A Channel" },
+    { itemId: "channel-1", source: liveSource },
+    "channel-1",
+  );
+  expect(result?.seed.mediaSourceId).toBe("live-1");
 });
 
 test("the chrome gets the label of its LIVE badge", () => {

@@ -253,7 +253,14 @@ export const getStreamUrl = async ({
     AutoOpenLiveStream: autoOpenLiveStream,
     MaxStreamingBitrate: maxStreamingBitrate,
     AudioStreamIndex: audioStreamIndex,
-    MediaSourceId: mediaSourceId,
+    // A channel's page selects the channel's own source, whose id is the
+    // channel's, and Jellyfin answers NoCompatibleStream when it is named.
+    // A stream already opened for the channel (a quality change) stays
+    // named: the server then shares it instead of opening another.
+    MediaSourceId:
+      item.Type === BaseItemKind.TvChannel && mediaSourceId === item.Id
+        ? undefined
+        : mediaSourceId,
   };
   const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
     itemId: item.Id,

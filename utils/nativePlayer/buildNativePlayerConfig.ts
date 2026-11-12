@@ -697,7 +697,12 @@ export async function buildNativePlayerConfig(params: {
       offline,
       downloadedItem,
       stream,
-      mediaSourceId: req.mediaSourceId ?? mediaSource.Id ?? undefined,
+      // A channel's renegotiations (quality, tracks) name the live stream it
+      // opened, which the server shares. The source its page asked for is
+      // the channel itself, which would open another on the tuner.
+      mediaSourceId: isLiveTvItem(item)
+        ? (mediaSource.Id ?? undefined)
+        : (req.mediaSourceId ?? mediaSource.Id ?? undefined),
       bitrateValue,
       audioIndex,
       subtitleIndex,
