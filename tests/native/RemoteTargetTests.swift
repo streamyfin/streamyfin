@@ -1674,6 +1674,22 @@ enum RemoteTargetTests {
       )
     }
 
+    // A new request replaces the failure the last one left, so the same refusal again is news: the sheet's row that
+    // waits for it reads it, instead of connecting for good.
+    do {
+      let machine = connected(to: livingRoom)
+      _ = machine.connectRequested(bedroom)
+      _ = machine.sessionEvent("startFailed", device: bedroom, error: "busy", code: 2004)
+      let cleared = machine.connectRequested(bedroom)
+        && machine.snapshot.failedTarget == nil && machine.snapshot.error == nil
+      let published = machine.sessionEvent("startFailed", device: bedroom, error: "busy", code: 2004)
+      check(
+        "aRequestAgainAfterARefusalPublishesTheNextRefusal",
+        cleared && published && machine.snapshot.target == cast(livingRoom)
+          && machine.snapshot.failedTarget == cast(bedroom)
+      )
+    }
+
     do {
       let machine = connected(to: livingRoom)
       _ = machine.sessionEvent("ended", device: livingRoom, error: nil)

@@ -515,6 +515,41 @@ enum OutputSheetTests {
       check("aSwitchRefusedAtOnceShowsItsFailure", failed)
     }
 
+    // The same refusal again: the row reads the failure again, not a connection that never ends, whose Cancel would
+    // stop the receiver that plays.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom], listsOnDiscovery: true, refuses: [bedroom.id])
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      sheet.tap(deviceRow(sheet, bedroom))
+      var failed = false
+      if case .failed = status(sheet.state, bedroom) { failed = true }
+      check("aSwitchRefusedTwiceShowsItsFailureAgain", failed)
+    }
+
+    // The failure an earlier refusal left is not the answer to the next request: a report of the session that holds,
+    // before it ends for the switch, leaves the row waiting, and the panel comes back once the receiver connects.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom], listsOnDiscovery: true, refuses: [bedroom.id])
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.refuses = []
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.events?.volumeChanged(level: 0.4, muted: false)
+      let waiting = status(sheet.state, bedroom)
+      port.emit("ending", livingRoom)
+      port.emit("ended", livingRoom)
+      port.emit("started", bedroom)
+      check(
+        "aRequestAfterARefusalIsNotAnsweredByThatRefusal",
+        waiting == .connecting && panel(sheet.state)?.target.id == bedroom.id
+      )
+    }
+
     // The receiver's media can come without a title: it still plays, so the stop and the remote stay.
     do {
       let port = port()
