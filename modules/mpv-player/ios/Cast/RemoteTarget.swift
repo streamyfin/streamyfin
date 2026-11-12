@@ -99,11 +99,16 @@ final class RemoteTargetMachine {
   var isSwitching: Bool { switchingTo != nil }
 
   /// A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch
-  /// starts; over the held one while a switch takes its session away, the last request wins.
+  /// starts; over the held one while a switch takes its session away, the last request wins. True when
+  /// the state changed.
   func connectRequested(_ device: TargetDevice) -> Bool {
     guard snapshot.phase == .none else {
       if snapshot.target?.id != device.id || switchingTo != nil { switchingTo = device }
-      return false
+      // The failure the last request left goes with this one: the same refusal again is then a change the
+      // listeners hear, and an earlier one is never read as this request's answer.
+      var next = snapshot
+      next.error = nil
+      return update(failed(next, nil, nil, nil))
     }
     switchingTo = nil
     return update(RemoteTargetSnapshot(phase: .connecting, target: .cast(device), reconnecting: false, error: nil))

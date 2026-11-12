@@ -83,12 +83,15 @@ class RemoteTargetMachine {
 
     /**
      * A connection asked from this phone; the SDK's own events follow. Over another receiver, a switch
-     * starts; over the held one while a switch takes its session away, the last request wins.
+     * starts; over the held one while a switch takes its session away, the last request wins. True when
+     * the state changed.
      */
     fun connectRequested(device: TargetDevice): Boolean {
         if (snapshot.phase != TargetPhase.NONE) {
             if (snapshot.target?.id != device.id || switchingTo != null) switchingTo = device
-            return false
+            // The failure the last request left goes with this one: the same refusal again is then a change the
+            // listeners hear, and an earlier one is never read as this request's answer.
+            return update(failed(snapshot.copy(error = null), null, null, null))
         }
         switchingTo = null
         return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(device), reconnecting = false, error = null))

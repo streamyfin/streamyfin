@@ -286,6 +286,22 @@ class RemoteTargetMachineTest {
         assertEquals(2004, machine.snapshot.errorCode)
     }
 
+    // A new request replaces the failure the last one left, so the same refusal again is news: the sheet's row that
+    // waits for it reads it, instead of connecting for good.
+    @Test
+    fun aRequestAgainAfterARefusalPublishesTheNextRefusal() {
+        val machine = connectedTo(livingRoom)
+        machine.connectRequested(bedroom)
+        machine.sessionEvent("startFailed", bedroom, "busy", 2004)
+
+        assertTrue(machine.connectRequested(bedroom))
+        assertNull(machine.snapshot.failedTarget)
+        assertNull(machine.snapshot.error)
+        assertTrue(machine.sessionEvent("startFailed", bedroom, "busy", 2004))
+        assertEquals(cast(livingRoom), machine.snapshot.target)
+        assertEquals(cast(bedroom), machine.snapshot.failedTarget)
+    }
+
     @Test
     fun anEndTheUserAskedForNamesNoFailure() {
         val machine = connectedTo(livingRoom)
