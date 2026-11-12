@@ -5,7 +5,6 @@ import { atom } from "jotai";
 export type Track = {
   name: string;
   index: number;
-  mpvIndex?: number;
   setTrack: () => void;
   /** True for client-side downloaded subtitles (e.g., from OpenSubtitles) */
   isLocal?: boolean;
@@ -18,20 +17,10 @@ export type TVSubtitleModalState = {
   mediaSourceId?: string | null;
   subtitleTracks: Track[];
   currentSubtitleIndex: number;
-  subtitleDelay?: number;
-  onSubtitleDelayChange?: (seconds: number) => void;
   onDisableSubtitles?: () => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
-  refreshSubtitleTracks?: () => Promise<Track[]>;
-  /**
-   * Run the selection callback AFTER the modal route is dismissed. Needed when
-   * `setTrack` navigates (the player's replacePlayer for a burn-in switch),
-   * which would be swallowed by the still-active modal route. Leave false for
-   * callers whose selection only updates state (the item detail page), so the
-   * update runs before dismissal and doesn't yank focus after it returns.
-   */
-  deferApplyUntilDismissed?: boolean;
+  refreshSubtitleTracks: () => Promise<Track[]>;
 } | null;
 
 export const tvSubtitleModalAtom = atom<TVSubtitleModalState>(null);

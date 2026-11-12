@@ -94,11 +94,9 @@ describe("TV option sheet", () => {
   });
   afterEach(() => jest.useRealTimers());
 
-  // A choice that navigates (the player's audio or quality switch while
-  // transcoding) fired while the sheet is the active route would be
-  // swallowed, so the sheet closes first and the choice lands right after the
-  // press, on the timing the player was tested with.
-  test("closes first and applies a navigating choice once the press has returned", async () => {
+  // A choice that opens the player (the series shuffle) lands once the sheet
+  // has closed, right after the press.
+  test("closes first and applies a deferred choice once the press has returned", async () => {
     await openSheet(true);
 
     const pressed = fireEvent.press(screen.getByText("French"));

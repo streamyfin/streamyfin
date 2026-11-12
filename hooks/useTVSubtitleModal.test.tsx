@@ -113,7 +113,6 @@ jest.mock("@/hooks/useRemoteSubtitles", () => ({
 }));
 
 const openSheet = async (
-  deferApplyUntilDismissed: boolean,
   setTrack = () => {
     mockCalls.push("select French");
   },
@@ -130,11 +129,10 @@ const openSheet = async (
         },
       ],
       currentSubtitleIndex: -1,
-      deferApplyUntilDismissed,
       onLocalSubtitleDownloaded: (path: string) => {
         mockCalls.push(`added ${path}`);
       },
-      // The player passes it: the sheet stays open after a download.
+      // The sheet stays open after a download.
       refreshSubtitleTracks: async () => [],
     });
   });
@@ -163,23 +161,10 @@ describe("TV subtitle sheet", () => {
   });
   afterEach(() => jest.useRealTimers());
 
-  // In the player a track can navigate (a burn-in switch while transcoding
-  // replaces the player), which the sheet's route would swallow: the sheet
-  // closes first and the track lands right after the press.
-  test("closes first and applies a navigating track once the press has returned", async () => {
-    await openSheet(true);
-
-    const pressed = fireEvent.press(screen.getByText("French - SRT"));
-    expect(mockCalls).toEqual(["back"]);
-
-    await pressed;
-    expect(mockCalls).toEqual(["back", "select French"]);
-  });
-
-  // On the detail page a track only updates state, applied while the sheet is
+  // A track only updates the detail page's state, applied while the sheet is
   // still up so TV focus does not jump after it closes.
-  test("applies a state-only track before closing", async () => {
-    await openSheet(false);
+  test("applies the track before closing", async () => {
+    await openSheet();
 
     await fireEvent.press(screen.getByText("French - SRT"));
     expect(mockCalls).toEqual(["select French", "back"]);
@@ -187,19 +172,11 @@ describe("TV subtitle sheet", () => {
 
   // One remote select on Android TV can fire onPress twice in the same JS
   // batch (react-native-tvos#110/#138, see useAppRouter), before React renders
-  // the closed sheet. A second router.back() would pop the player under the
-  // sheet as well.
+  // the closed sheet. A second router.back() would pop the detail page under
+  // the sheet as well.
   test("closes and applies once when one select fires twice", async () => {
     mockSelectFires = 2;
-    await openSheet(true);
-
-    await fireEvent.press(screen.getByText("French - SRT"));
-    expect(mockCalls).toEqual(["back", "select French"]);
-  });
-
-  test("closes and applies once when one select fires twice on a state-only sheet", async () => {
-    mockSelectFires = 2;
-    await openSheet(false);
+    await openSheet();
 
     await fireEvent.press(screen.getByText("French - SRT"));
     expect(mockCalls).toEqual(["select French", "back"]);
@@ -208,7 +185,7 @@ describe("TV subtitle sheet", () => {
   // The sheet stays open after a download, so closing cannot guard it: the
   // second press would download and add the same subtitle twice.
   test("downloads once when one select fires twice on a search result", async () => {
-    await openSheet(true);
+    await openSheet();
     await fireEvent.press(screen.getByText("player.download"));
     await act(async () => {
       jest.advanceTimersByTime(TVSheetTiming.tabContentDelayMs);
@@ -231,7 +208,7 @@ describe("TV subtitle sheet", () => {
       { ...frenchResult, id: "result-2", name: "Movie.FR.forced.srt" },
     ];
     mockDownload.mockImplementationOnce(() => new Promise(() => {}));
-    await openSheet(true);
+    await openSheet();
     await fireEvent.press(screen.getByText("player.download"));
     await act(async () => {
       jest.advanceTimersByTime(TVSheetTiming.tabContentDelayMs);
@@ -250,7 +227,7 @@ describe("TV subtitle sheet", () => {
 
   // The back and menu press closes through the same guard as a track.
   test("closes once when back follows a track", async () => {
-    await openSheet(false);
+    await openSheet();
 
     await fireEvent.press(screen.getByText("French - SRT"));
     await act(async () => {
@@ -260,7 +237,7 @@ describe("TV subtitle sheet", () => {
   });
 
   test("closes once when back fires twice", async () => {
-    await openSheet(false);
+    await openSheet();
 
     await act(async () => {
       mockBackPress();
@@ -272,7 +249,7 @@ describe("TV subtitle sheet", () => {
   // The guard is spent before the track is applied: a track that throws must
   // still close the sheet, or it stays open and ignores every press.
   test("still closes when the track throws", async () => {
-    await openSheet(false, () => {
+    await openSheet(() => {
       throw new Error("track failed");
     });
 

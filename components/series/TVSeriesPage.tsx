@@ -310,7 +310,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     showOptions({
       title: t("player.shuffle"),
       options,
-      // onSelect navigates to the player, so run it after the sheet dismisses.
+      // onSelect opens the player, so run it after the sheet dismisses.
       deferApplyUntilDismissed: true,
       onSelect: (value: "season" | "series") => {
         if (!item.Id) return;
