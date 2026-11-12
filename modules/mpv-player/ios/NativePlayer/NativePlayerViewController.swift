@@ -780,8 +780,8 @@ final class NativePlayerViewController: UIViewController {
 		present(alert, animated: true)
 	}
 
-	// MARK: tvOS HDR display criteria (port of MpvPlayerView's extension —
-	// createHDRFormatDescription + avDisplayManager.preferredDisplayCriteria)
+	// MARK: tvOS HDR display criteria (createHDRFormatDescription +
+	// avDisplayManager.preferredDisplayCriteria)
 
 	private func applyDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
 		guard #available(tvOS 17.0, *), let window = view.window else { return }

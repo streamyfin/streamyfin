@@ -6,10 +6,10 @@ import MediaPlayer
 import UIKit
 
 /// Delegate mirroring `MPVLayerRendererDelegate` granularity so the two hosts
-/// (`MpvPlayerView` for the RN-embedded player, `NativePlayerViewController`
-/// for the presented native player) can map callbacks 1:1 onto their own
-/// event surfaces without any payload translation. All callbacks arrive on
-/// the main thread.
+/// (`MpvPlayerView`, the subtitle preview's embedded view, and
+/// `NativePlayerViewController` for the presented native player) can map
+/// callbacks 1:1 onto their own event surfaces without any payload
+/// translation. All callbacks arrive on the main thread.
 protocol MPVPlayerEngineDelegate: AnyObject {
 	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig)
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double)
@@ -126,8 +126,7 @@ final class MPVPlayerEngine: NSObject {
 		// outright. The `audio` background mode keeps our `.playback` session
 		// alive across that, so mpv would go on decoding audio behind the Home
 		// screen with nothing on screen to stop it. Pause instead. Owned here
-		// rather than by the host so BOTH hosts (RN-embedded view and presented
-		// native player) inherit it.
+		// rather than by the presented player, which is the only host on tvOS.
 		#if os(tvOS)
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleDidEnterBackground),
@@ -407,10 +406,10 @@ final class MPVPlayerEngine: NSObject {
 		}
 	}
 
-	/// Full teardown for hosts that are going away. Idempotent; mirrors the
-	/// old MpvPlayerView.deinit ordering (PiP → renderer → layer → Now
-	/// Playing → audio session). The renderer's stop() already performs
-	/// mpv_terminate_destroy on a background queue — never reorder that.
+	/// Full teardown for hosts that are going away. Idempotent, in this order:
+	/// PiP → renderer → layer → Now Playing → audio session. The renderer's
+	/// stop() already performs mpv_terminate_destroy on a background queue —
+	/// never reorder that.
 	func shutdown() {
 		guard !isShutDown else { return }
 		isShutDown = true

@@ -1,8 +1,5 @@
 package expo.modules.mpvplayer
 
-import expo.modules.mpvplayer.playback.shouldPauseOnPictureInPictureEnd
-import expo.modules.mpvplayer.playback.shouldPauseOnActivityStop
-import android.os.PowerManager
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -12,7 +9,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewGroup
@@ -21,24 +17,17 @@ import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
-import expo.modules.mpvplayer.playback.MediaPlaybackController
-import expo.modules.mpvplayer.playback.MediaPlaybackTarget
-import expo.modules.mpvplayer.playback.NowPlayingInfo
 
 /**
- * MpvPlayerView - ExpoView that hosts the MPV player.
+ * The embedded view. Only the subtitle preview in Settings uses it: a silent
+ * clip whose subtitles follow the settings. It takes no media session, audio
+ * focus, notification or picture in picture. Playback goes through the native
+ * player (nativeplayer/).
  *
  * Uses SurfaceView (not TextureView) so the surface routes directly to
  * SurfaceFlinger (the OS compositor) rather than compositing into the
  * app's window surface. This matches mpv-android's architecture and
  * gives mpv a standalone surface.
- *
- * PiP black-screen mitigation: SurfaceView's surface is destroyed and
- * recreated on PiP entry/exit, and the new surface's initial dimensions
- * can be stale until the next layout pass. We push dimension updates to
- * mpv via both SurfaceHolder.Callback.surfaceChanged AND an
- * OnLayoutChangeListener, so the PiP transition (which fires layout
- * passes on the view itself) reaches mpv promptly.
  */
 class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext),
     PlayerEngine.Delegate, SurfaceHolder.Callback {
@@ -53,32 +42,19 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         private const val RESUME_RECOVERY_DELAY_MS = 300L
     }
 
-    // Event dispatchers
-    val onLoad by EventDispatcher()
-    val onPlaybackStateChange by EventDispatcher()
-    val onProgress by EventDispatcher()
-    val onError by EventDispatcher()
     val onTracksReady by EventDispatcher()
-    val onPictureInPictureChange by EventDispatcher()
 
     private var surfaceView: SurfaceView
     private var renderer: MPVLayerRenderer? = null
-    private var rendererVoDriver: String? = null
-    private var pipController: PiPController? = null
 
     private var currentUrl: String? = null
     private var currentLoop: Boolean = false
-    private var cachedPosition: Double = 0.0
-    private var cachedDuration: Double = 0.0
     private var intendedPlayState: Boolean = false
     private var surfaceReady: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
     private var rendererStarted: Boolean = false
-    private var activeSurface: Surface? = null
 
-    // PiP state tracking
-    private val pipHandler = Handler(Looper.getMainLooper())
-    private var isInPictureInPicture = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     // Resume-recovery state: recreate the decoder when returning from the
     // screensaver / app background while paused. See
@@ -89,57 +65,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var lifecycleRegistered = false
     private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
-    // Background playback: media session, notification and the media
-    // playback foreground service (see MediaPlaybackController), for the
-    // player screen only (backgroundPlayback). Created on the first load,
-    // while the app is visible, kept across destroy() (the JS stop) and
-    // released when the view leaves the window. direct-player unmounts the
-    // view between items, so the next item starts it again.
-    private var mediaPlayback: MediaPlaybackController? = null
-    // Asked for by the player screen only (the backgroundPlayback prop): a
-    // view that just shows a clip, the subtitle preview in Settings, took the
-    // audio focus and a wake lock, and stopped the user's music.
-    private var backgroundPlaybackEnabled = false
-    // The host activity is stopped: backgrounded, or the screen is off.
-    private var hostStopped = false
-    private var nowPlaying: NowPlayingInfo? = null
-    private var isLoadingMedia = false
-    // mpv keeps its last pause state after a failed load or stream.
-    private var playbackFailed = false
-    private var playbackSpeedValue = 1.0
-
-    // The user's skip settings, from the player screen (sessionSkipSeconds).
-    private var sessionSkipForward = 30.0
-    private var sessionSkipBack = 10.0
-    // Live TV (the liveStream prop): no seek from the session.
-    private var liveStream = false
-
-    private val mediaPlaybackTarget = object : MediaPlaybackTarget {
-        override val isPlaying get() = rendererStarted && !playbackFailed && !isPaused()
-        override val isBuffering get() = isLoadingMedia
-        override val positionSeconds get() = cachedPosition
-        override val durationSeconds get() = cachedDuration
-        // Cached: getSpeed() is a synchronous mpv property read.
-        override val playbackSpeed get() = playbackSpeedValue
-        override val isNetworkSource get() = currentUrl?.startsWith("http", ignoreCase = true) == true
-        override val nowPlaying get() = this@MpvPlayerView.nowPlaying
-        override val seekForwardSeconds get() = sessionSkipForward
-        override val seekBackSeconds get() = sessionSkipBack
-        override val canSeek get() = !liveStream
-
-        override fun play() = this@MpvPlayerView.play()
-        override fun pause() = this@MpvPlayerView.pause()
-        override fun seekTo(seconds: Double) = this@MpvPlayerView.seekTo(seconds)
-        override fun seekBy(seconds: Double) = this@MpvPlayerView.seekBy(seconds)
-    }
-
     init {
         setBackgroundColor(Color.BLACK)
 
-        // SurfaceView for video rendering. Routes the surface directly to
-        // SurfaceFlinger (the OS compositor), giving mpv a standalone
-        // surface. TextureView composites into the app's window surface
-        // which is less efficient and breaks PiP transitions.
         surfaceView = SurfaceView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -149,10 +77,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         surfaceView.holder.addCallback(this@MpvPlayerView)
         addView(surfaceView)
 
-        // Push dimension updates to mpv on every view bounds change. This
-        // is the primary PiP black-screen fix: entering PiP fires a layout
-        // pass on the SurfaceView itself, and we proactively tell mpv the
-        // new size so it resizes its EGL swapchain before rendering.
+        // Push dimension updates to mpv on every view bounds change, so it
+        // resizes its EGL swapchain before rendering at the new size.
         surfaceView.addOnLayoutChangeListener { _, left, top, right, bottom,
                                                   oldLeft, oldTop, oldRight, oldBottom ->
             val w = right - left
@@ -164,92 +90,30 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
         }
 
-        // Initialize PiP controller with Expo's AppContext for proper activity access
-        pipController = PiPController(context, appContext)
-        pipController?.autoEnterAllowed = backgroundPlaybackEnabled
-        pipController?.setPlayerView(surfaceView)
-        pipController?.delegate = object : PiPController.Delegate {
-            override fun onPlay() {
-                play()
-            }
-
-            override fun onPause() {
-                pause()
-            }
-
-            override fun onSeekBy(seconds: Double) {
-                seekBy(seconds)
-            }
-
-            override fun onPictureInPictureModeChanged(isInPiP: Boolean) {
-                isInPictureInPicture = isInPiP
-                // Closed, the window leaves its activity stopped behind it,
-                // and the video played on with nothing to show it.
-                if (backgroundPlaybackEnabled && shouldPauseOnPictureInPictureEnd(
-                        inPictureInPicture = isInPiP,
-                        activityStopped = hostStopped,
-                        dismissing = false
-                    )) {
-                    Log.i(TAG, "Picture in picture closed: pausing")
-                    pause()
-                }
-                if (isInPiP) {
-                    // Post size syncs after the PiP layout settles. Two passes
-                    // catch both the immediate surface re-attach and the
-                    // post-animation layout pass. Replaces the old TextureView
-                    // measure/layout polling hack (forcePiPBufferSize).
-                    pipHandler.removeCallbacksAndMessages(null)
-                    pipHandler.postDelayed({ syncSurfaceSizeToView() }, 100)
-                    pipHandler.postDelayed({ syncSurfaceSizeToView() }, 500)
-                } else {
-                    // Restore from PiP: surface resized back to fullscreen.
-                    pipHandler.removeCallbacksAndMessages(null)
-                    pipHandler.postDelayed({ syncSurfaceSizeToView() }, 100)
-                }
-                onPictureInPictureChange(mapOf("isActive" to isInPiP))
-            }
-        }
-
         // Watch the host activity's lifecycle to recover the video pipeline
         // when returning from the screensaver while paused.
         registerLifecycleCallbacks()
     }
 
-    /**
-     * Start the renderer with the given VO driver.
-     * Called lazily on first loadVideo so user settings are available.
-     */
-    private fun ensureRendererStarted(voDriver: String?) {
+    /** Starts the renderer on the first load, once the surface exists. */
+    private fun ensureRendererStarted() {
         if (rendererStarted) {
             loadPendingVideo()
             return
         }
 
         try {
-            // The renderer owns the libmpv handle and its vo driver is fixed at
-            // construction, so it is created lazily here once the source's
-            // voDriver (the mpvVoDriver user setting) is known — and recreated
-            // if a later source carries a different one (preserves the old
-            // behavior where start() received the driver each cycle).
-            val wantedVoDriver = voDriver ?: "gpu-next"
-            if (renderer == null || rendererVoDriver != wantedVoDriver) {
-                renderer?.stop()
-                renderer = MPVLayerRenderer(context, voDriver = wantedVoDriver)
-                rendererVoDriver = wantedVoDriver
-            }
+            val activeRenderer = renderer ?: MPVLayerRenderer(context).also { renderer = it }
             // Re-assert on every start: cleanup() nulls the delegate while
-            // keeping the renderer instance, so a reused view that re-enters
-            // with the same voDriver would skip the branch above and never
-            // hear onProgress/onError again.
-            renderer?.delegate = this
-            renderer?.start(PlayerEngine.Owner.EMBEDDED_VIEW) {
+            // keeping the renderer instance.
+            activeRenderer.delegate = this
+            activeRenderer.start(PlayerEngine.Owner.EMBEDDED_VIEW) {
                 rendererStarted = true
 
                 // If the surface is already alive (surfaceCreated fired before
                 // loadVideo), attach it now. With SurfaceView the surface is
                 // owned by the holder, so we read it from there directly.
                 surfaceView.holder.surface?.takeIf { it.isValid }?.let { surface ->
-                    activeSurface = surface
                     renderer?.attachSurface(surface)
                     syncSurfaceSizeToView()
                 }
@@ -257,7 +121,6 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start renderer: ${e.message}")
-            onError(mapOf("error" to "Failed to start renderer: ${e.message}"))
         }
     }
 
@@ -270,20 +133,16 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // MARK: - SurfaceHolder.Callback
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        val surface = holder.surface
         surfaceReady = true
 
         if (rendererStarted) {
-            // The previous Surface reference is holder-owned; do NOT release
-            // it (SurfaceView manages its lifecycle). Just track the new one.
-            activeSurface = surface
-            renderer?.attachSurface(surface)
-            // Push the actual view dimensions immediately so mpv doesn't
-            // render against stale full-screen geometry during PiP transitions.
+            // The Surface is holder-owned; do NOT release it (SurfaceView
+            // manages its lifecycle).
+            renderer?.attachSurface(holder.surface)
             syncSurfaceSizeToView()
         }
 
-        pendingConfig?.let { ensureRendererStarted(it.voDriver) }
+        if (pendingConfig != null) ensureRendererStarted()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -296,19 +155,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         surfaceReady = false
         renderer?.detachSurface()
         // Do NOT issue mpv "stop" here. Playback continues against the
-        // demuxer; when surfaceCreated fires again (PiP entry/exit, app
-        // background/foreground), we re-attach and frames resume. This
-        // matches the keep-open=always setting in MPVLayerRenderer.
-        //
-        // Do NOT release activeSurface — SurfaceView owns it via the holder.
-        activeSurface = null
+        // demuxer; when surfaceCreated fires again (app background /
+        // foreground), we re-attach and frames resume. This matches the
+        // keep-open=always setting in MPVLayerRenderer.
     }
 
-    /**
-     * Read the actual SurfaceView width/height and push them to mpv.
-     * The PiP transition can fire surfaceCreated before the view's layout
-     * has settled to PiP dimensions, so we re-sync after layout passes.
-     */
+    /** Read the actual SurfaceView width/height and push them to mpv. */
     private fun syncSurfaceSizeToView() {
         if (!surfaceReady) return
         val w = surfaceView.width
@@ -332,235 +184,30 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         pendingConfig = config
         if (surfaceReady) {
-            ensureRendererStarted(config.voDriver)
+            ensureRendererStarted()
         }
     }
 
     private fun loadVideoInternal(config: VideoLoadConfig) {
         currentUrl = config.url
         currentLoop = config.loop
-        playbackFailed = false
-        ensureMediaPlayback()
 
         renderer?.load(config)
 
         if (config.autoplay) {
             play()
         }
-
-        onLoad(mapOf("url" to config.url))
     }
 
-    // Convenience method for simple loads
-    fun loadVideo(url: String, headers: Map<String, String>? = null) {
-        loadVideo(VideoLoadConfig(url = url, headers = headers))
-    }
-
-    // MARK: - Background playback
-
-    /** Live TV: the session offers no seek, fast forward, rewind or restart. */
-    fun setLiveStream(live: Boolean) {
-        if (liveStream == live) return
-        liveStream = live
-        mediaPlayback?.updatePlaybackState()
-    }
-
-    /** How far the session's fast forward and rewind go: the user's skip settings. */
-    fun setSessionSkipSeconds(forward: Double?, backward: Double?) {
-        forward?.takeIf { it > 0 }?.let { sessionSkipForward = it }
-        backward?.takeIf { it > 0 }?.let { sessionSkipBack = it }
-    }
-
-    /** Turns the media session and service on or off, before a load or after it. */
-    fun setBackgroundPlayback(enabled: Boolean) {
-        if (backgroundPlaybackEnabled == enabled) return
-        backgroundPlaybackEnabled = enabled
-        pipController?.autoEnterAllowed = enabled
-        if (!enabled) releaseMediaPlayback() else if (currentUrl != null) ensureMediaPlayback()
-    }
-
-    private fun ensureMediaPlayback() {
-        if (!backgroundPlaybackEnabled || mediaPlayback != null) return
-        mediaPlayback = MediaPlaybackController(context, mediaPlaybackTarget, "StreamyfinPlayer").also {
-            it.start()
-        }
-    }
-
-    /** Now Playing metadata from JS, for the notification and lock screen. */
-    fun setNowPlayingMetadata(metadata: Map<String, Any?>?) {
-        nowPlaying = metadata?.let {
-            @Suppress("UNCHECKED_CAST")
-            NowPlayingInfo(
-                title = (it["title"] as? String)?.takeIf { t -> t.isNotBlank() } ?: "Streamyfin",
-                subtitle = (it["artist"] as? String)?.takeIf { a -> a.isNotBlank() },
-                album = (it["albumTitle"] as? String)?.takeIf { a -> a.isNotBlank() },
-                artworkUri = (it["artworkUri"] as? String)?.takeIf { a -> a.isNotBlank() },
-                artworkHeaders = (it["artworkHeaders"] as? Map<String, Any?>)
-                    ?.mapNotNull { (k, v) -> (v as? String)?.let { value -> k to value } }
-                    ?.toMap(),
-            )
-        }
-        mediaPlayback?.updateMetadata()
-    }
-
-    private fun releaseMediaPlayback() {
-        mediaPlayback?.release()
-        mediaPlayback = null
-        isLoadingMedia = false
-    }
-
-    // MARK: - Playback Controls
-
-    fun play() {
+    private fun play() {
         intendedPlayState = true
         renderer?.play()
-        pipController?.setPlaybackRate(1.0)
     }
 
-    fun pause() {
-        intendedPlayState = false
-        renderer?.pause()
-        pipController?.setPlaybackRate(0.0)
-    }
-
-    /**
-     * Stop playback and release decoder resources.
-     *
-     * Delegates to [MPVLayerRenderer.stop], which issues mpv's "stop" command
-     * on a background thread (flushing the demuxer and releasing the
-     * MediaCodec hardware decoder) and drops the per-instance mpv handle.
-     *
-     * NOTE: this does NOT call `LibMPV.destroy()`. libmpv 1.0's
-     * nativeDestroy has an internal use-after-free on the JNI global ref
-     * path, so the native mpv handle is intentionally left for the JVM GC
-     * / native finalizer rather than torn down synchronously. See
-     * [MPVLib] class doc for the full rationale.
-     *
-     * Call this BEFORE navigating away from the player screen. A replacement
-     * renderer can mount immediately, but ownership keeps it queued until this
-     * decoder teardown finishes instead of briefly running two MPV instances.
-     */
-    fun destroy() {
-        renderer?.stop()
-        isLoadingMedia = false
-        // The next mpv handle starts at 1x; JS sets the speed again if needed.
-        playbackSpeedValue = 1.0
-
-        // Reset view-level state so a subsequent loadVideo() on the SAME view
-        // instance re-creates the mpv handle and re-attaches the still-live
-        // SurfaceView surface. Without this, rendererStarted stays true and
-        // ensureRendererStarted() early-returns, so renderer.start() is never
-        // called again — but stop() already nulled the renderer's mpv handle.
-        // The next loadVideo() then runs loadVideoInternal() -> renderer.load()
-        // against mpv == null, where every mpv?.command() (including the
-        // "stop" and load commands) silently no-ops, leaving a black frame.
-        //
-        // This path is hit by direct-player.tsx's goToNextItem()/stop(),
-        // which call destroy() immediately before router.replace() to the
-        // same route — Expo Router reuses the same MpvPlayerView instance,
-        // so the next source load happens on this view without a remount.
-        //
-        // SurfaceView note: the surface is owned by the holder and survives
-        // across destroy()/loadVideo() on the same view instance. The next
-        // ensureRendererStarted() reads it from surfaceView.holder.surface.
-        rendererStarted = false
-        pendingConfig = null
-        currentUrl = null
-        activeSurface = null
-        // After rendererStarted: the renderer keeps its last pause state, so
-        // the session would otherwise go on saying "playing" and hold the
-        // wake lock until the next load.
-        mediaPlayback?.updatePlaybackState()
-    }
-
-    fun seekTo(position: Double) {
-        renderer?.seekTo(position)
-    }
-
-    fun seekBy(offset: Double) {
-        renderer?.seekBy(offset)
-    }
-
-    fun setSpeed(speed: Double) {
-        renderer?.setSpeed(speed)
-        playbackSpeedValue = speed
-        mediaPlayback?.updatePlaybackState()
-    }
-
-    /** Mute the player itself; the device volume is left untouched. */
-    fun setMute(muted: Boolean) {
-        renderer?.setMute(muted)
-    }
-
-    fun getSpeed(): Double {
-        return renderer?.getSpeed() ?: 1.0
-    }
-
-    fun isPaused(): Boolean {
-        return renderer?.isPausedState ?: true
-    }
-
-    fun getCurrentPosition(): Double {
-        return cachedPosition
-    }
-
-    fun getDuration(): Double {
-        return cachedDuration
-    }
-
-    // MARK: - Picture in Picture
-
-    fun startPictureInPicture() {
-        pipController?.startPictureInPicture()
-    }
-
-    fun stopPictureInPicture() {
-        pipHandler.removeCallbacksAndMessages(null)
-        pipController?.stopPictureInPicture()
-    }
-
-    fun isPictureInPictureSupported(): Boolean {
-        return pipController?.isPictureInPictureSupported() ?: false
-    }
-
-    fun isPictureInPictureActive(): Boolean {
-        return pipController?.isPictureInPictureActive() ?: false
-    }
-
-    // MARK: - Subtitle Controls
-
-    fun getSubtitleTracks(): List<Map<String, Any>> {
-        return renderer?.getSubtitleTracks() ?: emptyList()
-    }
-
-    fun setSubtitleTrack(trackId: Int) {
-        renderer?.setSubtitleTrack(trackId)
-    }
-
-    fun disableSubtitles() {
-        renderer?.disableSubtitles()
-    }
-
-    fun getCurrentSubtitleTrack(): Int {
-        return renderer?.getCurrentSubtitleTrack() ?: 0
-    }
-
-    fun addSubtitleFile(url: String, select: Boolean = true) {
-        renderer?.addSubtitleFile(url, select)
-    }
-
-    // MARK: - Subtitle Positioning
-
-    fun setSubtitlePosition(position: Int) {
-        renderer?.setSubtitlePosition(position)
-    }
+    // MARK: - Subtitle Style
 
     fun setSubtitleScale(scale: Double) {
         renderer?.setSubtitleScale(scale)
-    }
-
-    fun setSubtitleDelay(seconds: Double) {
-        renderer?.setSubtitleDelay(seconds)
     }
 
     fun setSubtitleMarginY(margin: Int) {
@@ -579,126 +226,36 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.setSubtitleStyle(config)
     }
 
-    fun setSubtitleFontSize(size: Int) {
-        renderer?.setSubtitleFontSize(size)
-    }
-
-    fun setSubtitleBorderStyle(style: String) {
-        renderer?.setSubtitleBorderStyle(style)
-    }
-
-    fun setSubtitleBackgroundColor(color: String) {
-        renderer?.setSubtitleBackgroundColor(color)
-    }
-
     fun setSubtitleAssOverride(mode: String) {
         renderer?.setSubtitleAssOverride(mode)
     }
 
-    // MARK: - Audio Track Controls
+    // MARK: - PlayerEngine.Delegate
 
-    fun getAudioTracks(): List<Map<String, Any>> {
-        return renderer?.getAudioTracks() ?: emptyList()
-    }
-
-    fun setAudioTrack(trackId: Int) {
-        renderer?.setAudioTrack(trackId)
-    }
-
-    fun getCurrentAudioTrack(): Int {
-        return renderer?.getCurrentAudioTrack() ?: 0
-    }
-
-    // MARK: - Video Scaling
-
-    private var _isZoomedToFill: Boolean = false
-
-    fun setZoomedToFill(zoomed: Boolean) {
-        _isZoomedToFill = zoomed
-        renderer?.setZoomedToFill(zoomed)
-    }
-
-    fun isZoomedToFill(): Boolean {
-        return _isZoomedToFill
-    }
-
-    // MARK: - Technical Info
-
-    fun getTechnicalInfo(): Map<String, Any> {
-        return renderer?.getTechnicalInfo() ?: emptyMap()
-    }
-
-    // MARK: - MPVLayerRenderer.Delegate
-
-    override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
-        cachedPosition = position
-        cachedDuration = duration
-
-        // Update PiP progress
-        if (pipController?.isPictureInPictureActive() == true) {
-            pipController?.setCurrentTime(position, duration)
-        }
-
-        onProgress(mapOf(
-            "position" to position,
-            "duration" to duration,
-            "progress" to if (duration > 0) position / duration else 0.0,
-            "cacheSeconds" to cacheSeconds
-        ))
-        mediaPlayback?.onPositionTick()
-    }
-
-    override fun onPauseChanged(isPaused: Boolean) {
-        pipController?.setPlaybackRate(if (isPaused) 0.0 else 1.0)
-        mediaPlayback?.updatePlaybackState()
-
-        onPlaybackStateChange(mapOf(
-            "isPaused" to isPaused,
-            "isPlaying" to !isPaused
-        ))
-    }
-
-    override fun onLoadingChanged(isLoading: Boolean) {
-        isLoadingMedia = isLoading
-        mediaPlayback?.updatePlaybackState()
-        onPlaybackStateChange(mapOf(
-            "isLoading" to isLoading
-        ))
-    }
-
-    override fun onReadyToSeek() {
-        onPlaybackStateChange(mapOf(
-            "isReadyToSeek" to true
-        ))
-    }
+    // The preview only waits for its tracks before styling the subtitles.
+    override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {}
+    override fun onPauseChanged(isPaused: Boolean) {}
+    override fun onLoadingChanged(isLoading: Boolean) {}
+    override fun onReadyToSeek() {}
+    override fun onVideoDimensionsChanged(width: Int, height: Int) {}
 
     override fun onTracksReady() {
         onTracksReady(emptyMap<String, Any>())
     }
 
-    override fun onVideoDimensionsChanged(width: Int, height: Int) {
-        pipController?.setVideoDimensions(width, height)
-    }
-
     override fun onError(message: String) {
-        isLoadingMedia = false
-        playbackFailed = true
-        mediaPlayback?.updatePlaybackState()
-        onError(mapOf("error" to message))
+        Log.e(TAG, "Subtitle preview failed: $message")
     }
 
     // MARK: - Resume Recovery
 
     /**
-     * Recreate the decoder when returning from the Android TV screensaver (or
-     * app background) while paused. Triggered from the host activity's
-     * onResume; the work is in [MPVLayerRenderer.recoverVideoOutput]. The
-     * playing case is skipped — the render thread re-primes the VO on surface
-     * reattach by itself — as is PiP (it owns its surface lifecycle).
+     * Recreate the decoder when returning from the screensaver (or app
+     * background). Triggered from the host activity's onResume; the work is in
+     * [MPVLayerRenderer.recoverVideoOutput].
      */
     private fun runResumeRecovery() {
         if (!rendererStarted) return
-        if (pipController?.isPictureInPictureActive() == true) return
         // Playing no longer self-heals: after the async-start/ownership rework
         // the VO doesn't reliably re-prime on surface re-attach, and with
         // FLAG_KEEP_SCREEN_ON now released on pause the screensaver can kill
@@ -726,16 +283,14 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // surface mid-playback on phones too, and the VO doesn't reliably
         // re-prime after the async-start/ownership rework — audio keeps
         // playing against a dead video track. Register everywhere.
-        Log.i(TAG, "[Recover] registering lifecycle recovery (isTv=${renderer?.isTv})")
+        Log.i(TAG, "[Recover] registering lifecycle recovery")
         val app = context.applicationContext as? Application ?: run {
             Log.w(TAG, "Cannot register lifecycle callbacks: no Application")
             return
         }
         lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-            override fun onActivityStarted(activity: Activity) {
-                if (activity === hostActivity) hostStopped = false
-            }
+            override fun onActivityStarted(activity: Activity) {}
             override fun onActivityResumed(activity: Activity) {
                 val host = hostActivity ?: findActivity().also { hostActivity = it }
                 if (activity !== host) {
@@ -746,43 +301,19 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 }
                 Log.i(
                     TAG,
-                    "[Recover] onActivityResumed — host resumed, hasMedia=${currentUrl != null}, pip=${pipController?.isPictureInPictureActive()}, paused=${!intendedPlayState}"
+                    "[Recover] onActivityResumed — host resumed, hasMedia=${currentUrl != null}, paused=${!intendedPlayState}"
                 )
-                // Only recover when there's loaded media and we're not in PiP.
-                // Playing-but-broken is filtered inside runResumeRecovery via
-                // the actual pipeline state, so healthy playback resumes with
-                // no reload.
+                // Only recover when there's loaded media. Playing-but-broken is
+                // filtered inside runResumeRecovery via the actual pipeline
+                // state, so healthy playback resumes with no reload.
                 if (currentUrl == null) return
-                if (pipController?.isPictureInPictureActive() == true) return
                 // Post past the resume/surfaceCreated race so the holder has a
                 // valid surface, then recreate the decoder against it.
-                pipHandler.removeCallbacks(recoverResumeRunnable)
-                pipHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
+                mainHandler.removeCallbacks(recoverResumeRunnable)
+                mainHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
             }
-            override fun onActivityPaused(activity: Activity) {
-                if (activity === hostActivity) {
-                    Log.i(TAG, "[Recover] onActivityPaused — host paused")
-                }
-            }
-            override fun onActivityStopped(activity: Activity) {
-                if (activity !== hostActivity) return
-                Log.i(TAG, "[Recover] onActivityStopped — host stopped")
-                hostStopped = true
-                // Only the player screen plays on with the screen off (the
-                // service is what keeps it going): leaving the app with the
-                // screen on is leaving the video.
-                if (shouldPauseOnActivityStop(
-                        isTelevision = DeviceKind.isTelevision(activity),
-                        backgroundPlayback = backgroundPlaybackEnabled,
-                        screenInteractive = (activity.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true,
-                        inPictureInPicture = isInPictureInPicture,
-                        changingConfigurations = activity.isChangingConfigurations,
-                        dismissing = false
-                    )) {
-                    Log.i(TAG, "Player left with no picture in picture: pausing")
-                    pause()
-                }
-            }
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
         }
@@ -791,7 +322,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     private fun unregisterLifecycleCallbacks() {
-        pipHandler.removeCallbacks(recoverResumeRunnable)
+        mainHandler.removeCallbacks(recoverResumeRunnable)
         if (!lifecycleRegistered) return
         val app = context.applicationContext as? Application
         lifecycleCallbacks?.let { app?.unregisterActivityLifecycleCallbacks(it) }
@@ -802,8 +333,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun findActivity(): Activity? {
         // Prefer Expo's currentActivity. The view's Context is a ReactContext
         // whose base is the Application, not the Activity, so walking the
-        // context chain does not reliably reach the Activity. Mirrors
-        // PiPController.getActivity().
+        // context chain does not reliably reach the Activity.
         appContext.currentActivity?.let { return it }
         var ctx: Context = context
         while (ctx is ContextWrapper) {
@@ -816,22 +346,14 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // MARK: - Cleanup
 
     /**
-     * Proactively tear down the player. Called from onDetachedFromWindow so
-     * the app releases mpv + decoder buffers when the View detaches from the
-     * window. The JS-facing destroy() is intentionally thinner (just
-     * renderer.stop()) — see this thread for why the full teardown was kept
-     * off the JS path.
+     * Tear down the player when the view detaches from the window, so mpv and
+     * the decoder buffers are released.
      */
-    fun cleanup() {
-        pipHandler.removeCallbacksAndMessages(null)
-        releaseMediaPlayback()
+    private fun cleanup() {
         unregisterLifecycleCallbacks()
-        pipController?.stopPictureInPicture()
         renderer?.stop()
         renderer?.delegate = null
 
-        // SurfaceView owns the Surface via its holder — do NOT release it.
-        activeSurface = null
         surfaceReady = false
         pendingConfig = null
         currentUrl = null

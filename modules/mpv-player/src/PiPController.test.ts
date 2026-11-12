@@ -66,9 +66,8 @@ describe("iOS automatic PiP lifecycle", () => {
     expect(source).toMatch(
       /init\([\s\S]*delegate: PiPControllerDelegate[\s\S]*self\.delegate = delegate[\s\S]*setupPictureInPicture\(\)/,
     );
-    expect(embeddedHostSource).toMatch(
-      /override func didMoveToWindow\(\)[\s\S]*setPictureInPictureHostVisible\(window != nil\)/,
-    );
+    // The subtitle preview's embedded view never offers picture in picture.
+    expect(embeddedHostSource).not.toContain("setPictureInPictureHostVisible");
     expect(nativeHostSource).toMatch(
       /override func viewDidAppear\(_ animated: Bool\)[\s\S]*setPictureInPictureHostVisible\(true\)/,
     );

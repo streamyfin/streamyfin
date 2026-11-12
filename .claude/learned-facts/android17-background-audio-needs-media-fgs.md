@@ -3,7 +3,7 @@
 **Date**: 2026-11-05
 **Category**: native-modules
 **Key files**: `modules/mpv-player/android/.../playback/MediaPlaybackController.kt`,
-`PlaybackService.kt`, `MpvPlayerView.kt`, `nativeplayer/MediaSessionController.kt`
+`PlaybackService.kt`, `nativeplayer/MediaSessionController.kt`
 
 ## Detail
 
@@ -37,10 +37,9 @@ visible (the play request), and kept while the player screen is open, paused
 included: starting it again from the background is refused. A start refused
 that way leaves that player without the service until the next play the user
 makes with the app in front (`PlaybackService.ensureStarted`). Only the player
-screen asks for it, which is the native player. The embedded `MpvPlayerView`
-asks only with its `backgroundPlayback` prop, which the JS player (since
-removed) set off TV; a view that just shows a clip, the subtitle preview, sets
-it off and takes no session, focus or wake lock.
+screen asks for it, which is the native player. The embedded `MpvPlayerView`,
+which only the subtitle preview uses, never does: it takes no session, focus or
+wake lock.
 
 To check: `adb logcat | grep AudioHardening`, or force the behavior with
 `adb shell cmd audio set-enable-hardening enable|disable|throw`.

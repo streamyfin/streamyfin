@@ -1,51 +1,10 @@
 import type { StyleProp, ViewStyle } from "react-native";
 
-export type OnLoadEventPayload = {
-  url: string;
-};
-
-export type OnPlaybackStateChangePayload = {
-  isPaused?: boolean;
-  isPlaying?: boolean;
-  isLoading?: boolean;
-  isReadyToSeek?: boolean;
-};
-
-export type OnProgressEventPayload = {
-  position: number;
-  duration: number;
-  progress: number;
-  /** Seconds of video buffered ahead of current position */
-  cacheSeconds: number;
-};
-
-export type OnErrorEventPayload = {
-  error: string;
-};
-
 export type OnTracksReadyEventPayload = Record<string, never>;
 
-export type OnPictureInPictureChangePayload = {
-  isActive: boolean;
-};
-
-export type NowPlayingMetadata = {
-  title?: string;
-  artist?: string;
-  albumTitle?: string;
-  artworkUri?: string;
-  /** Custom proxy auth headers for fetching the artwork. */
-  artworkHeaders?: Record<string, string>;
-};
-
 export type MpvPlayerModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
   /** A line from the native player's Logger (iOS/tvOS only). */
   onNativeLog: (params: NativeLogEventPayload) => void;
-};
-
-export type ChangeEventPayload = {
-  value: string;
 };
 
 export type NativeLogEventPayload = {
@@ -56,67 +15,23 @@ export type NativeLogEventPayload = {
 
 export type VideoSource = {
   url: string;
-  headers?: Record<string, string>;
-  externalSubtitles?: string[];
-  startPosition?: number;
   autoplay?: boolean;
   /** Whether to loop the video indefinitely */
   loop?: boolean;
   /** MPV subtitle track ID to select on start (1-based, -1 to disable) */
   initialSubtitleId?: number;
-  /** MPV audio track ID to select on start (1-based) */
-  initialAudioId?: number;
-  /** MPV cache/buffer configuration */
-  cacheConfig?: {
-    /** Whether caching is enabled: "auto" (default), "yes", or "no" */
-    enabled?: "auto" | "yes" | "no";
-    /** Seconds of video to buffer (default: 10, range: 5-120) */
-    cacheSeconds?: number;
-    /** Maximum cache size in MB (default: 150, range: 50-500) */
-    maxBytes?: number;
-    /** Maximum backward cache size in MB (default: 50, range: 25-200) */
-    maxBackBytes?: number;
-  };
-  /** MPV video output driver (Android only) */
-  voDriver?: "gpu-next" | "gpu";
 };
 
+/**
+ * The embedded view, which only the subtitle preview in Settings uses, to
+ * play a silent clip. It takes no audio session, media session or picture in
+ * picture. Playback goes through the presented player
+ * (NativePlayerPresentation).
+ */
 export type MpvPlayerViewProps = {
   source?: VideoSource;
   style?: StyleProp<ViewStyle>;
-  /** Metadata for iOS Control Center and Lock Screen now playing info */
-  nowPlayingMetadata?: NowPlayingMetadata;
-  /**
-   * What playing on outside the view takes from the system. Android: the media
-   * session, the playback notification and the foreground service that keep
-   * playback going with the screen off, with the audio focus and wake lock they
-   * take. iOS: the playback audio session and the lock screen controls. Both:
-   * the automatic picture in picture. For the player screen only, off by
-   * default: a view that just shows a clip (the subtitle preview) stopped the
-   * user's music, and went into picture in picture when they left the app.
-   */
-  backgroundPlayback?: boolean;
-  /**
-   * Android: how far fast forward and rewind go from the media session and the
-   * notification (a headset, a car, the lock screen). The user's skip settings.
-   */
-  sessionSkipSeconds?: { forward: number; backward: number };
-  /**
-   * Android: a live stream. The media session and the notification then offer
-   * no seek, fast forward, rewind or restart, which went past the live edge or
-   * back to the start of the stream.
-   */
-  liveStream?: boolean;
-  onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
-  onPlaybackStateChange?: (event: {
-    nativeEvent: OnPlaybackStateChangePayload;
-  }) => void;
-  onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
-  onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
-  onPictureInPictureChange?: (event: {
-    nativeEvent: OnPictureInPictureChangePayload;
-  }) => void;
 };
 
 export interface SubtitleStyleConfig {
@@ -128,62 +43,12 @@ export interface SubtitleStyleConfig {
 }
 
 export interface MpvPlayerViewRef {
-  play: () => Promise<void>;
-  pause: () => Promise<void>;
-  /**
-   * Synchronously destroy the mpv instance + decoder + surface buffers.
-   * Call before navigating away from the player screen so memory is
-   * freed before the next screen mounts. Safe to call multiple times.
-   */
-  destroy: () => Promise<void>;
-  // Pre-libmpv-1.0 alias (kept for source-history reference):
-  // stop: () => Promise<void>;
-  seekTo: (position: number) => Promise<void>;
-  seekBy: (offset: number) => Promise<void>;
-  setSpeed: (speed: number) => Promise<void>;
-  getSpeed: () => Promise<number>;
-  /**
-   * Mute the player itself, leaving the device volume untouched. The boolean
-   * state is owned by the caller: there is deliberately no getter.
-   */
-  setMute: (muted: boolean) => Promise<void>;
-  isPaused: () => Promise<boolean>;
-  getCurrentPosition: () => Promise<number>;
-  getDuration: () => Promise<number>;
-  startPictureInPicture: () => Promise<void>;
-  stopPictureInPicture: () => Promise<void>;
-  isPictureInPictureSupported: () => Promise<boolean>;
-  isPictureInPictureActive: () => Promise<boolean>;
-  // Subtitle controls
-  getSubtitleTracks: () => Promise<SubtitleTrack[]>;
-  setSubtitleTrack: (trackId: number) => Promise<void>;
-  disableSubtitles: () => Promise<void>;
-  getCurrentSubtitleTrack: () => Promise<number>;
-  addSubtitleFile: (url: string, select?: boolean) => Promise<void>;
-  // Subtitle positioning
-  setSubtitlePosition: (position: number) => Promise<void>;
   setSubtitleScale: (scale: number) => Promise<void>;
-  /** MPV-only subtitle timing offset in seconds; positive delays subtitles. */
-  setSubtitleDelay?: (seconds: number) => Promise<void>;
   setSubtitleMarginY: (margin: number) => Promise<void>;
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleStyle: (style: SubtitleStyleConfig) => Promise<void>;
-  setSubtitleFontSize: (size: number) => Promise<void>;
-  setSubtitleBackgroundColor: (color: string) => Promise<void>;
-  setSubtitleBorderStyle: (
-    style: "outline-and-shadow" | "background-box",
-  ) => Promise<void>;
   setSubtitleAssOverride: (mode: "no" | "force") => Promise<void>;
-  // Audio controls
-  getAudioTracks: () => Promise<AudioTrack[]>;
-  setAudioTrack: (trackId: number) => Promise<void>;
-  getCurrentAudioTrack: () => Promise<number>;
-  // Video scaling
-  setZoomedToFill: (zoomed: boolean) => Promise<void>;
-  isZoomedToFill: () => Promise<boolean>;
-  // Technical info
-  getTechnicalInfo: () => Promise<TechnicalInfo>;
 }
 
 export type SubtitleTrack = {

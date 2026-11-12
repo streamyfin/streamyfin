@@ -10,7 +10,7 @@ HDR content appears washed out on Apple TV when using the mpv-based player. The 
 
 ## Why HDR Works on iPhone
 
-In `MpvPlayerView.swift`:
+In `PlayerEngine.swift`:
 ```swift
 #if !os(tvOS)
 if #available(iOS 17.0, *) {
@@ -382,7 +382,7 @@ Use AVPlayer for HDR content, mpv for everything else. This is what Swiftfin doe
    - Reads `video-params/primaries` and `video-params/gamma` from mpv
    - Detects HDR10 (bt.2020 + pq), HLG, Dolby Vision
 
-2. **AVDisplayCriteria** (`MpvPlayerView.swift`)
+2. **AVDisplayCriteria** (`NativePlayer/NativePlayerViewController.swift`)
    - Sets `preferredDisplayCriteria` on tvOS 17.0+ when HDR detected
    - Creates CMFormatDescription with HDR color extensions
 

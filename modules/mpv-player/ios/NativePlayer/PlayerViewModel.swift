@@ -1039,7 +1039,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		applySubtitleScale()
 	}
 
-	/// Match the embedded player's calibrated, video-relative subtitle size.
+	/// The calibrated, video-relative subtitle size the subtitle preview uses
+	/// (getEffectiveSubtitleScale in utils/subtitles.ts).
 	/// MPV renders in source-video pixels, so compensate when fitting a larger
 	/// video into a smaller display, capped at the shared 3× boost.
 	func applySubtitleScale() {

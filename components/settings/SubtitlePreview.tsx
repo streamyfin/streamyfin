@@ -162,9 +162,6 @@ export const SubtitlePreview = React.memo(() => {
       <MpvPlayerView
         ref={playerRef}
         style={styles.player}
-        // A silent clip, not the user's media: no audio session, lock screen
-        // or picture in picture, which stopped their music on iOS.
-        backgroundPlayback={false}
         source={{
           url: assetUri,
           autoplay: true,
