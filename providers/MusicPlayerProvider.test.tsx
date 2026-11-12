@@ -661,6 +661,56 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(nativeIds()).toEqual([]);
   });
 
+  // Seen on an iPhone: an album cast before the phone ever played music has no
+  // native player, and a reset before setup rejects into Sentry.
+  test("handing back a queue the phone never played resets nothing and logs nothing", async () => {
+    await castAlbum();
+    await receiverStatus("t2", "playing", 30);
+
+    await disconnectCast();
+    await settle();
+
+    expect(mockNative.calls).not.toContain("reset");
+    expect(logAndCaptureError).not.toHaveBeenCalled();
+    expect(player.currentTrack?.Id).toBe("t2");
+  });
+
+  // The phone played before the cast: its native queue goes, so next and
+  // previous do not walk it once the queue is back.
+  test("handing back a queue drops the native queue the phone played before", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+    mockNative.calls = [];
+
+    await disconnectCast();
+    await settle();
+
+    expect(mockNative.calls).toEqual(["reset"]);
+    expect(nativeIds()).toEqual([]);
+    expect(logAndCaptureError).not.toHaveBeenCalled();
+  });
+
+  // The reattach of a restored queue ends with a live service: the reset of a
+  // hand-back made meanwhile waits for it.
+  test("handing back a queue while the reattach is in flight resets the player once it is up", async () => {
+    mockNative.setupDelayMs = 300;
+    persistQueue(ALBUM, 2);
+    await castAlbum();
+    await disconnectCast();
+    await settle();
+    expect(mockNative.calls).toEqual(["setupPlayer"]);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    expect(mockNative.calls).toEqual(["setupPlayer", "reset"]);
+    expect(logAndCaptureError).not.toHaveBeenCalled();
+  });
+
   // A film cast from its page replaces the music on the TV.
   test("the player lets go of a receiver that plays something else", async () => {
     await castAlbum();
