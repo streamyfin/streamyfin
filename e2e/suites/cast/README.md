@@ -220,7 +220,8 @@ up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lin
 under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
 SDK resuming the session it had, so a switch inside a live session needs one process:
 `-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
-the first session kept up with or without `-CastTargetProbeKeep`.
+the first session kept up with or without `-CastTargetProbeKeep`. `-CastTargetProbeKeep` and
+`-CastTargetProbeHold` then apply to the second receiver, as each Android broadcast reads its own.
 `-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.
 `-CastTargetProbeStop NO`, `-CastTargetProbeVolume <0 to 1>` and `-CastTargetProbeMute YES|NO` are `stop`,
 `volume` and `mute`.
