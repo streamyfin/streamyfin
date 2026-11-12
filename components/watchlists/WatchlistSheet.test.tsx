@@ -7,16 +7,6 @@ import {
 } from "@/components/watchlists/WatchlistSheet";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
 let mockWatchlists: StreamystatsWatchlist[] = [];
 jest.mock("@/hooks/useWatchlists", () => ({
   useItemInWatchlists: () => ({ data: [] }),
@@ -25,10 +15,6 @@ jest.mock("@/hooks/useWatchlists", () => ({
 jest.mock("@/hooks/useWatchlistMutations", () => ({
   useAddToWatchlist: () => ({ mutateAsync: jest.fn() }),
   useRemoveFromWatchlist: () => ({ mutateAsync: jest.fn() }),
-}));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
 }));
 // The key, and its values when there are some, stand for the translation.
 jest.mock("react-i18next", () => ({

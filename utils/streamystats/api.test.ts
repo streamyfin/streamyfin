@@ -6,9 +6,6 @@ jest.mock("axios", () => ({
   __esModule: true,
   default: { get: jest.fn() },
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 
 const mockGet = axios.get as jest.Mock;
 

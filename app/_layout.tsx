@@ -16,9 +16,11 @@ import * as BackgroundTask from "expo-background-task";
 import { Image } from "expo-image";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { OfflineProgressSync } from "@/components/OfflineProgressSync";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
 import { SyncPlayPlaybackBridge } from "@/components/syncplay/SyncPlayPlaybackBridge";
+import { ActionSheetInsets } from "@/hooks/useActionSheet";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -222,6 +224,8 @@ function RootLayout() {
       <JotaiProvider store={jotaiStore}>
         <ActionSheetProvider>
           <I18nextProvider i18n={i18n}>
+            {/* Here and not beside it: ActionSheetProvider takes one child. */}
+            <ActionSheetInsets />
             <Layout />
           </I18nextProvider>
         </ActionSheetProvider>
@@ -487,6 +491,7 @@ function Layout() {
                                         <PendingAccountSaveModal />
                                       )}
                                       <SeerrAutoLogin />
+                                      <OfflineProgressSync />
                                     </ThemeProvider>
                                   </IntroSheetProvider>
                                 </BottomSheetModalProvider>

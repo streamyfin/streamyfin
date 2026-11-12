@@ -86,6 +86,27 @@ export type MpvPlayerViewProps = {
   style?: StyleProp<ViewStyle>;
   /** Metadata for iOS Control Center and Lock Screen now playing info */
   nowPlayingMetadata?: NowPlayingMetadata;
+  /**
+   * What playing on outside the view takes from the system. Android: the media
+   * session, the playback notification and the foreground service that keep
+   * playback going with the screen off, with the audio focus and wake lock they
+   * take. iOS: the playback audio session and the lock screen controls. Both:
+   * the automatic picture in picture. For the player screen only, off by
+   * default: a view that just shows a clip (the subtitle preview) stopped the
+   * user's music, and went into picture in picture when they left the app.
+   */
+  backgroundPlayback?: boolean;
+  /**
+   * Android: how far fast forward and rewind go from the media session and the
+   * notification (a headset, a car, the lock screen). The user's skip settings.
+   */
+  sessionSkipSeconds?: { forward: number; backward: number };
+  /**
+   * Android: a live stream. The media session and the notification then offer
+   * no seek, fast forward, rewind or restart, which went past the live edge or
+   * back to the start of the stream.
+   */
+  liveStream?: boolean;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;

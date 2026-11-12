@@ -3,18 +3,17 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { BlurView } from "expo-blur";
 import { useAtomValue } from "jotai";
 import React, { useMemo } from "react";
-import { Dimensions, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { AwardsBadge } from "@/components/AwardsBadge";
 import { Badge } from "@/components/Badge";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
+import { TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO } from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { scaleSize } from "@/utils/scaleSize";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface TVSeriesHeaderProps {
   item: BaseItemDto;
@@ -22,6 +21,7 @@ interface TVSeriesHeaderProps {
 
 export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
   const typography = useScaledTVTypography();
+  const { width: windowWidth } = useWindowDimensions();
   const api = useAtomValue(apiAtom);
 
   const logoUrl = useMemo(() => {
@@ -115,7 +115,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
           style={{
             borderRadius: scaleSize(8),
             overflow: "hidden",
-            maxWidth: SCREEN_WIDTH * 0.45,
+            maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
             alignSelf: "flex-start",
           }}
         >

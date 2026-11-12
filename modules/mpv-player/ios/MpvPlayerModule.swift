@@ -103,7 +103,19 @@ public class MpvPlayerModule: Module {
           demuxerMaxBackBytes: self.parseInteger(cacheConfig?["maxBackBytes"])
         )
 
-        view.loadVideo(config: config)
+        view.setPendingLoad(config)
+      }
+
+      Prop("backgroundPlayback") { (view: MpvPlayerView, enabled: Bool?) in
+        view.setBackgroundPlayback(enabled ?? false)
+      }
+      // Android only. On iOS the presented player sets its own skip times, and
+      // only the JS player, which is going away, passes these.
+      Prop("sessionSkipSeconds") { (_: MpvPlayerView, _: [String: Any]?) in }
+      Prop("liveStream") { (_: MpvPlayerView, _: Bool?) in }
+
+      OnViewDidUpdateProps { (view: MpvPlayerView) in
+        view.loadPendingVideo()
       }
 
       // Now Playing metadata for iOS Control Center and Lock Screen

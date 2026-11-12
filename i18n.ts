@@ -91,6 +91,8 @@ const CATALOGUES: Record<string, () => object> = {
 // with no catalogue gets null, which i18next treats as loaded and empty.
 const catalogueBackend = {
   type: "backend" as const,
+  // i18next 27 deprecates guessing the calling convention from read's arity.
+  callbackApi: true,
   init() {},
   read(
     lng: string,
@@ -105,7 +107,6 @@ i18n
   .use(catalogueBackend)
   .use(initReactI18next)
   .init({
-    compatibilityJSON: "v4",
     initAsync: false,
 
     // The stored language rather than the device's, which the layout effect

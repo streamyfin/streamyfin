@@ -1,12 +1,7 @@
 import { disabled, menuOrder } from "@expo/ui/swift-ui/modifiers";
 import { render, screen } from "@testing-library/react-native";
-import { renderedMenuModifiers } from "@/test-utils/expoUi";
 import { stubReactNative } from "@/test-utils/reactNative";
-
-jest.mock(
-  "@expo/ui/swift-ui",
-  () => jest.requireActual("@/test-utils/expoUi").swiftUiModule,
-);
+import { renderedMenuModifiers } from "@/test-utils/swiftUi";
 
 // The module reads Platform when it loads, so each case requires it after
 // patching the platform rather than importing it at the top.
@@ -65,7 +60,7 @@ describe("FixedOrderMenu", () => {
   // crashes the route tree at load.
   test("does not load @expo/ui on TV", () => {
     const loadSwiftUi = jest.fn(
-      () => jest.requireActual("@/test-utils/expoUi").swiftUiModule,
+      () => jest.requireActual("@/test-utils/swiftUi").swiftUiModule,
     );
     jest.isolateModules(() => {
       jest.doMock("@expo/ui/swift-ui", loadSwiftUi);

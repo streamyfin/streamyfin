@@ -13,10 +13,11 @@ import {
 } from "expo-router";
 import { useAtom, useSetAtom } from "jotai";
 import type React from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posterGridColumns } from "@/components/cards/posterGridColumns";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
@@ -30,7 +31,6 @@ import useRouter from "@/hooks/useAppRouter";
 import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   audioLanguageFilterAtom,
@@ -66,10 +66,7 @@ const page: React.FC = () => {
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
   const { showItemActions } = useTVItemActionModal();
-  const { width: screenWidth } = useWindowDimensions();
-  const [orientation, _setOrientation] = useState(
-    ScreenOrientation.Orientation.PORTRAIT_UP,
-  );
+  const { width: windowWidth } = useWindowDimensions();
 
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -201,11 +198,14 @@ const page: React.FC = () => {
       const itemWidth = posterSizes.poster + TV_ITEM_GAP;
       return Math.max(
         1,
-        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
+        Math.floor((windowWidth - TV_SCALE_PADDING * 2) / itemWidth),
       );
     }
-    return orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 3 : 5;
-  }, [screenWidth, orientation]);
+    // Kept at 3 before: the orientation it read was never updated, so a
+    // landscape phone or a tablet stretched three posters across the window.
+    return posterGridColumns(windowWidth);
+    // The TV poster width follows the TV text size setting.
+  }, [windowWidth, posterSizes.poster]);
 
   const fetchItems = useCallback(
     async ({
@@ -756,7 +756,7 @@ const page: React.FC = () => {
 
       {/* Grid */}
       <FlatList
-        key={`${orientation}-${nrOfCols}`}
+        key={`columns-${nrOfCols}`}
         ListEmptyComponent={
           <View className='flex flex-col items-center justify-center h-full'>
             <Text className='font-bold text-xl text-neutral-500'>
@@ -767,7 +767,7 @@ const page: React.FC = () => {
         contentInsetAdjustmentBehavior='automatic'
         data={flatData}
         renderItem={renderTVItem}
-        extraData={[orientation, nrOfCols]}
+        extraData={nrOfCols}
         keyExtractor={keyExtractor}
         numColumns={nrOfCols}
         removeClippedSubviews={false}

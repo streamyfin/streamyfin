@@ -7,8 +7,6 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 import { writeErrorLog } from "@/utils/log";
 import { useQuickConnect } from "./useQuickConnect";
 
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
-
 const INITIATE = /\/QuickConnect\/Initiate$/;
 const CONNECT = /\/QuickConnect\/Connect(?:\?|$)/;
 const AUTHENTICATE = /\/Users\/AuthenticateWithQuickConnect$/;

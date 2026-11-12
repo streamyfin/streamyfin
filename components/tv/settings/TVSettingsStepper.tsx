@@ -13,7 +13,6 @@ export interface TVSettingsStepperProps {
   onDecrease: () => void;
   onIncrease: () => void;
   formatValue?: (value: number) => string;
-  isFirst?: boolean;
   disabled?: boolean;
   /** Locked by the Streamyfin plugin; dims the row and says so. */
   disabledByAdmin?: boolean;
@@ -25,7 +24,6 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
   onDecrease,
   onIncrease,
   formatValue,
-  isFirst,
   disabled,
   disabledByAdmin,
 }) => {
@@ -59,7 +57,6 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
         style={{ flex: 1 }}
         onFocus={labelAnim.handleFocus}
         onBlur={labelAnim.handleBlur}
-        hasTVPreferredFocus={isFirst && !isDisabled}
         disabled={isDisabled}
         focusable={!isDisabled}
       >

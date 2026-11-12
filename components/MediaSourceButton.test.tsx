@@ -29,15 +29,8 @@ jest.mock("@expo/ui/swift-ui", () => {
     ),
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: {} }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 const MOVIE: BaseItemDto = {
