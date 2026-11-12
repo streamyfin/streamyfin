@@ -496,6 +496,22 @@ class MatrixMainTests(unittest.TestCase):
         self.assertEqual(stored["held"]["beta13"]["test"]["Living room"]["token"], "tok1")
         self.assertIn("SenderTimeout: timed out waiting for the receiver to stop", errors)
 
+    def test_a_matrix_run_revokes_the_orphans_an_earlier_run_left(self):
+        # Only the sender swept the orphans: a token a matrix run orphaned stayed valid on the
+        # server until a sender command ran, and repeated matrix runs piled them up.
+        from bench import sender
+
+        server = FakeServer()
+        driver = FakeDriver()
+        with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+            tokens = sender.ReceiverTokens(result.root / "receiver-tokens.local.json")
+            tokens.orphan("beta13", "test", server.client("").authenticate(None))
+            code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+            orphans = tokens.orphans("beta13", "test")
+        self.assertEqual(code, 0)
+        self.assertEqual(server.live, [])
+        self.assertEqual(orphans, [])
+
     def test_a_receiver_another_run_drives_is_left_alone(self):
         from bench import sender
 

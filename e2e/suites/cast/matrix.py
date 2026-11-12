@@ -301,8 +301,11 @@ def _measure(args, config, server, target, account, cases: list[dict], tokens) -
 
     client = JellyfinClient(server.url)
     session = client.authenticate(account)
-    report = Report("matrix", redact=config.redact + [session.token])
+    orphans = tokens.orphans(args.server, args.profile)
+    report = Report("matrix", redact=config.redact + [session.token] + [orphan.token for orphan in orphans])
     report.add("target", name=target.name, kind=target.kind, server=args.server, cases=[c["id"] for c in cases])
+    # A matrix run can orphan a token too: swept here as well as by the sender, they no longer pile up.
+    sender.revoke_orphans(client, tokens, args.server, args.profile, report.add)
     rows: list[Row] = []
     controller = None
     driver = None

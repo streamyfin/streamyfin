@@ -509,9 +509,36 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
 
+def sign_out(client, session) -> str | None:
+    """Revokes a token on the server; returns why it failed, or None once it is revoked. A token the
+    server no longer knows is as good as revoked."""
+    from bench.jellyfin import JellyfinHttpError
+
+    try:
+        client.logout(session)
+    except (JellyfinHttpError, OSError) as error:
+        if isinstance(error, JellyfinHttpError) and error.status == 401:
+            return None
+        return str(error)
+    return None
+
+
+def revoke_orphans(client, tokens: ReceiverTokens, server: str, profile: str, note: Callable[..., None]) -> None:
+    """Signs out the tokens no receiver holds that an earlier run, sender or matrix, could not, and
+    forgets each one only once its sign-out went through."""
+    reason = "an earlier run could not sign it out"
+    for orphan in tokens.orphans(server, profile):
+        error = sign_out(client, orphan)
+        if error is None:
+            tokens.forget_orphan(server, profile, orphan.token)
+            note("token revoked", reason=reason)
+        else:
+            note("sign-out failed", reason=reason, error=error)
+
+
 def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int:
     """One command to the receiver, from the token it holds to the one the run leaves it."""
-    from bench.jellyfin import JellyfinClient, JellyfinHttpError
+    from bench.jellyfin import JellyfinClient
     from bench.report import Report
 
     key = (args.server, args.profile, args.target)
@@ -530,14 +557,10 @@ def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int
         print(json.dumps({"step": step, "at": report.steps[-1]["at"], **data}, default=str))
 
     def revoke(session, reason: str) -> bool:
-        try:
-            client.logout(session)
-        except (JellyfinHttpError, OSError) as error:
-            # A token the server no longer knows is as good as revoked.
-            if not (isinstance(error, JellyfinHttpError) and error.status == 401):
-                note("sign-out failed", reason=reason, error=str(error))
-                return False
-        return True
+        error = sign_out(client, session)
+        if error is not None:
+            note("sign-out failed", reason=reason, error=error)
+        return error is None
 
     def revoke_held(reason: str) -> None:
         nonlocal held
@@ -548,11 +571,7 @@ def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int
             note("token revoked", reason=reason)
             held = None
 
-    # No receiver holds these: an earlier run failed to sign them out, so this one tries again.
-    for orphan in orphans:
-        if revoke(orphan, "an earlier run could not sign it out"):
-            tokens.forget_orphan(args.server, args.profile, orphan.token)
-            note("token revoked", reason="an earlier run could not sign it out")
+    revoke_orphans(client, tokens, args.server, args.profile, note)
 
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
