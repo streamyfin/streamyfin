@@ -676,6 +676,22 @@ describe("direct player stop report", () => {
       await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("eng"));
     });
 
+    // A subtitle or bitrate change re-opens the route with the selection; the
+    // server was asked without it, so mpv starts on its first track.
+    test("puts mpv back on a track only it found when the route carries it", async () => {
+      mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+      try {
+        await openPlayer();
+        await tracksReady();
+
+        await waitFor(() =>
+          expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2),
+        );
+      } finally {
+        mockParams.audioIndex = "";
+      }
+    });
+
     test("reports no audio index to the server for a track only mpv found", async () => {
       await openPlayer();
       await tracksReady();
