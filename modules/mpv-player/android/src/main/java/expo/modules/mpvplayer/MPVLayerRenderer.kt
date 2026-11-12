@@ -568,6 +568,18 @@ class MPVLayerRenderer(
         }
     }
 
+    /**
+     * The audio only option for the file already playing: load() reads it
+     * from the config, but a source that keeps its URL is not loaded again.
+     * Turned off, it cancels a switch still waiting and brings back a track
+     * already off; turned on, it applies from the next time the surface goes.
+     */
+    fun setAudioOnlyWhenHidden(enabled: Boolean) {
+        if (audioOnlyWhenHidden == enabled) return
+        audioOnlyWhenHidden = enabled
+        if (!enabled) restoreVideoTrack()
+    }
+
     private fun restoreVideoTrack() {
         mainHandler.removeCallbacks(enterAudioOnlyRunnable)
         val m = mpv ?: return
