@@ -512,6 +512,24 @@ class MatrixMainTests(unittest.TestCase):
         self.assertEqual(server.live, [])
         self.assertEqual(orphans, [])
 
+    def test_a_sweep_cut_short_still_revokes_the_matrix_token_and_saves_the_report(self):
+        # The sweep ran before the cleanup covered the run's token: a store write failing there, or
+        # a Ctrl-C during its sign-outs, left that token alive with no record, and no report.
+        from bench import sender
+
+        for failure in (OSError("disk full"), KeyboardInterrupt()):
+            with self.subTest(failure=type(failure).__name__):
+                server = FakeServer()
+                driver = FakeDriver()
+                with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+                    tokens = sender.ReceiverTokens(result.root / "receiver-tokens.local.json")
+                    tokens.orphan("beta13", "test", server.client("").authenticate(None))
+                    with mock.patch.object(sender.ReceiverTokens, "forget_orphan", side_effect=failure), self.assertRaises(type(failure)):
+                        matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+                    reports = list(result.root.rglob("matrix-*.md"))
+                self.assertEqual(server.live, [])
+                self.assertEqual(len(reports), 1)
+
     def test_a_receiver_another_run_drives_is_left_alone(self):
         from bench import sender
 

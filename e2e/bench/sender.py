@@ -571,14 +571,15 @@ def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int
             note("token revoked", reason=reason)
             held = None
 
-    revoke_orphans(client, tokens, args.server, args.profile, note)
-
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
     final: MediaSample | None = None
     # The token this run's messages carried, from the moment one may have reached the receiver.
     handed = None
     try:
+        # Inside the cleanup's scope: before it, a store write failing here, or a Ctrl-C during the
+        # sign-outs, left the run's own token alive with no record of it, and no report.
+        revoke_orphans(client, tokens, args.server, args.profile, note)
         cast = connect(target)
         note("connected", target=target.name, app=cast.app_display_name)
         # Only a play starts the receiver: any other action would close what the TV shows for nothing.

@@ -540,6 +540,22 @@ class SenderMainTests(unittest.TestCase):
         self.assertEqual(server.live, ["tok1"])
         self.assertEqual({m["accessToken"] for m in receiver.received}, {"tok1"})
 
+    def test_a_sweep_cut_short_still_revokes_the_runs_own_token(self):
+        # The orphan sweep ran before the cleanup covered the run's token: a store write failing
+        # there, or a Ctrl-C during its sign-outs, left that token alive with no record, and no report.
+        for failure in (OSError("disk full"), KeyboardInterrupt()):
+            with self.subTest(failure=type(failure).__name__):
+                server = FakeServer(items={"V01": V01})
+                with bench_run(server, FakeReceiver()) as run:
+                    tokens = sender.ReceiverTokens(run.root / "receiver-tokens.local.json")
+                    tokens.orphan("beta13", "test", server.client("").authenticate(None))
+                    with mock.patch.object(sender.ReceiverTokens, "forget_orphan", side_effect=failure), self.assertRaises(type(failure)):
+                        sender_main("status")
+                    reports = list(run.root.rglob("sender-status-*.md"))
+                # The orphan's sign-out went through before its record failed; the run's own followed.
+                self.assertEqual(server.live, [])
+                self.assertEqual(len(reports), 1)
+
     def test_a_run_on_a_receiver_another_run_drives_does_nothing(self):
         # Two runs both without a held token handed the receiver one each, and the store kept the
         # one the receiver no longer had.
