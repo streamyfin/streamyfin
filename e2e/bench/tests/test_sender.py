@@ -1,3 +1,4 @@
+import fnmatch
 import json
 import stat
 import tempfile
@@ -100,24 +101,54 @@ def custom(item_id: str, play_session: str, method: str = "DirectStream") -> dic
     return {"itemId": item_id, "playSessionId": play_session, "playMethod": method}
 
 
+def seen(state: str, answered: bool = True, media_session: bool = True) -> sender.MediaSample:
+    return sender.MediaSample(at=0.0, player_state=state, current_time=0.0, custom_data={}, answered=answered, media_session=media_session)
+
+
+class SilentCast(FakeCast):
+    """A receiver that stopped answering status requests: pychromecast keeps its last status."""
+
+    def __init__(self, states):
+        super().__init__(states)
+        self.media_controller.update_status = lambda callback_function=None: None
+
+
 class WatchTests(unittest.TestCase):
     # The receiver keeps the token of the last message for its own requests (progress,
     # transcoded segments); a sign-out while it still plays would cut them off.
     def test_sign_out_waits_for_the_receiver_to_stop(self):
-        self.assertFalse(should_sign_out("PLAYING"))
-        self.assertFalse(should_sign_out("PAUSED"))
-        self.assertFalse(should_sign_out("BUFFERING"))
-        self.assertTrue(should_sign_out("IDLE"))
+        self.assertFalse(should_sign_out(seen("PLAYING")))
+        self.assertFalse(should_sign_out(seen("PAUSED")))
+        self.assertFalse(should_sign_out(seen("BUFFERING")))
+        self.assertTrue(should_sign_out(seen("IDLE")))
 
     def test_a_stop_the_receiver_did_not_obey_keeps_the_token(self):
         # A Stop lost on the way, or ignored, leaves the receiver playing with the token: revoking
         # it after any stop cut the stream on the TV.
-        self.assertFalse(should_sign_out("PLAYING"))
+        self.assertFalse(should_sign_out(seen("PLAYING")))
 
     def test_a_state_unread_after_sending_keeps_the_token(self):
         # A Ctrl-C during the watch, or a lost connection, leaves the state unknown while the
         # receiver may well play with the token: revoking it broke the playback on the TV.
         self.assertFalse(should_sign_out(None))
+
+    def test_only_a_receiver_seen_idle_lets_the_token_go(self):
+        # pychromecast says UNKNOWN until a status arrives, and keeps its last one when a request
+        # goes unanswered: neither is a receiver seen idle.
+        self.assertFalse(should_sign_out(seen("UNKNOWN")))
+        self.assertFalse(should_sign_out(seen("IDLE", answered=False)))
+
+    def test_a_receiver_that_answers_it_has_no_media_lets_the_token_go(self):
+        # An answer with no media session leaves pychromecast's state UNKNOWN: nothing plays.
+        self.assertTrue(should_sign_out(seen("UNKNOWN", media_session=False)))
+        self.assertFalse(should_sign_out(seen("UNKNOWN", answered=False, media_session=False)))
+
+    def test_a_status_request_left_unanswered_is_not_an_answer(self):
+        cast = SilentCast([("IDLE", 0.0, {})])
+        status = refresh_status(cast, timeout=0.01)
+        self.assertFalse(status.answered)
+        self.assertEqual(status.player_state, "IDLE")
+        self.assertTrue(refresh_status(FakeCast([("IDLE", 0.0, {})]), timeout=0.5).answered)
 
     def test_watch_raises_named_timeout_when_never_playing(self):
         cast = FakeCast([("IDLE", 0.0, {})])
@@ -283,8 +314,42 @@ class ReceiverTokensTests(unittest.TestCase):
             writer.join(5)
             self.assertEqual(tokens.get("beta13", "test", "Kitchen"), AuthSession("tok2", "user-1"))
 
+    def test_a_replaced_token_waits_for_its_sign_out(self):
+        # A token another write replaced was still valid on the server, with no record left of it.
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
+            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+            self.assertEqual(tokens.orphans("beta13", "test"), [])
+            tokens.put("beta13", "test", "Living room", AuthSession("tok2", "user-1"))
+            self.assertEqual(tokens.orphans("beta13", "test"), [AuthSession("tok1", "user-1")])
+            self.assertEqual(stat.S_IMODE(tokens.orphans_path.stat().st_mode), 0o600)
+            tokens.forget_orphan("beta13", "test", "tok1")
+            self.assertEqual(tokens.orphans("beta13", "test"), [])
+            self.assertEqual(json.loads(tokens.orphans_path.read_text()), {})
+
+    def test_a_receiver_driven_by_one_run_is_refused_to_another(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
+            with tokens.claim("Living room"):
+                with self.assertRaises(sender.ReceiverBusy) as caught, sender.ReceiverTokens(tokens.path).claim("Living room"):
+                    pass
+                self.assertIn("Living room", str(caught.exception))
+                # Another receiver is another lock.
+                with sender.ReceiverTokens(tokens.path).claim("Kitchen"):
+                    pass
+            with sender.ReceiverTokens(tokens.path).claim("Living room"):
+                pass
+
     def test_the_file_lives_where_git_and_biome_ignore_it(self):
         self.assertEqual(sender.TOKENS_PATH, Path(__file__).resolve().parents[1] / "receiver-tokens.local.json")
+        tokens = sender.ReceiverTokens()
+        for path in (tokens.lock_path, tokens.orphans_path, tokens.claim_path("Living room")):
+            with self.subTest(path=path.name):
+                self.assertEqual(path.parent, sender.TOKENS_PATH.parent)
+                self.assertTrue(fnmatch.fnmatch(path.name, "*.local.*"), path.name)
 
 
 def sender_main(*args: str) -> int:
@@ -378,6 +443,59 @@ class SenderMainTests(unittest.TestCase):
             stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
         self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
         self.assertEqual(receiver.received[-1]["accessToken"], "tok1")
+
+    def test_a_receiver_that_stops_answering_keeps_its_token(self):
+        # The status pychromecast keeps is the last one it got: read after a request that went
+        # unanswered, a cached IDLE let the run revoke the token the receiver played with.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver), mock.patch("bench.sender.STATUS_TIMEOUT_SECONDS", 0.01):
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            receiver.status = FakeStatus()
+            receiver.answers = False
+            self.assertEqual(sender_main("status"), 0)
+        self.assertEqual(server.live, ["tok1"])
+
+    def test_a_stop_the_receiver_ignores_fails_and_keeps_the_token(self):
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run, mock.patch("bench.sender.STOP_TIMEOUT_SECONDS", 0.05):
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            receiver.ignores = {"Stop"}
+            self.assertEqual(sender_main("stop"), 1)
+            report = run.reports()[-1].read_text()
+        self.assertEqual(receiver.status.player_state, "PLAYING")
+        self.assertEqual(server.live, ["tok1"])
+        self.assertIn("stop not obeyed", report)
+
+    def test_the_runs_own_token_whose_sign_out_failed_is_revoked_by_the_next_run(self):
+        from urllib.error import URLError
+
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver):
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            # The pause goes out with the receiver's token, tok1; the run's own, tok2, fails to sign out.
+            server.logout_error = URLError("server away")
+            sender_main("pause")
+            self.assertEqual(server.live, ["tok1", "tok2"])
+            server.logout_error = None
+            sender_main("unpause")
+        self.assertEqual(server.live, ["tok1"])
+        self.assertEqual({m["accessToken"] for m in receiver.received}, {"tok1"})
+
+    def test_a_run_on_a_receiver_another_run_drives_does_nothing(self):
+        # Two runs both without a held token handed the receiver one each, and the store kept the
+        # one the receiver no longer had.
+        server = FakeServer(items={"V01": V01})
+        receiver = FakeReceiver()
+        with bench_run(server, receiver) as run:
+            with sender.ReceiverTokens(run.root / "receiver-tokens.local.json").claim("Living room"):
+                self.assertEqual(sender_main("play-now", "--item", "V01", "--watch", "0"), 2)
+            stderr = run.stderr.getvalue()
+        self.assertIn("another run is driving Living room", stderr)
+        self.assertEqual(receiver.received, [])
+        self.assertEqual(server.issued, [])
 
     def test_report_steps_carry_the_time_they_happened(self):
         clock = FakeClock()
