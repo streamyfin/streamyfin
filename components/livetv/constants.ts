@@ -1,5 +1,3 @@
-export const EPG_PX_PER_HOUR = 200;
-
 // Shared visual constants for the LiveTV UI
 export const EPG_FAVORITE_ICON_SIZE = 18;
 export const EPG_PROGRESS_BAR_HEIGHT = 2;

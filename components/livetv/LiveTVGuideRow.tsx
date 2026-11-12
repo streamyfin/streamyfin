@@ -5,13 +5,17 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
+import {
+  LIVE_TV_GUIDE_HOUR_MS,
+  LIVE_TV_GUIDE_HOUR_WIDTH,
+  LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH,
+} from "@/constants/LiveTVGuide";
 import { Text } from "../common/Text";
 import {
   EPG_BORDER_COLOR,
   EPG_BORDER_WIDTH,
   EPG_CARD_BG_INACTIVE,
   EPG_CARD_BG_LIVE,
-  EPG_PX_PER_HOUR,
   EPG_TEXT_MIN_CELL_WIDTH,
 } from "./constants";
 
@@ -33,8 +37,25 @@ type GuideEntry = RealEntry | DummyEntry;
 const datesToPx = (start: Date, end: Date): number =>
   Math.max(
     0,
-    ((end.getTime() - start.getTime()) / 60000 / 60) * EPG_PX_PER_HOUR,
+    ((end.getTime() - start.getTime()) / LIVE_TV_GUIDE_HOUR_MS) *
+      LIVE_TV_GUIDE_HOUR_WIDTH,
   );
+
+/**
+ * How far a title follows the left edge into its program. It stops short of
+ * the end, keeping the room it needs: closer, it rewrapped on every scroll step.
+ */
+export const pinnedTitleOffset = (
+  scrollX: number,
+  position: number,
+  width: number,
+) => {
+  "worklet";
+  return Math.min(
+    Math.max(scrollX - position, 0),
+    Math.max(width - LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH, 0),
+  );
+};
 
 // Separate component so useAnimatedStyle is called at component level, not inside a loop
 const ProgramCard: React.FC<{
@@ -53,10 +74,11 @@ const ProgramCard: React.FC<{
   onLongPress,
 }) => {
   const textStyle = useAnimatedStyle(() => ({
-    marginLeft:
-      scrollXShared.value > entry.position
-        ? scrollXShared.value - entry.position
-        : 0,
+    marginLeft: pinnedTitleOffset(
+      scrollXShared.value,
+      entry.position,
+      entry.width,
+    ),
   }));
 
   return (
@@ -170,7 +192,10 @@ export const LiveTVGuideRow = ({
     if (result.length === 0) {
       result.push({
         isDummy: true,
-        width: Math.max(datesToPx(referenceTime, endOfDay), EPG_PX_PER_HOUR),
+        width: Math.max(
+          datesToPx(referenceTime, endOfDay),
+          LIVE_TV_GUIDE_HOUR_WIDTH,
+        ),
         position: 0,
         Id: `empty-${channel.Id}`,
         startTime: new Date(referenceTime),

@@ -6,17 +6,17 @@ import {
   LIVE_TV_GUIDE_HOUR_WIDTH as HOUR,
   LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH,
 } from "@/constants/LiveTVGuide";
+import { makeSharedValue } from "@/test-utils/reanimated";
 import { LiveTVGuideRow } from "./LiveTVGuideRow";
 
-jest.mock("../common/TouchableItemRouter", () => ({
-  TouchableItemRouter: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+  __esModule: true,
 }));
 
 const channel = { Id: "channel-1" } as BaseItemDto;
-// The hour the guide's header starts at.
-const GUIDE_START = new Date("2026-01-01T20:00:00Z").getTime();
+// The time the guide's header starts at.
+const REFERENCE = new Date("2026-01-01T20:00:00Z");
 
 const program = (name: string, start: string, end: string): BaseItemDto => ({
   Id: name,
@@ -28,11 +28,15 @@ const program = (name: string, start: string, end: string): BaseItemDto => ({
 
 const styleOf = (node: TestInstance) => StyleSheet.flatten(node.props.style);
 
-/** The program cells drawn, left to right: where each starts and its width. */
+/** Where each cell starts and how wide it is, gaps included, left to right. */
 const cellsOf = (root: TestInstance | null) =>
   root!
     .queryAll((node) => styleOf(node)?.position === "absolute")
-    .map((node) => ({ left: styleOf(node).left, width: styleOf(node).width }));
+    // A cell sits 2 points inside its time span on either side.
+    .map((node) => ({
+      left: styleOf(node).left - 2,
+      width: styleOf(node).width + 4,
+    }));
 
 /** How far each title has moved into its program, cell by cell. */
 const titleOffsetsOf = (root: TestInstance | null) =>
@@ -45,36 +49,37 @@ const renderRow = (programs: BaseItemDto[], scrollX = 0) =>
     <LiveTVGuideRow
       channel={channel}
       programs={programs}
-      startTime={GUIDE_START}
-      scrollX={scrollX}
+      scrollXShared={makeSharedValue(scrollX) as never}
+      referenceTime={REFERENCE}
+      nowMs={REFERENCE.getTime()}
+      onPress={jest.fn()}
+      onLongPress={jest.fn()}
     />,
   );
 
 describe("LiveTVGuideRow", () => {
-  // The header starts at the current hour, and the rows were summed from
-  // their first program: one that began earlier was drawn under the current
-  // hour, every later one came late, and a gap pulled the rest earlier.
-  test("places each program at its start, from the guide's first hour", async () => {
+  test("places each program at its start, from the guide's first time", async () => {
     const { root } = await renderRow([
       program("Running", "19:00", "21:00"),
       program("Next", "21:00", "21:30"),
       program("After a gap", "22:00", "23:00"),
     ]);
 
-    expect(cellsOf(root)).toEqual([
+    expect(cellsOf(root).slice(0, 4)).toEqual([
       { left: 0, width: HOUR },
       { left: HOUR, width: HOUR / 2 },
+      { left: 1.5 * HOUR, width: HOUR / 2 },
       { left: 2 * HOUR, width: HOUR },
     ]);
   });
 
-  test("draws nothing for a program over before the first hour", async () => {
+  test("draws nothing for a program over before the first time", async () => {
     const { root } = await renderRow([
       program("Over", "18:00", "19:30"),
       program("Now", "20:00", "21:00"),
     ]);
 
-    expect(cellsOf(root)).toEqual([{ left: 0, width: HOUR }]);
+    expect(cellsOf(root)[0]).toEqual({ left: 0, width: HOUR });
   });
 
   test("moves a title along while its program is scrolled past the edge", async () => {
@@ -86,8 +91,8 @@ describe("LiveTVGuideRow", () => {
     expect(titleOffsetsOf(root)).toEqual([30]);
   });
 
-  // Following the edge to the program's end, a title had a few points left,
-  // wrapped again on every scroll step, then had none.
+  // Following the edge to the program's end, a title had a few points left
+  // and wrapped again on every scroll step.
   test("stops a title short of its program's end, so it keeps its room", async () => {
     const { root } = await renderRow(
       [program("Long Movie", "20:00", "21:45")],
