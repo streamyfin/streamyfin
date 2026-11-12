@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
 TICKS_PER_SECOND = 10_000_000
+EXTRA_FRACTION_DIGITS = re.compile(r"(\.\d{6})\d+")
 
 
 @dataclass
@@ -42,12 +44,9 @@ class SessionView:
 def parse_timestamp(value: str | None) -> datetime | None:
     if not value or value.startswith("0001-"):
         return None
-    # Jellyfin writes seven fractional digits; fromisoformat takes at most six.
-    trimmed = value.replace("Z", "+00:00")
-    if "." in trimmed:
-        head, tail = trimmed.split(".", 1)
-        fraction, _, zone = tail.partition("+")
-        trimmed = f"{head}.{fraction[:6]}+{zone}" if zone else f"{head}.{fraction[:6]}"
+    # Jellyfin writes seven fractional digits; fromisoformat takes at most six. Only the extra
+    # digits go, so the zone after them stays, - or +.
+    trimmed = EXTRA_FRACTION_DIGITS.sub(r"\1", value.replace("Z", "+00:00"))
     parsed = datetime.fromisoformat(trimmed)
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
