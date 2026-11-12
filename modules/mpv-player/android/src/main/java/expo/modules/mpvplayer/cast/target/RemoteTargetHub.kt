@@ -46,7 +46,8 @@ class RemoteTargetHub {
         machine = RemoteTargetMachine()
         publish()
         updateDevices(emptyList())
-        // The devices come from discovery, as before the hub: a port lists none until it is asked to look.
+        // The hub lists only what the port reports: the Android port lists none until it is asked to look, the
+        // iOS port reports the SDK's list from its start.
         port.start(eventsFor(port))
         if (discoveryOwners.isNotEmpty()) port.startDiscovery()
     }
