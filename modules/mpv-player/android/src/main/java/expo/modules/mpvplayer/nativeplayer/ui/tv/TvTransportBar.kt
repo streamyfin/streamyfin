@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +49,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
+import expo.modules.mpvplayer.nativeplayer.ui.LiveBadge
 import expo.modules.mpvplayer.nativeplayer.ui.formatTimeSec
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,6 +63,18 @@ fun TvTransportBar(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
+    // A live stream has no timeline: nothing to scrub and no time to count
+    // down. The badge stands where a film has its bar.
+    if (viewModel.isLive) {
+        LiveBadge(
+            text = viewModel.strings.get("live"),
+            fontSize = 18.sp,
+            padding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            modifier = modifier
+        )
+        return
+    }
+
     val isScrubbing = viewModel.isScrubbing
     val position = if (isScrubbing) viewModel.scrubPosition else viewModel.displayPosition
     val duration = viewModel.duration

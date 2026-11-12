@@ -78,6 +78,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
      */
     var isMpvEngine by mutableStateOf(true)
 
+    /**
+     * A Live TV channel: the stream has no start, no end and no resume point,
+     * so nothing seeks it and the chrome shows LIVE where a film has its bar
+     * and its times.
+     */
+    var isLive by mutableStateOf(false)
+        private set
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -380,6 +388,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun apply(config: PlayerPresentConfigRecord) {
         updateSyncPlay(config.syncPlay)
         isMpvEngine = config.engine?.lowercase() != "exoplayer"
+        isLive = config.stream.isLive
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
@@ -631,6 +640,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekLocal(positionSec: Double, trackOnly: Boolean = !syncPlayActive) {
+        // Every seek ends here: the screen, the remote, a headset, the lock
+        // screen, the picture in picture window, a Seek from another device.
+        if (isLive) return
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         val requestId = pendingSeekReport.request(clamped)
         if (trackOnly) {
@@ -679,7 +691,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun doubleTapSeek(forward: Boolean) {
-        if (!uiOptions.doubleTapToSeekEnabled) return
+        if (!uiOptions.doubleTapToSeekEnabled || isLive) return
         val delta = if (forward) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec
         seekBy(delta)
         doubleTapSeekForward = forward
@@ -1312,8 +1324,13 @@ class PlayerViewModel : PlayerEngine.Delegate {
         // exists to prevent.
         if (isTearingDown) return
         authoritativePosition = position
-        if (this.duration != duration) {
-            this.duration = duration
+        // mpv gives as a live stream's duration how far it has read, which
+        // grows with every tick: each new value republished the session's
+        // metadata and the notification, some 25 times a second. A live
+        // stream has no length, so it keeps the 0 of an unknown one.
+        val length = if (isLive) 0.0 else duration
+        if (this.duration != length) {
+            this.duration = length
             onMetadataSync?.invoke()
         }
         this.cacheSeconds = cacheSeconds

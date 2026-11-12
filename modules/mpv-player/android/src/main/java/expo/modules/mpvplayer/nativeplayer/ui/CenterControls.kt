@@ -57,25 +57,30 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
             }
         }
 
+        // A live stream has nowhere to skip to.
+        val canSeek = !viewModel.isLive
+
         // Seek Backward
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable {
-                    viewModel.haptic()
-                    viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            SeekIcon(
-                forward = false,
-                seconds = viewModel.uiOptions.seekBackwardSec,
-                tint = Color.White,
-                contentDescription = "Seek Backward",
-                modifier = Modifier.size(30.dp)
-            )
+        if (canSeek) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable {
+                        viewModel.haptic()
+                        viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                SeekIcon(
+                    forward = false,
+                    seconds = viewModel.uiOptions.seekBackwardSec,
+                    tint = Color.White,
+                    contentDescription = "Seek Backward",
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
 
         // Play / Pause main button
@@ -106,24 +111,26 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         }
 
         // Seek Forward
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable {
-                    viewModel.haptic()
-                    viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            SeekIcon(
-                forward = true,
-                seconds = viewModel.uiOptions.seekForwardSec,
-                tint = Color.White,
-                contentDescription = "Seek Forward",
-                modifier = Modifier.size(30.dp)
-            )
+        if (canSeek) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable {
+                        viewModel.haptic()
+                        viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                SeekIcon(
+                    forward = true,
+                    seconds = viewModel.uiOptions.seekForwardSec,
+                    tint = Color.White,
+                    contentDescription = "Seek Forward",
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
 
         // Next Episode button

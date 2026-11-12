@@ -39,6 +39,13 @@ export type NativePlayerStreamConfig = {
    * 60Hz panel and judders. Ignored by iOS.
    */
   contentFrameRate?: number;
+  /**
+   * A Live TV channel: the stream has no start, no end and no resume point.
+   * Android's chrome offers no seek for it, from the screen, the remote, a
+   * headset or the lock screen, and shows LIVE where a film shows its bar and
+   * times. Ignored by iOS.
+   */
+  isLive?: boolean;
 };
 
 export type NativePlayerMetadata = {
@@ -232,6 +239,7 @@ export type NativePlayerStrings = Partial<
     | "continueWatching"
     | "goBack"
     | "endsAt"
+    | "live"
     | "zoomToFill"
     | "stop"
     | "stopPlayback"

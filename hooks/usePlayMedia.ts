@@ -6,6 +6,7 @@ import { Alert } from "react-native";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { resetStillWatchingSession } from "@/utils/stillWatching";
@@ -55,9 +56,7 @@ export const usePlayMedia = () => {
         return;
       }
 
-      const isLive =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
+      const isLive = isLiveTvItem(options?.item);
 
       if (syncPlay.enabled) {
         if (req.offline || isLive) {

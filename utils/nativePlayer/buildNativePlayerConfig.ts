@@ -31,6 +31,7 @@ import {
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import {
   getPlayMethod,
   type PlayMethod,
@@ -138,6 +139,7 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
+  live: t("player.live"),
   // Exit confirmation, asked on a TV Menu press.
   // Native substitutes %TITLE% with the current item's title.
   stop: t("common.stop"),
@@ -586,6 +588,9 @@ export async function buildNativePlayerConfig(params: {
         settings.matchRefreshRate === true
           ? (videoStream?.RealFrameRate ?? undefined)
           : undefined,
+      // The native chrome never sees the item: this is all it knows of a
+      // channel, which it would otherwise open as a film.
+      isLive: isLiveTvItem(item),
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.

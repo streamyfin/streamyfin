@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer.ui
 
+import expo.modules.mpvplayer.nativeplayer.UIOptionsRecord
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,5 +34,33 @@ class GesturePlaneTest {
     @Test
     fun ignoresEveryDragOnAPlaneShorterThanBothStrips() {
         assertTrue(startsAtScreenEdge(100f, 200f, edge))
+    }
+
+    private val everyGesture = UIOptionsRecord()
+
+    // A sideways drag scrubs, and a live stream has no timeline to scrub.
+    @Test
+    fun aSidewaysDragScrubsAFilmAndNotALiveStream() {
+        assertTrue(dragIsAllowed(DragAxis.HORIZONTAL, onLeftHalf = true, everyGesture, isLive = false))
+        assertFalse(dragIsAllowed(DragAxis.HORIZONTAL, onLeftHalf = true, everyGesture, isLive = true))
+    }
+
+    @Test
+    fun aLiveStreamKeepsItsBrightnessAndVolumeDrags() {
+        assertTrue("brightness, on the left", dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = true, everyGesture, isLive = true))
+        assertTrue("volume, on the right", dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = false, everyGesture, isLive = true))
+    }
+
+    @Test
+    fun aDragWhoseGestureIsSwitchedOffIsNotAllowed() {
+        val noSeek = UIOptionsRecord().apply { horizontalSwipeSeekEnabled = false }
+        val noBrightness = UIOptionsRecord().apply { brightnessSwipeEnabled = false }
+        val noVolume = UIOptionsRecord().apply { volumeSwipeEnabled = false }
+
+        assertFalse(dragIsAllowed(DragAxis.HORIZONTAL, onLeftHalf = false, noSeek, isLive = false))
+        assertFalse(dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = true, noBrightness, isLive = false))
+        assertTrue("volume is on the other half", dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = false, noBrightness, isLive = false))
+        assertFalse(dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = false, noVolume, isLive = false))
+        assertTrue("brightness is on the other half", dragIsAllowed(DragAxis.VERTICAL, onLeftHalf = true, noVolume, isLive = false))
     }
 }

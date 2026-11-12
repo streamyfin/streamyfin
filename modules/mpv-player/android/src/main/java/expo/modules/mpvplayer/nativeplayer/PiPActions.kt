@@ -19,20 +19,23 @@ object PiPActions {
     private const val REQUEST_SKIP_FORWARD = 102
     private const val REQUEST_SKIP_BACKWARD = 103
 
+    /** [canSeek] is false for a live stream, whose window only pauses. */
     @RequiresApi(Build.VERSION_CODES.O)
-    fun buildActions(context: Context, isPlaying: Boolean): List<RemoteAction> {
+    fun buildActions(context: Context, isPlaying: Boolean, canSeek: Boolean): List<RemoteAction> {
         val actions = mutableListOf<RemoteAction>()
 
         // 1. Skip Backward (-15s)
-        val skipBackIntent = Intent(ACTION_PIP_SKIP_BACKWARD).setPackage(context.packageName)
-        val skipBackPending = PendingIntent.getBroadcast(
-            context,
-            REQUEST_SKIP_BACKWARD,
-            skipBackIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val backIcon = Icon.createWithResource(context, android.R.drawable.ic_media_rew)
-        actions.add(RemoteAction(backIcon, "Seek -15s", "Seek -15s", skipBackPending))
+        if (canSeek) {
+            val skipBackIntent = Intent(ACTION_PIP_SKIP_BACKWARD).setPackage(context.packageName)
+            val skipBackPending = PendingIntent.getBroadcast(
+                context,
+                REQUEST_SKIP_BACKWARD,
+                skipBackIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val backIcon = Icon.createWithResource(context, android.R.drawable.ic_media_rew)
+            actions.add(RemoteAction(backIcon, "Seek -15s", "Seek -15s", skipBackPending))
+        }
 
         // 2. Play / Pause
         val playPauseIntent = Intent(ACTION_PIP_PLAY_PAUSE).setPackage(context.packageName)
@@ -50,15 +53,17 @@ object PiPActions {
         actions.add(RemoteAction(playPauseIcon, if (isPlaying) "Pause" else "Play", if (isPlaying) "Pause" else "Play", playPausePending))
 
         // 3. Skip Forward (+15s)
-        val skipFwdIntent = Intent(ACTION_PIP_SKIP_FORWARD).setPackage(context.packageName)
-        val skipFwdPending = PendingIntent.getBroadcast(
-            context,
-            REQUEST_SKIP_FORWARD,
-            skipFwdIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val fwdIcon = Icon.createWithResource(context, android.R.drawable.ic_media_ff)
-        actions.add(RemoteAction(fwdIcon, "Seek +15s", "Seek +15s", skipFwdPending))
+        if (canSeek) {
+            val skipFwdIntent = Intent(ACTION_PIP_SKIP_FORWARD).setPackage(context.packageName)
+            val skipFwdPending = PendingIntent.getBroadcast(
+                context,
+                REQUEST_SKIP_FORWARD,
+                skipFwdIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val fwdIcon = Icon.createWithResource(context, android.R.drawable.ic_media_ff)
+            actions.add(RemoteAction(fwdIcon, "Seek +15s", "Seek +15s", skipFwdPending))
+        }
 
         return actions
     }

@@ -552,7 +552,7 @@ class NativePlayerSession(
                 val params = PictureInPictureParams.Builder()
                     .setAutoEnterEnabled(allowPip)
                     .setAspectRatio(Rational(16, 9))
-                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying))
+                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.setPictureInPictureParams(params)
             } catch (e: Exception) {
@@ -625,7 +625,7 @@ class NativePlayerSession(
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))
-                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying))
+                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.enterPictureInPictureMode(params)
             } catch (e: Exception) {
@@ -640,7 +640,7 @@ class NativePlayerSession(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val builder = PictureInPictureParams.Builder()
-                    .setActions(PiPActions.buildActions(activity, isPlaying))
+                    .setActions(PiPActions.buildActions(activity, isPlaying, canSeek = !viewModel.isLive))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     builder.setAutoEnterEnabled(viewModel.uiOptions.allowPip)
                 }
@@ -693,6 +693,9 @@ class NativePlayerSession(
                 // is still buffering. Reset the per-stream flag first so the
                 // swap is treated like an initial load.
                 playbackStarted = false
+                // The PiP window's buttons follow the stream as well as the
+                // play state: a channel loaded over a film has no skip.
+                pipActionsPlaying = null
                 viewModel.prepareForReload()
                 viewModel.apply(config)
                 startStream(config)

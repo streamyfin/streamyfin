@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -58,6 +59,23 @@ fun PlayerBottomBar(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
+    // A live stream has no timeline: the badge stands where a film has its
+    // bar and its times.
+    if (viewModel.isLive) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            LiveBadge(
+                text = viewModel.strings.get("live"),
+                fontSize = 12.sp,
+                padding = PaddingValues(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
+        return
+    }
+
     val duration = viewModel.duration
     val position = if (viewModel.isScrubbing) viewModel.scrubPosition else viewModel.displayPosition
     val progress = if (duration > 0) (position / duration).coerceIn(0.0, 1.0) else 0.0

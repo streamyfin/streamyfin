@@ -21,9 +21,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
+import expo.modules.mpvplayer.nativeplayer.UIOptionsRecord
 import kotlin.math.abs
 
-private enum class DragAxis { HORIZONTAL, VERTICAL }
+internal enum class DragAxis { HORIZONTAL, VERTICAL }
 
 /**
  * Whether a touch that went down at [y] on a gesture plane [height] tall
@@ -32,6 +33,23 @@ private enum class DragAxis { HORIZONTAL, VERTICAL }
  */
 internal fun startsAtScreenEdge(y: Float, height: Float, edgePx: Float): Boolean =
     y < edgePx || y >= height - edgePx
+
+/**
+ * Whether a drag that locked on [axis] does anything: sideways it scrubs, up
+ * or down it sets the brightness on the left half and the volume on the
+ * right. One whose gesture is switched off does nothing until the finger
+ * lifts, and neither does a scrub on a live stream, which has no timeline.
+ */
+internal fun dragIsAllowed(
+    axis: DragAxis,
+    onLeftHalf: Boolean,
+    options: UIOptionsRecord,
+    isLive: Boolean
+): Boolean = when {
+    axis == DragAxis.HORIZONTAL -> options.horizontalSwipeSeekEnabled && !isLive
+    onLeftHalf -> options.brightnessSwipeEnabled
+    else -> options.volumeSwipeEnabled
+}
 
 @Composable
 fun GesturePlane(
@@ -58,7 +76,7 @@ fun GesturePlane(
                         viewModel.toggleControls()
                     },
                     onDoubleTap = { offset ->
-                        if (viewModel.uiOptions.doubleTapToSeekEnabled && !viewModel.controlsLocked) {
+                        if (viewModel.uiOptions.doubleTapToSeekEnabled && !viewModel.controlsLocked && !viewModel.isLive) {
                             val isRightHalf = offset.x >= (size.width / 2)
                             viewModel.doubleTapSeek(forward = isRightHalf)
                         } else {
@@ -150,20 +168,13 @@ fun GesturePlane(
                         // Determine drag axis lock on first significant movement (> 10px)
                         if (dragAxis == null) {
                             if (abs(totalPanX) > 15f || abs(totalPanY) > 15f) {
-                                dragAxis = if (abs(totalPanX) > abs(totalPanY)) {
+                                val axis = if (abs(totalPanX) > abs(totalPanY)) {
                                     DragAxis.HORIZONTAL
                                 } else {
                                     DragAxis.VERTICAL
                                 }
-                                // A drag whose gesture is switched off does
-                                // nothing until the finger lifts.
-                                val options = viewModel.uiOptions
-                                val allowed = when {
-                                    dragAxis == DragAxis.HORIZONTAL -> options.horizontalSwipeSeekEnabled
-                                    dragOnLeftHalf -> options.brightnessSwipeEnabled
-                                    else -> options.volumeSwipeEnabled
-                                }
-                                if (!allowed) {
+                                dragAxis = axis
+                                if (!dragIsAllowed(axis, dragOnLeftHalf, viewModel.uiOptions, viewModel.isLive)) {
                                     dragAxis = null
                                     dragSuppressed = true
                                 } else if (dragAxis == DragAxis.HORIZONTAL) {

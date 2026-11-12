@@ -93,6 +93,8 @@ fun TvControlsRow(
     val hasAudio = viewModel.audioMenu.isNotEmpty()
     val hasSubtitles = viewModel.subtitleMenu.isNotEmpty() || viewModel.uiOptions.subtitleSearchEnabled
     val activeSegment = viewModel.activeSegment
+    // A live stream has nowhere to skip to.
+    val canSkip = !viewModel.isLive
 
     fun isAvailable(control: TvControl): Boolean = when (control) {
         TvControl.PREV_EPISODE -> showPrevious
@@ -105,8 +107,8 @@ fun TvControlsRow(
         TvControl.AUDIO -> hasAudio
         TvControl.SUBTITLES -> hasSubtitles
         TvControl.SKIP_SEGMENT -> activeSegment != null
-        TvControl.MUTE, TvControl.SKIP_BACK, TvControl.SKIP_FORWARD, TvControl.PLAY_PAUSE,
-        TvControl.MORE -> true
+        TvControl.SKIP_BACK, TvControl.SKIP_FORWARD -> canSkip
+        TvControl.MUTE, TvControl.PLAY_PAUSE, TvControl.MORE -> true
     }
 
     val defaultFocusTarget = if (lastFocused != null && isAvailable(lastFocused)) {
@@ -138,9 +140,10 @@ fun TvControlsRow(
     }
 
     // Previous and Next follow the group's queue, the queue button and the
-    // speed button follow membership. One of them unmounting under the focus
-    // (Next pressed on the second to last item) leaves the remote dead.
-    LaunchedEffect(showPrevious, showNext, viewModel.syncPlayActive) {
+    // speed button follow membership, the skips follow the stream (a channel
+    // loaded over a film). One of them unmounting under the focus (Next
+    // pressed on the second to last item) leaves the remote dead.
+    LaunchedEffect(showPrevious, showNext, viewModel.syncPlayActive, canSkip) {
         if (viewModel.controlsVisible && lastFocused != null && !isAvailable(lastFocused)) {
             viewModel.restoreTvControlsFocus()
         }
@@ -163,19 +166,21 @@ fun TvControlsRow(
             )
         }
 
-        TvIconButton(
-            control = TvControl.SKIP_BACK,
-            focusRequester = focusRequesters.getValue(TvControl.SKIP_BACK),
-            onFocused = onControlFocused,
-            onClick = { viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec) }
-        ) {
-            SeekIcon(
-                forward = false,
-                seconds = viewModel.uiOptions.seekBackwardSec,
-                tint = LocalContentColor.current,
-                contentDescription = "Skip Back",
-                modifier = Modifier.size(TvMetrics.ICON_SIZE)
-            )
+        if (canSkip) {
+            TvIconButton(
+                control = TvControl.SKIP_BACK,
+                focusRequester = focusRequesters.getValue(TvControl.SKIP_BACK),
+                onFocused = onControlFocused,
+                onClick = { viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec) }
+            ) {
+                SeekIcon(
+                    forward = false,
+                    seconds = viewModel.uiOptions.seekBackwardSec,
+                    tint = LocalContentColor.current,
+                    contentDescription = "Skip Back",
+                    modifier = Modifier.size(TvMetrics.ICON_SIZE)
+                )
+            }
         }
 
         if (hasChapters) {
@@ -209,19 +214,21 @@ fun TvControlsRow(
             )
         }
 
-        TvIconButton(
-            control = TvControl.SKIP_FORWARD,
-            focusRequester = focusRequesters.getValue(TvControl.SKIP_FORWARD),
-            onFocused = onControlFocused,
-            onClick = { viewModel.seekBy(viewModel.uiOptions.seekForwardSec) }
-        ) {
-            SeekIcon(
-                forward = true,
-                seconds = viewModel.uiOptions.seekForwardSec,
-                tint = LocalContentColor.current,
-                contentDescription = "Skip Forward",
-                modifier = Modifier.size(TvMetrics.ICON_SIZE)
-            )
+        if (canSkip) {
+            TvIconButton(
+                control = TvControl.SKIP_FORWARD,
+                focusRequester = focusRequesters.getValue(TvControl.SKIP_FORWARD),
+                onFocused = onControlFocused,
+                onClick = { viewModel.seekBy(viewModel.uiOptions.seekForwardSec) }
+            ) {
+                SeekIcon(
+                    forward = true,
+                    seconds = viewModel.uiOptions.seekForwardSec,
+                    tint = LocalContentColor.current,
+                    contentDescription = "Skip Forward",
+                    modifier = Modifier.size(TvMetrics.ICON_SIZE)
+                )
+            }
         }
 
         if (showNext) {
