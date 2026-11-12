@@ -77,8 +77,12 @@ never log each other out and leave no device behind on the server. The one excep
 token the sender hands a receiver: the receiver keeps using it for its progress reports and
 its stream, so it is kept in `e2e/bench/receiver-tokens.local.json` (ignored by git and Biome)
 per server, profile and target, reused by the next command to that receiver, and revoked by
-`stop` or by a later run that finds the receiver idle. Only `play-now` starts the receiver;
-the other actions leave whatever the TV shows alone.
+`stop` or by a later run that finds the receiver idle. Idle means the receiver answered so: a
+status request left unanswered keeps the token, and a `stop` the receiver does not obey within
+10 s exits with 1. A token whose sign-out fails waits in `receiver-tokens.local.orphans.json`
+for the next run to retry it. One run at a time drives a receiver: a second one, the matrix
+included, exits with 2 instead of handing it a token of its own. Only `play-now` starts the
+receiver; the other actions leave whatever the TV shows alone.
 
 ## Where results go
 

@@ -8,7 +8,7 @@ from bench.config import CAST_KINDS
 from bench.jellyfin import JellyfinHttpError
 from bench.sender import BusMessage, MediaSample, SenderTimeout
 from bench.sessions import SessionView
-from bench.tests.fakes import RECEIVER_APP_ID, FakeReceiver, FakeServer, bench_run
+from bench.tests.fakes import NO_WAIT_TIME, RECEIVER_APP_ID, FakeReceiver, FakeServer, FakeStatus, bench_run
 from suites.cast import matrix
 from suites.cast.matrix import CastDriver, Row, evaluate, load_cases, run, to_markdown
 
@@ -62,6 +62,10 @@ class FakeDriver:
         self.sent = []
         self.stops = 0
         self.case = None
+        # Like CastDriver: whether the receiver got this run's token, and was seen idle since.
+        self.handed = False
+        self.idle = True
+        self.stop_obeyed = True
 
     def fail(self, step: str, case_id: str) -> None:
         if (case_id, step) in self.failures:
@@ -76,6 +80,7 @@ class FakeDriver:
     def play(self, item, case):
         self.case = case
         self.sent.append(case["id"])
+        self.handed, self.idle = True, False
         self.fail("play", case["id"])
         return self.plays.get(case["id"]) or played(expected_method(case), item["Id"])
 
@@ -90,6 +95,9 @@ class FakeDriver:
 
     def stop(self):
         self.stops += 1
+        if not self.stop_obeyed:
+            raise SenderTimeout("the receiver to stop")
+        self.idle = True
 
 
 class LoadTests(unittest.TestCase):
@@ -181,9 +189,15 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(row.verdict, "skipped")
 
     def test_evaluate_without_expectation_for_the_target_is_informational(self):
-        row = evaluate(case(expect={}), "apple-tv", played("Transcode"), None, [], item_id=ITEM)
+        row = evaluate(case(expect={}), "apple-tv", played("Transcode"), view("Transcode"), [], item_id=ITEM)
         self.assertEqual(row.verdict, "ok")
         self.assertIsNone(row.expected)
+
+    def test_a_case_without_expectation_still_needs_its_server_session(self):
+        # The cast-audio cases expect nothing: one that played with no server session passed.
+        row = evaluate(case(expect={}), "chromecast-gen3", played(), None, [], item_id=ITEM)
+        self.assertEqual(row.verdict, "incomplete")
+        self.assertIn("no server session to confirm it", row.errors)
 
     def test_only_the_item_asked_for_counts(self):
         # The receiver still played the previous case: its PLAYING, then the new load failing to
@@ -262,6 +276,32 @@ def driver_on(sessions=(), items=()) -> CastDriver:
     driver = CastDriver(Client(), session=type("S", (), {"token": "t", "user_id": "u"})(), cast=None, controller=None, receiver_name="Salon - Chromecast", server_url="http://x", watch_seconds=1)
     driver.requests = requests
     return driver
+
+
+class CastDriverStopTests(unittest.TestCase):
+    def driver(self, receiver: FakeReceiver) -> CastDriver:
+        from bench.jellyfin import AuthSession
+
+        return CastDriver(None, AuthSession("tok1", "user-1"), receiver, receiver, "Living room", "http://server.example.test", 0)
+
+    def test_a_stop_counts_once_the_receiver_answers_idle(self):
+        receiver = FakeReceiver(status=FakeStatus("PLAYING", 10.0, {}))
+        driver = self.driver(receiver)
+        driver.handed, driver.idle = True, False
+        with mock.patch("bench.sender.time", NO_WAIT_TIME):
+            driver.stop()
+        self.assertTrue(driver.idle)
+        self.assertEqual(receiver.received[-1]["command"], "Stop")
+
+    def test_a_stop_the_receiver_ignores_is_a_failure(self):
+        receiver = FakeReceiver(status=FakeStatus("PLAYING", 10.0, {}))
+        receiver.ignores = {"Stop"}
+        driver = self.driver(receiver)
+        driver.handed, driver.idle = True, False
+        with mock.patch("bench.sender.time", NO_WAIT_TIME), mock.patch("bench.sender.STOP_TIMEOUT_SECONDS", 0.05):
+            with self.assertRaises(SenderTimeout):
+                driver.stop()
+        self.assertFalse(driver.idle)
 
 
 class ResolveTests(unittest.TestCase):
@@ -441,6 +481,34 @@ class MatrixMainTests(unittest.TestCase):
             code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
         self.assertEqual(code, 0)
         self.assertIn("sign-out failed", result.stderr.getvalue())
+
+    def test_a_receiver_still_playing_at_the_end_keeps_the_token(self):
+        # The receiver plays with the run's token: signing it out cut the stream and its reports.
+        server = FakeServer()
+        driver = FakeDriver()
+        driver.stop_obeyed = False
+        with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+            code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+            stored = json.loads((result.root / "receiver-tokens.local.json").read_text())
+            errors = report_rows(result)[0]["errors"]
+        self.assertEqual(code, 1)
+        self.assertEqual(server.live, ["tok1"])
+        self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
+        self.assertIn("SenderTimeout: timed out waiting for the receiver to stop", errors)
+
+    def test_a_receiver_another_run_drives_is_left_alone(self):
+        from bench import sender
+
+        server = FakeServer()
+        driver = FakeDriver()
+        with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+            with sender.ReceiverTokens(result.root / "receiver-tokens.local.json").claim("Living room"):
+                code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+            stderr = result.stderr.getvalue()
+        self.assertEqual(code, 2)
+        self.assertIn("another run is driving Living room", stderr)
+        self.assertEqual(driver.sent, [])
+        self.assertEqual(server.issued, [])
 
     def test_the_table_reaches_the_published_copy_as_a_table(self):
         code, result = self.main(FakeDriver(), "--cases", "V01,V03")
