@@ -165,6 +165,20 @@ private struct TVTransportBar: View {
 	}()
 
 	var body: some View {
+		// A live stream has no timeline: nothing to scrub and no time to
+		// count down. The badge stands where a film has its bar.
+		if viewModel.isLive {
+			LiveBadge(
+				text: viewModel.str("live", "LIVE"),
+				fontSize: 24, horizontalPadding: 14, verticalPadding: 5
+			)
+		} else {
+			timeline
+		}
+	}
+
+	@ViewBuilder
+	private var timeline: some View {
 		let position =
 			viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition
 		let duration = viewModel.duration

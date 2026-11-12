@@ -41,9 +41,9 @@ export type NativePlayerStreamConfig = {
   contentFrameRate?: number;
   /**
    * A Live TV channel: the stream has no start, no end and no resume point.
-   * Android's chrome offers no seek for it, from the screen, the remote, a
-   * headset or the lock screen, and shows LIVE where a film shows its bar and
-   * times. Ignored by iOS.
+   * The player offers no seek for it, from the screen, the remote, a headset,
+   * the lock screen or the picture in picture window, plays it at 1x, and
+   * shows LIVE where a film shows its bar and times.
    */
   isLive?: boolean;
 };

@@ -23,6 +23,8 @@ struct VideoLoadConfig {
 	var cacheSeconds: Int?     // Seconds of video to buffer
 	var demuxerMaxBytes: Int?  // Max cache size in MB
 	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
+	/// A Live TV channel: the stream starts where it is, no seek to its start.
+	var isLive = false
 
 	init(
 		url: URL,

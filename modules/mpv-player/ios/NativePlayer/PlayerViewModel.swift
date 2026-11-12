@@ -46,6 +46,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// objectWillChange once per second for every observer.
 	private(set) var position: Double = 0
 	@Published var duration: Double = 0
+	/// A Live TV channel: the stream has no start, no end and no resume point,
+	/// so nothing seeks it and the chrome shows LIVE where a film has its bar
+	/// and its times.
+	@Published private(set) var isLive = false
 	/// The ticking values live here, not on this object — see
 	/// PlaybackTimeModel. Views that render them observe `time` explicitly.
 	let time = PlaybackTimeModel()
@@ -482,6 +486,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func apply(config: PlayerPresentConfigRecord) {
 		syncPlayExpectsPlaying = false
+		isLive = config.stream.isLive
 		// The sticky countdown cancel survives same-item swaps (track/bitrate
 		// re-negotiation goes through load() too) and resets only when the
 		// played item actually changes.
@@ -692,7 +697,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seek(to target: Double) {
-		guard target.isFinite else { return }
+		// Every user seek ends here: the screen, the remote, the lock screen,
+		// Control Center, the picture in picture window, a group's seek.
+		guard target.isFinite, !isLive else { return }
 		if isSyncPlayActive {
 			let clamped = max(0, duration > 0 ? min(target, duration) : target)
 			syncPlayAction("seek", ["positionSec": clamped])
@@ -702,6 +709,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private func seekLocally(to target: Double, trackOnly: Bool, exact: Bool = false) {
+		// A group's correction reaches here without seek(to:).
+		guard !isLive else { return }
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
 		pendingSeekReport = true
 		pendingSeekTarget = clamped
@@ -733,11 +742,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seekForward() {
+		guard !isLive else { return }
 		haptic()
 		seek(to: displayPosition + seekForwardSec)
 	}
 
 	func seekBackward() {
+		guard !isLive else { return }
 		haptic()
 		seek(to: displayPosition - seekBackwardSec)
 	}
@@ -747,7 +758,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// (settings.enableDoubleTapToSeek). Same guards as the surface drag —
 	/// lock mode and end-of-playback overlays swallow the gesture.
 	func doubleTapSeek(forward: Bool) {
-		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
+		guard doubleTapToSeekEnabled, !isLive, !controlsLocked, !showStillWatching,
 			errorMessage == nil, duration > 0
 		else { return }
 		if forward {
@@ -768,6 +779,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: Scrubbing
 
 	func beginScrub() {
+		// Scrubbing pauses: on a channel that would only stall it.
+		guard !isLive else { return }
 		isScrubbing = true
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
@@ -1207,8 +1220,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// Whether the speed menu is offered. A group plays at one speed, and a
+	/// live stream plays as it airs: faster drains what is buffered.
+	var canChangeSpeed: Bool { !isSyncPlayActive && !isLive }
+
 	func setSpeed(_ newSpeed: Double) {
-		guard !isSyncPlayActive else { return }
+		// Not told to JS: the speed the viewer saved stays theirs.
+		guard canChangeSpeed else { return }
 		// A deliberate speed choice (menu / remote) wins over a transient hold.
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
@@ -1234,7 +1252,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// onSpeedChange — the transient rate must never be persisted as the
 	/// user's speed preference.
 	func beginHoldSpeed() {
-		guard !isSyncPlayActive else { return }
+		guard canChangeSpeed else { return }
 		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
 			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
@@ -1663,8 +1681,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// This callback is 1Hz and duration is @Published — only assign on a
 		// real change, or every observer re-renders once per second (which
 		// grays out any open menu, see PlaybackTimeModel).
-		if self.duration != duration {
-			self.duration = duration
+		// mpv gives as a live stream's duration how far it has read, which
+		// grows with every tick. A live stream has no length: it keeps the 0
+		// of an unknown one, which also keeps every bar and drag off it.
+		let length = isLive ? 0 : duration
+		if self.duration != length {
+			self.duration = length
 		}
 		self.cacheSeconds = cacheSeconds
 		if !isScrubbing {

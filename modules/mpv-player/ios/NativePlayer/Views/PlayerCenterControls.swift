@@ -83,8 +83,11 @@ struct PlayerCenterControls: View {
 				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 			}
 
-			seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
-				viewModel.seekBackward()
+			// A live stream has nowhere to skip to.
+			if !viewModel.isLive {
+				seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
+					viewModel.seekBackward()
+				}
 			}
 
 			if hasChapters {
@@ -114,8 +117,10 @@ struct PlayerCenterControls: View {
 				.disabled(!viewModel.hasNextChapter)
 			}
 
-			seekButton(prefix: "goforward", seconds: viewModel.seekForwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
-				viewModel.seekForward()
+			if !viewModel.isLive {
+				seekButton(prefix: "goforward", seconds: viewModel.seekForwardSec, iconSize: m.seekIconSize, frame: m.sideButton) {
+					viewModel.seekForward()
+				}
 			}
 
 			if showEpisodeButtons {

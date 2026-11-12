@@ -162,8 +162,10 @@ final class NativePlayerSession {
 		engine.setSkipIntervals(forward: viewModel.seekForwardSec, backward: viewModel.seekBackwardSec)
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must
-		// explicitly write 1.0 or the old speed carries over.
-		let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
+		// explicitly write 1.0 or the old speed carries over. A group and a
+		// channel play at 1× (apply() above set both flags); the saved speed
+		// stays the viewer's for everything else.
+		let speed = viewModel.canChangeSpeed ? config.ui.initialPlaybackSpeed : 1.0
 		engine.setSpeed(speed: speed)
 		viewModel.speed = speed
 		// Same persistence rule as speed: sync offsets and gain survive on

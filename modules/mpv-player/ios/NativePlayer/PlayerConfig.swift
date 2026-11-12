@@ -27,6 +27,8 @@ struct StreamConfigRecord: Record {
 	/// Source video dimensions (for zoom-to-fill subtitle compensation).
 	@Field var videoWidth: Int?
 	@Field var videoHeight: Int?
+	/// A Live TV channel: no seek is offered and the chrome shows LIVE.
+	@Field var isLive: Bool = false
 }
 
 struct MetadataRecord: Record {
@@ -258,6 +260,7 @@ extension StreamConfigRecord {
 			demuxerMaxBackBytes: cacheConfig?.maxBackBytes
 		)
 		config.requestedURL = url
+		config.isLive = isLive
 		return config
 	}
 }

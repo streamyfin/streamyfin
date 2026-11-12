@@ -740,6 +740,25 @@ struct PlayerBottomBar: View {
 	}()
 
 	var body: some View {
+		// A live stream has no timeline: the badge stands where a film has
+		// its bar and its times.
+		if viewModel.isLive {
+			HStack(alignment: .center) {
+				LiveBadge(
+					text: viewModel.str("live", "LIVE"),
+					fontSize: 12, horizontalPadding: 8, verticalPadding: 3
+				)
+				Spacer()
+				sleepCountdown
+			}
+			.padding(.bottom, 8)
+		} else {
+			timeline
+		}
+	}
+
+	@ViewBuilder
+	private var timeline: some View {
 		let position = viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition
 		let remaining = max(0, viewModel.duration - position)
 
@@ -761,26 +780,31 @@ struct PlayerBottomBar: View {
 							.font(.system(size: 10).monospacedDigit())
 							.foregroundStyle(.white.opacity(0.55))
 					}
-					if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
-						// TimelineView ticks the label on its own — the
-						// countdown must keep moving while paused, when the
-						// display-link clock driving this bar is frozen.
-						TimelineView(.periodic(from: .now, by: 1)) { context in
-							HStack(spacing: 3) {
-								Image(systemName: "moon.zzz.fill")
-									.font(.system(size: 9))
-								Text(formatTime(max(0, end.timeIntervalSince(context.date))))
-									.font(.system(size: 10).monospacedDigit())
-							}
-							.foregroundStyle(.white.opacity(0.55))
-						}
-					}
+					sleepCountdown
 				}
 			}
 			.font(.footnote.monospacedDigit())
 			.foregroundStyle(.white.opacity(0.85))
 		}
 		.padding(.bottom, 8)
+	}
+
+	@ViewBuilder
+	private var sleepCountdown: some View {
+		if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
+			// TimelineView ticks the label on its own — the
+			// countdown must keep moving while paused, when the
+			// display-link clock driving this bar is frozen.
+			TimelineView(.periodic(from: .now, by: 1)) { context in
+				HStack(spacing: 3) {
+					Image(systemName: "moon.zzz.fill")
+						.font(.system(size: 9))
+					Text(formatTime(max(0, end.timeIntervalSince(context.date))))
+						.font(.system(size: 10).monospacedDigit())
+				}
+				.foregroundStyle(.white.opacity(0.55))
+			}
+		}
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

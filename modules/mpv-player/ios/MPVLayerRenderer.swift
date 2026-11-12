@@ -668,6 +668,7 @@ final class MPVLayerRenderer {
         cacheSeconds: Int? = nil,
         demuxerMaxBytes: Int? = nil,
         demuxerMaxBackBytes: Int? = nil,
+        isLive: Bool = false,
         loadGeneration: UInt
     ) {
         queue.async { [weak self] in
@@ -714,12 +715,8 @@ final class MPVLayerRenderer {
                 self.setProperty(name: "demuxer-max-back-bytes", value: "\(maxBackBytes)MiB")
             }
 
-            // Set start position
-            if let startPos = startPosition, startPos > 0 {
-                self.setProperty(name: "start", value: String(format: "%.2f", startPos))
-            } else {
-                self.setProperty(name: "start", value: "0")
-            }
+            self.setProperty(
+                name: "start", value: mpvStartOption(startPosition: startPosition, isLive: isLive))
             // Until the first time-pos arrives the file is where it was told
             // to start. The duration event emits this cache as the position,
             // and left at 0 (or at the previous file's position) it told the

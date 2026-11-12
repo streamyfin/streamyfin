@@ -78,8 +78,11 @@ struct TVControlsRow: View {
 		case .skipSegment:
 			return viewModel.activeSegment != nil
 		case .speed:
-			return !viewModel.isSyncPlayActive
-		case .mute, .skipBack, .skipForward, .playPause, .more:
+			return viewModel.canChangeSpeed
+		case .skipBack, .skipForward:
+			// A live stream has nowhere to skip to.
+			return !viewModel.isLive
+		case .mute, .playPause, .more:
 			return true
 		}
 	}
@@ -94,11 +97,13 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .previousEpisode)
 					.tvFocusGated(focusGate, TVControl.previousEpisode)
 			}
-			seekIconButton("gobackward", viewModel.seekBackwardSec) {
-				viewModel.seekBackward()
+			if !viewModel.isLive {
+				seekIconButton("gobackward", viewModel.seekBackwardSec) {
+					viewModel.seekBackward()
+				}
+				.focused($focusedControl, equals: .skipBack)
+				.tvFocusGated(focusGate, TVControl.skipBack)
 			}
-			.focused($focusedControl, equals: .skipBack)
-			.tvFocusGated(focusGate, TVControl.skipBack)
 			if !viewModel.chapters.isEmpty {
 				iconButton("backward.fill") { viewModel.goToPreviousChapter() }
 					.focused($focusedControl, equals: .previousChapter)
@@ -114,11 +119,13 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .nextChapter)
 					.tvFocusGated(focusGate, TVControl.nextChapter)
 			}
-			seekIconButton("goforward", viewModel.seekForwardSec) {
-				viewModel.seekForward()
+			if !viewModel.isLive {
+				seekIconButton("goforward", viewModel.seekForwardSec) {
+					viewModel.seekForward()
+				}
+				.focused($focusedControl, equals: .skipForward)
+				.tvFocusGated(focusGate, TVControl.skipForward)
 			}
-			.focused($focusedControl, equals: .skipForward)
-			.tvFocusGated(focusGate, TVControl.skipForward)
 			if viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true {
 				iconButton("forward.end.fill") {
 					if canStepNext { viewModel.playNextEpisode() }
@@ -195,7 +202,7 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .subtitles)
 					.tvFocusGated(focusGate, TVControl.subtitles)
 			}
-			if !viewModel.isSyncPlayActive {
+			if viewModel.canChangeSpeed {
 				speedMenu
 					.focused($focusedControl, equals: .speed)
 					.tvFocusGated(focusGate, TVControl.speed)

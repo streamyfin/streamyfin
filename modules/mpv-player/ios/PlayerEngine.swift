@@ -60,6 +60,9 @@ final class MPVPlayerEngine: NSObject {
 
 	private var currentURL: URL?
 	private var currentLoop = false
+	/// A Live TV channel: Now Playing, the lock screen and the PiP window offer
+	/// no seek and no duration for it.
+	private var currentIsLive = false
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var loadGeneration: UInt = 0
@@ -275,6 +278,11 @@ final class MPVPlayerEngine: NSObject {
 		}
 		currentURL = config.url
 		currentLoop = config.loop
+		currentIsLive = config.isLive
+		if backgroundPlayback {
+			nowPlayingManager.setLive(config.isLive)
+		}
+		pipController?.setLive(config.isLive)
 		loadGeneration &+= 1
 		let currentLoadGeneration = loadGeneration
 		#if os(iOS)
@@ -312,6 +320,7 @@ final class MPVPlayerEngine: NSObject {
 			cacheSeconds: config.cacheSeconds,
 			demuxerMaxBytes: config.demuxerMaxBytes,
 			demuxerMaxBackBytes: config.demuxerMaxBackBytes,
+			isLive: config.isLive,
 			loadGeneration: currentLoadGeneration
 		)
 
@@ -530,6 +539,7 @@ final class MPVPlayerEngine: NSObject {
 				delegate: self
 			)
 			pipController = controller
+			controller.setLive(currentIsLive)
 			controller.setPlaybackRate(intendedPlayState ? 1.0 : 0.0)
 			controller.setCurrentTimeFromSeconds(cachedPosition)
 			Logger.shared.log(
@@ -827,7 +837,9 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	}
 
 	func pipControllerDuration(_ controller: PiPController) -> Double {
-		return getDuration()
+		// mpv gives as a live stream's duration how far it has read. With none,
+		// the window shows the stream as live (an infinite time range).
+		return currentIsLive ? 0 : getDuration()
 	}
 
 	func pipControllerCurrentPosition(_ controller: PiPController) -> Double {

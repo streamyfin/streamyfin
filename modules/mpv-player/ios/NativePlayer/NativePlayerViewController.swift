@@ -655,6 +655,8 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handleLeftPress() {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: -viewModel.seekBackwardSec)
+		} else if viewModel.isLive {
+			showLiveChrome()
 		} else {
 			viewModel.seekBackward()
 			viewModel.flashSeekFeedback()
@@ -664,10 +666,19 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handleRightPress() {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: viewModel.seekForwardSec)
+		} else if viewModel.isLive {
+			showLiveChrome()
 		} else {
 			viewModel.seekForward()
 			viewModel.flashSeekFeedback()
 		}
+	}
+
+	/// A live stream has nowhere to jump to: a skip click brings the chrome
+	/// up, LIVE badge included, where a film flashes its bar.
+	private func showLiveChrome() {
+		guard viewModel.errorMessage == nil else { return }
+		viewModel.showControls()
 	}
 
 	/// Clickpad top/bottom-edge clicks (up/down keys in the simulator):

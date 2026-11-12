@@ -73,7 +73,7 @@ struct PlayerTopBar: View {
 				.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 			}
 
-			if !compact && !viewModel.isSyncPlayActive {
+			if !compact && viewModel.canChangeSpeed {
 				speedMenu
 			}
 
@@ -264,7 +264,7 @@ struct PlayerTopBar: View {
 						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
 					}
 				}
-				if !viewModel.isSyncPlayActive {
+				if viewModel.canChangeSpeed {
 					Menu {
 						speedMenuEntries
 					} label: {
