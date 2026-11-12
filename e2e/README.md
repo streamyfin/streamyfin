@@ -55,8 +55,8 @@ that file. Never paste its content into an issue, a pull request or a report.
 
 ## Python dependencies
 
-Only the Cast sender and the device inventory need a package outside the standard
-library:
+The bench needs Python 3.11 or later, which PyChromecast 14 requires. Only the Cast sender
+and the device inventory need a package outside the standard library:
 
 ```sh
 python3 -m venv e2e/.venv
