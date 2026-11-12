@@ -69,7 +69,8 @@ private struct OutputListView: View {
       .font(.title3.weight(.bold))
       .padding(.bottom, 6)
       .accessibilityAddTraits(.isHeader)
-    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+    // Keyed: a press stays with its receiver when discovery sorts another one before it, and AirPlay's button lives on.
+    ForEach(rows, id: \.key) { row in
       switch row {
       case let .thisDevice(kind, playing, continueHere):
         SheetRow(

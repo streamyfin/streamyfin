@@ -80,6 +80,21 @@ enum OutputSheetTests {
   }
 
   static func modelCases() {
+    // A row is drawn under its key, not its place: a receiver found during a press and sorted before the pressed one
+    // must not take the tap, and AirPlay's own button must not be rebuilt each time a receiver comes or goes.
+    do {
+      let airPlay = AirPlayInput(activeRoute: nil)
+      let before = rows(outputSheetState(input(devices: [livingRoom], airPlay: airPlay)))
+      let after = rows(outputSheetState(input(devices: [livingRoom, attic], airPlay: airPlay)))
+      let pressed = before.first { if case .device = $0 { return true } else { return false } }
+      let moved = after.first { if case let .device(id, _, _, _) = $0 { return id == livingRoom.id } else { return false } }
+      check(
+        "aRowKeepsItsKeyWhenAReceiverSortsBeforeIt",
+        pressed != nil && pressed?.key == moved?.key && before.last?.key == after.last?.key
+          && Set(after.map(\.key)).count == after.count
+      )
+    }
+
     // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
     do {
       let rows = rows(outputSheetState(input(airPlay: AirPlayInput(activeRoute: nil), playingHere: "Big Buck Bunny")))
