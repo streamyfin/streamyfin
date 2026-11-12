@@ -1,8 +1,13 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MUSIC_CAST_PROGRESS_TICK_MS } from "@/constants/Cast";
 import {
+  MUSIC_CAST_PROGRESS_TICK_MS,
+  MUSIC_CAST_RESUME_END_MARGIN_SECONDS,
+  MUSIC_CAST_START_FAILURE_WINDOW_MS,
+} from "@/constants/Cast";
+import {
+  CastIdleReason,
   CastMediaPlayerState,
   useCastClient,
   useCastDevice,
@@ -38,6 +43,8 @@ interface SentQueue {
   owner: string | null;
   queue: BaseItemDto[];
   startIndex: number;
+  /** Where the first track starts, in seconds. */
+  startSeconds: number;
   /** The play session on the receiver when the queue was sent: its status is the media being replaced. */
   replacedPlaySession: string | null;
   /** What the receiver had before, put back if this cast does not start. */
@@ -158,6 +165,40 @@ export const useMusicCastRemote = ({
     return () => clearInterval(timer);
   }, [playing]);
 
+  // Where the receiver last played the queue, as of that report: the status
+  // of a stop reads 0, and the iOS SDK drops its media.
+  const lastPlayed = useRef<{
+    id: number;
+    index: number;
+    position: number;
+    at: number;
+    rate: number;
+    duration: number;
+  } | null>(null);
+  if (
+    current &&
+    reported &&
+    status &&
+    status.playerState !== CastMediaPlayerState.IDLE
+  ) {
+    lastPlayed.current = {
+      id: current.id,
+      index,
+      position: receiverPositionInItem(status.streamPosition, media),
+      at: statusAt,
+      rate: playing ? status.playbackRate || 1 : 0,
+      duration:
+        (current.queue[index]?.RunTimeTicks ?? media.runtimeTicks ?? 0) /
+        TICKS_PER_SECOND,
+    };
+  }
+  // An error soon after the receiver first reports on a queue is its failing
+  // to start it.
+  const firstReport = useRef<{ id: number; at: number } | null>(null);
+  if (current && reported && firstReport.current?.id !== current.id) {
+    firstReport.current = { id: current.id, at: statusAt };
+  }
+
   // What the phone takes back when the session ends: the last place the
   // receiver reported, not a cast still loading.
   const lastView = useRef<MusicCastRemoteView | null>(null);
@@ -193,6 +234,50 @@ export const useMusicCastRemote = ({
     }
   }
 
+  // Stopped, the player shows where play goes on from: where the receiver
+  // stopped, or the top of the track once it ended or failed there.
+  const stopped = view !== null && (gone || idle);
+  const stopReason =
+    stopped && status?.playerState === CastMediaPlayerState.IDLE
+      ? status.idleReason
+      : undefined;
+  // When the receiver stopped: it sends its status again on a change of
+  // volume, say, and the place it stopped on does not move on with it.
+  const stoppedSince = useRef<{ id: number; at: number } | null>(null);
+  if (!current || !stopped) stoppedSince.current = null;
+  else if (stoppedSince.current?.id !== current.id) {
+    stoppedSince.current = { id: current.id, at: statusAt };
+  }
+  const stoppedAt = stoppedSince.current?.at ?? statusAt;
+  if (current && view && stopped) {
+    let resumeAt = 0;
+    const played = lastPlayed.current;
+    if (
+      stopReason !== CastIdleReason.FINISHED &&
+      stopReason !== CastIdleReason.ERROR &&
+      played?.id === current.id &&
+      played.index === view.queueIndex
+    ) {
+      const at =
+        played.position + ((stoppedAt - played.at) / 1000) * played.rate;
+      // The status of a stop may not carry the duration.
+      const duration = view.duration || played.duration;
+      const nearEnd =
+        duration > 0 && at >= duration - MUSIC_CAST_RESUME_END_MARGIN_SECONDS;
+      resumeAt = nearEnd ? 0 : at;
+    }
+    view = { ...view, isPlaying: false, progress: resumeAt };
+  }
+  const first = firstReport.current;
+  const failedStart =
+    current !== null &&
+    view !== null &&
+    stopReason === CastIdleReason.ERROR &&
+    current.startSeconds > 0 &&
+    view.queueIndex === current.startIndex &&
+    first?.id === current.id &&
+    stoppedAt - first.at <= MUSIC_CAST_START_FAILURE_WINDOW_MS;
+
   if (connected && reported && view) lastView.current = view;
 
   // A film cast from its page, or another sender's media, replaced the queue;
@@ -221,13 +306,14 @@ export const useMusicCastRemote = ({
   // What the receiver shows when a queue is sent is the media it replaces.
   const shownPlaySession = media.playSessionId;
   const begin = useCallback(
-    (queue: BaseItemDto[], startIndex: number): number => {
+    (queue: BaseItemDto[], startIndex: number, startSeconds = 0): number => {
       const id = ++sentCount.current;
       setSent((previous) => ({
         id,
         owner: ownerKey,
         queue,
         startIndex,
+        startSeconds,
         replacedPlaySession: shownPlaySession,
         // One step back is enough: the queue the receiver had before this cast.
         previous: previous ? { ...previous, previous: null } : null,
@@ -378,8 +464,14 @@ export const useMusicCastRemote = ({
 
   return {
     view,
-    /** The receiver stopped the queue and plays nothing: play casts it again. */
-    stopped: view !== null && (gone || idle),
+    /** The receiver stopped the queue and plays nothing: play casts it again, from the view's position. */
+    stopped,
+    /**
+     * The cast whose first track the receiver failed to start at its position,
+     * a FLAC one on a Google TV Streamer: to send again from the top of the
+     * track, once. Null otherwise.
+     */
+    failedStartId: failedStart && current ? current.id : null,
     /** The cast the receiver has played, from its first report on; null before. */
     reportedQueueId: wasReported && current ? current.id : null,
     begin,

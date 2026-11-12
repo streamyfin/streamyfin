@@ -2,7 +2,10 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Text } from "react-native";
-import { MUSIC_CAST_PROGRESS_TICK_MS } from "@/constants/Cast";
+import {
+  MUSIC_CAST_PROGRESS_TICK_MS,
+  MUSIC_CAST_START_FAILURE_WINDOW_MS,
+} from "@/constants/Cast";
 import {
   NO_REMOTE_TARGET,
   type RemoteTarget,
@@ -463,6 +466,37 @@ const receiverStatus = async (
   await settle();
 };
 
+/**
+ * The receiver going idle on an item, for a reason. Its own position then
+ * reads 0, and the iOS SDK drops the media from such a status.
+ */
+const receiverIdle = async (
+  itemId: string,
+  idleReason: string,
+  { playSessionId = "ps-1", withMedia = true } = {},
+) => {
+  const status = {
+    playerState: "idle",
+    idleReason,
+    currentItemId: 1,
+    streamPosition: 0,
+    playbackRate: 1,
+    volume: 1,
+    isMuted: false,
+    mediaInfo: withMedia ? { customData: { itemId, playSessionId } } : null,
+    customData: null,
+  } as never;
+  await act(async () => {
+    mockCast.mediaStatus = status;
+    emitCastEvent(mockCast, "onMediaStatusChanged", { status });
+  });
+  await settle();
+};
+
+/** Where a PlayNow starts its first track, in seconds. */
+const startSeconds = (index: number) =>
+  (playNows()[index].options.startPositionTicks ?? 0) / 10_000_000;
+
 /** What was sent to the receiver besides PlayNow, parsed. */
 const receiverCommands = () =>
   mockCast.sent
@@ -832,7 +866,8 @@ describe("MusicPlayerProvider and a Cast session", () => {
       ALBUM.map((item) => item.Id),
     );
     expect(sent[1].options.startIndex).toBe(2);
-    expect(sent[1].options.startPositionTicks).toBe(30 * 10_000_000);
+    // The position counts on from the receiver's last report until the hand-back.
+    expect(startSeconds(1)).toBeCloseTo(30, 1);
     expect(nativeIds()).toEqual([]);
     expect(mockNative.playing).toBe(false);
     await receiverLoads("t2");
@@ -995,6 +1030,135 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(playNows()[1].options.startIndex).toBe(1);
     await receiverStatus("t1", "playing", 0, "ps-2");
     expect(player.isPlaying).toBe(true);
+  });
+
+  // Stop on the TV's remote: play goes on from where the TV stopped, which
+  // the player shows, and not from the top of the track.
+  test.each([
+    ["with its media", true],
+    ["without it, as the iOS SDK reports", false],
+  ])(
+    "play after a stop on the TV goes on from where it stopped, the status %s",
+    async (_, withMedia) => {
+      await castAlbum();
+      await receiverStatus("t1", "playing", 40);
+      await receiverIdle("t1", "cancelled", { withMedia });
+      expect(player.isPlaying).toBe(false);
+      expect(player.progress).toBeCloseTo(40, 0);
+
+      await run((p) => p.togglePlayPause());
+
+      expect(playNows()).toHaveLength(2);
+      expect(playNows()[1].options.startIndex).toBe(1);
+      expect(startSeconds(1)).toBeCloseTo(40, 0);
+      await receiverStatus("t1", "playing", 40, "ps-2");
+    },
+  );
+
+  // The receiver sends a status again on a change of volume, say: the place
+  // it stopped on stays where it was.
+  test("a later status of the stopped receiver leaves the place it stopped on", async () => {
+    await castAlbum();
+    await receiverStatus("t1", "playing", 40);
+    await receiverIdle("t1", "cancelled");
+    const realNow = Date.now();
+    const now = jest.spyOn(Date, "now").mockReturnValue(realNow + 30_000);
+    try {
+      await receiverIdle("t1", "cancelled");
+      expect(player.progress).toBeCloseTo(40, 0);
+
+      await run((p) => p.togglePlayPause());
+    } finally {
+      now.mockRestore();
+    }
+
+    expect(startSeconds(1)).toBeCloseTo(40, 0);
+    await receiverStatus("t1", "playing", 40, "ps-2");
+  });
+
+  // At the end of the track, or after the receiver could not play it, there
+  // is no place to go on from: play starts the track again.
+  test.each([
+    ["the track ended", 40, "finished"],
+    ["the receiver failed on it", 40, "error"],
+    ["it stopped in its last seconds", 149.5, "cancelled"],
+  ])(
+    "play casts the track again from its top when %s",
+    async (_, position, reason) => {
+      await castAlbum();
+      await receiverStatus("t1", "playing", position, "ps-1", {
+        runtimeTicks: 150 * 10_000_000,
+      });
+      await receiverIdle("t1", reason);
+      // The cast started at the top: nothing to send again on its own.
+      expect(playNows()).toHaveLength(1);
+      expect(player.progress).toBe(0);
+
+      await run((p) => p.togglePlayPause());
+
+      expect(playNows()).toHaveLength(2);
+      expect(playNows()[1].options.startIndex).toBe(1);
+      expect(startSeconds(1)).toBe(0);
+      await receiverStatus("t1", "playing", 0, "ps-2");
+    },
+  );
+
+  /** A queue the phone took back at 30 s on its third track, played to a connected session from there. */
+  const castFromPosition = async () => {
+    await castAlbum();
+    await receiverStatus("t2", "playing", 30);
+    await disconnectCast();
+    await settle();
+    await connectCast();
+    await settle();
+    await run((p) => p.togglePlayPause());
+    expect(startSeconds(1)).toBeCloseTo(30, 0);
+    await receiverStatus("t2", "buffering", 30, "ps-cast");
+  };
+
+  // Seen on a Google TV Streamer with a FLAC track: sent to start at 1:25, the
+  // receiver stopped on an error a second later and the TV showed nothing.
+  test.each([
+    ["with its media", true],
+    ["without it, as the iOS SDK reports", false],
+  ])(
+    "a receiver that fails to start a track at a position gets it again from its top, once, the status %s",
+    async (_, withMedia) => {
+      await castFromPosition();
+
+      await receiverIdle("t2", "error", {
+        playSessionId: "ps-cast",
+        withMedia,
+      });
+
+      expect(playNows()).toHaveLength(3);
+      expect(playNows()[2].options.startIndex).toBe(2);
+      expect(startSeconds(2)).toBe(0);
+      await receiverStatus("t2", "playing", 0, "ps-retry");
+      expect(player.isPlaying).toBe(true);
+
+      // The track fails from its top too: no more tries on its own.
+      await receiverIdle("t2", "error", {
+        playSessionId: "ps-retry",
+        withMedia,
+      });
+      expect(playNows()).toHaveLength(3);
+    },
+  );
+
+  test("an error well after the receiver started at the position is not sent again on its own", async () => {
+    await castFromPosition();
+    const realNow = Date.now();
+    const now = jest
+      .spyOn(Date, "now")
+      .mockReturnValue(realNow + MUSIC_CAST_START_FAILURE_WINDOW_MS + 1_000);
+    try {
+      await receiverIdle("t2", "error", { playSessionId: "ps-cast" });
+    } finally {
+      now.mockRestore();
+    }
+
+    expect(playNows()).toHaveLength(2);
   });
 
   // The receiver adds both at the end of its queue, and the player shows its order.

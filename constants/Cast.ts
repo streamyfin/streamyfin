@@ -101,6 +101,21 @@ export const RECEIVER_LIVENESS_WINDOW_MS = 15_000;
 export const MUSIC_CAST_PROGRESS_TICK_MS = 1_000;
 
 /**
+ * A track the receiver stopped within this much of its end counts as played
+ * to the end: play then starts it again from its top, not from its last
+ * seconds.
+ */
+export const MUSIC_CAST_RESUME_END_MARGIN_SECONDS = 2;
+
+/**
+ * An error the receiver reports within this long of its first report on a
+ * queue sent to start mid track is the receiver failing to start there, as a
+ * Google TV Streamer does with FLAC: the queue goes again from the top of that
+ * track, once. A later error is the stream failing, which is not retried.
+ */
+export const MUSIC_CAST_START_FAILURE_WINDOW_MS = 10_000;
+
+/**
  * Where the native output sheet puts a receiver's name in a text JS sends it
  * (OutputPickerStrings.kt and OutputPickerStrings.swift replace this same marker).
  */

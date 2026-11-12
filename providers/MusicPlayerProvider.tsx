@@ -1345,7 +1345,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         setState((prev) => ({ ...prev, isPlaying: false }));
       }
       if (isStale()) return;
-      const sent = beginOnReceiver(queue, startIndex);
+      const sent = beginOnReceiver(queue, startIndex, startSeconds);
       const started = await castQueue({
         queue,
         startIndex,
@@ -2389,6 +2389,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const remotePlaying = remoteView?.isPlaying ?? false;
   const remoteQueue = remoteView?.queue;
   const remoteIndex = remoteView?.queueIndex;
+  // Read only once stopped, where it stands still: it moves on every tick
+  // while the receiver plays.
+  const remoteResumeAt = remote.stopped ? (remoteView?.progress ?? 0) : 0;
   const {
     stopped: stoppedOnReceiver,
     pause: pauseRemote,
@@ -2401,11 +2404,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     enqueue: enqueueOnReceiver,
   } = remote;
   // A receiver that stopped the queue plays nothing to resume: play sends the
-  // queue again from the track it stopped on.
+  // queue again from where the player shows it stopped.
   const resumeRemote = useCallback(async () => {
     if (stoppedOnReceiver && remoteQueue && remoteIndex !== undefined) {
       // As for a pick in the queue: the cast settles once the receiver loads.
-      void castOnReceiver(remoteQueue, remoteIndex);
+      void castOnReceiver(remoteQueue, remoteIndex, remoteResumeAt);
       return;
     }
     await resumeOnReceiver();
@@ -2413,9 +2416,22 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     stoppedOnReceiver,
     remoteQueue,
     remoteIndex,
+    remoteResumeAt,
     castOnReceiver,
     resumeOnReceiver,
   ]);
+  // The receiver failed to start the track at its position: the queue goes
+  // again from the top of that track, once, as that send starts at 0.
+  const failedStartId = remote.failedStartId;
+  const retriedStartId = useRef<number | null>(null);
+  useEffect(() => {
+    if (failedStartId === null || retriedStartId.current === failedStartId) {
+      return;
+    }
+    if (!remoteQueue || remoteIndex === undefined) return;
+    retriedStartId.current = failedStartId;
+    void castOnReceiver(remoteQueue, remoteIndex);
+  }, [failedStartId, remoteQueue, remoteIndex, castOnReceiver]);
   const togglePlayPauseRemote = useCallback(
     () => (remotePlaying ? pauseRemote() : resumeRemote()),
     [remotePlaying, pauseRemote, resumeRemote],
