@@ -3,11 +3,16 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Text } from "react-native";
 import { MUSIC_CAST_PROGRESS_TICK_MS } from "@/constants/Cast";
+import {
+  NO_REMOTE_TARGET,
+  type RemoteTarget,
+} from "@/modules/mpv-player/src/cast/Cast.types";
 import { userAtom } from "@/providers/JellyfinProvider";
 import {
   type CastDoubleState,
   createCastDoubleState,
   emitCastEvent,
+  emitRemoteTarget,
   setCastSession,
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
@@ -385,7 +390,11 @@ const playNows = () =>
       (entry) =>
         JSON.parse(entry.message) as {
           command: string;
-          options: { items: { Id: string }[]; startIndex?: number };
+          options: {
+            items: { Id: string }[];
+            startIndex?: number;
+            startPositionTicks?: number;
+          };
         },
     )
     .filter((message) => message.command === "PlayNow");
@@ -490,6 +499,64 @@ const disconnectCast = () =>
     mockCast.castState = "notConnected";
     setCastSession(mockCast, null);
     emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
+  });
+
+const LIVING_ROOM: RemoteTarget = {
+  kind: "cast",
+  id: "device-1",
+  name: "Living room",
+  capabilities: { volume: true },
+};
+
+/**
+ * iOS suspends the session when the app goes to the background, as seen on an
+ * iPhone: the state reads not connected, the target reconnects.
+ */
+const suspendCast = () =>
+  act(async () => {
+    setCastSession(mockCast, null);
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "suspended",
+      sessionId: "session-1",
+      error: null,
+    });
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connecting",
+      target: LIVING_ROOM,
+      reconnecting: true,
+    });
+    mockCast.castState = "notConnected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
+  });
+
+/** The SDK resumes the suspended session once the app is back. */
+const resumeCast = () =>
+  act(async () => {
+    setCastSession(mockCast, "session-1");
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connected",
+      target: LIVING_ROOM,
+    });
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "resumed",
+      sessionId: "session-1",
+      error: null,
+    });
+    mockCast.castState = "connected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** The suspended session never comes back: the SDK ends it. */
+const endSuspendedCast = () =>
+  act(async () => {
+    emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "ended",
+      sessionId: "session-1",
+      error: "com.google.cast.GCKError 1: Network connection error",
+    });
   });
 
 describe("MusicPlayerProvider and a Cast session", () => {
@@ -709,6 +776,65 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     expect(mockNative.calls).toEqual(["setupPlayer", "reset"]);
     expect(logAndCaptureError).not.toHaveBeenCalled();
+  });
+
+  // Seen on an iPhone: the app went to the background, the TV played on, and
+  // the phone came back with the queue paused where the suspension found it.
+  // A play there then played on both.
+  test("a session suspended in the background keeps the receiver's queue, and follows it again once resumed", async () => {
+    await castAlbum();
+
+    await suspendCast();
+    await settle();
+    expect(player.currentTrack?.Id).toBe("t1");
+
+    await resumeCast();
+    await receiverStatus("t2", "playing", 40);
+
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.isPlaying).toBe(true);
+    castNative().pause.mockClear();
+    await run((p) => p.togglePlayPause());
+    expect(castNative().pause).toHaveBeenCalledWith("session-1");
+    expect(nativeIds()).toEqual([]);
+  });
+
+  test("a suspended session that never comes back hands the queue back", async () => {
+    await castAlbum();
+    await suspendCast();
+    await settle();
+
+    await endSuspendedCast();
+    await settle();
+
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.isPlaying).toBe(false);
+    expect(player.progress).toBeCloseTo(12, 0);
+    expect(nativeIds()).toEqual([]);
+  });
+
+  // As on Spotify: connected to a TV, play sends the paused queue there, from
+  // the track and the place it paused on, and the phone stays silent.
+  test("play on a paused queue while a session is connected sends it to the receiver from where it paused", async () => {
+    await castAlbum();
+    await receiverStatus("t2", "playing", 30);
+    await disconnectCast();
+    await settle();
+    await connectCast();
+    await settle();
+
+    await run((p) => p.togglePlayPause());
+
+    const sent = playNows();
+    expect(sent).toHaveLength(2);
+    expect(sent[1].options.items.map((item) => item.Id)).toEqual(
+      ALBUM.map((item) => item.Id),
+    );
+    expect(sent[1].options.startIndex).toBe(2);
+    expect(sent[1].options.startPositionTicks).toBe(30 * 10_000_000);
+    expect(nativeIds()).toEqual([]);
+    expect(mockNative.playing).toBe(false);
+    await receiverLoads("t2");
   });
 
   // A film cast from its page replaces the music on the TV.

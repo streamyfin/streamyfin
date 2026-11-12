@@ -23,7 +23,7 @@ import {
   type MusicCastRemoteView,
   useMusicCastRemote,
 } from "@/hooks/useMusicCastRemote";
-import { CastState } from "@/modules/mpv-player/src/cast";
+import { CastState, useRemoteTarget } from "@/modules/mpv-player/src/cast";
 import {
   downloadTrack,
   getLocalPath,
@@ -1294,12 +1294,18 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }));
   }, []);
   // The receiver plays on through a drop of the phone's own network: only the
-  // end of the Cast session hands the queue back.
+  // end of the Cast session hands the queue back. iOS suspends the session
+  // while the app is in the background, and the state reads not connected
+  // until the SDK resumes it: a suspended session is still the receiver's.
+  const remoteTarget = useRemoteTarget();
+  const sessionHeld =
+    castState === CastState.CONNECTED ||
+    (remoteTarget.state === "connecting" && remoteTarget.reconnecting);
   const remote = useMusicCastRemote({
     api,
     userId: user?.Id,
     ownerKey: sessionKey,
-    connected: castState === CastState.CONNECTED,
+    connected: sessionHeld,
     onHandBack: handBackFromReceiver,
   });
   const { begin: beginOnReceiver, end: endOnReceiver } = remote;
@@ -1307,7 +1313,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // A connected Cast session plays the music on the receiver, and the phone
   // stops so that one place plays. The player shows the queue from the send.
   const castOnReceiver = useCallback(
-    async (queue: BaseItemDto[], startIndex: number) => {
+    async (queue: BaseItemDto[], startIndex: number, startSeconds = 0) => {
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
@@ -1317,7 +1323,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
       if (isStale()) return;
       const sent = beginOnReceiver(queue, startIndex);
-      const started = await castQueue({ queue, startIndex, isStale });
+      const started = await castQueue({
+        queue,
+        startIndex,
+        startPositionTicks: Math.round(startSeconds * 10000000),
+        isStale,
+      });
       if (!started) endOnReceiver(sent);
     },
     [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],
@@ -1485,6 +1496,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [playerReadyForControl]);
 
   const resume = useCallback(async () => {
+    // As on Spotify: a connected session takes the paused queue, from the
+    // track and the place it paused on, and the phone stays silent.
+    if (castConnected && state.queue.length > 0) {
+      const index = state.queue.findIndex(
+        (t) => t.Id === state.currentTrack?.Id,
+      );
+      void castOnReceiver(state.queue, Math.max(index, 0), state.progress);
+      return;
+    }
     if (!TrackPlayer) return;
     const generation = sessionGenerationRef.current;
     const isStale = () => generation !== sessionGenerationRef.current;
@@ -1583,9 +1603,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.currentTrack,
     state.queue,
     state.queueIndex,
+    state.progress,
     settings?.preferLocalAudio,
     playerReadyForControl,
     loadRemainingTracksInBackground,
+    castConnected,
+    castOnReceiver,
   ]);
 
   const togglePlayPause = useCallback(async () => {

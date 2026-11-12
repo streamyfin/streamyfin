@@ -34,6 +34,8 @@ interface UseMusicCastOptions {
 interface CastQueueOptions {
   queue: BaseItemDto[];
   startIndex: number;
+  /** Where the first track starts, in ticks: a paused queue goes on from there. */
+  startPositionTicks?: number;
   /**
    * True once the cast is out of date, the account switched say: checked
    * after each wait, so a queue of the previous account is never sent.
@@ -60,6 +62,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
     async ({
       queue,
       startIndex,
+      startPositionTicks,
       isStale,
     }: CastQueueOptions): Promise<boolean> => {
       if (!client || !api || !userId) {
@@ -92,7 +95,9 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         const outcome = await castToJellyfinReceiver(
           client,
           { api, userId, receiverName },
-          queueToSend,
+          startPositionTicks
+            ? { ...queueToSend, startPositionTicks }
+            : queueToSend,
           RECEIVER_LOAD_TIMEOUT_MS,
           isStale,
         );
