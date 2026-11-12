@@ -530,6 +530,16 @@ class MatrixMainTests(unittest.TestCase):
                 self.assertEqual(server.live, [])
                 self.assertEqual(len(reports), 1)
 
+    def test_an_unreadable_token_store_stops_the_run_before_it_signs_in(self):
+        # The orphans were read after the sign-in, outside the cleanup: a store that does not parse
+        # raised there and left the run's fresh token alive with no record of it.
+        server = FakeServer()
+        with bench_run(server, FakeReceiver()) as result, mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: FakeDriver()):
+            (result.root / "receiver-tokens.local.json").write_text("{not json")
+            with self.assertRaises(ValueError):
+                matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+        self.assertEqual(server.issued, [])
+
     def test_a_receiver_another_run_drives_is_left_alone(self):
         from bench import sender
 

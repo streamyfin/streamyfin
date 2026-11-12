@@ -299,9 +299,11 @@ def _measure(args, config, server, target, account, cases: list[dict], tokens) -
     from bench.jellyfin import JellyfinClient
     from bench.report import Report
 
+    # Read before the sign-in, as the sender does: a store that does not parse raised after it,
+    # outside the cleanup, and left the run's fresh token alive with no record of it.
+    orphans = tokens.orphans(args.server, args.profile)
     client = JellyfinClient(server.url)
     session = client.authenticate(account)
-    orphans = tokens.orphans(args.server, args.profile)
     report = Report("matrix", redact=config.redact + [session.token] + [orphan.token for orphan in orphans])
     report.add("target", name=target.name, kind=target.kind, server=args.server, cases=[c["id"] for c in cases])
     rows: list[Row] = []
