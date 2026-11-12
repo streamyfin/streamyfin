@@ -451,12 +451,13 @@ export default function DirectPlayerPage() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
-  // A channel whose source needs no opening comes back without a LiveStreamId.
   // Jellyfin types a channel TvChannel or LiveTvChannel, by endpoint.
-  const isLiveStream =
+  const isLiveItem =
+    item?.Type === "Program" ||
     item?.Type === "TvChannel" ||
-    item?.Type === "LiveTvChannel" ||
-    !!stream?.mediaSource?.LiveStreamId;
+    item?.Type === "LiveTvChannel";
+  // A channel whose source needs no opening comes back without a LiveStreamId.
+  const isLiveStream = isLiveItem || !!stream?.mediaSource?.LiveStreamId;
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -1774,9 +1775,7 @@ export default function DirectPlayerPage() {
                 // session took Play/Pause again and undid the toggle.
                 backgroundPlayback={!Platform.isTV}
                 sessionSkipSeconds={sessionSkipSeconds}
-                liveStream={
-                  item?.Type === "Program" || item?.Type === "TvChannel"
-                }
+                liveStream={isLiveItem}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}

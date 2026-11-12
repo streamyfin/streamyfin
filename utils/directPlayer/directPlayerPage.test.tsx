@@ -609,16 +609,19 @@ describe("direct player stop report", () => {
 
   // A headset's Previous or fast forward on Live TV jumped to the start of the
   // stream or past its live edge.
-  test("tells the player a TV channel is live", async () => {
-    api.mock.onGet(/\/Items\/item-1/).reply(200, {
-      Id: "item-1",
-      Type: "TvChannel",
-      UserData: {},
-    });
-    await openPlayer();
+  test.each(["TvChannel", "LiveTvChannel", "Program"])(
+    "tells the player a %s is live",
+    async (type) => {
+      api.mock.onGet(/\/Items\/item-1/).reply(200, {
+        Id: "item-1",
+        Type: type,
+        UserData: {},
+      });
+      await openPlayer();
 
-    expect(mockPlayerProps?.liveStream).toBe(true);
-  });
+      expect(mockPlayerProps?.liveStream).toBe(true);
+    },
+  );
 
   // Fast forward and rewind from a headset or the notification went +30 and
   // -10 s whatever the user had set.

@@ -36,13 +36,17 @@ import {
   EPG_HEADER_BG,
   EPG_NOW_INDICATOR_DOT,
   EPG_NOW_INDICATOR_LINE,
-  EPG_PX_PER_HOUR,
   getGuideReferenceTime,
 } from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
 import { channelPlayerHref } from "@/components/livetv/useChannelPress";
 import { Colors } from "@/constants/Colors";
+import {
+  LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH,
+  LIVE_TV_GUIDE_HOUR_MS,
+  LIVE_TV_GUIDE_HOUR_WIDTH,
+} from "@/constants/LiveTVGuide";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -53,7 +57,6 @@ const DOT_SIZE = 9;
 const ROW_HEIGHT = 64;
 const CHANNELS_PER_PAGE = 50;
 const BUFFER_ROWS = 6;
-const CHANNEL_COL_WIDTH = 64;
 
 // Programs are fetched in 6-hour windows and loaded on demand as the user
 // scrolls right. Loading starts 2 hours before the window boundary.
@@ -101,7 +104,7 @@ const ChannelLogoButton: React.FC<{
       onLongPress={handleLongPress}
       accessibilityRole='button'
       accessibilityLabel={channel.Name ?? undefined}
-      style={{ width: CHANNEL_COL_WIDTH, height: ROW_HEIGHT }}
+      style={{ width: LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH, height: ROW_HEIGHT }}
     >
       <View style={{ width: "100%", height: "100%" }}>
         <ItemImage
@@ -213,7 +216,10 @@ export default function LiveTvGuidePage() {
   // The root pads by the horizontal safe-area insets (landscape on a notched
   // device), so the guide gets the width between them.
   const viewportWidth =
-    screenWidth - insets.left - insets.right - CHANNEL_COL_WIDTH;
+    screenWidth -
+    insets.left -
+    insets.right -
+    LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH;
 
   // The first visible row, not the raw offset: scroll events that stay within
   // a row don't re-render the page
@@ -229,7 +235,8 @@ export default function LiveTvGuidePage() {
     const needed = Math.min(
       MAX_WINDOWS,
       Math.ceil(
-        (rightEdge + 2 * EPG_PX_PER_HOUR) / (WINDOW_HOURS * EPG_PX_PER_HOUR),
+        (rightEdge + 2 * LIVE_TV_GUIDE_HOUR_WIDTH) /
+          (WINDOW_HOURS * LIVE_TV_GUIDE_HOUR_WIDTH),
       ),
     );
     if (needed > loadedWindowsRef.current) {
@@ -290,7 +297,7 @@ export default function LiveTvGuidePage() {
     contentScrollRef.current?.scrollTo({ x: 0, animated: true });
   }, [scrollXShared]);
 
-  const guideContentWidth = 24 * EPG_PX_PER_HOUR;
+  const guideContentWidth = 24 * LIVE_TV_GUIDE_HOUR_WIDTH;
 
   // The guide stays mounted with its tab, so the reference moves along with
   // the clock; the program queries are keyed by it and load the new window.
@@ -318,12 +325,14 @@ export default function LiveTvGuidePage() {
   );
 
   const nowPosition = useMemo(
-    () => ((nowMs - referenceTime.getTime()) / 3600000) * EPG_PX_PER_HOUR,
+    () =>
+      ((nowMs - referenceTime.getTime()) / LIVE_TV_GUIDE_HOUR_MS) *
+      LIVE_TV_GUIDE_HOUR_WIDTH,
     [nowMs, referenceTime],
   );
 
   // Positioned from the root's padding edge, so it starts after the left inset.
-  const channelColumnEdge = insets.left + CHANNEL_COL_WIDTH;
+  const channelColumnEdge = insets.left + LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH;
   const nowIndicatorStyle = useAnimatedStyle(() => {
     const left = channelColumnEdge + nowPosition - scrollXShared.value;
     return {
@@ -391,10 +400,12 @@ export default function LiveTvGuidePage() {
       const channelIds = (page.Items ?? []).map((c) => c.Id!).filter(Boolean);
       return Array.from({ length: loadedWindows }, (_, windowIndex) => {
         const windowStart = new Date(
-          referenceTime.getTime() + windowIndex * WINDOW_HOURS * 3600000,
+          referenceTime.getTime() +
+            windowIndex * WINDOW_HOURS * LIVE_TV_GUIDE_HOUR_MS,
         );
         const windowEnd = new Date(
-          referenceTime.getTime() + (windowIndex + 1) * WINDOW_HOURS * 3600000,
+          referenceTime.getTime() +
+            (windowIndex + 1) * WINDOW_HOURS * LIVE_TV_GUIDE_HOUR_MS,
         );
         return {
           queryKey: [
@@ -516,7 +527,7 @@ export default function LiveTvGuidePage() {
           accessibilityRole='button'
           accessibilityLabel={t("live_tv.go_to_now")}
           style={{
-            width: CHANNEL_COL_WIDTH,
+            width: LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH,
             height: HOUR_HEIGHT,
             alignItems: "center",
             justifyContent: "center",
@@ -579,7 +590,7 @@ export default function LiveTvGuidePage() {
           contentContainerStyle={{ paddingBottom: 16 }}
         >
           <View style={{ flexDirection: "row", height: totalListHeight }}>
-            <View style={{ width: CHANNEL_COL_WIDTH }}>
+            <View style={{ width: LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH }}>
               {visibleChannels.map((c, idx) => (
                 <View
                   key={c.Id}

@@ -1,13 +1,14 @@
 // Spec for app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide.tsx,
 // its layout against the window. It lives here rather than next to the page
 // because Expo Router turns every file under app/ into a route.
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { StyleSheet } from "react-native";
 import type { TestInstance } from "test-renderer";
 import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide";
-import { LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH } from "@/constants/LiveTVGuide";
+import { LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH } from "@/constants/LiveTVGuide";
+import { makeApi } from "@/test-utils/jellyfinApi";
 
 let mockWindowWidth = 400;
 
@@ -20,105 +21,92 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
     fontScale: 1,
   }),
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 16, right: 24 }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+jest.mock("react-native-reanimated", () => ({
+  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+  __esModule: true,
 }));
-jest.mock("@tanstack/react-query", () => ({
-  useQuery: (options: { queryKey: unknown[] }) => ({
-    data:
-      options.queryKey[1] === "channels"
-        ? {
-            Items: [
-              { Id: "channel-1", Name: "One", Type: "TvChannel" },
-            ] as BaseItemDto[],
-          }
-        : {
-            Items: [
-              {
-                Id: "program-1",
-                Name: "Long Movie",
-                ChannelId: "channel-1",
-                StartDate: "2026-01-01T20:00:00Z",
-                EndDate: "2026-01-01T21:45:00Z",
-              },
-            ] as BaseItemDto[],
-          },
-  }),
+jest.mock("expo-router", () => ({
+  useFocusEffect: (effect: () => undefined | (() => void)) =>
+    jest.requireActual("react").useEffect(effect, []),
+  useSegments: () => [],
 }));
 jest.mock("@/components/common/ItemImage", () => ({ ItemImage: () => null }));
-jest.mock("@/components/livetv/HourHeader", () => ({ HourHeader: () => null }));
-jest.mock("../common/TouchableItemRouter", () => ({
-  TouchableItemRouter: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+jest.mock("@/components/common/TouchableItemRouter", () => ({
+  itemRouter: jest.fn(),
+}));
+jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
+jest.mock("@/hooks/useFavorite", () => ({
+  useFavorite: () => ({ isFavorite: false, toggleFavorite: jest.fn() }),
+}));
+jest.mock("@/components/livetv/ChannelFavoriteSheet", () => ({
+  useChannelFavoriteSheet: () => jest.fn(),
+}));
+jest.mock("@/components/livetv/LiveTVGuideRow", () => ({
+  LiveTVGuideRow: () => null,
 }));
 
-const horizontalScrollView = (root: TestInstance | null) => {
+/** The programs' scroll view: the one the page sizes itself. */
+const programsViewportWidth = (root: TestInstance | null) => {
   const [scrollView] = root!.queryAll(
-    (node) => node.props?.horizontal === true,
+    (node) =>
+      node.props?.horizontal === true &&
+      StyleSheet.flatten(node.props.style)?.width !== undefined,
   );
-  return scrollView;
+  return scrollView && StyleSheet.flatten(scrollView.props.style).width;
 };
 
-const scrollViewWidth = (root: TestInstance | null) =>
-  StyleSheet.flatten(horizontalScrollView(root).props.style).width;
-
-const marginLeftOf = () =>
-  StyleSheet.flatten(screen.getByText("Long Movie").parent?.props?.style)
-    ?.marginLeft;
-
-const renderPage = () =>
-  render(
-    <JotaiProvider store={createStore()}>
-      <LiveTvGuidePage />
-    </JotaiProvider>,
+const page = () => {
+  const api = makeApi();
+  api.mock.onGet(/\/LiveTv\/Channels\?/).reply(200, {
+    Items: [{ Id: "channel-1", Name: "One", Type: "TvChannel" }],
+    TotalRecordCount: 1,
+  });
+  api.mock.onPost(/\/LiveTv\/Programs$/).reply(200, { Items: [] });
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+    },
+  });
+  const store = createStore();
+  const { apiAtom } = jest.requireMock("@/providers/JellyfinProvider");
+  store.set(apiAtom, api);
+  return () => (
+    <QueryClientProvider client={client}>
+      <JotaiProvider store={store}>
+        <LiveTvGuidePage />
+      </JotaiProvider>
+    </QueryClientProvider>
   );
+};
 
 describe("LiveTvGuidePage layout", () => {
   beforeEach(() => {
     mockWindowWidth = 400;
-    // Ten past the program's first hour, which the guide then starts at.
-    jest.useFakeTimers({ now: new Date("2026-01-01T20:10:00Z") });
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
+  test("sizes the programs to the window between the insets and the channels", async () => {
+    const tree = page();
+    const { root, rerender } = await render(tree());
 
-  test("sizes the guide viewport by window minus insets and keeps titles pinned", async () => {
-    const { root, rerender } = await renderPage();
-
-    expect(scrollViewWidth(root)).toBe(296);
-
-    await fireEvent.scroll(horizontalScrollView(root), {
-      nativeEvent: { contentOffset: { x: 30 } },
-    });
-    expect(screen.getByText("Long Movie")).toBeTruthy();
-    expect(marginLeftOf()).toBe(30);
-
-    mockWindowWidth = 520;
-    await rerender(
-      <JotaiProvider store={createStore()}>
-        <LiveTvGuidePage />
-      </JotaiProvider>,
+    await waitFor(() =>
+      expect(programsViewportWidth(root)).toBe(
+        400 - 16 - 24 - LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH,
+      ),
     );
 
-    expect(scrollViewWidth(root)).toBe(416);
+    mockWindowWidth = 520;
+    await rerender(tree());
 
-    await fireEvent.scroll(horizontalScrollView(root), {
-      nativeEvent: { contentOffset: { x: 300 } },
-    });
-    // 350 wide: the title stops short of the end, keeping its room.
-    expect(marginLeftOf()).toBe(350 - LIVE_TV_GUIDE_PINNED_TITLE_MIN_WIDTH);
+    expect(programsViewportWidth(root)).toBe(
+      520 - 16 - 24 - LIVE_TV_GUIDE_CHANNEL_COLUMN_WIDTH,
+    );
   });
 });

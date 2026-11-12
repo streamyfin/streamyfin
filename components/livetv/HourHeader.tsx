@@ -1,9 +1,9 @@
 import { View } from "react-native";
+import { LIVE_TV_GUIDE_HOUR_WIDTH } from "@/constants/LiveTVGuide";
 import { Text } from "../common/Text";
 import {
   EPG_BORDER_WIDTH,
   EPG_CARD_BG_LIVE,
-  EPG_PX_PER_HOUR,
   EPG_SUBTLE_COLOR,
   EPG_TEXT_COLOR_PRIMARY,
   EPG_TEXT_COLOR_SECONDARY,
@@ -29,12 +29,12 @@ export const HourHeader = ({
   height: number;
   referenceTime: Date;
 }) => {
-  const totalWidth = 24 * EPG_PX_PER_HOUR;
+  const totalWidth = 24 * LIVE_TV_GUIDE_HOUR_WIDTH;
 
   const labels: { time: Date; x: number }[] = [];
   for (let i = 0; i <= 48; i++) {
     const t = new Date(referenceTime.getTime() + i * 30 * 60 * 1000);
-    labels.push({ time: t, x: (i * EPG_PX_PER_HOUR) / 2 });
+    labels.push({ time: t, x: (i * LIVE_TV_GUIDE_HOUR_WIDTH) / 2 });
   }
 
   return (
