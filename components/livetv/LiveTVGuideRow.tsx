@@ -86,6 +86,8 @@ const ProgramCard: React.FC<{
       style={wrapperStyle}
       onPress={onPress}
       onLongPress={() => onLongPress(entry)}
+      accessibilityRole='button'
+      accessibilityLabel={entry.Name ?? undefined}
     >
       <View style={innerStyle}>
         {entry.width - 4 >= EPG_TEXT_MIN_CELL_WIDTH && (

@@ -386,6 +386,8 @@ export default function LiveTvGuidePage() {
   const noChannels =
     isChannelsSuccess && (channelPages.pages[0]?.Items?.length ?? 0) === 0;
 
+  const showsPrograms = !isLoadingChannels && !channelsFailed && !noChannels;
+
   const [allChannels, setAllChannels] = useState<BaseItemDto[]>([]);
 
   useEffect(() => {
@@ -538,6 +540,8 @@ export default function LiveTvGuidePage() {
         <ScrollView
           ref={headerScrollRef}
           horizontal
+          // Its offset goes to the programs, which are not mounted until then.
+          scrollEnabled={showsPrograms}
           scrollEventThrottle={16}
           onScroll={handleHeaderScroll}
           showsHorizontalScrollIndicator={false}
@@ -581,7 +585,7 @@ export default function LiveTvGuidePage() {
         </View>
       )}
 
-      {!isLoadingChannels && !channelsFailed && !noChannels && (
+      {showsPrograms && (
         <ScrollView
           contentInsetAdjustmentBehavior='never'
           scrollEventThrottle={100}

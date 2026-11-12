@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { render } from "@testing-library/react-native";
+import { render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import type { TestInstance } from "test-renderer";
 import {
@@ -117,5 +117,13 @@ describe("LiveTVGuideRow", () => {
     );
 
     expect(titleOffsetsOf(root)).toEqual([40, 0]);
+  });
+
+  // Too narrow for its title, a card had nothing for VoiceOver to read.
+  test("names a program too short to show its title", async () => {
+    await renderRow([program("Headlines", "20:00", "20:05")]);
+
+    expect(screen.queryByText("Headlines")).toBeNull();
+    expect(screen.getByRole("button", { name: "Headlines" })).toBeTruthy();
   });
 });
