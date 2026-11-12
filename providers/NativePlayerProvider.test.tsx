@@ -129,7 +129,10 @@ const mockNegotiation = {
   held: false,
   waiting: [] as Array<() => void>,
   count: 0,
-  /** Each stream negotiated from now on opens a live stream on the server. */
+  /**
+   * Each item negotiated from now on is a Live TV channel, whose stream opens
+   * a live stream on the server.
+   */
   live: false,
   /** Items the server gives no stream for. */
   failing: new Set<string>(),
@@ -172,8 +175,9 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         item: item ?? {
           Id: req.itemId,
           Name: req.itemId,
-          Type: "Episode",
-          SeriesId: "series-1",
+          ...(mockNegotiation.live
+            ? { Type: "TvChannel" }
+            : { Type: "Episode", SeriesId: "series-1" }),
         },
         offline: false,
         downloadedItem: null,
@@ -1190,5 +1194,21 @@ describe("a Live TV stream", () => {
 
     expect(mockNative.loaded).toHaveLength(1);
     expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  // Other devices offer a seek bar on a session the server says can seek,
+  // and a seek sent to a channel goes nowhere.
+  test("is reported as one that cannot seek", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    const canSeek = api.mock.history.post
+      .filter(
+        (request) =>
+          request.url === "https://jellyfin.example.com/Sessions/Playing",
+      )
+      .map((request) => JSON.parse(request.data).CanSeek);
+    expect(canSeek).toEqual([false]);
   });
 });

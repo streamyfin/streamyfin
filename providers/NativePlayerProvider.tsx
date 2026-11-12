@@ -98,6 +98,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -653,7 +654,8 @@ const NativePlayerProviderInner: React.FC<{
       PlayMethod: session.playMethod,
       PlaySessionId: session.stream.sessionId,
       IsMuted: session.isMuted,
-      CanSeek: true,
+      // A channel has nowhere to seek to: other devices offer no bar for it.
+      CanSeek: !isLiveTvItem(session.item),
       RepeatMode: syncRef.current.enabled
         ? syncRef.current.repeatMode
         : RepeatMode.RepeatNone,
