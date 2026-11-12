@@ -265,14 +265,17 @@ class ReceiverTokens:
 
     The run that hands a receiver its token cannot revoke it while the receiver plays, so the
     next command to that receiver reuses it, and a stop, or a run that finds the receiver idle,
-    revokes it. Without this, every run left a token alive for good."""
+    revokes it. Without this, every run left a token alive for good.
+
+    The same file keeps the orphans, tokens no receiver holds whose sign-out failed: still valid,
+    so kept until one goes through. Both live in one file, so a change to the two is one write: in
+    two files, a run stopped between them left the same token held and orphaned, and the next run
+    revoked the token the receiver still held."""
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path or TOKENS_PATH)
         # The file is replaced on every write, so the lock lives beside it, ignored by git as well.
         self.lock_path = self.path.with_suffix(".lock")
-        # Tokens no receiver holds whose sign-out failed: still valid, so kept until one goes through.
-        self.orphans_path = self.path.with_suffix(".orphans.json")
 
     def claim_path(self, target: str) -> Path:
         # The slug keeps the file readable; the digest of the exact name keeps "Den TV" and "Den-TV"
@@ -304,85 +307,86 @@ class ReceiverTokens:
                 fcntl.flock(lock, fcntl.LOCK_EX)
             yield
 
-    @staticmethod
-    def _read(path: Path) -> dict:
+    def _read(self) -> dict:
         try:
-            return json.loads(path.read_text())
+            data = json.loads(self.path.read_text())
         except FileNotFoundError:
-            return {}
+            data = {}
+        return {"held": data.get("held", {}), "orphans": data.get("orphans", {})}
 
-    @staticmethod
-    def _write(path: Path, data: dict) -> None:
+    def _write(self, data: dict) -> None:
         # Written beside the file, owner only from the first byte since it holds live tokens, then
         # moved over it: an interrupted write leaves the previous tokens, never a truncated file.
-        descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=f"{path.stem}.", suffix=".tmp")
+        kept = {key: tree for key, tree in data.items() if tree}
+        descriptor, temporary = tempfile.mkstemp(dir=self.path.parent, prefix=f"{self.path.stem}.", suffix=".tmp")
         try:
             with os.fdopen(descriptor, "w") as file:
-                file.write(json.dumps(data, indent=2) + "\n")
-            os.replace(temporary, path)
+                file.write(json.dumps(kept, indent=2) + "\n")
+            os.replace(temporary, self.path)
         except BaseException:
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(temporary)
             raise
 
+    @staticmethod
+    def _prune(tree: dict, server: str, profile: str) -> None:
+        if not tree.get(server, {}).get(profile, True):
+            del tree[server][profile]
+        if not tree.get(server, True):
+            del tree[server]
+
     def get(self, server: str, profile: str, target: str):
         from bench.jellyfin import AuthSession
 
-        entry = self._read(self.path).get(server, {}).get(profile, {}).get(target)
+        entry = self._read()["held"].get(server, {}).get(profile, {}).get(target)
         return AuthSession(token=entry["token"], user_id=entry["userId"]) if entry else None
 
     def put(self, server: str, profile: str, target: str, session) -> None:
         with self._locked():
-            data = self._read(self.path)
-            held = data.setdefault(server, {}).setdefault(profile, {})
+            data = self._read()
+            held = data["held"].setdefault(server, {}).setdefault(profile, {})
             replaced = held.get(target)
             if replaced and replaced["token"] != session.token:
                 # Still valid on the server: kept for a later sign-out rather than forgotten.
-                self._add_orphan(server, profile, replaced)
+                self._add_orphan(data, server, profile, replaced)
             held[target] = {"token": session.token, "userId": session.user_id}
-            self._write(self.path, data)
+            self._write(data)
 
     def orphan(self, server: str, profile: str, session) -> None:
         with self._locked():
-            self._add_orphan(server, profile, {"token": session.token, "userId": session.user_id})
+            data = self._read()
+            self._add_orphan(data, server, profile, {"token": session.token, "userId": session.user_id})
+            self._write(data)
 
-    def _add_orphan(self, server: str, profile: str, entry: dict) -> None:
-        data = self._read(self.orphans_path)
-        entries = data.setdefault(server, {}).setdefault(profile, [])
+    @staticmethod
+    def _add_orphan(data: dict, server: str, profile: str, entry: dict) -> None:
+        entries = data["orphans"].setdefault(server, {}).setdefault(profile, [])
         if all(known["token"] != entry["token"] for known in entries):
             entries.append(entry)
-        self._write(self.orphans_path, data)
 
     def orphans(self, server: str, profile: str) -> list:
         from bench.jellyfin import AuthSession
 
-        return [AuthSession(token=e["token"], user_id=e["userId"]) for e in self._read(self.orphans_path).get(server, {}).get(profile, [])]
+        return [AuthSession(token=e["token"], user_id=e["userId"]) for e in self._read()["orphans"].get(server, {}).get(profile, [])]
 
     def forget_orphan(self, server: str, profile: str, token: str) -> None:
         with self._locked():
-            data = self._read(self.orphans_path)
-            entries = data.get(server, {}).get(profile, [])
+            data = self._read()
+            entries = data["orphans"].get(server, {}).get(profile, [])
             kept = [entry for entry in entries if entry["token"] != token]
             if len(kept) == len(entries):
                 return
-            if kept:
-                data[server][profile] = kept
-            else:
-                del data[server][profile]
-                if not data[server]:
-                    del data[server]
-            self._write(self.orphans_path, data)
+            data["orphans"][server][profile] = kept
+            self._prune(data["orphans"], server, profile)
+            self._write(data)
 
     def drop(self, server: str, profile: str, target: str) -> None:
         with self._locked():
-            data = self._read(self.path)
-            if data.get(server, {}).get(profile, {}).pop(target, None) is None:
+            data = self._read()
+            if data["held"].get(server, {}).get(profile, {}).pop(target, None) is None:
                 return
-            if not data[server][profile]:
-                del data[server][profile]
-            if not data[server]:
-                del data[server]
-            self._write(self.path, data)
+            self._prune(data["held"], server, profile)
+            self._write(data)
 
 
 def summarize_bus(bus: list[BusMessage]) -> dict:

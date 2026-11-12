@@ -1,5 +1,7 @@
+import contextlib
 import fnmatch
 import json
+import os
 import stat
 import tempfile
 import time
@@ -341,10 +343,33 @@ class ReceiverTokensTests(unittest.TestCase):
             self.assertEqual(tokens.orphans("beta13", "test"), [])
             tokens.put("beta13", "test", "Living room", AuthSession("tok2", "user-1"))
             self.assertEqual(tokens.orphans("beta13", "test"), [AuthSession("tok1", "user-1")])
-            self.assertEqual(stat.S_IMODE(tokens.orphans_path.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(tokens.path.stat().st_mode), 0o600)
             tokens.forget_orphan("beta13", "test", "tok1")
             self.assertEqual(tokens.orphans("beta13", "test"), [])
-            self.assertEqual(json.loads(tokens.orphans_path.read_text()), {})
+            self.assertNotIn("orphans", json.loads(tokens.path.read_text()))
+
+    def test_a_token_is_never_both_held_and_orphaned(self):
+        # Split over two files, a run stopped between the orphan's write and the held token's left
+        # the old token in both, and the next run revoked the token the receiver still held.
+        from bench.jellyfin import AuthSession
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
+            tokens.put("beta13", "test", "Living room", AuthSession("tok1", "user-1"))
+            replaced = []
+            # The patch replaces os.replace for every caller, this double included.
+            real_replace = os.replace
+
+            def stop_after_one_write(source, destination):
+                replaced.append(destination)
+                if len(replaced) > 1:
+                    raise OSError("run stopped between two writes")
+                real_replace(source, destination)
+
+            with mock.patch("bench.sender.os.replace", side_effect=stop_after_one_write), contextlib.suppress(OSError):
+                tokens.put("beta13", "test", "Living room", AuthSession("tok2", "user-1"))
+            held = tokens.get("beta13", "test", "Living room")
+            self.assertNotIn(held.token, [orphan.token for orphan in tokens.orphans("beta13", "test")])
 
     def test_a_receiver_driven_by_one_run_is_refused_to_another(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -370,7 +395,7 @@ class ReceiverTokensTests(unittest.TestCase):
     def test_the_file_lives_where_git_and_biome_ignore_it(self):
         self.assertEqual(sender.TOKENS_PATH, Path(__file__).resolve().parents[1] / "receiver-tokens.local.json")
         tokens = sender.ReceiverTokens()
-        for path in (tokens.lock_path, tokens.orphans_path, tokens.claim_path("Living room")):
+        for path in (tokens.lock_path, tokens.claim_path("Living room")):
             with self.subTest(path=path.name):
                 self.assertEqual(path.parent, sender.TOKENS_PATH.parent)
                 self.assertTrue(fnmatch.fnmatch(path.name, "*.local.*"), path.name)
@@ -465,7 +490,7 @@ class SenderMainTests(unittest.TestCase):
             server.logout_error = URLError("server away")
             sender_main("play-now", "--item", "V01", "--watch", "0")
             stored = json.loads((run.root / "receiver-tokens.local.json").read_text())
-        self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
+        self.assertEqual(stored["held"]["beta13"]["test"]["Living room"]["token"], "tok1")
         self.assertEqual(receiver.received[-1]["accessToken"], "tok1")
 
     def test_a_receiver_that_stops_answering_keeps_its_token(self):

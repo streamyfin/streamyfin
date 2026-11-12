@@ -493,7 +493,7 @@ class MatrixMainTests(unittest.TestCase):
             errors = report_rows(result)[0]["errors"]
         self.assertEqual(code, 1)
         self.assertEqual(server.live, ["tok1"])
-        self.assertEqual(stored["beta13"]["test"]["Living room"]["token"], "tok1")
+        self.assertEqual(stored["held"]["beta13"]["test"]["Living room"]["token"], "tok1")
         self.assertIn("SenderTimeout: timed out waiting for the receiver to stop", errors)
 
     def test_a_receiver_another_run_drives_is_left_alone(self):
