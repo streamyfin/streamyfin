@@ -592,7 +592,7 @@ fun PlayerTopBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (mins < 60) "$mins min" else "${mins / 60} h")
+                                    Text(sleepTimerLabel(mins))
                                     if (viewModel.sleepTimerMinutes == mins) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -667,5 +667,16 @@ fun formatTimeSec(seconds: Double): String {
         String.format("%d:%02d:%02d", hrs, mins, secs)
     } else {
         String.format("%d:%02d", mins, secs)
+    }
+}
+
+/** A sleep timer choice, as the menu lists it: 90 is "1 h 30 min", not "1 h". */
+internal fun sleepTimerLabel(minutes: Int): String {
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return when {
+        hours == 0 -> "$rest min"
+        rest == 0 -> "$hours h"
+        else -> "$hours h $rest min"
     }
 }
