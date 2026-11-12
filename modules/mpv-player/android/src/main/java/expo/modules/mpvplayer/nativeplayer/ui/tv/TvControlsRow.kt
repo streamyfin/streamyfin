@@ -100,7 +100,7 @@ fun TvControlsRow(
         TvControl.PREV_EPISODE -> showPrevious
         TvControl.NEXT_EPISODE -> showNext
         TvControl.SYNCPLAY_QUEUE -> viewModel.syncPlayActive
-        TvControl.SPEED -> !viewModel.syncPlayActive
+        TvControl.SPEED -> viewModel.canChangeSpeed
         TvControl.PREV_CHAPTER, TvControl.NEXT_CHAPTER, TvControl.CHAPTERS -> hasChapters
         TvControl.EPISODES -> hasEpisodes
         TvControl.QUALITY -> hasQuality
@@ -357,7 +357,7 @@ fun TvControlsRow(
             )
         }
 
-        if (!viewModel.syncPlayActive) TvIconButton(
+        if (viewModel.canChangeSpeed) TvIconButton(
             control = TvControl.SPEED,
             icon = Icons.Filled.Timer,
             contentDescription = "Speed",

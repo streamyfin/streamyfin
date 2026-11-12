@@ -197,4 +197,51 @@ class LiveStreamTest {
         assertTrue(viewModel.seekFeedbackVisible)
         assertEquals(listOf("seekToTracked"), seeks())
     }
+
+    // A live stream plays as it airs: faster drains what is buffered and the
+    // channel falls back to its spinner every few seconds. The speed the
+    // viewer saved for everything else stays theirs: JS is not told.
+    @Test
+    fun aLiveStreamPlaysAtNormalSpeed() {
+        val viewModel = player(live = true)
+        val events = mutableListOf<String>()
+        viewModel.emit = { name, _ -> events += name }
+
+        viewModel.setSpeed(1.5)
+
+        assertEquals(1.0, viewModel.speed, 0.0)
+        assertFalse(viewModel.canChangeSpeed)
+        assertEquals(emptyList<String>(), events.filter { it == "onSpeedChange" })
+    }
+
+    @Test
+    fun aFilmPlaysAtTheSpeedAsked() {
+        val viewModel = player(live = false)
+
+        viewModel.setSpeed(1.5)
+
+        assertEquals(1.5, viewModel.speed, 0.0)
+        assertTrue(viewModel.canChangeSpeed)
+    }
+
+    // The session sets the saved speed on every load, a channel's included.
+    @Test
+    fun aChannelLoadedOverAFasterFilmPlaysAtNormalSpeed() {
+        val viewModel = player(live = false).apply { setSpeed(1.5) }
+
+        viewModel.prepareForReload()
+        viewModel.apply(config(live = true))
+        viewModel.setSpeed(1.5)
+
+        assertEquals(1.0, viewModel.speed, 0.0)
+    }
+
+    @Test
+    fun aLiveStreamIsNotSpedUpByAHold() {
+        val viewModel = player(live = true)
+
+        viewModel.startHoldSpeed()
+
+        assertFalse(viewModel.isHoldSpeedActive)
+    }
 }

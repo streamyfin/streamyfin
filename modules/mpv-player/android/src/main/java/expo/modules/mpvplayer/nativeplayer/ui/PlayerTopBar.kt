@@ -176,7 +176,7 @@ fun PlayerTopBar(
         }
 
         // Speed Menu Button (if not compact)
-        if (!compact && !viewModel.syncPlayActive) {
+        if (!compact && viewModel.canChangeSpeed) {
             Box {
                 IconButton(
                     onClick = {

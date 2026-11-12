@@ -238,7 +238,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         },
         execute = { command, position ->
             if (isTearingDown || engine == null) false else {
-                forceSyncSpeed()
+                forceNormalSpeed()
                 when (command.command) {
                     "Pause" -> {
                         pauseLocal()
@@ -278,7 +278,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (active == null) {
             showSyncPlayQueue = false
         } else {
-            forceSyncSpeed()
+            forceNormalSpeed()
             cancelCountdown()
             countdownRemaining = null
             showStillWatching = false
@@ -296,7 +296,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun cancelSyncPlayCommands() = syncScheduler.cancel()
 
-    private fun forceSyncSpeed() {
+    private fun forceNormalSpeed() {
         isHoldSpeedActive = false
         speedBeforeHold = null
         speed = 1.0
@@ -702,9 +702,16 @@ class PlayerViewModel : PlayerEngine.Delegate {
         }
     }
 
+    /**
+     * Whether the speed menu is offered. A group plays at one speed, and a
+     * live stream plays as it airs: faster drains what is buffered.
+     */
+    val canChangeSpeed: Boolean get() = !syncPlayActive && !isLive
+
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
-        if (syncPlayActive) { forceSyncSpeed(); return }
+        // Not told to JS: the speed the viewer saved stays theirs.
+        if (!canChangeSpeed) { forceNormalSpeed(); return }
         speed = newSpeed
         engine?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
@@ -713,7 +720,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun startHoldSpeed() {
-        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (!canChangeSpeed || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
