@@ -124,4 +124,52 @@ class ExoPlayerEngineReloadTest {
 
         assertSame(before, player())
     }
+
+    // A channel has no resume point. Another bitrate restarts its transcode
+    // from where it airs, and a load at the position read so far waited for
+    // the transcode to get there: a minute on the Android TV emulator for a
+    // channel watched a minute.
+    @Test
+    fun aLiveStreamLoadsWhereItAirs() {
+        engine.load(config.copy(startPosition = 56.0, isLive = true))
+
+        assertEquals(0L, player().currentPosition)
+    }
+
+    @Test
+    fun aFilmLoadsAtItsResumePoint() {
+        engine.load(config.copy(startPosition = 56.0))
+
+        assertEquals(56_000L, player().currentPosition)
+    }
+
+    // The engine's own reloads rebuild the config: a channel stays one.
+    @Test
+    fun aLiveStreamReloadedByTheEngineStillLoadsWhereItAirs() {
+        engine.load(config.copy(isLive = true))
+        playedSoFar(56.0)
+
+        engine.reloadCurrentItem()
+        assertEquals(0L, player().currentPosition)
+
+        engine.recoverVideoOutput(null)
+        assertEquals(0L, player().currentPosition)
+    }
+
+    @Test
+    fun aFilmReloadedByTheEngineResumesWhereItWas() {
+        engine.load(config)
+        playedSoFar(56.0)
+
+        engine.reloadCurrentItem()
+
+        assertEquals(56_000L, player().currentPosition)
+    }
+
+    /** The position the progress loop caches, private outside tests. */
+    private fun playedSoFar(seconds: Double) {
+        ExoPlayerEngine::class.java.getDeclaredField("cachedPositionSec")
+            .apply { isAccessible = true }
+            .set(engine, seconds)
+    }
 }

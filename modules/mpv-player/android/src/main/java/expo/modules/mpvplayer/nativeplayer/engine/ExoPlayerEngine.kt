@@ -185,6 +185,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private var audioRecoveryAttemptedForUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
     private var currentLoop: Boolean = false
+    // The engine's own reloads rebuild the config from these.
+    private var currentIsLive: Boolean = false
     private var currentExternalSubtitles: List<String> = emptyList()
     // The sidecars the last load was given, without the ones addSubtitleFile
     // added since: the same-stream guard compares a new load with these.
@@ -374,6 +376,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         currentUrl = config.url
         currentHeaders = config.headers
         currentLoop = config.loop
+        currentIsLive = config.isLive
         currentExternalSubtitles = config.externalSubtitles ?: emptyList()
         if (!force) suppliedExternalSubtitles = currentExternalSubtitles
         pendingConfig = config
@@ -562,8 +565,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         // Prepare from the resume position directly — calling prepare() first
         // and seeking afterwards replays the opening seconds (C.TIME_UNSET
-        // falls back to the media's default start position).
-        val startMs = config.startPosition?.let { sp ->
+        // falls back to the media's default start position). A live stream
+        // has none: a channel renegotiated for another bitrate restarts its
+        // transcode, and the position read so far is ahead of all of it.
+        val startMs = if (config.isLive) C.TIME_UNSET else config.startPosition?.let { sp ->
             if (sp > 0) (sp * 1000).toLong() else C.TIME_UNSET
         } ?: C.TIME_UNSET
         loadStartPositionMs = if (startMs != C.TIME_UNSET) startMs else 0L
@@ -744,6 +749,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 initialSubtitleId = currentSubtitleId,
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
+                isLive = currentIsLive,
             ),
             force = true,
             retry = retry,
@@ -771,6 +777,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 initialSubtitleId = currentSubtitleId,
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
+                isLive = currentIsLive,
             ),
             force = true,
         )

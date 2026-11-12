@@ -31,6 +31,8 @@ data class VideoLoadConfig(
      * adaptation fires before the real rate is known.
      */
     val contentFrameRate: Double? = null,
+    /** A Live TV channel: the stream starts where it is, no seek to its start. */
+    val isLive: Boolean = false,
 )
 
 /**

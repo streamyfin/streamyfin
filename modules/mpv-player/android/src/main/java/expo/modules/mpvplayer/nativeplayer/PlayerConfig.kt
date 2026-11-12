@@ -42,7 +42,8 @@ class StreamConfigRecord : Record {
             cacheSeconds = cacheConfig?.cacheSeconds,
             demuxerMaxBytes = cacheConfig?.maxBytes,
             demuxerMaxBackBytes = cacheConfig?.maxBackBytes,
-            contentFrameRate = contentFrameRate
+            contentFrameRate = contentFrameRate,
+            isLive = isLive
         )
     }
 }

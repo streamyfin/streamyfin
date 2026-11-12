@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.nativeplayer
 
 import android.view.KeyEvent
+import expo.modules.mpvplayer.mpvStartOption
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
@@ -243,5 +244,26 @@ class LiveStreamTest {
         viewModel.startHoldSpeed()
 
         assertFalse(viewModel.isHoldSpeedActive)
+    }
+
+    // mpv's start=0 is a seek to the stream's first timestamp, which a live
+    // stream cannot do ("Cannot seek in this stream" on every channel).
+    @Test
+    fun aLiveStreamStartsWhereItIs() {
+        val stream = StreamConfigRecord().apply {
+            url = "https://server/stream"
+            isLive = true
+        }
+
+        assertTrue(stream.toVideoLoadConfig()!!.isLive)
+        assertEquals("none", mpvStartOption(startPosition = 0.0, isLive = true))
+        assertEquals("none", mpvStartOption(startPosition = 12.0, isLive = true))
+    }
+
+    @Test
+    fun aFilmStartsAtItsResumePoint() {
+        assertEquals("0", mpvStartOption(startPosition = null, isLive = false))
+        assertEquals("0", mpvStartOption(startPosition = 0.0, isLive = false))
+        assertEquals("90.50", mpvStartOption(startPosition = 90.5, isLive = false))
     }
 }

@@ -190,6 +190,8 @@ class MPVLayerRenderer(
     private var initialSubtitleId: Int? = null
     private var initialAudioId: Int? = null
     private var currentLoop: Boolean = false
+    // The reloads below rebuild the config: a channel stays one (start=none).
+    private var currentIsLive: Boolean = false
     
     override val isPausedState: Boolean
         get() = _isPaused
@@ -645,6 +647,7 @@ class MPVLayerRenderer(
                 initialSubtitleId = savedSid,
                 loop = currentLoop,
                 externalSubtitles = activeExternalSubtitles,
+                isLive = currentIsLive,
             ),
         )
 
@@ -701,6 +704,7 @@ class MPVLayerRenderer(
         this.initialSubtitleId = config.initialSubtitleId
         this.initialAudioId = config.initialAudioId
         this.currentLoop = config.loop
+        this.currentIsLive = config.isLive
         _videoWidth = 0
         _videoHeight = 0
         _videoRotation = 0
@@ -726,15 +730,8 @@ class MPVLayerRenderer(
         config.demuxerMaxBytes?.let { mpv?.setOptionString("demuxer-max-bytes", "${it}MiB") }
         config.demuxerMaxBackBytes?.let { mpv?.setOptionString("demuxer-max-back-bytes", "${it}MiB") }
 
-        // Set start position. mpv's time parser requires '.' as the decimal
-        // separator; use Locale.US so devices with other default locales
-        // (e.g. ',' as decimal separator) don't break resume-from-position.
         val startPosition = config.startPosition
-        if (startPosition != null && startPosition > 0) {
-            mpv?.setPropertyString("start", String.format(Locale.US, "%.2f", startPosition))
-        } else {
-            mpv?.setPropertyString("start", "0")
-        }
+        mpv?.setPropertyString("start", mpvStartOption(startPosition, config.isLive))
         // Until the first time-pos arrives the file is where it was told to
         // start. The duration event below emits this cache as the position,
         // and left at 0 (or at the previous file's position) it told the
@@ -800,6 +797,7 @@ class MPVLayerRenderer(
                     url = url,
                     headers = currentHeaders,
                     loop = currentLoop,
+                    isLive = currentIsLive,
                 ),
             )
         }
@@ -1465,3 +1463,18 @@ class MPVLayerRenderer(
         mainHandler.post { delegate?.onPlaybackEnded() }
     }
 }
+
+/**
+ * mpv's start for a load: the resume point, or the file's start. mpv's time
+ * parser requires '.' as the decimal separator; Locale.US keeps devices with
+ * another default (',') from breaking resume-from-position. A live stream gets
+ * none: start=0 is a seek to its first timestamp, which it cannot do.
+ */
+internal fun mpvStartOption(startPosition: Double?, isLive: Boolean): String =
+    if (isLive) {
+        "none"
+    } else if (startPosition != null && startPosition > 0) {
+        String.format(Locale.US, "%.2f", startPosition)
+    } else {
+        "0"
+    }
