@@ -142,12 +142,6 @@ Need assistance or have any questions?
 - **GitHub Issues:** [Report bugs or request features](https://github.com/streamyfin/streamyfin/issues)  
 - **Email:** [developer@streamyfin.app](mailto:developer@streamyfin.app)  
 
-
-## ❓ FAQ
-
-1. Q: Why can't I see my libraries in Streamyfin?  
-   A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only
-
 ## 📝 Credits
 
 Streamyfin is developed by [Fredrik Burmester](https://github.com/fredrikburmester) and is not affiliated with Jellyfin. The app is built using Expo, React Native, and other open-source libraries.
