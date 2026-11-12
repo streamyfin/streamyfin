@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -274,8 +275,11 @@ class ReceiverTokens:
         self.orphans_path = self.path.with_suffix(".orphans.json")
 
     def claim_path(self, target: str) -> Path:
+        # The slug keeps the file readable; the digest of the exact name keeps "Den TV" and "Den-TV"
+        # two receivers, which the slug alone made one.
         slug = re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-") or "target"
-        return self.path.with_suffix(f".{slug}.lock")
+        digest = hashlib.sha256(target.encode()).hexdigest()[:12]
+        return self.path.with_suffix(f".{slug}-{digest}.lock")
 
     @contextlib.contextmanager
     def claim(self, target: str):

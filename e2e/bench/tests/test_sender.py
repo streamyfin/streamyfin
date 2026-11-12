@@ -359,6 +359,14 @@ class ReceiverTokensTests(unittest.TestCase):
             with sender.ReceiverTokens(tokens.path).claim("Living room"):
                 pass
 
+    def test_names_that_differ_only_in_punctuation_are_two_receivers(self):
+        # Both names gave the file den-tv: a run on one receiver was refused while it was free.
+        with tempfile.TemporaryDirectory() as tmp:
+            tokens = sender.ReceiverTokens(Path(tmp) / "tokens.local.json")
+            self.assertNotEqual(tokens.claim_path("Den TV"), tokens.claim_path("Den-TV"))
+            with tokens.claim("Den TV"), sender.ReceiverTokens(tokens.path).claim("Den-TV"):
+                pass
+
     def test_the_file_lives_where_git_and_biome_ignore_it(self):
         self.assertEqual(sender.TOKENS_PATH, Path(__file__).resolve().parents[1] / "receiver-tokens.local.json")
         tokens = sender.ReceiverTokens()
