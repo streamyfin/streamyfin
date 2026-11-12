@@ -740,6 +740,16 @@ export const migrateStillWatchingSetting = (
   return true;
 };
 
+/** Settings only the JS player read, dropped from storage on load. */
+const REMOVED_PLAYER_SETTINGS = [
+  "safeAreaInControlsEnabled",
+  "nativeVideoPlayerTV",
+  "nativeVideoPlayerAndroidTV",
+] as const;
+
+/** The player picker's "Native", see VideoPlayer. */
+const REMOVED_NATIVE_VIDEO_PLAYER = 2;
+
 const loadSettings = (): Partial<Settings> => {
   const stored = readStoredSettings() as LegacySubtitleSettings & {
     showTVHeroCarousel?: boolean;
@@ -769,6 +779,19 @@ const loadSettings = (): Partial<Settings> => {
   }
   if ("autoPlayEpisodeCount" in stored) {
     delete (stored as Record<string, unknown>).autoPlayEpisodeCount;
+    changed = true;
+  }
+
+  // The JS player's switches went with it, and so did the picker's "Native".
+  const record = stored as Record<string, unknown>;
+  for (const key of REMOVED_PLAYER_SETTINGS) {
+    if (key in record) {
+      delete record[key];
+      changed = true;
+    }
+  }
+  if (record.videoPlayer === REMOVED_NATIVE_VIDEO_PLAYER) {
+    delete record.videoPlayer;
     changed = true;
   }
 

@@ -772,6 +772,40 @@ describe("loading the settings", () => {
     });
     expect(storage.get(PLUGIN_APPLIED_DEFAULTS_KEY)).toEqual({});
   });
+
+  // The JS player's switches, and the picker's "Native" (2), mean nothing
+  // since it was removed.
+  test("drops the settings the JS player left behind", async () => {
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({
+        safeAreaInControlsEnabled: false,
+        nativeVideoPlayerTV: false,
+        nativeVideoPlayerAndroidTV: true,
+        videoPlayer: 2,
+        openSubtitlesApiKey: "my-key",
+      }),
+    );
+
+    await renderHook(() => useSettings());
+
+    expect(JSON.parse(storage.getString(SETTINGS_KEY) ?? "{}")).toEqual({
+      openSubtitlesApiKey: "my-key",
+    });
+  });
+
+  test("keeps ExoPlayer, which Android TV still offers", async () => {
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({ videoPlayer: 1, nativeVideoPlayerAndroidTV: true }),
+    );
+
+    await renderHook(() => useSettings());
+
+    expect(JSON.parse(storage.getString(SETTINGS_KEY) ?? "{}")).toEqual({
+      videoPlayer: 1,
+    });
+  });
 });
 
 describe("the stop playback confirmation", () => {
