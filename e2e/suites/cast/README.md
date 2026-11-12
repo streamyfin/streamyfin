@@ -201,10 +201,12 @@ receiver`. It is a request, not a guarantee: the receiver app keeps playing only
 probe's session joined it, and the session that launched it stops it at its end on both SDKs
 (`.claude/learned-facts/cast-launching-session-stops-the-receiver.md`). `--ef volume <0 to 1>` sets the
 receiver's volume once connected (`setting the volume to 0.40`), then logs each level the
-receiver reports back as `volume=0.40 muted=false`. `--ez mute true|false` sets its mute after the level
-(`setting the mute to true`). On Android the mute is the playing stream's, as the SDK's expanded
-controls do it: with no media loaded the port logs `setMute: no media playing to mute` and the
-receiver reports nothing, so cast something before.
+receiver reports back as `volume=0.40 muted=false` until it disconnects. With `keep` the probe ends
+as soon as it has asked, before any report: leave `keep` off, with a `hold`, to read the level back.
+`--ez mute true|false` sets its mute after the level (`setting the mute to true`). On Android the app
+mutes the playing stream, not the device, which the SDK's expanded controls mute instead: with no
+media loaded the port logs `setMute: no media playing to mute` and the receiver reports nothing, so
+cast something before.
 
 **The output sheet.** `--ez sheet true` presents the output sheet over whatever the app shows
 (`presenting the output sheet`) as the probe starts, so its states can be captured while the
