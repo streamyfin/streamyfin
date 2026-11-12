@@ -356,56 +356,6 @@ final class MPVPlayerEngine: NSObject {
 		pipController?.updatePlaybackState()
 	}
 
-	/**
-	 * Synchronously stop and destroy the mpv instance + decoder so memory is
-	 * freed before the next screen mounts. Safe to call multiple times — the
-	 * underlying renderer.stop() guards against re-entry.
-	 *
-	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
-	 */
-	func destroy() {
-		loadGeneration &+= 1
-		// Release the system's single inline auto-PiP slot now; deinit is deferred
-		// and would otherwise keep it claimed, blocking PiP for the next video.
-		setPictureInPictureAutoStartEnabled(false)
-		pipController?.stopPictureInPicture()
-		pipController = nil
-		renderer?.stop()
-
-		// Reset state and re-create the mpv handle so a subsequent
-		// loadVideo() on the SAME engine instance can actually load.
-		// Without this, stop() leaves renderer.mpv == nil, and the next
-		// loadVideo(config:) calls renderer.load() which early-returns
-		// at `guard let handle = self.mpv else { return }` — but only
-		// after flipping isLoading = true and dispatching the loading
-		// delegate callback, so the JS layer is stuck in a perpetual
-		// "loading" state with no actual playback.
-		//
-		// This path is hit by direct-player.tsx's goToNextItem()/stop(),
-		// which call destroy() immediately before router.replace() to
-		// the same route — Expo Router reuses the same MpvPlayerView
-		// instance, so the next `source` prop update arrives on this
-		// view without a remount. Engine init is otherwise the only
-		// place start() is called, so without re-starting here the
-		// renderer stays dead until the whole host is deallocated and
-		// recreated.
-		//
-		// start() is idempotent (`guard !isRunning else { return }`)
-		// and stop() has already nulled mpv synchronously before
-		// dispatching the async mpv_terminate_destroy, so creating a
-		// fresh handle here is safe even while the old handle's
-		// teardown is still in flight on a background queue (libmpv
-		// handles are independent).
-		currentURL = nil
-		currentLoop = false
-		intendedPlayState = false
-		do {
-			try renderer?.start()
-		} catch {
-			delegate?.engine(self, didFailWithError: "Failed to restart renderer after destroy: \(error.localizedDescription)")
-		}
-	}
-
 	/// Full teardown for hosts that are going away. Idempotent, in this order:
 	/// PiP → renderer → layer → Now Playing → audio session. The renderer's
 	/// stop() already performs mpv_terminate_destroy on a background queue —
@@ -482,10 +432,6 @@ final class MPVPlayerEngine: NSObject {
 	/// renderer retains the flag so it survives an mpv re-creation.
 	func setMute(_ muted: Bool) {
 		renderer?.setMute(muted)
-	}
-
-	func getSpeed() -> Double {
-		return renderer?.getSpeed() ?? 1.0
 	}
 
 	func isPaused() -> Bool {
@@ -612,11 +558,6 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.disableSubtitles()
 	}
 
-	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
-		guard let renderer else { return completion(0) }
-		renderer.getCurrentSubtitleTrack(completion: completion)
-	}
-
 	func addSubtitleFile(url: String, select: Bool = true) {
 		renderer?.addSubtitleFile(url: url, select: select)
 	}
@@ -633,16 +574,7 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setAudioTrack(trackId)
 	}
 
-	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
-		guard let renderer else { return completion(0) }
-		renderer.getCurrentAudioTrack(completion: completion)
-	}
-
 	// MARK: - Subtitle Positioning
-
-	func setSubtitlePosition(_ position: Int) {
-		renderer?.setSubtitlePosition(position)
-	}
 
 	func setSubtitleScale(_ scale: Double) {
 		renderer?.setSubtitleScale(scale)
@@ -683,20 +615,8 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setSubtitleAlignY(alignment)
 	}
 
-	func setSubtitleFontSize(_ size: Int) {
-		renderer?.setSubtitleFontSize(size)
-	}
-
 	func setSubtitleStyle(config: [String: Any]) {
 		renderer?.setSubtitleStyle(config: config)
-	}
-
-	func setSubtitleBackgroundColor(_ color: String) {
-		renderer?.setSubtitleBackgroundColor(color)
-	}
-
-	func setSubtitleBorderStyle(_ style: String) {
-		renderer?.setSubtitleBorderStyle(style)
 	}
 
 	func setSubtitleAssOverride(_ mode: String) {
@@ -709,10 +629,6 @@ final class MPVPlayerEngine: NSObject {
 		_isZoomedToFill = zoomed
 		displayLayer.videoGravity = zoomed ? .resizeAspectFill : .resizeAspect
 		renderer?.syncSubtitleLayerFrame()
-	}
-
-	func isZoomedToFill() -> Bool {
-		return _isZoomedToFill
 	}
 
 	// MARK: - Technical Info

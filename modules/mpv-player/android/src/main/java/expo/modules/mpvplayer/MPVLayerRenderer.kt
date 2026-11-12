@@ -133,7 +133,6 @@ class MPVLayerRenderer(
     // Set by recoverVideoOutput's caller so the post-reload state follows the
     // user's intent (resume) instead of assuming paused.
     override var playbackResumeIntent: Boolean = false
-    private var _playbackSpeed: Double = 1.0
     private var isReadyToSeek: Boolean = false
 
     // Progress update throttling - CRITICAL for performance!
@@ -889,7 +888,6 @@ class MPVLayerRenderer(
     }
     
     override fun setSpeed(speed: Double) {
-        _playbackSpeed = speed
         mpv?.setPropertyDouble("speed", speed)
     }
 
@@ -905,10 +903,6 @@ class MPVLayerRenderer(
         mpv?.setPropertyBoolean("mute", muted)
     }
     
-    override fun getSpeed(): Double {
-        return mpv?.getPropertyDouble("speed") ?: _playbackSpeed
-    }
-
     override fun getChapters(): List<Map<String, Any>> {
         val chapters = mutableListOf<Map<String, Any>>()
         val count = mpv?.getPropertyInt("chapter-list/count") ?: 0
@@ -989,7 +983,7 @@ class MPVLayerRenderer(
         applyBidiModeFor(-1)
     }
     
-    override fun getCurrentSubtitleTrack(): Int {
+    private fun getCurrentSubtitleTrack(): Int {
         return mpv?.getPropertyInt("sid") ?: 0
     }
     
@@ -1005,10 +999,6 @@ class MPVLayerRenderer(
     }
     
     // MARK: - Subtitle Positioning
-    
-    override fun setSubtitlePosition(position: Int) {
-        mpv?.setPropertyInt("sub-pos", position)
-    }
     
     override fun setSubtitleScale(scale: Double) {
         mpv?.setPropertyDouble("sub-scale", scale)
@@ -1060,18 +1050,6 @@ class MPVLayerRenderer(
                 mpv?.setPropertyString("sub-border-size", "0")
             }
         }
-    }
-
-    override fun setSubtitleFontSize(size: Int) {
-        mpv?.setPropertyInt("sub-font-size", size)
-    }
-
-    override fun setSubtitleBorderStyle(style: String) {
-        mpv?.setPropertyString("sub-border-style", style)
-    }
-
-    override fun setSubtitleBackgroundColor(color: String) {
-        mpv?.setPropertyString("sub-back-color", color)
     }
 
     override fun setSubtitleAssOverride(mode: String) {
@@ -1139,7 +1117,7 @@ class MPVLayerRenderer(
         mpv?.setPropertyString("audio-channels", if (enabled) "mono" else "auto-safe")
     }
     
-    override fun getCurrentAudioTrack(): Int {
+    private fun getCurrentAudioTrack(): Int {
         return mpv?.getPropertyInt("aid") ?: 0
     }
 

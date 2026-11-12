@@ -228,7 +228,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // Subtitle styling state — applied to the engine-owned SubtitleView.
     private var subtitleScale: Float = 1f
-    private var subtitleFontSizePct: Int? = null // 0-100
     private var subtitleBottomFraction: Float? = null
     private var subtitleAlignY: String = "bottom"
     private var subtitleBackgroundColor: Int = Color.argb(0, 0, 0, 0)
@@ -674,12 +673,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         player?.playbackParameters = PlaybackParameters(playbackSpeed)
     }
 
-    override fun getSpeed(): Double {
-        // playbackParameters is not safe to read off-main; 1.0 is the only
-        // value the chrome ever needs back (speed lives in the view model).
-        return 1.0
-    }
-
     /**
      * Engine mute; the device volume is left untouched. Retained across
      * player re-creation so the next stream comes back muted.
@@ -821,8 +814,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         currentSubtitleId = 0
     }
 
-    override fun getCurrentSubtitleTrack(): Int = currentSubtitleId
-
     override fun addSubtitleFile(url: String, select: Boolean) = post {
         val p = player ?: return@post
         val sourceFactory = mediaSourceFactory ?: return@post
@@ -876,8 +867,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         p.trackSelectionParameters = params
         currentAudioId = trackId
     }
-
-    override fun getCurrentAudioTrack(): Int = currentAudioId
 
     private fun rebuildTrackMaps(tracks: Tracks?) {
         if (tracks == null) return
@@ -975,14 +964,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // MARK: - Subtitle rendering (engine-owned SubtitleView)
 
-    override fun setSubtitlePosition(position: Int) {
-        // 0-100 (mpv convention: 100 = bottom). Map to the bottom-padding
-        // fraction; reserve a small margin so 100 doesn't hug the edge.
-        val clamped = position.coerceIn(0, 100)
-        subtitleBottomFraction = 0.95f - (clamped / 100f) * 0.87f
-        applySubtitleStyle()
-    }
-
     override fun setSubtitleScale(scale: Double) {
         subtitleScale = scale.toFloat()
         applySubtitleStyle()
@@ -1033,21 +1014,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         }
         // backgroundPadding has no SubtitleView equivalent (the window box has
         // no padding control) — accepted and ignored.
-        applySubtitleStyle()
-    }
-
-    override fun setSubtitleFontSize(size: Int) {
-        subtitleFontSizePct = size
-        applySubtitleStyle()
-    }
-
-    override fun setSubtitleBorderStyle(style: String) {
-        subtitleBorderStyle = style
-        applySubtitleStyle()
-    }
-
-    override fun setSubtitleBackgroundColor(color: String) {
-        subtitleBackgroundColor = parseColor(color, subtitleBackgroundColor)
         applySubtitleStyle()
     }
 
@@ -1103,16 +1069,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private fun applySubtitleStyle() {
         val sv = subtitleOverlay as? SubtitleView ?: return
 
-        // Text size: explicit % wins; otherwise scale the default. The base
-        // matches MPV's look (mpv renders at sub-font-size 55 on libass's
-        // 720-normalized canvas ≈ 7.6% of frame height vs Media3's 5.33%).
+        // Text size: the default scaled. The base matches MPV's look (mpv
+        // renders at sub-font-size 55 on libass's 720-normalized canvas ≈ 7.6%
+        // of frame height vs Media3's 5.33%).
         val mpvMatchedBaseFraction = SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.5f
-        val textSizeFraction = if (subtitleFontSizePct != null) {
-            (subtitleFontSizePct!! / 100f) * mpvMatchedBaseFraction
-        } else {
-            mpvMatchedBaseFraction * subtitleScale
-        }
-        sv.setFractionalTextSize(textSizeFraction)
+        sv.setFractionalTextSize(mpvMatchedBaseFraction * subtitleScale)
 
         // Vertical position: explicit fraction wins; otherwise alignY mapping.
         val alignYFraction = when (subtitleAlignY) {

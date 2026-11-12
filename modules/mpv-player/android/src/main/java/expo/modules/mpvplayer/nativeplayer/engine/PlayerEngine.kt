@@ -103,7 +103,6 @@ interface PlayerEngine {
     }
     fun seekBy(seconds: Double)
     fun setSpeed(speed: Double)
-    fun getSpeed(): Double
     /** Engine mute, retained across reloads (volume left untouched). */
     fun setMute(muted: Boolean)
     fun getChapters(): List<Map<String, Any>>
@@ -112,23 +111,17 @@ interface PlayerEngine {
     fun getSubtitleTracks(): List<Map<String, Any>>
     fun setSubtitleTrack(trackId: Int)
     fun disableSubtitles()
-    fun getCurrentSubtitleTrack(): Int
     fun addSubtitleFile(url: String, select: Boolean)
     fun getAudioTracks(): List<Map<String, Any>>
     fun setAudioTrack(trackId: Int)
-    fun getCurrentAudioTrack(): Int
 
     // MARK: - Subtitle rendering
-    fun setSubtitlePosition(position: Int)            // mpv-only; no-op elsewhere
     fun setSubtitleScale(scale: Double)
     fun setSubtitleDelay(seconds: Double)             // mpv-only; no-op elsewhere
     fun setSubtitleMarginY(margin: Int)
     fun setSubtitleAlignX(alignment: String)          // mpv-only; no-op elsewhere
     fun setSubtitleAlignY(alignment: String)
     fun setSubtitleStyle(config: Map<String, Any>)
-    fun setSubtitleFontSize(size: Int)
-    fun setSubtitleBorderStyle(style: String)
-    fun setSubtitleBackgroundColor(color: String)
     fun setSubtitleAssOverride(mode: String)          // mpv-only; no-op elsewhere
 
     // MARK: - Audio processing
