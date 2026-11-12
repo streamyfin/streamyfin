@@ -183,4 +183,32 @@ describe("LiveTvGuidePage", () => {
       expect(screen.getByText("live_tv.no_channels")).toBeTruthy(),
     );
   });
+
+  // The header forwards its offset to the programs, which are not there while
+  // the channels load: a scroll then left the hours ahead of the rows.
+  test("lets the hour header scroll only once the programs are shown", async () => {
+    let answerChannels: () => void = () => {};
+    const api = makeApi();
+    api.mock.onGet(/\/LiveTv\/Channels\?/).reply(
+      () =>
+        new Promise((resolve) => {
+          answerChannels = () => resolve([200, CHANNELS]);
+        }),
+    );
+    api.mock.onPost(/\/LiveTv\/Programs$/).reply(200, PROGRAMS);
+    const { store } = await renderGuide();
+    const header = () =>
+      screen.root!.queryAll(
+        (node) => node.props?.horizontal === true && !!node.props?.onScroll,
+      )[0];
+
+    await act(async () => store.set(apiAtom, api));
+
+    expect(header().props.scrollEnabled).toBe(false);
+
+    await act(async () => answerChannels());
+
+    await waitFor(() => expect(screen.getByText("Evening News")).toBeTruthy());
+    expect(header().props.scrollEnabled).toBe(true);
+  });
 });
