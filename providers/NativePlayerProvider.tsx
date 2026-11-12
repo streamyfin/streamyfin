@@ -743,8 +743,10 @@ const NativePlayerProviderInner: React.FC<{
         MediaSourceId: session.mediaSourceId,
         PositionTicks: positionTicks ?? msToTicks(session.positionMs),
         PlaySessionId: session.stream.sessionId || undefined,
-        // Required to release the server-side live stream's tuner slot.
-        LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
+        // No LiveStreamId: releaseLiveStream gives the session's reference
+        // back after every stop report. Named here, the stream is released
+        // a second time, and a channel's stream is shared, so that cuts it
+        // from under another device on the channel, or a swap's new stream.
       };
       const playstate = getSessionApi(currentApi);
       try {
