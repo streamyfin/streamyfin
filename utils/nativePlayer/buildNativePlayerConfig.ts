@@ -590,6 +590,12 @@ export async function buildNativePlayerConfig(params: {
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.
     engine,
+    // MPV-only, like cacheConfig, and Android-only, like the setting: the
+    // driver mpv renders through there.
+    voDriver:
+      Platform.OS === "android" && engine === "mpv"
+        ? settings.mpvVoDriver
+        : undefined,
     metadata: buildMetadata(item, api),
     // Episode-list and next-episode thumbnails are fetched natively, so they
     // need the headers as well. Offline URLs are local and match nothing.
@@ -651,6 +657,12 @@ export async function buildNativePlayerConfig(params: {
       showVolumeSlider: !Platform.isTV && !settings.hideVolumeSlider,
       showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
       // Touch gestures — no equivalent on the Siri remote.
+      horizontalSwipeSeekEnabled:
+        !Platform.isTV && settings.enableHorizontalSwipeSkip !== false,
+      brightnessSwipeEnabled:
+        !Platform.isTV && settings.enableLeftSideBrightnessSwipe !== false,
+      volumeSwipeEnabled:
+        !Platform.isTV && settings.enableRightSideVolumeSwipe !== false,
       holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
       holdToSpeedRate: settings.holdToSpeedRate,
       pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,

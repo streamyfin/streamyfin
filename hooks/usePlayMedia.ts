@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
@@ -36,6 +36,15 @@ export const usePlayMedia = () => {
   const syncPlay = useSyncPlay();
   const { t } = useTranslation();
 
+  // False once the screen that asked for the play is gone.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
       // A Book, a Season or a folder has no stream: the player would open,
@@ -46,12 +55,12 @@ export const usePlayMedia = () => {
         return;
       }
 
+      const isLive =
+        options?.item?.Type === "Program" ||
+        options?.item?.Type === "TvChannel";
+
       if (syncPlay.enabled) {
-        if (
-          req.offline ||
-          options?.item?.Type === "Program" ||
-          options?.item?.Type === "TvChannel"
-        ) {
+        if (req.offline || isLive) {
           Alert.alert(t("syncplay.title"), t("syncplay.online_video_only"));
           return;
         }
@@ -86,7 +95,12 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
-      await presentFromRequest(req, { alertOnFailure: true });
+      // A tuner takes seconds to open a channel. A viewer who went back
+      // meanwhile gave up on it, and the player must not open over wherever
+      // they went. Live only: the top shelf route replaces itself with Home
+      // before it plays a video, which must still open.
+      const isCurrent = isLive ? () => mountedRef.current : undefined;
+      await presentFromRequest(req, { isCurrent, alertOnFailure: true });
     },
     [setShuffleQueue, presentFromRequest, syncPlay, t],
   );
