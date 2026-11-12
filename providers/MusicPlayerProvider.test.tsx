@@ -565,6 +565,46 @@ const suspendCast = () =>
     emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
   });
 
+/** The target reads the session connected, as the module reports it once it is. */
+const targetConnected = () =>
+  act(async () => {
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connected",
+      target: LIVING_ROOM,
+    });
+  });
+
+/** The state reads not connected before the target says what became of the session. */
+const castStateNotConnected = () =>
+  act(async () => {
+    mockCast.castState = "notConnected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
+  });
+
+/**
+ * A suspension in the order an iPhone reports it, each event rendered on its
+ * own: the state reads not connected while the target still reads connected,
+ * and only then does the target say it reconnects (139 ms later on the bench).
+ */
+const suspendCastStateFirst = async () => {
+  await castStateNotConnected();
+  await act(async () => {
+    setCastSession(mockCast, null);
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "suspended",
+      sessionId: "session-1",
+      error: null,
+    });
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connecting",
+      target: LIVING_ROOM,
+      reconnecting: true,
+    });
+  });
+};
+
 /** The SDK resumes the suspended session once the app is back. */
 const resumeCast = () =>
   act(async () => {
@@ -846,6 +886,68 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(player.isPlaying).toBe(false);
     expect(player.progress).toBeCloseTo(12, 0);
     expect(nativeIds()).toEqual([]);
+  });
+
+  // Seen on an iPhone: the state read not connected one render before the
+  // target said it reconnects, and that render handed the queue back. The TV
+  // played the next track while the phone stayed on the first, paused.
+  test("a suspension whose state comes before the target's keeps the receiver's queue", async () => {
+    await castAlbum();
+    await targetConnected();
+
+    await suspendCastStateFirst();
+    await settle();
+    // The receiver still holds the queue: the phone cannot edit it.
+    expect(player.canEditQueue).toBe(false);
+
+    await resumeCast();
+    await receiverStatus("t2", "playing", 40);
+
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.isPlaying).toBe(true);
+    expect(nativeIds()).toEqual([]);
+  });
+
+  test("a session that ends with its state read first still hands the queue back", async () => {
+    await castAlbum();
+    await targetConnected();
+
+    await castStateNotConnected();
+    await act(async () => {
+      setCastSession(mockCast, null);
+      emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "ended",
+        sessionId: "session-1",
+        error: null,
+      });
+    });
+    await settle();
+
+    expect(player.canEditQueue).toBe(true);
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.isPlaying).toBe(false);
+    expect(player.progress).toBeCloseTo(12, 0);
+  });
+
+  test("an AirPlay target taking over from the Cast session hands the queue back", async () => {
+    await castAlbum();
+    await targetConnected();
+
+    await castStateNotConnected();
+    await act(async () => {
+      setCastSession(mockCast, null);
+      emitRemoteTarget(mockCast, {
+        ...NO_REMOTE_TARGET,
+        state: "connected",
+        target: { ...LIVING_ROOM, kind: "airplay", id: "airplay-1" },
+      });
+    });
+    await settle();
+
+    expect(player.canEditQueue).toBe(true);
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.isPlaying).toBe(false);
   });
 
   // As on Spotify: connected to a TV, play sends the paused queue there, from
