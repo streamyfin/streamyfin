@@ -1264,12 +1264,18 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // When the session ends, the queue comes back to the phone paused where the
   // receiver was. Nothing loads: resume loads the track, as for a queue
   // restored at launch, and the native queue of before is dropped so next and
-  // previous do not walk it.
+  // previous do not walk it. A phone that never played has no player to reset,
+  // and a reset before setup rejects.
   const handBackFromReceiver = useCallback((view: MusicCastRemoteView) => {
     queueGenerationRef.current += 1;
-    TrackPlayer?.reset().catch((error: unknown) =>
-      logAndCaptureError("Resetting the player after a cast failed", error),
-    );
+    if (playerReadyRef.current) {
+      TrackPlayer?.reset().catch((error: unknown) =>
+        logAndCaptureError("Resetting the player after a cast ended", error),
+      );
+    } else {
+      // A reattach still in flight ends with a live service: reset behind it.
+      playerSetupRef.current?.then(() => TrackPlayer.reset()).catch(() => {});
+    }
     setState((prev) => ({
       ...prev,
       queue: view.queue,
