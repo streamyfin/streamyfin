@@ -1297,9 +1297,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // end of the Cast session hands the queue back. iOS suspends the session
   // while the app is in the background, and the state reads not connected
   // until the SDK resumes it: a suspended session is still the receiver's.
+  // The state and the target come as separate events, the state first on an
+  // iPhone: a Cast target still connected holds the session until the target
+  // says what became of it.
   const remoteTarget = useRemoteTarget();
   const sessionHeld =
     castState === CastState.CONNECTED ||
+    (remoteTarget.state === "connected" &&
+      remoteTarget.target?.kind === "cast") ||
     (remoteTarget.state === "connecting" && remoteTarget.reconnecting);
   const remote = useMusicCastRemote({
     api,
