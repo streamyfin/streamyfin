@@ -172,6 +172,12 @@ class NativePlayerSession(
         viewModel.isTvChrome = isTv
 
         activity.runOnUiThread {
+            // Ended while this waited for the main thread (its activity was
+            // destroyed): an engine built now would never be released.
+            if (isDismissing) {
+                promise.reject("PRESENT_CANCELLED", "The player ended before it was presented", null)
+                return@runOnUiThread
+            }
             try {
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel

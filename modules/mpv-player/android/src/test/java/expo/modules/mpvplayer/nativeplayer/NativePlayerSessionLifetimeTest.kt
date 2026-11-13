@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import expo.modules.kotlin.Promise
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -28,11 +30,21 @@ class NativePlayerSessionLifetimeTest {
         }
     }
 
+    private val sessions = mutableListOf<NativePlayerSession>()
+
     private fun session(activity: ComponentActivity?) = NativePlayerSession(
         emit = { name, _ -> events += name },
         onTornDown = { tornDown++ },
         presenterProvider = { activity },
-    )
+    ).also { sessions += it }
+
+    // The renderer token is process-wide and released from the main looper: a test that left it
+    // held would keep the next test's engine from ever starting.
+    @After
+    fun releaseTheRenderer() {
+        sessions.forEach { it.teardownImmediately() }
+        shadowOf(Looper.getMainLooper()).idle()
+    }
 
     // ExoPlayer: mpv's native library does not load on the JVM.
     private fun config() = PlayerPresentConfigRecord().apply {
@@ -77,6 +89,23 @@ class NativePlayerSessionLifetimeTest {
         assertEquals(1, tornDown)
         // JS ends its own session on onDismiss, and reports the stop to the server.
         assertEquals(1, events.count { it == "onDismiss" })
+    }
+
+    // presentPlayer runs off the main thread, and present posts the player's setup to it. An
+    // activity destroyed in between ends the session first (onActivityDestroyed): the setup then
+    // built an engine nothing would ever release, and left the play request unanswered.
+    @Test
+    fun aPlayerEndedBeforeItsSetupRanIsNotBuilt() {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        val session = session(controller.get())
+        Thread { session.present(config(), promise) }.apply { start(); join() }
+
+        session.dismiss("closeButton")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertNull(session.engine)
+        assertEquals(listOf("PRESENT_CANCELLED"), rejections)
+        assertEquals(1, tornDown)
     }
 
     // The film ends, the sleep timer runs out or the group stops while the player is in its
