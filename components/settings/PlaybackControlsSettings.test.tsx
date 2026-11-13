@@ -32,12 +32,26 @@ jest.mock("@/packages/expo-screen-orientation", () => ({
     LANDSCAPE_RIGHT: 7,
   },
 }));
+// Whether each dropdown, by title, was handed `disabled`.
+const mockDropdownDisabled = new Map<string, boolean | undefined>();
 jest.mock("@/components/PlatformDropdown", () => ({
-  PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
+  PlatformDropdown: ({
+    trigger,
+    title,
+    disabled,
+  }: {
+    trigger: React.ReactNode;
+    title: string;
+    disabled?: boolean;
+  }) => {
+    mockDropdownDisabled.set(title, disabled);
+    return trigger;
+  },
 }));
 
 beforeEach(() => {
   mockUpdateSettings.mockClear();
+  mockDropdownDisabled.clear();
   for (const key of Object.keys(mockPluginSettings)) {
     delete mockPluginSettings[key];
   }
@@ -71,4 +85,29 @@ describe("a plugin that locks the orientation and the haptics", () => {
     }
     expect(blocking).toEqual([]);
   });
+});
+
+// A row only greys itself out: its dropdown still opened, and the value picked
+// there was dropped by updateSettings. The group's wrapper used to block the
+// orientation's once the haptics were locked too.
+test("a locked setting's dropdown does not open", async () => {
+  mockPluginSettings.defaultVideoOrientation = { locked: true };
+  mockPluginSettings.defaultBitrate = { locked: true };
+  mockPluginSettings.defaultPlaybackSpeed = { locked: true };
+  mockPluginSettings.stillWatchingPreset = { locked: true };
+
+  await render(<PlaybackControlsSettings />);
+
+  expect(Object.fromEntries(mockDropdownDisabled)).toEqual({
+    "home.settings.other.orientation": true,
+    "home.settings.other.default_quality": true,
+    "home.settings.other.default_playback_speed": true,
+    "home.settings.other.still_watching": true,
+  });
+});
+
+test("an unlocked setting's dropdown opens", async () => {
+  await render(<PlaybackControlsSettings />);
+
+  expect([...mockDropdownDisabled.values()]).not.toContain(true);
 });

@@ -110,6 +110,11 @@ export const PlaybackControlsSettings: React.FC = () => {
 
   if (!settings) return null;
 
+  // The prompt only shows between autoplayed episodes.
+  const stillWatchingDisabled =
+    !settings.autoPlayNextEpisode ||
+    pluginSettings?.stillWatchingPreset?.locked === true;
+
   return (
     <ListGroup title={t("home.settings.other.other_title")} className='mb-4'>
       <ListItem
@@ -118,6 +123,7 @@ export const PlaybackControlsSettings: React.FC = () => {
       >
         <PlatformDropdown
           groups={orientationOptions}
+          disabled={pluginSettings?.defaultVideoOrientation?.locked}
           trigger={
             <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
               <Text className='mr-1 text-[#8E8D91]'>
@@ -140,6 +146,7 @@ export const PlaybackControlsSettings: React.FC = () => {
       >
         <PlatformDropdown
           groups={bitrateOptions}
+          disabled={pluginSettings?.defaultBitrate?.locked}
           trigger={
             <View className='flex flex-row items-center justify-between pl-3 py-1.5 '>
               <Text className='mr-1 text-[#8E8D91]'>
@@ -158,6 +165,7 @@ export const PlaybackControlsSettings: React.FC = () => {
       >
         <PlatformDropdown
           groups={playbackSpeedOptions}
+          disabled={pluginSettings?.defaultPlaybackSpeed?.locked}
           trigger={
             <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
               <Text className='mr-1 text-[#8E8D91]'>
@@ -214,13 +222,11 @@ export const PlaybackControlsSettings: React.FC = () => {
       <ListItem
         title={t("home.settings.other.still_watching")}
         subtitle={t("home.settings.other.still_watching_hint")}
-        disabled={
-          !settings.autoPlayNextEpisode ||
-          pluginSettings?.stillWatchingPreset?.locked
-        }
+        disabled={stillWatchingDisabled}
       >
         <PlatformDropdown
           groups={stillWatchingOptions}
+          disabled={stillWatchingDisabled}
           trigger={
             <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
               <Text className='mr-1 text-[#8E8D91]'>
