@@ -303,6 +303,12 @@ export const GestureOverlay = ({
   // swallowing the tap, swipe and drag gestures
   const holdSpeedEnabled = gestures.holdToSpeed;
 
+  // Turned off mid-hold (the master switch or a plugin lock), the release no
+  // longer reaches the hold's end: end it here. A no-op without a hold.
+  useEffect(() => {
+    if (!holdSpeedEnabled) handleHoldSpeedEnd();
+  }, [holdSpeedEnabled, handleHoldSpeedEnd]);
+
   const {
     handleTouchStart,
     handleTouchMove,
@@ -332,6 +338,7 @@ export const GestureOverlay = ({
         // press uses Pressable directly because the swipe and drag gestures
         // are not active here
         <AnimatedPressable
+          testID='player-gesture-overlay'
           onPress={onToggleControls}
           onLongPress={holdSpeedEnabled ? handleHoldSpeedStart : undefined}
           onPressOut={holdSpeedEnabled ? handleHoldSpeedEnd : undefined}
