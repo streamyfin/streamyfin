@@ -1074,7 +1074,11 @@ const NativePlayerProviderInner: React.FC<{
       // A sidecar row of the item page is a subtitle saved on this device
       // (an OpenSubtitles download on TV), not a server stream: the server is
       // asked for none, and onLoad attaches the file.
-      const savedSubtitle = savedSubtitleFor(req.itemId, req.subtitleIndex);
+      const savedSubtitle = savedSubtitleFor(
+        req.itemId,
+        req.subtitleIndex,
+        req.subtitlePath,
+      );
       const serverReq = isLocalSubtitleIndex(req.subtitleIndex)
         ? { ...req, subtitleIndex: SUBTITLES_OFF }
         : req;

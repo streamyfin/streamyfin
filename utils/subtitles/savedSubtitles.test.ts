@@ -63,6 +63,19 @@ test("gives the file a sidecar row's index points at", () => {
   });
 });
 
+// Picked while the German file was there, played once it is gone: by
+// position, the row would now be past the list, or another file.
+test("finds the picked file by its path once the list has shifted", () => {
+  expect(savedSubtitleFor("item-1", localSubtitleIndex(2), ENGLISH)).toEqual({
+    name: "English",
+    filePath: ENGLISH,
+  });
+});
+
+test("gives nothing for a picked file that is gone", () => {
+  expect(savedSubtitleFor("item-1", localSubtitleIndex(1), GONE)).toBeNull();
+});
+
 test("gives nothing for a server track, Off, or a row past the list", () => {
   expect(savedSubtitleFor("item-1", 3)).toBeNull();
   expect(savedSubtitleFor("item-1", SUBTITLES_OFF)).toBeNull();

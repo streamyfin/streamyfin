@@ -98,6 +98,8 @@ export type SelectedOptions = {
   mediaSource: MediaSourceInfo | undefined;
   audioIndex: number | undefined;
   subtitleIndex: number;
+  /** The file of a subtitle saved on this device, when one is picked. */
+  subtitlePath?: string;
 };
 
 interface ItemContentTVProps {
@@ -229,6 +231,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             itemId: item.Id!,
             audioIndex: selectedOptions.audioIndex,
             subtitleIndex: selectedOptions.subtitleIndex,
+            subtitlePath: selectedOptions.subtitlePath,
             mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
             bitrateValue: selectedOptions.bitrate?.value ?? undefined,
             offline: isOffline,
@@ -441,7 +444,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const handleSubtitleChange = useCallback(
       (row: TrackMenuRow) => {
         setSelectedOptions((prev) =>
-          prev ? { ...prev, subtitleIndex: row.index } : undefined,
+          prev
+            ? {
+                ...prev,
+                subtitleIndex: row.index,
+                subtitlePath:
+                  row.kind === "sidecar" ? row.localPath : undefined,
+              }
+            : undefined,
         );
         rememberSeriesTrackFromRow({
           item: itemWithSources ?? item,

@@ -36,11 +36,21 @@ export const savedSubtitleFiles = (itemId: string): SavedSubtitleFile[] =>
     .filter(({ file }) => file.exists)
     .map(({ name, file }) => ({ name, filePath: file.uri }));
 
-/** The saved file a subtitle index points at; null for a server track, Off, or a row past the list. */
+/**
+ * The saved file a sidecar index picked: the file at `filePath` when the item
+ * page passed it, else the row's position. Null for a server track, Off, a
+ * row past the list, or a file gone since.
+ */
 export const savedSubtitleFor = (
   itemId: string,
   subtitleIndex: number | undefined,
-): SavedSubtitleFile | null =>
-  isLocalSubtitleIndex(subtitleIndex)
-    ? (savedSubtitleFiles(itemId)[localSubtitlePosition(subtitleIndex)] ?? null)
-    : null;
+  filePath?: string,
+): SavedSubtitleFile | null => {
+  if (!isLocalSubtitleIndex(subtitleIndex)) return null;
+  const files = savedSubtitleFiles(itemId);
+  if (filePath) {
+    const name = fileName(filePath);
+    return files.find((file) => fileName(file.filePath) === name) ?? null;
+  }
+  return files[localSubtitlePosition(subtitleIndex)] ?? null;
+};

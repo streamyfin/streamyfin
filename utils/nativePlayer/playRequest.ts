@@ -13,6 +13,12 @@ export interface PlayRequest {
   itemId: string;
   audioIndex?: number;
   subtitleIndex?: number;
+  /**
+   * A subtitle saved on this device picked on the item page: its file, the
+   * one the page showed. Its sidecar index alone points at a position, which
+   * shifts when a saved file goes away.
+   */
+  subtitlePath?: string;
   mediaSourceId?: string;
   bitrateValue?: number;
   offline: boolean;

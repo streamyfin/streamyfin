@@ -315,11 +315,17 @@ jest.mock("@/utils/subtitles/savedSubtitles", () => {
     "@/utils/subtitles/subtitleIndex",
   );
   return {
-    savedSubtitleFor: (itemId: string, index: number | undefined) =>
-      isLocalSubtitleIndex(index)
-        ? (mockSavedSubtitles.get(itemId)?.[localSubtitlePosition(index)] ??
-          null)
-        : null,
+    savedSubtitleFor: (
+      itemId: string,
+      index: number | undefined,
+      path?: string,
+    ) => {
+      if (!isLocalSubtitleIndex(index)) return null;
+      const files = mockSavedSubtitles.get(itemId) ?? [];
+      return path
+        ? (files.find((file) => file.filePath === path) ?? null)
+        : (files[localSubtitlePosition(index)] ?? null);
+    },
   };
 });
 jest.mock("@/hooks/useOrientation", () => ({
@@ -1504,6 +1510,33 @@ describe("a subtitle saved on the device", () => {
 
     expect(mockNegotiation.subtitleIndexes).toEqual([SUBTITLES_OFF]);
     expect(mockNative.externalSubtitles).toEqual([FRENCH]);
+  });
+
+  // The item page hands the file it showed: a file gone since shifts the
+  // rows, and the position alone would point past the list.
+  test("plays the file the item page showed, not the row's position", async () => {
+    const ENGLISH = "file:///cache/streamyfin-subtitles/item-1_en.srt";
+    mockSavedSubtitles.set("item-1", [
+      { name: "French", filePath: FRENCH },
+      { name: "English", filePath: ENGLISH },
+    ]);
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(2),
+        subtitlePath: ENGLISH,
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNative.externalSubtitles).toEqual([ENGLISH]);
   });
 
   test("is not asked of the server once its file is gone", async () => {
