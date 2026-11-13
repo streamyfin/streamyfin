@@ -123,6 +123,9 @@ final class MPVPlayerEngine: NSObject {
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleDidBecomeActive),
 			name: UIApplication.didBecomeActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleWillEnterForeground),
+			name: UIApplication.willEnterForegroundNotification, object: nil)
 		#endif
 
 		// tvOS has no windowed/minimized state: leaving the app backgrounds it
@@ -141,6 +144,17 @@ final class MPVPlayerEngine: NSObject {
 	@objc private func handleDidBecomeActive() {
 		guard !isShutDown, !isPictureInPictureActive() else { return }
 		renderer?.restoreSubtitlesAfterForeground()
+	}
+
+	/// Back in the app, the player comes back out of its window: AVKit never
+	/// stops a sample-buffer PiP on its own, and the player sat behind its
+	/// "playing in picture in picture" placeholder. Only on a return from the
+	/// background: Control Center or an alert must not end an in-app PiP.
+	@objc private func handleWillEnterForeground() {
+		guard !isShutDown, isPictureInPictureActive(), !isPictureInPictureStopping else { return }
+		// A restore, not a close: a SyncPlay member stays in its group.
+		pictureInPictureStopIsRestore = true
+		stopPictureInPicture()
 	}
 	#endif
 

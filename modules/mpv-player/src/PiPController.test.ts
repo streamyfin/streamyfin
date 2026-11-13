@@ -106,3 +106,28 @@ describe("iOS automatic PiP lifecycle", () => {
     );
   });
 });
+
+// AVKit never stops a sample-buffer PiP on its own: back in the app, the
+// player sat behind "This video is playing in picture in picture" until the
+// window's own button was found.
+describe("iOS return to the app", () => {
+  const foregroundHandler = methodSection(
+    "@objc private func handleWillEnterForeground()",
+    "\n\t}",
+  );
+
+  test("brings the player back out of its window", () => {
+    expect(engineSource).toMatch(
+      /selector: #selector\(handleWillEnterForeground\),\s*name: UIApplication\.willEnterForegroundNotification/,
+    );
+    expect(foregroundHandler).toContain("isPictureInPictureActive()");
+    expect(foregroundHandler).toContain("stopPictureInPicture()");
+  });
+
+  // Coming back is a restore, not a close: a SyncPlay member stays in its group.
+  test("stops it as a restore", () => {
+    expect(foregroundHandler).toMatch(
+      /pictureInPictureStopIsRestore = true[\s\S]*stopPictureInPicture\(\)/,
+    );
+  });
+});
