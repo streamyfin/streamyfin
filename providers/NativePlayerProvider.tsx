@@ -497,10 +497,13 @@ const NativePlayerProviderInner: React.FC<{
   // meant to swap into it.
   const unpresentedRef = useRef<NativeSession | null>(null);
 
+  // The socket stays while the player is up: picture in picture is the
+  // background, where it would close, and a remote Stop, Pause or Play would
+  // never arrive. Android reports the background before its PiP event, so
+  // the hold cannot wait for PiP. Native SyncPlay decides leaving its group.
   useEffect(() => {
-    if (isActive && syncPlay.enabled && isNativePlayerSyncPlayAvailable())
-      return retainInBackground();
-  }, [isActive, syncPlay.enabled, retainInBackground]);
+    if (isActive) return retainInBackground();
+  }, [isActive, retainInBackground]);
 
   useEffect(() => {
     if (isActive && isNativePlayerSyncPlayAvailable())

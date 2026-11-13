@@ -249,7 +249,17 @@ const mockSocket = {
       handlers.delete(handler);
     };
   },
-  retainInBackground: () => mockNoop,
+  /** Background holds taken and not yet given back. */
+  leases: 0,
+  retainInBackground: () => {
+    mockSocket.leases += 1;
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      mockSocket.leases -= 1;
+    };
+  },
   /** A message from the server, handed to its subscribers as the socket does. */
   receive: (type: string, data: unknown) => {
     for (const handler of mockSocket.handlers.get(type) ?? []) handler(data);
@@ -1446,6 +1456,25 @@ describe("the inactivity sign-out", () => {
     );
 
     expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Picture in picture puts the app in the background, where the socket closes
+// unless something holds it: a remote Stop, Pause or Play answered 204 and
+// never reached the player. Android reports the background before the PiP
+// event reaches JS, so the hold cannot wait for it.
+describe("remote control in the background", () => {
+  test("keeps the socket while the player is up, outside SyncPlay too", async () => {
+    await mount();
+    expect(mockSocket.leases).toBe(0);
+
+    await open("item-1");
+    expect(mockSocket.leases).toBe(1);
+
+    await startClosing();
+    finishClosing();
+    await settle();
+    expect(mockSocket.leases).toBe(0);
   });
 });
 
