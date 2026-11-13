@@ -34,7 +34,10 @@ import {
   useTVBelowTabBarContentTop,
 } from "@/components/tv";
 import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
-import { SUBTITLE_PREFETCH_CACHE_DIR } from "@/constants/Playback";
+import {
+  SAVED_SUBTITLES_CACHE_DIR,
+  SUBTITLE_PREFETCH_CACHE_DIR,
+} from "@/constants/Playback";
 import {
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
@@ -278,7 +281,7 @@ export default function SettingsTV() {
               // The downloaded remote subtitles, and the sidecars the player
               // prefetches before an ExoPlayer session.
               for (const name of [
-                "streamyfin-subtitles",
+                SAVED_SUBTITLES_CACHE_DIR,
                 SUBTITLE_PREFETCH_CACHE_DIR,
               ]) {
                 const subtitlesDir = new Directory(Paths.cache, name);

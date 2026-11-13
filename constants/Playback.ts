@@ -69,6 +69,9 @@ export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
  * is swept once more.
  */
 export const SUBTITLE_PREFETCH_CACHE_DIR = "subtitles";
+
+/** Where the TV keeps the subtitles downloaded from OpenSubtitles, under Paths.cache. */
+export const SAVED_SUBTITLES_CACHE_DIR = "streamyfin-subtitles";
 export const SUBTITLE_PREFETCH_LATE_SWEEP_MS = 60_000;
 
 /**
