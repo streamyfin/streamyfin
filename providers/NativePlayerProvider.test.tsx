@@ -1196,6 +1196,89 @@ describe("a Live TV stream", () => {
     expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
   });
 
+  /** Holds every stop report until the returned release is called. */
+  const holdStopReports = () => {
+    const pending: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            pending.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    return async () => {
+      await act(async () => {
+        for (const release of pending.splice(0)) release();
+      });
+      await settle();
+    };
+  };
+
+  const pickQuality = async (bitrateValue: number) => {
+    await act(async () =>
+      mockNative.emit("onQualitySelected", { bitrateValue, positionSec: 60 }),
+    );
+    await settle();
+  };
+
+  // The second pick swaps the channel out while the first still waits for
+  // the stop report of the stream both of them replace.
+  test("is given back once when a second quality pick lands during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await pickQuality(2_000_000);
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([
+      expect.stringContaining("PlaySessionId=play-session-3"),
+    ]);
+    // The first pick's stream never played; the second pick's plays on.
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when the player closes during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await startClosing();
+    finishClosing();
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([]);
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when a failed swap closes the player", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await pickQuality(4_000_000);
+
+    expect(mockNative.session).toBeNull();
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
   // Other devices offer a seek bar on a session the server says can seek,
   // and a seek sent to a channel goes nowhere.
   test("is reported as one that cannot seek", async () => {
