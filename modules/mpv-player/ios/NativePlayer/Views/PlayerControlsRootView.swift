@@ -268,13 +268,14 @@ struct PlayerControlsRootView: View {
 	/// The tap catcher. With double-tap-to-seek on, the double tap is
 	/// composed exclusively before the single tap, so the toggle waits out
 	/// the double-tap window; when off (the default, and in lock mode where
-	/// taps must keep revealing the unlock pill instantly) no double tap is
-	/// attached at all and the toggle stays immediate.
+	/// taps must keep revealing the unlock pill instantly, and on a live
+	/// stream, which has nowhere to seek) no double tap is attached at all and
+	/// the toggle stays immediate.
 	@ViewBuilder
 	private func tapSurface(size: CGSize) -> some View {
 		let surface = Color.clear.contentShape(Rectangle())
 		if viewModel.doubleTapToSeekEnabled && !viewModel.controlsLocked
-			&& !viewModel.showSubtitleScaleControl {
+			&& !viewModel.showSubtitleScaleControl && !viewModel.isLive {
 			surface.gesture(
 				SpatialTapGesture(count: 2)
 					.onEnded { value in
