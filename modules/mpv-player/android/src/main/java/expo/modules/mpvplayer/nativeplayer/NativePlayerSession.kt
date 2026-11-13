@@ -17,7 +17,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.util.Rational
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -222,6 +221,7 @@ class NativePlayerSession(
                 viewModel.onPositionSync = {
                     mediaSessionController?.onPositionTick()
                 }
+                viewModel.onVideoDimensionsSync = { updatePiPParams(viewModel.isPlaying) }
 
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
@@ -557,7 +557,7 @@ class NativePlayerSession(
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAutoEnterEnabled(allowPip)
-                    .setAspectRatio(Rational(16, 9))
+                    .withVideoGeometry()
                     .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.setPictureInPictureParams(params)
@@ -630,7 +630,7 @@ class NativePlayerSession(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
+                    .withVideoGeometry()
                     .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.enterPictureInPictureMode(params)
@@ -646,6 +646,7 @@ class NativePlayerSession(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val builder = PictureInPictureParams.Builder()
+                    .withVideoGeometry()
                     .setActions(PiPActions.buildActions(activity, isPlaying, canSeek = !viewModel.isLive))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     builder.setAutoEnterEnabled(viewModel.uiOptions.allowPip)
@@ -655,6 +656,26 @@ class NativePlayerSession(
                 // Ignored
             }
         }
+    }
+
+    /**
+     * The window's shape from the video, and the picture it grows from: the system animates out
+     * of the hint, and the whole screen would start it from the black bars.
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun PictureInPictureParams.Builder.withVideoGeometry(): PictureInPictureParams.Builder {
+        val view = overlayContainer
+        val geometry = pictureInPictureGeometry(
+            viewModel.videoWidth, viewModel.videoHeight, view?.width ?: 0, view?.height ?: 0
+        )
+        setAspectRatio(geometry.aspectRatio)
+        geometry.sourceRectHint?.let { hint ->
+            // The hint is in window coordinates.
+            val origin = IntArray(2).also { view?.getLocationInWindow(it) }
+            hint.offset(origin[0], origin[1])
+            setSourceRectHint(hint)
+        }
+        return this
     }
 
     private fun registerPiPReceiver(context: Context) {

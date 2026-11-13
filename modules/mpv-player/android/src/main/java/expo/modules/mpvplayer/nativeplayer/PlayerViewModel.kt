@@ -69,6 +69,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var onMetadataSync: (() -> Unit)? = null
     /** Each position report, for the media session to catch a seek or stall. */
     var onPositionSync: (() -> Unit)? = null
+    /** The video's size changed, for the picture in picture window to take its shape. */
+    var onVideoDimensionsSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
 
     /**
@@ -349,6 +351,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     private var subtitleMarginY: Int? = null
     private var subtitleVideoWidth = 0
     private var subtitleVideoHeight = 0
+    /** The video's size: the media source's until the decoder reports it, 0 when neither knows. */
+    val videoWidth: Int get() = subtitleVideoWidth
+    val videoHeight: Int get() = subtitleVideoHeight
     private var subtitleSurfaceWidth = 0
     private var subtitleSurfaceHeight = 0
     private var countdownCanceled = false
@@ -424,6 +429,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         subtitleMarginY = config.subtitleStyle?.marginY
         subtitleVideoWidth = config.stream.videoWidth ?: 0
         subtitleVideoHeight = config.stream.videoHeight ?: 0
+        onVideoDimensionsSync?.invoke()
 
         val startPos = config.stream.startPositionSec ?: 0.0
         authoritativePosition = startPos
@@ -1431,6 +1437,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         subtitleVideoWidth = width
         subtitleVideoHeight = height
         applySubtitleGeometry()
+        onVideoDimensionsSync?.invoke()
     }
 
     override fun onChaptersChanged(chapters: List<Map<String, Any>>) {
