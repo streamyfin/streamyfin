@@ -987,6 +987,42 @@ describe("a play the player cannot start", () => {
     );
   });
 
+  // Picked in the player itself: the viewer asked for it as surely as for a
+  // play from a detail page.
+  test.each([
+    [
+      "a quality change",
+      async () =>
+        mockNative.emit("onQualitySelected", {
+          bitrateValue: 4_000_000,
+          positionSec: 60,
+        }),
+    ],
+    [
+      "the next episode",
+      async () =>
+        mockNative.emit("onNextEpisodeRequested", {
+          reason: "userTap",
+          positionSec: 60,
+        }),
+    ],
+  ])("says why when %s closes the player", async (_name, request) => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(request);
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.session).toBeNull();
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.an_error_occurred_while_playing_the_video",
+    );
+  });
+
   test("leaves a failed swap to a caller that did not ask to be told", async () => {
     await mount();
     await open("item-1");

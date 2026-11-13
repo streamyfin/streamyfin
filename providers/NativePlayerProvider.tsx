@@ -1429,10 +1429,12 @@ const NativePlayerProviderInner: React.FC<{
         playbackPositionTicks:
           overrides.positionTicks ?? msToTicks(session.positionMs),
       };
+      // Picked in the player: a swap that closes it says why.
       return beginSession(req, {
         item: session.item,
         replace: true,
         over: session,
+        alertOnFailure: true,
       });
     },
     [beginSession],
@@ -1478,6 +1480,7 @@ const NativePlayerProviderInner: React.FC<{
         item: session.offline ? target : undefined,
         replace: true,
         over: session,
+        alertOnFailure: true,
       });
     },
     [beginSession],
