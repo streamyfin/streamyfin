@@ -149,6 +149,18 @@ fun TvControlsRow(
         }
     }
 
+    // The same channel also swaps the bar below for the LIVE badge. The bar can
+    // hold the focus, which lastFocused does not follow, and Compose drops it
+    // with the bar: the next key went nowhere. Only on the change, not on mount.
+    val isLive = viewModel.isLive
+    var wasLive by remember { mutableStateOf(isLive) }
+    LaunchedEffect(isLive) {
+        if (isLive && !wasLive && viewModel.controlsVisible) {
+            viewModel.restoreTvControlsFocus()
+        }
+        wasLive = isLive
+    }
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
