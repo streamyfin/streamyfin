@@ -106,9 +106,11 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   }, [isEnabled, updateLastActivity, startTimer]);
 
   const pauseInactivityTimer = useCallback(() => {
+    // Held even while the timeout is off: one turned on during the video
+    // must not count it.
+    isPausedRef.current = true;
     if (!isEnabled) return;
 
-    isPausedRef.current = true;
     clearTimer();
     // Update last activity so when we resume, we start fresh
     updateLastActivity();
