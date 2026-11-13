@@ -630,6 +630,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
+        // Before the group branch: in a group the seek never reaches
+        // seekLocal's guard, it goes to everyone on the channel.
+        if (isLive) return
         if (syncPlayActive) {
             val target = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
             syncPlayAction("seek", mapOf("positionSec" to target))

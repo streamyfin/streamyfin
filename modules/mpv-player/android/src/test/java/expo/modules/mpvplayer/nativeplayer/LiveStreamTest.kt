@@ -76,6 +76,42 @@ class LiveStreamTest {
         assertEquals(emptyList<String>(), seeks())
     }
 
+    // In a group a seek goes to the group, not to the engine: the guard in
+    // seekLocal never sees it, and the group seeks everyone on the channel.
+    @Test
+    fun aLiveStreamInAGroupAsksTheGroupForNoSeek() {
+        val viewModel = player(live = true)
+        val actions = mutableListOf<Any?>()
+        viewModel.emit = { name, payload ->
+            if (name == "onSyncPlayAction") actions += payload["action"]
+        }
+        viewModel.updateSyncPlay(SyncPlayStateRecord().apply {
+            groupId = "group"
+            connected = true
+        })
+
+        viewModel.seekTo(30.0)
+
+        assertEquals(emptyList<Any?>(), actions)
+    }
+
+    @Test
+    fun aFilmInAGroupAsksTheGroupToSeek() {
+        val viewModel = player(live = false)
+        val actions = mutableListOf<Any?>()
+        viewModel.emit = { name, payload ->
+            if (name == "onSyncPlayAction") actions += payload["action"]
+        }
+        viewModel.updateSyncPlay(SyncPlayStateRecord().apply {
+            groupId = "group"
+            connected = true
+        })
+
+        viewModel.seekTo(30.0)
+
+        assertEquals(listOf<Any?>("seek"), actions)
+    }
+
     @Test
     fun aFilmIsSought() {
         val viewModel = player(live = false)
