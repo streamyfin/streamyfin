@@ -1054,19 +1054,17 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         }
     }
 
+    /**
+     * A colour as mpv reads it, #RRGGBB or #AARRGGBB: the chrome sends every
+     * engine mpv's style (utils/subtitles/subtitleStyle.ts). Android's
+     * parseColor takes the same two forms.
+     */
     private fun parseColor(hex: String, fallback: Int): Int {
         return try {
-            when {
-                hex.startsWith("#") && hex.length == 9 -> {
-                    // #RRGGBBAA
-                    val r = hex.substring(1, 3).toInt(16)
-                    val g = hex.substring(3, 5).toInt(16)
-                    val b = hex.substring(5, 7).toInt(16)
-                    val a = hex.substring(7, 9).toInt(16)
-                    Color.argb(a, r, g, b)
-                }
-                hex.startsWith("#") && hex.length == 7 -> Color.parseColor(hex)
-                else -> fallback
+            if (hex.startsWith("#") && (hex.length == 7 || hex.length == 9)) {
+                Color.parseColor(hex)
+            } else {
+                fallback
             }
         } catch (_: Exception) {
             fallback
