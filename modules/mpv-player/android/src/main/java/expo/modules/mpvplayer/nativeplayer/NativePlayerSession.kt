@@ -927,6 +927,18 @@ class NativePlayerSession(
     }
 
     // MARK: - Teardown
+
+    /**
+     * A player that ends in its picture in picture window (the film ends, the
+     * sleep timer, a stop from the group) takes the app out of the window, as
+     * the JS player's PiPController did; it stayed there with nothing in it.
+     */
+    private fun leavePictureInPicture(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity.isInPictureInPictureMode) {
+            activity.moveTaskToBack(false)
+        }
+    }
+
     fun dismiss(reason: String, completion: (() -> Unit)? = null) {
         if (isDismissing) {
             completion?.invoke()
@@ -984,6 +996,7 @@ class NativePlayerSession(
                     // Ignored
                 }
                 restoreDisplayMode()
+                leavePictureInPicture(activity)
             }
 
             viewModel.brightnessController?.restore()
@@ -1022,7 +1035,10 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
-            activity?.let { unregisterPiPReceiver(it) }
+            activity?.let {
+                unregisterPiPReceiver(it)
+                leavePictureInPicture(it)
+            }
             restoreDisplayMode()
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()

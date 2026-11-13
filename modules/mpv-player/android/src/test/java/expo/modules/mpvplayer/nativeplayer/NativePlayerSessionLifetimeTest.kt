@@ -4,6 +4,8 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import expo.modules.kotlin.Promise
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -75,5 +77,38 @@ class NativePlayerSessionLifetimeTest {
         assertEquals(1, tornDown)
         // JS ends its own session on onDismiss, and reports the stop to the server.
         assertEquals(1, events.count { it == "onDismiss" })
+    }
+
+    // The film ends, the sleep timer runs out or the group stops while the player is in its
+    // picture in picture window: the app stayed in that window with nothing playing in it.
+    @Test
+    fun aPlayerClosedInPictureInPictureTakesTheAppOutOfTheWindow() {
+        val (session, controller) = presented()
+        controller.get().enterPictureInPictureMode()
+        assertTrue(controller.get().isInPictureInPictureMode)
+
+        session.dismiss("playbackEnded")
+
+        assertTrue(shadowOf(controller.get()).isTaskMovedToBack)
+    }
+
+    @Test
+    fun aPlayerTornDownInPictureInPictureTakesTheAppOutOfTheWindow() {
+        val (session, controller) = presented()
+        controller.get().enterPictureInPictureMode()
+        assertTrue(controller.get().isInPictureInPictureMode)
+
+        session.teardownImmediately()
+
+        assertTrue(shadowOf(controller.get()).isTaskMovedToBack)
+    }
+
+    @Test
+    fun aPlayerClosedFullScreenLeavesTheAppInFront() {
+        val (session, controller) = presented()
+
+        session.dismiss("closeButton")
+
+        assertFalse(shadowOf(controller.get()).isTaskMovedToBack)
     }
 }
