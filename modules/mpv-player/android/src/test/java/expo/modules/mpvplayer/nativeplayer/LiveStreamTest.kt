@@ -296,6 +296,32 @@ class LiveStreamTest {
         assertEquals(emptyList<String>(), seeks())
     }
 
+    // The error screen covers the player; the chrome came up behind it.
+    @Test
+    fun aSkipKeyLeavesTheErrorScreenOfALiveStreamAlone() {
+        val viewModel = player(live = true).apply { controlsVisible = false }
+        viewModel.onError("The stream ended")
+        val remote = TvRemoteKeyHandler(viewModel) {}
+
+        remote.intercept(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
+        remote.intercept(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD))
+
+        assertFalse(viewModel.controlsVisible)
+        assertFalse(viewModel.seekFeedbackVisible)
+    }
+
+    @Test
+    fun aSkipKeyLeavesTheErrorScreenOfAFilmAlone() {
+        val viewModel = player(live = false).apply { controlsVisible = false }
+        viewModel.onError("The stream ended")
+        val remote = TvRemoteKeyHandler(viewModel) {}
+
+        remote.intercept(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
+
+        assertFalse(viewModel.seekFeedbackVisible)
+        assertEquals(emptyList<String>(), seeks())
+    }
+
     @Test
     fun aSkipKeySkipsThroughAFilm() {
         val viewModel = player(live = false).apply { controlsVisible = false }

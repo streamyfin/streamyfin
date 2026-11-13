@@ -12,6 +12,8 @@ class TvRemoteKeyHandler(
      * chrome up, LIVE badge included, where a film flashes its bar.
      */
     private fun skip(seconds: Double, flash: Boolean) {
+        // The error screen covers the player: nothing to skip, nothing to show.
+        if (viewModel.errorMessage != null) return
         if (viewModel.isLive) {
             viewModel.showControls()
             return
