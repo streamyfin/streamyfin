@@ -78,6 +78,7 @@ import {
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import type { MediaTimeSegment } from "@/providers/Downloads/types";
+import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
@@ -418,6 +419,19 @@ const NativePlayerProviderInner: React.FC<{
   const syncPlay = useSyncPlay();
   const syncRef = useRef(syncPlay);
   syncRef.current = syncPlay;
+  // TV only: a playing video holds the sign-out after inactivity, as the JS
+  // player did. The context value is rebuilt on every render, so it rides a
+  // ref; the hold ref keeps each pause and resume to one call.
+  const inactivity = useInactivity();
+  const inactivityRef = useRef(inactivity);
+  inactivityRef.current = inactivity;
+  const holdsInactivityRef = useRef(false);
+  const holdInactivity = useCallback((hold: boolean) => {
+    if (holdsInactivityRef.current === hold) return;
+    holdsInactivityRef.current = hold;
+    if (hold) inactivityRef.current.pauseInactivityTimer();
+    else inactivityRef.current.resumeInactivityTimer();
+  }, []);
   const [syncBufferingReporter] = useState(
     () =>
       new NativeSyncPlayBufferingReporter((buffering) => {
@@ -1311,6 +1325,7 @@ const NativePlayerProviderInner: React.FC<{
           setIsActive(false);
           revalidateProgressCache();
           unlockOrientation();
+          holdInactivity(false);
         } else if (outcome === "unpresented") {
           // Only a new player goes unpresented, with no session left behind:
           // a request whose own player closed has none to restore.
@@ -1318,6 +1333,7 @@ const NativePlayerProviderInner: React.FC<{
           sessionRef.current = null;
           unpresentedRef.current = session;
           unlockOrientation();
+          holdInactivity(false);
           // A newer request that is still negotiating opens its own player.
           if (
             options.alertOnFailure &&
@@ -1366,6 +1382,7 @@ const NativePlayerProviderInner: React.FC<{
       t,
       lockOrientation,
       unlockOrientation,
+      holdInactivity,
       reportPlaybackStart,
       reportPlaybackStopped,
       releaseLiveStream,
@@ -1523,6 +1540,7 @@ const NativePlayerProviderInner: React.FC<{
       // player now and holds its own orientation lock.
       if (sessionRef.current === null) {
         unlockOrientation();
+        holdInactivity(false);
       }
     },
     [
@@ -1533,6 +1551,7 @@ const NativePlayerProviderInner: React.FC<{
       releaseLiveStream,
       revalidateProgressCache,
       unlockOrientation,
+      holdInactivity,
     ],
   );
 
@@ -2051,6 +2070,7 @@ const NativePlayerProviderInner: React.FC<{
           );
           return;
         }
+        holdInactivity(session.isPlaying);
         if (session.localSubtitle?.active) {
           // The swap's loadfile dropped the sub-added sidecar — re-attach it
           // (selection re-applies on onTracksReady) and restore its menu
@@ -2096,6 +2116,7 @@ const NativePlayerProviderInner: React.FC<{
         const nowPlaying = payload.isPlaying ?? !payload.isPaused;
         const changed = session.isPlaying !== nowPlaying;
         session.isPlaying = nowPlaying;
+        holdInactivity(nowPlaying);
         if (nowPlaying) session.hasPlaybackStarted = true;
         // Pause/resume transitions report immediately.
         if (changed && session.hasPlaybackStarted && !session.reportedStopKey) {
@@ -2409,6 +2430,7 @@ const NativePlayerProviderInner: React.FC<{
     updateSettings,
     lockOrientation,
     syncBufferingReporter,
+    holdInactivity,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)

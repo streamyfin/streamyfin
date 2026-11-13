@@ -287,6 +287,15 @@ jest.mock("@/providers/WebSocketProvider", () => ({
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
 }));
+// The TV's sign-out after inactivity; the provider is a no-op off TV.
+const mockInactivity = {
+  resetInactivityTimer: jest.fn(),
+  pauseInactivityTimer: jest.fn(),
+  resumeInactivityTimer: jest.fn(),
+};
+jest.mock("@/providers/InactivityProvider", () => ({
+  useInactivity: () => mockInactivity,
+}));
 jest.mock("@/hooks/usePlaybackManager", () => ({
   usePlaybackManager: () => mockPlayback,
 }));
@@ -511,6 +520,8 @@ beforeEach(() => {
   warmUpcomingSubtitles.mockClear();
   warmUpcomingSubtitles.mockImplementation(async () => true);
   clearSubtitlePrefetchCache.mockClear();
+  mockInactivity.pauseInactivityTimer.mockClear();
+  mockInactivity.resumeInactivityTimer.mockClear();
 });
 
 afterEach(() => {
@@ -1329,5 +1340,80 @@ describe("a Live TV stream", () => {
       )
       .map((request) => JSON.parse(request.data).CanSeek);
     expect(canSeek).toEqual([false]);
+  });
+});
+
+// Sign-out after inactivity is a TV setting. Before the native player took
+// every platform, the JS player held the count while it played; nothing did
+// after, so a film longer than the delay signed the viewer out mid-play.
+describe("the inactivity sign-out", () => {
+  const playState = (state: { isPlaying?: boolean; isPaused?: boolean }) =>
+    act(async () => mockNative.emit("onPlaybackStateChange", state));
+
+  test("is held while the video plays and counts again on a pause", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+    await playState({ isPlaying: true });
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+    expect(mockInactivity.resumeInactivityTimer).not.toHaveBeenCalled();
+
+    await playState({ isPaused: true });
+    expect(mockInactivity.resumeInactivityTimer).toHaveBeenCalledTimes(1);
+
+    await playState({ isPlaying: true });
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(2);
+  });
+
+  test("stays held across a stream swapped in while the video plays", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+
+    await act(async () => {
+      await play("item-3");
+    });
+    await settle();
+    // A swapped-in stream never pauses or resumes: its play state comes with
+    // its load event.
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+        isPlaying: true,
+      }),
+    );
+    await settle();
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+    expect(mockInactivity.resumeInactivityTimer).not.toHaveBeenCalled();
+  });
+
+  test("counts again once the player closes", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(mockInactivity.resumeInactivityTimer).toHaveBeenCalledTimes(1);
+  });
+
+  test("is held by a stream that loads already playing", async () => {
+    await mount();
+    await act(async () => {
+      await play("item-1");
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.presented[mockNative.presented.length - 1],
+        isPlaying: true,
+      }),
+    );
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
   });
 });
