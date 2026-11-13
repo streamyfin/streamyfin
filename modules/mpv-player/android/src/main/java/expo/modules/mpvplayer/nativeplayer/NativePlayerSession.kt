@@ -18,7 +18,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.util.Rational
-import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -274,17 +273,8 @@ class NativePlayerSession(
                 setBackgroundColor(Color.BLACK)
                 isFocusable = true
                 isFocusableInTouchMode = true
-                setOnKeyListener { _, keyCode, event ->
-                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                        if (viewModel.showSubtitleScaleOverlay) {
-                            viewModel.showSubtitleScaleOverlay = false
-                            viewModel.scheduleAutoHide()
-                        } else {
-                            dismiss("closeButton")
-                        }
-                        true
-                    } else false
-                }
+                val keyHandler = PhoneKeyHandler(viewModel, onExitRequested = { dismiss("closeButton") })
+                setOnKeyListener { _, _, event -> keyHandler.intercept(event) }
             }
         }
         overlayContainer = container
