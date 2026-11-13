@@ -98,6 +98,11 @@ export interface BackgroundDownloaderModuleType {
     headers?: Record<string, string>,
   ): Promise<number>;
   cancelPausedDownload(itemId: string, destinationPath?: string): void;
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
   /** iOS only — absent from the Android module. */
   setLiveActivityEnabled?(enabled: boolean): void;

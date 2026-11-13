@@ -67,6 +67,13 @@ type StartInFlight = {
 };
 const startsInFlight = new Map<string, StartInFlight>();
 
+/**
+ * Pauses and resumes still waiting on native, by item id. The record only changes once native
+ * answers, so without this a second tap passes the same status check: two resumes start two
+ * transfers to one destination, the first having already taken the paused entry native held.
+ */
+const togglesInFlight = new Set<string>();
+
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
@@ -387,11 +394,13 @@ export function useDownloadOperations({
 
   const pauseDownload = useCallback(
     async (id: string) => {
+      if (togglesInFlight.has(id)) return;
       const record = getPendingDownload(id);
       if (record?.status !== "downloading" || record.taskId === undefined) {
         toast.error(t("home.downloads.toasts.could_not_pause_download"));
         return;
       }
+      togglesInFlight.add(id);
 
       let result: Awaited<
         ReturnType<typeof BackgroundDownloader.pauseDownload>
@@ -402,6 +411,8 @@ export function useDownloadOperations({
         logAndCaptureError("Pausing download failed", error, {
           itemType: record.item?.Type,
         });
+      } finally {
+        togglesInFlight.delete(id);
       }
 
       // The transfer can finish, fail or be cancelled while native pauses it; each of those
@@ -444,8 +455,10 @@ export function useDownloadOperations({
 
   const resumeDownload = useCallback(
     async (id: string) => {
+      if (togglesInFlight.has(id)) return;
       const record = getPendingDownload(id);
       if (record?.status !== "paused") return;
+      togglesInFlight.add(id);
 
       try {
         const taskId = await BackgroundDownloader.resumeDownload(
@@ -467,6 +480,8 @@ export function useDownloadOperations({
           itemType: record.item?.Type,
         });
         toast.error(t("home.downloads.toasts.could_not_resume_download"));
+      } finally {
+        togglesInFlight.delete(id);
       }
     },
     [api, patchProcess, t],

@@ -665,3 +665,29 @@ describe("pauseDownload and resumeDownload", () => {
     expect(fakeFiles.remaining()).toEqual([]);
   });
 });
+
+describe("a second tap while native is still answering", () => {
+  // The record stays paused until native answers, so a second tap used to pass the same check
+  // and start a second transfer to the same file.
+  it("resumes once", async () => {
+    mockDownloader.pauseDownload.mockResolvedValue("kept");
+    const { operations } = await renderOperations();
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+    await act(() => operations.pauseDownload("item-1"));
+    const resume = hold<number>();
+    mockDownloader.resumeDownload.mockReturnValue(resume.promise);
+
+    const first = operations.resumeDownload("item-1");
+    await act(() => operations.resumeDownload("item-1"));
+    resume.release(9);
+    await act(() => first);
+
+    expect(mockDownloader.resumeDownload).toHaveBeenCalledTimes(1);
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "downloading",
+      taskId: 9,
+    });
+  });
+});

@@ -147,6 +147,10 @@ public class BackgroundDownloaderModule: Module {
   /// Tasks cancelled to produce resume data. Their cancellation reaches `handleErrorLocked` like
   /// any other, and must neither advance the queue nor read as a failure.
   private var pausingTaskIds: Set<Int> = []
+  /// Bumped by `cancelAllDownloads`. A pause still producing its resume data when everything is
+  /// cancelled must not then save a paused record, which would hold the queue with no card left
+  /// to resume or cancel it from.
+  private var pauseGeneration = 0
   /// Mirrors the JS `showDownloadLiveActivity` setting. Gates both the module's own activity
   /// (also gated inside the controller) and the continued-processing keeper, whose system UI is
   /// equally lock-screen download UI the user asked to turn off.
@@ -283,10 +287,12 @@ public class BackgroundDownloaderModule: Module {
     /// stopped but has to start again (no resume data: transcodes, servers without range support),
     /// and "failed" when there was nothing to pause, e.g. the transfer had just finished.
     AsyncFunction("pauseDownload") { (taskId: Int, promise: Promise) in
-      let session = self.stateQueue.sync { () -> URLSession? in
-        guard self.downloadTasks[taskId]?.metadata?.itemId != nil else { return nil }
+      let (session, generation) = self.stateQueue.sync { () -> (URLSession?, Int) in
+        guard self.downloadTasks[taskId]?.metadata?.itemId != nil else {
+          return (nil, self.pauseGeneration)
+        }
         self.pausingTaskIds.insert(taskId)
-        return self.session
+        return (self.session, self.pauseGeneration)
       }
       guard let session else {
         promise.resolve("failed")
@@ -303,7 +309,9 @@ public class BackgroundDownloaderModule: Module {
         }
         task.cancel(byProducingResumeData: { resumeData in
           self.stateQueue.async {
-            promise.resolve(self.didPauseLocked(taskId: taskId, resumeData: resumeData))
+            promise.resolve(
+              self.didPauseLocked(taskId: taskId, resumeData: resumeData, generation: generation)
+            )
           }
         })
       }
@@ -345,6 +353,22 @@ public class BackgroundDownloaderModule: Module {
       }
     }
 
+    /// JS hands back a pause native has no record of, so the queue is held again. iOS persists its
+    /// pauses, so this only fires when that store was lost; the pause then has no resume data and
+    /// resuming starts from the first byte.
+    Function("restorePausedDownload") { (itemId: String, urlString: String, destinationPath: String?) in
+      self.stateQueue.sync {
+        guard self.pausedDownloads[itemId] == nil else { return }
+        self.pausedDownloads[itemId] = PausedDownloadInfo(
+          url: urlString,
+          destinationPath: destinationPath,
+          metadata: nil,
+          resumeDataFileName: nil
+        )
+        self.taskStore.savePaused(self.pausedDownloads)
+      }
+    }
+
     Function("cancelQueuedDownload") { (url: String) in
       // Remove from queue by URL
       self.stateQueue.sync {
@@ -369,6 +393,7 @@ public class BackgroundDownloaderModule: Module {
         }
         self.pausedDownloads.removeAll()
         self.taskStore.savePaused(self.pausedDownloads)
+        self.pauseGeneration += 1
         return self.session
       }
       session?.getAllTasks { tasks in
@@ -384,70 +409,65 @@ public class BackgroundDownloaderModule: Module {
     }
 
     AsyncFunction("getActiveDownloads") { () -> [[String: Any]] in
-      return try await withCheckedThrowingContinuation { continuation in
-        // Running and queued are snapshotted in one stateQueue block, so an item mid-transition
-        // (dequeued and started) can never be missing from both lists.
-        let (session, tasksSnapshot, queueSnapshot, pausedSnapshot) = self.stateQueue.sync {
-          (self.session, self.downloadTasks, self.downloadQueue, self.pausedDownloads)
-        }
-
-        let queuedEntries = queueSnapshot.map { queued -> [String: Any] in
-          var entry: [String: Any] = [
-            "taskId": -1,
-            "url": queued.url,
-            "state": "queued"
-          ]
-          if let itemId = queued.metadata?.itemId {
-            entry["itemId"] = itemId
-          }
-          if let destinationPath = queued.destinationPath {
-            entry["destinationPath"] = destinationPath
-          }
-          return entry
-        }
-        let pausedEntries = pausedSnapshot.map { paused -> [String: Any] in
-          var entry: [String: Any] = [
-            "taskId": -1,
-            "url": paused.value.url,
-            "itemId": paused.key,
-            "state": "paused"
-          ]
-          if let destinationPath = paused.value.destinationPath {
-            entry["destinationPath"] = destinationPath
-          }
-          return entry
-        }
-        let queuedDownloads = queuedEntries + pausedEntries
-
-        guard let session else {
-          continuation.resume(returning: queuedDownloads)
-          return
-        }
-
-        session.getAllTasks { tasks in
-          let activeDownloads = tasks.compactMap { task -> [String: Any]? in
-            guard task is URLSessionDownloadTask,
-                  let info = tasksSnapshot[task.taskIdentifier] else {
-              return nil
-            }
-
-            var entry: [String: Any] = [
-              "taskId": task.taskIdentifier,
-              "url": info.url,
-              "state": "running"
-            ]
-            if let itemId = info.metadata?.itemId {
-              entry["itemId"] = itemId
-            }
-            if let destinationPath = info.destinationPath {
-              entry["destinationPath"] = destinationPath
-            }
-            return entry
-          }
-          continuation.resume(returning: activeDownloads + queuedDownloads)
-        }
-      }
+      let session = self.stateQueue.sync { self.session }
+      let tasks = await session?.allTasks ?? []
+      return self.activeDownloadEntries(sessionTasks: tasks)
     }
+  }
+
+  /// Running, queued and paused entries for `getActiveDownloads`. The snapshot is taken after the
+  /// session listed its tasks, in one stateQueue block: a pause that lands while the session is
+  /// queried is then either a task still listed or a paused record, never missing from both. The
+  /// same holds for an item dequeued and started.
+  private func activeDownloadEntries(sessionTasks: [URLSessionTask]) -> [[String: Any]] {
+    let (tasksSnapshot, queueSnapshot, pausedSnapshot) = stateQueue.sync {
+      (downloadTasks, downloadQueue, pausedDownloads)
+    }
+
+    let running = sessionTasks.compactMap { task -> [String: Any]? in
+      guard task is URLSessionDownloadTask, let info = tasksSnapshot[task.taskIdentifier] else {
+        return nil
+      }
+      var entry: [String: Any] = [
+        "taskId": task.taskIdentifier,
+        "url": info.url,
+        "state": "running"
+      ]
+      if let itemId = info.metadata?.itemId {
+        entry["itemId"] = itemId
+      }
+      if let destinationPath = info.destinationPath {
+        entry["destinationPath"] = destinationPath
+      }
+      return entry
+    }
+    let queued = queueSnapshot.map { queued -> [String: Any] in
+      var entry: [String: Any] = [
+        "taskId": -1,
+        "url": queued.url,
+        "state": "queued"
+      ]
+      if let itemId = queued.metadata?.itemId {
+        entry["itemId"] = itemId
+      }
+      if let destinationPath = queued.destinationPath {
+        entry["destinationPath"] = destinationPath
+      }
+      return entry
+    }
+    let paused = pausedSnapshot.map { paused -> [String: Any] in
+      var entry: [String: Any] = [
+        "taskId": -1,
+        "url": paused.value.url,
+        "itemId": paused.key,
+        "state": "paused"
+      ]
+      if let destinationPath = paused.value.destinationPath {
+        entry["destinationPath"] = destinationPath
+      }
+      return entry
+    }
+    return running + queued + paused
   }
 
   private func initializeSessionLocked() {
@@ -766,7 +786,12 @@ public class BackgroundDownloaderModule: Module {
 
   /// Moves a task cancelled by `pauseDownload` into `pausedDownloads`. Runs once the resume data is
   /// produced, which may be before or after the cancellation reaches `handleErrorLocked`.
-  private func didPauseLocked(taskId: Int, resumeData: Data?) -> String {
+  private func didPauseLocked(taskId: Int, resumeData: Data?, generation: Int) -> String {
+    // Everything was cancelled while this pause was producing its resume data.
+    guard generation == pauseGeneration else {
+      pausingTaskIds.remove(taskId)
+      return "failed"
+    }
     guard let info = downloadTasks.removeValue(forKey: taskId),
       let itemId = info.metadata?.itemId
     else {

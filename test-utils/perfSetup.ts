@@ -71,6 +71,7 @@ jest.mock("@/modules", () => {
       pauseDownload: async () => "kept",
       resumeDownload: async () => 1,
       cancelPausedDownload: () => {},
+      restorePausedDownload: () => {},
     },
   };
 });

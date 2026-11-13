@@ -141,6 +141,12 @@ enqueued with, so it also works when native no longer knows of the pause.
 
 Drops a paused download and the bytes it saved, and lets the queue move on.
 
+#### `restorePausedDownload(itemId: string, url: string, destinationPath?: string): void`
+
+Hands native a pause it has forgotten, so the queue is held again. Android keeps pauses in memory,
+so after a process death JS reconciliation calls this before it re-enqueues anything. No-op when
+native already has the pause.
+
 #### `getActiveDownloads(): Promise<ActiveDownload[]>`
 
 Gets information about all active downloads.

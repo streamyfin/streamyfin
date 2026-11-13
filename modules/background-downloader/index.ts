@@ -51,6 +51,15 @@ export interface BackgroundDownloader {
   ): Promise<number>;
   /** Drops a paused download and what it saved, and lets the queue move on. */
   cancelPausedDownload(itemId: string, destinationPath?: string): void;
+  /**
+   * Tells native of a pause it no longer knows (Android forgets them with the process), so it
+   * holds the queue again. No-op when native already has it.
+   */
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
 
   /** iOS only; no-op elsewhere. Ends any live activity when turned off. */
@@ -153,6 +162,18 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   cancelPausedDownload(itemId: string, destinationPath?: string): void {
     BackgroundDownloaderModule.cancelPausedDownload(itemId, destinationPath);
+  },
+
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void {
+    BackgroundDownloaderModule.restorePausedDownload(
+      itemId,
+      url,
+      destinationPath,
+    );
   },
 
   async getActiveDownloads(): Promise<ActiveDownload[]> {

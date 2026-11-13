@@ -48,7 +48,8 @@ class BackgroundDownloaderModule : Module() {
   private val downloadTasks = mutableMapOf<Int, DownloadTaskInfo>()
   private val downloadQueue = mutableListOf<QueuedDownload>()
   /// Paused downloads by item id. While any is here the queue is held, as on iOS. Only in memory:
-  /// after a process death JS still has the pause, and resuming finds the .part file on its own.
+  /// after a process death JS hands each pause back with restorePausedDownload, and resuming finds
+  /// the .part file on its own.
   private val pausedDownloads = mutableMapOf<String, PausedDownload>()
   private var taskIdCounter = 1
 
@@ -184,13 +185,32 @@ class BackgroundDownloaderModule : Module() {
 
     AsyncFunction("resumeDownload") { itemId: String, urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
       try {
+        requireNotNull(destinationPath) { "no destination path" }
+        // Outside the lock: the paused writer reports progress, which takes it, before it closes.
+        downloadManager.awaitWriter(destinationPath)
         val taskId = synchronized(stateLock) {
-          pausedDownloads.remove(itemId)
-          startDownloadLocked(urlString, destinationPath, itemId, headers, resume = true)
+          val paused = pausedDownloads.remove(itemId)
+          try {
+            startDownloadLocked(urlString, destinationPath, itemId, headers, resume = true)
+          } catch (e: Exception) {
+            // Still paused: the queue stays held and JS keeps a card to resume or cancel from.
+            pausedDownloads[itemId] = paused ?: PausedDownload(urlString, destinationPath)
+            throw e
+          }
         }
         promise.resolve(taskId)
       } catch (e: Exception) {
         promise.reject("DOWNLOAD_ERROR", "Failed to resume download: ${e.message}", e)
+      }
+    }
+
+    // A pause JS still has but this process never saw (the pause map dies with the process).
+    // Reconciliation hands it back before re-enqueueing anything, so the queue stays held.
+    Function("restorePausedDownload") { itemId: String, urlString: String, destinationPath: String? ->
+      synchronized(stateLock) {
+        if (!pausedDownloads.containsKey(itemId)) {
+          pausedDownloads[itemId] = PausedDownload(urlString, destinationPath)
+        }
       }
     }
 
