@@ -49,6 +49,7 @@ import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.redactStreamUrls
 import expo.modules.mpvplayer.MpvPauseReport
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
+import kotlin.math.roundToInt
 
 /**
  * Media3/ExoPlayer implementation of [PlayerEngine] for the native chrome.
@@ -1396,11 +1397,12 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             if (videoSize.width <= 0 || videoSize.height <= 0) return
-            cachedVideoWidth = videoSize.width
+            // The width on screen: an anamorphic video stores fewer pixels across than it shows.
+            val pixelRatio = videoSize.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
+            cachedVideoWidth = (videoSize.width * pixelRatio).roundToInt()
             cachedVideoHeight = videoSize.height
-            currentVideoAspectRatio =
-                videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
-            delegate?.onVideoDimensionsChanged(videoSize.width, videoSize.height)
+            currentVideoAspectRatio = cachedVideoWidth.toFloat() / videoSize.height
+            delegate?.onVideoDimensionsChanged(cachedVideoWidth, cachedVideoHeight)
             updateVideoSurfaceLayout()
         }
 

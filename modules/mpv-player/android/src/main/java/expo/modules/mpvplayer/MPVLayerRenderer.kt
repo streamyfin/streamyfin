@@ -835,9 +835,10 @@ class MPVLayerRenderer(
         mpv?.observeProperty("paused-for-cache", MPV_FORMAT_FLAG)
         mpv?.observeProperty("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
         mpv?.observeProperty("eof-reached", MPV_FORMAT_FLAG)
-        // Video dimensions for PiP aspect ratio
-        mpv?.observeProperty("video-params/w", MPV_FORMAT_INT64)
-        mpv?.observeProperty("video-params/h", MPV_FORMAT_INT64)
+        // The size on screen, pixel aspect applied (dw, dh), for the PiP window and the subtitle
+        // scale: an anamorphic video stores fewer pixels across (w, h) than it shows.
+        mpv?.observeProperty("video-params/dw", MPV_FORMAT_INT64)
+        mpv?.observeProperty("video-params/dh", MPV_FORMAT_INT64)
         mpv?.observeProperty("video-params/rotate", MPV_FORMAT_INT64)
     }
 
@@ -1242,14 +1243,14 @@ class MPVLayerRenderer(
                 val chapters = getChapters()
                 mainHandler.post { delegate?.onChaptersChanged(chapters) }
             }
-            "video-params/w" -> {
+            "video-params/dw" -> {
                 val width = value.toInt()
                 if (width > 0 && width != _videoWidth) {
                     _videoWidth = width
                     notifyVideoDimensionsIfReady()
                 }
             }
-            "video-params/h" -> {
+            "video-params/dh" -> {
                 val height = value.toInt()
                 if (height > 0 && height != _videoHeight) {
                     _videoHeight = height
