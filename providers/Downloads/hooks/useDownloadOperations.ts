@@ -476,6 +476,8 @@ export function useDownloadOperations({
         patchProcess(id, { status: "downloading" });
         toast.info(t("home.downloads.toasts.download_resumed"));
       } catch (error) {
+        // Cancelled while native was resuming it: the cancel has told the user.
+        if (!getPendingDownload(id)) return;
         logAndCaptureError("Resuming download failed", error, {
           itemType: record.item?.Type,
         });

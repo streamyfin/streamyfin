@@ -51,6 +51,10 @@ class BackgroundDownloaderModule : Module() {
   /// after a process death JS hands each pause back with restorePausedDownload, and resuming finds
   /// the .part file on its own.
   private val pausedDownloads = mutableMapOf<String, PausedDownload>()
+  /// Counts the cancels of each paused item. A resume waits for the paused writer outside the
+  /// lock, and a cancel in that wait must stop it: otherwise it would start a transfer for an item
+  /// the user dropped, possibly next to a fresh start of the same item.
+  private val pauseCancels = mutableMapOf<String, Int>()
   private var taskIdCounter = 1
 
   @Volatile
@@ -186,9 +190,11 @@ class BackgroundDownloaderModule : Module() {
     AsyncFunction("resumeDownload") { itemId: String, urlString: String, destinationPath: String?, metadata: Map<String, Any?>?, headers: Map<String, String>?, promise: Promise ->
       try {
         requireNotNull(destinationPath) { "no destination path" }
+        val cancelsBefore = synchronized(stateLock) { pauseCancels[itemId] ?: 0 }
         // Outside the lock: the paused writer reports progress, which takes it, before it closes.
         downloadManager.awaitWriter(destinationPath)
         val taskId = synchronized(stateLock) {
+          check((pauseCancels[itemId] ?: 0) == cancelsBefore) { "cancelled while resuming" }
           val paused = pausedDownloads.remove(itemId)
           try {
             startDownloadLocked(urlString, destinationPath, itemId, headers, resume = true)
@@ -216,6 +222,7 @@ class BackgroundDownloaderModule : Module() {
 
     Function("cancelPausedDownload") { itemId: String, destinationPath: String? ->
       synchronized(stateLock) {
+        pauseCancels[itemId] = (pauseCancels[itemId] ?: 0) + 1
         val paused = pausedDownloads.remove(itemId)
         // JS passes the path too: after a process death this map has forgotten the pause.
         (paused?.destinationPath ?: destinationPath)?.let { downloadManager.discardPartial(it) }
@@ -240,7 +247,8 @@ class BackgroundDownloaderModule : Module() {
       synchronized(stateLock) {
         downloadTasks.clear()
         downloadQueue.clear()
-        pausedDownloads.values.forEach { paused ->
+        pausedDownloads.forEach { (itemId, paused) ->
+          pauseCancels[itemId] = (pauseCancels[itemId] ?: 0) + 1
           paused.destinationPath?.let { downloadManager.discardPartial(it) }
         }
         pausedDownloads.clear()

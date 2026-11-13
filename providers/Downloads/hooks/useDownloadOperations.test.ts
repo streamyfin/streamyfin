@@ -691,3 +691,28 @@ describe("a second tap while native is still answering", () => {
     });
   });
 });
+
+// Native refuses a resume the user cancelled while it waited; the cancel already said so.
+it("stays quiet when a resume fails because the download was cancelled meanwhile", async () => {
+  mockDownloader.pauseDownload.mockResolvedValue("kept");
+  const { operations } = await renderOperations();
+  await act(() =>
+    operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+  );
+  await act(() => operations.pauseDownload("item-1"));
+  let refuse!: (error: Error) => void;
+  mockDownloader.resumeDownload.mockReturnValue(
+    new Promise<number>((_, reject) => {
+      refuse = reject;
+    }),
+  );
+
+  const resuming = operations.resumeDownload("item-1");
+  await act(() => operations.cancelDownload("item-1"));
+  await act(async () => {
+    refuse(new Error("cancelled while resuming"));
+    await resuming;
+  });
+
+  expect(toast.error).not.toHaveBeenCalled();
+});
