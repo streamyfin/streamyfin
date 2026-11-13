@@ -112,6 +112,12 @@ class MPVLayerRenderer(
     @Volatile private var pendingOwnershipToken: Any? = null
     @Volatile private var activeOwnershipToken: Any? = null
 
+    /**
+     * An embedded view's answer to a native player wanting mpv: it stops this
+     * renderer, which hands the token over. Read when the renderer claims.
+     */
+    var onPreempted: (() -> Unit)? = null
+
     // This renderer's own mpv handle. Per-instance (not singleton) — each
     // player screen gets a fresh mpv handle and drops the reference on stop.
     // We intentionally do NOT call a destroy() equivalent: libmpv 1.0's
@@ -219,7 +225,8 @@ class MPVLayerRenderer(
         val ownershipToken = Any()
         pendingOwnershipToken = ownershipToken
 
-        MpvOwnership.claim(mpvOwner, ownershipToken) {
+        val yieldToPlayer = onPreempted.takeIf { owner == PlayerEngine.Owner.EMBEDDED_VIEW }
+        MpvOwnership.claim(mpvOwner, ownershipToken, onPreempted = yieldToPlayer) {
             val startAction = Runnable {
                 if (pendingOwnershipToken !== ownershipToken) {
                     MpvOwnership.release(ownershipToken)

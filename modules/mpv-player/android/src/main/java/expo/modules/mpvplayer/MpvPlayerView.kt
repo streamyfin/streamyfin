@@ -52,6 +52,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var intendedPlayState: Boolean = false
     private var surfaceReady: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
+    /** The clip playing, to take it back after a native player borrowed mpv. */
+    private var loadedConfig: VideoLoadConfig? = null
     private var rendererStarted: Boolean = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -107,6 +109,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // Re-assert on every start: cleanup() nulls the delegate while
             // keeping the renderer instance.
             activeRenderer.delegate = this
+            activeRenderer.onPreempted = { mainHandler.post(::yieldRenderer) }
             activeRenderer.start(PlayerEngine.Owner.EMBEDDED_VIEW) {
                 rendererStarted = true
 
@@ -122,6 +125,25 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start renderer: ${e.message}")
         }
+    }
+
+    /**
+     * A native player wants mpv (a remote Play, a group starting, while this
+     * preview is on screen under it): stop the clip and queue behind the
+     * player, which goes first. The clip restarts from the top once the
+     * player is done; it is decorative, its position does not matter.
+     */
+    private fun yieldRenderer() {
+        val clip = pendingConfig ?: loadedConfig
+        Log.i(TAG, "Giving mpv to the native player")
+        renderer?.stop()
+        rendererStarted = false
+        currentUrl = null
+        loadedConfig = null
+        // Gone with its screen: nothing to take back.
+        if (clip == null || !isAttachedToWindow) return
+        pendingConfig = clip
+        if (surfaceReady) ensureRendererStarted()
     }
 
     private fun loadPendingVideo() {
@@ -191,6 +213,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun loadVideoInternal(config: VideoLoadConfig) {
         currentUrl = config.url
         currentLoop = config.loop
+        loadedConfig = config
 
         renderer?.load(config)
 
@@ -356,6 +379,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         surfaceReady = false
         pendingConfig = null
+        loadedConfig = null
         currentUrl = null
         rendererStarted = false
     }
