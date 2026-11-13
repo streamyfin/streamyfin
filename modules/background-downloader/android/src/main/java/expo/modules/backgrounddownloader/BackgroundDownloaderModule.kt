@@ -155,9 +155,8 @@ class BackgroundDownloaderModule : Module() {
 
     Function("cancelDownload") { taskId: Int ->
       Log.d(TAG, "Cancelling download: taskId=$taskId")
-      downloadManager.cancelDownload(taskId)
-
       synchronized(stateLock) {
+        downloadManager.cancelDownload(taskId)
         downloadTasks.remove(taskId)
         // Process next item in queue after cancellation
         processNextInQueueLocked()
@@ -243,8 +242,11 @@ class BackgroundDownloaderModule : Module() {
 
     Function("cancelAllDownloads") {
       Log.d(TAG, "Cancelling all downloads")
-      downloadManager.cancelAllDownloads()
+      // Under the lock: a resume past its writer wait takes this lock to start its transfer, and
+      // must land either before (and be cancelled here) or after (and find its pause gone).
+      // Lock order is stateLock, then the manager's callLock.
       synchronized(stateLock) {
+        downloadManager.cancelAllDownloads()
         downloadTasks.clear()
         downloadQueue.clear()
         pausedDownloads.forEach { (itemId, paused) ->
