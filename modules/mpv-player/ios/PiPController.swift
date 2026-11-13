@@ -127,8 +127,8 @@ final class PiPController: NSObject {
 
         pipController.startPictureInPicture()
     }
-    /// A live stream has nowhere to skip to: the window drops its skip
-    /// buttons. Its time range follows from the duration the delegate gives.
+    /// A live stream has nowhere to skip to: the window greys its skip
+    /// buttons out. Its time range follows from the duration the delegate gives.
     func setLive(_ live: Bool) {
         pipController?.requiresLinearPlayback = live
         updatePlaybackState()

@@ -8,8 +8,8 @@ which buildNativePlayerConfig sets from `getActivePlayerType` — the same resol
 that picks the Jellyfin device profile. Consequences:
 
 - settings.videoPlayer picks the engine and nothing else. The chrome is the
-  only player on every platform: the JS player and its native-controls
-  toggles are gone.
+  only player on supported platforms (Apple TV needs tvOS 26): the JS player
+  and its native-controls toggles are gone.
 - getActivePlayerType/getActiveVideoPlayerEngine are the engine resolvers. A
   stored 2, the "Native" of the retired player picker, resolves to MPV.
 - ExoPlayerEngine is the Media3 engine (media3 deps live in mpv-player's
