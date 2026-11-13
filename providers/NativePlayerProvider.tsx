@@ -151,6 +151,7 @@ import {
   resetStillWatchingSession,
   revertStillWatchingAutoplay,
 } from "@/utils/stillWatching";
+import { savedSubtitleFor } from "@/utils/subtitles/savedSubtitles";
 import {
   isLocalSubtitleIndex,
   localSubtitleIndex,
@@ -1067,13 +1068,21 @@ const NativePlayerProviderInner: React.FC<{
       // when it was asked for.
       const requestedOver = options.over ?? sessionRef.current;
 
+      // A sidecar row of the item page is a subtitle saved on this device
+      // (an OpenSubtitles download on TV), not a server stream: the server is
+      // asked for none, and onLoad attaches the file.
+      const savedSubtitle = savedSubtitleFor(req.itemId, req.subtitleIndex);
+      const serverReq = isLocalSubtitleIndex(req.subtitleIndex)
+        ? { ...req, subtitleIndex: SUBTITLES_OFF }
+        : req;
+
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
         userId: userRef.current?.Id,
         settings: currentSettings,
         subtitleSizeLocked:
           pluginSettingsRef.current?.subtitleSize?.locked === true,
-        req,
+        req: serverReq,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
@@ -1132,7 +1141,13 @@ const NativePlayerProviderInner: React.FC<{
         lastProgressReportAt: 0,
         subtitleSearchResults: null,
         subtitleSearchToken: 0,
-        localSubtitle: null,
+        localSubtitle: savedSubtitle
+          ? {
+              path: savedSubtitle.filePath,
+              label: savedSubtitle.name,
+              active: true,
+            }
+          : null,
         localSubtitleMisses: 0,
         isMuted: false,
         autoSubtitle: INITIAL_AUTO_SUBTITLE_STATE,
@@ -1190,7 +1205,7 @@ const NativePlayerProviderInner: React.FC<{
       // drops sub-added tracks; onLoad re-attaches it).
       if (options.replace && previous && previous.item.Id === session.item.Id) {
         session.subtitleSearchResults = previous.subtitleSearchResults;
-        if (previous.localSubtitle?.active) {
+        if (previous.localSubtitle?.active && !session.localSubtitle) {
           session.localSubtitle = previous.localSubtitle;
         }
       }

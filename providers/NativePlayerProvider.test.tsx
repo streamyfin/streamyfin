@@ -3,6 +3,10 @@ import { Alert } from "react-native";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
+import {
+  localSubtitleIndex,
+  SUBTITLES_OFF,
+} from "@/utils/subtitles/subtitleIndex";
 import { NativePlayerProvider, useNativePlayer } from "./NativePlayerProvider";
 
 jest.mock(
@@ -29,6 +33,8 @@ const mockNative = {
   presented: [] as string[],
   /** Stream URL of every load call. */
   loaded: [] as string[],
+  /** Every sidecar file added to the player. */
+  externalSubtitles: [] as string[],
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
@@ -104,7 +110,9 @@ jest.mock("@/modules/mpv-player", () => {
     },
     applyNativePlayerSyncPlayCommand: async () => false,
     cancelNativePlayerSyncPlayCommands: done,
-    nativePlayerAddExternalSubtitle: done,
+    nativePlayerAddExternalSubtitle: async (path: string) => {
+      mockNative.externalSubtitles.push(path);
+    },
     nativePlayerDisableSubtitles: done,
     nativePlayerGetSubtitleTracks: async () => [],
     nativePlayerPause: done,
@@ -136,6 +144,8 @@ const mockNegotiation = {
   live: false,
   /** Items the server gives no stream for. */
   failing: new Set<string>(),
+  /** The subtitle index each negotiation asked the server for. */
+  subtitleIndexes: [] as Array<number | undefined>,
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -155,9 +165,10 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
     req,
     item,
   }: {
-    req: { itemId: string; bitrateValue?: number };
+    req: { itemId: string; bitrateValue?: number; subtitleIndex?: number };
     item?: object;
   }) => {
+    mockNegotiation.subtitleIndexes.push(req.subtitleIndex);
     if (mockNegotiation.held) {
       await new Promise<void>((resolve) =>
         mockNegotiation.waiting.push(resolve),
@@ -284,6 +295,23 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 jest.mock("@/providers/WebSocketProvider", () => ({
   useWebSocketContext: () => mockSocket,
 }));
+// Subtitle files saved on the device (OpenSubtitles downloads on TV), by item.
+const mockSavedSubtitles = new Map<
+  string,
+  { name: string; filePath: string }[]
+>();
+jest.mock("@/utils/subtitles/savedSubtitles", () => {
+  const { isLocalSubtitleIndex, localSubtitlePosition } = jest.requireActual(
+    "@/utils/subtitles/subtitleIndex",
+  );
+  return {
+    savedSubtitleFor: (itemId: string, index: number | undefined) =>
+      isLocalSubtitleIndex(index)
+        ? (mockSavedSubtitles.get(itemId)?.[localSubtitlePosition(index)] ??
+          null)
+        : null,
+  };
+});
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
 }));
@@ -501,6 +529,7 @@ beforeEach(() => {
   mockNative.listeners.clear();
   mockNative.presented = [];
   mockNative.loaded = [];
+  mockNative.externalSubtitles = [];
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
   mockNative.refusePresentation = false;
@@ -510,6 +539,8 @@ beforeEach(() => {
   mockNegotiation.count = 0;
   mockNegotiation.live = false;
   mockNegotiation.failing.clear();
+  mockNegotiation.subtitleIndexes = [];
+  mockSavedSubtitles.clear();
   mockSocket.handlers.clear();
   mockPlayerSupported = true;
   api.mock.reset();
@@ -1415,5 +1446,54 @@ describe("the inactivity sign-out", () => {
     );
 
     expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+  });
+});
+
+// On TV, a subtitle downloaded from OpenSubtitles is saved for its item and
+// listed on the item page. Picked there, it came back as a sidecar index: the
+// server was asked for a subtitle stream it does not have, and the native
+// player never loaded the file.
+describe("a subtitle saved on the device", () => {
+  const FRENCH = "file:///cache/streamyfin-subtitles/item-1_fr.srt";
+
+  test("plays over a stream the server gives without subtitles", async () => {
+    mockSavedSubtitles.set("item-1", [{ name: "French", filePath: FRENCH }]);
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(0),
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNegotiation.subtitleIndexes).toEqual([SUBTITLES_OFF]);
+    expect(mockNative.externalSubtitles).toEqual([FRENCH]);
+  });
+
+  test("is not asked of the server once its file is gone", async () => {
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(0),
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNegotiation.subtitleIndexes).toEqual([SUBTITLES_OFF]);
+    expect(mockNative.externalSubtitles).toEqual([]);
   });
 });
