@@ -159,6 +159,9 @@ class NativePlayerSession(
 
     fun present(config: PlayerPresentConfigRecord, promise: Promise) {
         val activity = presenterProvider() ?: run {
+            // The module registered this session before present; left there,
+            // it refused every later player until the process died.
+            onTornDown()
             promise.reject("NO_PRESENTER", "Could not find an Activity to present the native player from", null)
             return
         }
@@ -524,7 +527,14 @@ class NativePlayerSession(
                 }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-            override fun onActivityDestroyed(activity: Activity) {}
+            override fun onActivityDestroyed(activity: Activity) {
+                if (activity !== hostActivity) return
+                // The overlay went with the activity while the process, the JS
+                // session and the module live on. Ended as a swipe from recents
+                // is: JS saves the progress, and the next play can present.
+                Log.i(TAG, "Host activity destroyed: closing the player")
+                dismiss("closeButton")
+            }
         }
         app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
         lifecycleRegistered = true

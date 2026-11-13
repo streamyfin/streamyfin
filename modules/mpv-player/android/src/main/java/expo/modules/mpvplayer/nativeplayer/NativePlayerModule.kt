@@ -52,12 +52,16 @@ class NativePlayerModule : Module() {
                 return@AsyncFunction
             }
 
-            val newSession = NativePlayerSession(
+            lateinit var newSession: NativePlayerSession
+            newSession = NativePlayerSession(
                 emit = { name, payload ->
                     sendEvent(name, payload)
                 },
                 onTornDown = {
-                    this@NativePlayerModule.session = null
+                    // Only its own: a late teardown must not drop a newer player.
+                    if (this@NativePlayerModule.session === newSession) {
+                        this@NativePlayerModule.session = null
+                    }
                 },
                 presenterProvider = {
                     appContext.currentActivity
