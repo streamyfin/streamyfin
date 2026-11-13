@@ -150,6 +150,8 @@ final class MPVLayerRenderer {
     private var activeLoadGeneration: UInt = 0
     /// Position updates dropped while a load waits for its file; logged at START_FILE.
     private var skippedReplacedFileUpdates = 0
+    /// Queue-confined: whether the file the latest load() asked for is a live stream.
+    private var currentIsLive = false
 
     /// From load() until mpv starts that file, time-pos, duration and the
     /// paused clock still describe the file being replaced. Kept out of the
@@ -678,6 +680,7 @@ final class MPVLayerRenderer {
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
+            self.currentIsLive = isLive
             self.isLoading = true
             self.isReadyToSeek = false
             // Fresh file, fresh recovery budget (see performDecoderReset)
@@ -1109,6 +1112,10 @@ final class MPVLayerRenderer {
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
                 cachedDuration = value
+                // A live stream's duration is how far mpv has read, and it moves
+                // many times a second: posting each one sent JS a full tick for
+                // nothing. Its position still ticks with time-pos.
+                guard !currentIsLive else { break }
                 let generation = activeLoadGeneration
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }

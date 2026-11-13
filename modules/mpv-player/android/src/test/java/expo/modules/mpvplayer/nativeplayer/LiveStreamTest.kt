@@ -1,8 +1,12 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import android.os.Looper
 import android.view.KeyEvent
+import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.MpvLoadGenerations
 import expo.modules.mpvplayer.mpvStartOption
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +16,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -106,6 +111,73 @@ class LiveStreamTest {
 
         assertEquals(0.0, viewModel.duration, 0.0)
         assertEquals(0, published)
+    }
+
+    /** Counts the position ticks the renderer hands its delegate. */
+    private class TickCounter : PlayerEngine.Delegate {
+        var ticks = 0
+        override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) { ticks++ }
+        override fun onPauseChanged(isPaused: Boolean) {}
+        override fun onLoadingChanged(isLoading: Boolean) {}
+        override fun onReadyToSeek() {}
+        override fun onTracksReady() {}
+        override fun onError(message: String) {}
+        override fun onVideoDimensionsChanged(width: Int, height: Int) {}
+    }
+
+    /**
+     * The mpv renderer with no mpv behind it: properties are handed in as
+     * mpv's event thread hands them, once the loaded file has started.
+     */
+    private fun renderer(live: Boolean, delegate: PlayerEngine.Delegate) =
+        MPVLayerRenderer(RuntimeEnvironment.getApplication()).also {
+            it.delegate = delegate
+            it.load(VideoLoadConfig(url = "https://server/stream", isLive = live))
+            // Without mpv, load() queues no playlist entry: start its file
+            // (the first load's generation) as mpv's start event would.
+            val generations = MPVLayerRenderer::class.java.getDeclaredField("loadGenerations")
+                .apply { isAccessible = true }
+                .get(it) as MpvLoadGenerations
+            generations.queue(generation = 1, entryId = 1)
+            generations.onStartFile(1)
+            shadowOf(Looper.getMainLooper()).idle()
+        }
+
+    // The duration mpv gives a live stream moves many times a second, and
+    // each value went to JS as a full position tick: 16 to 20 JS thread
+    // wakeups a second on a channel on the Android TV emulator, 2 on a film.
+    @Test
+    fun aLiveStreamsGrowingDurationSendsNoTick() {
+        val counter = TickCounter()
+        val renderer = renderer(live = true, counter)
+
+        renderer.eventProperty("duration", 5.00)
+        renderer.eventProperty("duration", 5.04)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(0, counter.ticks)
+    }
+
+    @Test
+    fun aLiveStreamStillTicksWithItsPosition() {
+        val counter = TickCounter()
+        val renderer = renderer(live = true, counter)
+
+        renderer.eventProperty("time-pos", 1.0)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, counter.ticks)
+    }
+
+    @Test
+    fun aFilmTicksWhenItsDurationIsKnown() {
+        val counter = TickCounter()
+        val renderer = renderer(live = false, counter)
+
+        renderer.eventProperty("duration", 5400.0)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, counter.ticks)
     }
 
     @Test

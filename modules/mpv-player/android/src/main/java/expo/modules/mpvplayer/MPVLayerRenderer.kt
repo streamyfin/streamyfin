@@ -1322,6 +1322,10 @@ class MPVLayerRenderer(
                     skippedReplacedFileUpdates++
                     return
                 }
+                // A live stream's duration is how far mpv has read, and it moves
+                // many times a second: posting each one sent JS a full tick for
+                // nothing. Its position still ticks with time-pos.
+                if (currentIsLive) return
                 postPosition(generation)
             }
             "time-pos" -> {
