@@ -16,6 +16,7 @@ import { AppState, type AppStateStatus, Platform } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { isPlayerSupported } from "@/utils/atoms/settings";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
@@ -442,7 +443,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
               "https://apps.apple.com/us/app/streamyfin/id6593660679",
             IconUrl:
               "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
-            PlayableMediaTypes: ["Audio", "Video"],
+            // An Apple TV below tvOS 26 has no video player to offer.
+            PlayableMediaTypes: isPlayerSupported
+              ? ["Audio", "Video"]
+              : ["Audio"],
             SupportedCommands: supportedCommands(Platform.isTV),
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,

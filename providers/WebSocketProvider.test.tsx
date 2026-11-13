@@ -25,6 +25,12 @@ jest.mock("@/utils/customHeaders", () => ({
   hasHeaders: () => false,
 }));
 jest.mock("@/utils/errors", () => ({ describeHttpResponse: () => undefined }));
+let mockPlayerSupported = true;
+jest.mock("@/utils/atoms/settings", () => ({
+  get isPlayerSupported() {
+    return mockPlayerSupported;
+  },
+}));
 jest.mock("@/utils/jellyfin/socketFailure", () => ({
   ...jest.requireActual("@/utils/jellyfin/socketFailure"),
   reportSocketFastRetriesExhausted: (...args: unknown[]) =>
@@ -89,6 +95,7 @@ beforeEach(() => {
     accessToken: "test-token",
   };
   mockNetwork = { isConnected: true, serverConnected: false };
+  mockPlayerSupported = true;
   TestSocket.instances = [];
   appStateListeners.clear();
   globalThis.WebSocket = TestSocket as unknown as typeof WebSocket;
@@ -237,4 +244,28 @@ test("a reachable server rejecting upgrades is reported once while slow retries 
   await advance(60000);
   expect(TestSocket.instances).toHaveLength(8);
   expect(mockRetryExhaustion).toHaveBeenCalledTimes(1);
+});
+
+// Another client lists this session as a place to play a video only if it
+// says it plays them. An Apple TV below tvOS 26 has no player since the JS
+// one went, and was still offered as one.
+describe("the media types the session says it plays", () => {
+  const playableMediaTypes = () =>
+    mockCapabilities.mock.calls[0]?.[0].clientCapabilitiesDto
+      .PlayableMediaTypes;
+
+  test("are audio and video where the player runs", async () => {
+    await renderHook(useWebSocketContext, { wrapper });
+    await act(async () => {});
+
+    expect(playableMediaTypes()).toEqual(["Audio", "Video"]);
+  });
+
+  test("are audio alone on a device the player does not run on", async () => {
+    mockPlayerSupported = false;
+    await renderHook(useWebSocketContext, { wrapper });
+    await act(async () => {});
+
+    expect(playableMediaTypes()).toEqual(["Audio"]);
+  });
 });
