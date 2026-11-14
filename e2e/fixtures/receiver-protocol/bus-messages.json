@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "playback start",
+      "input": "{\"type\":\"playbackstart\",\"message\":\"\"}",
+      "expected": { "type": "playbackstart", "message": "" }
+    },
+    {
+      "name": "playback stop carries the reporting data as a string",
+      "input": "{\"type\":\"playbackstop\",\"data\":\"{\\\"ItemId\\\":\\\"item-1\\\",\\\"PositionTicks\\\":100}\"}",
+      "expected": {
+        "type": "playbackstop",
+        "data": "{\"ItemId\":\"item-1\",\"PositionTicks\":100}"
+      }
+    },
+    {
+      "name": "connection error has no message",
+      "input": "{\"type\":\"connectionerror\"}",
+      "expected": { "type": "connectionerror" }
+    },
+    {
+      "name": "playback error names the cause",
+      "input": "{\"type\":\"playbackerror\",\"message\":\"Unable to load media\"}",
+      "expected": { "type": "playbackerror", "message": "Unable to load media" }
+    },
+    {
+      "name": "a rejected message is a plain error",
+      "input": "{\"type\":\"error\",\"message\":\"invalid command\"}",
+      "expected": { "type": "error", "message": "invalid command" }
+    },
+    {
+      "name": "something that is not JSON is passed on unparsed",
+      "input": "not json at all",
+      "expected": { "invalid": true }
+    }
+  ]
+}

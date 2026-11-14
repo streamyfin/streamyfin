@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "a transcoded movie",
+      "input": {
+        "itemId": "item-1",
+        "playSessionId": "ps-1",
+        "audioStreamIndex": 1,
+        "subtitleStreamIndex": 3,
+        "mediaSourceId": "ms-1",
+        "playMethod": "Transcode",
+        "runtimeTicks": 60000000000,
+        "startPositionTicks": 150000000,
+        "canSeek": true,
+        "liveStreamId": null
+      },
+      "expected": {
+        "itemId": "item-1",
+        "playSessionId": "ps-1",
+        "audioStreamIndex": 1,
+        "subtitleStreamIndex": 3,
+        "mediaSourceId": "ms-1",
+        "playMethod": "Transcode",
+        "runtimeTicks": 60000000000,
+        "startPositionTicks": 150000000,
+        "canSeek": true,
+        "liveStreamId": null
+      }
+    },
+    {
+      "name": "a live channel cannot seek and carries its live stream",
+      "input": {
+        "itemId": "channel-1",
+        "playSessionId": "ps-2",
+        "playMethod": "Transcode",
+        "canSeek": false,
+        "liveStreamId": "live-9"
+      },
+      "expected": {
+        "itemId": "channel-1",
+        "playSessionId": "ps-2",
+        "audioStreamIndex": null,
+        "subtitleStreamIndex": null,
+        "mediaSourceId": null,
+        "playMethod": "Transcode",
+        "runtimeTicks": null,
+        "startPositionTicks": null,
+        "canSeek": false,
+        "liveStreamId": "live-9"
+      }
+    },
+    {
+      "name": "indexes sent as strings are read as numbers",
+      "input": {
+        "itemId": "item-3",
+        "playSessionId": "ps-3",
+        "audioStreamIndex": "2",
+        "subtitleStreamIndex": "-1",
+        "runtimeTicks": "600000000",
+        "playMethod": "DirectStream"
+      },
+      "expected": {
+        "itemId": "item-3",
+        "playSessionId": "ps-3",
+        "audioStreamIndex": 2,
+        "subtitleStreamIndex": -1,
+        "mediaSourceId": null,
+        "playMethod": "DirectStream",
+        "runtimeTicks": 600000000,
+        "startPositionTicks": null,
+        "canSeek": null,
+        "liveStreamId": null
+      }
+    },
+    {
+      "name": "no custom data gives an empty reading",
+      "input": null,
+      "expected": {
+        "itemId": null,
+        "playSessionId": null,
+        "audioStreamIndex": null,
+        "subtitleStreamIndex": null,
+        "mediaSourceId": null,
+        "playMethod": null,
+        "runtimeTicks": null,
+        "startPositionTicks": null,
+        "canSeek": null,
+        "liveStreamId": null
+      }
+    }
+  ]
+}

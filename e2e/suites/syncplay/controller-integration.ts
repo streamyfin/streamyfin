@@ -1,6 +1,7 @@
 /**
  * Live production-controller checks against the isolated Docker Jellyfin.
- * Run setup.py first, then: bun e2e/syncplay/controller-integration.ts
+ * Run setup.py first, or set E2E_BENCH_CONFIG, then:
+ * bun e2e/suites/syncplay/controller-integration.ts
  * Simulated decoder states complement the checks on the real native players.
  */
 
@@ -8,29 +9,48 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
-import { getSessionApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import axios from "axios";
-import { SyncPlayController } from "../../utils/syncplay/controller";
-import { createSyncPlayTransport } from "../../utils/syncplay/transport";
+import {
+  BaseItemKind,
+  ItemFields,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  getLibraryApi,
+  getSystemApi,
+  getUserApi,
+} from "@jellyfin/sdk/lib/utils/api";
+import { SyncPlayController } from "../../../utils/syncplay/controller";
+import { createSyncPlayTransport } from "../../../utils/syncplay/transport";
 import type {
   SyncPlayCommand,
   SyncPlayPlayerState,
   SyncPlaySnapshot,
-} from "../../utils/syncplay/types";
+} from "../../../utils/syncplay/types";
+import {
+  assertCanManageUsers,
+  resolveCredentials,
+  type SyncPlayAccount,
+  type SyncPlayItem,
+} from "./credentials";
+import {
+  assertDistinctMovies,
+  cleanUp,
+  harnessAxios,
+  interruptHandler,
+  type SignedInClient,
+  serverWork,
+  signIn,
+  syncPlayEndpoint,
+} from "./harness";
 
 const directory = import.meta.dir;
-const credentials = JSON.parse(
-  await readFile(join(directory, ".state/credentials.json"), "utf8"),
-) as {
-  url: string;
-  serverVersion: string;
-  password: string;
-  host: { name: string };
-  guest: { name: string };
-  items: { id: string; name: string }[];
-};
-if (new URL(credentials.url).hostname !== "127.0.0.1")
-  throw new Error("Local test server required");
+const credentials = await resolveCredentials(
+  process.env,
+  (path) => readFile(path, "utf8"),
+  directory,
+);
+// Filled in once the host is signed in: a bench server tells its version and its items then.
+let serverVersion = credentials.serverVersion ?? "unknown";
+let mediaItems: SyncPlayItem[] = credentials.items ?? [];
 const run = `${Date.now()}-${randomUUID().slice(0, 6)}`;
 const records: { name: string; passed: boolean; detail?: unknown }[] = [];
 const eventLog: { client: string; type: string; data: unknown }[] = [];
@@ -67,10 +87,31 @@ const endpoints = [
 ].map((action) => `/SyncPlay/${action}`);
 let scenario = "connect";
 const clients: Client[] = [];
+// Every client that holds a token, from its sign-in on, whether or not its setup went through.
+const signedIn: SignedInClient[] = [];
 let temporaryUserId: string | undefined;
+// Never the administrator's: the account outlives the run if its delete fails.
+const temporaryPassword = randomUUID();
 let admin: Api | undefined;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Sign-ins and the restricted account's creation, which the cleanup waits for before it reads
+// the tokens and the account to remove.
+const work = serverWork();
+let cleaning: Promise<string[]> | undefined;
+const cleanUpOnce = () =>
+  (cleaning ??= (async () => {
+    await work.settle();
+    for (const client of clients) client.dispose();
+    await sleep(150);
+    return cleanUp(signedIn, admin, temporaryUserId);
+  })());
+process.once(
+  "SIGINT",
+  interruptHandler(cleanUpOnce, (code) => process.exit(code)),
+);
+
 async function waitFor(
   predicate: () => boolean,
   message: string,
@@ -192,38 +233,55 @@ class Client {
   }
 }
 
-async function client(name: string, label: string) {
+/** Finds the lab items by their code tag on a bench server. */
+async function resolveItems(
+  api: Api,
+  codes: string[],
+): Promise<SyncPlayItem[]> {
+  const found: SyncPlayItem[] = [];
+  for (const code of codes) {
+    // Jellyfin 10.11 does not search tags; the Tags filter works on every version.
+    const response = await getLibraryApi(api).getItems({
+      tags: [code],
+      recursive: true,
+      includeItemTypes: [BaseItemKind.Movie],
+      fields: [ItemFields.Tags],
+    });
+    const item = response.data.Items?.find((candidate) =>
+      candidate.Tags?.includes(code),
+    );
+    if (!item?.Id)
+      throw new Error(`no movie tagged ${code} on the bench server`);
+    found.push({
+      id: item.Id,
+      name: item.Name ?? code,
+      durationTicks: item.RunTimeTicks,
+    });
+  }
+  assertDistinctMovies(found, codes);
+  return found;
+}
+
+async function client(account: SyncPlayAccount, label: string) {
   const jellyfin = new Jellyfin({
     clientInfo: { name: "Streamyfin SyncPlay protocol tests", version: "1.0" },
     deviceInfo: { name: label, id: `streamyfin-protocol-${run}-${label}` },
   });
-  const api = jellyfin.createApi(credentials.url, undefined, axios.create());
+  const api = jellyfin.createApi(credentials.url, undefined, harnessAxios());
   api.axiosInstance.interceptors.response.use((response) => {
-    const pathname = new URL(response.config.url!, credentials.url).pathname;
-    if (pathname.startsWith("/SyncPlay/")) {
+    const path = syncPlayEndpoint(response.config.url!, credentials.url);
+    if (path) {
       requests.push({
         client: label,
         method: response.config.method?.toUpperCase() ?? "GET",
-        path: /^\/SyncPlay\/[0-9a-f-]{32,36}$/i.test(pathname)
-          ? "/SyncPlay/{id}"
-          : pathname,
+        path,
         status: response.status,
         scenario,
       });
     }
     return response;
   });
-  const response = await getUserApi(api).authenticateUserByName({
-    authenticateUserByName: { Username: name, Pw: credentials.password },
-  });
-  api.accessToken = response.data.AccessToken ?? "";
-  await getSessionApi(api).postFullCapabilities({
-    clientCapabilitiesDto: {
-      PlayableMediaTypes: ["Video"],
-      SupportsMediaControl: true,
-      SupportedCommands: ["Play"],
-    },
-  });
+  await work.track(() => signIn(label, api, account, signedIn));
   const instance = new Client(label, api);
   clients.push(instance);
   await instance.connect();
@@ -238,8 +296,18 @@ async function step(name: string, work: () => Promise<unknown>) {
 }
 
 try {
-  const host = await client(credentials.host.name, "host");
-  const guest = await client(credentials.guest.name, "guest");
+  const host = await client(credentials.host, "host");
+  const guest = await client(credentials.guest, "guest");
+  if (credentials.source === "bench") {
+    assertCanManageUsers(
+      (await getUserApi(host.api).getCurrentUser()).data,
+      "syncplay-host",
+    );
+    serverVersion =
+      (await getSystemApi(host.api).getPublicSystemInfo()).data.Version ??
+      serverVersion;
+    mediaItems = await resolveItems(host.api, credentials.itemCodes ?? []);
+  }
   admin = host.api;
   let groupId = "";
   await step("create/list/join real Jellyfin group", async () => {
@@ -278,7 +346,7 @@ try {
     5_000_000;
   await step("queue/ready/scheduled unpause in both clients", async () => {
     await host.controller.playItems(
-      credentials.items.slice(0, 2).map((item) => item.id),
+      mediaItems.slice(0, 2).map((item) => item.id),
     );
     await waitFor(
       () => host.state.isPlaying && guest.state.isPlaying,
@@ -340,8 +408,8 @@ try {
     await guest.controller.requestNext();
     await waitFor(
       () =>
-        host.state.itemId === credentials.items[1].id &&
-        guest.state.itemId === credentials.items[1].id &&
+        host.state.itemId === mediaItems[1].id &&
+        guest.state.itemId === mediaItems[1].id &&
         host.state.isPlaying &&
         guest.state.isPlaying,
       "next playlist item",
@@ -349,8 +417,8 @@ try {
     await host.controller.requestPrevious();
     await waitFor(
       () =>
-        host.state.itemId === credentials.items[0].id &&
-        guest.state.itemId === credentials.items[0].id &&
+        host.state.itemId === mediaItems[0].id &&
+        guest.state.itemId === mediaItems[0].id &&
         host.state.isPlaying &&
         guest.state.isPlaying,
       "previous playlist item",
@@ -383,7 +451,7 @@ try {
       });
       await sleep(150);
       check(
-        host.state.isPlaying && host.state.itemId === credentials.items[0].id,
+        host.state.isPlaying && host.state.itemId === mediaItems[0].id,
         "Stale command changed playback",
       );
     },
@@ -426,7 +494,7 @@ try {
     JSON.stringify(host.snapshot.playlist) ===
     JSON.stringify(guest.snapshot.playlist);
   const current = () => host.snapshot.currentPlaylistItemId;
-  const items = credentials.items.map((item) => item.id);
+  const items = mediaItems.map((item) => item.id);
   const waitPlayingItem = (id: string, message: string) =>
     waitFor(
       () =>
@@ -920,15 +988,24 @@ try {
   });
   await step("restricted account cannot create or join group", async () => {
     const name = `syncplay-restricted-${run}`;
-    const response = await getUserApi(host.api).createUserByName({
-      createUserByName: { Name: name, Password: credentials.password },
+    const response = await work.track(async () => {
+      const created = await getUserApi(host.api).createUserByName({
+        createUserByName: { Name: name, Password: temporaryPassword },
+      });
+      temporaryUserId = created.data.Id!;
+      return created;
     });
-    temporaryUserId = response.data.Id!;
+    // The whole policy goes back: the update replaces it, provider ids included.
+    const policy = response.data.Policy;
+    if (!policy) throw new Error(`the server returned no policy for ${name}`);
     await getUserApi(host.api).updateUserPolicy({
-      userId: temporaryUserId,
-      userPolicy: { ...response.data.Policy, SyncPlayAccess: "None" },
+      userId: response.data.Id!,
+      userPolicy: { ...policy, SyncPlayAccess: "None" },
     });
-    const restricted = await client(name, "restricted");
+    const restricted = await client(
+      { name, password: temporaryPassword },
+      "restricted",
+    );
     let createStatus: number | undefined;
     try {
       await restricted.controller.createGroup("Denied group");
@@ -989,21 +1066,21 @@ try {
     `FAIL ${error instanceof Error ? error.message : String(error)} ${http.config?.url ?? ""}\n`,
   );
 } finally {
-  for (const client of clients) client.dispose();
-  await sleep(150);
-  if (temporaryUserId && admin)
-    await getUserApi(admin)
-      .deleteUser({ userId: temporaryUserId })
-      .catch(() => {});
+  const cleanupFailures = await cleanUpOnce();
+  for (const failure of cleanupFailures) {
+    process.stderr.write(`FAIL cleanup ${failure}\n`);
+  }
+  if (cleanupFailures.length) process.exitCode = 1;
   await mkdir(join(directory, "artifacts"), { recursive: true });
   await writeFile(
     join(directory, "artifacts/controller-integration.json"),
     JSON.stringify(
       {
         run,
-        serverVersion: credentials.serverVersion,
+        serverVersion,
         checkedAt: new Date().toISOString(),
         results: records,
+        cleanupFailures,
         events: eventLog,
         requests,
         endpointCoverage: endpoints.map((path) => ({
