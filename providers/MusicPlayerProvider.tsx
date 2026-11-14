@@ -1356,7 +1356,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // A connected Cast session plays the music on the receiver, and the phone
   // stops so that one place plays. The player shows the queue from the send.
   const castOnReceiver = useCallback(
-    async (queue: BaseItemDto[], startIndex: number, startSeconds = 0) => {
+    async (
+      queue: BaseItemDto[],
+      startIndex: number,
+      {
+        startSeconds = 0,
+        openExpandedControls = true,
+      }: { startSeconds?: number; openExpandedControls?: boolean } = {},
+    ) => {
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
@@ -1381,6 +1388,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         startIndex,
         startPositionTicks: Math.round(startSeconds * 10000000),
         isStale,
+        openExpandedControls,
       });
       if (!started) endOnReceiver(sent);
     },
@@ -1567,7 +1575,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         (t) => t.Id === state.currentTrack?.Id,
       );
       endPhoneSessionForReceiver();
-      void castOnReceiver(state.queue, Math.max(index, 0), state.progress);
+      void castOnReceiver(state.queue, Math.max(index, 0), {
+        startSeconds: state.progress,
+      });
       return;
     }
     if (!TrackPlayer) return;
@@ -2447,7 +2457,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const resumeRemote = useCallback(async () => {
     if (stoppedOnReceiver && remoteQueue && remoteIndex !== undefined) {
       // As for a pick in the queue: the cast settles once the receiver loads.
-      void castOnReceiver(remoteQueue, remoteIndex, remoteResumeAt);
+      void castOnReceiver(remoteQueue, remoteIndex, {
+        startSeconds: remoteResumeAt,
+      });
       return;
     }
     await resumeOnReceiver();
@@ -2469,7 +2481,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
     if (!remoteQueue || remoteIndex === undefined) return;
     retriedStartId.current = failedStartId;
-    void castOnReceiver(remoteQueue, remoteIndex);
+    // No press behind it: the controls stay as the user left them.
+    void castOnReceiver(remoteQueue, remoteIndex, {
+      openExpandedControls: false,
+    });
   }, [failedStartId, remoteQueue, remoteIndex, castOnReceiver]);
   const togglePlayPauseRemote = useCallback(
     () => (remotePlaying ? pauseRemote() : resumeRemote()),
@@ -2515,7 +2530,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     (index: number) => {
       if (!remoteQueue || index === remoteIndex) return;
       if (index < 0 || index >= remoteQueue.length) return;
-      void castOnReceiver(remoteQueue, index);
+      // Picked in Now Playing, which drives the receiver already.
+      void castOnReceiver(remoteQueue, index, { openExpandedControls: false });
     },
     [remoteQueue, remoteIndex, castOnReceiver],
   );

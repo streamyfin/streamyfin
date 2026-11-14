@@ -826,6 +826,8 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
   test("a track picked in the queue starts there on the receiver", async () => {
     await castAlbum();
+    // The album's Play opens the receiver's controls.
+    expect(mockCast.dialogs).toEqual(["expandedControls"]);
 
     await run((p) => p.jumpToIndex(3));
     await receiverStatus("t3", "buffering", 0, "ps-2");
@@ -834,6 +836,8 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(playNows()[1].options.startIndex).toBe(3);
     expect(player.currentTrack?.Id).toBe("t3");
     expect(nativeIds()).toEqual([]);
+    // Picked in Now Playing, the player that drives the receiver already.
+    expect(mockCast.dialogs).toEqual(["expandedControls"]);
   });
 
   // As on Spotify: the queue comes back to the phone, paused where the TV was.
@@ -1293,6 +1297,7 @@ describe("MusicPlayerProvider and a Cast session", () => {
     "a receiver that fails to start a track at a position gets it again from its top, once, the status %s",
     async (_, withMedia) => {
       await castFromPosition();
+      const dialogs = mockCast.dialogs.length;
 
       await receiverIdle("t2", "error", {
         playSessionId: "ps-cast",
@@ -1304,6 +1309,8 @@ describe("MusicPlayerProvider and a Cast session", () => {
       expect(startSeconds(2)).toBe(0);
       await receiverStatus("t2", "playing", 0, "ps-retry");
       expect(player.isPlaying).toBe(true);
+      // Sent again with no press: nothing opens over what the user looks at.
+      expect(mockCast.dialogs).toHaveLength(dialogs);
 
       // The track fails from its top too: no more tries on its own.
       await receiverIdle("t2", "error", {

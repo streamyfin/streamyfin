@@ -41,6 +41,12 @@ interface CastQueueOptions {
    * after each wait, so a queue of the previous account is never sent.
    */
   isStale?: () => boolean;
+  /**
+   * Whether the receiver's controls open once it plays; true by default. A
+   * cast from the music player that drives the receiver already, or one with
+   * no press behind it, leaves them closed.
+   */
+  openExpandedControls?: boolean;
 }
 
 /**
@@ -64,6 +70,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
       startIndex,
       startPositionTicks,
       isStale,
+      openExpandedControls = true,
     }: CastQueueOptions): Promise<boolean> => {
       if (!client || !api || !userId) {
         console.warn("Cannot cast: missing client, api, or userId");
@@ -110,7 +117,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         }
         if (outcome.status !== "loaded") return false;
 
-        showExpandedControls();
+        if (openExpandedControls) showExpandedControls();
         return true;
       } catch (error) {
         logAndCaptureError("Casting music queue failed", error);
