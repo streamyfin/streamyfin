@@ -187,6 +187,8 @@ interface NativeSession extends NativePlayerSessionSeed {
   hasPlaybackStarted: boolean;
   /** Dedupe key of the last "stopped" report (sessionId || itemId). */
   reportedStopKey: string | null;
+  /** Set once releaseLiveStream has given this session's reference back. */
+  liveStreamReleased: boolean;
   /**
    * True from session creation until the new stream's onLoad arrives. The
    * engine is swapped in place, so events from the OUTGOING stream can still
@@ -706,10 +708,19 @@ const NativePlayerProviderInner: React.FC<{
   );
 
   const releaseLiveStream = useCallback(
-    (session: Pick<NativeSession, "stream" | "offline">) => {
+    (
+      session: Pick<NativeSession, "stream" | "offline"> & {
+        liveStreamReleased?: boolean;
+      },
+    ) => {
       const liveStreamId = session.stream.mediaSource?.LiveStreamId;
       const currentApi = apiRef.current;
       if (!liveStreamId || !currentApi || session.offline) return;
+      // Once per negotiation: a swap, its failure path and the teardown can
+      // all reach here for the same session, and the server counts one
+      // reference per negotiation on a stream it shares between sessions.
+      if (session.liveStreamReleased) return;
+      session.liveStreamReleased = true;
       getMediaInfoApi(currentApi)
         .closeLiveStream({ liveStreamId })
         .catch(() => {});
@@ -1081,6 +1092,7 @@ const NativePlayerProviderInner: React.FC<{
         isPlaying: false,
         hasPlaybackStarted: false,
         reportedStopKey: null,
+        liveStreamReleased: false,
         awaitingLoad: true,
         committed: false,
         lastProgressReportAt: 0,
