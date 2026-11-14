@@ -17,6 +17,7 @@ import type {
   MediaStream,
   SubtitleDeliveryMethod,
 } from "@jellyfin/sdk/lib/generated-client";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
 
 // "External" is the value of SubtitleDeliveryMethod.External. Compared as a typed
 // literal so this util needs no *runtime* import of the SDK barrel — which pulls in
@@ -792,6 +793,194 @@ export const resolveAudioSwitch = (
     Boolean(mediaSource?.TranscodingUrl),
   );
   return mpvId === undefined ? { reload: true } : { reload: false, mpvId };
+};
+
+/** The fields of a player audio track the menus can use. */
+export interface PlayerAudioTrack {
+  title?: string;
+  lang?: string;
+  codec?: string;
+  channels?: number;
+}
+
+interface StreamTrackPair {
+  /** Position of the stream among the listed ones. */
+  k: number;
+  /** Position of the track in the player's list. */
+  i: number;
+  affinity: number;
+}
+
+/**
+ * Closest tag first; a stream's own position breaks a tie. The sort is
+ * stable, so pairs still equal keep the stream-then-track order they were
+ * built in.
+ */
+const byClosestPair = (a: StreamTrackPair, b: StreamTrackPair) =>
+  b.affinity - a.affinity || Number(b.i === b.k) - Number(a.i === a.k);
+
+/** Player position -> the listed stream it carries. */
+const placeListedStreams = (
+  listed: MediaStream[],
+  playerTracks: PlayerAudioTrack[],
+): Map<number, MediaStream> => {
+  const streamAt = new Map<number, MediaStream>();
+  const placed = new Set<number>();
+  const claim = (k: number, position: number | undefined) => {
+    if (placed.has(k) || position === undefined) return;
+    if (listed[k].Index === undefined || streamAt.has(position)) return;
+    streamAt.set(position, listed[k]);
+    placed.add(k);
+  };
+  // Every stream/track pair that agrees on language, closest first, so an
+  // exact "pt-BR" wins its track over a bare "pt". A stream's own position
+  // breaks a tie, so two streams of one language keep their order over an
+  // untagged track.
+  const pairs = listed
+    .flatMap((stream, k) =>
+      playerTracks.map((track, i) => ({
+        k,
+        i,
+        affinity: langAffinity(track.lang, stream.Language),
+      })),
+    )
+    .filter((pair) => pair.affinity > 0)
+    .sort(byClosestPair);
+  for (const pair of pairs) claim(pair.k, pair.i);
+  listed.forEach((stream, k) => {
+    claim(k, fallbackPosition(stream, k, playerTracks, streamAt));
+  });
+  return streamAt;
+};
+
+/**
+ * Where a listed stream no tag matched goes: its own position, or the first
+ * free one when that is taken. A stream with a language goes to a free
+ * untagged track before one that names another language.
+ */
+const fallbackPosition = (
+  stream: MediaStream,
+  k: number,
+  playerTracks: PlayerAudioTrack[],
+  streamAt: Map<number, MediaStream>,
+): number => {
+  const isFree = (i: number) => !streamAt.has(i);
+  const own = isFree(k) ? k : playerTracks.findIndex((_, i) => isFree(i));
+  if (!stream.Language || !playerTracks[own].lang) return own;
+  const untagged = playerTracks.findIndex((t, i) => !t.lang && isFree(i));
+  return untagged === -1 ? own : untagged;
+};
+
+/** The labels of a merged row. What the track says of itself wins; the
+ * server's guess for the stream placed on it fills what the track leaves
+ * out, and is the whole description of an untagged track. */
+const describeTrack = (
+  track: PlayerAudioTrack,
+  stream: MediaStream | undefined,
+): Pick<MediaStream, "Title" | "Language" | "DisplayTitle"> => {
+  const untagged = !track.lang && !track.title;
+  return {
+    Title: untagged ? stream?.Title : track.title,
+    Language: track.lang ?? stream?.Language,
+    DisplayTitle: untagged ? stream?.DisplayTitle : track.title || track.lang,
+  };
+};
+
+/** One row of the merged list: the player's track, under the listed
+ * stream's index when one was placed on it. */
+const mergedAudioStream = (
+  track: PlayerAudioTrack,
+  position: number,
+  stream: MediaStream | undefined,
+  defaultIndex: number | null | undefined,
+): MediaStream => {
+  const index = stream?.Index ?? PLAYER_AUDIO_INDEX_BASE + position;
+  return {
+    Type: "Audio",
+    Index: index,
+    ...describeTrack(track, stream),
+    Codec: track.codec,
+    Channels: track.channels,
+    // The source keeps the server's default index: mark that row.
+    IsDefault: defaultIndex == null ? position === 0 : index === defaultIndex,
+  };
+};
+
+/**
+ * Lists the audio tracks the player found when the server listed fewer.
+ *
+ * A server that describes a remote file from its name instead of probing it
+ * (AIOStreams serving a debrid link) lists one audio stream for a release that
+ * carries several. The menus are built from `MediaStreams` and reach mpv by
+ * position (see {@link getMpvAudioId}), so every other track was unreachable.
+ * On a direct stream the player reads the file itself, so its list is the
+ * truth: the file's audio streams are rebuilt from it, in its order. Listed
+ * streams keep their index so the current selection still matches a row: on
+ * the player track of their language when the tags say which (such a server
+ * lists "French" for a file whose first track is English, and a preference
+ * that picked it should play French; "pt-BR" goes to a "pt-BR" track before a
+ * bare "pt" one), by position otherwise. The other tracks
+ * get an index from {@link PLAYER_AUDIO_INDEX_BASE} by position, the same
+ * whatever the server lists, so a selection survives a stream re-negotiated
+ * after the server gained a stream (a downloaded subtitle).
+ *
+ * Returns `mediaSource` itself when there is nothing to add, so callers can
+ * tell a no-op by identity.
+ */
+export const withPlayerAudioTracks = (
+  mediaSource: MediaSourceInfo,
+  playerTracks: PlayerAudioTrack[],
+): MediaSourceInfo => {
+  const streams = mediaSource.MediaStreams ?? [];
+  const isFileAudio = (s: MediaStream) => s.Type === "Audio" && !s.IsExternal;
+  const listed = streams.filter(isFileAudio);
+  // A transcode carries only the track the server encoded.
+  if (mediaSource.TranscodingUrl || playerTracks.length <= listed.length) {
+    return mediaSource;
+  }
+
+  const streamAt = placeListedStreams(listed, playerTracks);
+  // A default that names no merged row (an external stream) leaves the
+  // first track the default.
+  const placedDefault = [...streamAt.values()].some(
+    (s) => s.Index === mediaSource.DefaultAudioStreamIndex,
+  );
+  const audio = playerTracks.map((track, position) =>
+    mergedAudioStream(
+      track,
+      position,
+      streamAt.get(position),
+      placedDefault ? mediaSource.DefaultAudioStreamIndex : undefined,
+    ),
+  );
+
+  return {
+    ...mediaSource,
+    MediaStreams: [...streams.filter((s) => !isFileAudio(s)), ...audio],
+  };
+};
+
+/**
+ * The audio index the server is told about: `index` when the server's own
+ * list has it, undefined for a track only the player found (see
+ * {@link withPlayerAudioTracks}). The server resolves an index it does not
+ * list against its own streams and silently plays one of those instead, so
+ * it is asked for its default and the player puts mpv back on the track.
+ * An index from {@link PLAYER_AUDIO_INDEX_BASE} up is always the merge's;
+ * below it, a source with no list at all cannot tell, so it goes through.
+ */
+export const serverAudioIndex = (
+  serverSource: MediaSourceInfo | null | undefined,
+  index: number | undefined,
+): number | undefined => {
+  if (index !== undefined && index >= PLAYER_AUDIO_INDEX_BASE) {
+    return undefined;
+  }
+  const streams = serverSource?.MediaStreams;
+  if (!streams?.length) return index;
+  return streams.some((s) => s.Type === "Audio" && s.Index === index)
+    ? index
+    : undefined;
 };
 
 /**
