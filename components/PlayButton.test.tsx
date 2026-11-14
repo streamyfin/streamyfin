@@ -225,6 +225,25 @@ test("a load that lands after a later choice opens no remote", async () => {
   expect(showExpandedControls).not.toHaveBeenCalled();
 });
 
+// Nothing shows a press until the receiver's first status, a second or so later: a second press then would send the
+// item again, and the TV would restart it in a new play session.
+test("a second press while the receiver loads sends nothing more", async () => {
+  let answer: (outcome: { status: string }) => void = () => {};
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(
+    () => new Promise((resolve) => (answer = resolve)),
+  );
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  const button = screen.getByLabelText("accessibility.play_button");
+  await act(async () => fireEvent.press(button));
+  await act(async () => fireEvent.press(button));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+
+  // Once it answered, the next press is a new send.
+  await act(async () => answer({ status: "loaded" }));
+  await act(async () => fireEvent.press(button));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(2);
+});
+
 // One Play action: no "Chromecast / Device" choice any more.
 test("a press plays on the connected target", async () => {
   await render(<PlayButton item={item} selectedOptions={selectedOptions} />);

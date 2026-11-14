@@ -89,6 +89,9 @@ export const PlayButton: React.FC<Props> = ({
   // The press waiting for a connection: one at a time, dropped with the button.
   const pendingWait = useRef<AbortController | null>(null);
   useEffect(() => () => pendingWait.current?.abort(), []);
+  // The send on its way to the receiver: nothing shows it until the receiver's first status, and a second press
+  // would load the item again on the TV.
+  const sending = useRef(false);
   // A play here is the last choice: the press still waiting for the receiver goes, and so does a load that has
   // not sent yet, from this page or one left under it.
   const dropReceiverPress = useCallback(() => {
@@ -159,7 +162,14 @@ export const PlayButton: React.FC<Props> = ({
         longPress,
       });
       if (destination.where === "target" && target.target) {
-        await playOnTarget(positionTicks, target.target, choosePlay());
+        // Before the choice is counted: a press dropped here must not make the send on its way stale.
+        if (sending.current || pendingWait.current) return;
+        sending.current = true;
+        try {
+          await playOnTarget(positionTicks, target.target, choosePlay());
+        } finally {
+          sending.current = false;
+        }
         return;
       }
       if (destination.where === "waitForTarget") {
@@ -183,8 +193,13 @@ export const PlayButton: React.FC<Props> = ({
           return;
         }
         if (settled !== "timeout" && settled.state === "connected") {
-          if (settled.target) {
-            await playOnTarget(positionTicks, settled.target, choice);
+          if (settled.target && !sending.current) {
+            sending.current = true;
+            try {
+              await playOnTarget(positionTicks, settled.target, choice);
+            } finally {
+              sending.current = false;
+            }
           }
         } else if (settled === "timeout" || settled.error) {
           // Nothing plays: the connection the press waited for did not come.
