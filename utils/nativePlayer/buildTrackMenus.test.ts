@@ -2,15 +2,13 @@ import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client";
 import type { Jellyfin12MediaStream } from "@/utils/jellyfin/trackLabel";
 import { buildTrackMenus } from "./buildNativePlayerConfig";
 
-// The quality menu is not under test, and the real module drags the dropdown
-// component (and with it reanimated) into a spec that only builds labels.
-jest.mock("@/components/BitrateSelector", () => ({ BITRATES: [] }));
-
 // Settings pull in the auth provider and the router; no menu label reads them.
 
 // Track resolution belongs to the config build, not to the menus, and loading
-// it starts the logger (MMKV, and a Sentry timer that keeps Jest alive).
+// it starts the logger (MMKV, and a Sentry timer that keeps Jest alive). So
+// does the bitrate the stream is asked at.
 jest.mock("./resolveTrackIndexes", () => ({}));
+jest.mock("@/utils/jellyfin/maxStreamingBitrate", () => ({}));
 
 // The subtitle prefetch logs its outcome; the log module reaches MMKV.
 jest.mock("@/utils/log", () => ({ writeInfoLog: () => undefined }));
@@ -24,6 +22,9 @@ const menus = (streams: Jellyfin12MediaStream[]) =>
     downloadedItem: null,
     offLabel: "None",
     originalLabel: "Original",
+    qualityLabel: (bitrate: { key: string }) =>
+      bitrate.key === "Auto" ? "Auto" : bitrate.key,
+    bitrateValue: "max",
   });
 
 describe("buildTrackMenus", () => {
@@ -71,5 +72,26 @@ describe("buildTrackMenus", () => {
     ]);
     expect(audio[0].label).toBe("Japanese");
     expect(subtitles.map((s) => s.label)).toEqual(["None", "swe"]);
+  });
+
+  // The spec mocked the table to nothing, so the quality menu was never
+  // checked against the real one.
+  test("offers Auto, then Max and every cap, the quality playing marked", () => {
+    const quality = menus([]).quality ?? [];
+    expect(quality.map((entry) => entry.label)).toEqual([
+      "Auto",
+      "Max",
+      "8 Mb/s",
+      "4 Mb/s",
+      "2 Mb/s",
+      "1 Mb/s",
+      "500 Kb/s",
+      "250 Kb/s",
+    ]);
+    expect(quality.filter((entry) => entry.selected)).toEqual([
+      expect.objectContaining({ label: "Max", jellyfinIndex: -1 }),
+    ]);
+    expect(quality[0].jellyfinIndex).toBe(-2);
+    expect(quality.every((entry) => entry.requiresReload)).toBe(true);
   });
 });

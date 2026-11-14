@@ -597,6 +597,36 @@ let supersedeCurrentCast: (() => void) | null = null;
 let castCount = 0;
 
 /**
+ * Waits for what a cast needs before it is sent: settled at once by a newer
+ * cast, and given up after `timeoutMs`.
+ */
+const untilReady = <T>(
+  ready: Promise<T>,
+  timeoutMs: number,
+): Promise<{ ready: T } | { status: "superseded" | "timed_out" }> =>
+  new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (supersedeCurrentCast === supersede) supersedeCurrentCast = null;
+      finish();
+    };
+    const supersede = () =>
+      settle(() => resolve({ status: "superseded" as const }));
+    const timer = setTimeout(
+      () => settle(() => resolve({ status: "timed_out" as const })),
+      timeoutMs,
+    );
+    supersedeCurrentCast = supersede;
+    ready.then(
+      (value) => settle(() => resolve({ ready: value })),
+      (error) => settle(() => reject(error)),
+    );
+  });
+
+/**
  * Casts and resolves once the receiver has a media session for the requested
  * item, has sent a load error back, or has done neither within `timeoutMs`.
  * A request holding a container is refused before anything is sent.
@@ -605,10 +635,15 @@ let castCount = 0;
  * cannot reach the server fails on its first request without a word back, and
  * one that replaces playing media goes idle before loading the new item, which
  * closes Android's expanded controls if they were opened on the send.
+ *
+ * The cast takes its turn when called, and `session` may still be on its way
+ * (Auto measuring the bitrate): a cast made while it is replaces this one.
+ * The receiver applies the bitrate a cast names as it is and keeps it for the
+ * casts after it, so every cast names one, its ceiling at most.
  */
 export const castToJellyfinReceiver = async (
   client: CastClient,
-  session: JellyfinCastSession,
+  session: JellyfinCastSession | Promise<JellyfinCastSession>,
   request: JellyfinCastPlayRequest,
   timeoutMs: number,
   /** True once the caller moved on, an account switch say: nothing is sent. */
@@ -624,12 +659,23 @@ export const castToJellyfinReceiver = async (
   const itemId = sent.items[sent.startIndex ?? 0]?.Id;
   // Every load gets a new play session, which is what tells a recast of the
   // item already on the TV from the media it replaces.
-  const previous = receiverMediaData(
-    await client.getMediaStatus().catch(() => null),
+  const waited = await untilReady(
+    Promise.all([session, client.getMediaStatus().catch(() => null)]),
+    timeoutMs,
   );
-  // A cast started while this one read the media status owns the TV now:
-  // sending this one after it would replace it there.
+  if ("status" in waited) return waited;
+  const [ready, status] = waited.ready;
+  const previous = receiverMediaData(status);
+  // A cast started while this one got ready owns the TV now: sending this one
+  // after it would replace it there.
   if (cast !== castCount || isStale?.()) return { status: "superseded" };
+  const loadSession: JellyfinCastSession = {
+    ...ready,
+    maxBitrate: Math.min(
+      ready.maxBitrate ?? RECEIVER_UNCAPPED_BITRATE,
+      RECEIVER_UNCAPPED_BITRATE,
+    ),
+  };
 
   const isThisLoad = (status: CastMediaStatus | null): boolean => {
     const media = receiverMediaData(status);
@@ -698,7 +744,7 @@ export const castToJellyfinReceiver = async (
       timeoutMs,
     );
 
-    playOnJellyfinReceiver(session, request, isStale)
+    playOnJellyfinReceiver(loadSession, request, isStale)
       .then((sent) => {
         if (!sent) settle(() => resolve({ status: "superseded" }));
       })

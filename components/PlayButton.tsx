@@ -32,6 +32,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { toBitrateRequest } from "@/utils/bitrate";
 import {
   choosePlay,
   isLatestPlayChoice,
@@ -102,7 +103,7 @@ export const PlayButton: React.FC<Props> = ({
       audioIndex: selectedOptions.audioIndex,
       subtitleIndex: selectedOptions.subtitleIndex,
       mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-      bitrateValue: selectedOptions.bitrate?.value,
+      bitrateValue: toBitrateRequest(selectedOptions.bitrate),
       offline: isOffline,
       playbackPositionTicks: positionTicks,
     }),

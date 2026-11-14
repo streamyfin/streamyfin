@@ -6,6 +6,7 @@ import { MediaToggles } from "@/components/settings/MediaToggles";
 import { MpvBufferSettings } from "@/components/settings/MpvBufferSettings";
 import { MpvVoSettings } from "@/components/settings/MpvVoSettings";
 import { PlaybackControlsSettings } from "@/components/settings/PlaybackControlsSettings";
+import { QualitySettings } from "@/components/settings/QualitySettings";
 import { RemotePlaybackQualitySettings } from "@/components/settings/RemotePlaybackQualitySettings";
 import { VideoPlayerSelector } from "@/components/settings/VideoPlayerSelector";
 
@@ -26,6 +27,7 @@ export default function PlaybackControlsPage() {
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         <View>
+          <QualitySettings />
           <VideoPlayerSelector className='mb-4' />
           <MediaProvider>
             <MediaToggles className='mb-4' />

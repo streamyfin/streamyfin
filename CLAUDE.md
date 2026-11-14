@@ -227,6 +227,9 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
   intro-skipper plugins, Web's static configuration, configurable custom sections,
   and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  One SDK endpoint is the exception: Auto quality's speed test
+  (`utils/jellyfin/bitrateTest.ts`) times the body of `/Playback/BitrateTest` as it
+  streams in, through expo/fetch, which Axios cannot; it sends the same headers.
   The SDK itself uses Axios; keep its custom-header transport and error handling.
   Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
   `pluginPut` / `pluginDelete` extensions, not generic `Api.get` / `post` /

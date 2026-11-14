@@ -22,7 +22,7 @@ import { withAlpha } from "@/utils/color";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
-import { BITRATES } from "./BitrateSelector";
+import { bitrateOptions } from "./BitrateSelector";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
@@ -111,14 +111,16 @@ export const MediaSourceButton: React.FC<Props> = ({
     // Bitrate group
     groups.push({
       title: t("item_card.quality"),
-      options: BITRATES.map((bitrate) => ({
-        type: "radio" as const,
-        label: bitrate.key,
-        value: bitrate,
-        selected: bitrate.value === selectedOptions.bitrate?.value,
-        onPress: () =>
-          setSelectedOptions((prev) => prev && { ...prev, bitrate }),
-      })),
+      options: bitrateOptions(t, selectedOptions.bitrate).map(
+        ({ label, value: bitrate, selected }) => ({
+          type: "radio" as const,
+          label,
+          value: bitrate,
+          selected,
+          onPress: () =>
+            setSelectedOptions((prev) => prev && { ...prev, bitrate }),
+        }),
+      ),
     });
 
     // Media Source group (only if multiple sources)

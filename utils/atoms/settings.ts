@@ -13,11 +13,16 @@ import { isAxiosError } from "axios";
 import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import {
+  BITRATE_DETECTION_TTL_MS,
+  DETECTED_BITRATE_RATIO,
+  IN_NETWORK_MIN_BITRATE,
+} from "@/constants/Bitrate";
 import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
 } from "@/constants/Music";
+import type { Bitrate } from "@/constants/Playback";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import {
   DEFAULT_STILL_WATCHING_PRESET,
@@ -25,6 +30,7 @@ import {
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
+import { AUTO_BITRATE, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import {
   NO_REMOTE_QUALITY,
   type RemotePlaybackQuality,
@@ -189,7 +195,11 @@ const normalizePluginValue = (
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
       // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
-        const match = BITRATES.find(
+        // Jellyfin leaves a null out of the plugin's JSON, so a default
+        // without a value is the one the plugin ships: the app's own, Auto.
+        // The plugin names Max by its key, which the lookup below finds.
+        if (value === undefined || value === null) return AUTO_BITRATE;
+        const match = PLAYBACK_BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
         if (match) return match;
@@ -429,6 +439,14 @@ export type Settings = {
   defaultBitrate?: Bitrate;
   /** The quality a receiver plays at; the item page's and the default one stay this device's. */
   remotePlaybackQuality: RemotePlaybackQuality;
+  /** Auto: the share of the measured speed a stream may take. */
+  autoBitrateRatio: number;
+  /** Auto: how long a measure is used before the next, in minutes. */
+  autoBitrateTtlMinutes: number;
+  /** Auto: the least a stream gets in the server's network, in bit/s; 0 for none. */
+  autoBitrateInNetworkMin: number;
+  /** Auto: steps down when a stream stalls, and back up once the link allows. */
+  autoBitrateAdapt: boolean;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -636,8 +654,12 @@ export const defaultValues: Settings = {
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
-  defaultBitrate: BITRATES[0],
+  defaultBitrate: AUTO_BITRATE,
   remotePlaybackQuality: NO_REMOTE_QUALITY,
+  autoBitrateRatio: DETECTED_BITRATE_RATIO,
+  autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,
+  autoBitrateInNetworkMin: IN_NETWORK_MIN_BITRATE,
+  autoBitrateAdapt: true,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",

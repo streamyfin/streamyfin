@@ -157,7 +157,8 @@ const item = {
   RunTimeTicks: 600_000_000,
   UserData: { PlaybackPositionTicks: 0 },
 } as never;
-const selectedOptions = {} as never;
+// The item page always has a quality: Auto, the default, unless one is picked.
+const selectedOptions = { bitrate: { key: "Auto", value: undefined } } as never;
 
 beforeEach(() => {
   mockTarget = connectedTo(mockSalon);
@@ -625,5 +626,26 @@ test("of two pages waiting for the receiver, the last press plays", async () => 
     expect.objectContaining({ items: [other] }),
     expect.anything(),
     expect.any(Function),
+  );
+});
+
+// Naming no quality would play at the default one: Auto and Max reach the player as themselves.
+test.each([
+  ["Auto", "auto"],
+  ["Max", "max"],
+])("a play here hands the player %s as %s", async (key, value) => {
+  mockTarget = mockNoTarget;
+  await render(
+    <PlayButton
+      item={item}
+      selectedOptions={{ bitrate: { key, value: undefined } } as never}
+    />,
+  );
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ itemId: "item-1", bitrateValue: value }),
+    { item },
   );
 });
