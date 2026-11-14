@@ -42,7 +42,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Bitrate.ts` | Streaming quality: the keys of Auto and Max and how both travel to the players, and how Auto is measured (jellyfin-web's speed tests, their sizes and thresholds, the share of the rate kept, the in-network floor, how long a measure is reused and a failed one remembered, when a stream played counts as downloaded, and the choices the Auto settings offer for them), and how Auto adapts during playback (what counts as a stall or a low cache, the grace after a start or a seek, how a step down is sized, when the link is measured again to step back up). The caps themselves, `BITRATES`, are in `constants/Playback.ts` |
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
-| `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
+| `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; how far into a track Previous goes back to its start, on the phone and on a receiver; the storage key of the stored tracks index |
 | `constants/Streamystats.ts` | Streamystats server: how long a watchlists request waits for an answer, and how many times a refresh behind lists already shown is retried |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/Inactivity.ts` | The TV inactivity sign-out's storage key for the last activity |

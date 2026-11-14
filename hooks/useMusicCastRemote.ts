@@ -6,6 +6,7 @@ import {
   MUSIC_CAST_RESUME_END_MARGIN_SECONDS,
   MUSIC_CAST_START_FAILURE_WINDOW_MS,
 } from "@/constants/Cast";
+import { PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS } from "@/constants/Music";
 import {
   CastIdleReason,
   CastMediaPlayerState,
@@ -268,6 +269,9 @@ export const useMusicCastRemote = ({
     }
     view = { ...view, isPlaying: false, progress: resumeAt };
   }
+  // Where the player shows the track, which Previous reads at the press.
+  const shownProgress = useRef(0);
+  shownProgress.current = view?.progress ?? 0;
   const first = firstReport.current;
   const failedStart =
     current !== null &&
@@ -385,20 +389,6 @@ export const useMusicCastRemote = ({
       ),
     [transport, session, staleOnSwitch],
   );
-  const previous = useCallback(
-    () =>
-      transport("previous", () =>
-        session
-          ? sendJellyfinCastCommand(
-              "PreviousTrack",
-              session,
-              {},
-              staleOnSwitch(),
-            )
-          : undefined,
-      ),
-    [transport, session, staleOnSwitch],
-  );
   // A stream the receiver cannot seek in, transcoded music, is reloaded from
   // the new position, which only the receiver's own Seek does.
   const cannotSeekInStream = media.canClientSeek === false;
@@ -417,6 +407,24 @@ export const useMusicCastRemote = ({
           : client?.seek(position),
       ),
     [transport, client, session, cannotSeekInStream, staleOnSwitch],
+  );
+  // The receiver never goes back to the start of the track it plays: its PreviousTrack goes to the one before, or
+  // nowhere from the first. Past a few seconds in, Previous seeks to the start, as on the phone.
+  const previous = useCallback(
+    () =>
+      shownProgress.current > PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS
+        ? seek(0)
+        : transport("previous", () =>
+            session
+              ? sendJellyfinCastCommand(
+                  "PreviousTrack",
+                  session,
+                  {},
+                  staleOnSwitch(),
+                )
+              : undefined,
+          ),
+    [seek, transport, session, staleOnSwitch],
   );
   /** Resolves to whether the receiver was told: the player shows the mode only then. */
   const setRepeat = useCallback(

@@ -30,6 +30,7 @@ import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS } from "@/constants/Music";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useNowPlayingVolume } from "@/hooks/useNowPlayingVolume";
@@ -182,7 +183,10 @@ export default function NowPlayingScreen() {
   };
 
   const canGoNext = queueIndex < queue.length - 1 || repeatMode === "all";
-  const canGoPrevious = queueIndex > 0 || progress > 3 || repeatMode === "all";
+  const canGoPrevious =
+    queueIndex > 0 ||
+    progress > PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS ||
+    repeatMode === "all";
 
   if (!currentTrack) {
     return (

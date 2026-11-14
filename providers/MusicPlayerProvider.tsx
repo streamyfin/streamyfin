@@ -16,7 +16,10 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
-import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
+import {
+  DEFAULT_MUSIC_NORMALIZATION_MODE,
+  PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS,
+} from "@/constants/Music";
 import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import { useMusicCast } from "@/hooks/useMusicCast";
 import {
@@ -1761,7 +1764,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       (p: Progress) => p.position,
     );
 
-    if (position > 3) {
+    if (position > PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS) {
       await TrackPlayer.seekTo(0);
       setState((prev) => ({ ...prev, progress: 0 }));
       return;

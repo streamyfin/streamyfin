@@ -774,6 +774,7 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await castAlbum();
 
     await run((p) => p.next());
+    await receiverStatus("t2", "playing", 1);
     await run((p) => p.previous());
 
     expect(receiverCommands().map((message) => message.command)).toEqual([
@@ -782,6 +783,20 @@ describe("MusicPlayerProvider and a Cast session", () => {
       "PreviousTrack",
     ]);
     expect(nativeIds()).toEqual([]);
+  });
+
+  // As on the phone: past three seconds Previous goes back to the start of the track. The receiver never goes back to
+  // the start of the item it plays, its PreviousTrack goes to the track before, or nowhere from the first.
+  test("previous past three seconds takes the receiver back to the start of the track", async () => {
+    await castAlbum();
+    castNative().seek.mockClear();
+
+    await run((p) => p.previous());
+
+    expect(castNative().seek).toHaveBeenCalledWith(0, "session-1");
+    expect(receiverCommands().map((message) => message.command)).not.toContain(
+      "PreviousTrack",
+    );
   });
 
   test("a seek moves the receiver", async () => {
