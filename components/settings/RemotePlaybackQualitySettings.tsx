@@ -6,8 +6,9 @@ import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
-import { BITRATES } from "@/constants/Playback";
+import { AUTO_BITRATE_KEY } from "@/constants/Bitrate";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
+import { bitrateLabel, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import {
   forgetTarget,
   NO_REMOTE_QUALITY,
@@ -25,8 +26,8 @@ const Trigger: React.FC<{ label: string }> = ({ label }) => (
 );
 
 /**
- * The quality receivers play at: one for Chromecast, then one per receiver the app connected to, which follows
- * Chromecast's until it is given its own. The item page's quality caps this device only.
+ * The quality receivers play at: one for Chromecast, Auto unless set, then one per receiver the app connected to,
+ * which follows Chromecast's until it is given its own. The item page's quality caps this device only.
  */
 export const RemotePlaybackQualitySettings: React.FC = () => {
   const { t } = useTranslation();
@@ -39,7 +40,12 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
   // would be dropped by writing back this render's list.
   const latest = () =>
     store.get(settingsAtom)?.remotePlaybackQuality ?? NO_REMOTE_QUALITY;
-  const castKey = quality.byKind.cast ?? BITRATES[0].key;
+  const castKey = quality.byKind.cast ?? AUTO_BITRATE_KEY;
+  // Auto, the cast's default, is named in the app's language; the caps by their key.
+  const labelOf = (key: string) => {
+    const bitrate = PLAYBACK_BITRATES.find((choice) => choice.key === key);
+    return bitrate ? bitrateLabel(t, bitrate) : key;
+  };
   const chromecast = t("home.settings.remote_quality.chromecast");
   const sameAsChromecast = t("home.settings.remote_quality.same_as_chromecast");
 
@@ -57,14 +63,14 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
         <ListItem title={chromecast}>
           <PlatformDropdown
             title={chromecast}
-            trigger={<Trigger label={castKey} />}
+            trigger={<Trigger label={labelOf(castKey)} />}
             accessibilityLabel={chromecast}
-            accessibilityValue={castKey}
+            accessibilityValue={labelOf(castKey)}
             groups={[
               {
-                options: BITRATES.map((bitrate) => ({
+                options: PLAYBACK_BITRATES.map((bitrate) => ({
                   type: "radio" as const,
-                  label: bitrate.key,
+                  label: bitrateLabel(t, bitrate),
                   value: bitrate.key,
                   selected: bitrate.key === castKey,
                   onPress: () =>
@@ -86,10 +92,12 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
             <ListItem key={known.id} title={known.name}>
               <PlatformDropdown
                 title={known.name}
-                trigger={<Trigger label={own ?? sameAsChromecast} />}
+                trigger={
+                  <Trigger label={own ? labelOf(own) : sameAsChromecast} />
+                }
                 // Several receivers can share a quality: the control names its receiver too.
                 accessibilityLabel={known.name}
-                accessibilityValue={own ?? sameAsChromecast}
+                accessibilityValue={own ? labelOf(own) : sameAsChromecast}
                 groups={[
                   {
                     options: [
@@ -107,9 +115,9 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
                             ),
                           }),
                       },
-                      ...BITRATES.map((bitrate) => ({
+                      ...PLAYBACK_BITRATES.map((bitrate) => ({
                         type: "radio" as const,
-                        label: bitrate.key,
+                        label: bitrateLabel(t, bitrate),
                         value: bitrate.key,
                         selected: bitrate.key === own,
                         onPress: () =>

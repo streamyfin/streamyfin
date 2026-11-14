@@ -1,8 +1,8 @@
 import { REMOTE_QUALITY_KNOWN_TARGETS_MAX } from "@/constants/Cast";
 import type { RemoteTarget } from "@/modules/mpv-player/src/cast/Cast.types";
 import {
+  bitrateRequestFor,
   forgetTarget,
-  maxBitrateFor,
   NO_REMOTE_QUALITY,
   rememberTarget,
   setKindQuality,
@@ -23,27 +23,50 @@ test("aKnownTargetOverridesItsKind", () => {
     byKind: { cast: "8 Mb/s" },
     byTarget: { "device-a": "2 Mb/s" },
   };
-  expect(maxBitrateFor(salon, quality)).toBe(2_000_000);
-  expect(maxBitrateFor(bedroom, quality)).toBe(8_000_000);
+  expect(bitrateRequestFor(salon, quality)).toBe(2_000_000);
+  expect(bitrateRequestFor(bedroom, quality)).toBe(8_000_000);
 });
 
 test("theKindAppliesToAnUnknownTarget", () => {
   expect(
-    maxBitrateFor(salon, { ...NO_REMOTE_QUALITY, byKind: { cast: "4 Mb/s" } }),
+    bitrateRequestFor(salon, {
+      ...NO_REMOTE_QUALITY,
+      byKind: { cast: "4 Mb/s" },
+    }),
   ).toBe(4_000_000);
 });
 
-// The receiver then plays at its own uncapped ceiling (RECEIVER_UNCAPPED_BITRATE).
-test("nothingSetMeansNoCap", () => {
-  expect(maxBitrateFor(salon, NO_REMOTE_QUALITY)).toBeUndefined();
-  expect(maxBitrateFor(salon, undefined)).toBeUndefined();
+// Auto is the cast's default (rule of 30/10): what the link to the server measures.
+test("nothingSetMeansAuto", () => {
+  expect(bitrateRequestFor(salon, NO_REMOTE_QUALITY)).toBe("auto");
+  expect(bitrateRequestFor(salon, undefined)).toBe("auto");
   expect(
-    maxBitrateFor(salon, { ...NO_REMOTE_QUALITY, byKind: { cast: "Max" } }),
-  ).toBeUndefined();
-  // A key no longer in the list caps nothing.
+    bitrateRequestFor(salon, {
+      ...NO_REMOTE_QUALITY,
+      byKind: { cast: "Auto" },
+    }),
+  ).toBe("auto");
+  // A key no longer in the list falls back to the default.
   expect(
-    maxBitrateFor(salon, { ...NO_REMOTE_QUALITY, byKind: { cast: "3 Mb/s" } }),
-  ).toBeUndefined();
+    bitrateRequestFor(salon, {
+      ...NO_REMOTE_QUALITY,
+      byKind: { cast: "3 Mb/s" },
+    }),
+  ).toBe("auto");
+});
+
+// Max stays an explicit choice: the receiver then plays at its own ceiling (RECEIVER_UNCAPPED_BITRATE).
+test("maxMeansNoCap", () => {
+  expect(
+    bitrateRequestFor(salon, { ...NO_REMOTE_QUALITY, byKind: { cast: "Max" } }),
+  ).toBe("max");
+  expect(
+    bitrateRequestFor(salon, {
+      ...NO_REMOTE_QUALITY,
+      byKind: { cast: "4 Mb/s" },
+      byTarget: { "device-a": "Max" },
+    }),
+  ).toBe("max");
 });
 
 test("aConnectionRemembersTheTarget", () => {

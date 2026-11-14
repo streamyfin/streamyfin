@@ -10,6 +10,7 @@ import {
   type RemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import { effectiveSettingsAtom } from "@/utils/atoms/settings";
+import { liveTvBitrateRequest } from "@/utils/bitrate";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
@@ -17,8 +18,10 @@ import {
 } from "@/utils/cast/jellyfinReceiver";
 import { currentPlayChoice } from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
-import { maxBitrateFor } from "@/utils/cast/remoteQuality";
+import { bitrateRequestFor } from "@/utils/cast/remoteQuality";
 import { watchLoadedCast } from "@/utils/cast/watchLoadedCast";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 
 /** What to play on the receiver: an item, where to start, and the streams chosen for it. */
@@ -106,19 +109,27 @@ export const sendToReceiver = async (
       return { status: "failed", message: deps.t("cast.output.failed") };
     }
     const receiverName = (await currentReceiverName()) ?? remote.name;
+    // The item page's quality is this device's: a receiver plays at the remote one, read now as the session is,
+    // with the admin's lock as the settings page shows it. Live TV plays without a cap unless one was picked.
+    const settings = deps.store.get(effectiveSettingsAtom);
+    const quality = liveTvBitrateRequest(
+      play.item,
+      bitrateRequestFor(remote, settings?.remotePlaybackQuality),
+    );
     const outcome = await castToJellyfinReceiver(
       client,
-      {
+      // Handed over unbuilt: the load takes its turn now, and a cast picked while Auto measures replaces it. The
+      // receiver knows no Auto: it gets the bitrate measured here, and its own ceiling for no cap.
+      (async () => ({
         api: deps.api,
         userId: deps.userId,
         receiverName,
-        // The item page's quality is this device's: a receiver plays at the remote one, read now as the session is,
-        // with the admin's lock as the settings page shows it.
-        maxBitrate: maxBitrateFor(
-          remote,
-          deps.store.get(effectiveSettingsAtom).remotePlaybackQuality,
+        maxBitrate: await resolveMaxStreamingBitrate(
+          deps.api,
+          quality,
+          autoBitrateOptions(settings),
         ),
-      },
+      }))(),
       {
         items: [play.item],
         startPositionTicks: play.positionTicks,

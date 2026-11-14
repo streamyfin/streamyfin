@@ -37,6 +37,12 @@ jest.mock("@/utils/cast/watchLoadedCast", () => ({
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeErrorLog: jest.fn(),
+  writeToLog: jest.fn(),
+}));
+// The server's speed test: what Auto measures on the link.
+const mockDetectBitrate = jest.fn(async () => 12_000_000);
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: (...args: unknown[]) => mockDetectBitrate(...(args as [])),
 }));
 
 const livingRoom = {
@@ -72,6 +78,8 @@ beforeEach(() => {
   mockReadHeldStatus = async () => mockHeldStatus;
   watch.mockReset();
   load.mockReset();
+  mockDetectBitrate.mockReset();
+  mockDetectBitrate.mockImplementation(async () => 12_000_000);
   load.mockImplementation(async () => ({ status: "loaded" }));
   store.set(
     effectiveSettingsAtom as never,
@@ -92,7 +100,7 @@ test("sends the item at the position with its streams", async () => {
   expect(load).toHaveBeenCalledTimes(1);
   const [client, session, request] = load.mock.calls[0];
   expect(client).toMatchObject({ id: "client-of-session-1" });
-  expect(session).toMatchObject({
+  expect(await session).toMatchObject({
     userId: "user-1",
     receiverName: "Living room",
   });
@@ -105,10 +113,96 @@ test("sends the item at the position with its streams", async () => {
   });
 });
 
+// The bitrate the receiver was handed: the session may still be measuring when the load takes its turn.
+const sentBitrate = async () => (await load.mock.calls[0][1]).maxBitrate;
+const withQuality = (
+  byKind: Record<string, string>,
+  byTarget: Record<string, string> = {},
+) =>
+  store.set(
+    effectiveSettingsAtom as never,
+    { remotePlaybackQuality: { byKind, byTarget, known: [] } } as never,
+  );
+
 test("uses the receiver's quality", async () => {
   await sendToReceiver(deps, play, livingRoom, () => false);
 
-  expect(load.mock.calls[0][1].maxBitrate).toBe(4_000_000);
+  expect(await sentBitrate()).toBe(4_000_000);
+  expect(mockDetectBitrate).not.toHaveBeenCalled();
+});
+
+// Rule of 30/10: Auto is the cast's default. The receiver knows no Auto: it is handed what the link measured.
+describe("Auto on the receiver", () => {
+  test("is the quality when none is set, at the bitrate measured", async () => {
+    withQuality({});
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(12_000_000);
+    expect(mockDetectBitrate).toHaveBeenCalledTimes(1);
+  });
+
+  test("is measured when picked for the receiver", async () => {
+    withQuality({ cast: "4 Mb/s" }, { "device-a": "Auto" });
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(12_000_000);
+  });
+
+  // No cap: castToJellyfinReceiver then names the receiver's own ceiling.
+  test("that measures nothing sets no cap", async () => {
+    withQuality({});
+    mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBeUndefined();
+  });
+
+  // The load takes its turn now: a cast picked while Auto measures replaces it, as develop's item page did.
+  test("lets the load take its turn while it measures", async () => {
+    withQuality({});
+    let measured: (bitrate: number) => void = () => {};
+    mockDetectBitrate.mockImplementationOnce(
+      () => new Promise<number>((resolve) => (measured = resolve)),
+    );
+    const sent = sendToReceiver(deps, play, livingRoom, () => false);
+
+    await followed();
+    expect(load).toHaveBeenCalledTimes(1);
+    measured(9_000_000);
+    expect(await sentBitrate()).toBe(9_000_000);
+    await sent;
+  });
+});
+
+test("Max sets no cap and measures nothing", async () => {
+  withQuality({ cast: "Max" });
+  await sendToReceiver(deps, play, livingRoom, () => false);
+
+  expect(await sentBitrate()).toBeUndefined();
+  expect(mockDetectBitrate).not.toHaveBeenCalled();
+});
+
+// Live TV plays without a cap unless a bitrate was picked by hand, as on this device: Auto never measures for it.
+describe("live TV on the receiver", () => {
+  const channel = {
+    ...play,
+    item: { Id: "channel-1", Name: "News", Type: "TvChannel" } as never,
+  };
+
+  test("plays without a cap under Auto", async () => {
+    withQuality({});
+    await sendToReceiver(deps, channel, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBeUndefined();
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+  });
+
+  test("keeps a bitrate picked by hand", async () => {
+    withQuality({ cast: "8 Mb/s" });
+    await sendToReceiver(deps, channel, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(8_000_000);
+  });
 });
 
 // The caller's moment passed (another account, a later choice): the load reads the receiver, then sends nothing.

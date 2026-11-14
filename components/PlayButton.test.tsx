@@ -160,6 +160,10 @@ const item = {
 // The item page always has a quality: Auto, the default, unless one is picked.
 const selectedOptions = { bitrate: { key: "Auto", value: undefined } } as never;
 
+// The session the receiver was handed: a cast takes its turn while Auto may still measure.
+const castSession = async (call = 0) =>
+  await jest.mocked(castToJellyfinReceiver).mock.calls[call][1];
+
 beforeEach(() => {
   mockTarget = connectedTo(mockSalon);
   mockSession = { id: "session-1" };
@@ -237,13 +241,7 @@ test("PlayButton sends the remote quality", async () => {
   await act(async () =>
     fireEvent.press(screen.getByLabelText("accessibility.play_button")),
   );
-  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
-    expect.anything(),
-    expect.objectContaining({ maxBitrate: 4_000_000 }),
-    expect.anything(),
-    expect.anything(),
-    expect.any(Function),
-  );
+  expect(await castSession()).toMatchObject({ maxBitrate: 4_000_000 });
 });
 
 test("a long press offers to play here", async () => {
@@ -362,13 +360,7 @@ test("a press waiting for the receiver plays at the quality saved meanwhile", as
     ),
   );
   await act(async () => emitTarget(connectedTo(mockSalon)));
-  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
-    expect.anything(),
-    expect.objectContaining({ maxBitrate: 1_000_000 }),
-    expect.anything(),
-    expect.anything(),
-    expect.any(Function),
-  );
+  expect(await castSession()).toMatchObject({ maxBitrate: 1_000_000 });
 });
 
 // The settings page shows the admin's quality: the receiver gets that one, whatever the user had saved.
@@ -386,13 +378,7 @@ test("a remote quality the admin locked is the one the receiver gets", async () 
   );
   await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
   await press();
-  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
-    expect.anything(),
-    expect.objectContaining({ maxBitrate: 1_000_000 }),
-    expect.anything(),
-    expect.anything(),
-    expect.any(Function),
-  );
+  expect(await castSession()).toMatchObject({ maxBitrate: 1_000_000 });
 });
 
 // A switch while the press waits is the user's own choice of output: the press plays there, which the
@@ -412,13 +398,10 @@ test("a press waiting for one receiver plays on the one the output switched to",
   await act(async () => emitTarget(connectedTo(bedroom)));
   // Bedroom's session, at Bedroom's own quality.
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
-  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
-    { id: "client-of-session-bedroom" },
-    expect.objectContaining({ maxBitrate: 2_000_000 }),
-    expect.anything(),
-    expect.anything(),
-    expect.any(Function),
-  );
+  expect(jest.mocked(castToJellyfinReceiver).mock.calls[0][0]).toEqual({
+    id: "client-of-session-bedroom",
+  });
+  expect(await castSession()).toMatchObject({ maxBitrate: 2_000_000 });
 });
 
 // One wait at a time: a second press while it runs adds no second load.

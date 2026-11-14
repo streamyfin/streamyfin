@@ -133,7 +133,7 @@ test("each quality control names its receiver and its quality to screen readers"
   expect(
     screen.getByLabelText("home.settings.remote_quality.chromecast").props
       .accessibilityValue,
-  ).toEqual({ text: "Max" });
+  ).toEqual({ text: "item_card.quality_auto" });
   expect(screen.getByLabelText("Salon").props.accessibilityValue).toEqual({
     text: "home.settings.remote_quality.same_as_chromecast",
   });
@@ -147,7 +147,7 @@ test("lists Chromecast, then each receiver the app connected to", async () => {
   expect(screen.getByText("home.settings.remote_quality.title")).toBeTruthy();
   expect(
     screen.getByLabelText(
-      "home.settings.remote_quality.chromecast / Max (selected)",
+      "home.settings.remote_quality.chromecast / item_card.quality_auto (selected)",
     ),
   ).toBeTruthy();
   // A receiver follows Chromecast until it is given its own quality.
@@ -157,6 +157,29 @@ test("lists Chromecast, then each receiver the app connected to", async () => {
     ),
   ).toBeTruthy();
   expect(screen.getAllByText("Bedroom").length).toBeGreaterThan(0);
+});
+
+// Rule of 30/10: Auto is the cast's default, and a choice like the others.
+test("Auto leads the qualities and can be picked again", async () => {
+  stored({ ...mockQuality, byKind: { cast: "2 Mb/s" } });
+  await render(<RemotePlaybackQualitySettings />);
+  const chromecast = screen
+    .getAllByLabelText(/^home\.settings\.remote_quality\.chromecast \/ /)
+    .map((option) => option.props.accessibilityLabel);
+  expect(chromecast[0]).toBe(
+    "home.settings.remote_quality.chromecast / item_card.quality_auto",
+  );
+  expect(chromecast).toContain("home.settings.remote_quality.chromecast / Max");
+  await act(async () =>
+    fireEvent.press(
+      screen.getByLabelText(
+        "home.settings.remote_quality.chromecast / item_card.quality_auto",
+      ),
+    ),
+  );
+  expect(mockUpdateSettings).toHaveBeenCalledWith({
+    remotePlaybackQuality: { ...mockQuality, byKind: { cast: "Auto" } },
+  });
 });
 
 test("a quality for Chromecast caps every receiver of that kind", async () => {

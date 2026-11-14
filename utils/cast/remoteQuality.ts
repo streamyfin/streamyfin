@@ -1,9 +1,14 @@
+import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import { REMOTE_QUALITY_KNOWN_TARGETS_MAX } from "@/constants/Cast";
-import { BITRATES } from "@/constants/Playback";
 import type {
   RemoteTarget,
   RemoteTargetKind,
 } from "@/modules/mpv-player/src/cast/Cast.types";
+import {
+  type BitrateRequest,
+  PLAYBACK_BITRATES,
+  toBitrateRequest,
+} from "@/utils/bitrate";
 
 /** A receiver the app connected to, listed by the remote quality settings. */
 export interface KnownTarget {
@@ -13,8 +18,8 @@ export interface KnownTarget {
 }
 
 /**
- * The bitrate a receiver plays at, as keys of `BITRATES`: per kind of target, then per known
- * target. The item page's quality is this device's own and caps no cast.
+ * The quality a receiver plays at, as keys of `PLAYBACK_BITRATES`: per kind of target, then per
+ * known target. The item page's quality is this device's own and caps no cast.
  */
 export interface RemotePlaybackQuality {
   byKind: Partial<Record<RemoteTargetKind, string>>;
@@ -28,15 +33,17 @@ export const NO_REMOTE_QUALITY: RemotePlaybackQuality = Object.freeze({
   known: [],
 });
 
-/** The target's own cap, else its kind's, else none: the receiver then plays uncapped. */
-export const maxBitrateFor = (
+/**
+ * The target's own quality, else its kind's, else Auto, the cast's default: what the link to the
+ * server measures. Max is the receiver's own ceiling, and a key no longer offered is the default.
+ */
+export const bitrateRequestFor = (
   target: RemoteTarget,
   quality: RemotePlaybackQuality | undefined,
-): number | undefined => {
+): BitrateRequest => {
   const key = quality?.byTarget[target.id] ?? quality?.byKind[target.kind];
-  return key === undefined
-    ? undefined
-    : BITRATES.find((bitrate) => bitrate.key === key)?.value;
+  const bitrate = PLAYBACK_BITRATES.find((choice) => choice.key === key);
+  return bitrate ? toBitrateRequest(bitrate) : AUTO_BITRATE_VALUE;
 };
 
 /** A connection puts the target first, under its name of now; past the cap the oldest goes, its quality with it. */
