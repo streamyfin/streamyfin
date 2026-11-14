@@ -149,7 +149,7 @@ bun run test:unit            # Jest, the whole suite
 bun run test:coverage        # Jest plus a coverage report in coverage/
 bun run perf                 # Reassure performance scenarios (*.perf-test.tsx)
 bun run perf:baseline        # Reassure baseline to compare `bun run perf` against
-bun run test                 # The full gate: typecheck, unit, lint, format, i18n, doctor
+bun run test                 # The full gate: typecheck, unit, e2e bench, lint, format, i18n, doctor
 
 # iOS specific
 bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build errors
@@ -185,12 +185,12 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
-| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
+| `e2e/` | End-to-end bench and suites (test server, devices, Cast sender, Maestro flows), see `e2e/README.md` |
 
 ## Key patterns
 
@@ -212,6 +212,9 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
   intro-skipper plugins, Web's static configuration, configurable custom sections,
   and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  One SDK endpoint is the exception: Auto quality's speed test
+  (`utils/jellyfin/bitrateTest.ts`) times the body of `/Playback/BitrateTest` as it
+  streams in, through expo/fetch, which Axios cannot; it sends the same headers.
   The SDK itself uses Axios; keep its custom-header transport and error handling.
   Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
   `pluginPut` / `pluginDelete` extensions, not generic `Api.get` / `post` /

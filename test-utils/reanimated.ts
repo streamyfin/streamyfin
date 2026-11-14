@@ -158,6 +158,7 @@ export const reanimatedModule = {
   },
   useSharedValue: <Value>(initial: Value) =>
     useRef(makeSharedValue(initial)).current,
+  useDerivedValue: <Value>(updater: () => Value) => ({ value: updater() }),
   useAnimatedStyle: (updater: () => object) => updater(),
   // The real one updates the props on the UI thread whenever a shared value
   // they read changes; here such a change renders the component again.
@@ -186,7 +187,14 @@ export const reanimatedModule = {
   withRepeat: (animation: unknown) => animation,
   cancelAnimation: () => {},
   interpolate,
+  // Colors are not blended: the end one once the input reaches its end.
+  interpolateColor: (
+    value: number,
+    [, inputEnd]: number[],
+    [outputStart, outputEnd]: string[],
+  ) => (value >= inputEnd ? outputEnd : outputStart),
   Easing: {
+    bezier: () => ({}),
     out: () => ({}),
     cubic: {},
     inOut: () => ({}),

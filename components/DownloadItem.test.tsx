@@ -817,6 +817,60 @@ describe("DownloadSingleItem, picks made on two versions", () => {
   });
 });
 
+describe("the quality of a download", () => {
+  beforeEach(() => {
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+  });
+
+  // A file has no connection to adapt to: Auto downloads as Max does.
+  test("is Max, with no cap, when the default quality is Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: undefined }),
+    );
+    expect(mockStartBackgroundDownload).toHaveBeenCalledWith(
+      "http://server/download",
+      expect.objectContaining({ Id: "movie-1" }),
+      MEDIA_SOURCE,
+      { key: "Max", value: undefined },
+      undefined,
+      -1,
+    );
+  });
+
+  test("is not offered as Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    // The sheet lists its qualities as it renders, as the test above reads them: Auto is none of them.
+    const qualities = screen
+      .getAllByText(/^(Auto|item_card\.quality_auto|Max|\d+ [MK]b\/s)$/)
+      .map((option) => option.props.children);
+    expect(qualities).toContain("Max");
+    expect(qualities).not.toContain("Auto");
+    expect(qualities).not.toContain("item_card.quality_auto");
+  });
+
+  test("keeps a fixed default quality", async () => {
+    mockSettings = { defaultBitrate: { key: "4 Mb/s", value: 4_000_000 } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: 4_000_000 }),
+    );
+  });
+});
+
 describe("DownloadItems, sending one episode of a season", () => {
   beforeEach(() => {
     jest.mocked(getDownloadStreamUrl).mockResolvedValue({

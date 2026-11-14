@@ -1,3 +1,5 @@
+import { MAX_BITRATE_KEY } from "@/constants/Bitrate";
+
 /**
  * Heartbeat cadence, in ms, for the periodic playback progress report. The
  * players tick once a second, but the server only needs the position often
@@ -46,6 +48,26 @@ export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;
  * settles would hold every later report, the Stop included.
  */
 export const PLAYBACK_REPORT_TIMEOUT_MS = 15_000;
+
+export type Bitrate = {
+  key: string;
+  value: number | undefined;
+};
+
+/**
+ * The streaming caps, highest first: what a download is made at, and what
+ * the pickers of this device offer after Auto (`PLAYBACK_BITRATES`). Max caps
+ * nothing.
+ */
+export const BITRATES: Bitrate[] = [
+  { key: MAX_BITRATE_KEY, value: undefined },
+  { key: "8 Mb/s", value: 8_000_000 },
+  { key: "4 Mb/s", value: 4_000_000 },
+  { key: "2 Mb/s", value: 2_000_000 },
+  { key: "1 Mb/s", value: 1_000_000 },
+  { key: "500 Kb/s", value: 500_000 },
+  { key: "250 Kb/s", value: 250_000 },
+];
 
 /**
  * How long, in ms, a volume step a server sent keeps being the starting point

@@ -25,6 +25,7 @@
     "assets/**/*",
     "components/**/*",
     "constants/**/*",
+    "e2e/**/*",
     "hooks/**/*",
     "modules/**/*",
     "packages/**/*",

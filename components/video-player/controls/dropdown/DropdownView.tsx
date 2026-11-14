@@ -18,7 +18,6 @@ import {
 import { Slider } from "react-native-awesome-slider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSharedValue } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Stepper } from "@/components/inputs/Stepper";
 import {
@@ -29,6 +28,7 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { playerQualityOptions } from "@/utils/bitrate";
 import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
@@ -311,18 +311,21 @@ const DropdownView = ({
   const optionGroups = useMemo<OptionGroup[]>(() => {
     const groups: OptionGroup[] = [];
 
-    // Quality Section
+    // Quality Section. A route that names no quality plays at the default
+    // one, marked as such.
     if (!isOffline) {
       groups.push({
         title: t("player.menu.quality"),
-        options:
-          BITRATES?.map((bitrate) => ({
-            type: "radio" as const,
-            label: bitrate.key,
-            value: bitrate.value?.toString() ?? "",
-            selected: bitrateValue === (bitrate.value?.toString() ?? ""),
-            onPress: () => changeBitrate(bitrate.value?.toString() ?? ""),
-          })) || [],
+        options: playerQualityOptions(
+          t,
+          bitrateValue,
+          settings.defaultBitrate,
+          item,
+        ).map((option) => ({
+          type: "radio" as const,
+          ...option,
+          onPress: () => changeBitrate(option.value),
+        })),
       });
     }
 
@@ -418,6 +421,7 @@ const DropdownView = ({
     t,
     isOffline,
     bitrateValue,
+    settings.defaultBitrate,
     changeBitrate,
     subtitleTracksKey,
     audioTracksKey,

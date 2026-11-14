@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "a short queue is sent whole",
+      "input": {
+        "queue": ["a", "b", "c", "d", "e"],
+        "selectedIndex": 1,
+        "maxItems": 10
+      },
+      "expected": { "items": ["a", "b", "c", "d", "e"], "startIndex": 1 }
+    },
+    {
+      "name": "a track picked past the limit stays in what is sent",
+      "input": {
+        "queue": ["a", "b", "c", "d", "e"],
+        "selectedIndex": 4,
+        "maxItems": 3
+      },
+      "expected": { "items": ["c", "d", "e"], "startIndex": 2 }
+    },
+    {
+      "name": "the window fills backwards near the end of the queue",
+      "input": {
+        "queue": ["a", "b", "c", "d", "e"],
+        "selectedIndex": 3,
+        "maxItems": 3
+      },
+      "expected": { "items": ["c", "d", "e"], "startIndex": 1 }
+    },
+    {
+      "name": "an index past the end is clamped",
+      "input": {
+        "queue": ["a", "b", "c", "d", "e"],
+        "selectedIndex": 9,
+        "maxItems": 3
+      },
+      "expected": { "items": ["c", "d", "e"], "startIndex": 2 }
+    },
+    {
+      "name": "a negative index is clamped to the start",
+      "input": {
+        "queue": ["a", "b", "c", "d", "e"],
+        "selectedIndex": -1,
+        "maxItems": 3
+      },
+      "expected": { "items": ["a", "b", "c"], "startIndex": 0 }
+    }
+  ]
+}
