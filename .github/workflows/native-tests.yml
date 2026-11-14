@@ -98,6 +98,7 @@ jobs:
             :mpv-player:testDebugUnitTest \
             :exoplayer-player:testDebugUnitTest \
             :background-downloader:testDebugUnitTest \
+            :hero-carousel:testDebugUnitTest \
             --no-daemon
 
       - name: 📤 Upload test reports
