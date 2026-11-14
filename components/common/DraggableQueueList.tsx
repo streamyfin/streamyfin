@@ -42,6 +42,11 @@ interface Props {
   disabled?: boolean;
   /** Whether the playing row can be removed. Music cannot drop its own track. */
   canRemoveCurrent?: boolean;
+  /**
+   * Off when rows cannot be moved or removed, as while a Cast receiver plays
+   * the music queue: the rows then show no handle and no remove button.
+   */
+  editable?: boolean;
   testID?: string;
   onPressRow: (index: number) => void;
   onRemoveRow: (index: number) => void;
@@ -107,6 +112,7 @@ export const DraggableQueueList: React.FC<Props> = ({
   scrollable = true,
   disabled = false,
   canRemoveCurrent = false,
+  editable = true,
   testID,
   onPressRow,
   onRemoveRow,
@@ -162,7 +168,7 @@ export const DraggableQueueList: React.FC<Props> = ({
           sortable={sortable}
           index={slot}
           dragHandle
-          draggable={!disabled}
+          draggable={!disabled && editable}
           hoverDraggingStyle={{ backgroundColor: "#2a2a2a" }}
           onDragEnd={endDrag}
           onDragDrop={endDrag}
@@ -176,13 +182,14 @@ export const DraggableQueueList: React.FC<Props> = ({
                 : "#121212",
             }}
           >
-            <QueueHandle />
+            {editable && <QueueHandle />}
 
             <TouchableOpacity
               testID={testID ? `${testID}-row-${item.key}` : undefined}
               onPress={() => index >= 0 && onPressRow(index)}
               disabled={disabled}
-              className='flex-1 flex-row items-center py-3 pr-4'
+              // Without a handle, the row keeps the margin the handle gave it.
+              className={`flex-1 flex-row items-center py-3 pr-4 ${editable ? "" : "pl-4"}`}
             >
               <View
                 className={`rounded overflow-hidden bg-neutral-800 mr-3 ${
@@ -219,7 +226,7 @@ export const DraggableQueueList: React.FC<Props> = ({
 
               {isCurrent && <Ionicons name={icon} size={16} color={ACCENT} />}
 
-              {(!isCurrent || canRemoveCurrent) && (
+              {editable && (!isCurrent || canRemoveCurrent) && (
                 <TouchableOpacity
                   testID={testID ? `${testID}-remove-${item.key}` : undefined}
                   onPress={() => index >= 0 && onRemoveRow(index)}
@@ -242,6 +249,7 @@ export const DraggableQueueList: React.FC<Props> = ({
       currentIndex,
       disabled,
       canRemoveCurrent,
+      editable,
       icon,
       artwork,
       testID,

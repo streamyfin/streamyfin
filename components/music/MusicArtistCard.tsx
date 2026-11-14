@@ -2,8 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { POSTER_IMAGE_TRANSITION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -47,7 +47,7 @@ export const MusicArtistCard: React.FC<Props> = ({ artist }) => {
         }}
       >
         {imageUrl ? (
-          <Image
+          <ArtworkImage
             recyclingKey={artist.Id}
             transition={POSTER_IMAGE_TRANSITION}
             source={{ uri: imageUrl }}

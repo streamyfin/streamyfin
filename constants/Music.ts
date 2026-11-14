@@ -24,3 +24,9 @@ export const AUDIO_STORAGE_INDEX_KEY = "audio_storage.v1.json";
 
 /** How many upcoming songs the music cache can fetch ahead, as its settings offer. */
 export const MUSIC_LOOKAHEAD_COUNTS = [1, 2, 3, 5] as const;
+
+/**
+ * Seconds into a track past which Previous goes back to its start rather than
+ * to the track before, on the phone and on a Cast receiver, as most players do.
+ */
+export const PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS = 3;

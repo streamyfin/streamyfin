@@ -7,6 +7,8 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
+import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 
 class PlayerAlreadyPresentedException :
     CodedException("A native player is already presented; call load() to swap the stream instead")
@@ -16,6 +18,17 @@ class NoActivePlayerException :
 
 class InvalidStreamUrlException :
     CodedException("The stream config contains an unparseable URL")
+
+class UnsupportedEngineException(name: String?) :
+    CodedException("The native player does not run the engine \"$name\"")
+
+/** Why presentPlayer refuses [config] before it builds a session, checked in this order; null when it presents it. */
+internal fun presentRefusal(presented: Boolean, config: PlayerPresentConfigRecord): CodedException? = when {
+    presented -> PlayerAlreadyPresentedException()
+    config.stream.toVideoLoadConfig() == null -> InvalidStreamUrlException()
+    NativeEngineKind.of(config.engine) == null -> UnsupportedEngineException(config.engine)
+    else -> null
+}
 
 class NativePlayerModule : Module() {
 
@@ -37,18 +50,14 @@ class NativePlayerModule : Module() {
             "onNextEpisodeRequested", "onPreviousEpisodeRequested",
             "onEpisodeSelected", "onPlaybackEnded", "onDismiss",
             "onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-            "onMuteStateChanged", "onSyncPlayAction"
+            "onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested"
         )
 
         // MARK: - Lifecycle
 
         AsyncFunction("presentPlayer") { config: PlayerPresentConfigRecord, promise: Promise ->
-            if (this@NativePlayerModule.session != null) {
-                promise.reject(PlayerAlreadyPresentedException())
-                return@AsyncFunction
-            }
-            if (config.stream.toVideoLoadConfig() == null) {
-                promise.reject(InvalidStreamUrlException())
+            presentRefusal(this@NativePlayerModule.session != null, config)?.let {
+                promise.reject(it)
                 return@AsyncFunction
             }
 
@@ -241,7 +250,7 @@ class NativePlayerModule : Module() {
                 return@AsyncFunction
             }
             propsHandler.post {
-                val info = r.getTechnicalInfo()
+                val info = technicalInfoOf(r)
                 promise.resolve(info)
             }
         }

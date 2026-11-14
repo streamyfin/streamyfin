@@ -19,14 +19,6 @@ export const AUTO_BITRATE_VALUE = "auto";
 export const MAX_BITRATE_VALUE = "max";
 
 /**
- * The Jellyfin receiver's own ceiling, what a cast asks for when it sets no
- * cap: under Max, or when Auto could measure nothing. A cast always names a
- * bitrate, since one that names none leaves the receiver on the cap of the
- * cast before it.
- */
-export const RECEIVER_MAX_BITRATE = 120_000_000;
-
-/**
  * The native player's quality menu hands back the index of the entry picked,
  * and the bitrate is that index: Max and Auto, which have none, take two that
  * no bitrate can be.

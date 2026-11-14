@@ -1,237 +1,694 @@
-import type {
-  BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
 import {
+  act,
   fireEvent,
   render,
   screen,
-  waitFor,
+  userEvent,
 } from "@testing-library/react-native";
-import type { Bitrate } from "./BitrateSelector";
+import { getDefaultStore } from "jotai";
+import { Alert } from "react-native";
+import { showExpandedControls } from "@/modules/mpv-player/src/cast";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
+import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
+import { choosePlay, isPressForTargetHeld } from "@/utils/cast/playTarget";
 import { PlayButton } from "./PlayButton";
 
-const mockCast = jest.fn(async (..._args: unknown[]) => ({ status: "loaded" }));
-const mockPlayMedia = jest.fn(async (..._args: unknown[]) => {});
-const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
-const mockClient = { getMediaStatus: async () => null };
-/** The entry picked in the Chromecast / Device / Cancel sheet. */
-let mockChoice = 0;
+const mockSalon = {
+  kind: "cast",
+  id: "device-a",
+  name: "Salon",
+  capabilities: { volume: true },
+};
+const mockNoTarget = {
+  state: "none",
+  target: null,
+  reconnecting: false,
+  error: null,
+  volume: null,
+  muted: false,
+  errorCode: null,
+  failedTarget: null,
+};
+let mockTarget: object = mockNoTarget;
+let mockInGroup = false;
+const mockTargetListeners = new Set<(state: object) => void>();
+// The module's target changes, as onRemoteTargetChanged reports them.
+const emitTarget = (state: object) => {
+  mockTarget = state;
+  for (const listener of [...mockTargetListeners]) listener(state);
+};
+// The receiver's Cast session, which a switch replaces.
+let mockSession: { id: string } | null = { id: "session-1" };
+let mockOffline = false;
+let mockDownloaded: object | undefined;
+const mockShowModal = jest.fn();
+const mockPlayMedia = jest.fn(async () => undefined);
+const mockShowActionSheet = jest.fn();
+const connectedTo = (target: object) => ({
+  ...mockNoTarget,
+  state: "connected",
+  target,
+});
 
-jest.mock("@expo/react-native-action-sheet", () => ({
-  useActionSheet: () => ({
-    showActionSheetWithOptions: (
-      _options: unknown,
-      onSelect: (index?: number) => void,
-    ) => onSelect(mockChoice),
-  }),
-}));
-jest.mock("@expo/vector-icons", () => ({
-  Feather: () => null,
-  Ionicons: () => null,
-}));
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock("react-native-google-cast", () => ({
-  __esModule: true,
-  default: {
-    getPlayServicesState: async () => "success",
-    showPlayServicesErrorDialog: () => {},
-    showExpandedControls: () => {},
-  },
-  CastButton: () => null,
-  PlayServicesState: { SUCCESS: "success" },
-  useCastDevice: () => ({ friendlyName: "Living Room TV" }),
-  useMediaStatus: () => null,
-  useRemoteMediaClient: () => mockClient,
+jest.mock("@expo/vector-icons", () => {
+  const { View } = jest.requireActual("react-native");
+  const Glyph = ({ name }: { name: string }) => (
+    <View testID={`glyph-${name}`} />
+  );
+  return { Feather: Glyph, Ionicons: Glyph };
+});
+jest.mock("@expo/react-native-action-sheet", () => ({
+  useActionSheet: () => ({ showActionSheetWithOptions: mockShowActionSheet }),
 }));
-jest.mock("react-native-reanimated", () => ({
-  ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+jest.mock("@gorhom/bottom-sheet", () => ({
+  BottomSheetView: jest.requireActual("react-native").View,
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
+jest.mock("react-native-reanimated", () => {
+  const { View, Text } = jest.requireActual("react-native");
+  return {
+    ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
+    __esModule: true,
+    default: { View, Text },
+    Easing: { out: () => undefined, quad: undefined },
+    interpolate: (value: number) => value,
+    interpolateColor: (_value: number, _input: number[], output: string[]) =>
+      output[0],
+    useAnimatedReaction: () => undefined,
+    useAnimatedStyle: (style: () => object) => style(),
+    useDerivedValue: (compute: () => unknown) => ({ value: compute() }),
+    withTiming: (value: number) => value,
+  };
+});
+jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => jest.fn() }));
 jest.mock("@/hooks/usePlayMedia", () => ({
   usePlayMedia: () => mockPlayMedia,
 }));
+jest.mock("@/modules/mpv-player/src/cast", () => {
+  return {
+    castClientFor: (session: { id: string }) => ({
+      id: `client-of-${session.id}`,
+    }),
+    currentCastSession: () => mockSession,
+    onRemoteTargetChanged: (listener: (state: object) => void) => {
+      mockTargetListeners.add(listener);
+      return { remove: () => mockTargetListeners.delete(listener) };
+    },
+    remoteTarget: () => mockTarget,
+    showExpandedControls: jest.fn(),
+    useCastMediaStatus: () => null,
+    useRemoteTarget: () => mockTarget,
+  };
+});
 jest.mock("@/providers/Downloads/database", () => ({
-  getDownloadedItemById: () => undefined,
+  getDownloadedItemById: () => mockDownloaded,
 }));
 jest.mock("@/providers/GlobalModalProvider", () => ({
-  useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
+  useGlobalModal: () => ({ showModal: mockShowModal, hideModal: jest.fn() }),
 }));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");
-  return { apiAtom: atom(makeApi()), userAtom: atom({ Id: "user-1" }) };
-});
+jest.mock("@/providers/JellyfinProvider", () => ({
+  apiAtom: jest
+    .requireActual("jotai")
+    .atom({ basePath: "https://jellyfin.example.com" }),
+  userAtom: jest.requireActual("jotai").atom({ Id: "user-1" }),
+}));
 jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
+  useOfflineMode: () => mockOffline,
 }));
 jest.mock("@/providers/SyncPlayProvider", () => ({
-  useSyncPlay: () => ({ enabled: false }),
+  useSyncPlay: () => ({ enabled: mockInGroup }),
 }));
+jest.mock("@/utils/atoms/primaryColor", () => ({
+  itemThemeColorAtom: jest
+    .requireActual("jotai")
+    .atom({ primary: "#FFFFFF", text: "#000000" }),
+}));
+// The stored settings: Bedroom has a quality of its own, so a load shows which receiver it was made for.
+const mockSettings = {
+  showResumeDialog: true,
+  remotePlaybackQuality: {
+    byKind: { cast: "4 Mb/s" },
+    byTarget: { "device-b": "2 Mb/s" },
+    known: [],
+  },
+};
+// The user's own settings, and the effective ones with the admin's locks: two values, so a test can tell them apart.
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { showResumeDialog: false } }),
+  settingsAtom: jest.requireActual("jotai").atom(null),
+  effectiveSettingsAtom: jest.requireActual("jotai").atom(null),
+  useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
-  castToJellyfinReceiver: (...args: unknown[]) => mockCast(...args),
-  currentReceiverName: async () => "Living Room TV",
-  receiverNameFor: () => "Living Room TV",
-}));
-jest.mock("@/utils/jellyfin/bitrateTest", () => ({
-  detectBitrate: (api: unknown) => mockDetectBitrate(api),
+  castToJellyfinReceiver: jest.fn(async () => ({ status: "loaded" })),
+  currentReceiverName: async () => "Salon",
+  parseReceiverCustomData: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .parseReceiverCustomData,
+  toReceiverRequest: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .toReceiverRequest,
 }));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeErrorLog: jest.fn(),
-  writeToLog: jest.fn(),
 }));
 
-const MOVIE: BaseItemDto = {
-  Id: "movie-1",
-  Name: "Movie",
+const item = {
+  Id: "item-1",
+  Name: "Film",
   Type: "Movie",
-  RunTimeTicks: 72_000_000_000,
-};
-const SOURCE: MediaSourceInfo = { Id: "source-1", MediaStreams: [] };
-const CHANNEL: BaseItemDto = {
-  Id: "channel-1",
-  Name: "Channel",
-  Type: "TvChannel",
-};
+  RunTimeTicks: 600_000_000,
+  UserData: { PlaybackPositionTicks: 0 },
+} as never;
+// The item page always has a quality: Auto, the default, unless one is picked.
+const selectedOptions = { bitrate: { key: "Auto", value: undefined } } as never;
 
-const AUTO: Bitrate = { key: "Auto", value: undefined };
-const MAX: Bitrate = { key: "Max", value: undefined };
-const EIGHT_MBPS: Bitrate = { key: "8 Mb/s", value: 8_000_000 };
+// The session the receiver was handed: a cast takes its turn while Auto may still measure.
+const castSession = async (call = 0) =>
+  await jest.mocked(castToJellyfinReceiver).mock.calls[call][1];
 
-const play = async (
-  bitrate: Bitrate,
-  choice: "Chromecast" | "Device",
-  item: BaseItemDto = MOVIE,
-) => {
-  mockChoice = choice === "Chromecast" ? 0 : 1;
+beforeEach(() => {
+  mockTarget = connectedTo(mockSalon);
+  mockSession = { id: "session-1" };
+  mockOffline = false;
+  mockDownloaded = undefined;
+  mockShowModal.mockClear();
+  jest.spyOn(Alert, "alert").mockClear();
+  mockPlayMedia.mockClear();
+  mockShowActionSheet.mockClear();
+  mockInGroup = false;
+  mockTargetListeners.clear();
+  getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+  getDefaultStore().set(settingsAtom as never, mockSettings as never);
+  getDefaultStore().set(effectiveSettingsAtom as never, mockSettings as never);
+  (castToJellyfinReceiver as jest.Mock).mockClear();
+  jest.mocked(showExpandedControls).mockClear();
+});
+
+// The glyph is the whole cue: the pill used to also mount the library's Cast
+// button, transparent, as the Android discovery workaround. The module's
+// discovery needs no mounted button, and an invisible tap target in the pill
+// would open the Cast dialog instead of playing.
+test("a connected receiver shows the cast glyph and no native Cast button", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  // The glyph's id is what the bench's flows wait for after picking a receiver.
+  expect(screen.getByTestId("play-button-cast")).toBeTruthy();
+  expect(screen.getByTestId("glyph-cast")).toBeTruthy();
+  expect(screen.queryByTestId("native-cast-button")).toBeNull();
+});
+
+test("without a receiver the pill carries the play glyph only", async () => {
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByTestId("glyph-play-circle")).toBeTruthy();
+  expect(screen.queryByTestId("play-button-cast")).toBeNull();
+});
+
+test("a connected target names itself on the button", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByText("player.play_on")).toBeTruthy();
+});
+
+// A receiver's name is the user's: a long one stays on one line inside the pill, cut short, the glyphs beside it.
+test("the target's name stays on one line inside the button", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  const label = screen.getByText("player.play_on");
+  expect(label.props.numberOfLines).toBe(1);
+  expect(label.props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ flexShrink: 1 })]),
+  );
+});
+
+// A Continue here tapped while the load was on its way is the last choice: the expanded controls stay closed, or they
+// would open over the player it presents.
+test("a load that lands after a later choice opens no remote", async () => {
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(async () => {
+    choosePlay();
+    return { status: "loaded" };
+  });
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(showExpandedControls).not.toHaveBeenCalled();
+});
+
+// Nothing shows a press until the receiver's first status, a second or so later: a second press then would send the
+// item again, and the TV would restart it in a new play session.
+test("a second press while the receiver loads sends nothing more", async () => {
+  let answer: (outcome: { status: string }) => void = () => {};
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(
+    () => new Promise((resolve) => (answer = resolve)),
+  );
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  const button = screen.getByLabelText("accessibility.play_button");
+  await act(async () => fireEvent.press(button));
+  await act(async () => fireEvent.press(button));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+
+  // Once it answered, the next press is a new send.
+  await act(async () => answer({ status: "loaded" }));
+  await act(async () => fireEvent.press(button));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(2);
+});
+
+// One Play action: no "Chromecast / Device" choice any more.
+test("a press plays on the connected target", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(mockShowActionSheet).not.toHaveBeenCalled();
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// The item page's quality is this device's: a cast plays at the remote quality.
+test("PlayButton sends the remote quality", async () => {
+  const localQuality = {
+    bitrate: { key: "1 Mb/s", value: 1_000_000 },
+  } as never;
+  await render(<PlayButton item={item} selectedOptions={localQuality} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(await castSession()).toMatchObject({ maxBitrate: 4_000_000 });
+});
+
+test("a long press offers to play here", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [options, choose] = mockShowActionSheet.mock.calls[0];
+  expect(options.options).toEqual(["player.play_here", "common.cancel"]);
+  expect(options.options).not.toContain("Chromecast");
+  await act(async () => choose(0));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+test("without a target a press plays here and a long press offers nothing", async () => {
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(mockShowActionSheet).not.toHaveBeenCalled();
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// A press held long is a press when there is nothing else to offer: with a long press handler, the touchable
+// would hand it to that handler instead, and nothing would play.
+test("without a target a held press plays, as a tap does", async () => {
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await userEvent
+    .setup()
+    .longPress(screen.getByLabelText("accessibility.play_button"));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+});
+
+test("while connecting the button says so", async () => {
+  mockTarget = { ...connectedTo(mockSalon), state: "connecting" };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByText("player.connecting_to")).toBeTruthy();
+});
+
+// A download cannot be cast: it plays here, and the button says why.
+test("a download with a target plays here and says why", async () => {
+  mockOffline = true;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByText("player.download_plays_here")).toBeTruthy();
+});
+
+// The button announces the target, so the phone's copy of the item does not
+// turn the press into a question: only a play here can use it.
+test("a downloaded item opened online plays on the target without asking", async () => {
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(mockShowModal).not.toHaveBeenCalled();
+});
+
+test("a play here of a downloaded item still asks which copy to play", async () => {
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "player.downloaded_file_title",
+    "player.downloaded_file_message",
+    expect.anything(),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+const connectingTo = (target: object) => ({
+  ...connectedTo(target),
+  state: "connecting",
+});
+const press = () =>
+  act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+
+test("a press while connecting casts once connected", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// The connection would move the phone's music to the receiver: a press held from its wait to its send keeps it off.
+test("a press while connecting is held until its send went out", async () => {
+  let answer: (outcome: { status: string }) => void = () => {};
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(
+    () => new Promise((resolve) => (answer = resolve)),
+  );
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(isPressForTargetHeld()).toBe(true);
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(isPressForTargetHeld()).toBe(true);
+
+  await act(async () => answer({ status: "loaded" }));
+  expect(isPressForTargetHeld()).toBe(false);
+});
+
+test("a press that waited in vain is released", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(isPressForTargetHeld()).toBe(true);
+  await act(async () => emitTarget(mockNoTarget));
+  expect(isPressForTargetHeld()).toBe(false);
+});
+
+// The quality is read when the load goes: one saved while the press waited is the one the receiver gets.
+test("a press waiting for the receiver plays at the quality saved meanwhile", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    getDefaultStore().set(
+      effectiveSettingsAtom as never,
+      {
+        ...mockSettings,
+        remotePlaybackQuality: {
+          ...mockSettings.remotePlaybackQuality,
+          byTarget: { "device-a": "1 Mb/s" },
+        },
+      } as never,
+    ),
+  );
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(await castSession()).toMatchObject({ maxBitrate: 1_000_000 });
+});
+
+// The settings page shows the admin's quality: the receiver gets that one, whatever the user had saved.
+test("a remote quality the admin locked is the one the receiver gets", async () => {
+  getDefaultStore().set(
+    effectiveSettingsAtom as never,
+    {
+      ...mockSettings,
+      remotePlaybackQuality: {
+        byKind: { cast: "1 Mb/s" },
+        byTarget: {},
+        known: [],
+      },
+    } as never,
+  );
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(await castSession()).toMatchObject({ maxBitrate: 1_000_000 });
+});
+
+// A switch while the press waits is the user's own choice of output: the press plays there, which the
+// button names by then, as YouTube and Spotify follow the output.
+test("a press waiting for one receiver plays on the one the output switched to", async () => {
+  const bedroom = { ...mockSalon, id: "device-b", name: "Bedroom" };
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  // A switch ends the old session first, then connects the asked receiver.
+  await act(async () =>
+    emitTarget({ ...connectingTo(mockSalon), state: "ending" }),
+  );
+  await act(async () => emitTarget(connectingTo(bedroom)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  mockSession = { id: "session-bedroom" };
+  await act(async () => emitTarget(connectedTo(bedroom)));
+  // Bedroom's session, at Bedroom's own quality.
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(jest.mocked(castToJellyfinReceiver).mock.calls[0][0]).toEqual({
+    id: "client-of-session-bedroom",
+  });
+  expect(await castSession()).toMatchObject({ maxBitrate: 2_000_000 });
+});
+
+// One wait at a time: a second press while it runs adds no second load.
+test("a second press while waiting starts nothing more", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await press();
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// Gone back from the item page: the connection that lands later casts nothing from it.
+test("a wait dropped with its button casts nothing", async () => {
+  mockTarget = connectingTo(mockSalon);
+  const view = await render(
+    <PlayButton item={item} selectedOptions={selectedOptions} />,
+  );
+  await press();
+  await act(async () => view.unmount());
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// Cancel from the sheet ends the connection without an error: nothing plays, and nothing to say.
+test("a connection cancelled from the sheet plays nothing and says nothing", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    emitTarget({ ...connectingTo(mockSalon), state: "ending" }),
+  );
+  await act(async () => emitTarget(mockNoTarget));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalled();
+});
+
+test("a connection that fails says so", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    emitTarget({ ...mockNoTarget, error: "lost", failedTarget: mockSalon }),
+  );
+  expect(Alert.alert).toHaveBeenCalledWith(
+    "player.client_error",
+    "cast.output.failed",
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The account that pressed Play is the one whose item and token the receiver gets.
+test("a sign-out while waiting plays nothing on the receiver", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    getDefaultStore().set(userAtom as never, null as never),
+  );
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The label stays the button's; its value says where a press plays.
+test("a target names itself to screen readers", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(
+    screen.getByLabelText("accessibility.play_button").props.accessibilityValue,
+  ).toEqual({ text: "player.play_on" });
+});
+
+test("a screen reader reaches Play here", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(
+      screen.getByLabelText("accessibility.play_button"),
+      "accessibilityAction",
+      { nativeEvent: { actionName: "longpress" } },
+    ),
+  );
+  expect(mockShowActionSheet.mock.calls[0][0].options).toEqual([
+    "player.play_here",
+    "common.cancel",
+  ]);
+});
+
+// A press that goes to the target leaves the group alone: the group's glyph is for a play here.
+test("in a group, a press for the target shows no group glyph", async () => {
+  mockInGroup = true;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.queryByTestId("play-button-syncplay")).toBeNull();
+  mockTarget = mockNoTarget;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  expect(screen.getByTestId("play-button-syncplay")).toBeTruthy();
+});
+
+test("a download played from the downloads never casts", async () => {
+  mockOffline = true;
+  mockDownloaded = { item };
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ offline: true }),
+    expect.anything(),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// The load reads the receiver before it sends: a sign-out in between sends nothing.
+test("the load to the receiver goes stale with the account that pressed", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  await act(async () =>
+    getDefaultStore().set(userAtom as never, null as never),
+  );
+  expect(before).toBe(false);
+  expect(isStale?.()).toBe(true);
+});
+
+// The send follows the current Cast session: a switch while the load reads the receiver would hand the item to
+// the next receiver, at the quality and under the name of this one, and its client would never hear it start.
+test("the load to the receiver goes stale with the Cast session it was made for", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  mockSession = { id: "session-2" };
+  expect(before).toBe(false);
+  expect(isStale?.()).toBe(true);
+});
+
+// The last choice wins: a play here while a press still waits for the receiver plays here only.
+test("a play here while a press waits plays here only", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+// Past the wait, the load still reads the receiver before it sends: a play here by then is the last choice too.
+test("a play here while a load to the receiver is on its way keeps it from sending", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  const isStale = (castToJellyfinReceiver as jest.Mock).mock.calls[0][4] as
+    | (() => boolean)
+    | undefined;
+  const before = isStale?.();
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  expect(before).toBe(false);
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(isStale?.()).toBe(true);
+});
+
+// An item page left under another stays mounted, its press still waiting: the choice made on top is the last one.
+const other = { ...(item as object), Id: "item-2", Name: "Other" } as never;
+const twoPages = () =>
+  render(
+    <>
+      <PlayButton item={item} selectedOptions={selectedOptions} />
+      <PlayButton item={other} selectedOptions={selectedOptions} />
+    </>,
+  );
+const playButtons = () => screen.getAllByLabelText("accessibility.play_button");
+
+test("a play here on another item's page keeps a press waiting here from casting", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await twoPages();
+  await act(async () => fireEvent.press(playButtons()[0]));
+  await act(async () => fireEvent(playButtons()[1], "longPress"));
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+});
+
+test("of two pages waiting for the receiver, the last press plays", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await twoPages();
+  await act(async () => fireEvent.press(playButtons()[0]));
+  await act(async () => fireEvent.press(playButtons()[1]));
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(castToJellyfinReceiver).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.anything(),
+    expect.objectContaining({ items: [other] }),
+    expect.anything(),
+    expect.any(Function),
+  );
+});
+
+// Naming no quality would play at the default one: Auto and Max reach the player as themselves.
+test.each([
+  ["Auto", "auto"],
+  ["Max", "max"],
+])("a play here hands the player %s as %s", async (key, value) => {
+  mockTarget = mockNoTarget;
   await render(
     <PlayButton
       item={item}
-      selectedOptions={{
-        bitrate,
-        mediaSource: SOURCE,
-        audioIndex: 1,
-        subtitleIndex: -1,
-      }}
+      selectedOptions={{ bitrate: { key, value: undefined } } as never}
     />,
   );
-  await fireEvent.press(screen.getByLabelText("accessibility.play_button"));
-};
-
-/** The bitrate the receiver was handed, once the cast went out. */
-const castBitrate = async () => {
-  await waitFor(() => expect(mockCast).toHaveBeenCalled());
-  const [, session] = mockCast.mock.calls[0] as [
-    unknown,
-    Promise<{ maxBitrate?: number }> | { maxBitrate?: number },
-  ];
-  return (await session).maxBitrate;
-};
-
-beforeEach(() => {
-  mockCast.mockClear();
-  mockPlayMedia.mockClear();
-  mockDetectBitrate.mockClear();
-});
-
-describe("casting from the item page", () => {
-  // The receiver negotiates the stream itself: handed nothing, it would pick
-  // a bitrate of its own instead of the one Auto stands for.
-  test("hands the receiver the bitrate Auto measures", async () => {
-    await play(AUTO, "Chromecast");
-
-    expect(await castBitrate()).toBe(12_000_000);
-    expect(mockDetectBitrate).toHaveBeenCalledTimes(1);
-  });
-
-  // The cast took its turn only once Auto had measured: one picked meanwhile,
-  // at a fixed quality, went out first and was then replaced by it.
-  test("goes out when picked, while Auto still measures", async () => {
-    let measured: (bitrate: number) => void = () => {};
-    mockDetectBitrate.mockImplementationOnce(
-      () => new Promise<number>((resolve) => (measured = resolve)),
-    );
-
-    await play(AUTO, "Chromecast");
-
-    await waitFor(() => expect(mockCast).toHaveBeenCalled());
-    measured(12_000_000);
-    expect(await castBitrate()).toBe(12_000_000);
-  });
-
-  test("hands the receiver a fixed quality as it is", async () => {
-    await play(EIGHT_MBPS, "Chromecast");
-
-    expect(await castBitrate()).toBe(8_000_000);
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-  });
-
-  // A cast that names no bitrate leaves the receiver on the cap of the cast
-  // before it: Max is said as the receiver's own ceiling.
-  test("hands the receiver its own ceiling under Max", async () => {
-    await play(MAX, "Chromecast");
-
-    expect(await castBitrate()).toBe(120_000_000);
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-  });
-
-  test("hands the receiver its own ceiling when Auto measures nothing", async () => {
-    mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
-
-    await play(AUTO, "Chromecast");
-
-    expect(await castBitrate()).toBe(120_000_000);
-  });
-
-  // Live TV plays without a cap whatever the default quality: Auto never
-  // measures for it, a bitrate picked by hand still applies.
-  test("hands the receiver its own ceiling for live television under Auto", async () => {
-    await play(AUTO, "Chromecast", CHANNEL);
-
-    expect(await castBitrate()).toBe(120_000_000);
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-  });
-
-  test("hands the receiver a bitrate picked by hand for live television", async () => {
-    await play(EIGHT_MBPS, "Chromecast", CHANNEL);
-
-    expect(await castBitrate()).toBe(8_000_000);
-  });
-});
-
-describe("playing on the device from the item page", () => {
-  // The player measures it when it negotiates the stream, for this item and
-  // for every one after it.
-  test("hands the player Auto as Auto", async () => {
-    await play(AUTO, "Device");
-
-    await waitFor(() =>
-      expect(mockPlayMedia).toHaveBeenCalledWith(
-        expect.objectContaining({ itemId: "movie-1", bitrateValue: "auto" }),
-        { item: MOVIE },
-      ),
-    );
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-  });
-
-  // Naming no quality would play at the default one.
-  test("hands the player Max as Max", async () => {
-    await play(MAX, "Device");
-
-    await waitFor(() =>
-      expect(mockPlayMedia).toHaveBeenCalledWith(
-        expect.objectContaining({ bitrateValue: "max" }),
-        { item: MOVIE },
-      ),
-    );
-  });
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(mockPlayMedia).toHaveBeenCalledWith(
+    expect.objectContaining({ itemId: "item-1", bitrateValue: value }),
+    { item },
+  );
 });

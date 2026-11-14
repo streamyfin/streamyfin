@@ -20,8 +20,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "@/components/common/GlassSurface";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
@@ -167,7 +167,7 @@ export const MiniPlayerBar: React.FC = () => {
         {/* Album art */}
         <View style={styles.albumArt}>
           {imageUrl ? (
-            <Image
+            <ArtworkImage
               source={{ uri: imageUrl }}
               style={styles.albumImage}
               contentFit='cover'

@@ -16,6 +16,10 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+import {
+  isCastAvailable,
+  type OutputPickerStrings,
+} from "@/modules/mpv-player/src/cast";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level value import crashes on
 // launch (the type-only import above is erased at build time).
@@ -138,6 +142,7 @@ export const buildNativePlayerStrings = (
   quality: t("player.menu.quality"),
   subtitleSize: t("player.menu.subtitle_scale"),
   zoomToFill: t("player.zoom_to_fill"),
+  pictureInPicture: t("player.picture_in_picture"),
   subtitleSync: t("player.subtitle_sync"),
   audioSync: t("player.audio_sync"),
   volumeBoost: t("player.volume_boost"),
@@ -151,6 +156,11 @@ export const buildNativePlayerStrings = (
   searchFailed: t("player.search_failed"),
   noSubtitlesFound: t("player.no_subtitles_found"),
   nowPlaying: t("player.now_playing"),
+  // The Cast button reads as the header's: its name, then whether a receiver is connected.
+  castButton: t("accessibility.cast_button"),
+  castConnected: t("accessibility.cast_connected"),
+  castNotConnected: t("accessibility.cast_not_connected"),
+  castConnecting: t("cast.output.connecting"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
@@ -431,6 +441,8 @@ export async function buildNativePlayerConfig(params: {
   qualityLabel: (bitrate: Bitrate) => string;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
+  /** The output sheet's texts, for the player's Cast button. */
+  outputPickerStrings?: Partial<OutputPickerStrings>;
   /**
    * The cap of a re-negotiation of the same item at the same quality (a
    * track change): the stream it replaces was asked at it, and measuring Auto
@@ -608,6 +620,11 @@ export async function buildNativePlayerConfig(params: {
     if (Object.keys(withLanguage).length > 0) headers = withLanguage;
   }
 
+  // The Cast button hands the video off to a receiver: online, where Cast and the output sheet exist (the module
+  // answers unavailable on a TV and a Mac). Not tied to SyncPlay: the player hides it while it plays for a group, and
+  // shows it once the group is left, which this config, built once, could not follow.
+  const castAllowed = !offline && isCastAvailable();
+
   const config: NativePlayerConfig = {
     stream: {
       url: stream.url,
@@ -738,6 +755,8 @@ export async function buildNativePlayerConfig(params: {
         return ISO_639_2_T_TO_B[raw] ?? raw;
       })(),
       strings,
+      allowCast: castAllowed,
+      outputPickerStrings: castAllowed ? params.outputPickerStrings : undefined,
     },
   };
 

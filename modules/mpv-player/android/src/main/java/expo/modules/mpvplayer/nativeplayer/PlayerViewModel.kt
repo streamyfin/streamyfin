@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -10,7 +11,16 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.RemoteTargetListener
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.TargetDevice
+import expo.modules.mpvplayer.cast.target.TargetPhase
+import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
+import expo.modules.mpvplayer.nativeplayer.engine.isRemote
+import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,7 +69,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
         private const val SKIPPED_NOTICE_MS = 3_000L
     }
 
-    var engine: PlayerEngine? = null
+    var engine: ChromeEngine? = null
+
+    // The screen of a local engine; null for one without, whose rendering calls do nothing.
+    private val rendering: RenderingEngine?
+        get() = engine as? RenderingEngine
     var emit: ((String, Map<String, Any?>) -> Unit)? = null
     var onDismissRequested: ((String) -> Unit)? = null
     var onRotateRequested: (() -> Unit)? = null
@@ -77,6 +91,80 @@ class PlayerViewModel : PlayerEngine.Delegate {
      * dialogue boost, mono downmix, audio/subtitle sync).
      */
     var isMpvEngine by mutableStateOf(true)
+
+    /** What the chrome offers for the engine it holds, read once per presentation. */
+    var capabilities by mutableStateOf(
+        ChromeCapabilities.of(isRemote = false, pictureInPictureSupported = false, canChangeSpeed = true)
+    )
+        private set
+
+    private var pictureInPictureSupported = false
+
+    /** Only the session knows whether the device floats a picture, and JS whether to cast; the rest is the engine's. */
+    fun applyCapabilities(pictureInPictureSupported: Boolean, allowCast: Boolean = false) {
+        this.pictureInPictureSupported = pictureInPictureSupported
+        val held = engine
+        capabilities = ChromeCapabilities.of(
+            isRemote = held?.isRemote ?: false,
+            pictureInPictureSupported = pictureInPictureSupported,
+            canChangeSpeed = held?.canChangeSpeed ?: true,
+            allowCast = allowCast,
+        )
+    }
+
+    // MARK: - Cast hand-off
+
+    /** The receiver's connection, for the Cast button's glyph: followed while the player is up. */
+    var castPhase by mutableStateOf(TargetPhase.NONE)
+        private set
+    private var unfollowCast: (() -> Unit)? = null
+
+    /** The Cast button: the session opens the output sheet over the player, from [anchor] in window pixels. */
+    var onOutputSheetRequested: ((Rect) -> Unit)? = null
+
+    /** The Cast button's name and state, as the header button's: TalkBack reads "Cast button, Connected". */
+    val castButtonLabel: String
+        get() = strings.get("castButton", "Cast button")
+    val castButtonState: String
+        get() = when (castPhase) {
+            TargetPhase.CONNECTED -> strings.get("castConnected", "Connected")
+            TargetPhase.CONNECTING -> strings.get("castConnecting", "Connecting")
+            else -> strings.get("castNotConnected", "Not connected")
+        }
+
+    fun followCast(hub: RemoteTargetHub = RemoteTargetHub.shared) {
+        unfollowCast?.invoke()
+        castPhase = hub.snapshot.phase
+        unfollowCast = hub.addListener(object : RemoteTargetListener {
+            override fun targetChanged(snapshot: RemoteTargetSnapshot) {
+                castPhase = snapshot.phase
+            }
+
+            override fun devicesChanged(devices: List<TargetDevice>) = Unit
+        })
+    }
+
+    fun openOutputSheet(anchor: Rect) {
+        onOutputSheetRequested?.invoke(anchor)
+    }
+
+    /**
+     * The sheet handed the video off: paused here, JS sends the item to the receiver where the player is, read as
+     * the dismiss that follows reads it, so the stop it reports is at that same position.
+     */
+    fun requestCastHandOff() {
+        // The sheet keeps this callback until it closes: a player torn down meanwhile hands nothing off.
+        if (isTearingDown) return
+        // A video paused before the sheet opened stays paused when the hand-off does not go through.
+        val wasPlaying = isPlaying
+        // A group joined while the sheet was open owns playback: JS refuses the hand-off and the group plays on.
+        if (!syncPlayActive) pauseLocal()
+        // The item played here: in JS, an in-place swap may already hold the next one.
+        emit?.invoke(
+            "onCastHandOffRequested",
+            mapOf("positionSec" to authoritativePosition, "itemId" to currentItemId, "wasPlaying" to wasPlaying),
+        )
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -380,7 +468,6 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun apply(config: PlayerPresentConfigRecord) {
         updateSyncPlay(config.syncPlay)
-        isMpvEngine = config.engine?.lowercase() != "exoplayer"
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
@@ -408,6 +495,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
         qualityMenu = config.tracks?.quality ?: emptyList()
         trickplay = config.trickplay?.let { TrickplayProvider(it) }
         uiOptions = config.ui
+        // A stream loaded in place brings its own Cast rule: a downloaded file swapped for a stream, or back.
+        applyCapabilities(pictureInPictureSupported, config.ui.allowCast)
         strings = PlayerStrings(config.ui.strings)
         subtitleScale = config.subtitleStyle?.scale ?: 1.0
         subtitleScaleMultiplier = config.subtitleStyle?.renderScaleMultiplier ?: 1.0
@@ -693,6 +782,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
+        // Before SyncPlay's own rule: an engine that cannot change speed gets no speed at all.
+        if (!capabilities.speed) return
         if (syncPlayActive) { forceSyncSpeed(); return }
         speed = newSpeed
         engine?.setSpeed(newSpeed)
@@ -702,7 +793,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun startHoldSpeed() {
-        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (!capabilities.speed || syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
@@ -835,6 +926,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Video Zoom & Track Controls
     fun toggleZoomToFill() {
+        if (!capabilities.zoom) return
         haptic()
         isZoomedToFill = !isZoomedToFill
         applyZoomState()
@@ -842,8 +934,11 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun applyZoomState() {
-        engine?.setZoomedToFill(isZoomedToFill)
+        rendering?.setZoomedToFill(isZoomedToFill)
     }
+
+    /** What the technical info overlay shows: empty for an engine without a screen. */
+    fun technicalInfo(): Map<String, Any> = technicalInfoOf(engine)
 
     fun updateSubtitleGeometry(width: Int, height: Int) {
         subtitleSurfaceWidth = width
@@ -853,9 +948,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun applySubtitleGeometry() {
         subtitleMarginY?.let { margin ->
-            engine?.setSubtitleMarginY(margin)
+            rendering?.setSubtitleMarginY(margin)
         }
-        engine?.setSubtitleScale(
+        rendering?.setSubtitleScale(
             if (isMpvEngine) {
                 calculateSubtitleScale(
                     baseScale = subtitleScale,
@@ -885,7 +980,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     @JvmName("applySubtitleDelay")
     fun setSubtitleDelay(seconds: Double) {
         subtitleDelay = seconds
-        engine?.setSubtitleDelay(seconds)
+        rendering?.setSubtitleDelay(seconds)
         scheduleAutoHide()
     }
 
@@ -1282,6 +1377,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun willTeardown() {
         isTearingDown = true
+        unfollowCast?.invoke()
+        unfollowCast = null
+        onOutputSheetRequested = null
         cancelSyncPlayCommands()
         autoHideJob?.cancel()
         countdownJob?.cancel()

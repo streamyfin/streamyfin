@@ -1,0 +1,335 @@
+package expo.modules.mpvplayer.cast.output
+
+import expo.modules.mpvplayer.cast.target.FakeCastDevices
+import expo.modules.mpvplayer.cast.target.GoogleCastTargetPort
+import expo.modules.mpvplayer.cast.target.RemoteTarget
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.TargetDevice
+import expo.modules.mpvplayer.cast.target.TargetPhase
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+// What the output sheet draws, from the target state and from the screen that opened it. The same
+// cases as OutputSheetTests.swift.
+class OutputSheetModelTest {
+    private val livingRoom = TargetDevice("device-a", "Living room", "Chromecast")
+    private val bedroom = TargetDevice("device-b", "bedroom", "Google TV Streamer")
+    private val attic = TargetDevice("device-c", "Attic speaker", "Google Home", videoOut = false)
+
+    private fun input(
+        snapshot: RemoteTargetSnapshot = RemoteTargetSnapshot.NONE,
+        devices: List<TargetDevice> = listOf(livingRoom, bedroom, attic),
+        searchTimedOut: Boolean = false,
+        playServices: PlayServicesStatus = PlayServicesStatus.AVAILABLE,
+        airPlay: AirPlayInput? = null,
+        playingHere: String? = null,
+        receiverTitle: String? = null,
+        receiverPlaying: Boolean = receiverTitle != null,
+        receiverGoesOnHere: Boolean = receiverPlaying,
+        handOff: Boolean = false,
+        showingList: Boolean = false,
+    ) = OutputSheetInput(
+        snapshot = snapshot,
+        devices = devices,
+        discovering = true,
+        searchTimedOut = searchTimedOut,
+        playServices = playServices,
+        airPlay = airPlay,
+        thisDevice = ThisDeviceKind.PHONE,
+        playingHere = playingHere,
+        receiverTitle = receiverTitle,
+        receiverPlaying = receiverPlaying,
+        receiverGoesOnHere = receiverGoesOnHere,
+        showingList = showingList,
+        draggedVolume = null,
+        handOff = handOff,
+    )
+
+    private fun rows(state: OutputSheetState) = (state as OutputSheetState.List).rows
+
+    // A row is drawn under its key, not its place: a receiver found during a press and sorted before the pressed one
+    // must not take the tap, and AirPlay's own button must not be rebuilt each time a receiver comes or goes.
+    @Test
+    fun aRowKeepsItsKeyWhenAReceiverSortsBeforeIt() {
+        val airPlay = AirPlayInput(activeRoute = null)
+        val before = rows(outputSheetState(input(devices = listOf(livingRoom), airPlay = airPlay)))
+        val after = rows(outputSheetState(input(devices = listOf(livingRoom, attic), airPlay = airPlay)))
+        val pressed = before.first { it is OutputRow.Device }
+        val moved = after.first { it is OutputRow.Device && it.id == livingRoom.id }
+
+        assertEquals(pressed.key, moved.key)
+        assertEquals(before.last().key, after.last().key)
+        assertEquals(after.size, after.map { it.key }.toSet().size)
+    }
+
+    // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
+    @Test
+    fun theListPutsThisDeviceFirstThenTheDevicesByName() {
+        val rows = rows(outputSheetState(input(playingHere = "Big Buck Bunny", airPlay = AirPlayInput(activeRoute = null))))
+
+        assertEquals(
+            listOf(
+                OutputRow.ThisDevice(ThisDeviceKind.PHONE, playing = "Big Buck Bunny"),
+                OutputRow.Device("device-c", "Attic speaker", videoOut = false, status = DeviceStatus.Idle),
+                OutputRow.Device("device-b", "bedroom", videoOut = true, status = DeviceStatus.Idle),
+                OutputRow.Device("device-a", "Living room", videoOut = true, status = DeviceStatus.Idle),
+                OutputRow.AirPlay(activeRoute = null),
+            ),
+            rows,
+        )
+    }
+
+    // Discovery can drop the receiver a session is on: its row stays, with its status.
+    @Test
+    fun aTargetMissingFromDiscoveryKeepsItsRow() {
+        val connecting = RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = false, error = null)
+
+        val rows = rows(outputSheetState(input(snapshot = connecting, devices = listOf(bedroom))))
+
+        assertEquals(
+            listOf(
+                OutputRow.ThisDevice(ThisDeviceKind.PHONE, playing = null),
+                OutputRow.Device("device-b", "bedroom", videoOut = true, status = DeviceStatus.Idle),
+                OutputRow.Device("device-a", "Living room", videoOut = true, status = DeviceStatus.Connecting),
+            ),
+            rows,
+        )
+    }
+
+    @Test
+    fun missingPlayServicesSaySoInsteadOfSearching() {
+        val missing = rows(outputSheetState(input(devices = emptyList(), playServices = PlayServicesStatus.MISSING)))
+        val outdated = rows(outputSheetState(input(devices = emptyList(), playServices = PlayServicesStatus.UPDATE_REQUIRED)))
+
+        assertEquals(OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING), missing.last())
+        assertEquals(OutputRow.Status(SheetStatus.PLAY_SERVICES_UPDATE), outdated.last())
+        assertEquals(2, missing.size)
+    }
+
+    // The port's own refusals by their message, the SDK's by CastStatusCodes (2155 is what a network loss
+    // ends a session with, bench 04/11); anything else keeps its message.
+    @Test
+    fun failureCausesMapToTheirFamilies() {
+        assertEquals(FailureCause.DeviceGone, failureCause(GoogleCastTargetPort.RECEIVER_GONE, null))
+        assertEquals(FailureCause.DeviceGone, failureCause(FakeCastDevices.NOT_ON_THE_BENCH, null))
+        assertEquals(FailureCause.ReceiverUnavailable, failureCause(GoogleCastTargetPort.RECEIVER_BUSY, null))
+        listOf(7, 15, 2016, 2155).forEach { code ->
+            assertEquals("code $code", FailureCause.Network, failureCause("Cast session status code $code ($code)", code))
+        }
+        listOf(2004, 2005).forEach { code ->
+            assertEquals("code $code", FailureCause.ReceiverUnavailable, failureCause("Cast session status code $code ($code)", code))
+        }
+        assertEquals(FailureCause.Other("Cast session status code 2100 (2100)"), failureCause("Cast session status code 2100 (2100)", 2100))
+    }
+
+    // A cause outside the families reads as a failed connection: the SDK's own text, untranslated and with its
+    // code, is for the log.
+    @Test
+    fun anUnknownCauseReadsAsAFailedConnection() {
+        val strings = OutputPickerStrings(mapOf("failed" to "La connexion a échoué"))
+
+        assertEquals("La connexion a échoué", strings.cause(FailureCause.Other("Cast session status code 2100 (2100)")))
+        assertEquals("The connection failed", OutputPickerStrings().cause(FailureCause.Other("")))
+    }
+
+    // A speaker draws as one: the panel takes the receiver's screen from discovery's record of it, and a
+    // receiver discovery dropped draws as a TV.
+    @Test
+    fun thePanelKnowsASpeakerByItsRecord() {
+        fun connectedTo(device: TargetDevice) =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(device), reconnecting = false, error = null, volume = 0.5)
+
+        val speaker = outputSheetState(input(snapshot = connectedTo(attic))) as OutputSheetState.Connected
+        val tv = outputSheetState(input(snapshot = connectedTo(livingRoom))) as OutputSheetState.Connected
+        val unlisted = outputSheetState(input(snapshot = connectedTo(attic), devices = listOf(livingRoom))) as OutputSheetState.Connected
+
+        assertEquals(false, speaker.videoOut)
+        assertEquals(true, tv.videoOut)
+        assertEquals(true, unlisted.videoOut)
+    }
+
+    // Android mutes the playing stream, as the device's mute through the session would freeze it: with nothing
+    // playing the button would do nothing, so it waits for something to play.
+    @Test
+    fun theMuteWaitsForSomethingToPlay() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val idle = outputSheetState(input(snapshot = connected)) as OutputSheetState.Connected
+        val playing = outputSheetState(input(snapshot = connected, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(false, idle.canMute)
+        assertEquals(true, playing.canMute)
+    }
+
+    // The receiver's media can come without a title: it still plays, so the stop, the remote and the mute stay.
+    @Test
+    fun aReceiverPlayingWithoutATitleCanStillBeStopped() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val playing = outputSheetState(input(snapshot = connected, receiverPlaying = true)) as OutputSheetState.Connected
+
+        assertEquals(true, playing.canStop)
+        assertEquals(true, playing.canMute)
+        assertEquals(null, playing.receiverTitle)
+    }
+
+    // Android only: a mute set on the device by another sender (Google Home) is one the app's stream mute cannot
+    // lift. The button shows it, held still, instead of offering an unmute that does nothing.
+    @Test
+    fun aMuteSetOnTheDeviceCannotBeLiftedHere() {
+        val deviceMuted = RemoteTargetSnapshot(
+            TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5,
+            muted = true, deviceMuted = true,
+        )
+
+        val panel = outputSheetState(input(snapshot = deviceMuted, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(true, panel.showsVolume)
+        assertEquals(true, panel.muted)
+        assertEquals(false, panel.canMute)
+    }
+
+    // A suspended session is still the receiver's: its panel stays, reading Reconnecting, while the SDK reaches
+    // it again, instead of a list whose Cancel would end it (bench 05/11, iOS back from the background).
+    @Test
+    fun aReconnectingTargetKeepsItsPanel() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val panel = outputSheetState(input(snapshot = reconnecting, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals("device-a", panel.target.id)
+        assertEquals(true, panel.reconnecting)
+        assertEquals(true, panel.canStop)
+    }
+
+    // The hub sends no volume or mute until the session is back: the row stays, held still, so the panel keeps its
+    // height and offers nothing that would do nothing.
+    @Test
+    fun aReconnectingPanelHoldsItsVolumeStill() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val panel = outputSheetState(input(snapshot = reconnecting, receiverTitle = "Big Buck Bunny")) as OutputSheetState.Connected
+
+        assertEquals(true, panel.showsVolume)
+        assertEquals(false, panel.canSetVolume)
+        assertEquals(false, panel.canMute)
+    }
+
+    // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
+    @Test
+    fun thisDeviceOffersToContinueWhileTheReceiverPlays() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        fun thisDevice(state: OutputSheetState) = rows(state).first() as OutputRow.ThisDevice
+        val playing = thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true)))
+        val idle = thisDevice(outputSheetState(input(snapshot = connected, showingList = true)))
+        val inThePlayer =
+            thisDevice(outputSheetState(input(snapshot = connected, receiverPlaying = true, showingList = true, handOff = true)))
+
+        assertEquals(true, playing.continueHere)
+        assertEquals(false, idle.continueHere)
+        assertEquals(false, inThePlayer.continueHere)
+    }
+
+    // Music, live TV and media another sender loaded stay on the receiver: the row offers nothing to take over.
+    @Test
+    fun thisDeviceOffersNothingOfWhatStaysOnTheReceiver() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val music =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = true, receiverGoesOnHere = false, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, music.continueHere)
+    }
+
+    // Music plays on this phone: its row says so and only stops the receiver, as before; the receiver's video would
+    // cover the music.
+    @Test
+    fun musicPlayingHereKeepsTheRowAStop() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val row =
+            rows(outputSheetState(input(snapshot = connected, playingHere = "Lever du jour", receiverPlaying = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, row.continueHere)
+        assertEquals("Lever du jour", row.playing)
+    }
+
+    // A receiver stopped from the TV keeps its media (it would go on here) with nothing playing, and a suspended
+    // session holds its last status while it reconnects: neither offers Continue here.
+    @Test
+    fun aStoppedOrReconnectingReceiverOffersNothing() {
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+
+        val stopped =
+            rows(outputSheetState(input(snapshot = connected, receiverPlaying = false, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+        val held =
+            rows(outputSheetState(input(snapshot = reconnecting, receiverPlaying = true, receiverGoesOnHere = true, showingList = true)))
+                .first() as OutputRow.ThisDevice
+
+        assertEquals(false, stopped.continueHere)
+        assertEquals(false, held.continueHere)
+    }
+
+    // The hand-off waits for the session to be back: a reconnecting receiver takes no item.
+    @Test
+    fun noHandOffWhileReconnecting() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val held = outputSheetState(input(snapshot = reconnecting, handOff = true)) as OutputSheetState.Connected
+        val back = outputSheetState(input(snapshot = connected, handOff = true)) as OutputSheetState.Connected
+
+        assertEquals(false, held.canHandOff)
+        assertEquals(true, back.canHandOff)
+    }
+
+    // A suspended session loses its media client until it resumes, and the resumed client reports nothing until the
+    // receiver sends: the last status heard stands in meanwhile, until the receiver reports again or the session ends.
+    @Test
+    fun aSuspendedSessionReadsItsLastStatusUntilTheReceiverReports() {
+        val heard = LastHeardStatus<String>()
+
+        heard.hold("playing")
+        val suspended = heard.read(null)
+        val reported = heard.read("paused")
+        heard.forget()
+
+        assertEquals("playing", suspended)
+        assertEquals("paused", reported)
+        assertEquals(null, heard.read(null))
+    }
+
+    // Resumed, the client may not have reported when the session is suspended again: the status from the first
+    // suspension still stands.
+    @Test
+    fun aSecondSuspensionBeforeAnyReportKeepsTheStatus() {
+        val heard = LastHeardStatus<String>()
+
+        heard.hold("playing")
+        heard.hold(null)
+
+        assertEquals("playing", heard.read(null))
+    }
+
+    @Test
+    fun theLayoutIsAPopoverFrom600dp() {
+        assertEquals(OutputLayout.SHEET, outputLayout(599))
+        assertEquals(OutputLayout.POPOVER, outputLayout(600))
+    }
+}

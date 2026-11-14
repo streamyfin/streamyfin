@@ -6,6 +6,8 @@
  * anything down; native never sees ticks.
  */
 
+import type { OutputPickerStrings } from "./cast/Cast.types";
+
 export type NativePlayerPlayMethod =
   | "DirectPlay"
   | "DirectStream"
@@ -234,6 +236,7 @@ export type NativePlayerStrings = Partial<
     | "goBack"
     | "endsAt"
     | "zoomToFill"
+    | "pictureInPicture"
     | "stop"
     | "stopPlayback"
     | "stopPlayingTitle"
@@ -243,7 +246,11 @@ export type NativePlayerStrings = Partial<
     | "searchSubtitles"
     | "searchFailed"
     | "noSubtitlesFound"
-    | "nowPlaying",
+    | "nowPlaying"
+    | "castButton"
+    | "castConnected"
+    | "castNotConnected"
+    | "castConnecting",
     string
   >
 >;
@@ -282,12 +289,17 @@ export type NativePlayerUIOptions = {
   subtitleSearchLanguages?: { code: string; name: string }[];
   subtitleSearchDefaultLanguage?: string;
   strings?: NativePlayerStrings;
+  /** The Cast button, which hands the video off to a receiver from the output sheet. */
+  allowCast?: boolean;
+  /** The output sheet's texts, for the sheet the Cast button opens. */
+  outputPickerStrings?: Partial<OutputPickerStrings>;
 };
 
 /**
- * Which engine decodes the stream inside the native chrome. Android-only:
- * iOS's chrome always runs mpv and ignores the field. Defaults to "mpv"
- * when absent (older configs, mobile).
+ * Which engine the native chrome builds. ExoPlayer exists on Android only;
+ * both platforms refuse a name they do not build when the player is
+ * presented (ERR_UNSUPPORTED_ENGINE). Defaults to "mpv" when absent (older
+ * configs, mobile).
  */
 export type NativePlayerEngine = "mpv" | "exoplayer";
 
@@ -489,5 +501,15 @@ export type NativePlayerEvents = {
   onMuteStateChanged: (payload: {
     muted: boolean;
     positionSec: number;
+  }) => void;
+  /**
+   * The output sheet handed the video off to the connected receiver: the player paused at `positionSec`, and JS
+   * sends the item there, then closes the player, or says why and plays on if it was playing. `itemId`: the item
+   * the player played when its sheet handed it off. `wasPlaying`: whether it played before this pause.
+   */
+  onCastHandOffRequested: (payload: {
+    positionSec: number;
+    itemId?: string;
+    wasPlaying?: boolean;
   }) => void;
 };

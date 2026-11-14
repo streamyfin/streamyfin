@@ -7,12 +7,19 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, useWindowDimensions, View } from "react-native";
+import {
+  Platform,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OutputButton } from "@/components/cast/OutputButton";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicAlbumCard } from "@/components/music/MusicAlbumCard";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
@@ -22,6 +29,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { squareArtworkSide } from "@/utils/artworkSize";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+
+// Cast is off on TV.
 
 export default function ArtistDetailScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
@@ -105,6 +114,13 @@ export default function ArtistDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
+      headerRight: Platform.isTV
+        ? undefined
+        : () => (
+            <HeaderButtonGroup>
+              <OutputButton />
+            </HeaderButtonGroup>
+          ),
     });
   }, [artist?.Name, navigation]);
 
@@ -187,7 +203,7 @@ export default function ArtistDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'

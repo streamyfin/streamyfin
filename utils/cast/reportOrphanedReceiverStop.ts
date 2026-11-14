@@ -27,9 +27,10 @@ export interface EndedReceiverSession {
   userId: string;
   deviceName: string;
   /**
-   * True when the Cast SDK ended the session with no error, which it only does
-   * when casting was stopped: the receiver app is closed, so there is nothing
-   * to wait for. False on a connection loss, where the TV may still be playing.
+   * True when the session ended with no error, which the Cast module reports
+   * only when casting was stopped: the receiver app is closed, so there is
+   * nothing to wait for. False on a connection loss, where the TV may still be
+   * playing.
    */
   receiverClosed: boolean;
   /**

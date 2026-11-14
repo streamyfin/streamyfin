@@ -1,0 +1,481 @@
+import {
+  type CastDoubleState,
+  castDoubleDevice,
+  castDoubleTarget,
+  createCastDoubleState,
+  emitCastEvent,
+  emitRemoteTarget,
+} from "@/test-utils/cast";
+import {
+  type CastMediaStatus,
+  NO_REMOTE_TARGET,
+  type RemoteTargetState,
+} from "./Cast.types";
+import {
+  addCastChannel,
+  castClientFor,
+  castDevices,
+  castState,
+  connectToCastDevice,
+  currentCastSession,
+  disconnectRemoteTarget,
+  isCastAvailable,
+  onCastSessionEvent,
+  onOutputPickerAction,
+  onRemoteTargetChanged,
+  playServicesState,
+  presentOutputPicker,
+  remoteTarget,
+  setRemoteTargetMuted,
+  setRemoteTargetVolume,
+  showExpandedControls,
+  showPlayServicesErrorDialog,
+} from "./cast";
+
+let mockCast: CastDoubleState = createCastDoubleState();
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
+  // The factory runs before this file's body, so the state is read lazily.
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
+
+const NAMESPACE = "urn:x-cast:com.connectsdk";
+
+const status = (
+  playerState: CastMediaStatus["playerState"],
+): CastMediaStatus => ({
+  playerState,
+  currentItemId: 1,
+  streamPosition: 0,
+  playbackRate: 1,
+  volume: 1,
+  isMuted: false,
+  mediaInfo: null,
+  customData: null,
+});
+
+beforeEach(() => {
+  mockCast = createCastDoubleState();
+});
+
+test("every call is a no-op when the module says it is unavailable", async () => {
+  mockCast.available = false;
+
+  expect(isCastAvailable()).toBe(false);
+  expect(castState()).toBeNull();
+  expect(castDevices()).toEqual([]);
+  expect(currentCastSession()).toBeNull();
+  await expect(showExpandedControls()).resolves.toBe(false);
+
+  const channel = await addCastChannel(NAMESPACE, () => {});
+  expect(channel.connected).toBe(false);
+  await expect(channel.sendMessage("hi")).rejects.toThrow(
+    "Cast is not available on this platform",
+  );
+  expect(mockCast.channels).toHaveLength(0);
+
+  // The listener still reaches the module: it emits nothing while unavailable
+  // and starts to once Play Services are back, without a new subscription.
+  const subscription = onCastSessionEvent(() => {});
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(1);
+  subscription.remove();
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(0);
+});
+
+test("Play Services report their state and show their dialog while Cast is unavailable", async () => {
+  // Android answers unavailable whenever Play Services are not SUCCESS: this is
+  // the only pairing it produces, and the one both calls are made for.
+  mockCast.available = false;
+  mockCast.playServicesState = "updating";
+
+  expect(playServicesState()).toBe("updating");
+  await showPlayServicesErrorDialog("updating");
+  expect(mockCast.dialogs).toEqual(["playServices:updating"]);
+});
+
+test("addCastChannel registers the receiver listener for its namespace only", async () => {
+  const received: unknown[] = [];
+  const channel = await addCastChannel(NAMESPACE, (message) =>
+    received.push(message),
+  );
+
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: "urn:x-cast:other",
+    message: "{}",
+  });
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: '{"type":"playbackstart"}',
+  });
+
+  // The raw string reaches the listener; parsing is the receiver module's job.
+  expect(received).toEqual(['{"type":"playbackstart"}']);
+  await channel.remove();
+});
+
+test("a channel's remove drops its listener and the native channel", async () => {
+  const received: unknown[] = [];
+  const channel = await addCastChannel(NAMESPACE, (message) =>
+    received.push(message),
+  );
+
+  await channel.remove();
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: "{}",
+  });
+
+  expect(received).toEqual([]);
+  expect(mockCast.removed).toEqual([NAMESPACE]);
+  expect(mockCast.listeners.onReceiverMessage).toHaveLength(0);
+});
+
+test("sendMessage stringifies an object once and sends a string as is", async () => {
+  const channel = await addCastChannel(NAMESPACE, () => {});
+
+  await channel.sendMessage({ command: "Pause", options: {} });
+  await channel.sendMessage("raw");
+
+  expect(mockCast.sent).toEqual([
+    { namespace: NAMESPACE, message: '{"command":"Pause","options":{}}' },
+    { namespace: NAMESPACE, message: "raw" },
+  ]);
+  await channel.remove();
+});
+
+// The receiver reports on events only: a status asked of it now says where it is, within the wait given.
+test("castClientFor asks its own session's receiver for a fresh status", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  mockCast.mediaStatus = status("playing");
+  mockCast.freshMediaStatus = status("paused");
+  const client = castClientFor(mockCast.session!);
+
+  // As the native module answers: with the SDK's estimate, and whether the receiver answered.
+  await expect(client.requestMediaStatus(2_000)).resolves.toEqual({
+    ...status("paused"),
+    approximateStreamPosition: 0,
+    fresh: true,
+  });
+  expect(native.requestMediaStatus).toHaveBeenLastCalledWith(
+    "session-1",
+    2_000,
+  );
+
+  mockCast.session = { id: "session-2", device: castDoubleDevice() };
+  await expect(client.requestMediaStatus(2_000)).resolves.toBeNull();
+});
+
+test("castClientFor reads and follows the media status of its session", async () => {
+  mockCast.mediaStatus = status("playing");
+  const client = castClientFor(mockCast.session!);
+
+  expect(client.sessionId).toBe("session-1");
+  await expect(client.getMediaStatus()).resolves.toEqual({
+    ...status("playing"),
+    approximateStreamPosition: 0,
+  });
+
+  const seen: (CastMediaStatus | null)[] = [];
+  const subscription = client.onMediaStatusUpdated((value) => seen.push(value));
+  emitCastEvent(mockCast, "onMediaStatusChanged", { status: status("paused") });
+  subscription.remove();
+  emitCastEvent(mockCast, "onMediaStatusChanged", { status: status("idle") });
+
+  expect(seen).toEqual([status("paused")]);
+});
+
+test("opens the channel on a session that was resumed before any listener", async () => {
+  mockCast.session = { id: "resumed-7", device: castDoubleDevice() };
+
+  expect(currentCastSession()?.id).toBe("resumed-7");
+  const channel = await addCastChannel(NAMESPACE, () => {});
+
+  expect(channel.connected).toBe(true);
+  expect(mockCast.channels).toMatchObject([
+    { namespace: NAMESPACE, connected: true },
+  ]);
+  await channel.remove();
+});
+
+test("listeners share one native subscription per event and release it with the last remove", () => {
+  const first = onCastSessionEvent(() => {});
+  const second = onCastSessionEvent(() => {});
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(1);
+
+  first.remove();
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(1);
+  second.remove();
+  expect(mockCast.listeners.onSessionEvent).toHaveLength(0);
+});
+
+test("a session event reaches every listener with its payload", () => {
+  const seen: string[] = [];
+  const first = onCastSessionEvent(({ event, error }) =>
+    seen.push(`${event}:${error}`),
+  );
+  const second = onCastSessionEvent(({ event }) => seen.push(event));
+
+  emitCastEvent(mockCast, "onSessionEvent", {
+    event: "ended",
+    sessionId: "session-1",
+    error: null,
+  });
+
+  expect(seen).toEqual(["ended:null", "ended"]);
+  first.remove();
+  second.remove();
+});
+
+test("two subscriptions of the same function stay independent", () => {
+  const seen: string[] = [];
+  const listener = ({ event }: { event: string }) => seen.push(event);
+  const first = onCastSessionEvent(listener);
+  const second = onCastSessionEvent(listener);
+
+  first.remove();
+  emitCastEvent(mockCast, "onSessionEvent", {
+    event: "started",
+    sessionId: "session-1",
+    error: null,
+  });
+  second.remove();
+
+  // The second subscription is still there: the event reaches it once.
+  expect(seen).toEqual(["started"]);
+});
+
+test("a message sent while the channel opens reaches its listener", async () => {
+  mockCast.session = { id: "session-1", device: castDoubleDevice() };
+  let release: () => void = () => {};
+  mockCast.holdAdd = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const seen: unknown[] = [];
+
+  const pending = addCastChannel(NAMESPACE, (message) => seen.push(message));
+  // The receiver answers as soon as the namespace opens, before the native
+  // addChannel has returned to JS.
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: "early",
+  });
+  release();
+  const channel = await pending;
+
+  expect(seen).toEqual(["early"]);
+  await channel.remove();
+});
+
+test("a subscription made while Cast is unavailable hears events once it is", () => {
+  mockCast.available = false;
+  const seen: string[] = [];
+  const subscription = onCastSessionEvent(({ event }) => seen.push(event));
+
+  // Play Services finished updating: the module is the same, only its answer changed.
+  mockCast.available = true;
+  emitCastEvent(mockCast, "onSessionEvent", {
+    event: "started",
+    sessionId: "session-1",
+    error: null,
+  });
+  subscription.remove();
+
+  expect(seen).toEqual(["started"]);
+});
+
+test("a client drives its own session only", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.pause.mockClear();
+  const client = castClientFor(mockCast.session!);
+
+  await client.pause();
+  expect(native.pause).toHaveBeenCalledTimes(1);
+
+  // The TV changed under a client captured across an await.
+  mockCast.session = { id: "session-2", device: castDoubleDevice() };
+  await client.pause();
+  await expect(client.getMediaStatus()).resolves.toBeNull();
+  expect(native.pause).toHaveBeenCalledTimes(1);
+});
+
+test("a native addChannel that throws gives its namespace back", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+
+  await expect(addCastChannel(NAMESPACE, () => {})).rejects.toThrow(
+    "No active service connection",
+  );
+
+  // Left with the native side, the namespace would make the next open skip
+  // registering it, and the receiver would go unheard until the session ends.
+  expect(mockCast.removed).toEqual([NAMESPACE]);
+});
+
+// Kept after the tests that open channels: one that leaves its channel open
+// keeps cast.ts's receiver subscription on its own double, and this test then
+// hears nothing.
+test("a channel opened after a failed open hears each receiver message once", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+  const seen: unknown[] = [];
+  const onMessage = (message: unknown) => seen.push(message);
+
+  await expect(addCastChannel(NAMESPACE, onMessage)).rejects.toThrow();
+  const channel = await addCastChannel(NAMESPACE, onMessage);
+  emitCastEvent(mockCast, "onReceiverMessage", {
+    namespace: NAMESPACE,
+    message: '{"type":"playbackstart"}',
+  });
+
+  // jellyfinReceiver hands every open the same callback: a listener left by
+  // the failed open would deliver each message twice.
+  expect(seen).toEqual(['{"type":"playbackstart"}']);
+  await channel.remove();
+});
+
+test("the caller gets the open's error even when giving the namespace back fails", async () => {
+  const native = jest.requireMock(
+    "@/modules/mpv-player/src/cast/CastModule",
+  ).CastNative;
+  native.addChannel.mockRejectedValueOnce(
+    new Error("No active service connection"),
+  );
+  // The session the open failed on may be gone by then.
+  native.removeChannel.mockRejectedValueOnce(new Error("No Cast session"));
+
+  await expect(addCastChannel(NAMESPACE, () => {})).rejects.toThrow(
+    "No active service connection",
+  );
+});
+
+test("the remote target answers none and no calls reach the module while Cast is unavailable", async () => {
+  mockCast.available = false;
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  expect(remoteTarget()).toEqual(NO_REMOTE_TARGET);
+  await expect(connectToCastDevice("device-a")).resolves.toBe(false);
+  await expect(disconnectRemoteTarget()).resolves.toBeUndefined();
+  await expect(setRemoteTargetVolume(0.5)).resolves.toBeUndefined();
+  await expect(setRemoteTargetMuted(true)).resolves.toBeUndefined();
+  expect(mockCast.connectRequests).toEqual([]);
+  expect(mockCast.disconnectCalls).toEqual([]);
+  expect(mockCast.volumeCalls).toEqual([]);
+  expect(mockCast.muteCalls).toEqual([]);
+});
+
+test("remoteTarget reads the state the module holds", () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  expect(remoteTarget()).toEqual({
+    state: "connected",
+    target: {
+      kind: "cast",
+      id: castDoubleDevice().deviceId,
+      name: castDoubleDevice().friendlyName,
+      capabilities: { volume: true },
+    },
+    reconnecting: false,
+    error: null,
+    volume: null,
+    muted: false,
+    errorCode: null,
+    failedTarget: null,
+  });
+});
+
+test("connectToCastDevice hands the id over and answers what the module answers", async () => {
+  mockCast.connectAnswer = false;
+  await expect(connectToCastDevice("missing")).resolves.toBe(false);
+
+  mockCast.connectAnswer = true;
+  await expect(connectToCastDevice("device-a")).resolves.toBe(true);
+  expect(mockCast.connectRequests).toEqual(["missing", "device-a"]);
+});
+
+test("disconnectRemoteTarget stops the receiver's playback unless asked not to", async () => {
+  await disconnectRemoteTarget();
+  await disconnectRemoteTarget({ stopPlayback: false });
+
+  expect(mockCast.disconnectCalls).toEqual([true, false]);
+});
+
+test("setRemoteTargetVolume sends the level to native", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  await setRemoteTargetVolume(0.4);
+
+  expect(mockCast.volumeCalls).toEqual([0.4]);
+});
+
+test("setRemoteTargetMuted sends the flag to native", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+
+  await setRemoteTargetMuted(true);
+  await setRemoteTargetMuted(false);
+
+  expect(mockCast.muteCalls).toEqual([true, false]);
+});
+
+test("presentOutputPicker passes the strings, the anchor and what plays here", async () => {
+  const options = {
+    strings: { title: "Lire sur", cancel: "Annuler" },
+    anchor: { x: 312, y: 48, width: 44, height: 44 },
+    playingHere: "Big Buck Bunny",
+  };
+
+  await expect(presentOutputPicker(options)).resolves.toBe(true);
+
+  expect(mockCast.outputPickerCalls).toEqual([options]);
+});
+
+// The sheet is where Android explains missing or outdated Play Services: it opens while Cast cannot.
+test("presentOutputPicker asks the module while Cast is unavailable", async () => {
+  mockCast.available = false;
+
+  await presentOutputPicker({ strings: {} });
+
+  expect(mockCast.outputPickerCalls).toHaveLength(1);
+});
+
+test("presentOutputPicker resolves what the module answers", async () => {
+  mockCast.outputPickerAnswer = false;
+
+  await expect(presentOutputPicker({ strings: {} })).resolves.toBe(false);
+});
+
+test("onOutputPickerAction relays remote", () => {
+  const seen: string[] = [];
+  const subscription = onOutputPickerAction((action) => seen.push(action));
+
+  emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" });
+  subscription.remove();
+  emitCastEvent(mockCast, "onOutputPickerAction", { action: "remote" });
+
+  expect(seen).toEqual(["remote"]);
+  expect(mockCast.listeners.onOutputPickerAction).toHaveLength(0);
+});
+
+test("onRemoteTargetChanged hands each state the module publishes", () => {
+  const seen: RemoteTargetState[] = [];
+  const subscription = onRemoteTargetChanged((state) => seen.push(state));
+
+  emitRemoteTarget(mockCast, castDoubleTarget("connecting"));
+  emitRemoteTarget(mockCast, castDoubleTarget("connected"));
+  subscription.remove();
+  emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+
+  expect(seen.map(({ state }) => state)).toEqual(["connecting", "connected"]);
+  expect(mockCast.listeners.onRemoteTargetChanged).toHaveLength(0);
+});

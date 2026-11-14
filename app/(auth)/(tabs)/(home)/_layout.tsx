@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
+import { OutputButton } from "@/components/cast/OutputButton";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import {
   nestedTabPageScreenOptions,
@@ -8,8 +9,6 @@ import {
   watchlistSheetScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
 import { SyncPlayButton } from "@/components/syncplay/SyncPlayButton";
-
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 // Keeps cold boot on the Home tab.
 //
@@ -51,7 +50,7 @@ export default function IndexLayout() {
           headerRight: () =>
             Platform.isTV ? null : (
               <HeaderButtonGroup>
-                <Chromecast.Chromecast />
+                <OutputButton />
                 <SyncPlayButton />
               </HeaderButtonGroup>
             ),

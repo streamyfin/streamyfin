@@ -9,11 +9,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HeaderButton } from "@/components/common/HeaderButton";
+import { OutputButton } from "@/components/cast/OutputButton";
+import {
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistOptionsSheet } from "@/components/music/PlaylistOptionsSheet";
@@ -29,6 +33,8 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const ARTWORK_SIZE = 120;
+
+// Cast is off on TV.
 
 export default function PlaylistDetailScreen() {
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
@@ -101,9 +107,12 @@ export default function PlaylistDetailScreen() {
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
       headerRight: () => (
-        <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
-          <HeaderIcon name='more' />
-        </HeaderButton>
+        <HeaderButtonGroup>
+          <OutputButton />
+          <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
+            <HeaderIcon name='more' />
+          </HeaderButton>
+        </HeaderButtonGroup>
       ),
     });
   }, [playlist?.Name, navigation]);
@@ -211,7 +220,7 @@ export default function PlaylistDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'

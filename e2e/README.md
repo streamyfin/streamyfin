@@ -28,12 +28,42 @@ server log, the session the server records, the receiver on the TV.
   Expo dev client waiting for Metro. Then run `bun run e2e:smoke`, or
   `python3 e2e/bench/maestro.py --flow <flow> --device <id>`. Without `--device`, a flow runs on
   the one emulator or simulator running and never on a phone: the smoke flow clears the app's
-  data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or the screen the
-  smoke flow drives, and on demand (`.github/workflows/e2e-tier1-android.yml`).
+  data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or a screen the
+  flows find by test id, and on demand (`.github/workflows/e2e-tier1-android.yml`): the smoke
+  flow, then the output sheet on the fake receivers, signed in to a throwaway server
+  (`e2e/suites/cast/README.md`).
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
   app, and the sessions observer reads what the server recorded.
+
+## Fake Cast receivers
+
+Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of the Cast SDK's:
+"Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
+300 ms after a disconnection (`RemoteTargetConstants`), and a switch ends one session before
+the next starts. Only the target the module publishes (`getRemoteTarget`, `connectToDevice`,
+`onRemoteTargetChanged`) and the output sheet, which reads it, go through them: no media
+plays, so the sheet's end action reads Disconnect.
+
+- **Android**: `./gradlew … -PstreamyfinFakeCastDevices=true`, or the variable as a prefix of
+  one command, for example
+  `ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true bun run build:android:local`. It sets
+  `BuildConfig.FAKE_CAST_DEVICES` in the mpv-player module, in every variant. Do not export it.
+- **iOS**: `STREAMYFIN_FAKE_CAST_DEVICES=1 pod install --project-directory=ios` from the
+  repository root (the Podfile is the one `expo prebuild` writes in `ios/`), and the same prefix
+  on `expo run:ios`, which may install the pods again, adds `FAKE_CAST_DEVICES` to the module's
+  Swift conditions. Run `pod install --project-directory=ios` again without it before any other
+  build.
+
+A store profile refuses both: with `EAS_BUILD_PROFILE` starting with `production`, Gradle and
+the podspec stop the build. On iOS the define stays in the Pods configuration until the next
+`pod install`, so a tier 1 install also stops any archive, whatever its profile, on the build
+phase `Refuse fake Cast receivers in an archive`: tier 1 runs on simulators, which never archive. A build that has them logs
+`Fake Cast receivers in place of the Cast SDK's: this is a tier 1 build` when the module
+starts. In a debug build, the remote target probe (`e2e/suites/cast/README.md`) shows which
+receivers it has: `--es device "Bench TV"` connects in a fake build, and ends with
+`failed: no device named "Bench TV"` in any other.
 
 ## Configuration
 
@@ -81,7 +111,12 @@ per server, profile and target, reused by the next command to that receiver, and
 status request left unanswered keeps the token, and a `stop` the receiver does not obey within
 10 s exits with 1. A token whose sign-out fails waits in the same file, as an orphan, for the
 next run to retry it. One run at a time drives a receiver: a second one, the matrix
-included, exits with 2 instead of handing it a token of its own. Only `play-now` starts the
+included, exits with 2 instead of handing it a token of its own. The bitrate cap of the
+session is kept with the token: `play-now` sets it, uncapped without `--max-bitrate`, and every
+later command states it again, since the receiver applies the cap of each message to the loads
+after it. A later command given `--max-bitrate` changes it for the rest of the session. A
+session whose cap is unknown, one the bench did not start or one kept with no cap on record,
+needs `--max-bitrate` on every command but `stop` and `status`. Only `play-now` starts the
 receiver; the other actions leave whatever the TV shows alone.
 
 ## Where results go

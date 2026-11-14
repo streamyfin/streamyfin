@@ -55,9 +55,9 @@ export type Bitrate = {
 };
 
 /**
- * The streaming caps, highest first: what a download is made at, and what
- * the pickers of this device offer after Auto (`PLAYBACK_BITRATES`). Max caps
- * nothing.
+ * The streaming caps, highest first: what a download is made at, what the
+ * pickers of this device offer after Auto (`PLAYBACK_BITRATES`), and the
+ * remote playback quality a receiver plays at. Max caps nothing.
  */
 export const BITRATES: Bitrate[] = [
   { key: MAX_BITRATE_KEY, value: undefined },

@@ -31,6 +31,10 @@ import {
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
 import { AUTO_BITRATE, PLAYBACK_BITRATES } from "@/utils/bitrate";
+import {
+  NO_REMOTE_QUALITY,
+  type RemotePlaybackQuality,
+} from "@/utils/cast/remoteQuality";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import {
@@ -433,6 +437,8 @@ export type Settings = {
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
+  /** The quality a receiver plays at; the item page's and the default one stay this device's. */
+  remotePlaybackQuality: RemotePlaybackQuality;
   /** Auto: the share of the measured speed a stream may take. */
   autoBitrateRatio: number;
   /** Auto: how long a measure is used before the next, in minutes. */
@@ -649,6 +655,7 @@ export const defaultValues: Settings = {
   downloadQuality: DownloadOptions[0],
   showDownloadLiveActivity: true,
   defaultBitrate: AUTO_BITRATE,
+  remotePlaybackQuality: NO_REMOTE_QUALITY,
   autoBitrateRatio: DETECTED_BITRATE_RATIO,
   autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,
   autoBitrateInNetworkMin: IN_NETWORK_MIN_BITRATE,

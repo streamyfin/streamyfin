@@ -171,6 +171,9 @@ class UIOptionsRecord : Record {
     @Field var subtitleSearchLanguages: List<SubtitleSearchLanguageRecord> = emptyList()
     @Field var subtitleSearchDefaultLanguage: String = "eng"
     @Field var strings: Map<String, String> = emptyMap()
+    // The Cast button, and the texts of the output sheet it opens (JS: buildNativePlayerConfig).
+    @Field var allowCast: Boolean = false
+    @Field var outputPickerStrings: Map<String, String> = emptyMap()
 }
 
 class PlayerPresentConfigRecord : Record {
@@ -185,8 +188,8 @@ class PlayerPresentConfigRecord : Record {
     @Field var subtitleStyle: SubtitleStyleRecord? = null
     @Field var ui: UIOptionsRecord = UIOptionsRecord()
     @Field var syncPlay: SyncPlayStateRecord? = null
-    // Which engine decodes the stream: "mpv" (default) or "exoplayer".
-    // Ignored on iOS — its chrome always runs mpv.
+    // Which engine the chrome builds: "mpv" (the default) or "exoplayer". iOS builds mpv only, and both
+    // platforms refuse at present a name they do not build.
     @Field var engine: String? = null
     // mpv's video output driver: "gpu-next" (default) or "gpu". Not sent for
     // ExoPlayer or on iOS.

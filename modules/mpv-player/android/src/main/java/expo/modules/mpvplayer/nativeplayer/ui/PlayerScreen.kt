@@ -140,7 +140,7 @@ fun PlayerScreen(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (viewModel.uiOptions.showBrightnessSlider &&
+            if (viewModel.uiOptions.showBrightnessSlider && viewModel.capabilities.brightness &&
                 (viewModel.controlsVisible || viewModel.brightnessSliderRevealed)
             ) {
                 BrightnessSliderView(
@@ -257,7 +257,7 @@ fun PlayerScreen(
         }
 
         // Layer 10: Technical Info Overlay
-        if (viewModel.showTechnicalInfo) {
+        if (viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

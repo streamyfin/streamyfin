@@ -1,0 +1,267 @@
+import type {
+  CastChannel,
+  CastClient,
+  CastDevice,
+  CastMediaStatus,
+  CastNativeEvents,
+  CastSessionEventPayload,
+  CastSessionInfo,
+  CastStateValue,
+  CastSubscription,
+  OutputPickerAction,
+  OutputPickerOptions,
+  PlayServicesStateValue,
+  ReceiverMessage,
+  RemoteTargetState,
+} from "./Cast.types";
+import { NO_REMOTE_TARGET } from "./Cast.types";
+import { CastNative, type CastNativeModule } from "./CastModule";
+
+const UNAVAILABLE = "Cast is not available on this platform";
+
+/** The module when it can cast, else null: every call through it turns into a no-op. */
+const native = (): CastNativeModule | null =>
+  CastNative?.isAvailable() ? CastNative : null;
+
+export const isCastAvailable = (): boolean => native() !== null;
+
+export const castState = (): CastStateValue | null =>
+  native()?.getCastState() ?? null;
+
+// The module itself, not native(): Android answers unavailable for as long as
+// Play Services are not SUCCESS, which is exactly when these two are needed.
+export const playServicesState = (): PlayServicesStateValue | null =>
+  CastNative?.getPlayServicesState() ?? null;
+
+export const showPlayServicesErrorDialog = (
+  state: PlayServicesStateValue,
+): Promise<void> =>
+  CastNative?.showPlayServicesErrorDialog?.(state) ?? Promise.resolve();
+
+export const castDevices = (): CastDevice[] => native()?.getDevices() ?? [];
+
+export const startCastDiscovery = (): Promise<void> =>
+  native()?.startDiscovery() ?? Promise.resolve();
+
+export const stopCastDiscovery = (): Promise<void> =>
+  native()?.stopDiscovery() ?? Promise.resolve();
+
+export const currentCastSession = (): CastSessionInfo | null =>
+  native()?.getCurrentSession() ?? null;
+
+export const remoteTarget = (): RemoteTargetState =>
+  native()?.getRemoteTarget() ?? NO_REMOTE_TARGET;
+
+/**
+ * Asks for a connection to a device discovery lists, without the SDK's dialog.
+ * False when Cast is unavailable or the device is unknown; otherwise the
+ * outcome arrives through onRemoteTargetChanged.
+ */
+export const connectToCastDevice = (deviceId: string): Promise<boolean> =>
+  native()?.connectToDevice(deviceId) ?? Promise.resolve(false);
+
+/**
+ * Ends the session. `stopPlayback` (true unless set) also closes the receiver
+ * app. False keeps it playing only when this session joined a receiver app
+ * already running: the session that launched it stops it at its end on both
+ * platforms, whatever it asks. The `ended` that follows carries `withoutStop`.
+ */
+export const disconnectRemoteTarget = ({
+  stopPlayback = true,
+}: {
+  stopPlayback?: boolean;
+} = {}): Promise<void> =>
+  native()?.disconnect(stopPlayback) ?? Promise.resolve();
+
+/**
+ * Sets the connected receiver's own volume, 0 to 1, and does nothing without a
+ * connected target. The state's volume follows once the receiver reports it.
+ * Android sets it in the Cast route's steps, 20 on a Chromecast.
+ */
+export const setRemoteTargetVolume = (level: number): Promise<void> =>
+  native()?.setTargetVolume(level) ?? Promise.resolve();
+
+/**
+ * Mutes the connected receiver: the device on iOS, the playing stream on
+ * Android, where the device's mute through the session would stop it following
+ * the receiver. The stream's needs media loaded.
+ */
+export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
+  native()?.setTargetMuted(muted) ?? Promise.resolve();
+
+export const showExpandedControls = (): Promise<boolean> =>
+  native()?.showExpandedControls() ?? Promise.resolve(false);
+
+/**
+ * Opens the output sheet: this device, the Cast receivers, and AirPlay on iOS.
+ * True once it is on screen, false without the module, on a TV and on a Mac.
+ * The module itself, not native(): without Play Services the sheet is where
+ * Android says so and offers the fix.
+ */
+export const presentOutputPicker = (
+  options: OutputPickerOptions,
+): Promise<boolean> =>
+  CastNative?.presentOutputPicker(options) ?? Promise.resolve(false);
+
+type EventName = keyof CastNativeEvents;
+type Listener<K extends EventName> = CastNativeEvents[K];
+
+const listeners: { [K in EventName]: Set<Listener<K>> } = {
+  onCastStateChanged: new Set(),
+  onDevicesChanged: new Set(),
+  onSessionEvent: new Set(),
+  onMediaStatusChanged: new Set(),
+  onReceiverMessage: new Set(),
+  onRemoteTargetChanged: new Set(),
+  onOutputPickerAction: new Set(),
+};
+const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
+
+/**
+ * One native subscription per event, shared by every JS listener and released
+ * with the last of them: the module only emits while something observes it,
+ * and a listener dropped by one screen must not silence another.
+ */
+const subscribe = <K extends EventName>(
+  event: K,
+  listener: Listener<K>,
+): CastSubscription => {
+  // The module itself, not native(): a subscription made while Cast is
+  // unavailable (Play Services updating) has to hear the events once it is.
+  const module = CastNative;
+  if (!module) return { remove() {} };
+
+  const set = listeners[event] as Set<Listener<K>>;
+  if (!nativeSubscriptions[event]) {
+    nativeSubscriptions[event] = module.addListener(event, ((
+      payload: Parameters<Listener<K>>[0],
+    ) => {
+      for (const current of [...set]) {
+        (current as (value: typeof payload) => void)(payload);
+      }
+    }) as Listener<K>);
+  }
+  set.add(listener);
+
+  return {
+    remove() {
+      set.delete(listener);
+      if (set.size === 0) {
+        nativeSubscriptions[event]?.remove();
+        delete nativeSubscriptions[event];
+      }
+    },
+  };
+};
+
+export const onCastStateChanged = (
+  listener: (state: CastStateValue) => void,
+): CastSubscription =>
+  subscribe("onCastStateChanged", ({ state }) => listener(state));
+
+export const onCastDevicesChanged = (
+  listener: (devices: CastDevice[]) => void,
+): CastSubscription =>
+  subscribe("onDevicesChanged", ({ devices }) => listener(devices));
+
+export const onCastSessionEvent = (
+  listener: (payload: CastSessionEventPayload) => void,
+): CastSubscription =>
+  // Wrapped like the others: the set would merge two subscriptions of one function.
+  subscribe("onSessionEvent", (payload) => listener(payload));
+
+export const onCastMediaStatusChanged = (
+  listener: (status: CastMediaStatus | null) => void,
+): CastSubscription =>
+  subscribe("onMediaStatusChanged", ({ status }) => listener(status));
+
+export const onRemoteTargetChanged = (
+  listener: (state: RemoteTargetState) => void,
+): CastSubscription =>
+  subscribe("onRemoteTargetChanged", (state) => listener(state));
+
+/**
+ * What the sheet asked of the app: the remote (its connected panel), or this device's video while the receiver
+ * plays (Continue here). The sheet has closed by then.
+ */
+export const onOutputPickerAction = (
+  listener: (action: OutputPickerAction) => void,
+): CastSubscription =>
+  subscribe("onOutputPickerAction", ({ action }) => listener(action));
+
+/**
+ * Opens a custom channel on the current session and hands every message the
+ * receiver sends on it, as the raw string, to `onMessage`. `connected` says
+ * whether the receiver had the namespace open at that moment; a channel on a
+ * session that has since changed hears nothing, which is the caller's to track.
+ */
+export const addCastChannel = async (
+  namespace: string,
+  onMessage: (message: ReceiverMessage) => void,
+): Promise<CastChannel> => {
+  const module = native();
+  if (!module) {
+    return {
+      namespace,
+      connected: false,
+      sendMessage: () => Promise.reject(new Error(UNAVAILABLE)),
+      remove: () => Promise.resolve(),
+    };
+  }
+
+  // The receiver can answer the moment the namespace opens natively, before
+  // addChannel has returned to JS: the listener has to be there first.
+  const subscription = subscribe("onReceiverMessage", (payload) => {
+    if (payload.namespace === namespace) onMessage(payload.message);
+  });
+  let info: { namespace: string; connected: boolean };
+  try {
+    info = await module.addChannel(namespace);
+  } catch (error) {
+    subscription.remove();
+    // A namespace the native side kept from the failed open would make the
+    // next open skip registering it, and the receiver would go unheard. The
+    // caller still gets why the open failed, whatever the removal does.
+    await module.removeChannel(namespace).catch(() => {});
+    throw error;
+  }
+
+  return {
+    namespace,
+    connected: info.connected,
+    sendMessage: (message) =>
+      module.sendMessage(
+        namespace,
+        typeof message === "string" ? message : JSON.stringify(message),
+      ),
+    remove: async () => {
+      subscription.remove();
+      await module.removeChannel(namespace);
+    },
+  };
+};
+
+/** The client of a session: media status and transport, nothing about discovery. */
+export const castClientFor = (session: CastSessionInfo): CastClient => {
+  // The native transport acts on whatever session is current: a client kept
+  // across an await must not drive the next TV, as the library's client, bound
+  // to one remote media client, never did.
+  const own = (): CastNativeModule | null =>
+    currentCastSession()?.id === session.id ? native() : null;
+  return {
+    sessionId: session.id,
+    getMediaStatus: () =>
+      own()?.getMediaStatus(session.id) ?? Promise.resolve(null),
+    requestMediaStatus: (timeoutMs) =>
+      own()?.requestMediaStatus(session.id, timeoutMs) ?? Promise.resolve(null),
+    onMediaStatusUpdated: (listener) =>
+      onCastMediaStatusChanged((status) => {
+        if (own()) listener(status);
+      }),
+    play: () => own()?.play(session.id) ?? Promise.resolve(),
+    pause: () => own()?.pause(session.id) ?? Promise.resolve(),
+    stop: () => own()?.stop(session.id) ?? Promise.resolve(),
+    seek: (positionSeconds) =>
+      own()?.seek(positionSeconds, session.id) ?? Promise.resolve(),
+  };
+};

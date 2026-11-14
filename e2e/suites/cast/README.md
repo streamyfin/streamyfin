@@ -30,9 +30,11 @@ all, on a server without the lab's tags for instance. The Markdown table lands i
 `e2e/reports/<date>/` and, with `--keep`, in the evidence folder of the configuration; the
 rows measured so far are saved whatever ends the run, Ctrl-C included.
 
-The receiver is restarted before the first case, since it keeps the name and the bitrate cap
-of the first sender that reached it, and it stops after every case, whatever happened, so the
-TV never keeps playing a case the run has already measured.
+The receiver is restarted before the first case, since it keeps the device name of the first
+sender that reached it, and it stops after every case, whatever happened, so the TV never
+keeps playing a case the run has already measured. Every message carries a bitrate cap, the
+uncapped 120 Mb/s the app sends when no cap is picked, so the receiver runs no bandwidth
+measurement of its own: a case that depends on the link, E10 say, plays under that cap.
 
 ## Flows (tier 1)
 
@@ -43,3 +45,185 @@ build only assembles it: `bun run build:android:local`, then
 `bun run e2e:smoke` (or `make e2e`). Both run on the one emulator or simulator running, never
 on a phone, since the flow clears the app's data: `make e2e DEVICE=<adb serial>`, or
 `--device` for `e2e/bench/maestro.py`, names another device.
+
+`flows/output-sheet-fake-receivers.yml` drives the output sheet on the fake receivers of a
+tier 1 build (`e2e/README.md`): it signs in, since the Cast button shows only with a server
+session, opens the sheet from the header button, connects to "Bench TV", checks the button's
+state, then disconnects. It needs an English device, as the native sheet is found by its text,
+and a server the device reaches. CI runs it after the smoke flow, on the SyncPlay suite's
+throwaway server (`e2e/suites/syncplay/setup.py`) through `adb reverse`; on the bench, any
+server and account do:
+
+```sh
+ORG_GRADLE_PROJECT_streamyfinFakeCastDevices=true bun run build:android:local
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/output-sheet-fake-receivers.yml --device emulator-5554 \
+  --env SERVER_URL=<url> --env USERNAME=<account> --env PASSWORD=<password>
+```
+
+`maestro.py` masks the values it echoes; Maestro's own output and its debug files under
+`~/.maestro/tests/` do not, so keep them off anything shared when the account is a real one.
+
+`flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
+the phone emulator it finds an item by name, connects to a receiver from the output sheet,
+which the header Cast button opens, plays the item on it, then stops casting from the SDK's
+expanded controls. It needs the emulator (so the Mac) on the receiver's network, a build
+without the fake receivers, and two variables:
+
+```sh
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.yml --device emulator-5554 \
+  --env "ITEM_NAME=H.264 Baseline 480p" --env "CAST_NAME=Living room"
+```
+
+Its taps by position are laid out for the bench's 1080x2400 phone emulator. What the server
+recorded for the receiver during the flow is read with `e2e/bench/sessions.py`, as for the
+matrix.
+
+## Cast engine probe
+
+Debug builds carry a probe that drives a real receiver through the native Cast engine, so
+what the engine does on a TV is read from the device log rather than inferred. It binds an
+engine to the session of the first PlayNow the app sends, then, once that item plays, runs a
+fixed script through the engine's transport.
+
+It needs a Chromecast or a Google TV on the phone's network with the default Jellyfin
+receiver, and a debug build signed in to a test server, Metro running.
+
+**Android.** Clear the log, arm the probe, read the log, then cast an item from its page
+with the header Cast button, which is the app's own path. The last command keeps reading, so
+the cast goes from the app while it runs:
+
+```sh
+adb logcat -c
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.engine.CastEngineProbeReceiver -a expo.modules.mpvplayer.CAST_ENGINE_PROBE
+adb logcat -v time -s CastEngine:I CastEngineProbe:I ReceiverChannelHub:I StreamyfinCast:W
+```
+
+The broadcast needs the `DUMP` permission, which `adb shell` has. The log then reads:
+
+- `CastEngineProbe: armed`, then `engine bound, waiting for the item to play` and
+  `item playing, running the script`.
+- `ReceiverChannelHub: attached session=<id>` and `registered urn:x-cast:com.connectsdk
+  session=<id> subscribers=<n>`: the app's JS and the engine share one channel.
+- `CastEngine: bound to session <id> launched=<bool>`, then a line per state change,
+  `status <state> playSession=<id> playMethod=<DirectStream|Transcode> canClientSeek=<bool>`.
+- `CastEngineProbe: position <s>/<duration>` every second, the receiver's messages as
+  `bus type=<type> PlayMethod=… PositionTicks=… AudioStreamIndex=… SubtitleStreamIndex=…`
+  (the `PlayState` fields only), and `bus sent <command>` for what the app's JS sent.
+- One `step <name>` per step, timed from the first playing status: `pause` (5 s), `play`
+  (8 s), `seek+30` (12 s), `volume-0.1` (20 s), `volume-back` (23 s), `audio-reload` (26 s),
+  `subtitles-off` (40 s), `next` (45 s, to the next item when JS cast a queue),
+  `capped-reload` (55 s, the item played again where it is under a 192 kb/s cap, as a quality
+  change does through `reloadCurrentItem`; the probe's engine never loaded, so the receiver
+  keeps that item alone, hence `next` first), `seek+30` (65 s), `detach` (80 s). The TV pauses
+  and plays on, shows its volume banner twice, and keeps playing after `detach`. In the log: `seek <s> path=media` on
+  a stream the receiver seeks in and `path=bus` on one it cannot, a transcode after the capped
+  reload; `reload settled loaded`; `send SetSubtitleStreamIndex`; `send NextTrack`; `send PlayNow` and
+  `reload settled loaded` for the capped reload;
+  `detached from session <id>` and `disarmed`.
+- `idle finished, waiting for the next item` at the end of a track with more to come.
+
+What the server recorded for the receiver is read with `sessions.py`, during V03 for a
+direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
+
+```sh
+e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
+```
+
+Stopping the cast from the Cast dialog logs `binding lost session=<id> error=null`,
+`detached from session <id>` and `disarmed`. After a cast the SDK's expanded controls are
+open: their toolbar Cast button, read as `Cast. Connected`, opens that dialog; the app's
+header button reads `Cast button, Connected`.
+
+Cutting the phone's network ended the session on the emulator, within a second of the cut,
+after a suspend of about 16 s, or once right after a resume over its mobile link. The
+engine logs `binding lost session=<id> error=<code>`, status 2155 when the SDK gives one,
+then `detached from session <id>`. A phone that gets its Wi-Fi back within the SDK's window
+should log `session <id> suspended`, then `session <id> resumed` with the same id and bus
+messages again within 5 s: that check is left for a phone on the receiver's Wi-Fi.
+
+**iOS.** Pass the launch argument `-CastEngineProbe YES`, from the Xcode scheme or with
+`xcrun devicectl device process launch --console --terminate-existing --device <iPhone>
+<bundle identifier> -CastEngineProbe YES`, and read the same lines on the console. For the
+resume, put the app in the background for 10 s.
+
+Receiver 1.3.2 starts a transcode it cannot seek in at twice the position asked
+(jellyfin/jellyfin-chromecast#971): the second `seek+30` on MUSIC-FLAC shows it. Keep the
+evidence with `sessions.py --keep <subject>` and quote only that redacted copy: a raw log
+holds addresses.
+
+## Remote target probe
+
+Debug builds carry a second probe, for the target state the module publishes to JS
+(`getRemoteTarget`, `onRemoteTargetChanged`): it connects to a receiver by name through the
+same hub as `connectToDevice`, without the SDK's dialog, and logs every state it goes
+through. No server and no media are involved, so any receiver on the phone's network will do.
+
+**Android.** Name the receiver, or a part of its name. A whole name connects at once and wins
+over a part of another (`Salon` against `Salon - Chromecast`); a part of a name waits 3 s for
+the whole one to show up, since iOS lists receivers one at a time:
+
+```sh
+adb logcat -c
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device "<name>"
+adb logcat -v time -s CastTargetProbe:I StreamyfinCast:W
+```
+
+The log reads `armed for "<name>" state=none …`, `found <device>`, then one line per state,
+`state=<none|connecting|connected|ending> target=<device> reconnecting=<bool> error=<…>`:
+connecting, connected, then, after 5 s, `disconnecting`, ending, none, and `done`. The TV
+shows the Jellyfin receiver, then its home screen. A `failed: <reason>` line ends a run that
+did not get there: no such device within 15 s, a connection the SDK refused (with its
+error), none within 30 s, or no end within 20 s.
+
+**A switch, a lost receiver.** Armed while another receiver is connected, the probe switches
+to the one it names: the old session ends (`none` without an error is that end, not a
+failure), then the new one connects. `--el hold <ms>` holds the session that long before the
+disconnection, which leaves time to cut the phone's network or the receiver's power: the log
+then reads `reconnecting=true`, then `none` with the error the SDK gave, and `done`.
+
+**A switch asked back.** Armed while another receiver is connected, `--ez back true` makes
+the probe ask for the receiver it names, then at once for the connected one again, before the
+switch has ended its session: the last request wins. The log reads `found <device>`,
+`asking <connected device> again`, then ending, connecting and connected on that receiver,
+with no `none` in between, and the receiver the probe named never connects.
+
+**A session running at launch.** Add `--ez keep true` and the probe stops at connected,
+leaving the session up. Kill the app (`adb shell am force-stop com.fredrikburmester.streamyfin`),
+open it again, and send the same broadcast with `keep`: the first line reads
+`armed for "<name>" state=connected target=<device>`, then `already connected to <device>`,
+because the SDK resumed the session before anything asked. A last broadcast without `keep`
+ends it.
+
+**Leaving the receiver playing, setting its volume.** `--ez stop false` ends the session
+without asking the receiver to stop: the log reads `disconnecting without stopping the
+receiver`. It is a request, not a guarantee: the receiver app keeps playing only when the
+probe's session joined it, and the session that launched it stops it at its end on both SDKs
+(`.claude/learned-facts/cast-launching-session-stops-the-receiver.md`). `--ef volume <0 to 1>` sets the
+receiver's volume once connected (`setting the volume to 0.40`), then logs each level the
+receiver reports back as `volume=0.40 muted=false` until it disconnects. With `keep` the probe ends
+as soon as it has asked, before any report: leave `keep` off, with a `hold`, to read the level back.
+`--ez mute true|false` sets its mute after the level (`setting the mute to true`). On Android the app
+mutes the playing stream, not the device, which the SDK's expanded controls mute instead: with no
+media loaded the port logs `setMute: no media playing to mute` and the receiver reports nothing, so
+cast something before.
+
+**The output sheet.** `--ez sheet true` presents the output sheet over whatever the app shows
+(`presenting the output sheet`) as the probe starts, so its states can be captured while the
+probe connects. With `--es device none`, a name no receiver has, the probe connects to nothing
+and the sheet is left to drive by hand. The sheet stays up after the probe ends: back closes it.
+With no Cast context (Play Services missing) the probe still presents it before giving up. On
+iOS, `-CastTargetProbeSheet YES` does the same once the app is active. A relaunch meets the SDK
+resuming the session it had: arm `none` then, since a probe that connects while the SDK resumes
+leaves the SDK holding two sessions, and the volume reports of the resumed one are dropped.
+
+**iOS.** Pass `-CastTargetProbe "<name>"`, `-CastTargetProbeKeep YES` to leave the session
+up and `-CastTargetProbeHold <ms>` to hold it, as launch arguments; the same lines come out
+under `[CastTargetProbe]`, in `tmp/logs.txt` of the app's container. Every launch meets the
+SDK resuming the session it had, so a switch inside a live session needs one process:
+`-CastTargetProbeThen "<other name>"` asks for the second receiver once the first is connected,
+the first session kept up with or without `-CastTargetProbeKeep`. `-CastTargetProbeKeep` and
+`-CastTargetProbeHold` then apply to the second receiver, as each Android broadcast reads its own.
+`-CastTargetProbeBack YES` is `back` for the probe that switches: with a chain, the second one.
+`-CastTargetProbeStop NO`, `-CastTargetProbeVolume <0 to 1>` and `-CastTargetProbeMute YES|NO` are `stop`,
+`volume` and `mute`.
