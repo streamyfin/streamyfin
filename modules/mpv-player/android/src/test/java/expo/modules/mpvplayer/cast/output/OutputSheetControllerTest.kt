@@ -273,6 +273,43 @@ class OutputSheetControllerTest {
         assertTrue(row(sheet, bedroom).status is DeviceStatus.Failed)
     }
 
+    // The same refusal again: the row reads the failure again, not a connection that never ends, whose Cancel would
+    // stop the receiver that plays.
+    @Test
+    fun aSwitchRefusedTwiceShowsItsFailureAgain() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom), listsOnDiscovery = true, refuses = setOf(bedroom.id))
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        sheet.tap(row(sheet, bedroom))
+
+        sheet.tap(row(sheet, bedroom))
+
+        assertTrue(row(sheet, bedroom).status is DeviceStatus.Failed)
+    }
+
+    // The failure an earlier refusal left is not the answer to the next request: a report of the session that holds,
+    // before it ends for the switch, leaves the row waiting, and the panel comes back once the receiver connects.
+    @Test
+    fun aRequestAfterARefusalIsNotAnsweredByThatRefusal() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom), listsOnDiscovery = true, refuses = setOf(bedroom.id))
+        val sheet = sheet(hubWith(port))
+        port.emit("started", livingRoom)
+        sheet.change()
+        sheet.tap(row(sheet, bedroom))
+        port.refuses = emptySet()
+
+        sheet.tap(row(sheet, bedroom))
+        port.events?.volumeChanged(0.4, false)
+        val waiting = row(sheet, bedroom).status
+        port.emit("ending", livingRoom)
+        port.emit("ended", livingRoom)
+        port.emit("started", bedroom)
+
+        assertEquals(DeviceStatus.Connecting, waiting)
+        assertEquals(bedroom.id, panel(sheet).target.id)
+    }
+
     // Back to the receiver a switch was leaving: the asked one goes back to idle.
     @Test
     fun goingBackDuringASwitchForgetsTheAskedReceiver() {

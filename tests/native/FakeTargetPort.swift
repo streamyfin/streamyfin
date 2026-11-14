@@ -7,7 +7,7 @@ final class FakeTargetPort: TargetPort {
   /// Lists `known` inside startDiscovery, as the Android SDK port does with the routes MediaRouter has.
   private let listsOnDiscovery: Bool
   /// Devices whose connection the port answers at once with startFailed, as a disabled route is.
-  private let refuses: Set<String>
+  var refuses: Set<String>
   // Kept after stop, so a test can play a stale port talking to the hub.
   var events: TargetPortEvents?
   var starts = 0

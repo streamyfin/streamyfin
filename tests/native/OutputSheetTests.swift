@@ -80,6 +80,21 @@ enum OutputSheetTests {
   }
 
   static func modelCases() {
+    // A row is drawn under its key, not its place: a receiver found during a press and sorted before the pressed one
+    // must not take the tap, and AirPlay's own button must not be rebuilt each time a receiver comes or goes.
+    do {
+      let airPlay = AirPlayInput(activeRoute: nil)
+      let before = rows(outputSheetState(input(devices: [livingRoom], airPlay: airPlay)))
+      let after = rows(outputSheetState(input(devices: [livingRoom, attic], airPlay: airPlay)))
+      let pressed = before.first { if case .device = $0 { return true } else { return false } }
+      let moved = after.first { if case let .device(id, _, _, _) = $0 { return id == livingRoom.id } else { return false } }
+      check(
+        "aRowKeepsItsKeyWhenAReceiverSortsBeforeIt",
+        pressed != nil && pressed?.key == moved?.key && before.last?.key == after.last?.key
+          && Set(after.map(\.key)).count == after.count
+      )
+    }
+
     // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
     do {
       let rows = rows(outputSheetState(input(airPlay: AirPlayInput(activeRoute: nil), playingHere: "Big Buck Bunny")))
@@ -513,6 +528,41 @@ enum OutputSheetTests {
       var failed = false
       if case .failed = status(sheet.state, bedroom) { failed = true }
       check("aSwitchRefusedAtOnceShowsItsFailure", failed)
+    }
+
+    // The same refusal again: the row reads the failure again, not a connection that never ends, whose Cancel would
+    // stop the receiver that plays.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom], listsOnDiscovery: true, refuses: [bedroom.id])
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      sheet.tap(deviceRow(sheet, bedroom))
+      var failed = false
+      if case .failed = status(sheet.state, bedroom) { failed = true }
+      check("aSwitchRefusedTwiceShowsItsFailureAgain", failed)
+    }
+
+    // The failure an earlier refusal left is not the answer to the next request: a report of the session that holds,
+    // before it ends for the switch, leaves the row waiting, and the panel comes back once the receiver connects.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom], listsOnDiscovery: true, refuses: [bedroom.id])
+      let sheet = sheet(port, clock: Clock())
+      port.emit("started", livingRoom)
+      sheet.change()
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.refuses = []
+      sheet.tap(deviceRow(sheet, bedroom))
+      port.events?.volumeChanged(level: 0.4, muted: false)
+      let waiting = status(sheet.state, bedroom)
+      port.emit("ending", livingRoom)
+      port.emit("ended", livingRoom)
+      port.emit("started", bedroom)
+      check(
+        "aRequestAfterARefusalIsNotAnsweredByThatRefusal",
+        waiting == .connecting && panel(sheet.state)?.target.id == bedroom.id
+      )
     }
 
     // The receiver's media can come without a title: it still plays, so the stop and the remote stay.

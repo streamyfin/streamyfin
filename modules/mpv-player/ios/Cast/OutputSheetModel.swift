@@ -64,6 +64,16 @@ enum OutputRow: Equatable {
   case device(id: String, name: String, videoOut: Bool, status: DeviceStatus)
   case airPlay(activeRoute: String?)
   case status(SheetStatus)
+
+  /// What the row is, whatever its place: discovery reorders the list while a finger is on it.
+  var key: String {
+    switch self {
+    case .thisDevice: return "this-device"
+    case let .device(id, _, _, _): return "device:" + id
+    case .airPlay: return "airplay"
+    case let .status(status): return "status:" + String(describing: status)
+    }
+  }
 }
 
 struct ConnectedPanel: Equatable {

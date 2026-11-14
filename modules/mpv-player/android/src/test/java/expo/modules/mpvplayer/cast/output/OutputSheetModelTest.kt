@@ -47,6 +47,21 @@ class OutputSheetModelTest {
 
     private fun rows(state: OutputSheetState) = (state as OutputSheetState.List).rows
 
+    // A row is drawn under its key, not its place: a receiver found during a press and sorted before the pressed one
+    // must not take the tap, and AirPlay's own button must not be rebuilt each time a receiver comes or goes.
+    @Test
+    fun aRowKeepsItsKeyWhenAReceiverSortsBeforeIt() {
+        val airPlay = AirPlayInput(activeRoute = null)
+        val before = rows(outputSheetState(input(devices = listOf(livingRoom), airPlay = airPlay)))
+        val after = rows(outputSheetState(input(devices = listOf(livingRoom, attic), airPlay = airPlay)))
+        val pressed = before.first { it is OutputRow.Device }
+        val moved = after.first { it is OutputRow.Device && it.id == livingRoom.id }
+
+        assertEquals(pressed.key, moved.key)
+        assertEquals(before.last().key, after.last().key)
+        assertEquals(after.size, after.map { it.key }.toSet().size)
+    }
+
     // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
     @Test
     fun theListPutsThisDeviceFirstThenTheDevicesByName() {

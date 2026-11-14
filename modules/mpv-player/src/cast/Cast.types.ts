@@ -195,7 +195,11 @@ export interface RemoteTargetState {
   volume: number | null;
   /** The receiver is muted: the device, or on Android the playing stream, which is what the app mutes there. */
   muted: boolean;
-  /** The SDK's status code for `error`: null with no error, and for a refusal of the native side's own. */
+  /**
+   * The SDK's status code for `error`: null with no error, and for a refusal of the native side's own.
+   * Each platform has its own codes (CastStatusCodes on Android, GCKErrorCode on iOS): one failure
+   * comes with a different number on each.
+   */
   errorCode: number | null;
   /** The receiver `error` belongs to, which may not be the target: a refused switch keeps the one that holds. */
   failedTarget: RemoteTarget | null;

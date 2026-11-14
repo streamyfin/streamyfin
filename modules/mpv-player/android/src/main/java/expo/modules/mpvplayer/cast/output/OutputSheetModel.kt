@@ -69,14 +69,25 @@ sealed interface DeviceStatus {
 enum class SheetStatus { SEARCHING, NO_DEVICES, PLAY_SERVICES_MISSING, PLAY_SERVICES_UPDATE }
 
 sealed interface OutputRow {
+    /** What the row is, whatever its place: discovery reorders the list while a finger is on it. */
+    val key: String
+
     /** [continueHere]: the receiver plays, outside the player, and a tap takes its video over on this device. */
-    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?, val continueHere: Boolean = false) : OutputRow
+    data class ThisDevice(val kind: ThisDeviceKind, val playing: String?, val continueHere: Boolean = false) : OutputRow {
+        override val key get() = "this-device"
+    }
 
-    data class Device(val id: String, val name: String, val videoOut: Boolean, val status: DeviceStatus) : OutputRow
+    data class Device(val id: String, val name: String, val videoOut: Boolean, val status: DeviceStatus) : OutputRow {
+        override val key get() = "device:$id"
+    }
 
-    data class AirPlay(val activeRoute: String?) : OutputRow
+    data class AirPlay(val activeRoute: String?) : OutputRow {
+        override val key get() = "airplay"
+    }
 
-    data class Status(val status: SheetStatus) : OutputRow
+    data class Status(val status: SheetStatus) : OutputRow {
+        override val key get() = "status:${status.name}"
+    }
 }
 
 sealed interface OutputSheetState {
