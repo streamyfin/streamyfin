@@ -1267,33 +1267,43 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // restored at launch, and the native queue of before is dropped so next and
   // previous do not walk it. A phone that never played has no player to reset,
   // and a reset before setup rejects.
-  const handBackFromReceiver = useCallback((view: MusicCastRemoteView) => {
+  // The phone's player lets go of its queue, which the receiver has or hands back: next and previous would walk it, and
+  // its loads in the background would go on adding to it. A phone that never played has no player to reset, and a
+  // reset before setup rejects.
+  const releasePhonePlayer = useCallback(async () => {
     queueGenerationRef.current += 1;
     if (playerReadyRef.current) {
-      TrackPlayer?.reset().catch((error: unknown) =>
-        logAndCaptureError("Resetting the player after a cast ended", error),
+      await TrackPlayer?.reset().catch((error: unknown) =>
+        logAndCaptureError("Resetting the player for the receiver", error),
       );
     } else {
       // A reattach still in flight ends with a live service: reset behind it.
       playerSetupRef.current?.then(() => TrackPlayer.reset()).catch(() => {});
     }
-    setState((prev) => ({
-      ...prev,
-      queue: view.queue,
-      originalQueue: view.queue,
-      queueIndex: view.queueIndex,
-      currentTrack: view.currentTrack,
-      isPlaying: false,
-      isLoading: false,
-      loadingTrackId: null,
-      progress: view.progress,
-      duration: view.duration,
-      streamUrl: null,
-      playSessionId: null,
-      mediaSource: null,
-      isTranscoding: false,
-    }));
   }, []);
+
+  const handBackFromReceiver = useCallback(
+    (view: MusicCastRemoteView) => {
+      void releasePhonePlayer();
+      setState((prev) => ({
+        ...prev,
+        queue: view.queue,
+        originalQueue: view.queue,
+        queueIndex: view.queueIndex,
+        currentTrack: view.currentTrack,
+        isPlaying: false,
+        isLoading: false,
+        loadingTrackId: null,
+        progress: view.progress,
+        duration: view.duration,
+        streamUrl: null,
+        playSessionId: null,
+        mediaSource: null,
+        isTranscoding: false,
+      }));
+    },
+    [releasePhonePlayer],
+  );
   // The receiver plays on through a drop of the phone's own network: only the
   // end of the Cast session hands the queue back. iOS suspends the session
   // while the app is in the background, and the state reads not connected
@@ -1346,10 +1356,20 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
-      if (TrackPlayer && state.isPlaying) {
-        await TrackPlayer.pause();
-        setState((prev) => ({ ...prev, isPlaying: false }));
-      }
+      // Let go of, not paused: a paused player stays on the lock screen, the notification and the headset buttons,
+      // whose Play started the phone alongside the receiver. A start of the phone's still on its way plays nothing.
+      startSequenceRef.current += 1;
+      await releasePhonePlayer();
+      setState((prev) => ({
+        ...prev,
+        isPlaying: false,
+        isLoading: false,
+        loadingTrackId: null,
+        streamUrl: null,
+        playSessionId: null,
+        mediaSource: null,
+        isTranscoding: false,
+      }));
       if (isStale()) return;
       const sent = beginOnReceiver(queue, startIndex, startSeconds);
       const started = await castQueue({
@@ -1360,7 +1380,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       });
       if (!started) endOnReceiver(sent);
     },
-    [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],
+    [castQueue, releasePhonePlayer, beginOnReceiver, endOnReceiver],
   );
 
   // Connecting while the phone plays moves the queue to the receiver. A queue

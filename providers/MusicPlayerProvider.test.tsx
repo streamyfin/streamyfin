@@ -43,6 +43,7 @@ const mockNative = {
   playing: false,
   /** Runs inside a pause, before it lands. */
   onPause: undefined as (() => Promise<void>) | undefined,
+  onReset: undefined as (() => Promise<void>) | undefined,
   outOfBounds: () => new Error("The track index is out of bounds"),
   /**
    * Runs between the native side answering a queue read and the caller seeing
@@ -113,6 +114,9 @@ jest.mock(
       reset: async () => {
         mockNative.calls.push("reset");
         if (!mockNative.initialized) throw mockNative.notInitialized();
+        await mockNative.onReset?.();
+        // RNTP's reset stops what plays as it clears the queue.
+        mockNative.playing = false;
         mockNative.queue = [];
         mockNative.activeIndex = undefined;
       },
@@ -357,6 +361,7 @@ beforeEach(() => {
   mockNative.activeIndex = undefined;
   mockNative.playing = false;
   mockNative.onPause = undefined;
+  mockNative.onReset = undefined;
   mockNative.afterQueueRead = undefined;
   mockNetwork.isConnected = true;
   mockNetwork.serverConnected = true;
@@ -658,6 +663,28 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t0");
   });
 
+  // Only paused, the phone's player stayed on the lock screen, the notification and the headset buttons, whose Play
+  // started the phone alongside the TV, and its session went on reporting under the receiver's.
+  test("lets go of the phone's player when the queue moves to the receiver", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(nativeIds().length).toBeGreaterThan(0);
+
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+
+    expect(nativeIds()).toEqual([]);
+    expect(mockNative.calls).toContain("reset");
+    // The phone's own Now Playing details go with it: the badges would describe its last track.
+    expect(player.mediaSource).toBeNull();
+    // A repeat change during the cast goes to the receiver only: the phone has no track to report.
+    const before = reports(PROGRESS_URL).length;
+    await run((p) => p.setRepeatMode("all"));
+    await settle();
+    expect(reports(PROGRESS_URL)).toHaveLength(before);
+  });
+
   // A Play pressed on a film while the receiver connects is for the receiver: the phone's music stops for it rather
   // than move there and replace it.
   test("gives way to a Play waiting for the receiver when a session connects", async () => {
@@ -858,7 +885,10 @@ describe("MusicPlayerProvider and a Cast session", () => {
       await new Promise((resolve) => setTimeout(resolve, 400));
     });
 
-    expect(mockNative.calls).toEqual(["setupPlayer", "reset"]);
+    // Reset behind the setup, never before it: the move to the receiver and the hand-back each let go of the queue.
+    expect(mockNative.calls[0]).toBe("setupPlayer");
+    expect(mockNative.calls.slice(1)).toContain("reset");
+    expect(new Set(mockNative.calls.slice(1))).toEqual(new Set(["reset"]));
     expect(logAndCaptureError).not.toHaveBeenCalled();
   });
 
@@ -1330,11 +1360,11 @@ describe("MusicPlayerProvider and a Cast session", () => {
   });
 
   // The account can switch while the phone stops for the cast.
-  test("drops a queue moved to the receiver when the account switched during the pause", async () => {
+  test("drops a queue moved to the receiver when the account switched while the phone stopped", async () => {
     await mount();
     await run((p) => p.playQueue(ALBUM, 0));
     let release = () => {};
-    mockNative.onPause = () =>
+    mockNative.onReset = () =>
       new Promise<void>((resolve) => {
         release = resolve;
       });
