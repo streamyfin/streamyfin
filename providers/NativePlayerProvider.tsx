@@ -6,7 +6,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import {
   getLibraryApi,
-  getMediaInfoApi,
   getSessionApi,
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -125,6 +124,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -210,6 +210,8 @@ interface NativeSession extends NativePlayerSessionSeed {
   hasPlaybackStarted: boolean;
   /** Dedupe key of the last "stopped" report (sessionId || itemId). */
   reportedStopKey: string | null;
+  /** Set once releaseLiveStream has given this session's reference back. */
+  liveStreamReleased: boolean;
   /**
    * True from session creation until the new stream's onLoad arrives. The
    * engine is swapped in place, so events from the OUTGOING stream can still
@@ -778,13 +780,22 @@ const NativePlayerProviderInner: React.FC<{
   );
 
   const releaseLiveStream = useCallback(
-    (session: Pick<NativeSession, "stream" | "offline">) => {
+    (
+      session: Pick<NativeSession, "stream" | "offline"> & {
+        liveStreamReleased?: boolean;
+      },
+    ) => {
       const liveStreamId = session.stream.mediaSource?.LiveStreamId;
       const currentApi = apiRef.current;
       if (!liveStreamId || !currentApi || session.offline) return;
-      getMediaInfoApi(currentApi)
-        .closeLiveStream({ liveStreamId })
-        .catch(() => {});
+      // Once per negotiation: a swap, its failure path and the teardown can
+      // all reach here for the same session, and the server counts one
+      // reference per negotiation on a stream it shares between sessions.
+      // A close that got no answer is retried inside closeLiveStream; one the
+      // server answered is never sent again, even when it failed.
+      if (session.liveStreamReleased) return;
+      session.liveStreamReleased = true;
+      closeLiveStream(currentApi, liveStreamId).catch(() => {});
     },
     [],
   );
@@ -807,8 +818,10 @@ const NativePlayerProviderInner: React.FC<{
         MediaSourceId: session.mediaSourceId,
         PositionTicks: positionTicks ?? msToTicks(session.positionMs),
         PlaySessionId: session.stream.sessionId || undefined,
-        // Required to release the server-side live stream's tuner slot.
-        LiveStreamId: session.stream.mediaSource?.LiveStreamId ?? undefined,
+        // No LiveStreamId: releaseLiveStream gives the session's reference
+        // back after every stop report. Named here, the stream is released
+        // a second time, and a channel's stream is shared, so that cuts it
+        // from under another device on the channel, or a swap's new stream.
       };
       const playstate = getSessionApi(currentApi);
       try {
@@ -1182,6 +1195,7 @@ const NativePlayerProviderInner: React.FC<{
         isPlaying: false,
         hasPlaybackStarted: false,
         reportedStopKey: null,
+        liveStreamReleased: false,
         awaitingLoad: true,
         cachedToEnd: false,
         committed: false,
