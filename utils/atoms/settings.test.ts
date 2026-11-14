@@ -819,6 +819,10 @@ describe("the default quality", () => {
     expect(defaultValues.autoBitrateInNetworkMin).toBe(140_000_000);
   });
 
+  test("adapts Auto during playback", () => {
+    expect(defaultValues.autoBitrateAdapt).toBe(true);
+  });
+
   // The plugin's own Max: what an admin locked as no cap stays no cap.
   test("is Max when the plugin sends Max as its key", () => {
     store.set(pluginSettingsAtom, {

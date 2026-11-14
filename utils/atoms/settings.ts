@@ -439,6 +439,8 @@ export type Settings = {
   autoBitrateTtlMinutes: number;
   /** Auto: the least a stream gets in the server's network, in bit/s; 0 for none. */
   autoBitrateInNetworkMin: number;
+  /** Auto: steps down when a stream stalls, and back up once the link allows. */
+  autoBitrateAdapt: boolean;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -650,6 +652,7 @@ export const defaultValues: Settings = {
   autoBitrateRatio: DETECTED_BITRATE_RATIO,
   autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,
   autoBitrateInNetworkMin: IN_NETWORK_MIN_BITRATE,
+  autoBitrateAdapt: true,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",

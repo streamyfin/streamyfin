@@ -65,7 +65,9 @@ const isMeasure = (value: unknown): value is Measure =>
   isPlainObject(value) &&
   typeof value.at === "number" &&
   typeof value.inNetwork === "boolean" &&
-  (value.rate === undefined || typeof value.rate === "number");
+  // A rate of nothing would ask the server for no cap at all.
+  (value.rate === undefined ||
+    (typeof value.rate === "number" && value.rate > 0));
 
 const putMeasure = (
   target: Measures,
@@ -370,6 +372,24 @@ export const lastDetection = (
         failure: lastFailure.cause,
       }),
   };
+};
+
+/**
+ * Keeps the rate, in bits/s, that a playback showed the link to `api`'s
+ * server carries, as the measure of the network the device is on: the next
+ * playback there starts from it, until it is older than the settings allow.
+ * In the server's network the minimum set for it still applies. Nothing is
+ * kept before the network is known.
+ */
+export const keepPlaybackRate = (api: Api, rate: number): void => {
+  if (network === undefined || !(rate > 0)) return;
+  const before = measureOn(api.basePath, network);
+  keepMeasure(api.basePath, network, {
+    rate,
+    inNetwork: before?.inNetwork ?? false,
+    at: Date.now(),
+  });
+  failed.delete(failureKey(api.basePath, network));
 };
 
 const resolveDetection = async (

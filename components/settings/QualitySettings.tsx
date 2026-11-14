@@ -3,6 +3,7 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { bitrateOptions } from "@/components/BitrateSelector";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import {
   AUTO_BITRATE_IN_NETWORK_MIN_CHOICES,
@@ -156,6 +157,18 @@ export const QualitySettings: React.FC = () => {
             />
           }
           title={floor}
+        />
+      </ListItem>
+      <ListItem
+        title={t("home.settings.quality.adapt")}
+        disabled={pluginSettings?.autoBitrateAdapt?.locked}
+      >
+        <SettingSwitch
+          value={settings.autoBitrateAdapt}
+          disabled={pluginSettings?.autoBitrateAdapt?.locked}
+          onValueChange={(autoBitrateAdapt) =>
+            updateSettings({ autoBitrateAdapt })
+          }
         />
       </ListItem>
       <ListItem
