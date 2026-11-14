@@ -640,6 +640,7 @@ export async function buildNativePlayerConfig(params: {
         settings.matchRefreshRate === true
           ? (videoStream?.RealFrameRate ?? undefined)
           : undefined,
+      audioOnlyWhenHidden: settings.audioOnlyWhenScreenOff !== false,
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.

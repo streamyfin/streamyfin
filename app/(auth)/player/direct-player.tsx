@@ -1105,6 +1105,7 @@ export default function DirectPlayerPage() {
       },
       // Pass VO driver setting (Android only)
       voDriver: settings.mpvVoDriver,
+      audioOnlyWhenHidden: settings.audioOnlyWhenScreenOff !== false,
     };
 
     // Add external subtitles only for online playback
@@ -1162,6 +1163,7 @@ export default function DirectPlayerPage() {
     settings.mpvDemuxerMaxBytes,
     settings.mpvDemuxerMaxBackBytes,
     settings.mpvVoDriver,
+    settings.audioOnlyWhenScreenOff,
   ]);
 
   // Commands a server sends back to back each make a step: covered by

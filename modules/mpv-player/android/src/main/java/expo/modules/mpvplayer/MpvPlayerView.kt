@@ -327,6 +327,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun loadVideo(config: VideoLoadConfig) {
         // Skip reload if same URL and loop flag are already playing
         if (currentUrl == config.url && currentLoop == config.loop) {
+            // The same file: only what applies while it plays is passed on.
+            renderer?.setAudioOnlyWhenHidden(config.audioOnlyWhenHidden)
             return
         }
 

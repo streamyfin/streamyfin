@@ -510,6 +510,8 @@ export type Settings = {
   mpvDemuxerMaxBackBytes?: number; // MB
   // MPV video output driver (Android only)
   mpvVoDriver?: MpvVoDriver;
+  /** Android: stop decoding video while the screen is off or the app is hidden; audio plays on. */
+  audioOnlyWhenScreenOff: boolean;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -716,6 +718,7 @@ export const defaultValues: Settings = {
   mpvDemuxerMaxBackBytes: Platform.isTV && Platform.OS === "android" ? 30 : 50, // MB
   // MPV video output driver defaults (Android only)
   mpvVoDriver: "gpu-next",
+  audioOnlyWhenScreenOff: true,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

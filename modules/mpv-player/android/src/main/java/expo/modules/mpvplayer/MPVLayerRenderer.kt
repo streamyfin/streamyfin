@@ -10,6 +10,8 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.View
+import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
@@ -70,6 +72,19 @@ class MPVLayerRenderer(
         private val surfaceSizeExecutor = Executors.newSingleThreadExecutor { task ->
             Thread(task, "mpv-surface-size").apply { isDaemon = true }
         }
+
+        // Turning the video track off and on waits for the player core, which
+        // can be busy for seconds: never on the UI thread. One worker keeps
+        // the off and the on in the order they were asked for.
+        private val videoTrackExecutor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "mpv-video-track").apply { isDaemon = true }
+        }
+
+        // How long the surface must stay gone before video decoding stops. A
+        // PiP transition destroys and recreates the surface within a second,
+        // and each track switch costs a seek: only a real lock or background
+        // gets there.
+        const val AUDIO_ONLY_DELAY_MS = 3_000L
     }
 
     private fun isTvDevice(): Boolean {
@@ -408,6 +423,8 @@ class MPVLayerRenderer(
 
     override fun stop() {
         invalidateSeekReports()
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        videoTrack.endForNextFile(null)
         // Released by the teardown below, once mpv no longer renders into it.
         val sink = offscreenSink
         offscreenSink = null
@@ -514,6 +531,60 @@ class MPVLayerRenderer(
             val activeVo = try { mpv?.getPropertyString("vo") } catch (e: Exception) { null }
             Log.i(TAG, "[PiP] attachSurface — attached, activeVo=$activeVo")
         }
+        restoreVideoTrack()
+    }
+
+    // Audio only while hidden: with the surface gone the video is decoded only
+    // to be thrown away, so past AUDIO_ONLY_DELAY_MS the track is switched off
+    // (vid=no) and restored when a surface comes back. Off by load() unless the
+    // source asks for it.
+    private var audioOnlyWhenHidden = false
+    private val videoTrack = VideoTrackSuspension(
+        videoTrackExecutor,
+        log = { Log.i(TAG, "[Background] $it") },
+        warn = { Log.w(TAG, "[Background] $it") },
+    )
+    private val enterAudioOnlyRunnable = Runnable { enterAudioOnly() }
+
+    private fun MPVLib.trackProperties() = object : TrackProperties {
+        override fun get(name: String): String? = getPropertyString(name)
+        override fun set(name: String, value: String) = setPropertyString(name, value)
+    }
+
+    private fun enterAudioOnly() {
+        if (!audioOnlyWhenHidden || !isRunning || surface != null) return
+        val m = mpv ?: return
+        videoTrack.suspend(m.trackProperties())
+    }
+
+    /** Switches to audio only after AUDIO_ONLY_DELAY_MS if still hidden then. */
+    private fun scheduleAudioOnly() {
+        if (!audioOnlyWhenHidden || surface != null) return
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        mainHandler.postDelayed(enterAudioOnlyRunnable, AUDIO_ONLY_DELAY_MS)
+    }
+
+    /** True while a switch to audio only is waiting to run. */
+    @VisibleForTesting
+    @RequiresApi(Build.VERSION_CODES.Q)
+    internal fun isAudioOnlyScheduled(): Boolean = mainHandler.hasCallbacks(enterAudioOnlyRunnable)
+
+    /**
+     * The audio only option for the file already playing: load() reads it
+     * from the config, but a source that keeps its URL is not loaded again.
+     * Turned off, it cancels a switch still waiting and brings back a track
+     * already off; turned on, it applies from the next time the surface goes.
+     */
+    fun setAudioOnlyWhenHidden(enabled: Boolean) {
+        if (audioOnlyWhenHidden == enabled) return
+        audioOnlyWhenHidden = enabled
+        if (!enabled) restoreVideoTrack()
+    }
+
+    private fun restoreVideoTrack() {
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        val m = mpv ?: return
+        videoTrack.restore(m.trackProperties())
     }
 
     // Stands in for the surface while there is none; see OffscreenSurfaceSink.
@@ -553,6 +624,7 @@ class MPVLayerRenderer(
                 mpv?.attachSurface(sink.surface)
                 updateSurfaceSize(OffscreenSurfaceSink.WIDTH, OffscreenSurfaceSink.HEIGHT)
                 Log.i(TAG, "[PiP] detachSurface — rendering into the offscreen sink")
+                scheduleAudioOnly()
                 return
             }
             mpv?.detachSurface()
@@ -646,6 +718,7 @@ class MPVLayerRenderer(
                 initialSubtitleId = savedSid,
                 loop = currentLoop,
                 externalSubtitles = activeExternalSubtitles,
+                audioOnlyWhenHidden = audioOnlyWhenHidden,
             ),
         )
 
@@ -678,6 +751,11 @@ class MPVLayerRenderer(
                 Log.i(TAG, "[Recover] isVideoOutputBroken — no video track (audio-only), healthy")
                 return false
             }
+            // Switched off on purpose while hidden, and coming back.
+            if (videoTrack.isSuspended) {
+                Log.i(TAG, "[Recover] isVideoOutputBroken — video suspended for the background, healthy")
+                return false
+            }
             val vid = mpv?.getPropertyString("vid")
             val voConfigured = mpv?.getPropertyBoolean("vo-configured") ?: false
             val broken = vid == "no" || !voConfigured
@@ -702,6 +780,11 @@ class MPVLayerRenderer(
         this.initialSubtitleId = config.initialSubtitleId
         this.initialAudioId = config.initialAudioId
         this.currentLoop = config.loop
+        audioOnlyWhenHidden = config.audioOnlyWhenHidden
+        // A switch still waiting was for the file being replaced. Left queued,
+        // it would take this one's video away even with the setting now off;
+        // this file schedules its own once loaded (FILE_LOADED).
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
         _videoWidth = 0
         _videoHeight = 0
         _videoRotation = 0
@@ -763,6 +846,9 @@ class MPVLayerRenderer(
 
         // Load the file
         mpv?.let {
+            // A switch still queued or under way for the previous file would
+            // leave its track selection to this one.
+            videoTrack.endForNextFile(it.trackProperties())
             it.command(arrayOf("loadfile", url, "replace"))
             // loadfile left this file as the playlist's only entry; its
             // MPV_EVENT_START_FILE is matched by that entry's id.
@@ -801,6 +887,7 @@ class MPVLayerRenderer(
                     url = url,
                     headers = currentHeaders,
                     loop = currentLoop,
+                    audioOnlyWhenHidden = audioOnlyWhenHidden,
                 ),
             )
         }
@@ -1415,6 +1502,11 @@ class MPVLayerRenderer(
                 // after it — for embedded-only files this is the only
                 // post-FILE_LOADED fire.
                 mainHandler.post { delegate?.onTracksReady() }
+
+                // A file loaded while hidden (the next episode with the screen
+                // off) has its video back on: the file change reset the track
+                // selection. Its own suspension waits for its tracks, here.
+                mainHandler.post { scheduleAudioOnly() }
 
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
