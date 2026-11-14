@@ -210,6 +210,16 @@ test("a connected target names itself on the button", async () => {
   expect(screen.getByText("player.play_on")).toBeTruthy();
 });
 
+// A receiver's name is the user's: a long one stays on one line inside the pill, cut short, the glyphs beside it.
+test("the target's name stays on one line inside the button", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  const label = screen.getByText("player.play_on");
+  expect(label.props.numberOfLines).toBe(1);
+  expect(label.props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ flexShrink: 1 })]),
+  );
+});
+
 // A Continue here tapped while the load was on its way is the last choice: the expanded controls stay closed, or they
 // would open over the player it presents.
 test("a load that lands after a later choice opens no remote", async () => {

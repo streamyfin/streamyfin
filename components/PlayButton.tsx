@@ -560,8 +560,15 @@ export const PlayButton: React.FC<Props> = ({
           }}
           className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
         >
-          <View className='flex flex-row items-center space-x-2'>
-            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+          {/* Shrinks to the pill: a receiver's name can be long, and the glyphs stay beside it. */}
+          <View
+            className='flex flex-row items-center space-x-2 px-4'
+            style={{ flexShrink: 1, maxWidth: "100%" }}
+          >
+            <Animated.Text
+              numberOfLines={1}
+              style={[animatedTextStyle, { fontWeight: "bold", flexShrink: 1 }]}
+            >
               {targetLabel ?? (
                 <>
                   {runtimeTicksToMinutes(
