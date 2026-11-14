@@ -24,9 +24,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import useRouter from "@/hooks/useAppRouter";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { liveTvPlayerPath } from "./liveTvPlayerPath";
 import { TVGuideChannelRow } from "./TVGuideChannelRow";
 import { TVGuidePageNavigation } from "./TVGuidePageNavigation";
 import { TVGuideTimeHeader } from "./TVGuideTimeHeader";
@@ -65,7 +64,7 @@ export const TVLiveTVGuide: React.FC = () => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const playMedia = usePlayMedia();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
@@ -208,10 +207,10 @@ export const TVLiveTVGuide: React.FC = () => {
 
   const handleProgramPress = useCallback(
     (program: BaseItemDto) => {
-      // Navigate to play the program/channel
-      router.push(liveTvPlayerPath(program.Id ?? ""));
+      if (!program.Id) return;
+      void playMedia({ itemId: program.Id, offline: false }, { item: program });
     },
-    [router],
+    [playMedia],
   );
 
   const handlePreviousPage = useCallback(() => {

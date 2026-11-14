@@ -7,22 +7,10 @@ import type { Settings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { buildNativePlayerConfig } from "./buildNativePlayerConfig";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
+
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),
 }));
@@ -137,6 +125,38 @@ describe("the native player's stream headers", () => {
         remote: true,
       }),
     ).toBeUndefined();
+  });
+});
+
+// The "Video output" setting is Android's and only shown there. A value that
+// roamed in with the settings must not reach iOS, whose player has one output.
+describe("the native player's video output driver", () => {
+  test("is not sent on iOS", async () => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        mpvVoDriver: "gpu",
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
+      item,
+    });
+
+    expect(built?.config.engine).toBe("mpv");
+    expect(built?.config.voDriver).toBeUndefined();
   });
 });
 
@@ -414,5 +434,70 @@ describe("the native player's quality, when the request names none", () => {
     expect(mockDetectBitrate).not.toHaveBeenCalled();
     expect(askedBitrate()).toBeUndefined();
     expect(built?.seed.bitrateValue).toBe("max");
+  });
+});
+
+describe("the native player's swipe gestures", () => {
+  const swipeOptions = async (swipeSettings: Partial<Settings>) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+        enableHorizontalSwipeSkip: true,
+        enableLeftSideBrightnessSwipe: true,
+        enableRightSideVolumeSwipe: true,
+        ...swipeSettings,
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
+      item,
+    });
+    const ui = built?.config.ui;
+    return {
+      horizontalSwipeSeekEnabled: ui?.horizontalSwipeSeekEnabled,
+      brightnessSwipeEnabled: ui?.brightnessSwipeEnabled,
+      volumeSwipeEnabled: ui?.volumeSwipeEnabled,
+    };
+  };
+
+  // #2217: the native players scrubbed and changed brightness and volume
+  // whatever these switches said, because they never reached them.
+  test.each([
+    ["enableHorizontalSwipeSkip", "horizontalSwipeSeekEnabled"],
+    ["enableLeftSideBrightnessSwipe", "brightnessSwipeEnabled"],
+    ["enableRightSideVolumeSwipe", "volumeSwipeEnabled"],
+  ] as const)("turning off %s turns off only %s", async (setting, option) => {
+    expect(await swipeOptions({ [setting]: false })).toEqual({
+      horizontalSwipeSeekEnabled: true,
+      brightnessSwipeEnabled: true,
+      volumeSwipeEnabled: true,
+      [option]: false,
+    });
+  });
+
+  test("keeps every swipe on when the settings are unset", async () => {
+    expect(
+      await swipeOptions({
+        enableHorizontalSwipeSkip: undefined,
+        enableLeftSideBrightnessSwipe: undefined,
+        enableRightSideVolumeSwipe: undefined,
+      }),
+    ).toEqual({
+      horizontalSwipeSeekEnabled: true,
+      brightnessSwipeEnabled: true,
+      volumeSwipeEnabled: true,
+    });
   });
 });

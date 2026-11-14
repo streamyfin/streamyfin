@@ -1,6 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { useState } from "react";
 import { prefetchServerImage } from "@/components/common/ServerImage";
@@ -8,11 +14,17 @@ import {
   TV_BACKDROP_CROSSFADE_MS,
   TV_BACKDROP_DEBOUNCE_MS,
 } from "@/constants/TVSizes";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, cacheVersionAtom } from "@/providers/JellyfinProvider";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import type { Home as HomeLayout } from "@/utils/atoms/settings";
 import { Home } from "./Home.tv";
+import { resetHomeInitialFocus } from "./useHomeInitialFocus";
+
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 
 const defaultSettings = {
   home: null as HomeLayout | null,
@@ -74,32 +86,12 @@ jest.mock("@/providers/JellyfinProvider", () => {
   };
 });
 
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
-
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) =>
       params?.libraryName ? `${key}:${params.libraryName}` : key,
   }),
 }));
-
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
-jest.mock("expo-router", () => ({ useSegments: () => ["(auth)", "(tabs)"] }));
-
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 jest.mock("@/components/common/TouchableItemRouter", () => ({
   getItemNavigation: (item: BaseItemDto, from: string) =>
@@ -136,11 +128,6 @@ jest.mock("@/hooks/useRemapHiddenLibraries", () => ({
 jest.mock("@/utils/tvDiscovery/sync", () => ({
   updateTVDiscovery: () => {},
 }));
-
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
 
 // A plain child of Home: it renders exactly when Home does, which makes it
 // the test's measure of Home's own renders.
@@ -184,8 +171,10 @@ const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
     UserData: { Key: "", PlayedPercentage: 40 },
   }));
 
-const stubServer = () => {
+/** Answers Home's requests. `first` registers handlers ahead of the rest. */
+const stubServer = (first?: (mock: typeof api.mock) => void) => {
   api.mock.reset();
+  first?.(api.mock);
   api.mock.onGet(/\/UserViews\?/).reply(200, {
     Items: [
       { Id: "movies", Name: "Movies", CollectionType: "movies" },
@@ -239,8 +228,24 @@ const withSettings = (overrides: Partial<HomeSettings>) => {
   mockSettings = { ...defaultSettings, ...overrides };
 };
 
+/** Whether any rendered node asks for the TV focus. */
+const hasPreferredFocus = (node: unknown): boolean => {
+  if (!node || typeof node !== "object") return false;
+  if (Array.isArray(node)) return node.some(hasPreferredFocus);
+  const { props, children } = node as {
+    props?: { hasTVPreferredFocus?: boolean };
+    children?: unknown[];
+  };
+  return (
+    props?.hasTVPreferredFocus === true ||
+    (children ?? []).some(hasPreferredFocus)
+  );
+};
+
 describe("Home.tv behaviours", () => {
   beforeEach(() => {
+    // Each test is a new launch: its first Home may take the initial focus.
+    resetHomeInitialFocus();
     jest.useFakeTimers({ doNotFake: ["performance"] });
     mockPush.mockClear();
     tvItemActionModalMock.showItemActions.mockClear();
@@ -253,6 +258,88 @@ describe("Home.tv behaviours", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  // Clearing the cache rebuilds Home's content under the same Home: the new
+  // first card asked for the focus again and could pull it off the tab bar.
+  test("a cache clear asks for no focus again", async () => {
+    withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
+
+    await act(async () => {
+      getDefaultStore().set(cacheVersionAtom, (version) => version + 1);
+    });
+    await screen.findByText("Resume 0");
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
+  // Android TV's tab bar replaces the route: Home mounts again on every press
+  // of its tab, and each new Home pulled the focus off the bar into its first
+  // poster. Only the launch's Home may.
+  test("a Home mounted again in the same session asks for no focus", async () => {
+    withSettings({ showHeroCarousel: false, showHomeBackdrop: true });
+    const first = await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    await first.unmount();
+
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
+  // The hero can turn up after the rows: empty at launch, then filled by its
+  // refetch. The first row's card had taken the initial focus, and the new
+  // hero asked for it again, out of the tab bar if the user had gone there.
+  test("a hero that turns up after the rows asks for no focus", async () => {
+    withSettings({ showHeroCarousel: true, showHomeBackdrop: true });
+    let heroItems: BaseItemDto[] = [];
+    // Only the hero's two requests ask for the overview.
+    stubServer((mock) =>
+      mock.onGet(/fields=Overview/).reply(() => [200, { Items: heroItems }]),
+    );
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
+
+    heroItems = items("Hero", "Movie");
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    // The hero shows the resumed items itself, so their row goes.
+    await waitFor(() => expect(screen.queryByText("Resume 0")).toBeNull());
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+  });
+
+  // The hero's answer can come after the rows'. The rows wait for it: had the
+  // first row taken the focus, the hero would have replaced that row and left
+  // the focus on nothing.
+  test("the hero takes the initial focus when it answers after the rows", async () => {
+    withSettings({ showHeroCarousel: true, showHomeBackdrop: true });
+    let answerHero!: () => void;
+    const heroAnswered = new Promise<void>((resolve) => {
+      answerHero = resolve;
+    });
+    stubServer((mock) =>
+      mock.onGet(/fields=Overview/).reply(async () => {
+        await heroAnswered;
+        return [200, { Items: items("Hero", "Movie") }];
+      }),
+    );
+    await render(<Home />, { wrapper: Wrapper });
+    await screen.findByText("Resume 0");
+    expect(hasPreferredFocus(screen.toJSON())).toBe(false);
+
+    await act(async () => {
+      answerHero();
+    });
+    await waitFor(() => expect(screen.queryByText("Resume 0")).toBeNull());
+
+    expect(hasPreferredFocus(screen.toJSON())).toBe(true);
   });
 
   test("initial focus (hasTVPreferredFocus) is given to the first poster when hero is hidden", async () => {

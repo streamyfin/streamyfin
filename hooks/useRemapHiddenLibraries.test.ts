@@ -6,11 +6,6 @@ import { originKey } from "@/utils/library/hiddenLibraries";
 import { storage } from "@/utils/mmkv";
 import { useRemapHiddenLibraries } from "./useRemapHiddenLibraries";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 let mockHidden: string[] = [];
 let mockLoaded = true;
 let mockLocked = false;

@@ -2,10 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { renderHook } from "@testing-library/react-native";
 import { useTVCast } from "./useTVCast";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 const movie = (People: BaseItemDto["People"]): BaseItemDto => ({
   Id: "m",
   Type: "Movie",

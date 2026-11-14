@@ -260,6 +260,12 @@ export type NativePlayerUIOptions = {
   showVolumeSlider?: boolean;
   /** false hides the left-edge brightness slider (settings.hideBrightnessSlider). */
   showBrightnessSlider?: boolean;
+  /** false disables the horizontal drag that scrubs (settings.enableHorizontalSwipeSkip). */
+  horizontalSwipeSeekEnabled?: boolean;
+  /** false disables the left-half vertical drag for brightness (settings.enableLeftSideBrightnessSwipe). */
+  brightnessSwipeEnabled?: boolean;
+  /** false disables the right-half vertical drag for volume (settings.enableRightSideVolumeSwipe). */
+  volumeSwipeEnabled?: boolean;
   /** false disables press-and-hold speed boosting (settings.enableHoldToSpeed). */
   holdToSpeedEnabled?: boolean;
   /** Speed applied while press-and-hold is held (settings.holdToSpeedRate). */
@@ -364,6 +370,12 @@ export type NativePlayerConfig = {
   subtitleStyle?: NativePlayerSubtitleStyle;
   ui?: NativePlayerUIOptions;
   engine?: NativePlayerEngine;
+  /**
+   * mpv's video output driver, the "Video output" setting. Android-only and
+   * mpv-only: absent on iOS and for ExoPlayer. Defaults to "gpu-next" when
+   * absent.
+   */
+  voDriver?: "gpu-next" | "gpu";
   syncPlay?: NativePlayerSyncPlayState;
 };
 

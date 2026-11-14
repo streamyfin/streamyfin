@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
@@ -25,17 +25,21 @@ interface PlayMediaOptions {
   /** Complete ordered video queue; the requested item selects its start index. */
   queueItemIds?: string[];
   /**
-   * Pass when available: lets the chooser route Live TV (Program/TvChannel)
-   * straight to the JS route, which owns live-stream lifecycle handling, and
-   * refuse an item that has nothing to play before a player is opened.
+   * Pass when available: lets the chooser refuse an item that has nothing to
+   * play before a player is opened, and keep Live TV (Program/TvChannel) out
+   * of a SyncPlay group.
    */
   item?: BaseItemDto | null;
 }
 
+// Module level, not per hook: the channel grid, the guide and the Play button
+// each hold their own usePlayMedia, and any of them can replace the others.
+let latestPlayRequest = 0;
+
 /**
  * Single entry point for starting video playback on mobile and TV. Routes to
  * the presented native player (isNativeChromeActive) or the JS player route;
- * any native decline (unsupported platform, Live TV, config/present failure)
+ * any native decline (unsupported platform, config/present failure)
  * falls through to the route, so a broken native path can never block
  * playback. The engine — selected via settings.videoPlayer — travels inside
  * the presented config and renders in the JS route's VideoPlayerView.
@@ -48,6 +52,15 @@ export const usePlayMedia = () => {
   const syncPlay = useSyncPlay();
   const { t } = useTranslation();
 
+  // False once the screen that asked for the play is gone.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
       // A Book, a Season or a folder has no stream: both players would open,
@@ -58,8 +71,10 @@ export const usePlayMedia = () => {
         return;
       }
 
+      const isLive = isLiveTvItem(options?.item);
+
       if (syncPlay.enabled) {
-        if (req.offline || isLiveTvItem(options?.item)) {
+        if (req.offline || isLive) {
           Alert.alert(t("syncplay.title"), t("syncplay.online_video_only"));
           return;
         }
@@ -94,14 +109,24 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
-      const isLiveTv = isLiveTvItem(options?.item);
+      const request = ++latestPlayRequest;
+      // A tuner takes seconds to open a channel. A viewer who went back
+      // meanwhile gave up on it, and the player must not open over wherever
+      // they went. Live only: the top shelf route replaces itself with Home
+      // before it plays a video, which must still open.
+      const isCurrent = isLive ? () => mountedRef.current : undefined;
       if (
         isNativeChromeActive(settings) &&
-        !isLiveTv &&
-        (await presentFromRequest(req))
+        (await presentFromRequest(req, { isCurrent }))
       ) {
         return;
       }
+
+      // A newer play started while this one negotiated (a live channel takes
+      // seconds to open, long enough to press it again), or the viewer left.
+      // Neither is a decline: the newer request owns the player, and nobody
+      // is waiting for this one.
+      if (request !== latestPlayRequest || isCurrent?.() === false) return;
 
       // Never stack the JS route under a still-presented native player (a
       // failed in-place swap keeps the old native session on screen). From

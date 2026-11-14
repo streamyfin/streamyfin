@@ -3,11 +3,8 @@ import { act, render, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { queryDehydrateOptions } from "./queryPersistence";
 
-jest.mock("expo-router", () => ({
-  useFocusEffect: (cb: () => undefined | (() => void)) =>
-    require("react").useEffect(cb, [cb]),
-}));
-jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
+// The real log is under test, not the silent double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/log");
 jest.mock("./logStorage", () => ({
   readFromLog: jest.fn(() => []),
   storeLogEntry: jest.fn(),

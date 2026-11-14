@@ -13,6 +13,15 @@ object PlayerConstants {
     const val MENU_AUTO_HIDE_DELAY_MS = 15000L
     const val CHAPTER_RESTART_THRESHOLD_SEC = 3.0
     const val VERTICAL_DRAG_RANGE_DP = 280f
+    /**
+     * Height of the strip at the top and at the bottom of the gesture plane
+     * where a drag is left to the system. The status bar, the notification
+     * shade and the navigation bar are pulled in from those edges, and the
+     * player gets the same swipe: without the strip it changed the volume or
+     * the brightness on the way. One minimum touch target, which a finger
+     * coming in over the bezel lands well inside.
+     */
+    const val EDGE_DRAG_DEAD_ZONE_DP = 48f
     const val PINCH_ZOOM_IN_THRESHOLD = 1.12f
     const val PINCH_ZOOM_OUT_THRESHOLD = 0.88f
     const val HOLD_SPEED_ENGAGE_DELAY_MS = 500L

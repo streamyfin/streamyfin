@@ -38,7 +38,6 @@ const request = (itemId = "movie-1", isCurrent = () => true) => ({
 });
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockPathname = "/syncplay";
   mockLauncher = null;
   mockAvailable = true;

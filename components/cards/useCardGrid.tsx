@@ -34,20 +34,20 @@ export function useCardGrid({
   onLongPressItem,
   enableActionSheet,
 }: Options) {
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   const layout = CARD_LAYOUTS[kind];
   const cardWidth = useMemo(() => {
     const safeColumns = Math.max(columns, 1);
     const available =
-      width -
+      windowWidth -
       insets.left -
       insets.right -
       layout.contentInset * 2 -
       layout.spacing * (safeColumns - 1);
     return Math.floor(available / safeColumns);
-  }, [width, insets.left, insets.right, columns, layout]);
+  }, [windowWidth, insets.left, insets.right, columns, layout]);
 
   // The artwork is requested for the column width, not the kind's row width.
   const { cards, handlePress, handleLongPress, actionSheet } =

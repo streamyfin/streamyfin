@@ -27,9 +27,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 20, heading: 28 }),

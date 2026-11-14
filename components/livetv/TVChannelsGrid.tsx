@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
@@ -7,9 +8,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import useRouter from "@/hooks/useAppRouter";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { liveTvPlayerPath } from "./liveTvPlayerPath";
 import { TVChannelCard } from "./TVChannelCard";
 
 const HORIZONTAL_PADDING = 60;
@@ -19,7 +19,7 @@ export const TVChannelsGrid: React.FC = () => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const playMedia = usePlayMedia();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
@@ -44,13 +44,11 @@ export const TVChannelsGrid: React.FC = () => {
   const channels = channelsData?.Items ?? [];
 
   const handleChannelPress = useCallback(
-    (channelId: string | undefined) => {
-      if (channelId) {
-        // Navigate directly to the player to start the channel
-        router.push(liveTvPlayerPath(channelId));
-      }
+    (channel: BaseItemDto) => {
+      if (!channel.Id) return;
+      void playMedia({ itemId: channel.Id, offline: false }, { item: channel });
     },
-    [router],
+    [playMedia],
   );
 
   if (isLoading) {
@@ -90,7 +88,7 @@ export const TVChannelsGrid: React.FC = () => {
             key={channel.Id ?? index}
             channel={channel}
             api={api}
-            onPress={() => handleChannelPress(channel.Id)}
+            onPress={() => handleChannelPress(channel)}
             // No hasTVPreferredFocus - tab buttons handle initial focus
           />
         ))}

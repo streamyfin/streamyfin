@@ -13,8 +13,8 @@ that picks the Jellyfin device profile. Consequences:
 - getActivePlayerType/getActiveVideoPlayerEngine are ENGINE resolvers (never
   return VideoPlayer.Native); getActiveVideoPlayer/isNativeChromeActive are the
   renderer/routing resolvers. VideoPlayerView must select by the ENGINE
-  resolver — it also renders on native-decline paths (Live TV, present
-  failure) where the engine choice still applies.
+  resolver — it also renders on native-decline paths (a present failure)
+  where the engine choice still applies.
 - ExoPlayerEngine is the Media3 engine (media3 deps live in mpv-player's
   build.gradle, pinned to react-native-track-player's media3Version). All its
   Player access must happen on the main looper — the module's propsHandler

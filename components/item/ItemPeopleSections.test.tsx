@@ -58,9 +58,6 @@ jest.mock("@/components/MoreMoviesWithActor", () => ({
   MoreMoviesWithActor: (props: { actorName: string }) =>
     MockMoreMoviesWithActor(props),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const item = { Id: "movie-1", Name: "Movie" } as BaseItemDto;
 const otherItem = { Id: "movie-2", Name: "Other movie" } as BaseItemDto;

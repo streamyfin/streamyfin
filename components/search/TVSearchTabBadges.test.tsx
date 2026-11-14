@@ -2,9 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Pressable, Text } from "react-native";
 import { TVSearchTabBadges } from "@/components/search/TVSearchTabBadges";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The real button pulls the TV focus animation in; the row only needs
 // something to press that shows its label and value.
 const MockFilterButton = (props: {
@@ -31,11 +28,6 @@ const sortButtons = {
 };
 
 describe("TVSearchTabBadges", () => {
-  beforeEach(() => {
-    onSortPress.mockClear();
-    onOrderPress.mockClear();
-  });
-
   // As the TV library page does: one button for the sort, one for the order,
   // each opening its sheet.
   test("shows the sort and the order beside the tabs", async () => {

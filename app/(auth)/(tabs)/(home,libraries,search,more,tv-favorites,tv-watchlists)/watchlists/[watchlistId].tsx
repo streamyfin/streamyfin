@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posterGridColumns } from "@/components/cards/posterGridColumns";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import {
   HeaderButton,
@@ -52,7 +53,7 @@ export default function WatchlistDetailScreen() {
   const insets = useSafeAreaInsets();
   const { watchlistId } = useLocalSearchParams<{ watchlistId: string }>();
   const user = useAtomValue(userAtom);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const { orientation } = useOrientation();
 
   const watchlistIdNum = watchlistId
@@ -62,13 +63,8 @@ export default function WatchlistDetailScreen() {
   const nrOfCols = useMemo(() => {
     // TV uses flexWrap, so nrOfCols is just for mobile
     if (Platform.isTV) return 1;
-    if (screenWidth < 300) return 2;
-    if (screenWidth < 500) return 3;
-    if (screenWidth < 800) return 5;
-    if (screenWidth < 1000) return 6;
-    if (screenWidth < 1500) return 7;
-    return 6;
-  }, [screenWidth]);
+    return posterGridColumns(windowWidth);
+  }, [windowWidth]);
 
   const {
     data: watchlist,

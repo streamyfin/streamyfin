@@ -1,11 +1,3 @@
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("./log", () => ({ logAndCaptureError: jest.fn() }));
 
 import * as SecureStore from "expo-secure-store";

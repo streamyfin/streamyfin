@@ -19,8 +19,8 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  Dimensions,
   ScrollView,
+  useWindowDimensions,
   View,
   type ViewInstance,
 } from "react-native";
@@ -52,6 +52,11 @@ import {
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -86,8 +91,6 @@ import {
 } from "@/utils/subtitles/trackMenu";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 // One array for "no collections", so the memoized section is not handed a new
 // one on every render.
 const EMPTY_COLLECTIONS: BaseItemDto[] = [];
@@ -109,6 +112,7 @@ interface ItemContentTVProps {
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -683,7 +687,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           <View
             style={{
               flexDirection: "row",
-              minHeight: SCREEN_HEIGHT * 0.45,
+              minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
             }}
           >
             {/* Left side - Content */}
@@ -762,7 +766,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   style={{
                     borderRadius: scaleSize(8),
                     overflow: "hidden",
-                    maxWidth: SCREEN_WIDTH * 0.45,
+                    maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
                     marginBottom: scaleSize(24),
                   }}
                 >
@@ -964,8 +968,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               style={{
                 width:
                   item.Type === "Episode"
-                    ? SCREEN_WIDTH * 0.35
-                    : SCREEN_WIDTH * 0.22,
+                    ? windowWidth * 0.35
+                    : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
                 marginLeft: scaleSize(50),
               }}
             >

@@ -28,7 +28,6 @@ const { useVolumeAndBrightness } =
   require("./useVolumeAndBrightness") as typeof import("./useVolumeAndBrightness");
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockHolds = 0;
 });
 
