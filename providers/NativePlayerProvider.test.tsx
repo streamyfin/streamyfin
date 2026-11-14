@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
@@ -293,6 +293,11 @@ jest.mock("@/providers/WebSocketProvider", () => ({
 }));
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
+}));
+// A close retried after no answer waits before going out again; not here.
+jest.mock("@/constants/Playback", () => ({
+  ...jest.requireActual("@/constants/Playback"),
+  LIVE_STREAM_CLOSE_RETRY_DELAY_MS: 0,
 }));
 jest.mock("@/hooks/usePlaybackManager", () => ({
   usePlaybackManager: () => mockPlayback,
@@ -1675,10 +1680,11 @@ describe("a Live TV stream", () => {
     expect(liveStreamReleases()).toEqual(["live-shared", "live-shared"]);
   });
 
-  // A close that never reached the server leaves the reference taken. The
-  // teardown of a restored swap releases the same session again, and has to
-  // try once more instead of taking the failed close for a done one.
-  test("is given back again when its close failed", async () => {
+  // The server takes the reference off before it can fail: a 500 comes from
+  // closing the stream once the count has dropped. The teardown of a restored
+  // swap releases the same session again, and a second close would take the
+  // reference of another device on the channel.
+  test("is not given back again once the server answered its close", async () => {
     await mount();
     mockNegotiation.live = true;
     await open("item-1");
@@ -1693,10 +1699,6 @@ describe("a Live TV stream", () => {
 
     await pickQuality(4_000_000);
     expect(finalProgress).toHaveLength(1);
-    expect(liveStreamReleases().sort()).toEqual([
-      "live-play-session-1",
-      "live-play-session-2",
-    ]);
     await act(async () => {
       for (const answer of finalProgress.splice(0)) answer();
     });
@@ -1705,8 +1707,28 @@ describe("a Live TV stream", () => {
     expect(mockNative.session).toBeNull();
     expect(liveStreamReleases().sort()).toEqual([
       "live-play-session-1",
-      "live-play-session-1",
       "live-play-session-2",
+    ]);
+  });
+
+  // No answer: the close most likely never reached the server, and nothing
+  // else gives the reference back.
+  test("is tried again when its close got no answer", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    api.mock.resetHandlers();
+    api.mock.onPost(/\/LiveStreams\/Close/).networkErrorOnce();
+    api.mock.onAny().reply(200, {});
+
+    await startClosing();
+    finishClosing();
+    // The retry goes out after a timer, which settle() does not wait for.
+    await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+    expect(liveStreamReleases()).toEqual([
+      "live-play-session-1",
+      "live-play-session-1",
     ]);
   });
 });

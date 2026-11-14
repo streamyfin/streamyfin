@@ -49,6 +49,17 @@ export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;
  */
 export const PLAYBACK_REPORT_TIMEOUT_MS = 15_000;
 
+/**
+ * How many times a Live TV stream's close goes out, and the wait before the
+ * first retry, in ms, doubled before each later one. Jellyfin shares a
+ * channel's stream between sessions and counts one reference per negotiation;
+ * every close it handles takes one off. So a close is only sent again when no
+ * answer came back, when it most likely never reached the server: one the
+ * server answered, even with an error, took a reference off already.
+ */
+export const LIVE_STREAM_CLOSE_ATTEMPTS = 3;
+export const LIVE_STREAM_CLOSE_RETRY_DELAY_MS = 2_000;
+
 export type Bitrate = {
   key: string;
   value: number | undefined;

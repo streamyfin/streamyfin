@@ -6,7 +6,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import {
   getLibraryApi,
-  getMediaInfoApi,
   getSessionApi,
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -125,6 +124,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -791,16 +791,11 @@ const NativePlayerProviderInner: React.FC<{
       // Once per negotiation: a swap, its failure path and the teardown can
       // all reach here for the same session, and the server counts one
       // reference per negotiation on a stream it shares between sessions.
+      // A close that got no answer is retried inside closeLiveStream; one the
+      // server answered is never sent again, even when it failed.
       if (session.liveStreamReleased) return;
       session.liveStreamReleased = true;
-      getMediaInfoApi(currentApi)
-        .closeLiveStream({ liveStreamId })
-        .catch(() => {
-          // Un-mark so a later release of this session can try again, as the
-          // stop report does with reportedStopKey: nothing else gives the
-          // reference back.
-          session.liveStreamReleased = false;
-        });
+      closeLiveStream(currentApi, liveStreamId).catch(() => {});
     },
     [],
   );

@@ -6,11 +6,7 @@ import {
   PlaybackProgressInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
-import {
-  getLibraryApi,
-  getMediaInfoApi,
-  getSessionApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, usePreventRemove } from "expo-router";
@@ -93,6 +89,7 @@ import {
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
+import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import {
@@ -528,10 +525,9 @@ export default function DirectPlayerPage() {
       if (!liveStreamId || !apiRef.current || offline) return;
       // Best effort: a failed close must not break teardown. Nothing else
       // gives the reference back, the server only reaps a stream that a
-      // progress report named, and none does.
-      getMediaInfoApi(apiRef.current)
-        .closeLiveStream({ liveStreamId })
-        .catch(() => {});
+      // progress report named, and none does: closeLiveStream retries a
+      // close that got no answer.
+      closeLiveStream(apiRef.current, liveStreamId).catch(() => {});
     },
     [offline],
   );

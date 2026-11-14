@@ -193,6 +193,11 @@ jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));
+// A close retried after no answer waits before going out again; not here.
+jest.mock("@/constants/Playback", () => ({
+  ...jest.requireActual("@/constants/Playback"),
+  LIVE_STREAM_CLOSE_RETRY_DELAY_MS: 0,
+}));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: async ({
     item,
@@ -663,6 +668,25 @@ describe("direct player stop report", () => {
     await waitFor(() => expect(liveStreamReleases()).toContain("live-1"));
 
     expect(liveStreamReleases()).toEqual(["live-1"]);
+  });
+
+  // No answer: the close most likely never reached the server, and nothing
+  // else gives the reference back, so the channel's tuner stayed held.
+  test("tries a live stream's close again when it got no answer", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    api.mock.onPost(/\/LiveStreams\/Close/).networkErrorOnce();
+    mockStreamHold.liveStreamId = "live-1";
+    await openPlayer();
+    await leavePlayer();
+
+    screen.unmount();
+    await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+    expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
   });
 
   // Fast forward and rewind from a headset or the notification went +30 and
