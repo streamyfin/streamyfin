@@ -1087,6 +1087,8 @@ const NativePlayerProviderInner: React.FC<{
         maxStreamingBitrate?: { value: number | undefined };
         /** Auto adapting the stream this swap replaces. */
         adaptive?: AdaptiveAuto;
+        /** Asked by Auto, not by the user: not worth holding a SyncPlay group. */
+        byAuto?: boolean;
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -1144,6 +1146,13 @@ const NativePlayerProviderInner: React.FC<{
       if (options.isCurrent?.() === false) {
         // The build may have opened a live stream nothing will play. Not a
         // decline either: the caller moved on.
+        releaseLiveStream(built.seed);
+        return true;
+      }
+      if (options.byAuto && syncRef.current.enabled) {
+        // The player joined a SyncPlay group while Auto's stream was being
+        // negotiated: loading it would hold every member. Dropped here, with
+        // the stream on screen and its server session untouched.
         releaseLiveStream(built.seed);
         return true;
       }
@@ -1481,6 +1490,7 @@ const NativePlayerProviderInner: React.FC<{
           },
           adaptive: session.adaptive,
         }),
+        byAuto: overrides.cap !== undefined,
       });
     },
     [beginSession],
@@ -2091,11 +2101,6 @@ const NativePlayerProviderInner: React.FC<{
         return;
       }
       if (action.kind === "stepDown") {
-        // The next playback on this network starts at the cap this one stepped
-        // to: its share of what the link carried, never under the lowest cap.
-        // A link that carried nothing reads as 0, which the server takes for
-        // no cap at all.
-        keepPlaybackRate(api, action.cap / options.ratio);
         writeToLog("INFO", "Auto quality stepped down", {
           from: session.maxStreamingBitrate,
           to: action.cap,
@@ -2108,10 +2113,31 @@ const NativePlayerProviderInner: React.FC<{
           measured: action.measured,
         });
       }
+      const controller = session.adaptive;
       void replaceStream(session, { cap: { value: action.cap } }).then(
         (replaced) => {
           // The stream asked for could not start: the one playing plays on.
-          if (!replaced) session.adaptive?.swapFailed(Date.now());
+          if (!replaced) {
+            session.adaptive?.swapFailed(Date.now());
+            return;
+          }
+          // A swap that was dropped resolves as one that happened: only the
+          // stream now on screen, the one Auto asked for, says it did.
+          const playing = sessionRef.current;
+          if (
+            action.kind !== "stepDown" ||
+            !controller ||
+            !playing ||
+            playing === session ||
+            playing.adaptive !== controller
+          ) {
+            return;
+          }
+          // The next playback on this network starts at the cap this one
+          // stepped to: its share of what the link carried, never under the
+          // lowest cap. A link that carried nothing reads as 0, which the
+          // server takes for no cap at all.
+          keepPlaybackRate(api, action.cap / options.ratio);
         },
       );
     };

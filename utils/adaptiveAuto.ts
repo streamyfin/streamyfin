@@ -224,8 +224,15 @@ export class AdaptiveAuto {
     if (!this.probing) return null;
     this.probing = false;
     if (this.busy) return null;
-    // Paused meanwhile: a new stream would start playing on its own.
-    if (!this.playing) {
+    // Paused meanwhile: a new stream would start playing on its own. Sought,
+    // loading or at the end of the file: what the stream does now is not
+    // steady play, the measure is taken again later.
+    if (
+      !this.playing ||
+      this.loading ||
+      this.nearEnd ||
+      now < this.graceUntil
+    ) {
       this.nextProbeAt = now + this.probeDelay;
       return null;
     }

@@ -305,6 +305,62 @@ describe("stepping up", () => {
     expect(auto.probeResult(130_000, 60 * MB)).toBeNull();
   });
 
+  // What a stream loads after a seek says nothing of the link, and one that
+  // loads or ends is not one to replace: the measure is taken again later.
+  test("not step up on a measure that comes back right after a seek", () => {
+    const auto = started(lowered(0));
+    auto.tick({
+      now: 121_000,
+      position: 121,
+      duration: 3_600,
+      cacheSeconds: 9,
+    });
+    auto.seeked(128_000);
+
+    expect(auto.probeResult(130_000, 60 * MB)).toBeNull();
+
+    const tick = (now: number) =>
+      auto.tick({
+        now,
+        position: now / 1_000,
+        duration: 3_600,
+        cacheSeconds: 9,
+      });
+    expect(tick(130_000 + 2 * 60_000 - 1_000)).toBeNull();
+    expect(tick(130_000 + 2 * 60_000)).toEqual({ kind: "probe" });
+  });
+
+  test("not step up on a measure that comes back while the stream loads", () => {
+    const auto = started(lowered(0));
+    auto.tick({
+      now: 121_000,
+      position: 121,
+      duration: 3_600,
+      cacheSeconds: 9,
+    });
+    auto.state(129_000, true, true);
+
+    expect(auto.probeResult(130_000, 60 * MB)).toBeNull();
+  });
+
+  test("not step up on a measure that comes back at the end of the file", () => {
+    const auto = started(lowered(0));
+    auto.tick({
+      now: 121_000,
+      position: 3_584,
+      duration: 3_600,
+      cacheSeconds: 9,
+    });
+    auto.tick({
+      now: 122_000,
+      position: 3_585,
+      duration: 3_600,
+      cacheSeconds: 9,
+    });
+
+    expect(auto.probeResult(130_000, 60 * MB)).toBeNull();
+  });
+
   test("wait twice as long after a measure that allows no step up", () => {
     const auto = started(lowered(0));
     auto.tick({

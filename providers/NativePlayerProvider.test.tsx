@@ -1097,6 +1097,34 @@ describe("Auto during playback", () => {
     expect(mockNegotiation.params).toHaveLength(3);
   });
 
+  // The rate was kept before the lower stream was asked for: one that never
+  // played left its cap to every later playback on that network.
+  test("keeps nothing of a lower stream that could not start", async () => {
+    await mount();
+    await playAt("auto");
+    mockNegotiation.failing.add("item-1");
+
+    await stall();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockKeepPlaybackRate).not.toHaveBeenCalled();
+  });
+
+  test("keeps nothing of a lower stream the player closed under", async () => {
+    await mount();
+    await playAt("auto");
+    holdNegotiations();
+    await stall();
+    expect(mockNegotiation.params).toHaveLength(2);
+
+    await startClosing();
+    finishClosing();
+    await releaseNegotiations();
+
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(mockKeepPlaybackRate).not.toHaveBeenCalled();
+  });
+
   // The look at a stall outlived the provider: it went on asking for streams.
   test("stops looking at a stall once the provider is gone", async () => {
     const view = await mount();
@@ -1274,6 +1302,26 @@ describe("Auto during playback", () => {
     }
 
     expect(mockNegotiation.params).toHaveLength(1);
+  });
+
+  // The join landed while the lower stream was being negotiated: the swap
+  // went on and loaded under the group.
+  test("drops the stream it asked for when the player joins a SyncPlay group meanwhile", async () => {
+    await mount();
+    await playAt("auto");
+    holdNegotiations();
+    await stall();
+    expect(mockNegotiation.params).toHaveLength(2);
+
+    mockSyncPlay.enabled = true;
+    try {
+      await releaseNegotiations();
+    } finally {
+      mockSyncPlay.enabled = false;
+    }
+
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(mockKeepPlaybackRate).not.toHaveBeenCalled();
   });
 
   // A track change while the measure ran: the replaced stream's callback took
