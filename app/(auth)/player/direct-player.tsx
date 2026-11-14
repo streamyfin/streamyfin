@@ -459,10 +459,10 @@ export default function DirectPlayerPage() {
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
   // never closed, Jellyfin's M3U tuner limit fills up and every channel then
-  // fails with "simultaneous stream limit has been reached". This is the one
-  // place that gives it back, on a channel switch (the player re-fetches in
-  // place) and on unmount: the stop report no longer names it, since the
-  // server shares a channel's stream and a second release cuts it for others.
+  // fails with "simultaneous stream limit has been reached". The effect below
+  // is the one place that gives it back, once per negotiation: the stop report
+  // no longer names it, since the server shares a channel's stream and a
+  // second release cuts it for others.
   const apiRef = useRef(api);
   useEffect(() => {
     apiRef.current = api;
@@ -507,8 +507,9 @@ export default function DirectPlayerPage() {
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
       if (!liveStreamId || !apiRef.current || offline) return;
-      // Best effort: a failed close must not break teardown, and the slot is
-      // also freed by the server's reap as a backstop.
+      // Best effort: a failed close must not break teardown. Nothing else
+      // gives the reference back, the server only reaps a stream that a
+      // progress report named, and none does.
       getMediaInfoApi(apiRef.current)
         .closeLiveStream({ liveStreamId })
         .catch(() => {});
@@ -516,13 +517,15 @@ export default function DirectPlayerPage() {
     [offline],
   );
 
-  // The effect cleanup releases the live stream both when it changes (channel
-  // switch, which re-runs the effect) and when the player unmounts, so no
-  // manual previous-id tracking is needed.
+  // One release per negotiation, from the effect cleanup: when a new stream
+  // replaces this one and when the player unmounts. Keyed on the stream, not
+  // its LiveStreamId: a shared channel keeps the same id across negotiations,
+  // and the server counts each of them, so a stream negotiated again in place
+  // (a subtitle refresh, a server URL change) still gives its reference back.
   useEffect(() => {
     const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
     return () => releaseLiveStream(liveStreamId);
-  }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
+  }, [stream, releaseLiveStream]);
 
   useEffect(() => {
     const fetchStreamData = async (): Promise<Stream | null> => {

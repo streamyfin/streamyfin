@@ -66,6 +66,7 @@ type ControlsProps = {
   seek: (ms: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
   onAudioIndexChange?: (index: number) => void;
+  onRefreshSubtitleTracks?: () => Promise<unknown>;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -266,6 +267,20 @@ const stopReports = () =>
   api.mock.history.post
     .filter((request) => request.url?.endsWith("/Sessions/Playing/Stopped"))
     .map((request) => JSON.parse(request.data));
+
+/**
+ * Each request that gives a live stream reference back: a close, and a stop
+ * report that names the stream, which Jellyfin 12 and later close as well.
+ */
+const liveStreamReleases = () =>
+  api.mock.history.post.flatMap((request) => {
+    const url = request.url ?? "";
+    const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+    if (close) return [close[1]];
+    if (!url.endsWith("/Sessions/Playing/Stopped")) return [];
+    const named = JSON.parse(request.data).LiveStreamId;
+    return named ? [named] : [];
+  });
 
 const startReports = () =>
   api.mock.history.post.filter((request) =>
@@ -619,22 +634,13 @@ describe("direct player stop report", () => {
       UserData: {},
     });
     mockLiveStreamId = "live-1";
-    const releases = () =>
-      api.mock.history.post.flatMap((request) => {
-        const url = request.url ?? "";
-        const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
-        if (close) return [close[1]];
-        if (!url.endsWith("/Sessions/Playing/Stopped")) return [];
-        const named = JSON.parse(request.data).LiveStreamId;
-        return named ? [named] : [];
-      });
     await openPlayer();
     await leavePlayer();
 
     screen.unmount();
-    await waitFor(() => expect(releases()).toContain("live-1"));
+    await waitFor(() => expect(liveStreamReleases()).toContain("live-1"));
 
-    expect(releases()).toEqual(["live-1"]);
+    expect(liveStreamReleases()).toEqual(["live-1"]);
   });
 
   // Fast forward and rewind from a headset or the notification went +30 and
@@ -679,6 +685,28 @@ describe("direct player stop report", () => {
       await act(async () => mockControlsProps?.onAudioIndexChange?.(2));
 
       expect(restartPosition()).toBe(String(RESUME_TICKS));
+    });
+
+    // The server counts one reference per negotiation, and a shared channel
+    // keeps its LiveStreamId across them: a stream negotiated again in place
+    // and never given back held the tuner after the last viewer had left.
+    test("gives back the live stream of every negotiation when the subtitles are refreshed", async () => {
+      api.mock.onGet(/\/Items\/item-1/).reply(200, {
+        Id: "item-1",
+        Type: "TvChannel",
+        UserData: {},
+      });
+      mockLiveStreamId = "live-1";
+      await openPlayer();
+      await act(async () => {
+        await mockControlsProps?.onRefreshSubtitleTracks?.();
+      });
+      await leavePlayer();
+
+      screen.unmount();
+      await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+      expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
     });
 
     test("restarts from where playback is once MPV has reported a position", async () => {
