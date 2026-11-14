@@ -1324,6 +1324,27 @@ describe("Auto during playback", () => {
     expect(mockKeepPlaybackRate).not.toHaveBeenCalled();
   });
 
+  // The dropped stream left Auto waiting for it: out of the group, the
+  // stream that still stalled was never looked at again.
+  test("looks at the stream again once it left the group that dropped its swap", async () => {
+    await mount();
+    await playAt("auto");
+    holdNegotiations();
+    await stall();
+    mockSyncPlay.enabled = true;
+    try {
+      await releaseNegotiations();
+    } finally {
+      mockSyncPlay.enabled = false;
+    }
+    expect(mockNegotiation.params).toHaveLength(2);
+
+    await wait(33_000);
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(3);
+  });
+
   // A track change while the measure ran: the replaced stream's callback took
   // the measure the new stream had joined, and threw its step up away.
   test("steps up from the stream the measure is for, after a track change during it", async () => {

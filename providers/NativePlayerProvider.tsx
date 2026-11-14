@@ -1152,8 +1152,10 @@ const NativePlayerProviderInner: React.FC<{
       if (options.byAuto && syncRef.current.enabled) {
         // The player joined a SyncPlay group while Auto's stream was being
         // negotiated: loading it would hold every member. Dropped here, with
-        // the stream on screen and its server session untouched.
+        // the stream on screen and its server session untouched. Auto no
+        // longer waits for it: out of the group, it looks at the stream again.
         releaseLiveStream(built.seed);
+        options.adaptive?.swapFailed(Date.now());
         return true;
       }
       if (syncRef.current.enabled && !req.offline) {
