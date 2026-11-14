@@ -6,6 +6,7 @@ import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { CustomLinksGroup } from "@/components/more/CustomLinksGroup";
 import useRouter from "@/hooks/useAppRouter";
+import { useShowsLiveTV } from "@/hooks/useShowsLiveTV";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
@@ -19,6 +20,7 @@ export const MoreMenu: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
   const user = useAtomValue(userAtom);
+  const showLiveTV = useShowsLiveTV();
 
   const showWatchlists =
     Boolean(settings?.streamyStatsServerUrl) && !settings?.hideWatchlistsTab;
@@ -42,6 +44,14 @@ export const MoreMenu: React.FC = () => {
             showArrow
             onPress={() => router.push("/(auth)/(tabs)/(more)/favorites")}
           />
+          {showLiveTV && (
+            <ListItem
+              icon='tv'
+              title={t("live_tv.title")}
+              showArrow
+              onPress={() => router.push("/(auth)/(tabs)/(more)/livetv")}
+            />
+          )}
           {showWatchlists && (
             <ListItem
               icon='list'

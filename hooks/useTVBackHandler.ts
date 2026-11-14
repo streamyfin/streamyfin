@@ -16,6 +16,7 @@ export const TAB_ROUTES = [
   "(libraries)",
   "(more)",
   "(tv-favorites)",
+  "(tv-livetv)",
   "(tv-watchlists)",
   "(tv-settings)",
 ] as const;

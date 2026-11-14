@@ -5,6 +5,7 @@ import { userAtom } from "@/providers/JellyfinProvider";
 
 const mockPush = jest.fn();
 let mockSettings: Record<string, unknown> = {};
+let mockShowsLiveTV = false;
 
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
@@ -14,6 +15,9 @@ jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return { userAtom: atom({ Id: "user-1" }) };
 });
+jest.mock("@/hooks/useShowsLiveTV", () => ({
+  useShowsLiveTV: () => mockShowsLiveTV,
+}));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: mockSettings }),
 }));
@@ -50,6 +54,7 @@ const STREAMYSTATS = { streamyStatsServerUrl: "https://stats.example.com" };
 beforeEach(() => {
   mockPush.mockReset();
   mockSettings = {};
+  mockShowsLiveTV = false;
   getDefaultStore().set(userAtom, { Id: "user-1" } as never);
 });
 
@@ -60,10 +65,12 @@ describe("More menu, phone", () => {
       Policy: { IsAdministrator: true },
     } as never);
     mockSettings = STREAMYSTATS;
+    mockShowsLiveTV = true;
     await render(<MoreMenu />);
 
     for (const [label, href] of [
       ["tabs.favorites", "/(auth)/(tabs)/(more)/favorites"],
+      ["live_tv.title", "/(auth)/(tabs)/(more)/livetv"],
       ["watchlists.title", "/(auth)/(tabs)/(more)/watchlists"],
       ["home.sessions.title", "/(auth)/(tabs)/(more)/sessions"],
       ["tabs.settings", "/(auth)/(tabs)/(more)/settings"],
@@ -87,6 +94,18 @@ describe("More menu, phone", () => {
     mockSettings = { ...STREAMYSTATS, hideWatchlistsTab: true };
     await render(<MoreMenu />);
     expect(screen.queryByText("watchlists.title")).toBeNull();
+  });
+
+  // useShowsLiveTV is false on a server without Live TV, and when the user
+  // turned Live TV off.
+  test("shows Live TV only when the app offers it", async () => {
+    const view = await render(<MoreMenu />);
+    expect(screen.queryByText("live_tv.title")).toBeNull();
+    await view.unmount();
+
+    mockShowsLiveTV = true;
+    await render(<MoreMenu />);
+    expect(screen.getByText("live_tv.title")).toBeTruthy();
   });
 
   test("shows the server's links only when they are turned on", async () => {

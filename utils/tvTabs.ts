@@ -17,6 +17,7 @@ const TV_TAB_GROUPS = [
   "(home)",
   "(search)",
   "(tv-favorites)",
+  "(tv-livetv)",
   "(tv-watchlists)",
   "(libraries)",
   "(tv-settings)",
@@ -24,9 +25,19 @@ const TV_TAB_GROUPS = [
 
 export type TVTabGroup = (typeof TV_TAB_GROUPS)[number];
 
+/** The TV tabs that come and go: Watchlists, and Live TV on a server that has it. */
+export type TVOptionalTabs = { watchlists: boolean; liveTV: boolean };
+
 /** The tab groups of the TV bar, in order. Spec: utils/tvTabs.test.ts. */
-export const tvTabGroups = (watchlists: boolean): TVTabGroup[] =>
-  TV_TAB_GROUPS.filter((group) => watchlists || group !== "(tv-watchlists)");
+export const tvTabGroups = ({
+  watchlists,
+  liveTV,
+}: TVOptionalTabs): TVTabGroup[] =>
+  TV_TAB_GROUPS.filter(
+    (group) =>
+      (watchlists || group !== "(tv-watchlists)") &&
+      (liveTV || group !== "(tv-livetv)"),
+  );
 
 /**
  * Whether the user is on a TV tab the bar no longer shows, which happens when
@@ -37,7 +48,7 @@ export const tvTabGroups = (watchlists: boolean): TVTabGroup[] =>
  */
 export const isTVTabGone = (
   currentTab: string | undefined,
-  watchlists: boolean,
+  shown: TVOptionalTabs,
 ): boolean =>
   (TV_TAB_GROUPS as readonly string[]).includes(currentTab ?? "") &&
-  !(tvTabGroups(watchlists) as string[]).includes(currentTab ?? "");
+  !(tvTabGroups(shown) as string[]).includes(currentTab ?? "");

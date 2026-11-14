@@ -177,7 +177,12 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const handlePress = useCallback(() => {
     // Force music libraries to navigate via the explicit string route.
     // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
-    if ("CollectionType" in item && item.CollectionType === "music") {
+    // Also force (tv-livetv) to use explicit absolute paths so back navigation returns to the
+    // LiveTV tab instead of resolving to the (home) tab context.
+    if (
+      ("CollectionType" in item && item.CollectionType === "music") ||
+      from === "(tv-livetv)"
+    ) {
       router.push(itemRouter(item, from) as any);
       return;
     }
@@ -192,7 +197,8 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     from === "(libraries)" ||
     from === "(more)" ||
     from === "(tv-favorites)" ||
-    from === "(tv-watchlists)"
+    from === "(tv-watchlists)" ||
+    from === "(tv-livetv)"
   )
     return (
       <TouchableOpacity
