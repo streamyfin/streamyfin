@@ -9,12 +9,13 @@
 // FlashList measures natively; its Jest setup stubs the measurements.
 require("@shopify/flash-list/jestSetup");
 // The app's own i18n, so a translated string costs what it costs in the app.
-require("@/i18n");
+// It must load in `beforeAll`, after the spec's own mocks: it reaches
+// `expo-router` through `utils/log`, and a module this file requires caches
+// the mock below over any `jest.mock("expo-router")` a spec declares.
+beforeAll(() => {
+  require("@/i18n");
+});
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Loading the real module logs an Expo Go push warning on import.
 jest.mock("expo-notifications", () => ({
   scheduleNotificationAsync: jest.fn(),
@@ -26,14 +27,16 @@ jest.mock(
   "react-native-safe-area-context",
   () => jest.requireActual("react-native-safe-area-context/jest/mock").default,
 );
+// MMKV is native. `jest.perf.config.js` maps none of the unit doubles, so this
+// is the scenarios' only one, on the PR and on the baseline alike.
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
 jest.mock(
   "react-native-reanimated",
   () => jest.requireActual("@/test-utils/reanimated").reanimatedModule,
 );
-jest.mock("react-native-device-info", () => ({
-  getFreeDiskStorage: async () => 10_000_000_000,
-  getTotalDiskCapacity: async () => 64_000_000_000,
-}));
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );

@@ -6,6 +6,8 @@ type Captured = {
   contexts: Record<string, unknown>;
 };
 const mockCaptured: Captured[] = [];
+// The real log is under test, not the silent double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/log");
 jest.mock("@sentry/react-native", () => ({
   addBreadcrumb: () => {},
   withScope: (run: (scope: unknown) => void) => {
@@ -27,10 +29,6 @@ jest.mock("@sentry/react-native", () => ({
     mockCaptured[mockCaptured.length - 1].exception = exception;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 import { AxiosError, type AxiosResponse } from "axios";
 import { clearMmkv } from "@/test-utils/mmkv";
@@ -146,6 +144,72 @@ describe("logAndCaptureError — what is kept local", () => {
       }),
     );
     expect(mockCaptured).toHaveLength(1);
+  });
+});
+
+// A library renamed or deleted: ids restored from an earlier session's cache,
+// which the server answers as unknown.
+describe("logAndCaptureError for an id the server no longer has", () => {
+  const STALE = "5e1c0f9d2b7a4c38a6e2d4f1b3c5a7e9";
+
+  test("is logged and not sent", () => {
+    logAndCaptureError(
+      "Loading the library failed",
+      httpError(
+        newServer(),
+        `/Items?userId=u1&parentId=${STALE}&recursive=true`,
+        400,
+        { "content-type": "text/plain", server: "Kestrel" },
+        "Error processing request.",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(0);
+    expect(readFromLog().map((entry) => entry.message)).toEqual([
+      "Loading the library failed",
+    ]);
+  });
+
+  test("the same statuses for anything else are still sent", () => {
+    logAndCaptureError(
+      "Loading the library failed",
+      httpError(
+        newServer(),
+        "/Items?parentId=abc",
+        400,
+        { "content-type": "application/problem+json" },
+        {
+          status: 400,
+          errors: { parentId: ["The value 'abc' is not valid."] },
+        },
+      ),
+    );
+    logAndCaptureError(
+      "Loading the item failed",
+      httpError(newServer(), `/Items/${STALE}`, 404),
+    );
+    expect(mockCaptured).toHaveLength(2);
+  });
+
+  // Jellyfin answers it for any id that is not a series the user can see,
+  // the id of an episode the app passed by mistake among them.
+  test("a series' 404 is still sent", () => {
+    logAndCaptureError(
+      "Loading the episodes failed",
+      httpError(
+        newServer(),
+        `/Shows/${STALE}/Episodes?userId=u1`,
+        404,
+        { "content-type": "application/json; charset=utf-8" },
+        "Series not found",
+      ),
+    );
+    expect(mockCaptured).toHaveLength(1);
+    expect(mockCaptured[0].fingerprint).toEqual([
+      "Loading the episodes failed",
+      "GET",
+      "/Shows/:id/Episodes",
+      "404",
+    ]);
   });
 });
 

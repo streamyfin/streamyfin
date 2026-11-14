@@ -1,13 +1,11 @@
 import axios from "axios";
+import { STREAMYSTATS_REQUEST_TIMEOUT_MS } from "@/constants/Streamystats";
 import { createStreamystatsApi } from "./api";
 
 jest.mock("axios", () => ({
   __esModule: true,
   default: { get: jest.fn() },
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 
 const mockGet = axios.get as jest.Mock;
 
@@ -130,5 +128,26 @@ describe("search ids", () => {
       episodes: ["e1", "e2"],
       total: 3,
     });
+  });
+});
+
+// A Streamystats server that took the connection and never answered kept the
+// watchlists tab on its loader for good: no timeout anywhere, on any platform.
+describe("watchlists", () => {
+  beforeEach(() => mockGet.mockReset());
+
+  test("give up on a server that does not answer, and follow the query's cancel", async () => {
+    serverAnswers([]);
+    const controller = new AbortController();
+
+    await streamystats().getWatchlists(controller.signal);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "https://stats.example.com/api/watchlists",
+      expect.objectContaining({
+        timeout: STREAMYSTATS_REQUEST_TIMEOUT_MS,
+        signal: controller.signal,
+      }),
+    );
   });
 });

@@ -1,4 +1,4 @@
-// Spec for app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/guide.tsx.
+// Spec for app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide.tsx.
 // It lives here rather than next to the page because Expo Router turns every
 // file under app/ into a route.
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
@@ -9,23 +9,15 @@ import {
 } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
-import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/livetv/guide";
+import LiveTvGuidePage from "@/app/(auth)/(tabs)/(home,libraries,search,more,tv-favorites,tv-watchlists)/livetv/guide";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
 jest.mock("@/components/common/ItemImage", () => ({ ItemImage: () => null }));
 // The row layout is not what is under test; a channel shows up as the names
 // of its programs.

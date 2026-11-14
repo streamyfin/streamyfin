@@ -10,23 +10,17 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { LibraryItemCard } from "./LibraryItemCard";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({
-    settings: { libraryOptions: { display: "row", showStats: true } },
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
+jest.mock("@/utils/atoms/settings", () =>
+  jest.requireActual("@/test-utils/settings").makeSettingsModule({
+    libraryOptions: { display: "row", showStats: true },
   }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+);
 // The row layout these specs render draws no image.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // Navigation is not what is under test; the card shows up as its content.
 jest.mock("../common/TouchableItemRouter", () => ({
   TouchableItemRouter: ({ children }: { children: React.ReactNode }) =>
@@ -40,7 +34,7 @@ const LIBRARY: BaseItemDto = {
   ImageTags: { Primary: "tag" },
 };
 
-const renderCard = async () => {
+const renderCard = async (library: BaseItemDto = LIBRARY) => {
   /** What the app's own query cache would have handed to Sentry. */
   const errors: Error[] = [];
   // No garbage collection timer nor retry: either keeps Jest from exiting.
@@ -54,7 +48,7 @@ const renderCard = async () => {
   await render(
     <QueryClientProvider client={client}>
       <JotaiProvider store={store}>
-        <LibraryItemCard library={LIBRARY} />
+        <LibraryItemCard library={library} />
       </JotaiProvider>
     </QueryClientProvider>,
   );
@@ -94,6 +88,33 @@ describe("LibraryItemCard", () => {
       recursive: "true",
       limit: "0",
       includeItemTypes: "Movie",
+    });
+    expect(errors).toEqual([]);
+  });
+
+  test("counts the channels of the Live TV view", async () => {
+    const api = makeApi();
+    api.mock
+      .onGet(/\/LiveTv\/Channels\?/)
+      .reply(200, { Items: [], TotalRecordCount: 42 });
+    const { store, errors } = await renderCard({
+      Id: "livetv-1",
+      Name: "Live TV",
+      CollectionType: "livetv",
+      ImageTags: { Primary: "tag" },
+    });
+
+    await act(async () => store.set(apiAtom, api));
+
+    await waitFor(() =>
+      expect(screen.getByText("42 live_tv.tabs.channels")).toBeTruthy(),
+    );
+    expect(api.mock.history.get).toHaveLength(1);
+    const query = new URL(api.mock.history.get[0].url ?? "").searchParams;
+    expect(Object.fromEntries(query)).toEqual({
+      userId: "user-1",
+      limit: "1",
+      addCurrentProgram: "false",
     });
     expect(errors).toEqual([]);
   });

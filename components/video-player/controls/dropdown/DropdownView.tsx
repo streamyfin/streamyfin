@@ -29,6 +29,7 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -226,7 +227,7 @@ const DropdownView = ({
   onOpenSubtitleScale,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
-  const { item, mediaSource } = usePlayerContext();
+  const { item, mediaSource, downloadedItem } = usePlayerContext();
   const { settings, pluginSettings } = useSettings();
   const subtitleScaleModalRef = useRef<BottomSheetModal>(null);
   const router = useRouter();
@@ -242,6 +243,13 @@ const DropdownView = ({
       bitrateValue: string;
       playbackPosition: string;
     }>();
+
+  const selected = resolveRouteTrackIndexes({
+    audioIndex,
+    subtitleIndex,
+    offline: isOffline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Use ref to track playbackPosition without causing re-renders
   const playbackPositionRef = useRef(playbackPosition);
@@ -326,7 +334,7 @@ const DropdownView = ({
           type: "radio" as const,
           label: sub.name,
           value: sub.index.toString(),
-          selected: subtitleIndex === sub.index.toString(),
+          selected: selected.subtitleIndex === sub.index,
           onPress: () => sub.setTrack(),
         })),
       });
@@ -369,7 +377,7 @@ const DropdownView = ({
           type: "radio" as const,
           label: track.name,
           value: track.index.toString(),
-          selected: audioIndex === track.index.toString(),
+          selected: selected.audioIndex === track.index,
           onPress: () => track.setTrack(),
         })),
       });
@@ -413,8 +421,8 @@ const DropdownView = ({
     changeBitrate,
     subtitleTracksKey,
     audioTracksKey,
-    subtitleIndex,
-    audioIndex,
+    selected.subtitleIndex,
+    selected.audioIndex,
     settings.subtitleSize,
     pluginSettings?.subtitleSize?.locked,
     openSubtitleScale,

@@ -22,7 +22,6 @@ jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
     getQuickConnectEnabled: () => mockEnabled(),
   }),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 // The sheet's own input throws outside a bottom sheet, which this screen is
 // not: the code field has to be a plain one.
 jest.mock("@gorhom/bottom-sheet", () => ({
@@ -42,7 +41,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
@@ -102,7 +100,6 @@ const scan = async (data: string) => {
 
 describe("CompanionLoginScreen", () => {
   beforeEach(() => {
-    mockAuthorize.mockClear();
     mockAuthorize.mockImplementation(async () => ({ status: 200, data: true }));
     mockEnabled.mockClear();
     mockEnabled.mockImplementation(async () => ({ data: true }));

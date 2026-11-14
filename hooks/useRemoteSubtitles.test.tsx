@@ -44,10 +44,6 @@ jest.mock("@/utils/opensubtitles/api", () => ({
     download = mockOpenSubtitlesDownload;
   },
 }));
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 
 // Only the two fields the rule reads; the server sends the whole policy.
 const userWith = (policy: Partial<UserPolicy>): UserDto => ({

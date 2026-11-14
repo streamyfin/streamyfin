@@ -12,9 +12,6 @@ jest.mock("jotai", () => ({
   ...jest.requireActual("jotai"),
   useSetAtom: () => mockSetShuffleQueue,
 }));
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-}));
 jest.mock("@/hooks/useServerVersion", () => ({
   useServerVersion: () => "12.0.0",
 }));

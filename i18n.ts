@@ -1,40 +1,6 @@
 import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import ar from "./translations/ar-SA.json";
-import ca from "./translations/ca-ES.json";
-import cs from "./translations/cs-CZ.json";
-import da from "./translations/da-DK.json";
-import de from "./translations/de-DE.json";
-import el from "./translations/el-GR.json";
-import en from "./translations/en.json";
-import eo from "./translations/eo.json";
-import es from "./translations/es-ES.json";
-import fi from "./translations/fi-FI.json";
-import fr from "./translations/fr-FR.json";
-import he from "./translations/he-IL.json";
-import hu from "./translations/hu-HU.json";
-import it from "./translations/it-IT.json";
-import ja from "./translations/ja-JP.json";
-import ko from "./translations/ko-KR.json";
-import lb from "./translations/lb-LU.json";
-import nl from "./translations/nl-NL.json";
-import nn from "./translations/nn.json";
-import no from "./translations/no-NO.json";
-import pl from "./translations/pl-PL.json";
-import ptBR from "./translations/pt-BR.json";
-import pt from "./translations/pt-PT.json";
-import ro from "./translations/ro-RO.json";
-import ru from "./translations/ru-RU.json";
-import sq from "./translations/sq.json";
-import sv from "./translations/sv-SE.json";
-import th from "./translations/th-TH.json";
-import tlh from "./translations/tlh-AA.json";
-import tr from "./translations/tr-TR.json";
-import uk from "./translations/uk-UA.json";
-import vi from "./translations/vi-VN.json";
-import zhCN from "./translations/zh-CN.json";
-import zhTW from "./translations/zh-TW.json";
 import { readStoredAppLanguage } from "./utils/storedSettings";
 
 const _APP_LANGUAGES = [
@@ -76,56 +42,80 @@ const _APP_LANGUAGES = [
 
 export const APP_LANGUAGES = _APP_LANGUAGES;
 
-i18n.use(initReactI18next).init({
-  compatibilityJSON: "v4",
-  resources: {
-    ca: { translation: ca },
-    ar: { translation: ar },
-    cs: { translation: cs },
-    da: { translation: da },
-    de: { translation: de },
-    el: { translation: el },
-    en: { translation: en },
-    es: { translation: es },
-    eo: { translation: eo },
-    fr: { translation: fr },
-    he: { translation: he },
-    hu: { translation: hu },
-    it: { translation: it },
-    ja: { translation: ja },
-    ko: { translation: ko },
-    lb: { translation: lb },
-    nl: { translation: nl },
-    pl: { translation: pl },
-    pt: { translation: pt },
-    "pt-BR": { translation: ptBR },
-    ro: { translation: ro },
-    sv: { translation: sv },
-    // Crowdin ships a single Norwegian catalogue (Bokmål); nn keeps its own file.
-    nb: { translation: no },
-    no: { translation: no },
-    nn: { translation: nn },
-    fi: { translation: fi },
-    sq: { translation: sq },
-    ru: { translation: ru },
-    th: { translation: th },
-    tr: { translation: tr },
-    tlh: { translation: tlh },
-    uk: { translation: uk },
-    vi: { translation: vi },
-    // Devices report the "zh" macrolanguage; default it to Simplified.
-    zh: { translation: zhCN },
-    "zh-CN": { translation: zhCN },
-    "zh-TW": { translation: zhTW },
-  },
+// A static import evaluates a catalogue at launch whether or not it is shown.
+// Metro's inline requires do not help: a default JSON import stays eager. Each
+// thunk runs only when i18next asks for that language.
+const CATALOGUES: Record<string, () => object> = {
+  ca: () => require("./translations/ca-ES.json"),
+  ar: () => require("./translations/ar-SA.json"),
+  cs: () => require("./translations/cs-CZ.json"),
+  da: () => require("./translations/da-DK.json"),
+  de: () => require("./translations/de-DE.json"),
+  el: () => require("./translations/el-GR.json"),
+  en: () => require("./translations/en.json"),
+  es: () => require("./translations/es-ES.json"),
+  eo: () => require("./translations/eo.json"),
+  fr: () => require("./translations/fr-FR.json"),
+  he: () => require("./translations/he-IL.json"),
+  hu: () => require("./translations/hu-HU.json"),
+  it: () => require("./translations/it-IT.json"),
+  ja: () => require("./translations/ja-JP.json"),
+  ko: () => require("./translations/ko-KR.json"),
+  lb: () => require("./translations/lb-LU.json"),
+  nl: () => require("./translations/nl-NL.json"),
+  pl: () => require("./translations/pl-PL.json"),
+  pt: () => require("./translations/pt-PT.json"),
+  "pt-BR": () => require("./translations/pt-BR.json"),
+  ro: () => require("./translations/ro-RO.json"),
+  sv: () => require("./translations/sv-SE.json"),
+  // Crowdin ships a single Norwegian catalogue (Bokmål); nn keeps its own file.
+  nb: () => require("./translations/no-NO.json"),
+  no: () => require("./translations/no-NO.json"),
+  nn: () => require("./translations/nn.json"),
+  fi: () => require("./translations/fi-FI.json"),
+  sq: () => require("./translations/sq.json"),
+  ru: () => require("./translations/ru-RU.json"),
+  th: () => require("./translations/th-TH.json"),
+  tr: () => require("./translations/tr-TR.json"),
+  tlh: () => require("./translations/tlh-AA.json"),
+  uk: () => require("./translations/uk-UA.json"),
+  vi: () => require("./translations/vi-VN.json"),
+  // Devices report the "zh" macrolanguage; default it to Simplified.
+  zh: () => require("./translations/zh-CN.json"),
+  "zh-CN": () => require("./translations/zh-CN.json"),
+  "zh-TW": () => require("./translations/zh-TW.json"),
+};
 
-  // The stored language rather than the device's, which the layout effect
-  // would only correct after the first requests had gone out in it.
-  lng: readStoredAppLanguage() ?? (getLocales()[0].languageCode || "en"),
-  fallbackLng: "en",
-  interpolation: {
-    escapeValue: false,
+// Answers synchronously, so `t()` works as soon as this module has run and
+// `changeLanguage` never leaves a render in the previous language. A language
+// with no catalogue gets null, which i18next treats as loaded and empty.
+const catalogueBackend = {
+  type: "backend" as const,
+  // i18next 27 deprecates guessing the calling convention from read's arity.
+  callbackApi: true,
+  init() {},
+  read(
+    lng: string,
+    _ns: string,
+    callback: (error: null, data: object | null) => void,
+  ) {
+    callback(null, CATALOGUES[lng]?.() ?? null);
   },
-});
+};
+
+i18n
+  .use(catalogueBackend)
+  .use(initReactI18next)
+  .init({
+    initAsync: false,
+
+    // The stored language rather than the device's, which the layout effect
+    // would only correct after the first requests had gone out in it.
+    lng: readStoredAppLanguage() ?? (getLocales()[0].languageCode || "en"),
+    fallbackLng: "en",
+    interpolation: {
+      escapeValue: false,
+    },
+  });
 
 export default i18n;

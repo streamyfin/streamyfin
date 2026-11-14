@@ -1,0 +1,90 @@
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import { stubReactNative } from "@/test-utils/reactNative";
+
+stubReactNative({ OS: "android" });
+
+const { SearchSortMenu } =
+  require("@/components/search/SearchSortMenu") as typeof import("@/components/search/SearchSortMenu");
+
+const onSort = jest.fn();
+const onOrder = jest.fn();
+const sorts = [
+  { value: "DEFAULT", label: "Default" },
+  { value: "VOTE_COUNT_AND_AVERAGE", label: "Vote count and average" },
+  { value: "POPULARITY", label: "Popularity" },
+];
+
+const renderMenu = (
+  { order }: { order?: "asc" | "desc" } = { order: "desc" },
+) =>
+  render(
+    <SearchSortMenu
+      sorts={sorts}
+      sort='DEFAULT'
+      onSort={onSort}
+      order={order}
+      onOrder={onOrder}
+      t={(key: string) => key}
+    />,
+  );
+
+const openMenu = () =>
+  fireEvent.press(
+    screen.getByRole("button", { name: "library.filters.sort_by" }),
+  );
+
+describe("SearchSortMenu on Android", () => {
+  // As on iOS: one button, and the sort and the order in the menu it opens.
+  test("shows one filter button that opens both choices", async () => {
+    await renderMenu();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByText("library.filters.sort_order")).toBeNull();
+
+    await openMenu();
+    expect(screen.getByText("library.filters.sort_by")).toBeTruthy();
+    expect(screen.getByText("library.filters.sort_order")).toBeTruthy();
+  });
+
+  test("sorts by the choice picked and closes the menu", async () => {
+    await renderMenu();
+    await openMenu();
+    await fireEvent.press(screen.getByText("Popularity"));
+
+    expect(onSort).toHaveBeenCalledWith("POPULARITY");
+    expect(screen.queryByText("Popularity")).toBeNull();
+  });
+
+  test("orders by the choice picked", async () => {
+    await renderMenu();
+    await openMenu();
+    await fireEvent.press(screen.getByText("library.filters.asc"));
+
+    expect(onOrder).toHaveBeenCalledWith("asc");
+  });
+
+  // The current sort and order show as picked, as their circles do on iOS.
+  test("marks the current choices", async () => {
+    await renderMenu();
+    await openMenu();
+
+    const marks = screen.getAllByText(/selected/).map((m) => m.props.children);
+    // Three sorts then two orders: Default and Descending are the current ones.
+    expect(marks).toEqual([
+      "selected",
+      "not selected",
+      "not selected",
+      "not selected",
+      "selected",
+    ]);
+  });
+
+  // Relevance, the Library search's own order, has no direction to pick.
+  test("leaves the order out for a sort that has none", async () => {
+    await renderMenu({});
+    await openMenu();
+
+    expect(screen.getByText("library.filters.sort_by")).toBeTruthy();
+    expect(screen.queryByText("library.filters.sort_order")).toBeNull();
+    expect(screen.queryByText("library.filters.asc")).toBeNull();
+  });
+});

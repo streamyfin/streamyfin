@@ -94,7 +94,7 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .previousEpisode)
 					.tvFocusGated(focusGate, TVControl.previousEpisode)
 			}
-			iconButton(skipSymbol("gobackward", viewModel.seekBackwardSec)) {
+			seekIconButton("gobackward", viewModel.seekBackwardSec) {
 				viewModel.seekBackward()
 			}
 			.focused($focusedControl, equals: .skipBack)
@@ -114,7 +114,7 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .nextChapter)
 					.tvFocusGated(focusGate, TVControl.nextChapter)
 			}
-			iconButton(skipSymbol("goforward", viewModel.seekForwardSec)) {
+			seekIconButton("goforward", viewModel.seekForwardSec) {
 				viewModel.seekForward()
 			}
 			.focused($focusedControl, equals: .skipForward)
@@ -148,11 +148,7 @@ struct TVControlsRow: View {
 				Button {
 					viewModel.skipActiveSegment()
 				} label: {
-					Text(
-						segment.type == "Intro"
-							? viewModel.str("skipIntro", "Skip Intro")
-							: viewModel.str("skipCredits", "Skip Credits")
-					)
+					Text(viewModel.skipLabel(for: segment.type))
 					.font(.system(size: 22, weight: .semibold))
 					.frame(height: 34)
 				}
@@ -477,10 +473,13 @@ struct TVControlsRow: View {
 			.frame(width: 34, height: 34)
 	}
 
-	/// "gobackward.30"-style symbol when SF Symbols has the exact count.
-	private func skipSymbol(_ base: String, _ seconds: Double) -> String {
-		let n = Int(seconds.rounded())
-		return [10, 15, 30, 45, 60, 75, 90].contains(n) ? "\(base).\(n)" : base
+	private func seekIconButton(_ prefix: String, _ seconds: Double, action: @escaping () -> Void) -> some View {
+		Button(action: action) {
+			SeekGlyph(prefix: prefix, seconds: seconds, size: 22)
+				.frame(width: 34, height: 34)
+		}
+		.buttonStyle(.glass)
+		.buttonBorderShape(.circle)
 	}
 }
 #endif

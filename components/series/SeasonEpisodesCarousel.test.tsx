@@ -28,9 +28,10 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/providers/DownloadProvider", () => ({
   useDownload: () => ({ getDownloadedItems: () => [] }),
 }));
-jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
-}));
+jest.mock(
+  "@/providers/OfflineModeProvider",
+  () => jest.requireActual("@/test-utils/stubModules").onlineModule,
+);
 jest.mock("@/hooks/useAppRouter", () => () => ({ setParams: jest.fn() }));
 jest.mock("@/hooks/useEpisodeAirLabels", () => ({
   useEpisodeAirLabels: () => ({ availabilityLabel: () => null }),

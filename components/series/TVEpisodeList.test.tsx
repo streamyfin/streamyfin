@@ -2,14 +2,12 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { render, screen } from "@testing-library/react-native";
 import { TVEpisodeList } from "./TVEpisodeList";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 1, callout: 1 }),
 }));
 jest.mock("@/constants/TVSizes", () => ({
   useScaledTVSizes: () => ({ padding: { scale: 0 }, gaps: { item: 0 } }),
+  useScaledTVPosterSizes: () => ({ poster: 200, episode: 300 }),
 }));
 // An episode shows up as its name, with whatever the list draws over it.
 jest.mock("@/components/tv/TVPosterCard", () => ({
@@ -79,4 +77,77 @@ test("shows each episode with its own image", async () => {
 
   expect(screen.getAllByText("episode-image-preferred")).toHaveLength(2);
   expect(screen.queryByText("series-image-preferred")).toBeNull();
+});
+
+// A season said it had no episodes while they were still on their way (seen
+// on an Android TV, 2026-11-03), then showed them.
+test("says nothing about an empty season while its episodes load", async () => {
+  const view = await render(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[]}
+      isLoading
+      emptyText='No episodes'
+    />,
+  );
+  expect(screen.queryByText("No episodes")).toBeNull();
+
+  await view.rerender(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[]}
+      isLoading={false}
+      emptyText='No episodes'
+    />,
+  );
+  expect(screen.getByText("No episodes")).toBeTruthy();
+});
+
+// An empty row read as nothing happening: while the episodes load, cards in
+// their shape hold the row.
+test("holds the row with card placeholders while the episodes load", async () => {
+  const view = await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
+  );
+  expect(screen.getAllByTestId("tv-episode-skeleton").length).toBeGreaterThan(
+    0,
+  );
+
+  await view.rerender(
+    <TVEpisodeList
+      onEpisodePress={() => {}}
+      episodes={[episode("Pilot", { LocationType: "FileSystem" })]}
+      isLoading={false}
+    />,
+  );
+  expect(screen.queryByTestId("tv-episode-skeleton")).toBeNull();
+  expect(screen.getByText("Pilot")).toBeTruthy();
+});
+
+// The cards that replace the placeholders carry a label line and a title under
+// the image: a placeholder of the image alone made the row grow, and the
+// sections below it jump, when the episodes arrived.
+test("the placeholders hold the label and title lines of the cards too", async () => {
+  await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
+  );
+
+  const cards = screen.getAllByTestId("tv-episode-skeleton");
+  // Hidden from spoken feedback, as the next test shows: still drawn.
+  expect(
+    screen.getAllByTestId("tv-episode-skeleton-text", {
+      includeHiddenElements: true,
+    }),
+  ).toHaveLength(cards.length);
+});
+
+// The placeholder lines are text, there only for their height: read aloud, they
+// named an episode that is not there.
+test("the placeholders' text is not read out", async () => {
+  await render(
+    <TVEpisodeList onEpisodePress={() => {}} episodes={[]} isLoading />,
+  );
+
+  expect(screen.queryByText("S1:E1 • 45 min")).toBeNull();
+  expect(screen.queryByText("Episode title")).toBeNull();
 });

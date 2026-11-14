@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import {
   MutationCache,
   onlineManager,
@@ -8,6 +9,7 @@ import {
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { AxiosError, AxiosHeaders } from "axios";
 import type React from "react";
+import { toast } from "sonner-native";
 import { MOST_AWAITED_TITLES } from "@/constants/Notifications";
 import type { AwaitedTitle } from "@/utils/awaitedTitles";
 import { reportDataError } from "@/utils/reportDataError";
@@ -16,8 +18,8 @@ import { AWAITED_TITLES_QUERY, useAwaitedTitles } from "./useAwaitedTitles";
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 const mockDelete = jest.fn();
-const mockToastError = jest.fn();
-const mockCapture = jest.fn();
+const mockToastError = jest.mocked(toast.error);
+const mockCapture = jest.mocked(Sentry.captureException);
 
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -31,17 +33,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     userAtom: atom({ Id: "alice" }),
   };
 });
-jest.mock("sonner-native", () => ({
-  toast: { error: (...args: unknown[]) => mockToastError(...args) },
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@sentry/react-native", () => ({
-  withScope: (report: (scope: unknown) => void) =>
-    report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
-  captureException: (...args: unknown[]) => mockCapture(...args),
-}));
 
 let client: QueryClient;
 
@@ -118,7 +109,7 @@ const reportingClient = () =>
         reportDataError("mutation", mutation.options.mutationKey, error),
     }),
     defaultOptions: {
-      queries: { gcTime: Number.POSITIVE_INFINITY },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retryDelay: 0 },
       mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
     },
   });
@@ -131,11 +122,21 @@ const ready = async () => {
 
 describe("the titles the person waits for", () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    // Only this spec's own mocks: `jest.resetAllMocks()` would also strip the
+    // defaults of the doubles `test-utils/unitSetup.ts` wires.
+    mockGet.mockReset();
+    mockPost.mockReset();
+    mockDelete.mockReset();
     // No garbage collection timer nor retry: either keeps Jest from exiting.
+    // The hook sets its own `retry`, so a retry still runs: `retryDelay: 0`
+    // keeps its timer from outliving the test, which `client.clear()` cannot.
     client = new QueryClient({
       defaultOptions: {
-        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        queries: {
+          gcTime: Number.POSITIVE_INFINITY,
+          retry: false,
+          retryDelay: 0,
+        },
         mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
       },
     });
@@ -210,6 +211,7 @@ describe("the titles the person waits for", () => {
       defaultOptions: {
         queries: {
           gcTime: Number.POSITIVE_INFINITY,
+          retryDelay: 0,
           networkMode: "offlineFirst",
         },
       },

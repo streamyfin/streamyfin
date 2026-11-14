@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
-  BaseItemDtoQueryResult,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -14,7 +13,12 @@ import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  type ScrollViewInstance,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -26,6 +30,7 @@ import {
   TVHomeBackdrop,
   type TVHomeBackdropRef,
 } from "@/components/home/TVHomeBackdrop";
+import { useHomeInitialFocus } from "@/components/home/useHomeInitialFocus";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
@@ -42,6 +47,7 @@ import {
   userAtom,
 } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { fetchCustomHomeSection } from "@/utils/customHomeSection";
 import { scaleSize } from "@/utils/scaleSize";
 import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
@@ -70,9 +76,16 @@ export const Home = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const cacheVersion = useAtomValue(cacheVersionAtom);
+  // Only the first Home of a sign-in may pull the focus off the tab bar, and
+  // only its first content: clearing the cache rebuilds the content under the
+  // same Home (keyed on cacheVersion), and the new first card would ask again.
+  const firstCacheVersion = useRef(cacheVersion);
+  const takesInitialFocus =
+    useHomeInitialFocus(api?.accessToken) &&
+    cacheVersion === firstCacheVersion.current;
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const {
     isConnected,
     serverConnected,
@@ -110,7 +123,7 @@ export const Home = () => {
   useRemapHiddenLibraries(data, user?.Id);
 
   // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems } = useQuery({
+  const { data: heroItems, isPending: heroPending } = useQuery({
     queryKey: ["home", "heroItems", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -406,63 +419,14 @@ export const Home = () => {
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", "custom", String(index), section.title ?? null],
-        queryFn: async ({ pageParam = 0 }) => {
-          if (section.items) {
-            const response = await getLibraryApi(api).getItems({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.items?.limit || pageSize,
-              recursive: true,
-              includeItemTypes: section.items?.includeItemTypes,
-              sortBy: section.items?.sortBy,
-              sortOrder: section.items?.sortOrder,
-              filters: section.items?.filters,
-              parentId: section.items?.parentId,
-            });
-            return response.data.Items || [];
-          }
-          if (section.nextUp) {
-            const response = await getShowApi(api).getNextUp({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: section.nextUp?.limit || pageSize,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: section.nextUp?.enableResumable,
-              enableRewatching: section.nextUp?.enableRewatching,
-            });
-            return response.data.Items || [];
-          }
-          if (section.latest) {
-            const allData =
-              (
-                await getLibraryApi(api).getLatestMedia({
-                  userId: user?.Id,
-                  includeItemTypes: section.latest?.includeItemTypes,
-                  limit: section.latest?.limit || 10,
-                  isPlayed: section.latest?.isPlayed,
-                  groupItems: section.latest?.groupItems,
-                })
-              ).data || [];
-
-            return allData.slice(pageParam, pageParam + pageSize);
-          }
-          if (section.custom) {
-            const response = await api.pluginGet<BaseItemDtoQueryResult>(
-              section.custom.endpoint,
-              {
-                params: {
-                  ...(section.custom.query || {}),
-                  userId: user?.Id,
-                  startIndex: pageParam,
-                  limit: pageSize,
-                },
-                headers: section.custom.headers || {},
-              },
-            );
-            return response.data.Items || [];
-          }
-          return [];
-        },
+        queryFn: ({ pageParam = 0 }) =>
+          fetchCustomHomeSection(api, {
+            section,
+            index,
+            userId: user?.Id,
+            pageParam,
+            pageSize,
+          }),
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
@@ -478,6 +442,22 @@ export const Home = () => {
   const showHero = useMemo(() => {
     return heroItems && heroItems.length > 0 && settings.showHeroCarousel;
   }, [heroItems, settings.showHeroCarousel]);
+
+  // One piece of content takes the initial focus: the hero when it has items,
+  // the first row otherwise. It is settled once the hero has answered, so the
+  // rows do not take it first and lose it to a hero that turns up later (its
+  // refetch), which asked for it again even with the user on the tab bar.
+  const initialFocusOwner = useRef<"hero" | "rows" | null>(null);
+  if (
+    initialFocusOwner.current === null &&
+    (!settings.showHeroCarousel || !heroPending)
+  ) {
+    initialFocusOwner.current = showHero ? "hero" : "rows";
+  }
+  const heroTakesInitialFocus =
+    takesInitialFocus && initialFocusOwner.current === "hero";
+  const rowsTakeInitialFocus =
+    takesInitialFocus && initialFocusOwner.current === "rows";
 
   // Get sections that will actually be rendered (accounting for hero slicing)
   // When hero is shown, skip the first sections since hero already displays that content
@@ -621,7 +601,11 @@ export const Home = () => {
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
         {showHero && heroItems && (
-          <TVHeroCarousel items={heroItems} onItemLongPress={showItemActions} />
+          <TVHeroCarousel
+            items={heroItems}
+            onItemLongPress={showItemActions}
+            takesInitialFocus={heroTakesInitialFocus}
+          />
         )}
 
         <View
@@ -674,7 +658,8 @@ export const Home = () => {
 
             if (section.type === "InfiniteScrollingCollectionList") {
               // First section only gets preferred focus if hero is not shown
-              const isFirstSection = index === 0 && !showHero;
+              const isFirstSection =
+                rowsTakeInitialFocus && index === 0 && !showHero;
               return (
                 <View key={index} style={{ gap: SECTION_GAP }}>
                   <InfiniteScrollingCollectionList

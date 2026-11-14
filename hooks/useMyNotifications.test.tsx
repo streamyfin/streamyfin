@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import {
   onlineManager,
   QueryCache,
@@ -7,6 +8,7 @@ import {
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { AxiosError, AxiosHeaders } from "axios";
 import type React from "react";
+import { toast } from "sonner-native";
 import { MY_NOTIFICATIONS_QUERY } from "@/constants/Notifications";
 import {
   type MyNotifications,
@@ -19,8 +21,8 @@ import { useMyNotifications } from "./useMyNotifications";
 
 const mockGet = jest.fn();
 const mockPut = jest.fn();
-const mockToastError = jest.fn();
-const mockCapture = jest.fn();
+const mockToastError = jest.mocked(toast.error);
+const mockCapture = jest.mocked(Sentry.captureException);
 
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
@@ -33,17 +35,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     userAtom: atom({ Id: "alice" }),
   };
 });
-jest.mock("sonner-native", () => ({
-  toast: { error: (...args: unknown[]) => mockToastError(...args) },
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@sentry/react-native", () => ({
-  withScope: (report: (scope: unknown) => void) =>
-    report({ setContext: jest.fn(), setFingerprint: jest.fn() }),
-  captureException: (...args: unknown[]) => mockCapture(...args),
-}));
 
 let client: QueryClient;
 
@@ -101,11 +92,20 @@ const both = withFollow(one, { favorites: false, started: true });
 describe("the person's notification choices", () => {
   beforeEach(() => {
     // Implementations too, so what one test told the server to answer stays in it.
-    jest.resetAllMocks();
+    // Only this spec's own mocks: `jest.resetAllMocks()` would also strip the
+    // defaults of the doubles `test-utils/unitSetup.ts` wires.
+    mockGet.mockReset();
+    mockPut.mockReset();
     // No garbage collection timer nor retry: either keeps Jest from exiting.
+    // The hook sets its own `retry`, so a retry still runs: `retryDelay: 0`
+    // keeps its timer from outliving the test, which `client.clear()` cannot.
     client = new QueryClient({
       defaultOptions: {
-        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        queries: {
+          gcTime: Number.POSITIVE_INFINITY,
+          retry: false,
+          retryDelay: 0,
+        },
         mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
       },
     });
@@ -138,7 +138,9 @@ describe("the person's notification choices", () => {
         onError: (error, query) =>
           reportDataError("query", query.queryKey, error),
       }),
-      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY, retryDelay: 0 },
+      },
     });
     mockGet.mockRejectedValue(notFound());
 
@@ -169,6 +171,7 @@ describe("the person's notification choices", () => {
       defaultOptions: {
         queries: {
           gcTime: Number.POSITIVE_INFINITY,
+          retryDelay: 0,
           networkMode: "offlineFirst",
         },
       },

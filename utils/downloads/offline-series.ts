@@ -3,6 +3,7 @@
  * Centralizes common filtering patterns to reduce duplication.
  */
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { hashKey, type QueryKey } from "@tanstack/react-query";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 
 /** Sort episodes by season then episode number */
@@ -86,7 +87,10 @@ export function buildOfflineSeasons(
     return {
       Id: `offline-season-${seasonNum}`,
       IndexNumber: seasonNum,
-      Name: firstEpisode?.SeasonName || `Season ${seasonNum}`,
+      // The pages name a season without one at render time (seasonLabel), in
+      // the app's language: written here, it would outlive a language change in
+      // the seasons query's cache.
+      Name: firstEpisode?.SeasonName,
       SeriesId: seriesId,
     } as BaseItemDto;
   });
@@ -111,4 +115,38 @@ export function buildOfflineSeriesFromEpisodes(
     ProductionYear: firstEpisode.ProductionYear,
     Overview: firstEpisode.SeriesName,
   } as BaseItemDto;
+}
+
+/**
+ * The part of a series query's key that follows the downloads. Offline, the
+ * page is built from the downloaded episodes, so it must refetch whenever they
+ * change. It follows the provider's `refreshKey`, not the item count: a delete
+ * and a finished download in one refresh leave the count unchanged. Online,
+ * the downloads play no part in the answer: a new key there blanks the page
+ * and fetches it again for every episode that finishes.
+ */
+export function downloadsKeyPart(
+  isOffline: boolean,
+  refreshKey: number,
+): number | null {
+  return isOffline ? refreshKey : null;
+}
+
+/**
+ * `placeholderData` for a series query whose key ends with downloadsKeyPart.
+ * Offline, a download refresh moves only that last part, and closing the
+ * player is one. The query keeps its previous answer while it reads the
+ * downloads again, so the page neither blanks nor remounts for a refresh that
+ * may change nothing on it. Any other change of key, another season for one,
+ * starts from nothing as before.
+ */
+export function keepThroughDownloadRefresh(queryKey: QueryKey) {
+  const head = hashKey(queryKey.slice(0, -1));
+  return <T>(
+    previous: T | undefined,
+    previousQuery?: { queryKey: QueryKey },
+  ): T | undefined =>
+    previousQuery && hashKey(previousQuery.queryKey.slice(0, -1)) === head
+      ? previous
+      : undefined;
 }

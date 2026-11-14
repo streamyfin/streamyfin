@@ -1,10 +1,10 @@
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative();
-jest.mock("expo", () => ({
-  // codecSupport probes the native MPV module, which no test environment has.
-  requireOptionalNativeModule: () => null,
-}));
+jest.mock(
+  "expo",
+  () => jest.requireActual("@/test-utils/stubModules").expoWithoutNativeModule,
+);
 
 import { bodyContaining, makeApi } from "@/test-utils/jellyfinApi";
 import { isExpectedError } from "@/utils/errors";
@@ -31,6 +31,62 @@ describe("getStreamUrl", () => {
     const url = new URL(result!.url!);
     expect(url.searchParams.get("container")).toBe("mkv");
     expect(url.searchParams.get("ApiKey")).toBe("SECRET_TOKEN");
+  });
+
+  // A release build's console goes to logcat, where a user copying their logs
+  // into an issue would hand out the session's token with the stream URL.
+  test("logs the stream URL without its ApiKey", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    const api = makeApi();
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [{ Id: "media-1", Container: "mkv" }],
+      });
+
+    await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+    });
+
+    const logged = log.mock.calls.flat().join(" ");
+    log.mockRestore();
+    expect(logged).toContain("/Videos/item-1/stream");
+    expect(logged).not.toContain("SECRET_TOKEN");
+  });
+
+  // An external stream's Path can carry the provider's credentials in its
+  // userinfo or its path, where redactCredentials does not look.
+  test("does not log a remote stream's URL", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    const api = makeApi();
+    const path =
+      "http://iptv-user:iptv-pass@iptv.example.com/live/iptv-user/iptv-pass/42.ts";
+    api.mock
+      .onPost("https://jellyfin.example.com/Items/item-1/PlaybackInfo")
+      .reply(200, {
+        PlaySessionId: "session-1",
+        MediaSources: [
+          { Id: "media-1", IsRemote: true, Protocol: "Http", Path: path },
+        ],
+      });
+
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+    });
+
+    const logged = log.mock.calls.flat().join(" ");
+    log.mockRestore();
+    expect(result?.url).toBe(path);
+    expect(logged).not.toContain("iptv-pass");
   });
 
   // #1693: Live TV loaded forever. Without the opened live stream's id,

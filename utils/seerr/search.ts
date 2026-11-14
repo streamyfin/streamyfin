@@ -1,4 +1,4 @@
-import { uniqBy } from "lodash";
+import uniqBy from "lodash/uniqBy";
 import { SEERR_SEARCH_PAGES } from "@/constants/Seerr";
 import type { SeerrApi } from "@/hooks/useSeerr";
 

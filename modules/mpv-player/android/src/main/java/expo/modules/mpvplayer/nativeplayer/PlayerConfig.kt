@@ -24,6 +24,7 @@ class StreamConfigRecord : Record {
     @Field var cacheConfig: CacheConfigRecord? = null
     @Field var videoWidth: Int? = null
     @Field var videoHeight: Int? = null
+    @Field var contentFrameRate: Double? = null
 
     fun toVideoLoadConfig(): VideoLoadConfig? {
         if (url.isBlank()) return null
@@ -38,7 +39,8 @@ class StreamConfigRecord : Record {
             cacheEnabled = cacheConfig?.enabled,
             cacheSeconds = cacheConfig?.cacheSeconds,
             demuxerMaxBytes = cacheConfig?.maxBytes,
-            demuxerMaxBackBytes = cacheConfig?.maxBackBytes
+            demuxerMaxBackBytes = cacheConfig?.maxBackBytes,
+            contentFrameRate = contentFrameRate
         )
     }
 }
@@ -48,6 +50,8 @@ class MetadataRecord : Record {
     @Field var title: String? = null
     @Field var subtitle: String? = null
     @Field var artworkUri: String? = null
+    // Typed loosely: a value Expo cannot convert would reject the whole config.
+    @Field var artworkHeaders: Map<String, Any?>? = null
     @Field var isEpisode: Boolean = false
 }
 
@@ -155,6 +159,9 @@ class UIOptionsRecord : Record {
     @Field var hapticsEnabled: Boolean = true
     @Field var showVolumeSlider: Boolean = true
     @Field var showBrightnessSlider: Boolean = true
+    @Field var horizontalSwipeSeekEnabled: Boolean = true
+    @Field var brightnessSwipeEnabled: Boolean = true
+    @Field var volumeSwipeEnabled: Boolean = true
     @Field var holdToSpeedEnabled: Boolean = true
     @Field var holdToSpeedRate: Double = 2.0
     @Field var pinchToZoomEnabled: Boolean = true
@@ -181,4 +188,7 @@ class PlayerPresentConfigRecord : Record {
     // Which engine decodes the stream: "mpv" (default) or "exoplayer".
     // Ignored on iOS — its chrome always runs mpv.
     @Field var engine: String? = null
+    // mpv's video output driver: "gpu-next" (default) or "gpu". Not sent for
+    // ExoPlayer or on iOS.
+    @Field var voDriver: String? = null
 }

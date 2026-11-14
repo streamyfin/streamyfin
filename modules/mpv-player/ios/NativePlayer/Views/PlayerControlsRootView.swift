@@ -44,9 +44,7 @@ struct PlayerControlsRootView: View {
 			// gesture surface — controls layered above receive their own
 			// touches first, so drags here only start on empty video area.
 			tapSurface(size: size)
-				.gesture(
-					surfaceDragGesture(size: size, bottomSafeAreaInset: bottomSafeAreaInset)
-				)
+				.gesture(surfaceDragGesture(size: size))
 				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
@@ -119,13 +117,11 @@ struct PlayerControlsRootView: View {
 			if let forward = viewModel.doubleTapSeekForward {
 				HStack {
 					if forward { Spacer() }
-					Image(
-						systemName: seekSymbol(
-							prefix: forward ? "goforward" : "gobackward",
-							seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
-						)
+					SeekGlyph(
+						prefix: forward ? "goforward" : "gobackward",
+						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec,
+						size: 28
 					)
-					.font(.system(size: 28, weight: .semibold))
 					.foregroundStyle(.white)
 					.padding(18)
 					.background(.black.opacity(0.55), in: Circle())
@@ -243,6 +239,19 @@ struct PlayerControlsRootView: View {
 			)
 		) { _ in
 			viewModel.endHoldSpeed()
+			// A drag the system cancels never reaches onEnded either: undo
+			// what it started, or the next drag keeps its axis (and could
+			// seek although that swipe is off) or stays ignored.
+			if dragAxis == .horizontal { viewModel.cancelScrub() }
+			if dragAxis == .vertical {
+				if dragOnLeftHalf {
+					viewModel.brightnessController.isUserInteracting = false
+				} else {
+					viewModel.volumeController.isUserInteracting = false
+				}
+			}
+			dragAxis = nil
+			dragSuppressed = false
 		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
@@ -308,7 +317,7 @@ struct PlayerControlsRootView: View {
 	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
 	/// brightness on the left half, volume on the right (JS GestureOverlay
 	/// parity), with the edge pills transiently revealed as feedback.
-	private func surfaceDragGesture(size: CGSize, bottomSafeAreaInset: CGFloat) -> some Gesture {
+	private func surfaceDragGesture(size: CGSize) -> some Gesture {
 		DragGesture(minimumDistance: 12)
 			.onChanged { value in
 				guard !viewModel.controlsLocked,
@@ -316,10 +325,12 @@ struct PlayerControlsRootView: View {
 					viewModel.errorMessage == nil
 				else { return }
 
-				// iOS briefly delivers a home-indicator swipe before taking
-				// ownership. Ignore the sequence before it changes player state.
-				if bottomSafeAreaInset > 0,
-					value.startLocation.y >= size.height - bottomSafeAreaInset {
+				// iOS briefly delivers an edge swipe (Notification Centre,
+				// Control Centre, the home indicator) before taking ownership.
+				// Ignore the sequence before it changes player state.
+				if surfaceDragStartsAtScreenEdge(
+					startY: value.startLocation.y, surfaceHeight: size.height
+				) {
 					return
 				}
 
@@ -342,7 +353,18 @@ struct PlayerControlsRootView: View {
 				}
 
 				if dragAxis == nil {
-					if abs(value.translation.width) >= abs(value.translation.height) {
+					let horizontal = abs(value.translation.width) >= abs(value.translation.height)
+					let onLeftHalf = value.startLocation.x < size.width / 2
+					let allowed = horizontal
+						? viewModel.horizontalSwipeSeekEnabled
+						: (onLeftHalf ? viewModel.brightnessSwipeEnabled : viewModel.volumeSwipeEnabled)
+					// A drag whose gesture is switched off does nothing until the
+					// finger lifts, rather than switching axis or side mid-drag.
+					if !allowed {
+						dragSuppressed = true
+						return
+					}
+					if horizontal {
 						dragAxis = .horizontal
 						if viewModel.duration > 0 {
 							viewModel.showControls()
@@ -351,10 +373,11 @@ struct PlayerControlsRootView: View {
 						}
 					} else {
 						dragAxis = .vertical
-						dragOnLeftHalf = value.startLocation.x < size.width / 2
+						dragOnLeftHalf = onLeftHalf
 						if dragOnLeftHalf {
-							dragStartLevel = viewModel.brightnessController.brightness
+							// First: starting the interaction reads the screen's brightness.
 							viewModel.brightnessController.isUserInteracting = true
+							dragStartLevel = viewModel.brightnessController.brightness
 						} else {
 							dragStartLevel = viewModel.volumeController.volume
 							viewModel.volumeController.isUserInteracting = true
