@@ -522,6 +522,8 @@ describe("the native player's audio only mode", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,
     });
     return built?.config.stream.audioOnlyWhenHidden;
