@@ -29,7 +29,6 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { AutoSubtitleNotice } from "@/components/video-player/controls/AutoSubtitleNotice";
@@ -71,6 +70,12 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
+import {
+  type BitrateRequest,
+  liveTvBitrateRequest,
+  parseBitrateParam,
+  withDefaultBitrate,
+} from "@/utils/bitrate";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
@@ -81,11 +86,13 @@ import {
 import { createVolumeStepper } from "@/utils/directPlayer/volumeStepper";
 import { isExpectedError } from "@/utils/errors";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import {
@@ -234,11 +241,23 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  const bitrateValue = bitrateValueStr
-    ? Number.parseInt(bitrateValueStr, 10)
-    : BITRATES[0].value;
+  // A route that names no quality (a Play command from another client, a Top
+  // Shelf tile) plays at the default one. Auto stays Auto in the route, so
+  // every stream asked for, the next episode's included, is asked at what the
+  // connection measures then.
+  const bitrateValue = withDefaultBitrate(
+    parseBitrateParam(bitrateValueStr),
+    settings.defaultBitrate,
+  );
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
+  // What this item plays at: live TV whose route names no quality plays
+  // uncapped, whatever the default. A swap of the same item carries it; the
+  // next and previous items carry the route's own.
+  const effectiveBitrateValue = withDefaultBitrate(
+    liveTvBitrateRequest(item, parseBitrateParam(bitrateValueStr)),
+    settings.defaultBitrate,
+  );
   const initialSeekDoneRef = useRef(false);
 
   /** Position MPV is told to start from, see resolveStartTicks. */
@@ -528,6 +547,10 @@ export default function DirectPlayerPage() {
   }, [stream, releaseLiveStream]);
 
   useEffect(() => {
+    // False once the page is left or the effect runs again (a new api on a
+    // Wi-Fi change, a new quality): this run's answer, which Auto's measure
+    // can hold up for seconds, then neither plays nor fails anything.
+    let current = true;
     const fetchStreamData = async (): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
@@ -567,13 +590,19 @@ export default function DirectPlayerPage() {
             return null;
           }
 
+          const maxStreamingBitrate = await resolveMaxStreamingBitrate(
+            api,
+            effectiveBitrateValue,
+            autoBitrateOptions(settings),
+          );
+          if (!current) return null;
           const res = await getStreamUrl({
             api,
             item,
             startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
-            maxStreamingBitrate: bitrateValue,
+            maxStreamingBitrate,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
             // Match the device profile to the player that will render the
@@ -584,6 +613,12 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
+          if (!current) {
+            // The server opened it for a page that is gone: nothing else
+            // closes it.
+            releaseLiveStream(res?.mediaSource?.LiveStreamId ?? null);
+            return null;
+          }
           if (!res) {
             // Without flipping isError this path used to leave the loading
             // spinner up forever.
@@ -618,6 +653,7 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
+        if (!current) return null;
         logAndCaptureError("Failed to fetch stream", error, {
           itemType: item?.Type,
           player: getActivePlayerType(settings),
@@ -643,10 +679,13 @@ export default function DirectPlayerPage() {
     // Store the fetch function in ref for use by refresh handler
     refetchStreamRef.current = fetchStreamData;
     fetchStreamData();
+    return () => {
+      current = false;
+    };
   }, [
     itemId,
     mediaSourceId,
-    bitrateValue,
+    effectiveBitrateValue,
     api,
     item,
     user?.Id,
@@ -1268,7 +1307,7 @@ export default function DirectPlayerPage() {
           // instance — the server must be asked for "none" (-1) instead.
           subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
-          bitrateValue: bitrateValue?.toString() ?? "",
+          bitrateValue: effectiveBitrateValue.toString(),
           playbackPosition: getSessionPositionTicks().toString(),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
@@ -1286,7 +1325,7 @@ export default function DirectPlayerPage() {
       stream?.mediaSource,
       item?.Id,
       currentSubtitleIndex,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],
@@ -1331,7 +1370,7 @@ export default function DirectPlayerPage() {
           params.subtitleIndex ??
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
-        bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
+        bitrateValue: params.bitrateValue ?? effectiveBitrateValue.toString(),
         playbackPosition: getSessionPositionTicks().toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
@@ -1345,7 +1384,7 @@ export default function DirectPlayerPage() {
       currentAudioIndex,
       currentSubtitleIndex,
       stream?.mediaSource?.Id,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],
@@ -1355,7 +1394,7 @@ export default function DirectPlayerPage() {
   // re-negotiating the stream with the server, so it goes through the same
   // player-replace path as track changes while transcoding.
   const handleBitrateChange = useCallback(
-    (bitrate: number | undefined) => {
+    (bitrate: BitrateRequest | undefined) => {
       replaceWithTrackSelection({ bitrateValue: bitrate?.toString() ?? "" });
     },
     [replaceWithTrackSelection],

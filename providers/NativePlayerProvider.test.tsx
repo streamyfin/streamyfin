@@ -113,6 +113,11 @@ const mockNegotiation = {
   held: false,
   waiting: [] as Array<() => void>,
   count: 0,
+  /** What each build was asked for, in order. */
+  params: [] as Array<{
+    maxStreamingBitrate?: { value?: number };
+    linkInUse?: boolean;
+  }>,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
   /**
@@ -120,6 +125,8 @@ const mockNegotiation = {
    * channel; unset, each negotiation gets its own.
    */
   sharedLiveStreamId: null as string | null,
+  /** Items whose stream negotiation fails. */
+  failing: new Set<string>(),
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -135,17 +142,20 @@ jest.mock("@/utils/nativePlayer/externalSubtitles", () => ({
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
   buildTrackMenus: () => ({}),
-  buildNativePlayerConfig: async ({
-    req,
-    item,
-  }: {
+  buildNativePlayerConfig: async (params: {
     req: { itemId: string; bitrateValue?: number };
     item?: object;
+    maxStreamingBitrate?: { value?: number };
   }) => {
+    const { req, item } = params;
+    mockNegotiation.params.push(params);
     if (mockNegotiation.held) {
       await new Promise<void>((resolve) =>
         mockNegotiation.waiting.push(resolve),
       );
+    }
+    if (mockNegotiation.failing.has(req.itemId)) {
+      throw new Error("PlaybackInfo failed");
     }
     mockNegotiation.count += 1;
     const playSessionId = `play-session-${mockNegotiation.count}`;
@@ -174,6 +184,10 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
+        // A fixed quality caps the stream at itself; 12 Mb/s stands for
+        // what Auto, the default, measures.
+        maxStreamingBitrate:
+          typeof req.bitrateValue === "number" ? req.bitrateValue : 12_000_000,
         subtitleIndex: -1,
         startTicks: 0,
         playMethod: "DirectPlay",
@@ -464,9 +478,11 @@ beforeEach(() => {
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
+  mockNegotiation.params = [];
   mockNegotiation.live = false;
   mockNegotiation.sharedLiveStreamId = null;
   mockRemoteProgress.held = null;
+  mockNegotiation.failing.clear();
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -701,6 +717,175 @@ describe("a play while the player is up", () => {
   });
 });
 
+// An audio track the stream does not carry needs another stream. Under Auto,
+// an hour on, it measured the connection again with the old stream still
+// downloading over it.
+// Auto keeps the measure before while the stream it replaces still downloads,
+// however old. Past that download, an episode change lets it measure again,
+// or one measure would serve a whole queue.
+describe("an episode change under Auto", () => {
+  const progress = (position: number, cacheSeconds: number) =>
+    act(async () =>
+      mockNative.emit("onProgress", {
+        position,
+        duration: 1800,
+        progress: 0,
+        cacheSeconds,
+      }),
+    );
+  const nextEpisode = async () => {
+    await act(async () =>
+      mockNative.emit("onNextEpisodeRequested", {
+        reason: "userTap",
+        positionSec: 1790,
+      }),
+    );
+    await settle();
+  };
+
+  test("asks with the link in use while the stream played still downloads", async () => {
+    await mount();
+    await open("item-1");
+    await progress(300, 30);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
+  });
+
+  test("leaves the link to the measure once the stream played is downloaded", async () => {
+    await mount();
+    await open("item-1");
+    await progress(1780, 20);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(false);
+  });
+
+  test("leaves the link to the measure once the stream played ended", async () => {
+    await mount();
+    await open("item-1");
+    await act(async () =>
+      mockNative.emit("onPlaybackEnded", { positionSec: 1800 }),
+    );
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].linkInUse).toBe(false);
+  });
+
+  // A seek back puts the rest of the file to download again.
+  test("asks with the link in use again after a seek back", async () => {
+    await mount();
+    await open("item-1");
+    await progress(1780, 20);
+    await progress(600, 30);
+
+    await nextEpisode();
+
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
+  });
+});
+
+describe("a track change that needs another stream", () => {
+  test("asks for it at the cap the stream plays at", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 2,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toEqual({
+      value: 12_000_000,
+    });
+  });
+
+  test("asks for a new quality without it", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[1].maxStreamingBitrate).toBeUndefined();
+  });
+
+  // The stream it replaces still downloads over the link while Auto measures.
+  test("asks for it as the link is in use, and the first stream without", async () => {
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(2);
+    expect(mockNegotiation.params[0].linkInUse).toBe(false);
+    expect(mockNegotiation.params[1].linkInUse).toBe(true);
+  });
+});
+
+// Two Play taps while Auto measures the connection: the first, overtaken
+// before it took the player, said it declined, and its caller opened the JS
+// player under the native one the second presented.
+describe("a play overtaken before it took the player", () => {
+  // Its caller would open the JS player under the native one the newer play
+  // presents.
+  test("whose stream fails is not a decline either", async () => {
+    await mount();
+    holdNegotiations();
+    mockNegotiation.failing.add("item-1");
+    const first = await start(() => play("item-1"));
+    const second = await start(() => play("item-3"));
+
+    await releaseNegotiations();
+
+    await act(async () => {
+      await expect(first.done).resolves.toBe(true);
+      await expect(second.done).resolves.toBe(true);
+    });
+  });
+
+  test("is not a decline, the newer one plays", async () => {
+    await mount();
+    holdNegotiations();
+    const first = await start(() => play("item-1"));
+    const second = await start(() => play("item-3"));
+
+    await releaseNegotiations();
+
+    await act(async () => {
+      await expect(first.done).resolves.toBe(true);
+      await expect(second.done).resolves.toBe(true);
+    });
+    await settle();
+    expect(mockNative.presented).toEqual([
+      expect.stringContaining("/Videos/item-3/"),
+    ]);
+  });
+});
+
 // An episode picked in the player's list is fetched before it plays. The
 // player can close, and another item start, while that fetch is out.
 describe("an episode picked while its item is still being fetched", () => {
@@ -827,6 +1012,23 @@ describe("the next episode's subtitle warm", () => {
         indexes: { subtitleIndex: -1, audioIndex: undefined },
       }),
     );
+  });
+
+  // Under Auto the route names no number: the warm asks at the cap the
+  // stream plays at, which the swap's own measure finds again.
+  test("negotiates the next episode at the cap the stream plays at, under Auto", async () => {
+    mockEngine = "exoplayer";
+    await mount();
+    await act(async () => {
+      await player.presentFromRequest({ itemId: "item-1", offline: false });
+    });
+    await settle();
+
+    expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(1);
+    expect(warmUpcomingSubtitles.mock.calls[0]?.[0]).toMatchObject({
+      item: { Id: "item-2" },
+      maxStreamingBitrate: 12_000_000,
+    });
   });
 
   test("leaves mpv to fetch its sidecars itself", async () => {

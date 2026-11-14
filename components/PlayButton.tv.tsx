@@ -19,6 +19,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { toBitrateParam } from "@/utils/bitrate";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
@@ -75,7 +76,7 @@ export const PlayButton: React.FC<Props> = ({
       audioIndex: selectedOptions.audioIndex?.toString() ?? "",
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-      bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      bitrateValue: toBitrateParam(selectedOptions.bitrate),
       playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
     });
 

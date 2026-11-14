@@ -99,8 +99,12 @@ jest.mock("@/utils/secureCredentials", () => ({
 jest.mock("@/utils/topshelf/cache", () => ({
   clearTopShelfCacheSafely: jest.fn(),
 }));
+// The Auto quality rows format their labels with the language.
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: { language: "en" },
+  }),
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),

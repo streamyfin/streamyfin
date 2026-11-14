@@ -27,6 +27,12 @@ jest.mock("@/utils/log", () => ({
 }));
 // The custom-header barrel touches MMKV and SecureStore; the shared double
 // keeps the pure helpers real.
+// Auto, the default quality, measures the server through NetInfo, which has
+// no native module here; these specs are not about the quality, so the
+// measure finds nothing and the stream is asked for as under Max.
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: async () => undefined,
+}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
@@ -96,6 +102,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("mpv");
@@ -116,6 +123,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("exoplayer");
@@ -139,6 +147,7 @@ describe("the video output driver", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("mpv");
@@ -160,6 +169,7 @@ describe("the video output driver", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("exoplayer");
@@ -189,6 +199,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(prefetchExternalSubtitles).toHaveBeenCalledTimes(1);
@@ -217,6 +228,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
@@ -236,6 +248,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("mpv");

@@ -22,6 +22,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SheetScrollView } from "@/components/common/SheetContent";
+import { RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import { useActionSheet } from "@/hooks/useActionSheet";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -34,12 +35,15 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { liveTvBitrateRequest, toBitrateRequest } from "@/utils/bitrate";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
   receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
@@ -92,12 +96,13 @@ export const PlayButton: React.FC<Props> = ({
     async (positionTicks: number) => {
       if (!item) return;
 
+      const bitrateValue = toBitrateRequest(selectedOptions.bitrate);
       const playRequest: PlayRequest = {
         itemId: item.Id!,
         audioIndex: selectedOptions.audioIndex,
         subtitleIndex: selectedOptions.subtitleIndex,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-        bitrateValue: selectedOptions.bitrate?.value,
+        bitrateValue,
         offline: isOffline,
         playbackPositionTicks: positionTicks,
       };
@@ -162,16 +167,29 @@ export const PlayButton: React.FC<Props> = ({
                   // built here any more -- the receiver handles all of it.
                   if (!client) return;
                   try {
+                    const userId = user.Id;
+                    // Handed over unbuilt: the cast takes its turn now, and a
+                    // cast picked while Auto measures replaces this one.
+                    const session = (async () => ({
+                      api,
+                      userId,
+                      receiverName:
+                        (await currentReceiverName()) ??
+                        receiverNameFor(castDevice),
+                      // The receiver negotiates the stream itself and knows
+                      // no Auto: it is handed the bitrate measured here, and
+                      // its own ceiling for no cap, since a cast that names
+                      // none leaves it on the cap of the one before.
+                      maxBitrate:
+                        (await resolveMaxStreamingBitrate(
+                          api,
+                          liveTvBitrateRequest(item, bitrateValue),
+                          autoBitrateOptions(settings),
+                        )) ?? RECEIVER_MAX_BITRATE,
+                    }))();
                     const outcome = await castToJellyfinReceiver(
                       client,
-                      {
-                        api,
-                        userId: user.Id,
-                        receiverName:
-                          (await currentReceiverName()) ??
-                          receiverNameFor(castDevice),
-                        maxBitrate: selectedOptions.bitrate?.value,
-                      },
+                      session,
                       {
                         items: [item],
                         startPositionTicks: positionTicks,
