@@ -115,6 +115,11 @@ const mockNegotiation = {
   count: 0,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
+  /**
+   * The id every live negotiation gets, as Jellyfin answers for a shared
+   * channel; unset, each negotiation gets its own.
+   */
+  sharedLiveStreamId: null as string | null,
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -162,7 +167,8 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
           mediaSource: {
             Id: `source-${req.itemId}`,
             ...(mockNegotiation.live && {
-              LiveStreamId: `live-${playSessionId}`,
+              LiveStreamId:
+                mockNegotiation.sharedLiveStreamId ?? `live-${playSessionId}`,
             }),
           },
         },
@@ -453,6 +459,7 @@ beforeEach(() => {
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
   mockNegotiation.live = false;
+  mockNegotiation.sharedLiveStreamId = null;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -1002,5 +1009,25 @@ describe("a Live TV stream", () => {
       "live-play-session-1",
       "live-play-session-2",
     ]);
+  });
+
+  // A shared channel keeps one LiveStreamId across negotiations, and the
+  // server counts each of them: a release deduplicated on the id instead of
+  // the session would give the swap's stream back once for two negotiations.
+  test("is given back once per negotiation when they all share one stream", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    mockNegotiation.sharedLiveStreamId = "live-shared";
+    await open("item-1");
+
+    await pickQuality(4_000_000);
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.loaded[0] }),
+    );
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(liveStreamReleases()).toEqual(["live-shared", "live-shared"]);
   });
 });
