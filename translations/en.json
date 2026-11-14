@@ -562,6 +562,20 @@
       "toasts": {
         "error_deleting_files": "Error deleting files"
       },
+      "quality": {
+        "title": "Quality",
+        "description": "Auto measures the connection to the server before a stream and asks for one that fits in it. The rows under the default quality set how it measures.",
+        "share": "Share of the measured speed",
+        "remeasure_after": "Measure again after",
+        "in_network_min": "Minimum in the server's network",
+        "in_network_min_none": "None",
+        "last_measure": "Auto streams at",
+        "last_measure_none": "Not measured yet",
+        "last_measure_failed": "Could not measure: {{cause}}",
+        "last_measure_kept": "{{bitrate}}, the last measure failed: {{cause}}",
+        "measure_now": "Measure now",
+        "measuring": "Measuring…"
+      },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
@@ -1002,6 +1016,7 @@
     "more_details": "More details",
     "media_options": "Media options",
     "quality": "Quality",
+    "quality_auto": "Auto",
     "audio": "Audio",
     "subtitles": {
       "label": "Subtitle",

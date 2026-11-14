@@ -29,6 +29,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS } from "@/constants/Bitrate";
 import {
   NATIVE_PLAYER_CLOSE_POLL_MS,
   NATIVE_PLAYER_CLOSE_WAIT_MS,
@@ -101,6 +102,11 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
+import {
+  type BitrateRequest,
+  bitrateLabel,
+  fromNativeQualityIndex,
+} from "@/utils/bitrate";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -200,6 +206,11 @@ interface NativeSession extends NativePlayerSessionSeed {
    */
   awaitingLoad: boolean;
   /**
+   * The player's cache holds the stream to its end, or the stream ended: it
+   * downloads nothing more, and a swap over it leaves Auto the link.
+   */
+  cachedToEnd: boolean;
+  /**
    * Set on the edge where the present/load promise resolved with sessionRef
    * still pointing here: the start report goes out on that edge, and only a
    * committed session sends the final progress and stop reports at teardown.
@@ -248,9 +259,9 @@ interface NativePlayerContextValue {
    * back to the JS route. Resolves true when the request was taken,
    * including when the player was closed while it was in flight: there is
    * nothing to fall back to for an item the user just closed. A request
-   * superseded by a newer one before it took the player resolves false; one
-   * superseded after its load was issued resolves true, since the newer
-   * request owns the player.
+   * overtaken by a newer one (or a Stop) resolves true as well, before or
+   * after it took the player: the newer one owns playback, and a fallback to
+   * the JS route would play under it.
    */
   presentFromRequest: (
     req: PlayRequest,
@@ -870,7 +881,7 @@ const NativePlayerProviderInner: React.FC<{
           mediaSourceId: nextSettings.mediaSource?.Id,
           audioStreamIndex: nextSettings.audioIndex,
           subtitleStreamIndex: nextSettings.subtitleIndex,
-          maxStreamingBitrate: session.bitrateValue,
+          maxStreamingBitrate: session.maxStreamingBitrate,
           deviceProfile: generateDeviceProfile({
             player: getActivePlayerType(currentSettings),
             audioMode: currentSettings?.audioTranscodeMode,
@@ -1011,6 +1022,8 @@ const NativePlayerProviderInner: React.FC<{
         /** The session a swap is for, when the caller holds it. */
         over?: NativeSession;
         isCurrent?: () => boolean;
+        /** The cap of a same-item, same-quality swap, see the builder. */
+        maxStreamingBitrate?: { value: number | undefined };
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -1042,18 +1055,34 @@ const NativePlayerProviderInner: React.FC<{
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
+        qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
+        maxStreamingBitrate: options.maxStreamingBitrate,
+        // The stream on screen goes on downloading while this one is asked,
+        // unless its cache already holds it to the end.
+        linkInUse:
+          !!requestedOver &&
+          !requestedOver.offline &&
+          !requestedOver.cachedToEnd,
       }).catch((error) => {
         logAndCaptureError("NativePlayer config build failed", error, {
           offline: req.offline,
         });
         return null;
       });
-      if (!built) return false;
+      // A newer play took over while this one's stream failed: not a
+      // decline, or its caller would open the JS player under that one.
+      if (!built) {
+        return (
+          token !== playRequestTokenRef.current ||
+          options.isCurrent?.() === false
+        );
+      }
       if (options.isCurrent?.() === false) {
-        // The build may have opened a live stream nothing will play.
+        // The build may have opened a live stream nothing will play. Not a
+        // decline either: the caller moved on.
         releaseLiveStream(built.seed);
-        return false;
+        return true;
       }
       if (syncRef.current.enabled && !req.offline) {
         built.config.syncPlay = nativeSyncStateRef.current || undefined;
@@ -1080,6 +1109,7 @@ const NativePlayerProviderInner: React.FC<{
         hasPlaybackStarted: false,
         reportedStopKey: null,
         awaitingLoad: true,
+        cachedToEnd: false,
         committed: false,
         lastProgressReportAt: 0,
         subtitleSearchResults: null,
@@ -1097,9 +1127,10 @@ const NativePlayerProviderInner: React.FC<{
       ) {
         // A newer play request started while this stream was negotiating —
         // abandon before touching sessionRef or the native player, and close
-        // the live stream this build just opened on the server.
+        // the live stream this build just opened on the server. Not a
+        // decline: the newer request plays.
         releaseLiveStream(session);
-        return false;
+        return true;
       }
 
       const previous = sessionRef.current;
@@ -1178,7 +1209,7 @@ const NativePlayerProviderInner: React.FC<{
             options.isCurrent?.() === false
           ) {
             releaseLiveStream(session);
-            return false;
+            return true;
           }
           // A dismiss landed during the round trip (teardownSession clears
           // sessionRef at once): there is no `previous` to swap out, and a
@@ -1209,7 +1240,7 @@ const NativePlayerProviderInner: React.FC<{
             options.isCurrent?.() === false
           ) {
             releaseLiveStream(session);
-            return false;
+            return true;
           }
           // Lock orientation BEFORE presenting: expo-screen-orientation owns
           // the window orientation mask, and presenting a landscape-only VC
@@ -1353,8 +1384,8 @@ const NativePlayerProviderInner: React.FC<{
         audioIndex?: number;
         subtitleIndex?: number;
         positionTicks?: number;
-        /** New max bitrate; null = "Max" (no cap). Omit to keep the current. */
-        bitrateValue?: number | null;
+        /** New quality. Omit to keep the current. */
+        bitrateValue?: BitrateRequest;
       },
     ): Promise<boolean> => {
       const req: PlayRequest = {
@@ -1362,10 +1393,7 @@ const NativePlayerProviderInner: React.FC<{
         audioIndex: overrides.audioIndex ?? session.currentAudioIndex,
         subtitleIndex: overrides.subtitleIndex ?? session.currentSubtitleIndex,
         mediaSourceId: session.mediaSourceId,
-        bitrateValue:
-          overrides.bitrateValue === undefined
-            ? session.bitrateValue
-            : (overrides.bitrateValue ?? undefined),
+        bitrateValue: overrides.bitrateValue ?? session.bitrateValue,
         offline: session.offline,
         playbackPositionTicks:
           overrides.positionTicks ?? msToTicks(session.positionMs),
@@ -1374,6 +1402,10 @@ const NativePlayerProviderInner: React.FC<{
         item: session.item,
         replace: true,
         over: session,
+        // The same quality: the cap the stream plays at, not a new measure.
+        ...(overrides.bitrateValue === undefined && {
+          maxStreamingBitrate: { value: session.maxStreamingBitrate },
+        }),
       });
     },
     [beginSession],
@@ -1509,6 +1541,7 @@ const NativePlayerProviderInner: React.FC<{
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
           originalLabel: t("common.original_audio"),
+          qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
           bitrateValue: session.bitrateValue,
           localSubtitle: session.localSubtitle
             ? {
@@ -2004,6 +2037,12 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onProgress", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
+        // A seek's own tick carries its target, not what the cache holds.
+        if (!payload.trackingOnly && payload.duration > 0) {
+          session.cachedToEnd =
+            payload.position + payload.cacheSeconds >=
+            payload.duration - AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS;
+        }
         const due = applyProgressTick(
           session,
           payload,
@@ -2234,10 +2273,9 @@ const NativePlayerProviderInner: React.FC<{
       addNativePlayerListener("onQualitySelected", (payload) => {
         const session = sessionRef.current;
         if (!session || session.awaitingLoad || session.offline) return;
-        // -1 is the "Max" entry → no bitrate cap (undefined in the request).
-        const requested =
-          payload.bitrateValue === -1 ? null : payload.bitrateValue;
-        if ((requested ?? null) === (session.bitrateValue ?? null)) return;
+        // "Auto" stays Auto, measured by the re-negotiation.
+        const requested = fromNativeQualityIndex(payload.bitrateValue);
+        if (requested === session.bitrateValue) return;
         void replaceStream(session, {
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),
@@ -2307,6 +2345,7 @@ const NativePlayerProviderInner: React.FC<{
         // not arrived (resolveTeardownReport).
         if (!session || session.awaitingLoad) return;
         session.positionMs = payload.positionSec * 1000;
+        session.cachedToEnd = true;
         if (
           syncRef.current.enabled &&
           session.isReady &&

@@ -1,50 +1,31 @@
+import type { TFunction } from "i18next";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { BITRATES, type Bitrate } from "@/constants/Playback";
+import { bitrateLabel, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
-export type Bitrate = {
-  key: string;
-  value: number | undefined;
-};
+// The list moved to constants/Playback.ts, which utils read without this
+// component's UI.
+export type { Bitrate } from "@/constants/Playback";
+export { BITRATES };
 
-export const BITRATES: Bitrate[] = [
-  {
-    key: "Max",
-    value: undefined,
-  },
-  {
-    key: "8 Mb/s",
-    value: 8000000,
-    height: 1080,
-  },
-  {
-    key: "4 Mb/s",
-    value: 4000000,
-    height: 1080,
-  },
-  {
-    key: "2 Mb/s",
-    value: 2000000,
-  },
-  {
-    key: "1 Mb/s",
-    value: 1000000,
-  },
-  {
-    key: "500 Kb/s",
-    value: 500000,
-  },
-  {
-    key: "250 Kb/s",
-    value: 250000,
-  },
-].sort(
-  (a, b) =>
-    (b.value || Number.POSITIVE_INFINITY) -
-    (a.value || Number.POSITIVE_INFINITY),
-);
+/**
+ * The qualities as the settings and the item pages offer them, on the phone
+ * and on TV, Auto first. Told apart by key: neither Auto nor Max carries a
+ * bitrate.
+ */
+export const bitrateOptions = (
+  t: TFunction,
+  selected?: Pick<Bitrate, "key"> | null,
+) =>
+  PLAYBACK_BITRATES.map((bitrate) => ({
+    label: bitrateLabel(t, bitrate),
+    value: bitrate,
+    selected: bitrate.key === selected?.key,
+  }));
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
@@ -67,7 +48,7 @@ export const BitrateSelector: React.FC<Props> = ({
           type: "radio" as const,
           label: bitrate.key,
           value: bitrate,
-          selected: bitrate.value === selected?.value,
+          selected: bitrate.key === selected?.key,
           onPress: () => onChange(bitrate),
         })),
       },
@@ -91,7 +72,7 @@ export const BitrateSelector: React.FC<Props> = ({
         onPress={() => setOpen(true)}
       >
         <Text numberOfLines={1}>
-          {BITRATES.find((b) => b.value === selected?.value)?.key}
+          {BITRATES.find((b) => b.key === selected?.key)?.key}
         </Text>
       </TouchableOpacity>
     </View>

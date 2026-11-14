@@ -665,6 +665,58 @@ describe("castToJellyfinReceiver", () => {
     },
   );
 
+  // Auto measuring the bitrate holds a cast's session: a newer cast settles
+  // it at once, and its session failing after that is no failure.
+  test("settles a cast still waiting for its session when a newer one starts", async () => {
+    const client = makeClient();
+    let failSession: (error: Error) => void = () => {};
+    const pending = new Promise<ReturnType<typeof session>>((_, reject) => {
+      failSession = reject;
+    });
+    const first = castToJellyfinReceiver(
+      client as never,
+      pending,
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+    const second = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [{ Id: "item-2", Type: "Movie" }] },
+      1_000,
+    );
+    await sent();
+
+    expect(await settledWith(first)).toEqual({ status: "superseded" });
+    failSession(new Error("The bitrate test answered 503"));
+    await expect(first).resolves.toEqual({ status: "superseded" });
+    client.emit(status("buffering", "item-2", "session-b"));
+    expect(await second).toEqual({ status: "loaded" });
+  });
+
+  test("gives up on a session that never comes", async () => {
+    jest.useFakeTimers();
+    try {
+      const client = makeClient();
+      let result: unknown = "pending";
+      void castToJellyfinReceiver(
+        client as never,
+        new Promise<never>(() => {}),
+        { items: [movie] },
+        1_000,
+      ).then((value) => {
+        result = value;
+      });
+
+      await jest.advanceTimersByTimeAsync(1_000);
+
+      expect(result).toEqual({ status: "timed_out" });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("settles an older cast as replaced when a newer one starts", async () => {
     const client = makeClient();
     const first = castToJellyfinReceiver(
@@ -683,6 +735,83 @@ describe("castToJellyfinReceiver", () => {
 
     expect(await first).toEqual({ status: "superseded" });
     await sent();
+    client.emit(status("buffering", "item-2", "session-b"));
+    expect(await second).toEqual({ status: "loaded" });
+  });
+
+  const playNowBitrate = () =>
+    mockCast.channels
+      .flatMap((channel) => channel.sendMessage.mock.calls)
+      .find(([message]) => message.command === "PlayNow")?.[0].maxBitrate;
+
+  // A music cast named none, and the receiver kept the cap of the video cast
+  // before it for the whole album.
+  test("hands the receiver its ceiling when the cast names no bitrate", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      session(),
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(120_000_000);
+  });
+
+  // Auto in the server's network gives at least 140 Mb/s, more than a
+  // Chromecast takes, which the receiver applies as it is.
+  test("hands the receiver no more than its ceiling", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      { ...session(), maxBitrate: 140_000_000 },
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(120_000_000);
+  });
+
+  test("hands the receiver a lower bitrate as it is", async () => {
+    void castToJellyfinReceiver(
+      makeClient() as never,
+      { ...session(), maxBitrate: 8_000_000 },
+      { items: [movie] },
+      1_000,
+    );
+    await sent();
+
+    expect(playNowBitrate()).toBe(8_000_000);
+  });
+
+  // The session waited on Auto's measure before the cast took its turn: a
+  // cast picked after it, at a fixed quality, loaded first and was replaced.
+  test("takes its turn before its session is ready", async () => {
+    const client = makeClient();
+    let ready: (value: ReturnType<typeof session>) => void = () => {};
+    const first = castToJellyfinReceiver(
+      client as never,
+      new Promise<ReturnType<typeof session>>((resolve) => (ready = resolve)),
+      { items: [movie] },
+      1_000,
+    );
+    const second = castToJellyfinReceiver(
+      client as never,
+      session(),
+      { items: [{ Id: "item-2", Type: "Movie" }] },
+      1_000,
+    );
+    await sent();
+    ready(session());
+    await sent();
+
+    expect(await settledWith(first)).toEqual({ status: "superseded" });
+    const playNows = mockCast.channels
+      .flatMap((channel) => channel.sendMessage.mock.calls)
+      .filter(([message]) => message.command === "PlayNow");
+    expect(playNows.map(([message]) => message.options.items[0].Id)).toEqual([
+      "item-2",
+    ]);
     client.emit(status("buffering", "item-2", "session-b"));
     expect(await second).toEqual({ status: "loaded" });
   });
