@@ -10,11 +10,6 @@ import {
 import { useOfflineProgressSync } from "./useOfflineProgressSync";
 import type { PlaybackSyncResult } from "./useTwoWaySync";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 let mockServerConnected: boolean | null = false;
 let mockReachable = true;
 let mockUserId: string | undefined = "alice";

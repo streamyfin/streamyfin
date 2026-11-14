@@ -14,36 +14,15 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { queryDehydrateOptions } from "@/utils/queryPersistence";
 import { Favorites as PhoneFavorites } from "./Favorites";
+// The TV row's sort options sit next to filter atoms stored in MMKV.
 import { Favorites as TVFavorites } from "./Favorites.tv";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
-});
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-// The TV sizes read the type scale from the settings, and its enum with it.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-}));
-jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-// The TV row's sort options sit next to filter atoms stored in MMKV.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
 );
+
+// The TV sizes read the type scale from the settings, and its enum with it.
+jest.mock("@/hooks/useAppRouter", () => () => ({ push: jest.fn() }));
 jest.mock("@/hooks/useTVItemActionModal", () => ({
   useTVItemActionModal: () => ({ showItemActions: jest.fn() }),
 }));
@@ -52,7 +31,6 @@ jest.mock("@/hooks/useTVItemActionModal", () => ({
 jest.mock("@/hooks/useItemActionSheet", () => ({
   useItemActionSheet: () => ({}),
 }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // The cards are not under test: each row draws the names of the items it was
 // handed, and the rows themselves are the real ones, queries included.
 jest.mock("@/components/cards/CardRow", () => {
@@ -62,10 +40,21 @@ jest.mock("@/components/cards/CardRow", () => {
       items.map((item) => <Text key={item.Id}>{item.Name}</Text>),
   };
 });
+/** Names of the TV cards rendered with `hasTVPreferredFocus`. */
+const mockPreferredFocusCards = new Set<string>();
 jest.mock("@/components/tv/TVPosterCard", () => {
   const { Text } = jest.requireActual("react-native");
   return {
-    TVPosterCard: ({ item }: { item: BaseItemDto }) => <Text>{item.Name}</Text>,
+    TVPosterCard: ({
+      item,
+      hasTVPreferredFocus,
+    }: {
+      item: BaseItemDto;
+      hasTVPreferredFocus?: boolean;
+    }) => {
+      if (hasTVPreferredFocus) mockPreferredFocusCards.add(item.Name!);
+      return <Text>{item.Name}</Text>;
+    },
   };
 });
 
@@ -178,5 +167,39 @@ describe.each([
     expect(await screen.findByText("Arrival")).toBeTruthy();
     await flushQueryUpdates();
     expect(errors).toEqual([]);
+  });
+});
+
+describe("Favorites on TV", () => {
+  // A tab root that sets hasTVPreferredFocus pulls the focus off the tvOS tab
+  // bar the moment the tab first mounts. The series row is the first one, so
+  // a favorite series is what armed it. See docs/conventions/tv.md.
+  it("leaves the initial focus on the tab bar", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Items\?/).reply(200, { Items: [ALIEN] });
+    const store = createStore();
+    store.set(apiAtom, api);
+    store.set(userAtom, USER);
+    mockPreferredFocusCards.clear();
+
+    await render(
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+            },
+          })
+        }
+      >
+        <JotaiProvider store={store}>
+          <TVFavorites />
+        </JotaiProvider>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByText("Alien")).toHaveLength(6));
+    await flushQueryUpdates();
+
+    expect([...mockPreferredFocusCards]).toEqual([]);
   });
 });

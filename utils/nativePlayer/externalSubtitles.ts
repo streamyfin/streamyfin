@@ -11,6 +11,7 @@ import {
   SUBTITLE_PREFETCH_LATE_SWEEP_MS,
   SUBTITLE_PREFETCH_PER_SUBTITLE_MS,
 } from "@/constants/Playback";
+import { safeNamePart } from "@/providers/Downloads/utils";
 import {
   getJellyfinHeadersForUrl,
   optionsWithOptionalHeaders,
@@ -78,7 +79,12 @@ export const localSubtitleFileName = (
       sub.IsExternal ? "external" : "embedded",
     ].join("|"),
   );
-  return `${item.Id ?? "item"}-${mediaSourceId ?? "source"}-${sub.Index}-${identity}.${extensionFromUrl(url, sub.Codec)}`;
+  // The ids and the index come from the server and are joined onto the cache
+  // directory as they are, so a "/" or ".." in one must not leave it.
+  const prefix = [item.Id ?? "item", mediaSourceId ?? "source", sub.Index]
+    .map(safeNamePart)
+    .join("-");
+  return `${prefix}-${identity}.${extensionFromUrl(url, sub.Codec)}`;
 };
 
 /**

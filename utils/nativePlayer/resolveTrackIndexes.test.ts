@@ -2,27 +2,8 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
-import type { Settings } from "@/utils/atoms/settings";
-
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test, so it is stubbed with the surface the modules under test call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
-
 import { clearMmkv } from "@/test-utils/mmkv";
+import type { Settings } from "@/utils/atoms/settings";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 const stream = (

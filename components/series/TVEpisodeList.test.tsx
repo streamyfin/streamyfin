@@ -2,9 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { render, screen } from "@testing-library/react-native";
 import { TVEpisodeList } from "./TVEpisodeList";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 1, callout: 1 }),
 }));

@@ -49,10 +49,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,7 +82,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -108,6 +112,10 @@ private object HeroLayout {
   val DotsArea = 24.dp
   val CardElevation = 12.dp
   val PanelBlur = 24.dp
+  /** The filter button, on the snapped card's top-right content corner. */
+  val FilterButtonSize = 32.dp
+  /** Room the label chip leaves before the filter button. */
+  val LabelButtonGap = 8.dp
 }
 
 /**
@@ -158,11 +166,24 @@ internal fun HeroCarouselRoot(
         // hero will appear.
         HeroSkeleton()
       } else {
-        HeroPager(
-          items = payload.items,
-          headers = payload.imageHeaders,
-          onItemPress = onItemPress
-        )
+        // The cards follow the payload's font scale cap; the filter menu,
+        // outside, keeps the system's size. They also drop MaterialTheme's
+        // 24sp bodyLarge line height: on the cards' 10 to 12sp text it made
+        // each chip about half again as tall as on iOS, and grew with the font.
+        val density = LocalDensity.current
+        CompositionLocalProvider(
+          LocalDensity provides Density(
+            density.density,
+            cardFontScale(density.fontScale, payload.maxFontScale)
+          ),
+          LocalTextStyle provides LocalTextStyle.current.copy(lineHeight = TextUnit.Unspecified)
+        ) {
+          HeroPager(
+            items = payload.items,
+            headers = payload.imageHeaders,
+            onItemPress = onItemPress
+          )
+        }
       }
 
       // Overlaid here rather than inside a card for two reasons: neighbour
@@ -175,9 +196,11 @@ internal fun HeroCarouselRoot(
           sections = payload.filterSections,
           label = payload.filterLabel,
           onToggle = onFilterToggle,
+          // On the snapped card's top-right content corner, in the label
+          // chip's row.
           modifier = Modifier
             .align(Alignment.TopEnd)
-            .padding(top = 12.dp, end = HeroLayout.PageMargin + 12.dp)
+            .padding(top = HeroLayout.CardPadding, end = HeroLayout.PageMargin + HeroLayout.CardPadding)
         )
       }
     }
@@ -336,7 +359,13 @@ private fun HeroCard(
     Column(Modifier.fillMaxSize().padding(HeroLayout.CardPadding)) {
       val label = item.label
       if (!label.isNullOrEmpty()) {
-        HeroLabelChip(label, item.labelIcon)
+        // Ends short of the filter button, which shares this row on the
+        // snapped card: a long label is cut instead of running under it.
+        HeroLabelChip(
+          label = label,
+          iconName = item.labelIcon,
+          modifier = Modifier.padding(end = HeroLayout.FilterButtonSize + HeroLayout.LabelButtonGap)
+        )
       }
       Spacer(Modifier.weight(1f))
       HeroInfoPanel(
@@ -399,10 +428,10 @@ private fun HeroBackdrop(
 }
 
 @Composable
-private fun HeroLabelChip(label: String, iconName: String?) {
+private fun HeroLabelChip(label: String, iconName: String?, modifier: Modifier = Modifier) {
   val icon = sfSymbolIcon(iconName)
   Row(
-    modifier = Modifier
+    modifier = modifier
       .clip(CircleShape)
       .background(Color.Black.copy(alpha = 0.42f))
       .border(0.5.dp, HairlineColor, CircleShape)
@@ -424,7 +453,8 @@ private fun HeroLabelChip(label: String, iconName: String?) {
       fontSize = 10.sp,
       fontWeight = FontWeight.Black,
       letterSpacing = 0.8.sp,
-      maxLines = 1
+      maxLines = 1,
+      overflow = TextOverflow.Ellipsis
     )
   }
 }
@@ -768,7 +798,7 @@ private fun HeroFilterMenu(
   Box(modifier) {
     Box(
       modifier = Modifier
-        .size(32.dp)
+        .size(HeroLayout.FilterButtonSize)
         .clip(CircleShape)
         .background(Color.Black.copy(alpha = 0.45f))
         .border(0.5.dp, HairlineColor, CircleShape)

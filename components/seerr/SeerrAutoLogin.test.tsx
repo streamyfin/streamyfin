@@ -37,11 +37,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/customHeaders", () => ({
   getIntegrationHeaders: () => ({}),
 }));
-jest.mock("@/utils/log", () => ({
-  writeErrorLog: jest.fn(),
-  writeInfoLog: jest.fn(),
-  writeToLog: jest.fn(),
-}));
 jest.mock("@/utils/mmkv", () => ({
   storage: { getString: () => "https://jellyfin.test" },
 }));

@@ -34,8 +34,9 @@ Read the relevant one before writing code in that area.
 | [docs/conventions/constants.md](docs/conventions/constants.md) | Adding a threshold, interval, ratio, storage key, or any value used twice |
 | [docs/conventions/contributing-flow.md](docs/conventions/contributing-flow.md) | Opening, describing, or reviewing a PR |
 | [docs/conventions/performance.md](docs/conventions/performance.md) | Claiming a change is faster, or writing a Reassure scenario |
-| [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, and before claiming a fix works |
+| [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, adding or unmocking a `jest.mock`, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
+| [docs/conventions/window-dimensions.md](docs/conventions/window-dimensions.md) | Reading window width or height in a component, screen, or hook |
 
 Deep dives: [tv-modal-guide.md](docs/tv-modal-guide.md),
 [tv-focus-guide.md](docs/tv-focus-guide.md), [tv-discovery.md](docs/tv-discovery.md),
@@ -61,6 +62,7 @@ UI and headers:
 - `switch-pointerevents-ignored` | Switch ignores its own pointerEvents (Android); wrap in a View pointerEvents="none"
 - `nativewind-classname-arrives-as-style` | a className passed to one of our own components reaches it as `style`; forward that, reading `className` drops it silently
 - `bottom-sheet-dismiss-before-present` | dismiss() on a BottomSheetModal that is not on screen leaves it unable to present, silently; follow `open` with useSheetOpenState
+- `sheets-draw-under-the-android-nav-bar` | use `@/hooks/useActionSheet`; `showModal` content goes in `SheetView` / `SheetScrollView`, a sheet's FlatList takes `useSheetContentPadding()`
 - `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
 
 State and data:
@@ -81,6 +83,7 @@ Native modules:
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
 - `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
 - `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
+- `native-player-ignores-js-controls` | the iPhone/iPad default player is a presented native view controller; Controls.tsx and its hooks never mount there, so input (keyboard) needs a native counterpart
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
@@ -90,6 +93,8 @@ Native modules:
 - `drax-drop-needs-patch-in-release` | drax 1.1.0 on Gesture Handler 3 springs a dropped row back in release builds only; `patches/react-native-drax@1.1.0.patch` fixes it, keep it until a release passes its spec
 - `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
 - `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
+- `android17-background-audio-needs-media-fgs` | Android 17 mutes an app with no visible activity and no foreground service (`AudioHardening ... level: partial` in logcat); mpv stalls on the muted sink. The player screen holds the mediaPlayback service from MediaPlaybackController while it is open, paused included; a start refused in the background leaves it without one until the next play in front
+- `mpv-surface-loss-drops-video-track-and-seeks` | a detached surface fails mpv's VO, the video track is dropped and the refresh seek can restart at byte 0 of an unindexed MKV (20 s+ stall at 2h in); detachSurface attaches an offscreen ImageReader sink instead, on Android 10 and later only
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -101,6 +106,7 @@ TV platform:
 - `tv-nav-tab-catches-short-grid-edge-press` | from the end of a grid narrower than the TV tab bar, a left or right press goes to the outermost tab; trap left/right on the grid (a full-width guide row is never the target)
 - `android-tv-modal-close-loses-focus` | a dismissed TV modal route leaves Android TV with nothing focused; the page must hand the focus back with requestTVFocus(). BlurView only tints there
 - `amlogic-fra-fires-before-real-framerate` | the vendor HDMI frame-rate adaptation switches on the codec's 30fps default, before MKV's real rate is known, and never corrects; app-side preferredDisplayModeId matching (matchRefreshRate setting) is the fix
+- `tv-preferred-focus-grabs-on-mount` | hasTVPreferredFocus takes the focus as the view enters the window, out of the tab bar too (tvOS when the bar lands on a tab, Android TV on every press that opens one); tab roots must not set it on mount, Home only once per session
 
 Build and tooling:
 - `eas-archive-drops-gitignored-tracked-files` | EAS uploads skip anything matching .gitignore even if tracked; re-include required assets, keep asset require() at module scope
@@ -179,7 +185,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

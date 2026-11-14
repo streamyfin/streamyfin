@@ -61,9 +61,6 @@ jest.mock("react-native/Libraries/Components/Pressable/Pressable", () => {
     ),
   };
 });
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The real scale and settings read the settings atom, which loads the whole
 // settings UI.
 jest.mock("@/constants/TVTypography", () => ({

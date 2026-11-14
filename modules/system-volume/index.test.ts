@@ -16,10 +16,6 @@ jest.mock("expo-modules-core", () => ({
 const { getSystemVolumeAsync, hideSystemVolumeIndicator, setSystemVolume } =
   require("./index") as typeof import("./index");
 
-beforeEach(() => {
-  jest.clearAllMocks();
-});
-
 describe("getSystemVolumeAsync", () => {
   test("reads the volume without the synchronous call", async () => {
     await expect(getSystemVolumeAsync()).resolves.toBe(0.4);

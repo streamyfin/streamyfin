@@ -46,10 +46,6 @@ const trackBecomesActive = (gains: Record<string, number> = {}) =>
 
 const lastVolume = () => mockSetVolume.mock.calls.at(-1)?.[0];
 
-beforeEach(() => {
-  mockSetVolume.mockClear();
-});
-
 test("sets the volume from the gain of the track that becomes active", async () => {
   const { setMusicNormalizationMode } = await startService();
   setMusicNormalizationMode("track");

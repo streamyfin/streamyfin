@@ -17,14 +17,7 @@ import {
 } from "@/utils/atoms/filters";
 import { useLibraryFilters } from "./useLibraryFilters";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // settings.ts drags in the provider stack, and nothing here reads a setting.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-}));
 
 const MOVIES = "f137a2dd21bbc1b99aa5c0f6bf02a805";
 const SHOWS = "a656b907eb3a73532e40e44b968d0225";

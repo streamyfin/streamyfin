@@ -17,6 +17,7 @@ Before reporting an issue, please consider:
 - Administrator-level risks: Certain administrative or configuration endpoints in the backend may inherently carry elevated privileges. Vulnerabilities that **require administrator or root access** are classified as low priority. Report those via normal GitHub Issues.
 - Known vulnerabilities: We maintain a public list of known issues on our Security Advisories page at https://github.com/Streamyfin/Streamyfin/security/advisories. If your issue is already listed there, please do not re-report it.
 - Local-only issues: Vulnerabilities exploitable only with physical device access, manual file modification, or local debugging (e.g., modifying app files, rooting/jailbreaking) are considered low- to medium-priority.
+- Malicious servers: Streamyfin trusts the Jellyfin server you sign in to and the services that server or you connect the app to, such as Seerr and Streamystats, since they already get your login or session token and decide what the app shows. Issues that need the attacker to run one of those servers are out of scope, unless they reach beyond it, such as code execution on the device or access to another server or account.
 - Infrastructure reports: To report issues in our website, servers, CI/CD, or other infrastructure, tag your report subject with `[Streamyfin Infrastructure]`. Our infrastructure team follows standard patch policies for public vulnerabilities, so avoid duplicating widely known issues.
 
 

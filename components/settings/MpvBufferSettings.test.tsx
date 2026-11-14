@@ -21,10 +21,6 @@ jest.mock("react-i18next", () => ({
 jest.mock("@/components/PlatformDropdown", () => ({
   PlatformDropdown: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
 }));

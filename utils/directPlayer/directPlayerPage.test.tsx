@@ -11,6 +11,11 @@ import {
   releaseSharedValueWrites,
 } from "@/test-utils/reanimated";
 
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
+
 /** 19m 18s, the resume position of the item in the bug report. */
 const RESUME_TICKS = 11_580_000_000;
 /** 5m, the resume position of the episode after it. */
@@ -97,19 +102,12 @@ jest.mock("expo-router", () => ({
     return () => {};
   },
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
   useAnimatedReaction: (_prepare: unknown, react: typeof mockSeekReaction) => {
     mockSeekReaction = react;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
@@ -140,9 +138,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   default: () => mockRouter,
 }));
 jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => mockNoop }));
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({ isConnected: true }),
-}));
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => ({
     lockOrientation: mockNoop,
@@ -194,10 +189,6 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
   getSubtitlesForItem: () => [],
 }));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeToLog: jest.fn(),
-}));
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));
@@ -231,9 +222,6 @@ jest.mock("@/utils/jellyfin/bitrateTest", () => ({
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
   buildSubtitleStyle: () => ({}),
-}));
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
 }));
 jest.mock("@/components/Loader", () => ({ Loader: () => null }));
 jest.mock("@/components/common/Text", () => ({ Text: () => null }));
@@ -613,9 +601,62 @@ describe("direct player stop report", () => {
     }
   });
 
+  // The media session, notification and foreground service are for this
+  // screen: a view that only shows a clip (the subtitle preview) took the
+  // audio focus and stopped the user's music.
+  test("asks the player to keep playing with the screen off", async () => {
+    await openPlayer();
+
+    expect(mockPlayerProps?.backgroundPlayback).toBe(true);
+  });
+
+  test("tells the player an episode is not live", async () => {
+    await openPlayer();
+
+    expect(mockPlayerProps?.liveStream).toBe(false);
+  });
+
+  // A headset's Previous or fast forward on Live TV jumped to the start of the
+  // stream or past its live edge.
+  test("tells the player a TV channel is live", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    await openPlayer();
+
+    expect(mockPlayerProps?.liveStream).toBe(true);
+  });
+
+  // Fast forward and rewind from a headset or the notification went +30 and
+  // -10 s whatever the user had set.
+  test("hands the session the user's skip settings", async () => {
+    Object.assign(mockSettings, { forwardSkipTime: 15, rewindSkipTime: 30 });
+    try {
+      await openPlayer();
+
+      expect(mockPlayerProps?.sessionSkipSeconds).toEqual({
+        forward: 15,
+        backward: 30,
+      });
+    } finally {
+      for (const key of ["forwardSkipTime", "rewindSkipTime"])
+        delete (mockSettings as Record<string, unknown>)[key];
+    }
+  });
+
   describe("on TV, where the controls re-negotiate the stream through the page", () => {
     beforeEach(() => stubReactNative({ isTV: true }));
     afterEach(() => stubReactNative());
+
+    // The remote's keys go to JS on TV. An active session took Play/Pause
+    // again and undid the toggle.
+    test("leaves background playback off", async () => {
+      await openPlayer();
+
+      expect(mockPlayerProps?.backgroundPlayback).toBe(false);
+    });
 
     test("restarts from the start position when the bitrate changes before MPV has a position", async () => {
       await openPlayer();

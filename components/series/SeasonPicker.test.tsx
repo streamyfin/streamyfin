@@ -42,9 +42,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/providers/OfflineModeProvider", () => ({
   useOfflineMode: () => mockOffline,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The rows and their menus are not what is under test; an episode shows up
 // as its name.
 jest.mock("../cards/useItemCardBehavior", () => ({

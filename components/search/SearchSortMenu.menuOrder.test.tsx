@@ -1,12 +1,7 @@
 import { menuOrder } from "@expo/ui/swift-ui/modifiers";
 import { render, screen } from "@testing-library/react-native";
 import { SearchSortMenu } from "@/components/search/SearchSortMenu";
-import { renderedMenuModifiers } from "@/test-utils/expoUi";
-
-jest.mock(
-  "@expo/ui/swift-ui",
-  () => jest.requireActual("@/test-utils/expoUi").swiftUiModule,
-);
+import { renderedMenuModifiers } from "@/test-utils/swiftUi";
 
 describe("SearchSortMenu on iOS", () => {
   // The sort button sits at the bottom of the screen: UIMenu lists items by
