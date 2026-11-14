@@ -20,6 +20,7 @@ import {
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { holdForTarget } from "@/utils/cast/playTarget";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -655,6 +656,26 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(mockNative.playing).toBe(false);
     expect(player.isPlaying).toBe(true);
     await receiverLoads("t0");
+  });
+
+  // A Play pressed on a film while the receiver connects is for the receiver: the phone's music stops for it rather
+  // than move there and replace it.
+  test("gives way to a Play waiting for the receiver when a session connects", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    expect(player.isPlaying).toBe(true);
+
+    const release = holdForTarget();
+    try {
+      await connectCast();
+      await settle();
+    } finally {
+      release();
+    }
+
+    expect(playNows()).toHaveLength(0);
+    expect(mockNative.playing).toBe(false);
+    expect(player.isPlaying).toBe(false);
   });
 
   // A queue restored at launch waits paused: the session may well be for a film.

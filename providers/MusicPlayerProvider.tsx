@@ -39,6 +39,7 @@ import {
   setMusicNormalizationTrack,
 } from "@/services/MusicNormalization";
 import { settingsAtom } from "@/utils/atoms/settings";
+import { isPressForTargetHeld } from "@/utils/cast/playTarget";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { markExpectedError } from "@/utils/errors";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
@@ -1370,6 +1371,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     previousCastState.current = castState;
     if (!castConnected || previous === CastState.CONNECTED) return;
     if (!state.isPlaying || state.queue.length === 0) return;
+    // A Play pressed while connecting (a film, say) is for the receiver: the phone pauses for it, and the queue stays
+    // here rather than replace it there.
+    if (isPressForTargetHeld()) {
+      if (TrackPlayer) {
+        void TrackPlayer.pause();
+        setState((prev) => ({ ...prev, isPlaying: false }));
+      }
+      return;
+    }
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
     endPhoneSessionForReceiver();
     void castOnReceiver(state.queue, Math.max(index, 0));

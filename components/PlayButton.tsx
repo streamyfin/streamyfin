@@ -35,6 +35,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { toBitrateRequest } from "@/utils/bitrate";
 import {
   choosePlay,
+  holdForTarget,
   isLatestPlayChoice,
   resolvePlay,
   waitForTarget,
@@ -179,34 +180,40 @@ export const PlayButton: React.FC<Props> = ({
         const wait = new AbortController();
         pendingWait.current = wait;
         const pressedBy = user?.Id;
-        const settled = await waitForTarget(undefined, undefined, {
-          signal: wait.signal,
-        });
-        if (pendingWait.current === wait) pendingWait.current = null;
-        // Gone with its button, another account since the press, or a later choice on another page: the
-        // receiver would get an item no one asked for any more.
-        if (
-          settled === "aborted" ||
-          store.get(userAtom)?.Id !== pressedBy ||
-          !isLatestPlayChoice(choice)
-        ) {
-          return;
-        }
-        if (settled !== "timeout" && settled.state === "connected") {
-          if (settled.target && !sending.current) {
-            sending.current = true;
-            try {
-              await playOnTarget(positionTicks, settled.target, choice);
-            } finally {
-              sending.current = false;
-            }
+        // Held until its send went out: the connection would otherwise move the phone's music to the receiver.
+        const release = holdForTarget();
+        try {
+          const settled = await waitForTarget(undefined, undefined, {
+            signal: wait.signal,
+          });
+          if (pendingWait.current === wait) pendingWait.current = null;
+          // Gone with its button, another account since the press, or a later choice on another page: the
+          // receiver would get an item no one asked for any more.
+          if (
+            settled === "aborted" ||
+            store.get(userAtom)?.Id !== pressedBy ||
+            !isLatestPlayChoice(choice)
+          ) {
+            return;
           }
-        } else if (settled === "timeout" || settled.error) {
-          // Nothing plays: the connection the press waited for did not come.
-          Alert.alert(t("player.client_error"), t("cast.output.failed"));
+          if (settled !== "timeout" && settled.state === "connected") {
+            if (settled.target && !sending.current) {
+              sending.current = true;
+              try {
+                await playOnTarget(positionTicks, settled.target, choice);
+              } finally {
+                sending.current = false;
+              }
+            }
+          } else if (settled === "timeout" || settled.error) {
+            // Nothing plays: the connection the press waited for did not come.
+            Alert.alert(t("player.client_error"), t("cast.output.failed"));
+          }
+          // A connection cancelled from the sheet ends without an error: nothing to say.
+          return;
+        } finally {
+          release();
         }
-        // A connection cancelled from the sheet ends without an error: nothing to say.
-        return;
       }
       dropReceiverPress();
       await playMedia(playRequestFor(positionTicks), { item });

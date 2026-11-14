@@ -11,7 +11,7 @@ import { showExpandedControls } from "@/modules/mpv-player/src/cast";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
-import { choosePlay } from "@/utils/cast/playTarget";
+import { choosePlay, isPressForTargetHeld } from "@/utils/cast/playTarget";
 import { PlayButton } from "./PlayButton";
 
 const mockSalon = {
@@ -373,6 +373,33 @@ test("a press while connecting casts once connected", async () => {
   expect(castToJellyfinReceiver).not.toHaveBeenCalled();
   await act(async () => emitTarget(connectedTo(mockSalon)));
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+});
+
+// The connection would move the phone's music to the receiver: a press held from its wait to its send keeps it off.
+test("a press while connecting is held until its send went out", async () => {
+  let answer: (outcome: { status: string }) => void = () => {};
+  (castToJellyfinReceiver as jest.Mock).mockImplementationOnce(
+    () => new Promise((resolve) => (answer = resolve)),
+  );
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(isPressForTargetHeld()).toBe(true);
+  await act(async () => emitTarget(connectedTo(mockSalon)));
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(isPressForTargetHeld()).toBe(true);
+
+  await act(async () => answer({ status: "loaded" }));
+  expect(isPressForTargetHeld()).toBe(false);
+});
+
+test("a press that waited in vain is released", async () => {
+  mockTarget = connectingTo(mockSalon);
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await press();
+  expect(isPressForTargetHeld()).toBe(true);
+  await act(async () => emitTarget(mockNoTarget));
+  expect(isPressForTargetHeld()).toBe(false);
 });
 
 // The quality is read when the load goes: one saved while the press waited is the one the receiver gets.

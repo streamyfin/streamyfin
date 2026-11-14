@@ -70,6 +70,26 @@ export const resolvePlay = ({
     : { where: "waitForTarget", name: remote.name };
 };
 
+/** Presses for the receiver held from their wait until their send went out. */
+let pressesForTarget = 0;
+
+/**
+ * Holds a press for the receiver from its wait for the connection until its send went out, and returns its release.
+ * The music on the phone gives way to a press held: the connection does not move the queue to the receiver then.
+ */
+export const holdForTarget = (): (() => void) => {
+  pressesForTarget += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    pressesForTarget -= 1;
+  };
+};
+
+/** True while a press for the receiver waits for its connection or sends. */
+export const isPressForTargetHeld = (): boolean => pressesForTarget > 0;
+
 /**
  * Waits out the connection a press landed in: resolves with the connected state, or with the one that ended
  * the wait instead, no target and why (no error for a connection cancelled from the sheet). "timeout" once
