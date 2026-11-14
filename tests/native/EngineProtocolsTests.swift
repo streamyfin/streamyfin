@@ -50,6 +50,7 @@ final class LocalEngine: RemoteOnlyEngine, RenderingEngine {
 	let isPictureInPictureStopping = false
 	let isPictureInPictureStarting = false
 	var supportsPictureInPicture = true
+	var backgroundPlayback = true
 
 	func syncSubtitleLayerFrame() {}
 	func setPictureInPictureAutoStartEnabled(_ enabled: Bool) {}
@@ -125,6 +126,12 @@ enum EngineProtocolsTests {
 		readTechnicalInfo(from: LocalEngine()) { localInfo = $0 }
 		precondition(localInfo?["videoCodec"] as? String == "h264")
 
+		// The RN-embedded view holds its engine by the faces and turns background playback off
+		// for a clip: the switch is on the rendering face, a remote engine plays nothing here.
+		let embedded: PlayerEngine = LocalEngine()
+		embedded.backgroundPlayback = false
+		precondition(embedded.backgroundPlayback == false)
+
 		// The queue has nothing by default: the local engines never answer it.
 		precondition(engine.currentItemId == nil)
 		precondition(engine.targetVolume == nil)
@@ -149,6 +156,6 @@ enum EngineProtocolsTests {
 		precondition(!isRemoteEngine(LocalEngine()))
 		precondition(!isRemoteEngine(nil))
 
-		print("PASS: transport, rendering and queue faces, the chrome engine, its rendering questions, queue defaults, delegate play and seek defaults, speed and remote defaults")
+		print("PASS: transport, rendering and queue faces, the chrome engine, its rendering questions, the background playback switch, queue defaults, delegate play and seek defaults, speed and remote defaults")
 	}
 }

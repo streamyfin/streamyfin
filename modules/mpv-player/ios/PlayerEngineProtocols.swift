@@ -155,10 +155,13 @@ extension TransportEngine {
 }
 
 /// The face of an engine that draws on this device: the display layer, picture in
-/// picture, zoom, subtitle rendering and the technical readout. A remote target has
-/// none of it, and the chrome in remote mode never asks for it.
+/// picture, background playback, zoom, subtitle rendering and the technical readout.
+/// A remote target has none of it, and the chrome in remote mode never asks for it.
 protocol RenderingEngine: AnyObject {
 	var displayLayer: AVSampleBufferDisplayLayer { get }
+	/// Off for a host that only shows a clip: the engine then takes no audio session and
+	/// offers no lock screen controls nor automatic picture in picture.
+	var backgroundPlayback: Bool { get set }
 	var pictureInPictureStopIsRestore: Bool { get }
 	var isPictureInPictureStopping: Bool { get }
 	var isPictureInPictureStarting: Bool { get }
