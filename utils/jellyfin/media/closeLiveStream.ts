@@ -22,6 +22,15 @@ export type CloseLiveStreamOptions = {
  * status means the server, or a gateway in front of it, handled the request:
  * a 500 comes from closing the stream once the count has dropped, and a 504
  * can come from a close still waiting behind a tuner being opened.
+ *
+ * The risk taken: a close the server handled and whose answer was lost looks
+ * the same as one that never arrived. Its retry takes a second reference off
+ * a stream still shared, which closes it under another device on the channel
+ * (on a stream already closed, the retry finds nothing and does nothing).
+ * Taken because a close that never arrived leaves nothing to give the
+ * reference back, and the stream and its tuner stay held; and because while
+ * another device holds a reference the server handles a close at once, so its
+ * answer is rarely lost then.
  */
 export async function closeLiveStream(
   api: Api,
