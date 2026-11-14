@@ -88,10 +88,11 @@ const mockAskedBitrates: (number | undefined)[] = [];
 const mockSettings: { defaultBitrate?: { key: string; value?: number } } = {};
 let mockDownloads: Record<string, unknown> = {};
 const mockNoop = () => {};
-/** The volume commands the page handed the session socket. */
+/** The commands the page handed the session socket. */
 let mockSocketCommands: {
   volumeUp?: () => Promise<void>;
   volumeDown?: () => Promise<void>;
+  stopPlayback?: () => void;
 } = {};
 /** What the page did with the device volume: reads and writes, in order. */
 const mockVolumeCalls: string[] = [];
@@ -667,6 +668,27 @@ describe("direct player stop report", () => {
     screen.unmount();
     await waitFor(() => expect(liveStreamReleases()).toContain("live-1"));
 
+    expect(liveStreamReleases()).toEqual(["live-1"]);
+  });
+
+  // A remote Stop goes back only when there is a screen to go back to, and
+  // the page stays up otherwise: the channel's tuner stayed held until the
+  // user left it, once the stop report no longer named the stream.
+  test("gives a live stream back when a remote Stop leaves the page up", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    mockStreamHold.liveStreamId = "live-1";
+    await openPlayer();
+
+    await act(async () => mockSocketCommands.stopPlayback?.());
+    await waitFor(() => expect(liveStreamReleases()).toEqual(["live-1"]));
+
+    screen.unmount();
+    await waitFor(() => expect(stopReports()).toHaveLength(1));
+    await act(async () => {});
     expect(liveStreamReleases()).toEqual(["live-1"]);
   });
 

@@ -532,15 +532,25 @@ export default function DirectPlayerPage() {
     [offline],
   );
 
-  // One release per negotiation, from the effect cleanup: when a new stream
-  // replaces this one and when the player unmounts. Keyed on the stream, not
-  // its LiveStreamId: a shared channel keeps the same id across negotiations,
-  // and the server counts each of them, so a stream negotiated again in place
-  // (a subtitle refresh, a server URL change) still gives its reference back.
+  // One release per negotiation. Keyed on the stream, not its LiveStreamId: a
+  // shared channel keeps the same id across negotiations, and the server
+  // counts each of them, so a stream negotiated again in place (a subtitle
+  // refresh, a server URL change) still gives its reference back. stop()
+  // releases the stream it ends, the effect cleanup the one a new stream
+  // replaces or the player unmounts with: whichever comes first gives it back.
+  const releasedStreamRef = useRef<Stream | null>(null);
+  const releaseStream = useCallback(
+    (negotiated: Stream | null) => {
+      if (!negotiated || releasedStreamRef.current === negotiated) return;
+      releasedStreamRef.current = negotiated;
+      releaseLiveStream(negotiated.mediaSource?.LiveStreamId ?? null);
+    },
+    [releaseLiveStream],
+  );
+
   useEffect(() => {
-    const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
-    return () => releaseLiveStream(liveStreamId);
-  }, [stream, releaseLiveStream]);
+    return () => releaseStream(stream);
+  }, [stream, releaseStream]);
 
   useEffect(() => {
     // False once the page is left or the effect runs again (a new api on a
@@ -789,6 +799,9 @@ export default function DirectPlayerPage() {
       playbackPosition: getSessionPositionTicks().toString(),
     });
     reportPlaybackStopped();
+    // A remote Stop leaves the page up when there is no screen to go back
+    // to: the stream would otherwise stay held until the user leaves it.
+    releaseStream(stream);
     markPlaybackStopped();
     // Synchronously destroy the mpv instance + decoder + surface buffers
     // BEFORE the screen unmounts. Otherwise the next screen (or the next
@@ -810,6 +823,8 @@ export default function DirectPlayerPage() {
   }, [
     videoRef,
     reportPlaybackStopped,
+    releaseStream,
+    stream,
     markPlaybackStopped,
     getSessionPositionTicks,
     resumeInactivityTimer,
