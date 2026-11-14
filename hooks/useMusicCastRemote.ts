@@ -5,6 +5,7 @@ import {
   MUSIC_CAST_PROGRESS_TICK_MS,
   MUSIC_CAST_RESUME_END_MARGIN_SECONDS,
   MUSIC_CAST_START_FAILURE_WINDOW_MS,
+  RECEIVER_NEXT_ITEM_WAIT_MS,
 } from "@/constants/Cast";
 import { PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS } from "@/constants/Music";
 import {
@@ -59,6 +60,8 @@ interface UseMusicCastRemoteOptions {
   ownerKey: string | null;
   /** Whether a Cast session is connected, whatever the phone's own network does. */
   connected: boolean;
+  /** The mode the receiver plays the queue in: with a repeat, the last track goes on too. */
+  repeatMode: MusicRepeatMode;
   /** The session ended while the receiver had the queue: where it was, for the phone to take it back. */
   onHandBack: (view: MusicCastRemoteView) => void;
 }
@@ -103,6 +106,7 @@ export const useMusicCastRemote = ({
   userId,
   ownerKey,
   connected,
+  repeatMode,
   onHandBack,
 }: UseMusicCastRemoteOptions) => {
   const client = useCastClient();
@@ -139,10 +143,6 @@ export const useMusicCastRemote = ({
   const foreignMedia =
     wasReported && !!status?.mediaInfo && media.playSessionId === null;
   const gone = wasReported && !fresh && !foreignMedia;
-  // Stopped from the TV's remote, or at the end of the queue, the receiver
-  // reports the track it stopped on as idle: its media session is over, and a
-  // play there does nothing until it is sent the queue again.
-  const idle = reported && status?.playerState === CastMediaPlayerState.IDLE;
 
   // The status gives the position only when something changes: in between,
   // the position counts on from it while the receiver plays.
@@ -155,6 +155,47 @@ export const useMusicCastRemote = ({
   }
   const statusAt = statusSeen.current.at;
   const [, setTick] = useState(0);
+
+  // The receiver reports the track it finished as idle while it fetches the
+  // next one, and a stream it reloads from a Seek as interrupted: the queue
+  // goes on, as the native Cast engine reads it. Past the wait, from the first
+  // such report on that track, the receiver is taken as stopped.
+  const idleReason =
+    reported && status?.playerState === CastMediaPlayerState.IDLE
+      ? status.idleReason
+      : undefined;
+  const goesOn =
+    current !== null &&
+    (idleReason === CastIdleReason.INTERRUPTED ||
+      (idleReason === CastIdleReason.FINISHED &&
+        (repeatMode !== "off" || index < current.queue.length - 1)));
+  const goingOnSince = useRef<{ id: number; index: number; at: number } | null>(
+    null,
+  );
+  if (!current || !goesOn) goingOnSince.current = null;
+  else if (
+    goingOnSince.current?.id !== current.id ||
+    goingOnSince.current.index !== index
+  ) {
+    goingOnSince.current = { id: current.id, index, at: statusAt };
+  }
+  const waitEndsAt =
+    (goingOnSince.current?.at ?? 0) + RECEIVER_NEXT_ITEM_WAIT_MS;
+  const goingOn = goesOn && Date.now() < waitEndsAt;
+  useEffect(() => {
+    if (!goingOn) return;
+    // Renders once the wait is over, the status unchanged.
+    const timer = setTimeout(
+      () => setTick((tick) => tick + 1),
+      waitEndsAt - Date.now(),
+    );
+    return () => clearTimeout(timer);
+  }, [goingOn, waitEndsAt]);
+  // Stopped from the TV's remote, or at the end of the queue, the receiver
+  // reports the track it stopped on as idle: its media session is over, and a
+  // play there does nothing until it is sent the queue again.
+  const idle =
+    reported && status?.playerState === CastMediaPlayerState.IDLE && !goingOn;
   const playing =
     reported && !!status && status.playerState === CastMediaPlayerState.PLAYING;
   useEffect(() => {
@@ -227,7 +268,7 @@ export const useMusicCastRemote = ({
         currentTrack,
         // Until the receiver reports on the queue, it is loading it.
         isPlaying: reported
-          ? PLAYING_STATES.includes(status?.playerState ?? "")
+          ? goingOn || PLAYING_STATES.includes(status?.playerState ?? "")
           : true,
         progress: duration > 0 ? Math.min(position, duration) : position,
         duration,
@@ -371,6 +412,10 @@ export const useMusicCastRemote = ({
   }, []);
   const sentRef = useRef(sent);
   sentRef.current = sent;
+  // The receiver already moves on: a Next or Previous then would move it once
+  // more, so they wait for it, as the native Cast engine's do.
+  const goingOnRef = useRef(goingOn);
+  goingOnRef.current = goingOn;
 
   const pause = useCallback(
     () => transport("pause", () => client?.pause()),
@@ -383,7 +428,7 @@ export const useMusicCastRemote = ({
   const next = useCallback(
     () =>
       transport("next", () =>
-        session
+        session && !goingOnRef.current
           ? sendJellyfinCastCommand("NextTrack", session, {}, staleOnSwitch())
           : undefined,
       ),
@@ -415,7 +460,7 @@ export const useMusicCastRemote = ({
       shownProgress.current > PREVIOUS_RESTARTS_TRACK_AFTER_SECONDS
         ? seek(0)
         : transport("previous", () =>
-            session
+            session && !goingOnRef.current
               ? sendJellyfinCastCommand(
                   "PreviousTrack",
                   session,

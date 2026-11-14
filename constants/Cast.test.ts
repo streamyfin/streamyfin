@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   RECEIVER_LOAD_TIMEOUT_MS,
   RECEIVER_MAX_QUEUE_ITEMS,
+  RECEIVER_NEXT_ITEM_WAIT_MS,
   RECEIVER_UNCAPPED_BITRATE,
 } from "./Cast";
 
@@ -52,20 +53,22 @@ describe("native mirrors of constants/Cast.ts", () => {
     ]).toEqual([RECEIVER_MAX_QUEUE_ITEMS, RECEIVER_MAX_QUEUE_ITEMS]);
   });
 
-  // Native only, with no TypeScript twin: the two engines still have to end a
-  // queue and tick alike.
-  test("both engines wait as long for the next item and tick at the same pace", () => {
-    expect(
+  // The music player reads a receiver between two tracks as the engines do.
+  test("both engines wait RECEIVER_NEXT_ITEM_WAIT_MS for the next item", () => {
+    expect([
       declared(
         `${ANDROID}/engine/CastEngineConstants.kt`,
         /NEXT_ITEM_WAIT_MS: Long = ([\d_]+)L/,
       ),
-    ).toBe(
       declared(
         `${IOS}/CastEngineConstants.swift`,
         /nextItemWaitMs: Double = ([\d_]+)/,
       ),
-    );
+    ]).toEqual([RECEIVER_NEXT_ITEM_WAIT_MS, RECEIVER_NEXT_ITEM_WAIT_MS]);
+  });
+
+  // Native only, with no TypeScript twin: the two engines still tick alike.
+  test("both engines tick at the same pace", () => {
     expect(
       declared(
         `${ANDROID}/engine/CastEngineConstants.kt`,

@@ -1325,6 +1325,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     userId: user?.Id,
     ownerKey: sessionKey,
     connected: sessionHeld,
+    repeatMode: state.repeatMode,
     onHandBack: handBackFromReceiver,
   });
   const { begin: beginOnReceiver, end: endOnReceiver } = remote;

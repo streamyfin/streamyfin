@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
+import { RECEIVER_NEXT_ITEM_WAIT_MS } from "@/constants/Cast";
 import {
   type CastDoubleState,
   createCastDoubleState,
@@ -54,6 +55,7 @@ beforeEach(() => {
     userId: "user",
     ownerKey: "server:user",
     connected: true,
+    repeatMode: "off",
     onHandBack: jest.fn(),
   };
 });
@@ -69,10 +71,12 @@ const receiverStatus = (
   playSessionId: string,
   playerState = "playing",
   streamPosition = 0,
+  idleReason?: string,
 ) =>
   act(async () => {
     const status = {
       playerState,
+      idleReason,
       currentItemId: 1,
       streamPosition,
       playbackRate: 1,
@@ -327,6 +331,123 @@ test("an idle receiver counts as stopped on the track it reports", async () => {
   expect(result.current.view?.currentTrack.Id).toBe("b");
   expect(result.current.view?.isPlaying).toBe(false);
   expect(result.current.stopped).toBe(true);
+});
+
+// The receiver reports the track it finished as idle while it fetches the
+// next one, and a stream it reloads from a Seek as interrupted: the queue goes
+// on, and Play, Next or Previous then would race the receiver's own move.
+describe("an idle receiver going on with the queue", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const castAlbumAt = async (
+    startIndex: number,
+  ): Promise<{ current: ReturnType<typeof useMusicCastRemote> }> => {
+    const { result } = await mountRemote();
+    await settle();
+    await act(async () => {
+      result.current.begin(ALBUM, startIndex);
+    });
+    return result;
+  };
+
+  test("still plays while the receiver fetches the next track", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 148);
+    await receiverStatus("b", "ps-1", "idle", 0, "finished");
+
+    expect(result.current.stopped).toBe(false);
+    expect(result.current.view?.currentTrack.Id).toBe("b");
+    expect(result.current.view?.isPlaying).toBe(true);
+  });
+
+  test("still plays while the receiver reloads the stream", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 30);
+    await receiverStatus("b", "ps-1", "idle", 0, "interrupted");
+
+    expect(result.current.stopped).toBe(false);
+    expect(result.current.view?.isPlaying).toBe(true);
+  });
+
+  test("sends neither Next nor Previous while the receiver moves on", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 148);
+    await receiverStatus("b", "ps-1", "idle", 0, "finished");
+    const before = mockCast.sent.length;
+
+    await act(async () => {
+      await result.current.next();
+      await result.current.previous();
+    });
+
+    expect(mockCast.sent.slice(before)).toEqual([]);
+  });
+
+  test("counts as stopped once the receiver stayed idle past the wait", async () => {
+    jest.useFakeTimers();
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 148);
+    await receiverStatus("b", "ps-1", "idle", 0, "finished");
+    expect(result.current.stopped).toBe(false);
+
+    await act(async () => {
+      jest.advanceTimersByTime(RECEIVER_NEXT_ITEM_WAIT_MS);
+    });
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.isPlaying).toBe(false);
+    expect(result.current.view?.progress).toBe(0);
+  });
+
+  test("a status sent again while it waits does not extend the wait", async () => {
+    jest.useFakeTimers();
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 148);
+    await receiverStatus("b", "ps-1", "idle", 0, "finished");
+    await act(async () => {
+      jest.advanceTimersByTime(RECEIVER_NEXT_ITEM_WAIT_MS - 1_000);
+    });
+    // A volume change, say: the same idle status again.
+    await receiverStatus("b", "ps-1", "idle", 0, "finished");
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_000);
+    });
+
+    expect(result.current.stopped).toBe(true);
+  });
+
+  test("the last track finished ends the queue at once", async () => {
+    const result = await castAlbumAt(3);
+    await receiverStatus("c", "ps-1", "playing", 148);
+    await receiverStatus("c", "ps-1", "idle", 0, "finished");
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.isPlaying).toBe(false);
+  });
+
+  test.each(["all", "one"] as const)(
+    "with repeat %s, the last track finished goes on",
+    async (repeatMode) => {
+      props = { ...props, repeatMode };
+      const result = await castAlbumAt(3);
+      await receiverStatus("c", "ps-1", "playing", 148);
+      await receiverStatus("c", "ps-1", "idle", 0, "finished");
+
+      expect(result.current.stopped).toBe(false);
+      expect(result.current.view?.isPlaying).toBe(true);
+    },
+  );
+
+  test("a stop from the TV's remote is a stop at once", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 30);
+    await receiverStatus("b", "ps-1", "idle", 0, "cancelled");
+
+    expect(result.current.stopped).toBe(true);
+  });
 });
 
 // The receiver appends what it is sent to the queue it plays then, so the

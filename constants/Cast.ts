@@ -45,6 +45,15 @@ export const RECEIVER_MAX_QUEUE_ITEMS = 100;
 export const RECEIVER_LOAD_TIMEOUT_MS = 30_000;
 
 /**
+ * How long a receiver that finished an item, or reloads its stream, may stay
+ * idle before it counts as stopped. It runs GET /Items and PlaybackInfo before
+ * the next item buffers; until then the queue goes on, and a Play, Next or
+ * Previous would race its own move. CastEngineConstants.kt and
+ * CastEngineConstants.swift hold the same wait.
+ */
+export const RECEIVER_NEXT_ITEM_WAIT_MS = 15_000;
+
+/**
  * How long a status asked of the receiver is waited for before the one held
  * stands in. The receiver reports on events only, so "Continue here" asks it
  * where it is; it answers in well under a second on a home network.

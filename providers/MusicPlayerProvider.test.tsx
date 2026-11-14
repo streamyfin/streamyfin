@@ -1232,20 +1232,20 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverStatus("t1", "playing", 40, "ps-2");
   });
 
-  // At the end of the track, or after the receiver could not play it, there
-  // is no place to go on from: play starts the track again.
+  // At the end of the queue, or after the receiver could not play the track,
+  // there is no place to go on from: play starts the track again.
   test.each([
-    ["the track ended", 40, "finished"],
-    ["the receiver failed on it", 40, "error"],
-    ["it stopped in its last seconds", 149.5, "cancelled"],
+    ["the queue's last track ended", "t4", 4, 40, "finished"],
+    ["the receiver failed on it", "t1", 1, 40, "error"],
+    ["it stopped in its last seconds", "t1", 1, 149.5, "cancelled"],
   ])(
     "play casts the track again from its top when %s",
-    async (_, position, reason) => {
+    async (_, itemId, index, position, reason) => {
       await castAlbum();
-      await receiverStatus("t1", "playing", position, "ps-1", {
+      await receiverStatus(itemId, "playing", position, "ps-1", {
         runtimeTicks: 150 * 10_000_000,
       });
-      await receiverIdle("t1", reason);
+      await receiverIdle(itemId, reason);
       // The cast started at the top: nothing to send again on its own.
       expect(playNows()).toHaveLength(1);
       expect(player.progress).toBe(0);
@@ -1253,11 +1253,23 @@ describe("MusicPlayerProvider and a Cast session", () => {
       await run((p) => p.togglePlayPause());
 
       expect(playNows()).toHaveLength(2);
-      expect(playNows()[1].options.startIndex).toBe(1);
+      expect(playNows()[1].options.startIndex).toBe(index);
       expect(startSeconds(1)).toBe(0);
-      await receiverStatus("t1", "playing", 0, "ps-2");
+      await receiverStatus(itemId, "playing", 0, "ps-2");
     },
   );
+
+  // Between two tracks the receiver is idle on the one it finished while it
+  // fetches the next: the queue goes on, and nothing casts it again.
+  test("the receiver moving on to the next track is not a stop", async () => {
+    await castAlbum();
+    await receiverIdle("t1", "finished");
+    expect(player.isPlaying).toBe(true);
+
+    await run((p) => p.togglePlayPause());
+
+    expect(playNows()).toHaveLength(1);
+  });
 
   /** A queue the phone took back at 30 s on its third track, played to a connected session from there. */
   const castFromPosition = async () => {
