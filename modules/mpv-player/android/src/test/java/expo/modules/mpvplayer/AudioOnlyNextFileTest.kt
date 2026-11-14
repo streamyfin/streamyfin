@@ -65,4 +65,16 @@ class AudioOnlyNextFileTest {
 
         assertFalse(renderer.isAudioOnlyScheduled())
     }
+
+    // Third review of #2441: audio only rides the offscreen sink, which needs
+    // Android 10, and the settings row is hidden below it. The detach path
+    // never switched there, but a file loaded while hidden still did, with the
+    // default on and no row to turn it off. (hasCallbacks is hidden API on 28,
+    // present in Robolectric's framework jar.)
+    @Config(sdk = [28])
+    @Test fun belowAndroid10AFileLoadedWhileHiddenKeepsItsVideo() {
+        val renderer = renderer()
+        renderer.fileLoaded()
+        assertFalse(renderer.isAudioOnlyScheduled())
+    }
 }

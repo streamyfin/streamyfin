@@ -559,6 +559,9 @@ class MPVLayerRenderer(
 
     /** Switches to audio only after AUDIO_ONLY_DELAY_MS if still hidden then. */
     private fun scheduleAudioOnly() {
+        // Audio only rides the offscreen sink, which needs Android 10; below
+        // it the settings row is hidden, so the default must not apply.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         if (!audioOnlyWhenHidden || surface != null) return
         mainHandler.removeCallbacks(enterAudioOnlyRunnable)
         mainHandler.postDelayed(enterAudioOnlyRunnable, AUDIO_ONLY_DELAY_MS)
