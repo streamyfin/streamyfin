@@ -14,7 +14,9 @@ import { liveTvBitrateRequest } from "@/utils/bitrate";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
+  type JellyfinCastPlayRequest,
   parseReceiverCustomData,
+  toReceiverRequest,
 } from "@/utils/cast/jellyfinReceiver";
 import { currentPlayChoice } from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
@@ -57,7 +59,7 @@ let follows = 0;
  */
 const followLoad = async (
   client: CastClient,
-  play: ReceiverPlay,
+  request: JellyfinCastPlayRequest,
   receiverName: string,
   userId: string,
 ) => {
@@ -65,21 +67,24 @@ const followLoad = async (
   const choice = currentPlayChoice();
   const follow = ++follows;
   try {
+    // What the receiver plays, which its statuses name: a guide program goes as its channel.
+    const sent = toReceiverRequest(request);
+    const loaded = sent.items[0];
     const held = parseReceiverCustomData(
       (await client.getMediaStatus().catch(() => null))?.mediaInfo?.customData,
     );
     if (follow !== follows) return;
     watchLoadedCast(client, {
-      item: play.item,
+      item: loaded,
       sent: {
-        itemId: play.item.Id ?? "",
-        mediaSourceId: play.mediaSourceId,
-        audioIndex: play.audioIndex,
-        subtitleIndex: play.subtitleIndex,
-        playbackPositionTicks: play.positionTicks,
+        itemId: loaded.Id ?? "",
+        mediaSourceId: sent.mediaSourceId,
+        audioIndex: sent.audioStreamIndex,
+        subtitleIndex: sent.subtitleStreamIndex,
+        playbackPositionTicks: sent.startPositionTicks,
       },
       receiverName,
-      playSessionId: held.itemId === play.item.Id ? held.playSessionId : null,
+      playSessionId: held.itemId === loaded.Id ? held.playSessionId : null,
       choice,
       userId,
     });
@@ -116,6 +121,13 @@ export const sendToReceiver = async (
       play.item,
       bitrateRequestFor(remote, settings?.remotePlaybackQuality),
     );
+    const request: JellyfinCastPlayRequest = {
+      items: [play.item],
+      startPositionTicks: play.positionTicks,
+      mediaSourceId: play.mediaSourceId,
+      audioStreamIndex: play.audioIndex,
+      subtitleStreamIndex: play.subtitleIndex,
+    };
     const outcome = await castToJellyfinReceiver(
       client,
       // Handed over unbuilt: the load takes its turn now, and a cast picked while Auto measures replaces it. The
@@ -130,13 +142,7 @@ export const sendToReceiver = async (
           autoBitrateOptions(settings),
         ),
       }))(),
-      {
-        items: [play.item],
-        startPositionTicks: play.positionTicks,
-        mediaSourceId: play.mediaSourceId,
-        audioStreamIndex: play.audioIndex,
-        subtitleStreamIndex: play.subtitleIndex,
-      },
+      request,
       RECEIVER_LOAD_TIMEOUT_MS,
       // The load reads the receiver before it sends, and the send goes to the current session: another receiver by
       // then, or a caller that moved on, gets nothing sent.
@@ -149,7 +155,7 @@ export const sendToReceiver = async (
     }
     if (outcome.status !== "loaded") return { status: "superseded" };
     // Not waited for: the hand-off closes the player at this answer, which a status read that hangs must not hold.
-    void followLoad(client, play, receiverName, deps.userId);
+    void followLoad(client, request, receiverName, deps.userId);
     return { status: "loaded" };
   } catch (e) {
     logAndCaptureError("Chromecast playback failed", e);

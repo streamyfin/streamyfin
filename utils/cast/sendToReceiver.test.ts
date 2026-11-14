@@ -30,6 +30,8 @@ jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   currentReceiverName: async () => "Living room",
   parseReceiverCustomData: jest.requireActual("@/utils/cast/jellyfinReceiver")
     .parseReceiverCustomData,
+  toReceiverRequest: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .toReceiverRequest,
 }));
 jest.mock("@/utils/cast/watchLoadedCast", () => ({
   watchLoadedCast: jest.fn(),
@@ -306,6 +308,42 @@ test("follows a loaded video for a failure the receiver reports later", async ()
     playSessionId: "play-1",
     choice,
     userId: "user-1",
+  });
+});
+
+// A guide program goes as its channel (live, without the page's stream picks): the watch follows what the receiver
+// plays, or the program id matches no status and it stops at the first one.
+test("follows a guide program as the channel the receiver plays", async () => {
+  mockHeldStatus = {
+    playerState: "buffering",
+    mediaInfo: { customData: { itemId: "channel-1", playSessionId: "live-1" } },
+  };
+  const program = {
+    Id: "program-1",
+    Name: "Evening news",
+    Type: "Program",
+    ChannelId: "channel-1",
+    ChannelName: "News",
+  } as never;
+
+  await sendToReceiver(
+    deps,
+    { ...play, item: program },
+    livingRoom,
+    () => false,
+  );
+  await followed();
+
+  expect(watch).toHaveBeenCalledTimes(1);
+  expect(watch.mock.calls[0][1]).toMatchObject({
+    item: { Id: "channel-1", Name: "News", Type: "TvChannel" },
+    sent: {
+      itemId: "channel-1",
+      mediaSourceId: undefined,
+      audioIndex: undefined,
+      subtitleIndex: undefined,
+    },
+    playSessionId: "live-1",
   });
 });
 

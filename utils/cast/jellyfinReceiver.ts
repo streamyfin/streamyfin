@@ -319,7 +319,7 @@ export const sendJellyfinCastCommand = async (
  * fail. jellyfin-web plays the program's channel instead, live, with none of
  * the program page's stream picks, and so does this.
  */
-const toReceiverRequest = (
+export const toReceiverRequest = (
   request: JellyfinCastPlayRequest,
 ): JellyfinCastPlayRequest => {
   const [first] = request.items;

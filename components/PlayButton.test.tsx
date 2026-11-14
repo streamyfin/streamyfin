@@ -144,6 +144,10 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   castToJellyfinReceiver: jest.fn(async () => ({ status: "loaded" })),
   currentReceiverName: async () => "Salon",
+  parseReceiverCustomData: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .parseReceiverCustomData,
+  toReceiverRequest: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .toReceiverRequest,
 }));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
