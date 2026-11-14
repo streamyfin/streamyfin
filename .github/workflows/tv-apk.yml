@@ -1,0 +1,95 @@
+name: 📺 Build TV APK (personal)
+
+# Minimal, single-purpose workflow: one release APK per ABI, no repack/cache
+# juggling. Meant for a private fork that only needs an installable Android TV
+# build for one box, at the smallest size that still works.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [tv-apk]
+
+permissions:
+  contents: read
+
+env:
+  EXPO_PUBLIC_GIT_BRANCH: ${{ github.ref_name }}
+  EXPO_PUBLIC_GIT_COMMIT: ${{ github.sha }}
+  EXPO_PUBLIC_GIT_RUN_NUMBER: ${{ github.run_number }}
+
+jobs:
+  build:
+    name: 🤖 APK (${{ matrix.abi }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # One APK per ABI: each carries only its own native libraries, so the
+        # APK stays roughly half the size of a combined one. Install the
+        # arm64-v8a build first; fall back to armeabi-v7a only if the box is
+        # 32-bit-only or the arm64 build refuses to install.
+        abi: [arm64-v8a, armeabi-v7a]
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: 🗑️ Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk \
+            /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 💾 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('bun.lock', '**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🛠️ Generate native project (TV variant)
+        run: bun run prebuild:tv
+
+      - name: 🚀 Build release APK
+        env:
+          EXPO_TV: 1
+          NODE_ENV: production
+          # R8 + resource shrinking are already on in app.json
+          # (enableMinifyInReleaseBuilds / enableShrinkResourcesInReleaseBuilds);
+          # dropping every ABI but one removes the rest of the native payload.
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: ${{ matrix.abi }}
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamyfin-tv-${{ matrix.abi }}
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 📊 Report size
+        run: |
+          ls -lh android/app/build/outputs/apk/release/*.apk | awk '{print $9, $5}'
