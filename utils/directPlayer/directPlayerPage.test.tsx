@@ -410,6 +410,8 @@ describe("direct player stop report", () => {
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
     mockStreamHold.liveStreamId = undefined;
+    mockStreamHold.held = false;
+    mockStreamHold.release = undefined;
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
@@ -775,6 +777,36 @@ describe("direct player stop report", () => {
       await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
 
       expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
+    });
+
+    // A remote Stop leaves the page up when there is no screen to go back
+    // to. A refresh it overtook came back with a stream that played again
+    // after the Stop and held the channel's tuner until the page was left.
+    test("neither plays nor holds a stream negotiated past a remote Stop", async () => {
+      api.mock.onGet(/\/Items\/item-1/).reply(200, {
+        Id: "item-1",
+        Type: "TvChannel",
+        UserData: {},
+      });
+      mockStreamHold.liveStreamId = "live-1";
+      await openPlayer();
+      const mounts = mockPlayerMounts;
+      mockStreamHold.held = true;
+
+      // One act for the whole refresh, which straddles the Stop: its state
+      // updates must not land outside it.
+      await act(async () => {
+        const refreshing = mockControlsProps?.onRefreshSubtitleTracks?.();
+        while (!mockStreamHold.release) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        mockSocketCommands.stopPlayback?.();
+        mockStreamHold.release();
+        await refreshing;
+      });
+
+      expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
+      expect(mockPlayerMounts).toBe(mounts);
     });
 
     test("restarts from where playback is once MPV has reported a position", async () => {

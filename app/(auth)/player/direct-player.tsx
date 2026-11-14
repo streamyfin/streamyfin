@@ -558,6 +558,9 @@ export default function DirectPlayerPage() {
     // can hold up for seconds, then neither plays nor fails anything.
     let current = true;
     const fetchStreamData = async (): Promise<Stream | null> => {
+      // A remote Stop can end playback with the page still up, when there is
+      // no screen to go back to: a stopped page negotiates nothing more.
+      if (isPlaybackStoppedRef.current) return null;
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -601,7 +604,7 @@ export default function DirectPlayerPage() {
             effectiveBitrateValue,
             autoBitrateOptions(settings),
           );
-          if (!current) return null;
+          if (!current || isPlaybackStoppedRef.current) return null;
           const res = await getStreamUrl({
             api,
             item,
@@ -619,9 +622,11 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
-          if (!current) {
-            // The server opened it for a page that is gone: nothing else
-            // closes it.
+          if (!current || isPlaybackStoppedRef.current) {
+            // The server opened it for a page that is gone, or for playback a
+            // remote Stop ended meanwhile: nothing else closes it. After a
+            // Stop the loader stays up: clearing it mounts the player again,
+            // and it plays.
             releaseLiveStream(res?.mediaSource?.LiveStreamId ?? null);
             return null;
           }
@@ -659,7 +664,7 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
-        if (!current) return null;
+        if (!current || isPlaybackStoppedRef.current) return null;
         logAndCaptureError("Failed to fetch stream", error, {
           itemType: item?.Type,
           player: getActivePlayerType(settings),
