@@ -3,6 +3,8 @@ import { AppState, Platform } from "react-native";
 type PlatformOverrides = {
   OS?: "ios" | "android";
   isTV?: boolean;
+  /** The OS version, as a string on Apple platforms and an API level on Android. */
+  Version?: string | number;
 };
 
 type AppStateListener = (state: string) => void;
@@ -76,6 +78,12 @@ export const requireOnPlatform = <T>(
       value: overrides.isTV ?? false,
       configurable: true,
     });
+    if (overrides.Version !== undefined) {
+      Object.defineProperty(isolated, "Version", {
+        value: overrides.Version,
+        configurable: true,
+      });
+    }
     loaded = load();
   });
   return loaded as T;

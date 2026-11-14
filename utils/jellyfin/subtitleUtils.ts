@@ -801,7 +801,7 @@ export const resolveAudioSwitch = (
  * Mirrors the guards the player already applies, so callers that want to
  * avoid an interruption can filter on the same rule: the burned-in check in
  * {@link applyMpvSubtitleSelection}, the transcode + image-based check in
- * `direct-player`'s `handleSubtitleIndexChange`, and a sidecar the native
+ * `NativePlayerProvider`'s `applySubtitleSelection`, and a sidecar the native
  * player's subtitle prefetch left out of the session, which has no URL and
  * comes back only through a renegotiation. Note that during direct play an
  * image-based track is a real player track and needs no restart at all.

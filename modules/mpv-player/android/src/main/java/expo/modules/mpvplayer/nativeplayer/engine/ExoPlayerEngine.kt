@@ -49,18 +49,18 @@ import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.redactStreamUrls
 import expo.modules.mpvplayer.MpvPauseReport
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
+import kotlin.math.roundToInt
 
 /**
  * Media3/ExoPlayer implementation of [PlayerEngine] for the native chrome.
  *
- * The engine logic mirrors the JS-route ExoPlayerView (modules/exoplayer-player):
- * same Dolby passthrough probe, same mpv-cache→LoadControl mapping, same
- * 1-based-per-kind track id scheme, same side-loaded subtitle id stamping, and
- * the same mpv-matched 1.5x subtitle size baseline. Differences are the
- * hosting model: the session owns the SurfaceView (the engine resizes it for
+ * It speaks the bridge as the mpv engine does: a Dolby passthrough probe, an
+ * mpv-cache→LoadControl mapping, a 1-based-per-kind track id scheme,
+ * side-loaded subtitle id stamping, and an mpv-matched 1.5x subtitle size
+ * baseline. The session owns the SurfaceView (the engine resizes it for
  * zoom), subtitles render into the engine-owned [subtitleOverlay] stacked
  * between the video surface and the ComposeView, and callbacks drive the
- * shared [PlayerEngine.Delegate] instead of JS events.
+ * shared [PlayerEngine.Delegate].
  *
  * Threading: the chrome's module layer reads track lists and technical info
  * on a background HandlerThread, and some setters arrive off-main. Media3's
@@ -116,12 +116,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // the 256 MB heap: the allocator shares it with React Native. Full
         // recipe and history in
         // .claude/learned-facts/exoplayer-loadcontrol-time-not-bytes.md.
-        //
-        // ⚠ TWIN: modules/exoplayer-player/.../ExoPlayerView.kt carries the
-        // same mapping for the JS-route view — these were duplicated, not
-        // shared, because the Kotlin modules are independent. Keep them in
-        // lockstep; this divergence is how the bug survived in one engine
-        // after being fixed in the other.
         private const val MIN_BUFFER_MS = 5_000
         private const val MAX_BUFFER_MS = 30_000
         private const val BUFFER_FOR_PLAYBACK_MS = 2_500
@@ -192,6 +186,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private var audioRecoveryAttemptedForUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
     private var currentLoop: Boolean = false
+    // The engine's own reloads rebuild the config from these.
+    private var currentIsLive: Boolean = false
     private var currentExternalSubtitles: List<String> = emptyList()
     // The sidecars the last load was given, without the ones addSubtitleFile
     // added since: the same-stream guard compares a new load with these.
@@ -235,7 +231,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // Subtitle styling state — applied to the engine-owned SubtitleView.
     private var subtitleScale: Float = 1f
-    private var subtitleFontSizePct: Int? = null // 0-100
     private var subtitleBottomFraction: Float? = null
     private var subtitleAlignY: String = "bottom"
     private var subtitleBackgroundColor: Int = Color.argb(0, 0, 0, 0)
@@ -347,8 +342,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     /** [retry] is the stall watchdog's own reload; see [StallWatchdog.onReload]. */
     private fun load(config: VideoLoadConfig, force: Boolean, retry: Boolean = false) {
-        // Same-URL guard, mirroring the JS-route view: a redundant load of the
-        // running stream (e.g. a replayed startStream) is skipped. Quality and
+        // Same-URL guard: a redundant load of the running stream (e.g. a
+        // replayed startStream) is skipped. Quality and
         // track re-negotiations always change the URL. Recovery callers must
         // pass force=true — they reload the SAME url/loop on purpose, and the
         // guard would silently no-op them (the player is still non-null after
@@ -369,8 +364,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         // instance that had just played the outgoing stream to its end, and
         // that in-place handover stalled for minutes on this box before
         // restarting the stream from 0:00 — direct play, no error surfaced.
-        // The JS-route view never sees this: it builds a fresh view (and
-        // player) per episode. Rebuilding also drops state a source-replace
+        // Rebuilding also drops state a source-replace
         // silently keeps — the previous item's track-selection overrides and
         // text-disable among them. mpv is unaffected: loadfile always builds
         // a fresh demuxer.
@@ -383,12 +377,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         currentUrl = config.url
         currentHeaders = config.headers
         currentLoop = config.loop
+        currentIsLive = config.isLive
         currentExternalSubtitles = config.externalSubtitles ?: emptyList()
         if (!force) suppliedExternalSubtitles = currentExternalSubtitles
         pendingConfig = config
         // The chrome coordinator re-applies carried subtitle selections on
         // every onTracksReady (mpv fires per FILE_LOADED), so the flag must
-        // reset per load — unlike the JS-route view, which fires once per view.
+        // reset per load.
         tracksReadyFired = false
         // Only a genuinely new load (item switch, quality re-negotiation)
         // earns a fresh reload budget. The engine's own reloads pass force=true
@@ -571,8 +566,10 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         // Prepare from the resume position directly — calling prepare() first
         // and seeking afterwards replays the opening seconds (C.TIME_UNSET
-        // falls back to the media's default start position).
-        val startMs = config.startPosition?.let { sp ->
+        // falls back to the media's default start position). A live stream
+        // has none: a channel renegotiated for another bitrate restarts its
+        // transcode, and the position read so far is ahead of all of it.
+        val startMs = if (config.isLive) C.TIME_UNSET else config.startPosition?.let { sp ->
             if (sp > 0) (sp * 1000).toLong() else C.TIME_UNSET
         } ?: C.TIME_UNSET
         loadStartPositionMs = if (startMs != C.TIME_UNSET) startMs else 0L
@@ -682,12 +679,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         player?.playbackParameters = PlaybackParameters(playbackSpeed)
     }
 
-    override fun getSpeed(): Double {
-        // playbackParameters is not safe to read off-main; 1.0 is the only
-        // value the chrome ever needs back (speed lives in the view model).
-        return 1.0
-    }
-
     /**
      * Engine mute; the device volume is left untouched. Retained across
      * player re-creation so the next stream comes back muted.
@@ -759,6 +750,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 initialSubtitleId = currentSubtitleId,
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
+                isLive = currentIsLive,
             ),
             force = true,
             retry = retry,
@@ -786,6 +778,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
                 initialSubtitleId = currentSubtitleId,
                 loop = currentLoop,
                 externalSubtitles = currentExternalSubtitles,
+                isLive = currentIsLive,
             ),
             force = true,
         )
@@ -828,8 +821,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         p.trackSelectionParameters = params
         currentSubtitleId = 0
     }
-
-    override fun getCurrentSubtitleTrack(): Int = currentSubtitleId
 
     override fun addSubtitleFile(url: String, select: Boolean) = post {
         val p = player ?: return@post
@@ -884,8 +875,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         p.trackSelectionParameters = params
         currentAudioId = trackId
     }
-
-    override fun getCurrentAudioTrack(): Int = currentAudioId
 
     private fun rebuildTrackMaps(tracks: Tracks?) {
         if (tracks == null) return
@@ -983,14 +972,6 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
     // MARK: - Subtitle rendering (engine-owned SubtitleView)
 
-    override fun setSubtitlePosition(position: Int) {
-        // 0-100 (mpv convention: 100 = bottom). Map to the bottom-padding
-        // fraction; reserve a small margin so 100 doesn't hug the edge.
-        val clamped = position.coerceIn(0, 100)
-        subtitleBottomFraction = 0.95f - (clamped / 100f) * 0.87f
-        applySubtitleStyle()
-    }
-
     override fun setSubtitleScale(scale: Double) {
         subtitleScale = scale.toFloat()
         applySubtitleStyle()
@@ -1044,28 +1025,13 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         applySubtitleStyle()
     }
 
-    override fun setSubtitleFontSize(size: Int) {
-        subtitleFontSizePct = size
-        applySubtitleStyle()
-    }
-
-    override fun setSubtitleBorderStyle(style: String) {
-        subtitleBorderStyle = style
-        applySubtitleStyle()
-    }
-
-    override fun setSubtitleBackgroundColor(color: String) {
-        subtitleBackgroundColor = parseColor(color, subtitleBackgroundColor)
-        applySubtitleStyle()
-    }
-
     override fun setSubtitleAssOverride(mode: String) {
-        // libass-specific; Media3 has no equivalent (same no-op as the JS route).
+        // libass-specific; Media3 has no equivalent.
     }
 
     override fun setSubtitleDelay(seconds: Double) {
         // mpv-only; Media3 subtitle offsets would need a custom TimeBar/
-        // MediaPeriod shift — not wired for the chrome (JS route matches).
+        // MediaPeriod shift — not wired for the chrome.
     }
 
     override fun setAudioDelay(seconds: Double) {
@@ -1089,19 +1055,17 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         }
     }
 
+    /**
+     * A colour as mpv reads it, #RRGGBB or #AARRGGBB: the chrome sends every
+     * engine mpv's style (utils/subtitles/subtitleStyle.ts). Android's
+     * parseColor takes the same two forms.
+     */
     private fun parseColor(hex: String, fallback: Int): Int {
         return try {
-            when {
-                hex.startsWith("#") && hex.length == 9 -> {
-                    // #RRGGBBAA
-                    val r = hex.substring(1, 3).toInt(16)
-                    val g = hex.substring(3, 5).toInt(16)
-                    val b = hex.substring(5, 7).toInt(16)
-                    val a = hex.substring(7, 9).toInt(16)
-                    Color.argb(a, r, g, b)
-                }
-                hex.startsWith("#") && hex.length == 7 -> Color.parseColor(hex)
-                else -> fallback
+            if (hex.startsWith("#") && (hex.length == 7 || hex.length == 9)) {
+                Color.parseColor(hex)
+            } else {
+                fallback
             }
         } catch (_: Exception) {
             fallback
@@ -1111,16 +1075,11 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
     private fun applySubtitleStyle() {
         val sv = subtitleOverlay as? SubtitleView ?: return
 
-        // Text size: explicit % wins; otherwise scale the default. The base
-        // matches MPV's look (mpv renders at sub-font-size 55 on libass's
-        // 720-normalized canvas ≈ 7.6% of frame height vs Media3's 5.33%).
+        // Text size: the default scaled. The base matches MPV's look (mpv
+        // renders at sub-font-size 55 on libass's 720-normalized canvas ≈ 7.6%
+        // of frame height vs Media3's 5.33%).
         val mpvMatchedBaseFraction = SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.5f
-        val textSizeFraction = if (subtitleFontSizePct != null) {
-            (subtitleFontSizePct!! / 100f) * mpvMatchedBaseFraction
-        } else {
-            mpvMatchedBaseFraction * subtitleScale
-        }
-        sv.setFractionalTextSize(textSizeFraction)
+        sv.setFractionalTextSize(mpvMatchedBaseFraction * subtitleScale)
 
         // Vertical position: explicit fraction wins; otherwise alignY mapping.
         val alignYFraction = when (subtitleAlignY) {
@@ -1294,8 +1253,8 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
             // SDR content usually declares no color metadata at all, which
             // would leave the page without any color line (mpv reads live
             // decoder properties and never goes quiet). State it explicitly.
-            // NOTE: deliberately not polluting hdrFormat — the JS-route
-            // overlay prints hdrFormat verbatim as an HDR label.
+            // NOTE: deliberately not polluting hdrFormat: the stats overlay
+            // (TechnicalInfoOverlay) prints it verbatim as an HDR label.
             if (f.colorInfo == null) {
                 info["colorTransfer"] = "SDR"
             }
@@ -1438,11 +1397,12 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             if (videoSize.width <= 0 || videoSize.height <= 0) return
-            cachedVideoWidth = videoSize.width
+            // The width on screen: an anamorphic video stores fewer pixels across than it shows.
+            val pixelRatio = videoSize.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
+            cachedVideoWidth = (videoSize.width * pixelRatio).roundToInt()
             cachedVideoHeight = videoSize.height
-            currentVideoAspectRatio =
-                videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
-            delegate?.onVideoDimensionsChanged(videoSize.width, videoSize.height)
+            currentVideoAspectRatio = cachedVideoWidth.toFloat() / videoSize.height
+            delegate?.onVideoDimensionsChanged(cachedVideoWidth, cachedVideoHeight)
             updateVideoSurfaceLayout()
         }
 

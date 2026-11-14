@@ -67,8 +67,8 @@ them.
 | Session WebSocket | third argument of RN's `WebSocket` in `WebSocketProvider` |
 | Images | `<Image>` from `components/common/ServerImage` (it carries expo-image's statics, so it is the only import a screen needs) and `getItemImage`, whose source wins when it already resolved them |
 | Image prefetch | `prefetchServerImage` |
-| Video playback | `MpvVideoSource.headers` in `direct-player` |
-| Now Playing artwork (iOS) | `nowPlayingMetadata.artworkHeaders` |
+| Video playback | `headers` of the config `buildNativePlayerConfig` builds |
+| Now Playing artwork | `metadata.artworkHeaders` of the same config |
 | Video downloads | `BackgroundDownloader.enqueueDownload(..., headers)` |
 | Trickplay, subtitles, posters | `File.downloadFileAsync(..., optionsWithOptionalHeaders(...))` |
 | Music streams and artwork | `itemToTrack` (TrackPlayer) |

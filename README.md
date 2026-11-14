@@ -115,7 +115,7 @@ You can contribute translations directly on our [Crowdin project page](https://c
 1. Use node `>20`
 2. Install dependencies `bun i`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
-   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `bun run ios:install-metal-toolchain` once
+   - If iOS builds fail with `missing Metal Toolchain`, run `bun run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)
 5. Run `bun run prebuild`
 6. Create an expo dev build by running `bun run ios` or `bun run android`. This will open a simulator on your computer and run the app

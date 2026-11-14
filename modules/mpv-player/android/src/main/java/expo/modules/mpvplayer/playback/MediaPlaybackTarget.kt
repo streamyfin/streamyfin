@@ -5,8 +5,7 @@ package expo.modules.mpvplayer.playback
  * media session and notification, and the commands that come back from the
  * lock screen, the notification, headphones and audio focus.
  *
- * Both Android players implement it: the embedded JS-route MpvPlayerView and
- * the fully native player (through PlayerViewModel).
+ * The native player implements it, in MediaSessionController.
  */
 interface MediaPlaybackTarget {
     val isPlaying: Boolean

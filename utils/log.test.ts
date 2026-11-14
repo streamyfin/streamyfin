@@ -246,8 +246,8 @@ describe("logAndCaptureError — what goes with an HTTP failure", () => {
 
 describe("logAndCaptureError — one event per failure", () => {
   // "NativePlayer config build failed" and "Failed to fetch item for player"
-  // were two issues every time: the native player and the JS player each
-  // caught the failure of the same request and logged it under its own name.
+  // were two issues every time: two layers each caught the failure of the
+  // same request and logged it under its own name.
   test("the same error caught by two layers is sent once", () => {
     const error = new Error("decoder exploded");
     logAndCaptureError("Inner layer failed", error);

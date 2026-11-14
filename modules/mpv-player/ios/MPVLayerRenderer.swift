@@ -138,7 +138,6 @@ final class MPVLayerRenderer {
     private var _cachedPosition: Double = 0
     private var _cachedCacheSeconds: Double = 0
     private var _isPaused: Bool = true
-    private var _playbackSpeed: Double = 1.0
     private var _isLoading: Bool = false
     private var _isReadyToSeek: Bool = false
     private var _isSeeking: Bool = false
@@ -151,6 +150,8 @@ final class MPVLayerRenderer {
     private var activeLoadGeneration: UInt = 0
     /// Position updates dropped while a load waits for its file; logged at START_FILE.
     private var skippedReplacedFileUpdates = 0
+    /// Queue-confined: whether the file the latest load() asked for is a live stream.
+    private var currentIsLive = false
 
     /// From load() until mpv starts that file, time-pos, duration and the
     /// paused clock still describe the file being replaced. Kept out of the
@@ -191,10 +192,6 @@ final class MPVLayerRenderer {
     private var isPaused: Bool {
         get { stateQueue.sync { _isPaused } }
         set { stateQueue.async(flags: .barrier) { [weak self] in self?._isPaused = newValue } }
-    }
-    private var playbackSpeed: Double {
-        get { stateQueue.sync { _playbackSpeed } }
-        set { stateQueue.async(flags: .barrier) { [weak self] in self?._playbackSpeed = newValue } }
     }
     private var isLoading: Bool {
         get { stateQueue.sync { _isLoading } }
@@ -673,6 +670,7 @@ final class MPVLayerRenderer {
         cacheSeconds: Int? = nil,
         demuxerMaxBytes: Int? = nil,
         demuxerMaxBackBytes: Int? = nil,
+        isLive: Bool = false,
         loadGeneration: UInt
     ) {
         queue.async { [weak self] in
@@ -682,6 +680,7 @@ final class MPVLayerRenderer {
             self.pendingExternalSubtitles = externalSubtitles ?? []
             self.initialSubtitleId = initialSubtitleId
             self.initialAudioId = initialAudioId
+            self.currentIsLive = isLive
             self.isLoading = true
             self.isReadyToSeek = false
             // Fresh file, fresh recovery budget (see performDecoderReset)
@@ -719,12 +718,8 @@ final class MPVLayerRenderer {
                 self.setProperty(name: "demuxer-max-back-bytes", value: "\(maxBackBytes)MiB")
             }
 
-            // Set start position
-            if let startPos = startPosition, startPos > 0 {
-                self.setProperty(name: "start", value: String(format: "%.2f", startPos))
-            } else {
-                self.setProperty(name: "start", value: "0")
-            }
+            self.setProperty(
+                name: "start", value: mpvStartOption(startPosition: startPosition, isLive: isLive))
             // Until the first time-pos arrives the file is where it was told
             // to start. The duration event emits this cache as the position,
             // and left at 0 (or at the previous file's position) it told the
@@ -1117,6 +1112,10 @@ final class MPVLayerRenderer {
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
                 cachedDuration = value
+                // A live stream's duration is how far mpv has read, and it moves
+                // many times a second: posting each one sent JS a full tick for
+                // nothing. Its position still ticks with time-pos.
+                guard !currentIsLive else { break }
                 let generation = activeLoadGeneration
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
@@ -1429,15 +1428,7 @@ final class MPVLayerRenderer {
     }
     
     func setSpeed(_ speed: Double) {
-        playbackSpeed = speed
         setProperty(name: "speed", value: String(speed))
-    }
-    
-    func getSpeed() -> Double {
-        // Cached mirror, not a live mpv read: speed only changes through
-        // setSpeed(), and a blocking mpv_get_property here may run on the
-        // main thread (see onQueue).
-        return playbackSpeed
     }
     
     // MARK: - Subtitle Controls
@@ -1549,15 +1540,6 @@ final class MPVLayerRenderer {
         refreshSubtitleLayout()
     }
     
-    func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
-        onQueue { [weak self] in
-            guard let self, let handle = self.mpv else { return completion(0) }
-            var sid: Int64 = 0
-            self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
-            completion(Int(sid))
-        }
-    }
-    
     func addSubtitleFile(url: String, select: Bool = true) {
         let flag = select ? "select" : "cached"
         onQueue { [weak self] in
@@ -1569,13 +1551,6 @@ final class MPVLayerRenderer {
     }
     
     // MARK: - Subtitle Positioning
-    
-    func setSubtitlePosition(_ position: Int) {
-        onQueue { [weak self] in
-            self?.subtitleStyle.position = Double(position)
-            self?.applySubtitleLayout()
-        }
-    }
     
     func setSubtitleScale(_ scale: Double) {
         onQueue { [weak self] in
@@ -1683,19 +1658,6 @@ final class MPVLayerRenderer {
         }
     }
 
-    func setSubtitleFontSize(_ size: Int) {
-        setProperty(name: "sub-font-size", value: String(size))
-    }
-
-    func setSubtitleBackgroundColor(_ color: String) {
-        setProperty(name: "sub-back-color", value: color)
-    }
-
-    func setSubtitleBorderStyle(_ style: String) {
-        // "outline-and-shadow" (default) or "background-box" (enables background color)
-        setProperty(name: "sub-border-style", value: style)
-    }
-
     func setSubtitleAssOverride(_ mode: String) {
         setProperty(name: "sub-ass-override", value: mode == "no" ? "scale" : mode)
     }
@@ -1766,15 +1728,6 @@ final class MPVLayerRenderer {
         }
         Logger.shared.log("setAudioTrack: setting aid to \(trackId)", type: "Info")
         setProperty(name: "aid", value: String(trackId))
-    }
-    
-    func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
-        onQueue { [weak self] in
-            guard let self, let handle = self.mpv else { return completion(0) }
-            var aid: Int64 = 0
-            self.getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
-            completion(Int(aid))
-        }
     }
 
     // MARK: - HDR Detection

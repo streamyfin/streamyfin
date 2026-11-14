@@ -3,18 +3,12 @@ import { useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
-import useRouter from "@/hooks/useAppRouter";
-import { isNativePlayerPresented } from "@/modules/mpv-player";
 import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
-import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
-import { writeErrorLog } from "@/utils/log";
-import {
-  type PlayRequest,
-  toDirectPlayerQuery,
-} from "@/utils/nativePlayer/playRequest";
+import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { resetStillWatchingSession } from "@/utils/stillWatching";
 
 interface PlayMediaOptions {
@@ -30,21 +24,14 @@ interface PlayMediaOptions {
   item?: BaseItemDto | null;
 }
 
-// Module level, not per hook: the channel grid, the guide and the Play button
-// each hold their own usePlayMedia, and any of them can replace the others.
-let latestPlayRequest = 0;
-
 /**
- * Single entry point for starting video playback on mobile and TV. Routes to
- * the presented native player (isNativeChromeActive) or the JS player route;
- * any native decline (unsupported platform, config/present failure)
- * falls through to the route, so a broken native path can never block
- * playback. The engine — selected via settings.videoPlayer — travels inside
- * the presented config and renders in the JS route's VideoPlayerView.
+ * Single entry point for starting video playback on mobile and TV: hands the
+ * request to the presented native player, or to the SyncPlay group when in
+ * one. A play the player cannot start (unsupported platform, config or
+ * present failure) is explained by the provider, which is the only one that
+ * can tell a failure from a request a newer one replaced.
  */
 export const usePlayMedia = () => {
-  const router = useRouter();
-  const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
   const { presentFromRequest } = useNativePlayer();
   const syncPlay = useSyncPlay();
@@ -61,7 +48,7 @@ export const usePlayMedia = () => {
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
-      // A Book, a Season or a folder has no stream: both players would open,
+      // A Book, a Season or a folder has no stream: the player would open,
       // get a 400 from the server and leave the user on a dead screen. Say
       // why instead, and leave the shuffle queue and auto-play chain alone.
       if (options?.item && !isPlayableItem(options.item)) {
@@ -69,9 +56,7 @@ export const usePlayMedia = () => {
         return;
       }
 
-      const isLive =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
+      const isLive = isLiveTvItem(options?.item);
 
       if (syncPlay.enabled) {
         if (req.offline || isLive) {
@@ -109,37 +94,13 @@ export const usePlayMedia = () => {
         setShuffleQueue(null);
       }
 
-      const request = ++latestPlayRequest;
       // A tuner takes seconds to open a channel. A viewer who went back
       // meanwhile gave up on it, and the player must not open over wherever
       // they went. Live only: the top shelf route replaces itself with Home
       // before it plays a video, which must still open.
       const isCurrent = isLive ? () => mountedRef.current : undefined;
-      if (
-        isNativeChromeActive(settings) &&
-        (await presentFromRequest(req, { isCurrent }))
-      ) {
-        return;
-      }
-
-      // A newer play started while this one negotiated (a live channel takes
-      // seconds to open, long enough to press it again), or the viewer left.
-      // Neither is a decline: the newer request owns the player, and nobody
-      // is waiting for this one.
-      if (request !== latestPlayRequest || isCurrent?.() === false) return;
-
-      // Never stack the JS route under a still-presented native player (a
-      // failed in-place swap keeps the old native session on screen). From
-      // the user's side this is a Play tap that did nothing, so record it.
-      if (isNativePlayerPresented()) {
-        writeErrorLog(
-          "Play request dropped: native player still presented after failed present",
-        );
-        return;
-      }
-
-      router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
+      await presentFromRequest(req, { isCurrent, alertOnFailure: true });
     },
-    [router, settings, setShuffleQueue, presentFromRequest, syncPlay, t],
+    [setShuffleQueue, presentFromRequest, syncPlay, t],
   );
 };

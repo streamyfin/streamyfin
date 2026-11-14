@@ -14,9 +14,9 @@ export type TVOptionModalState = {
   cardWidth?: number;
   cardHeight?: number;
   /**
-   * Run onSelect AFTER the modal route is dismissed. Needed only when onSelect
-   * navigates (the in-player audio switch replacing the player while
-   * transcoding), which the still-active modal route would otherwise swallow.
+   * Run onSelect AFTER the modal route is dismissed. Used when onSelect opens
+   * the player (the series shuffle), so it opens once the sheet is gone rather
+   * than under it.
    * Default (false) runs onSelect before closing, so state-only callers (detail
    * page, library filters, settings) don't re-render after focus returns and
    * lose TV focus.

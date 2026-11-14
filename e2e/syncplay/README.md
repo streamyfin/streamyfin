@@ -43,9 +43,8 @@ as `syncplay-guest` and to Jellyfin Web on the same server as `syncplay-host`, a
 both in one group. An Android emulator reaches the server through
 `adb reverse tcp:18096 tcp:18096`.
 
-SyncPlay always presents the native Swift or Compose player, whatever the solo player
-preference is. After a change under `modules/`, rebuild the app: a Metro reload cannot
-add native exports.
+SyncPlay plays in the native Swift or Compose player, like any other play. After a
+change under `modules/`, rebuild the app: a Metro reload cannot add native exports.
 
 `observe.py` records what the server reports for both sessions after a UI action, and
 can assert on it:

@@ -19,6 +19,8 @@ class MPVNowPlayingManager {
     private var isCommandsSetup = false
     private var skipForwardSeconds: Double = 15
     private var skipBackwardSeconds: Double = 15
+    /// A Live TV channel: no duration, no position to move to, no skip.
+    private var isLive = false
     
     private var artworkTask: URLSessionDataTask?
     
@@ -35,6 +37,22 @@ class MPVNowPlayingManager {
         cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipBackwardSeconds)]
     }
     
+    /// A live stream offers play and pause only, on the lock screen, in
+    /// Control Center and to a headset, and shows as live rather than as a
+    /// timeline of what was read so far.
+    func setLive(_ live: Bool) {
+        isLive = live
+        applySeekCommandsEnabled()
+        refresh()
+    }
+
+    private func applySeekCommandsEnabled() {
+        let cc = MPRemoteCommandCenter.shared()
+        cc.skipForwardCommand.isEnabled = !isLive
+        cc.skipBackwardCommand.isEnabled = !isLive
+        cc.changePlaybackPositionCommand.isEnabled = !isLive
+    }
+
     // MARK: - Remote Commands
     
     func setupRemoteCommands(
@@ -63,25 +81,23 @@ class MPVNowPlayingManager {
         cc.togglePlayPauseCommand.isEnabled = true
         cc.togglePlayPauseCommand.addTarget { _ in toggleHandler(); return .success }
         
-        cc.skipForwardCommand.isEnabled = true
         cc.skipForwardCommand.preferredIntervals = [NSNumber(value: skipForwardSeconds)]
         cc.skipForwardCommand.addTarget { e in
             if let ev = e as? MPSkipIntervalCommandEvent { skipForward(ev.interval) }
             return .success
         }
         
-        cc.skipBackwardCommand.isEnabled = true
         cc.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipBackwardSeconds)]
         cc.skipBackwardCommand.addTarget { e in
             if let ev = e as? MPSkipIntervalCommandEvent { skipBackward(ev.interval) }
             return .success
         }
         
-        cc.changePlaybackPositionCommand.isEnabled = true
         cc.changePlaybackPositionCommand.addTarget { e in
             if let ev = e as? MPChangePlaybackPositionCommandEvent { seekHandler(ev.positionTime) }
             return .success
         }
+        applySeekCommandsEnabled()
         
         print("[NowPlaying] Remote commands ready")
     }
@@ -153,6 +169,10 @@ class MPVNowPlayingManager {
         duration = 0
         position = 0
         isPlaying = false
+        // The command center is shared with the music player: leave its
+        // seek commands as a film leaves them.
+        isLive = false
+        applySeekCommandsEnabled()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         print("[NowPlaying] Cleared")
     }
@@ -161,16 +181,25 @@ class MPVNowPlayingManager {
     
     /// Refresh Now Playing info if we have enough data
     private func refresh() {
-        guard duration > 0 else {
-            print("[NowPlaying] refresh skipped - duration is 0")
-            return
+        var info: [String: Any]
+        if isLive {
+            // mpv's duration for a live stream is how far it has read. With
+            // none, the lock screen shows LIVE instead of a bar to drag.
+            info = [
+                MPNowPlayingInfoPropertyIsLiveStream: true,
+                MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            ]
+        } else {
+            guard duration > 0 else {
+                print("[NowPlaying] refresh skipped - duration is 0")
+                return
+            }
+            info = [
+                MPMediaItemPropertyPlaybackDuration: duration,
+                MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
+                MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            ]
         }
-        
-        var info: [String: Any] = [
-            MPMediaItemPropertyPlaybackDuration: duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
-        ]
         
         if let title { info[MPMediaItemPropertyTitle] = title }
         if let artist { info[MPMediaItemPropertyArtist] = artist }
@@ -178,6 +207,6 @@ class MPVNowPlayingManager {
         if let cachedArtwork { info[MPMediaItemPropertyArtwork] = cachedArtwork }
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
-        print("[NowPlaying] ✅ Set info: title=\(title ?? "nil"), dur=\(Int(duration))s, pos=\(Int(position))s, rate=\(isPlaying ? 1.0 : 0.0)")
+        print("[NowPlaying] ✅ Set info: title=\(title ?? "nil"), live=\(isLive), dur=\(Int(duration))s, pos=\(Int(position))s, rate=\(isPlaying ? 1.0 : 0.0)")
     }
 }

@@ -1,8 +1,6 @@
 import { Api } from "@jellyfin/sdk";
 import { MediaSegmentType } from "@jellyfin/sdk/lib/generated-client/models/media-segment-type";
 import { getMediaSegmentApi } from "@jellyfin/sdk/lib/utils/api/media-segment-api";
-import { useQuery } from "@tanstack/react-query";
-import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
 
 export interface SegmentBuckets {
@@ -38,8 +36,6 @@ export const SEGMENT_SKIPPED_KEY = {
   Preview: "player.segment_skipped_preview",
 } as const satisfies Record<string, string>;
 
-export type SegmentTypeName = keyof typeof SEGMENT_SKIP_KEY;
-
 /**
  * Shape returned by the intro-skipper plugin's `GET /Episode/{id}/Timestamps`
  * (https://github.com/intro-skipper/intro-skipper). Times are in seconds from
@@ -73,32 +69,6 @@ const emptyBuckets = (): SegmentBuckets => ({
   commercialSegments: [],
   previewSegments: [],
 });
-
-export const useSegments = (
-  itemId: string,
-  isOffline: boolean,
-  downloadedFiles: DownloadedItem[] | undefined,
-  api: Api | null,
-) => {
-  const downloadedItem = React.useMemo(
-    () => downloadedFiles?.find((d) => d.item.Id === itemId),
-    [downloadedFiles, itemId],
-  );
-
-  return useQuery({
-    queryKey: ["segments", itemId, isOffline],
-    queryFn: async () => {
-      if (isOffline && downloadedItem) {
-        return getSegmentsForItem(downloadedItem);
-      }
-      if (!api) {
-        throw new Error("API client is not available");
-      }
-      return fetchAndParseSegments(itemId, api);
-    },
-    enabled: !!itemId && (isOffline ? !!downloadedItem : !!api),
-  });
-};
 
 export const getSegmentsForItem = (item: DownloadedItem): SegmentBuckets => ({
   introSegments: item.introSegments || [],

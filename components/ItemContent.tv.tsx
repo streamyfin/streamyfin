@@ -7,7 +7,6 @@ import type {
 import { getLibraryApi, getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
-import { File } from "expo-file-system";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -51,7 +50,6 @@ import {
   TVTechnicalDetails,
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
-import type { Track } from "@/components/video-player/controls/types";
 import {
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
@@ -72,9 +70,9 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
-import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -82,6 +80,7 @@ import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { scaleSize } from "@/utils/scaleSize";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
+import { savedSubtitleFiles } from "@/utils/subtitles/savedSubtitles";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {
   buildAudioMenu,
@@ -99,6 +98,8 @@ export type SelectedOptions = {
   mediaSource: MediaSourceInfo | undefined;
   audioIndex: number | undefined;
   subtitleIndex: number;
+  /** The file of a subtitle saved on this device, when one is picked. */
+  subtitlePath?: string;
 };
 
 interface ItemContentTVProps {
@@ -230,6 +231,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             itemId: item.Id!,
             audioIndex: selectedOptions.audioIndex,
             subtitleIndex: selectedOptions.subtitleIndex,
+            subtitlePath: selectedOptions.subtitlePath,
             mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
             bitrateValue: selectedOptions.bitrate?.value ?? undefined,
             offline: isOffline,
@@ -316,14 +318,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // State to trigger refresh of local subtitles list
     const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
 
-    /** Client-side downloads that still exist on disk (the cache may be cleared). */
-    const localSubFiles = useMemo(() => {
-      if (!item?.Id) return [];
-      return getSubtitlesForItem(item.Id)
-        .filter((s) => new File(s.filePath).exists)
-        .map((s) => ({ name: s.name, filePath: s.filePath }));
+    /**
+     * Client-side downloads that still exist on disk (the cache may be
+     * cleared). The player resolves a sidecar row from the same list.
+     */
+    const localSubFiles = useMemo(
+      () => (item?.Id ? savedSubtitleFiles(item.Id) : []),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [item?.Id, localSubtitlesRefreshKey]);
+      [item?.Id, localSubtitlesRefreshKey],
+    );
 
     const audioRows = useMemo(
       () =>
@@ -441,7 +444,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const handleSubtitleChange = useCallback(
       (row: TrackMenuRow) => {
         setSelectedOptions((prev) =>
-          prev ? { ...prev, subtitleIndex: row.index } : undefined,
+          prev
+            ? {
+                ...prev,
+                subtitleIndex: row.index,
+                subtitlePath:
+                  row.kind === "sidecar" ? row.localPath : undefined,
+              }
+            : undefined,
         );
         rememberSeriesTrackFromRow({
           item: itemWithSources ?? item,

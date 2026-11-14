@@ -27,6 +27,8 @@ struct StreamConfigRecord: Record {
 	/// Source video dimensions (for zoom-to-fill subtitle compensation).
 	@Field var videoWidth: Int?
 	@Field var videoHeight: Int?
+	/// A Live TV channel: no seek is offered and the chrome shows LIVE.
+	@Field var isLive: Bool = false
 }
 
 struct MetadataRecord: Record {
@@ -52,8 +54,8 @@ struct MediaSegmentRecord: Record {
 	@Field var startSec: Double = 0
 	@Field var endSec: Double = 0
 	/// "none" | "ask" | "auto". Resolved on the JS side from the per-type skip
-	/// settings so this player never reads settings and cannot drift from the
-	/// JS players. "none" segments are not sent at all; absent means "ask".
+	/// settings so this player never reads settings and cannot drift from them.
+	/// "none" segments are not sent at all; absent means "ask".
 	@Field var skipMode: String = "ask"
 }
 
@@ -258,6 +260,7 @@ extension StreamConfigRecord {
 			demuxerMaxBackBytes: cacheConfig?.maxBackBytes
 		)
 		config.requestedURL = url
+		config.isLive = isLive
 		return config
 	}
 }

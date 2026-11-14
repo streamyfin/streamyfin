@@ -22,7 +22,6 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
-import type { Track } from "@/components/video-player/controls/types";
 import { TVSheetTiming } from "@/constants/TVSheet";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -32,8 +31,8 @@ import {
 } from "@/hooks/useRemoteSubtitles";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useSettings } from "@/utils/atoms/settings";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
-import { deferToMicrotask } from "@/utils/deferToMicrotask";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { scaleSize } from "@/utils/scaleSize";
@@ -549,9 +548,6 @@ export default function TVSubtitleModal() {
   const typography = useScaledTVTypography();
 
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
-  const [subtitleDelay, setSubtitleDelay] = useState(
-    modalState?.subtitleDelay ?? 0,
-  );
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [hasSearchedThisSession, setHasSearchedThisSession] = useState(false);
@@ -661,7 +657,7 @@ export default function TVSubtitleModal() {
     close();
   }, [close, submission]);
 
-  // Intercept back/menu press to close the modal instead of the player
+  // Intercept back/menu press to close the modal instead of the page under it
   useTVBackPress(() => {
     handleClose();
     return true;
@@ -678,31 +674,23 @@ export default function TVSubtitleModal() {
   const handleTrackSelect = useCallback(
     (option: { setTrack?: () => void }) => {
       if (!submission.dismiss()) return;
-      if (modalState?.deferApplyUntilDismissed) {
-        // Player: setTrack can navigate (replacePlayer for a burn-in switch
-        // while transcoding); a router.replace fired while this modal is the
-        // active route targets the MODAL and is swallowed. Close FIRST, apply
-        // after dismissal.
-        close();
-        deferToMicrotask(() => option.setTrack?.());
-        return;
-      }
-      // Detail page: setTrack only updates state. Run it BEFORE closing so the
-      // re-render happens while the modal is up; deferring it until after
-      // dismissal re-renders the detail page after focus returns and yanks TV
-      // focus, leaving navigation stuck. The guard is spent already, so the
-      // sheet closes even when the track throws.
+      // setTrack only updates the detail page's state. Run it BEFORE closing
+      // so the re-render happens while the modal is up; deferring it until
+      // after dismissal re-renders the detail page after focus returns and
+      // yanks TV focus, leaving navigation stuck. The guard is spent already,
+      // so the sheet closes even when the track throws.
       try {
         option.setTrack?.();
       } finally {
         close();
       }
     },
-    [close, modalState?.deferApplyUntilDismissed, submission],
+    [close, submission],
   );
 
   const handleDownload = useCallback(
     async (result: SubtitleSearchResult) => {
+      if (!modalState) return;
       // One download at a time: a second press in the same batch lands before
       // downloadingId disables the cards.
       if (!submission.start()) return;
@@ -722,51 +710,43 @@ export default function TVSubtitleModal() {
           if (!isMountedRef.current) return;
 
           // Refresh tracks and stay open for server-side downloads
-          if (modalState?.refreshSubtitleTracks) {
-            const newTracks = await modalState.refreshSubtitleTracks();
+          const newTracks = await modalState.refreshSubtitleTracks();
 
-            // Check if component is still mounted after fetching tracks
-            if (!isMountedRef.current) return;
+          // Check if component is still mounted after fetching tracks
+          if (!isMountedRef.current) return;
 
-            // Update atom with new tracks
-            store.set(tvSubtitleModalAtom, {
-              ...modalState,
-              subtitleTracks: newTracks,
-            });
-            // Switch to tracks tab to show the new subtitle
-            setActiveTab("tracks");
-          }
+          // Update atom with new tracks
+          store.set(tvSubtitleModalAtom, {
+            ...modalState,
+            subtitleTracks: newTracks,
+          });
+          // Switch to tracks tab to show the new subtitle
+          setActiveTab("tracks");
 
           // Also call onServerSubtitleDownloaded to invalidate React Query cache
-          // (used when opening modal from item detail page)
-          modalState?.onServerSubtitleDownloaded?.();
+          modalState.onServerSubtitleDownloaded?.();
 
           // Do NOT close modal - user can see and select the new track
         } else if (downloadResult.type === "local" && downloadResult.path) {
           // Notify parent that a local subtitle was downloaded
-          modalState?.onLocalSubtitleDownloaded?.(downloadResult.path);
+          modalState.onLocalSubtitleDownloaded?.(downloadResult.path);
 
           // Check if component is still mounted after callback
           if (!isMountedRef.current) return;
 
           // Refresh tracks to include the newly downloaded subtitle
-          if (modalState?.refreshSubtitleTracks) {
-            const newTracks = await modalState.refreshSubtitleTracks();
+          const newTracks = await modalState.refreshSubtitleTracks();
 
-            // Check if component is still mounted after fetching tracks
-            if (!isMountedRef.current) return;
+          // Check if component is still mounted after fetching tracks
+          if (!isMountedRef.current) return;
 
-            // Update atom with new tracks
-            store.set(tvSubtitleModalAtom, {
-              ...modalState,
-              subtitleTracks: newTracks,
-            });
-            // Switch to tracks tab to show the new subtitle
-            setActiveTab("tracks");
-          } else {
-            // No refreshSubtitleTracks available (e.g., from player), just close
-            handleClose();
-          }
+          // Update atom with new tracks
+          store.set(tvSubtitleModalAtom, {
+            ...modalState,
+            subtitleTracks: newTracks,
+          });
+          // Switch to tracks tab to show the new subtitle
+          setActiveTab("tracks");
         }
       } catch (error) {
         console.error("Failed to download subtitle:", error);
@@ -777,7 +757,7 @@ export default function TVSubtitleModal() {
         }
       }
     },
-    [downloadAsync, modalState, handleClose, submission],
+    [downloadAsync, modalState, submission],
   );
 
   const displayLanguages = useMemo(
@@ -1059,32 +1039,6 @@ export default function TVSubtitleModal() {
                       {t("home.settings.subtitles.subtitle_size")}
                     </Text>
                   </View>
-
-                  {modalState?.onSubtitleDelayChange && (
-                    <View style={styles.settingRow}>
-                      <TVStepperControl
-                        value={subtitleDelay}
-                        min={-5}
-                        max={5}
-                        step={0.25}
-                        formatValue={(value) =>
-                          `${value > 0 ? "+" : ""}${Number(value.toFixed(2))} s`
-                        }
-                        onChange={(value) => {
-                          setSubtitleDelay(value);
-                          modalState.onSubtitleDelayChange?.(value);
-                        }}
-                      />
-                      <Text
-                        style={[
-                          styles.settingLabel,
-                          { fontSize: typography.callout },
-                        ]}
-                      >
-                        {t("player.subtitle_sync")}
-                      </Text>
-                    </View>
-                  )}
 
                   {/* Vertical Margin */}
                   <View style={styles.settingRow}>

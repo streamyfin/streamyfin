@@ -2,7 +2,7 @@ import { act, cleanup, renderHook } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
-import { stubReactNative } from "@/test-utils/reactNative";
+import { requireOnPlatform, stubReactNative } from "@/test-utils/reactNative";
 import { markExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -27,9 +27,8 @@ jest.mock("@/utils/atoms/api", () => ({
 const mockLogAndCaptureError = jest.mocked(logAndCaptureError);
 const mockWriteInfoLog = jest.mocked(writeInfoLog);
 
-// Android TV: the only platform where ExoPlayer ships alongside a
-// native-player toggle, so the only place the engine/controls split is
-// observable end to end.
+// Android TV: the only platform where ExoPlayer ships, so the only place the
+// engine pick is observable.
 stubReactNative({ OS: "android", isTV: true });
 
 // Required after the platform is set, not imported: settings.ts reads
@@ -38,10 +37,8 @@ const {
   defaultValues,
   effectiveSettingsAtom,
   getActivePlayerType,
-  getActiveVideoPlayer,
   getActiveVideoPlayerEngine,
   fetchPluginSettings,
-  isNativeChromeActive,
   migrateStillWatchingSetting,
   pluginSettingsAtom,
   redactPluginSettings,
@@ -78,38 +75,54 @@ const failuresThatSayNothing: Array<[string, Error]> = [
   ],
 ];
 
-describe("engine vs chrome resolution on Android TV", () => {
-  test("the engine is honored while the native chrome is on", () => {
-    const s = {
-      videoPlayer: VideoPlayer.ExoPlayer,
-      nativeVideoPlayerAndroidTV: true,
-    };
-    expect(isNativeChromeActive(s)).toBe(true); // chrome renders
-    expect(getActivePlayerType(s)).toBe("exoplayer"); // engine still exo
+describe("engine resolution on Android TV", () => {
+  test("an ExoPlayer pick is honored", () => {
+    const s = { videoPlayer: VideoPlayer.ExoPlayer };
+    expect(getActivePlayerType(s)).toBe("exoplayer");
     expect(getActiveVideoPlayerEngine(s)).toBe(VideoPlayer.ExoPlayer);
   });
 
-  test("exo engine with the chrome off renders the exo JS view", () => {
-    const s = {
-      videoPlayer: VideoPlayer.ExoPlayer,
-      nativeVideoPlayerAndroidTV: false,
-    };
-    expect(isNativeChromeActive(s)).toBe(false);
-    expect(getActiveVideoPlayer(s)).toBe(VideoPlayer.ExoPlayer);
-    expect(getActivePlayerType(s)).toBe("exoplayer");
-  });
-
-  test("toggle on from the mpv default keeps the mpv profile", () => {
-    const s = { nativeVideoPlayerAndroidTV: true };
-    expect(isNativeChromeActive(s)).toBe(true);
-    expect(getActivePlayerType(s)).toBe("mpv");
-    expect(getActiveVideoPlayer({})).toBe(VideoPlayer.MPV);
-    expect(getActiveVideoPlayerEngine({})).toBe(VideoPlayer.MPV);
-  });
-
-  test("an unset engine pick resolves to mpv everywhere", () => {
+  test("an unset engine pick resolves to mpv", () => {
     expect(getActivePlayerType({})).toBe("mpv");
     expect(getActiveVideoPlayerEngine(undefined)).toBe(VideoPlayer.MPV);
+  });
+
+  // 2 was "Native" in the player picker the JS player came with. Installs
+  // that stored it keep the value.
+  test("a pick stored by the retired player picker resolves to mpv", () => {
+    const s = { videoPlayer: 2 as never };
+    expect(getActivePlayerType(s)).toBe("mpv");
+    expect(getActiveVideoPlayerEngine(s)).toBe(VideoPlayer.MPV);
+  });
+});
+
+// The Apple TV chrome is built on tvOS 26 APIs, and there is no other
+// player: an older Apple TV is told so instead of being handed one.
+describe("where the player runs", () => {
+  const supportedOn = (platform: Parameters<typeof requireOnPlatform>[0]) =>
+    requireOnPlatform(
+      platform,
+      () =>
+        (require("./settings") as typeof import("./settings"))
+          .isPlayerSupported,
+    );
+
+  test.each([
+    ["an iPhone", { OS: "ios", Version: "17.5" }, true],
+    [
+      "an Apple TV on tvOS 26",
+      { OS: "ios", isTV: true, Version: "26.0" },
+      true,
+    ],
+    [
+      "an Apple TV on tvOS 18",
+      { OS: "ios", isTV: true, Version: "18.6" },
+      false,
+    ],
+    ["an Android phone", { OS: "android", Version: 34 }, true],
+    ["an Android TV", { OS: "android", isTV: true, Version: 34 }, true],
+  ] as const)("%s", (_device, platform, supported) => {
+    expect(supportedOn(platform)).toBe(supported);
   });
 });
 
@@ -758,6 +771,40 @@ describe("loading the settings", () => {
       openSubtitlesApiKey: "my-key",
     });
     expect(storage.get(PLUGIN_APPLIED_DEFAULTS_KEY)).toEqual({});
+  });
+
+  // The JS player's switches, and the picker's "Native" (2), mean nothing
+  // since it was removed.
+  test("drops the settings the JS player left behind", async () => {
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({
+        safeAreaInControlsEnabled: false,
+        nativeVideoPlayerTV: false,
+        nativeVideoPlayerAndroidTV: true,
+        videoPlayer: 2,
+        openSubtitlesApiKey: "my-key",
+      }),
+    );
+
+    await renderHook(() => useSettings());
+
+    expect(JSON.parse(storage.getString(SETTINGS_KEY) ?? "{}")).toEqual({
+      openSubtitlesApiKey: "my-key",
+    });
+  });
+
+  test("keeps ExoPlayer, which Android TV still offers", async () => {
+    storage.set(
+      SETTINGS_KEY,
+      JSON.stringify({ videoPlayer: 1, nativeVideoPlayerAndroidTV: true }),
+    );
+
+    await renderHook(() => useSettings());
+
+    expect(JSON.parse(storage.getString(SETTINGS_KEY) ?? "{}")).toEqual({
+      videoPlayer: 1,
+    });
   });
 });
 

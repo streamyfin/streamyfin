@@ -7,8 +7,6 @@ export type {
   DownloadStartedEvent,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
-// ExoPlayer (Android TV)
-export { ExoPlayerView } from "./exoplayer-player";
 // Glass Poster (tvOS 26+)
 export type { GlassPosterViewProps } from "./glass-poster";
 export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
@@ -25,7 +23,6 @@ export { HeroCarouselView, isHeroCarouselAvailable } from "./hero-carousel";
 // MPV Player (iOS + Android)
 // Presented native player (iOS + Android phone/tablet)
 export type {
-  AudioTrack as MpvAudioTrack,
   MpvPlayerViewProps,
   MpvPlayerViewRef,
   NativePlayerConfig,
@@ -43,14 +40,7 @@ export type {
   NativePlayerTrackMenus,
   NativePlayerTrackSelectionRequest,
   NativePlayerTrickplay,
-  OnErrorEventPayload as MpvOnErrorEventPayload,
-  OnLoadEventPayload as MpvOnLoadEventPayload,
-  OnPlaybackStateChangePayload as MpvOnPlaybackStateChangePayload,
-  OnProgressEventPayload as MpvOnProgressEventPayload,
-  OnTracksReadyEventPayload as MpvOnTracksReadyEventPayload,
   SubtitleStyleConfig,
-  SubtitleTrack as MpvSubtitleTrack,
-  VideoSource as MpvVideoSource,
 } from "./mpv-player";
 export {
   addNativePlayerListener,

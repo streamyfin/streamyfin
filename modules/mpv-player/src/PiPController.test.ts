@@ -66,9 +66,8 @@ describe("iOS automatic PiP lifecycle", () => {
     expect(source).toMatch(
       /init\([\s\S]*delegate: PiPControllerDelegate[\s\S]*self\.delegate = delegate[\s\S]*setupPictureInPicture\(\)/,
     );
-    expect(embeddedHostSource).toMatch(
-      /override func didMoveToWindow\(\)[\s\S]*setPictureInPictureHostVisible\(window != nil\)/,
-    );
+    // The subtitle preview's embedded view never offers picture in picture.
+    expect(embeddedHostSource).not.toContain("setPictureInPictureHostVisible");
     expect(nativeHostSource).toMatch(
       /override func viewDidAppear\(_ animated: Bool\)[\s\S]*setPictureInPictureHostVisible\(true\)/,
     );
@@ -104,6 +103,31 @@ describe("iOS automatic PiP lifecycle", () => {
     );
     expect(engineSource).toMatch(
       /pictureInPictureAutoStartEnabled \|\| allowManualStart/,
+    );
+  });
+});
+
+// AVKit never stops a sample-buffer PiP on its own: back in the app, the
+// player sat behind "This video is playing in picture in picture" until the
+// window's own button was found.
+describe("iOS return to the app", () => {
+  const foregroundHandler = methodSection(
+    "@objc private func handleWillEnterForeground()",
+    "\n\t}",
+  );
+
+  test("brings the player back out of its window", () => {
+    expect(engineSource).toMatch(
+      /selector: #selector\(handleWillEnterForeground\),\s*name: UIApplication\.willEnterForegroundNotification/,
+    );
+    expect(foregroundHandler).toContain("isPictureInPictureActive()");
+    expect(foregroundHandler).toContain("stopPictureInPicture()");
+  });
+
+  // Coming back is a restore, not a close: a SyncPlay member stays in its group.
+  test("stops it as a restore", () => {
+    expect(foregroundHandler).toMatch(
+      /pictureInPictureStopIsRestore = true[\s\S]*stopPictureInPicture\(\)/,
     );
   });
 });

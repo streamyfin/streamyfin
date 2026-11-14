@@ -12,6 +12,8 @@ val PlayerAccentColor = Color(0xFF9334E9)
 val PlayerTrackBackground = Color(0x40FFFFFF)
 val PlayerBufferTrack = Color(0x66FFFFFF)
 val PlayerProgressTrack = Color(0xFFFFFFFF)
+// The LIVE badge red, keep in sync with constants/Colors.ts `live`.
+val PlayerLiveBadgeColor = Color(0xFFEF4444)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color.White,

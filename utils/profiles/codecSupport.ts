@@ -9,10 +9,11 @@ import { Platform } from "react-native";
 /**
  * Subset of the MpvPlayer native module used for capability probing.
  * `supportsAv1HardwareDecode` asks VideoToolbox on iOS/tvOS and MediaCodec on
- * Android.
+ * Android. `supportsDolbyVisionDecode` is implemented on Android only.
  */
 type MpvPlayerCapabilities = {
   supportsAv1HardwareDecode?: () => boolean;
+  supportsDolbyVisionDecode?: () => boolean;
 };
 
 /**
@@ -97,14 +98,6 @@ export const supportsAv1Transcode = (): boolean => {
   return cachedAv1Transcode;
 };
 
-/**
- * Subset of the ExoPlayer native module used for capability probing.
- * `supportsDolbyVisionDecode` is implemented on Android only.
- */
-type ExoPlayerCapabilities = {
-  supportsDolbyVisionDecode?: () => boolean;
-};
-
 let cachedDolbyVisionSupport: boolean | undefined;
 
 /**
@@ -122,14 +115,12 @@ export const supportsDolbyVisionHardwareDecode = (): boolean => {
   if (Platform.OS !== "android" || !Platform.isTV) return false;
 
   if (cachedDolbyVisionSupport === undefined) {
-    const exoPlayerModule =
-      requireOptionalNativeModule<ExoPlayerCapabilities>("ExoPlayer");
+    const mpv = requireOptionalNativeModule<MpvPlayerCapabilities>("MpvPlayer");
     try {
       // Fallback false = current behavior (transcode pure Profile 5), so an
       // unreachable probe (JS-only OTA update on an older binary) can never
       // regress an uncertified device into broken colors.
-      cachedDolbyVisionSupport =
-        exoPlayerModule?.supportsDolbyVisionDecode?.() ?? false;
+      cachedDolbyVisionSupport = mpv?.supportsDolbyVisionDecode?.() ?? false;
     } catch {
       cachedDolbyVisionSupport = false;
     }

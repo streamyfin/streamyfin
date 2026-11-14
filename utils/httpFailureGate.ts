@@ -19,10 +19,8 @@ export type HttpFailureVerdict = "report" | "duplicate" | "storm";
 // One event per (backend, route, status) per session, whichever call site
 // sees the failure first. A failing endpoint is hit again by every keystroke
 // in search, by every screen that mounts the same request, and by each layer
-// that handles the same playback (the native player fails to build its
-// config, the JS player then fails on the very same request): the repeat
-// says nothing the first did not, and filed under another message it opens a
-// second issue for one failure.
+// that handles the same playback: the repeat says nothing the first did not,
+// and filed under another message it opens a second issue for one failure.
 const reported = new Set<string>();
 
 // The latest reported failure per (backend, status), which is what the next

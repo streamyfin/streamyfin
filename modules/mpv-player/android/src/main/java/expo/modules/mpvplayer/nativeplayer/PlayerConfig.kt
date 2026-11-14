@@ -25,6 +25,8 @@ class StreamConfigRecord : Record {
     @Field var videoWidth: Int? = null
     @Field var videoHeight: Int? = null
     @Field var contentFrameRate: Double? = null
+    /** A Live TV channel: no seek is offered and the chrome shows LIVE. */
+    @Field var isLive: Boolean = false
 
     fun toVideoLoadConfig(): VideoLoadConfig? {
         if (url.isBlank()) return null
@@ -40,7 +42,8 @@ class StreamConfigRecord : Record {
             cacheSeconds = cacheConfig?.cacheSeconds,
             demuxerMaxBytes = cacheConfig?.maxBytes,
             demuxerMaxBackBytes = cacheConfig?.maxBackBytes,
-            contentFrameRate = contentFrameRate
+            contentFrameRate = contentFrameRate,
+            isLive = isLive
         )
     }
 }

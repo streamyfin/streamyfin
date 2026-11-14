@@ -74,17 +74,17 @@ State and data:
 - `polling-query-rewrites-persisted-cache` | a persisted query with `refetchInterval` re-serializes the whole persisted cache every tick, even when its data never changes (`withoutRedundantSaves` only skips the ticks of queries that are not persisted); enable it only while a consumer is focused, with `gcTime: 0`
 
 Native modules:
-- `exoplayer-loadcontrol-time-not-bytes` | prioritize=true is the stuck-buffer fix; the 256MB heap needs a 96MiB byte target (min 5s/max 30s) + 3s back buffer: the forward buffer holds min(bitrate × 30s, 96MiB) but never less than bitrate × 5s, plus bitrate × 3s behind (75MB forward at 20Mbps, ~150MB in all at 150Mbps), where the old setup filled bitrate × 20s and OOM'd a ~100Mbps DV remux (loader → error_code_io_unspecified, or an unrelated thread kills the process); constants duplicated in ExoPlayerView.kt AND ExoPlayerEngine.kt, keep in lockstep
-- `exo-chrome-rebuilds-player-per-load` | the chrome's ExoPlayerEngine releases and rebuilds the player on every accepted load; preparing a new source on the instance that just hit STATE_ENDED stalled the next-episode swap for minutes; ExoPlayerView.kt deliberately keeps one instance (onTracksReady is once-per-view)
+- `exoplayer-loadcontrol-time-not-bytes` | prioritize=true is the stuck-buffer fix; the 256MB heap needs a 96MiB byte target (min 5s/max 30s) + 3s back buffer: the forward buffer holds min(bitrate × 30s, 96MiB) but never less than bitrate × 5s, plus bitrate × 3s behind (75MB forward at 20Mbps, ~150MB in all at 150Mbps), where the old setup filled bitrate × 20s and OOM'd a ~100Mbps DV remux (loader → error_code_io_unspecified, or an unrelated thread kills the process); the constants live in ExoPlayerEngine.kt
+- `exo-chrome-rebuilds-player-per-load` | the chrome's ExoPlayerEngine releases and rebuilds the player on every accepted load; preparing a new source on the instance that just hit STATE_ENDED stalled the next-episode swap for minutes
 - `expo-view-props-fail-silently` | `try? prop.set()` drops failed prop conversions with NO error; use a JSON string prop
 - `mpv-tvos-player-exit-freeze` | mpv_terminate_destroy deadlocks main thread; use DispatchQueue.global()
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
-- `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
-- `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
-- `native-player-ignores-js-controls` | the iPhone/iPad default player is a presented native view controller; Controls.tsx and its hooks never mount there, so input (keyboard) needs a native counterpart
-- `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
+- `engine-agnostic-native-chrome` | The Android chrome consumes PlayerEngine; engine rides config.engine, settings.videoPlayer picks the engine and nothing else
+- `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector
+- `native-player-input-needs-native-handlers` | the iPhone/iPad player is a presented native view controller; no React component mounts over it, so input (keyboard) is handled in NativePlayerViewController
+- `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition. A play request with no position is passed on without one: 0 means start over
 - `sentry-native-options-fail-silently` | sentry-cocoa ignores an option key it does not know, with no error; check the spelling in Options+Dictionary.swift
 - `avaudiosession-calls-block-on-the-audio-server` | every AVAudioSession setter AND getter is a synchronous XPC call that can take seconds; never on main, session changes go through PlayerAudioSession
 - `foreground-service-start-must-be-answered` | every startForegroundService() needs startForeground() first in onStartCommand, unconditionally; a refused call still answers it, a skipped one kills the process
@@ -276,7 +276,7 @@ PersistQueryClientProvider
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.
 
 **Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
-`exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
+`background-downloader`, `glass-poster`, `hero-carousel`,
 `notification-settings-link` (the iOS Settings link to the Notifications screen),
 `system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,
 `wifi-ssid`.

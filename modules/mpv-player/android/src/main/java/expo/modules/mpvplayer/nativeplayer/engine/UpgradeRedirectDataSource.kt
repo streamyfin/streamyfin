@@ -12,11 +12,6 @@ import java.io.IOException
 import java.net.URI
 import java.net.URISyntaxException
 
-/*
- * Kept identical to its twin in the other player module (exoplayer-player and mpv-player);
- * modules/exoplayer-player/src/upgradeRedirectDataSource.test.ts fails when they differ.
- */
-
 /**
  * Which requests carry a stream's headers (the Jellyfin token, custom proxy headers): those to
  * the stream's own host and port, as the app scopes custom headers (docs/custom-headers.md). A

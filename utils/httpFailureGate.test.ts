@@ -44,8 +44,8 @@ describe("admitHttpFailure — one event per route and status per session", () =
     ).toBe("duplicate");
   });
 
-  // The native player fetches the item and fails, then the JS player fetches
-  // the same item and fails: two error objects, two messages, one failure.
+  // Two layers fetch the same item and both fail: two error objects, two
+  // messages, one failure.
   test("two requests for the same record are the same route", () => {
     const server = newServer();
     const itemA = "/Users/3fa85f64-5717-4562-b3fc-2c963f66afa6/Items/1";

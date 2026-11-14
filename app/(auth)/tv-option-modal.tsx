@@ -102,9 +102,8 @@ export default function TVOptionModal() {
   const handleSelect = (value: any) => {
     if (!modalState || !submission.dismiss()) return;
     if (modalState.deferApplyUntilDismissed) {
-      // onSelect navigates (the transcode audio switch replacing the player);
-      // a router.replace fired while this modal is the active route would be
-      // swallowed. Close FIRST, apply after dismissal.
+      // onSelect opens the player (the series shuffle): close FIRST, apply
+      // after dismissal.
       const { onSelect } = modalState;
       store.set(tvOptionModalAtom, null);
       router.back();

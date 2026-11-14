@@ -7,14 +7,11 @@ built comes from `PlayerPresentConfigRecord.engine` ("mpv" default, "exoplayer")
 which buildNativePlayerConfig sets from `getActivePlayerType` — the same resolver
 that picks the Jellyfin device profile. Consequences:
 
-- The engine setting (settings.videoPlayer) and the native-controls toggle
-  (nativeVideoPlayerAndroidTV) are independent axes; the toggle must never
-  change the engine.
-- getActivePlayerType/getActiveVideoPlayerEngine are ENGINE resolvers (never
-  return VideoPlayer.Native); getActiveVideoPlayer/isNativeChromeActive are the
-  renderer/routing resolvers. VideoPlayerView must select by the ENGINE
-  resolver — it also renders on native-decline paths (a present failure)
-  where the engine choice still applies.
+- settings.videoPlayer picks the engine and nothing else. The chrome is the
+  only player on supported platforms (Apple TV needs tvOS 26): the JS player
+  and its native-controls toggles are gone.
+- getActivePlayerType/getActiveVideoPlayerEngine are the engine resolvers. A
+  stored 2, the "Native" of the retired player picker, resolves to MPV.
 - ExoPlayerEngine is the Media3 engine (media3 deps live in mpv-player's
   build.gradle, pinned to react-native-track-player's media3Version). All its
   Player access must happen on the main looper — the module's propsHandler

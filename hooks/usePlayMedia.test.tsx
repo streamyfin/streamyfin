@@ -3,9 +3,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { usePlayMedia } from "./usePlayMedia";
 
-const mockPush = jest.fn();
 const mockPresentFromRequest = jest.fn();
-let mockNativeChromeActive = false;
 const mockResetStillWatchingSession = jest.fn();
 let mockSyncPlayEnabled = false;
 const mockSyncPlayItems = jest.fn();
@@ -21,21 +19,8 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
   }),
 }));
 
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: mockPush }),
-}));
-jest.mock("@/modules/mpv-player", () => ({
-  isNativePlayerPresented: () => false,
-}));
 jest.mock("@/providers/NativePlayerProvider", () => ({
   useNativePlayer: () => ({ presentFromRequest: mockPresentFromRequest }),
-}));
-jest.mock("@/utils/atoms/settings", () => ({
-  isNativeChromeActive: () => mockNativeChromeActive,
-  useSettings: () => ({
-    settings: {},
-  }),
 }));
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
@@ -52,9 +37,7 @@ describe("usePlayMedia", () => {
   let alert: jest.SpyInstance;
 
   beforeEach(() => {
-    mockPush.mockClear();
-    mockPresentFromRequest.mockReset().mockResolvedValue(false);
-    mockNativeChromeActive = false;
+    mockPresentFromRequest.mockReset().mockResolvedValue(true);
     mockResetStillWatchingSession.mockClear();
     mockSyncPlayEnabled = false;
     mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
@@ -70,9 +53,20 @@ describe("usePlayMedia", () => {
   test("opens the player for a movie", async () => {
     await play({ Id: "movie-1", Type: "Movie" });
 
-    expect(mockPush).toHaveBeenCalledWith(
-      expect.stringContaining("/player/direct-player?itemId=movie-1"),
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "movie-1", offline: false },
+      { alertOnFailure: true },
     );
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  // The provider tells a failure from a request a newer one replaced, so the
+  // telling is its to do: a second alert from here would stack on its own.
+  test("leaves a play the player could not start to the provider", async () => {
+    mockPresentFromRequest.mockResolvedValue(false);
+
+    await play({ Id: "movie-1", Type: "Movie" });
+
     expect(alert).not.toHaveBeenCalled();
   });
 
@@ -86,10 +80,8 @@ describe("usePlayMedia", () => {
 
   test("starts the group's queue instead of presenting a solo player", async () => {
     mockSyncPlayEnabled = true;
-    mockNativeChromeActive = true;
     await play({ Id: "movie-1", Type: "Movie" });
     expect(mockSyncPlayItems).toHaveBeenCalledWith(["movie-1"], 0, 0);
-    expect(mockPush).not.toHaveBeenCalled();
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
   });
 
@@ -108,82 +100,30 @@ describe("usePlayMedia", () => {
     mockSyncPlayEnabled = true;
     await play({ Id: "channel-1", Type: "TvChannel" });
     expect(mockSyncPlayItems).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(alert).toHaveBeenCalledWith(
       "syncplay.title",
       "syncplay.online_video_only",
     );
   });
 
-  // Live TV used to skip the native player and open the JS route. The native
-  // player closes the live stream it opens on every way out, as the route did.
-  test("plays live television in the native player when it is on", async () => {
-    mockNativeChromeActive = true;
-    mockPresentFromRequest.mockResolvedValue(true);
-
+  test("plays live television like any other video", async () => {
     await play({ Id: "channel-1", Type: "TvChannel" });
     await play({ Id: "program-1", Type: "Program" });
 
     expect(mockPresentFromRequest).toHaveBeenCalledWith(
       { itemId: "channel-1", offline: false },
-      { isCurrent: expect.any(Function) },
+      { isCurrent: expect.any(Function), alertOnFailure: true },
     );
     expect(mockPresentFromRequest).toHaveBeenCalledWith(
       { itemId: "program-1", offline: false },
-      { isCurrent: expect.any(Function) },
+      { isCurrent: expect.any(Function), alertOnFailure: true },
     );
-    expect(mockPush).not.toHaveBeenCalled();
-  });
-
-  test("a native decline still opens the JS route", async () => {
-    mockNativeChromeActive = true;
-
-    await play({ Id: "movie-1", Type: "Movie" });
-
-    expect(mockPush).toHaveBeenCalledWith(
-      expect.stringContaining("/player/direct-player?itemId=movie-1"),
-    );
-  });
-
-  // A live channel takes seconds to open, long enough to press it again. The
-  // second press replaces the first, whose present then resolves false: that
-  // is not a decline, and opening the JS route for it put a second player and
-  // a second live stream under the native one.
-  test("a play replaced by a newer one does not open the JS route", async () => {
-    mockNativeChromeActive = true;
-    let settleFirst: (presented: boolean) => void = () => {};
-    mockPresentFromRequest
-      .mockImplementationOnce(
-        () =>
-          new Promise<boolean>((resolve) => {
-            settleFirst = resolve;
-          }),
-      )
-      .mockResolvedValueOnce(true);
-    const channel = { Id: "channel-1", Type: "TvChannel" } as BaseItemDto;
-    const { result } = await renderHook(() => usePlayMedia());
-
-    await act(async () => {
-      const first = result.current(
-        { itemId: "channel-1", offline: false },
-        { item: channel },
-      );
-      await result.current(
-        { itemId: "channel-1", offline: false },
-        { item: channel },
-      );
-      settleFirst(false);
-      await first;
-    });
-
-    expect(mockPresentFromRequest).toHaveBeenCalledTimes(2);
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
   // The provider drops a request whose isCurrent() turns false while it
   // negotiates, and closes the live stream it opened.
   const presentAfterLeaving = async (item: BaseItemDto) => {
-    mockNativeChromeActive = true;
     let settle: () => void = () => {};
     mockPresentFromRequest.mockImplementationOnce(
       (_req: unknown, options?: { isCurrent?: () => boolean }) =>
@@ -210,7 +150,6 @@ describe("usePlayMedia", () => {
     await expect(
       presentAfterLeaving({ Id: "channel-1", Type: "TvChannel" }),
     ).resolves.toBe(false);
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
   // The top shelf route replaces itself with Home before it plays.
@@ -243,18 +182,18 @@ describe("usePlayMedia", () => {
       1,
       120_000_000,
     );
-    expect(mockPush).not.toHaveBeenCalled();
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
   });
 
-  // A top shelf play link asks for an item and nothing else. Opening the
-  // route at position 0 started a half watched episode from the beginning,
-  // and leaving it cleared the resume point on the server.
-  test("opens the player without a position for a request that has none", async () => {
+  // A top shelf play link asks for an item and nothing else. Playing it from
+  // position 0 started a half watched episode from the beginning, and leaving
+  // it cleared the resume point on the server.
+  test("asks for no position when the request has none", async () => {
     await play({ Id: "episode-1", Type: "Episode" });
 
-    const query = mockPush.mock.calls[0][0].split("?")[1];
-    expect(new URLSearchParams(query).get("playbackPosition")).toBe("");
+    expect(mockPresentFromRequest.mock.calls[0][0]).not.toHaveProperty(
+      "playbackPositionTicks",
+    );
   });
 
   // REACT-NATIVE-54 / REACT-NATIVE-5H: a Book reached the player from its
@@ -262,21 +201,16 @@ describe("usePlayMedia", () => {
   test("tells the user a book can't be played instead of opening the player", async () => {
     await play({ Id: "book-1", Type: "Book" });
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(alert).toHaveBeenCalledWith(
       "player.error",
       "player.unsupported_item_type",
     );
   });
 
-  // The native player is tried first when it is on; an unplayable item must
-  // not get that far either (it was the second Sentry event per tap).
-  test("does not hand an unplayable item to the native player", async () => {
-    mockNativeChromeActive = true;
-
+  test("does not hand a season to the player either", async () => {
     await play({ Id: "season-1", Type: "Season" });
 
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
-    expect(mockPush).not.toHaveBeenCalled();
   });
 });

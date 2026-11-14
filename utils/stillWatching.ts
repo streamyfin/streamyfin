@@ -53,29 +53,22 @@ export type StillWatchingGateInput = {
   /** Episodes auto-played since the session was last reset. */
   playedCount: number;
   sessionDurationMs: number;
-  /**
-   * Time since the viewer last touched the player. Undefined when the player
-   * cannot report input to JS (the native chrome); the idle branch is then
-   * skipped and only the episode count can trip the prompt.
-   */
-  idleMs?: number;
 };
 
 /**
- * jellyfin-web 12's rule:
+ * jellyfin-web 12's rule, without its idle half:
  * `sessionDuration >= duration && (idleTime >= duration || playedCount >= count)`.
+ * The native player reports no touches to JS, so idle time is unknown and only
+ * the episode count can trip the prompt.
  */
 export const isStillWatchingDue = ({
   thresholds,
   playedCount,
   sessionDurationMs,
-  idleMs,
 }: StillWatchingGateInput): boolean => {
   if (!thresholds) return false;
-  const durationMs = thresholds.minutes * MS_PER_MINUTE;
   // Written so a NaN duration (a missing position) fails the gate too.
-  if (!(sessionDurationMs >= durationMs)) return false;
-  if (idleMs !== undefined && idleMs >= durationMs) return true;
+  if (!(sessionDurationMs >= thresholds.minutes * MS_PER_MINUTE)) return false;
   return playedCount >= thresholds.episodes;
 };
 
@@ -109,7 +102,6 @@ export const stillWatchingPresetFromEpisodeCount = (
 // next play is one the viewer starts, which resets it anyway.
 const session = {
   startMs: Date.now(),
-  lastInputMs: Date.now(),
   playedCount: 0,
   // Bumped on every reset and autoplay, so a decision taken for an episode
   // can tell a later stream swap of it from a new play of it.
@@ -122,13 +114,8 @@ const session = {
  */
 export const resetStillWatchingSession = (nowMs: number = Date.now()) => {
   session.startMs = nowMs;
-  session.lastInputMs = nowMs;
   session.playedCount = 0;
   session.epoch += 1;
-};
-
-export const markStillWatchingInput = (nowMs: number = Date.now()) => {
-  session.lastInputMs = nowMs;
 };
 
 export const recordStillWatchingAutoplay = () => {
@@ -146,53 +133,21 @@ export const revertStillWatchingAutoplay = () => {
   session.epoch += 1;
 };
 
-let decision: { key: string; due: boolean; inputMs: number } | null = null;
+let decision: { key: string; due: boolean } | null = null;
 
 /**
  * The first decision taken for `itemId` since the last reset or autoplay,
  * reused for as long as that episode keeps playing, a stream swap included.
  * The native player only gets a snapshot, so changing it later could race a
- * countdown native is already running. An input since a "due" decision takes
- * it again, as the idle rule needs; it never turns "not due" into "due", so a
- * pause and resume inside a countdown can't swap it for the prompt.
+ * countdown native is already running.
  */
 export const decideStillWatchingOnce = (
   itemId: string,
   decide: () => boolean,
 ): boolean => {
-  const key = decisionKey(itemId);
-  if (isDecisionStale(key)) {
-    decision = { key, due: decide(), inputMs: session.lastInputMs };
-  }
-  return decision?.due === true;
-};
-
-/**
- * What `decideStillWatchingOnce` would answer for `itemId`, without taking
- * the decision. For a render: React may run one and throw it away, and it
- * must leave nothing behind. An effect of the render that is kept takes it.
- */
-export const previewStillWatchingDecision = (
-  itemId: string,
-  decide: () => boolean,
-): boolean =>
-  isDecisionStale(decisionKey(itemId)) ? decide() : decision?.due === true;
-
-const decisionKey = (itemId: string) => `${session.epoch}:${itemId}`;
-
-const isDecisionStale = (key: string) =>
-  decision?.key !== key ||
-  (decision.due && session.lastInputMs > decision.inputMs);
-
-/** The decision already taken for `itemId`, if any, without taking one. */
-export const peekStillWatchingDecision = (
-  itemId: string,
-): boolean | undefined =>
-  decision?.key === decisionKey(itemId) ? decision.due : undefined;
-
-/** Drops the decision for `itemId`, so the next one is taken afresh. */
-export const releaseStillWatchingDecision = (itemId: string) => {
-  if (decision?.key === decisionKey(itemId)) decision = null;
+  const key = `${session.epoch}:${itemId}`;
+  if (decision?.key !== key) decision = { key, due: decide() };
+  return decision.due;
 };
 
 /**
@@ -204,15 +159,12 @@ export const isStillWatchingDueAtEnd = ({
   preset,
   remainingMs,
   playbackRate = 1,
-  tracksInput,
   nowMs = Date.now(),
 }: {
   preset: StillWatchingPreset | undefined;
   /** Media time left; `playbackRate` turns it into wall-clock time. */
   remainingMs: number;
   playbackRate?: number;
-  /** False where the player cannot report input to JS (the native chrome). */
-  tracksInput: boolean;
   nowMs?: number;
 }): boolean => {
   const rate = playbackRate > 0 ? playbackRate : 1;
@@ -221,6 +173,5 @@ export const isStillWatchingDueAtEnd = ({
     thresholds: getStillWatchingThresholds(preset),
     playedCount: session.playedCount,
     sessionDurationMs: atMs - session.startMs,
-    idleMs: tracksInput ? atMs - session.lastInputMs : undefined,
   });
 };

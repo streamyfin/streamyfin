@@ -14,11 +14,9 @@ against the Jellyfin 10.11 server and web sources, and run against 10.11.11.
   Play button carries the SyncPlay icon: it starts the video where it sits in the queue,
   or replaces the queue with it, as playing does in Jellyfin. The queue can be reordered
   in the panel and in the player.
-- The presented native player only (SwiftUI on iOS and tvOS, Compose on Android and
-  Android TV). A group always plays there, whatever the solo player setting says. Where
-  that player cannot run (tvOS below 26) `isSyncPlayAvailable()` is false, the provider
-  creates no controller and every entry point hides. The JS player does not follow a
-  group.
+- The presented native player (SwiftUI on iOS and tvOS, Compose on Android and
+  Android TV). Where that player cannot run (tvOS below 26) `isSyncPlayAvailable()` is
+  false, the provider creates no controller and every entry point hides.
 
 ## Who owns what
 

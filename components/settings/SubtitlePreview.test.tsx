@@ -37,14 +37,17 @@ describe("SubtitlePreview", () => {
     mockPlayerProps.length = 0;
   });
 
-  // The clip has no sound and only shows subtitles: as a player for the user's
-  // media it stopped their music on iOS and opened in picture in picture when
-  // they left the app.
-  it("plays the clip without background playback", async () => {
+  // A silent clip that only shows the subtitles: it loops with its one
+  // subtitle track on.
+  it("loops the clip with its subtitle track on", async () => {
     await render(<SubtitlePreview />);
     await screen.findByTestId("mpv-player");
 
-    const props = mockPlayerProps.at(-1);
-    expect(props?.backgroundPlayback).toBe(false);
+    expect(mockPlayerProps.at(-1)?.source).toEqual({
+      url: "file:///sample_subtitled.mp4",
+      autoplay: true,
+      initialSubtitleId: 1,
+      loop: true,
+    });
   });
 });

@@ -1,7 +1,12 @@
 import { act, render } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
+import {
+  localSubtitleIndex,
+  SUBTITLES_OFF,
+} from "@/utils/subtitles/subtitleIndex";
 import { NativePlayerProvider, useNativePlayer } from "./NativePlayerProvider";
 
 jest.mock(
@@ -28,9 +33,18 @@ const mockNative = {
   presented: [] as string[],
   /** Stream URL of every load call. */
   loaded: [] as string[],
+  /** Every sidecar file added to the player. */
+  externalSubtitles: [] as string[],
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
+  /**
+   * presentPlayer rejects, as iOS does with no view controller to present
+   * from. Held as well, the refusal arrives when the presentation is released.
+   */
+  refusePresentation: false,
+  /** load rejects with the player still up, as a native throw mid-swap does. */
+  refuseLoad: false,
   emit<K extends keyof NativePlayerEvents>(
     event: K,
     payload: Parameters<NativePlayerEvents[K]>[0],
@@ -53,6 +67,16 @@ jest.mock("@/modules/mpv-player", () => {
     },
     presentNativePlayer: async (config: MockConfig) => {
       mockNative.presented.push(config.stream.url);
+      if (mockNative.refusePresentation) {
+        if (mockNative.holdPresentation) {
+          await new Promise<void>((resolve) =>
+            mockNative.pendingPresentations.push(resolve),
+          );
+        }
+        throw new Error(
+          "NoPresenterException: Could not find a view controller to present the native player from",
+        );
+      }
       if (mockNative.session) {
         throw new Error(
           "PlayerAlreadyPresentedException: A native player is already presented; call load() to swap the stream instead",
@@ -67,6 +91,7 @@ jest.mock("@/modules/mpv-player", () => {
     },
     loadNativePlayerStream: async (config: MockConfig) => {
       mockNative.loaded.push(config.stream.url);
+      if (mockNative.refuseLoad) throw new Error("load failed");
       if (!mockNative.session) {
         throw new Error(
           "NoActivePlayerException: No native player is currently presented",
@@ -85,7 +110,9 @@ jest.mock("@/modules/mpv-player", () => {
     },
     applyNativePlayerSyncPlayCommand: async () => false,
     cancelNativePlayerSyncPlayCommands: done,
-    nativePlayerAddExternalSubtitle: done,
+    nativePlayerAddExternalSubtitle: async (path: string) => {
+      mockNative.externalSubtitles.push(path);
+    },
     nativePlayerDisableSubtitles: done,
     nativePlayerGetSubtitleTracks: async () => [],
     nativePlayerPause: done,
@@ -110,8 +137,15 @@ const mockNegotiation = {
   held: false,
   waiting: [] as Array<() => void>,
   count: 0,
-  /** Each stream negotiated from now on opens a live stream on the server. */
+  /**
+   * Each item negotiated from now on is a Live TV channel, whose stream opens
+   * a live stream on the server.
+   */
   live: false,
+  /** Items the server gives no stream for. */
+  failing: new Set<string>(),
+  /** The subtitle index each negotiation asked the server for. */
+  subtitleIndexes: [] as Array<number | undefined>,
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -131,13 +165,17 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
     req,
     item,
   }: {
-    req: { itemId: string; bitrateValue?: number };
+    req: { itemId: string; bitrateValue?: number; subtitleIndex?: number };
     item?: object;
   }) => {
+    mockNegotiation.subtitleIndexes.push(req.subtitleIndex);
     if (mockNegotiation.held) {
       await new Promise<void>((resolve) =>
         mockNegotiation.waiting.push(resolve),
       );
+    }
+    if (mockNegotiation.failing.has(req.itemId)) {
+      throw new Error("PlaybackInfo returned no media source");
     }
     mockNegotiation.count += 1;
     const playSessionId = `play-session-${mockNegotiation.count}`;
@@ -148,8 +186,9 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
         item: item ?? {
           Id: req.itemId,
           Name: req.itemId,
-          Type: "Episode",
-          SeriesId: "series-1",
+          ...(mockNegotiation.live
+            ? { Type: "TvChannel" }
+            : { Type: "Episode", SeriesId: "series-1" }),
         },
         offline: false,
         downloadedItem: null,
@@ -189,6 +228,7 @@ const mockPlayback = {
 };
 const mockSettings = {};
 let mockEngine: "mpv" | "exoplayer" = "mpv";
+let mockPlayerSupported = true;
 const mockDefaultPlaySettings = jest.fn(
   (item: { Id?: string }, ..._rest: unknown[]) => ({
     mediaSource: { Id: `source-${item.Id}` },
@@ -200,9 +240,30 @@ const mockUpdateSettings = () => undefined;
 const mockT = (key: string) => key;
 const mockNoop = () => undefined;
 const mockSocket = {
-  subscribe: () => mockNoop,
-  clearLastMessage: mockNoop,
-  retainInBackground: () => mockNoop,
+  handlers: new Map<string, Set<MockListener>>(),
+  subscribe: (type: string, handler: MockListener) => {
+    const handlers = mockSocket.handlers.get(type) ?? new Set();
+    handlers.add(handler);
+    mockSocket.handlers.set(type, handlers);
+    return () => {
+      handlers.delete(handler);
+    };
+  },
+  /** Background holds taken and not yet given back. */
+  leases: 0,
+  retainInBackground: () => {
+    mockSocket.leases += 1;
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      mockSocket.leases -= 1;
+    };
+  },
+  /** A message from the server, handed to its subscribers as the socket does. */
+  receive: (type: string, data: unknown) => {
+    for (const handler of mockSocket.handlers.get(type) ?? []) handler(data);
+  },
 };
 const mockSyncPlay = {
   enabled: false,
@@ -244,8 +305,40 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 jest.mock("@/providers/WebSocketProvider", () => ({
   useWebSocketContext: () => mockSocket,
 }));
+// Subtitle files saved on the device (OpenSubtitles downloads on TV), by item.
+const mockSavedSubtitles = new Map<
+  string,
+  { name: string; filePath: string }[]
+>();
+jest.mock("@/utils/subtitles/savedSubtitles", () => {
+  const { isLocalSubtitleIndex, localSubtitlePosition } = jest.requireActual(
+    "@/utils/subtitles/subtitleIndex",
+  );
+  return {
+    savedSubtitleFor: (
+      itemId: string,
+      index: number | undefined,
+      path?: string,
+    ) => {
+      if (!isLocalSubtitleIndex(index)) return null;
+      const files = mockSavedSubtitles.get(itemId) ?? [];
+      return path
+        ? (files.find((file) => file.filePath === path) ?? null)
+        : (files[localSubtitlePosition(index)] ?? null);
+    },
+  };
+});
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
+}));
+// The TV's sign-out after inactivity; the provider is a no-op off TV.
+const mockInactivity = {
+  resetInactivityTimer: jest.fn(),
+  pauseInactivityTimer: jest.fn(),
+  resumeInactivityTimer: jest.fn(),
+};
+jest.mock("@/providers/InactivityProvider", () => ({
+  useInactivity: () => mockInactivity,
 }));
 jest.mock("@/hooks/usePlaybackManager", () => ({
   usePlaybackManager: () => mockPlayback,
@@ -264,10 +357,9 @@ jest.mock("@/hooks/useServerVersion", () => ({
   useServerVersion: () => "10.11.0",
 }));
 jest.mock("@/utils/atoms/settings", () => ({
-  isNativePlayerSupported: true,
-  isNativePlayerSupportedTV: false,
-  isNativePlayerSupportedAndroidTV: false,
-  isNativeChromeActive: () => true,
+  get isPlayerSupported() {
+    return mockPlayerSupported;
+  },
   // The next-episode warm runs for ExoPlayer only and builds the device
   // profile from the engine.
   getActivePlayerType: () => mockEngine,
@@ -362,6 +454,13 @@ const mount = async () => {
 const play = (itemId: string) =>
   player.presentFromRequest({ itemId, offline: false });
 
+/** A play the viewer asked for, here or from another client. */
+const playForViewer = (itemId: string) =>
+  player.presentFromRequest(
+    { itemId, offline: false },
+    { alertOnFailure: true },
+  );
+
 /** Opens the player on an item and lets its stream load. */
 const open = async (itemId: string) => {
   await act(async () => {
@@ -437,18 +536,29 @@ const start = async (request: () => Promise<unknown>) => {
   return started;
 };
 
+let alert: jest.SpyInstance;
+
 beforeEach(() => {
   stubReactNative();
+  alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   mockNative.session = null;
   mockNative.listeners.clear();
   mockNative.presented = [];
   mockNative.loaded = [];
+  mockNative.externalSubtitles = [];
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
+  mockNative.refusePresentation = false;
+  mockNative.refuseLoad = false;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
   mockNegotiation.live = false;
+  mockNegotiation.failing.clear();
+  mockNegotiation.subtitleIndexes = [];
+  mockSavedSubtitles.clear();
+  mockSocket.handlers.clear();
+  mockPlayerSupported = true;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -457,6 +567,12 @@ beforeEach(() => {
   warmUpcomingSubtitles.mockClear();
   warmUpcomingSubtitles.mockImplementation(async () => true);
   clearSubtitlePrefetchCache.mockClear();
+  mockInactivity.pauseInactivityTimer.mockClear();
+  mockInactivity.resumeInactivityTimer.mockClear();
+});
+
+afterEach(() => {
+  alert.mockRestore();
 });
 
 // Sentry REACT-NATIVE-BR: every event carried replace: true, so each was a
@@ -521,7 +637,7 @@ describe("a swap the player closes under", () => {
     finishClosing();
     await releaseNegotiations();
 
-    // Handled, so the caller does not open the JS player in its place.
+    // Handled: nothing failed for the item the user just closed.
     await expect(swap.done).resolves.toBe(true);
     expect(mockNative.presented).toHaveLength(1);
     // Nothing started on the server for the dropped stream.
@@ -859,5 +975,587 @@ describe("the next episode's subtitle warm", () => {
     await settle();
 
     expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(2);
+  });
+});
+
+// This is the only player. A play that leaves the viewer with none says why;
+// one that lost to something newer, or to an item still playing, does not.
+describe("a play the player cannot start", () => {
+  test("says the server gave no stream", async () => {
+    await mount();
+    mockNegotiation.failing.add("item-1");
+
+    await act(async () => {
+      await expect(playForViewer("item-1")).resolves.toBe(false);
+    });
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.failed_to_get_stream_url",
+    );
+    expect(mockNative.presented).toHaveLength(0);
+  });
+
+  test("says the player did not open, and opens on the next play", async () => {
+    await mount();
+    mockNative.refusePresentation = true;
+
+    await act(async () => {
+      await expect(playForViewer("item-1")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.an_error_occurred_while_playing_the_video",
+    );
+    // The refused stream never started on the server.
+    expect(serverReports()).toEqual([]);
+
+    mockNative.refusePresentation = false;
+    await act(async () => {
+      await expect(playForViewer("item-1")).resolves.toBe(true);
+    });
+    await settle();
+
+    expect(mockNative.session).not.toBeNull();
+    expect(serverReports()).toEqual(["start play-session-2"]);
+  });
+
+  // The swap closed the outgoing session on the server and left the player
+  // in an unknown state, so the provider closes it: the viewer is left with
+  // no player at all.
+  test("says why when a failed swap closes the player", async () => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(async () => {
+      await expect(playForViewer("item-3")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.an_error_occurred_while_playing_the_video",
+    );
+  });
+
+  // Picked in the player itself: the viewer asked for it as surely as for a
+  // play from a detail page.
+  test.each([
+    [
+      "a quality change",
+      async () =>
+        mockNative.emit("onQualitySelected", {
+          bitrateValue: 4_000_000,
+          positionSec: 60,
+        }),
+    ],
+    [
+      "the next episode",
+      async () =>
+        mockNative.emit("onNextEpisodeRequested", {
+          reason: "userTap",
+          positionSec: 60,
+        }),
+    ],
+  ])("says why when %s closes the player", async (_name, request) => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(request);
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.session).toBeNull();
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.an_error_occurred_while_playing_the_video",
+    );
+  });
+
+  test("leaves a failed swap to a caller that did not ask to be told", async () => {
+    await mount();
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  test("says so for a play another client sent", async () => {
+    await mount();
+    mockNegotiation.failing.add("item-1");
+
+    await act(async () => mockSocket.receive("Play", { ItemIds: ["item-1"] }));
+    await settle();
+
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.failed_to_get_stream_url",
+    );
+  });
+
+  // A SyncPlay launch reports its own failure to the group.
+  test("leaves the telling to a caller that did not ask for it", async () => {
+    await mount();
+    mockNegotiation.failing.add("item-1");
+
+    await act(async () => {
+      await expect(play("item-1")).resolves.toBe(false);
+    });
+
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  test("stays quiet when a newer play took its place", async () => {
+    await mount();
+    mockNegotiation.failing.add("item-1");
+    holdNegotiations();
+    const first = await start(() => playForViewer("item-1"));
+    const second = await start(() => playForViewer("item-3"));
+
+    await releaseNegotiations();
+    await act(async () => {
+      await expect(first.done).resolves.toBe(false);
+      await expect(second.done).resolves.toBe(true);
+    });
+    await settle();
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockNative.presented).toEqual([
+      "https://jellyfin.example.com/Videos/item-3/stream?PlaySessionId=play-session-1",
+    ]);
+  });
+
+  // The refusal comes back from the native side after the call, and by then
+  // the viewer may have asked for something else.
+  test("stays quiet when its player is refused after a newer play started", async () => {
+    await mount();
+    mockNative.holdPresentation = true;
+    mockNative.refusePresentation = true;
+    const first = await start(() => playForViewer("item-1"));
+    await settle();
+    mockNative.holdPresentation = false;
+    mockNative.refusePresentation = false;
+    holdNegotiations();
+    const second = await start(() => playForViewer("item-3"));
+    await settle();
+
+    await act(async () => {
+      for (const refuse of mockNative.pendingPresentations.splice(0)) refuse();
+    });
+    await act(async () => {
+      await expect(first.done).resolves.toBe(false);
+    });
+    await releaseNegotiations();
+    await act(async () => {
+      await expect(second.done).resolves.toBe(true);
+    });
+    await settle();
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockNative.session).not.toBeNull();
+    expect(serverReports()).toEqual(["start play-session-2"]);
+  });
+
+  // In picture in picture the viewer can start another item. When that one
+  // has no stream, the one playing goes on, and its session stays open.
+  test("stays quiet when the item on screen keeps playing", async () => {
+    await mount();
+    await open("item-1");
+    mockNegotiation.failing.add("item-3");
+
+    await act(async () => {
+      await expect(playForViewer("item-3")).resolves.toBe(false);
+    });
+    await settle();
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(mockNative.session).not.toBeNull();
+    expect(mockNative.loaded).toHaveLength(0);
+    expect(serverReports()).toEqual(["start play-session-1"]);
+  });
+});
+
+// An Apple TV below tvOS 26: the TV chrome needs 26, and nothing else plays.
+describe("on a device the player does not run on", () => {
+  beforeEach(() => {
+    mockPlayerSupported = false;
+  });
+
+  test("a play says what the device needs, and asks the server for nothing", async () => {
+    await mount();
+
+    await act(async () => {
+      await expect(playForViewer("item-1")).resolves.toBe(false);
+    });
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.requires_tvos_26",
+    );
+    expect(mockNegotiation.count).toBe(0);
+    expect(mockNative.presented).toHaveLength(0);
+  });
+
+  test("so does a play another client sent", async () => {
+    await mount();
+
+    await act(async () => mockSocket.receive("Play", { ItemIds: ["item-1"] }));
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "player.error",
+      "player.requires_tvos_26",
+    );
+  });
+
+  test("a play that reports its own failure is only refused", async () => {
+    await mount();
+
+    await act(async () => {
+      await expect(play("item-1")).resolves.toBe(false);
+    });
+
+    expect(alert).not.toHaveBeenCalled();
+  });
+});
+
+// The server shares a channel's stream between everyone watching it, counts
+// one reference per negotiation, and closes the stream when the count reaches
+// zero: a session that gives its reference back twice cuts the stream from
+// under the others, another device on the channel or the swap's new stream.
+describe("a Live TV stream", () => {
+  /**
+   * Each request that gives a live stream reference back: a close, and a stop
+   * report that names the stream, which Jellyfin closes as well when no
+   * session reported watching it.
+   */
+  const liveStreamReleases = () =>
+    api.mock.history.post.flatMap((request) => {
+      const url = request.url ?? "";
+      const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+      if (close) return [close[1]];
+      if (url !== "https://jellyfin.example.com/Sessions/Playing/Stopped") {
+        return [];
+      }
+      const named = JSON.parse(request.data).LiveStreamId;
+      return named ? [named] : [];
+    });
+
+  test("is given back once when the player closes", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(serverReports()).toEqual([
+      "start play-session-1",
+      "stop play-session-1",
+    ]);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  test("is given back once when a track or bitrate change swaps it", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 60,
+      }),
+    );
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  /** Holds every stop report until the returned release is called. */
+  const holdStopReports = () => {
+    const pending: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            pending.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    return async () => {
+      await act(async () => {
+        for (const release of pending.splice(0)) release();
+      });
+      await settle();
+    };
+  };
+
+  const pickQuality = async (bitrateValue: number) => {
+    await act(async () =>
+      mockNative.emit("onQualitySelected", { bitrateValue, positionSec: 60 }),
+    );
+    await settle();
+  };
+
+  // The second pick swaps the channel out while the first still waits for
+  // the stop report of the stream both of them replace.
+  test("is given back once when a second quality pick lands during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await pickQuality(2_000_000);
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([
+      expect.stringContaining("PlaySessionId=play-session-3"),
+    ]);
+    // The first pick's stream never played; the second pick's plays on.
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when the player closes during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await startClosing();
+    finishClosing();
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([]);
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when a failed swap closes the player", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await pickQuality(4_000_000);
+
+    expect(mockNative.session).toBeNull();
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  // Other devices offer a seek bar on a session the server says can seek,
+  // and a seek sent to a channel goes nowhere.
+  test("is reported as one that cannot seek", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    const canSeek = api.mock.history.post
+      .filter(
+        (request) =>
+          request.url === "https://jellyfin.example.com/Sessions/Playing",
+      )
+      .map((request) => JSON.parse(request.data).CanSeek);
+    expect(canSeek).toEqual([false]);
+  });
+});
+
+// Sign-out after inactivity is a TV setting. Before the native player took
+// every platform, the JS player held the count while it played; nothing did
+// after, so a film longer than the delay signed the viewer out mid-play.
+describe("the inactivity sign-out", () => {
+  const playState = (state: { isPlaying?: boolean; isPaused?: boolean }) =>
+    act(async () => mockNative.emit("onPlaybackStateChange", state));
+
+  test("is held while the video plays and counts again on a pause", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+    await playState({ isPlaying: true });
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+    expect(mockInactivity.resumeInactivityTimer).not.toHaveBeenCalled();
+
+    await playState({ isPaused: true });
+    expect(mockInactivity.resumeInactivityTimer).toHaveBeenCalledTimes(1);
+
+    await playState({ isPlaying: true });
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(2);
+  });
+
+  test("stays held across a stream swapped in while the video plays", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+
+    await act(async () => {
+      await play("item-3");
+    });
+    await settle();
+    // A swapped-in stream never pauses or resumes: its play state comes with
+    // its load event.
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+        isPlaying: true,
+      }),
+    );
+    await settle();
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+    expect(mockInactivity.resumeInactivityTimer).not.toHaveBeenCalled();
+  });
+
+  test("counts again once the player closes", async () => {
+    await mount();
+    await open("item-1");
+    await playState({ isPlaying: true });
+
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(mockInactivity.resumeInactivityTimer).toHaveBeenCalledTimes(1);
+  });
+
+  test("is held by a stream that loads already playing", async () => {
+    await mount();
+    await act(async () => {
+      await play("item-1");
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.presented[mockNative.presented.length - 1],
+        isPlaying: true,
+      }),
+    );
+
+    expect(mockInactivity.pauseInactivityTimer).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Picture in picture puts the app in the background, where the socket closes
+// unless something holds it: a remote Stop, Pause or Play answered 204 and
+// never reached the player. Android reports the background before the PiP
+// event reaches JS, so the hold cannot wait for it.
+describe("remote control in the background", () => {
+  test("keeps the socket while the player is up, outside SyncPlay too", async () => {
+    await mount();
+    expect(mockSocket.leases).toBe(0);
+
+    await open("item-1");
+    expect(mockSocket.leases).toBe(1);
+
+    await startClosing();
+    finishClosing();
+    await settle();
+    expect(mockSocket.leases).toBe(0);
+  });
+});
+
+// On TV, a subtitle downloaded from OpenSubtitles is saved for its item and
+// listed on the item page. Picked there, it came back as a sidecar index: the
+// server was asked for a subtitle stream it does not have, and the native
+// player never loaded the file.
+describe("a subtitle saved on the device", () => {
+  const FRENCH = "file:///cache/streamyfin-subtitles/item-1_fr.srt";
+
+  test("plays over a stream the server gives without subtitles", async () => {
+    mockSavedSubtitles.set("item-1", [{ name: "French", filePath: FRENCH }]);
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(0),
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNegotiation.subtitleIndexes).toEqual([SUBTITLES_OFF]);
+    expect(mockNative.externalSubtitles).toEqual([FRENCH]);
+  });
+
+  // The item page hands the file it showed: a file gone since shifts the
+  // rows, and the position alone would point past the list.
+  test("plays the file the item page showed, not the row's position", async () => {
+    const ENGLISH = "file:///cache/streamyfin-subtitles/item-1_en.srt";
+    mockSavedSubtitles.set("item-1", [
+      { name: "French", filePath: FRENCH },
+      { name: "English", filePath: ENGLISH },
+    ]);
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(2),
+        subtitlePath: ENGLISH,
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNative.externalSubtitles).toEqual([ENGLISH]);
+  });
+
+  test("is not asked of the server once its file is gone", async () => {
+    await mount();
+
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        subtitleIndex: localSubtitleIndex(0),
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.presented[0] }),
+    );
+    await settle();
+
+    expect(mockNegotiation.subtitleIndexes).toEqual([SUBTITLES_OFF]);
+    expect(mockNative.externalSubtitles).toEqual([]);
   });
 });

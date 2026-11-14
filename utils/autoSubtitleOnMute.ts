@@ -161,9 +161,7 @@ const resolveOnUnmute = (
  * Decide what the player should do given a mute transition.
  *
  * Pure on purpose: the whole policy is unit-tested without React, a device or a
- * player, and both the JS player controls and the fully-native player run the
- * same rules through it. The caller only feeds it debounced input and performs
- * the action.
+ * player. The caller only feeds it debounced input and performs the action.
  */
 export const resolveAutoSubtitleAction = (params: {
   state: AutoSubtitleState;

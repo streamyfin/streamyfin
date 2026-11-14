@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSettings } from "@/utils/atoms/settings";
+import { PlaybackSpeedScope } from "@/utils/playbackSpeedSettings";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
-import { PlaybackSpeedScope } from "./video-player/controls/utils/playback-speed-settings";
 
 export const PLAYBACK_SPEEDS = [
   { label: "0.25x", value: 0.25 },

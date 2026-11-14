@@ -1,10 +1,10 @@
 /**
  * One builder for every audio/subtitle menu in the app.
  *
- * Five surfaces used to filter, sort and label streams themselves — both item
- * pages, both JS player menus and the native player's bridge config — and they
- * disagreed in ways that were individually small and collectively the source of
- * most of this subsystem's bugs. The rows below are deliberately neutral: no
+ * Every surface used to filter, sort and label streams itself, the item pages
+ * and the native player's bridge config among them, and they disagreed in ways
+ * that were individually small and collectively the source of most of this
+ * subsystem's bugs. The rows below are deliberately neutral: no
  * callbacks, no player handles, no React. Each surface renders them and attaches
  * its own selection behaviour.
  */

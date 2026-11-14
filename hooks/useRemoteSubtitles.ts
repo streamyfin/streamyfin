@@ -9,6 +9,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
 import { Platform } from "react-native";
+import { SAVED_SUBTITLES_CACHE_DIR } from "@/constants/Playback";
 import { isPlainFileName, safeNamePart } from "@/providers/Downloads/utils";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -229,7 +230,10 @@ export function useRemoteSubtitles({
       // Use cache directory for both platforms (tvOS has permission issues with documents)
       // TV: Uses itemId prefix for organization and persists metadata
       // Mobile: Simple filename, no persistence
-      const subtitlesDir = new Directory(Paths.cache, "streamyfin-subtitles");
+      const subtitlesDir = new Directory(
+        Paths.cache,
+        SAVED_SUBTITLES_CACHE_DIR,
+      );
 
       // Ensure directory exists
       if (!subtitlesDir.exists) {

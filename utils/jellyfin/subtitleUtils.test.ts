@@ -42,7 +42,7 @@ const emb = (Index: number, o: Partial<MediaStream> = {}): MediaStream =>
 
 const track = (o: PlayerSubtitleTrack): PlayerSubtitleTrack => o;
 
-// Mirror direct-player.tsx online URL builder.
+// How an online session builds a subtitle URL.
 const urlBuilder =
   (base: string) =>
   (s: MediaStream): string | undefined =>

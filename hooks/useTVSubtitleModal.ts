@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback } from "react";
-import type { Track } from "@/components/video-player/controls/types";
 import useRouter from "@/hooks/useAppRouter";
+import type { Track } from "@/utils/atoms/tvSubtitleModal";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { store } from "@/utils/store";
 
@@ -10,13 +10,10 @@ interface ShowSubtitleModalParams {
   mediaSourceId?: string | null;
   subtitleTracks: Track[];
   currentSubtitleIndex: number;
-  subtitleDelay?: number;
-  onSubtitleDelayChange?: (seconds: number) => void;
   onDisableSubtitles?: () => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
-  refreshSubtitleTracks?: () => Promise<Track[]>;
-  deferApplyUntilDismissed?: boolean;
+  refreshSubtitleTracks: () => Promise<Track[]>;
 }
 
 export const useTVSubtitleModal = () => {
@@ -29,13 +26,10 @@ export const useTVSubtitleModal = () => {
         mediaSourceId: params.mediaSourceId,
         subtitleTracks: params.subtitleTracks,
         currentSubtitleIndex: params.currentSubtitleIndex,
-        subtitleDelay: params.subtitleDelay,
-        onSubtitleDelayChange: params.onSubtitleDelayChange,
         onDisableSubtitles: params.onDisableSubtitles,
         onServerSubtitleDownloaded: params.onServerSubtitleDownloaded,
         onLocalSubtitleDownloaded: params.onLocalSubtitleDownloaded,
         refreshSubtitleTracks: params.refreshSubtitleTracks,
-        deferApplyUntilDismissed: params.deferApplyUntilDismissed,
       });
       router.push("/(auth)/tv-subtitle-modal");
     },

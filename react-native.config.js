@@ -18,7 +18,6 @@ const dependencies = {
   "react-native-image-colors": disableForTV("react-native-image-colors"),
   "expo-sharing": disableForTV("expo-sharing"),
   "expo-haptics": disableForTV("expo-haptics"),
-  "expo-brightness": disableForTV("expo-brightness"),
   "expo-screen-orientation": disableForTV("expo-screen-orientation"),
   "react-native-pager-view": disableForTV("react-native-pager-view"),
   "react-native-track-player": disableForTV("react-native-track-player"),

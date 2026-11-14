@@ -63,11 +63,10 @@ final class NativePlayerViewController: UIViewController {
 	#if os(iOS)
 	// Presenting a full-screen modal that only supports landscape makes UIKit
 	// rotate automatically. The JS coordinator additionally locks orientation
-	// via expo-screen-orientation BEFORE presenting (same as the JS player's
-	// useOrientation) — expo-screen-orientation implements
-	// application(_:supportedInterfaceOrientationsForWindow:), and presenting
-	// a landscape-only VC while the window mask is portrait-only would crash
-	// with UIApplicationInvalidInterfaceOrientation.
+	// via expo-screen-orientation BEFORE presenting: expo-screen-orientation
+	// implements application(_:supportedInterfaceOrientationsForWindow:), and
+	// presenting a landscape-only VC while the window mask is portrait-only
+	// would crash with UIApplicationInvalidInterfaceOrientation.
 	override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
 		orientationMask
 	}
@@ -200,8 +199,7 @@ final class NativePlayerViewController: UIViewController {
 		#endif
 
 		// Keep-awake follows playback: paused video releases the idle timer so
-		// the screen can sleep (mirror of the JS player's deactivateKeepAwake
-		// on pause).
+		// the screen can sleep.
 		viewModel.$isPlaying
 			.removeDuplicates()
 			.receive(on: DispatchQueue.main)
@@ -587,11 +585,10 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handleMenuPress() {
-		// Mirror of useRemoteControl's useTVBackPress flow, extended for the
-		// scrub state (open native Menu popups consume Menu in their own
-		// window before this recognizer ever sees it): an armed scrub is
-		// abandoned first, visible chrome is hidden next; only a Menu press
-		// from the bare-video state asks to leave playback.
+		// The TV back press, with the scrub state (open native Menu popups
+		// consume Menu in their own window before this recognizer ever sees
+		// it): an armed scrub is abandoned first, visible chrome is hidden next;
+		// only a Menu press from the bare-video state asks to leave playback.
 		if viewModel.showSyncPlayQueue {
 			viewModel.closeSyncPlayQueue()
 		} else if viewModel.showSubtitleSearch {
@@ -658,6 +655,8 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handleLeftPress() {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: -viewModel.seekBackwardSec)
+		} else if viewModel.isLive {
+			showLiveChrome()
 		} else {
 			viewModel.seekBackward()
 			viewModel.flashSeekFeedback()
@@ -667,10 +666,19 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handleRightPress() {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: viewModel.seekForwardSec)
+		} else if viewModel.isLive {
+			showLiveChrome()
 		} else {
 			viewModel.seekForward()
 			viewModel.flashSeekFeedback()
 		}
+	}
+
+	/// A live stream has nowhere to jump to: a skip click brings the chrome
+	/// up, LIVE badge included, where a film flashes its bar.
+	private func showLiveChrome() {
+		guard viewModel.errorMessage == nil else { return }
+		viewModel.showControls()
 	}
 
 	/// Clickpad top/bottom-edge clicks (up/down keys in the simulator):
@@ -745,14 +753,14 @@ final class NativePlayerViewController: UIViewController {
 			fraction: (viewModel.scrubPosition + delta) / viewModel.duration)
 	}
 
-	/// JS-player parity: Menu with no chrome up asks before leaving playback.
+	/// Menu with no chrome up asks before leaving playback.
 	/// While the alert is presented the system routes presses to it (Menu
 	/// triggers the cancel action), so our recognizers stay quiet.
 	private func presentExitConfirmation() {
 		guard presentedViewController == nil else { return }
-		// JS parity (handleWillExit): the countdown must not swap the episode
-		// underneath the exit alert. Sticky-cancel is fine — a user who was
-		// asked "stop playback?" and said no is deliberately still watching.
+		// The countdown must not swap the episode underneath the exit alert.
+		// Sticky-cancel is fine: a user who was asked "stop playback?" and said
+		// no is deliberately still watching.
 		viewModel.cancelCountdown()
 
 		guard viewModel.confirmExitEnabled else {
@@ -783,8 +791,8 @@ final class NativePlayerViewController: UIViewController {
 		present(alert, animated: true)
 	}
 
-	// MARK: tvOS HDR display criteria (port of MpvPlayerView's extension —
-	// createHDRFormatDescription + avDisplayManager.preferredDisplayCriteria)
+	// MARK: tvOS HDR display criteria (createHDRFormatDescription +
+	// avDisplayManager.preferredDisplayCriteria)
 
 	private func applyDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
 		guard #available(tvOS 17.0, *), let window = view.window else { return }

@@ -17,8 +17,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.util.Rational
-import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -159,6 +157,9 @@ class NativePlayerSession(
 
     fun present(config: PlayerPresentConfigRecord, promise: Promise) {
         val activity = presenterProvider() ?: run {
+            // The module registered this session before present; left there,
+            // it refused every later player until the process died.
+            onTornDown()
             promise.reject("NO_PRESENTER", "Could not find an Activity to present the native player from", null)
             return
         }
@@ -170,6 +171,12 @@ class NativePlayerSession(
         viewModel.isTvChrome = isTv
 
         activity.runOnUiThread {
+            // Ended while this waited for the main thread (its activity was
+            // destroyed): an engine built now would never be released.
+            if (isDismissing) {
+                promise.reject("PRESENT_CANCELLED", "The player ended before it was presented", null)
+                return@runOnUiThread
+            }
             try {
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
@@ -214,6 +221,7 @@ class NativePlayerSession(
                 viewModel.onPositionSync = {
                     mediaSessionController?.onPositionTick()
                 }
+                viewModel.onVideoDimensionsSync = { updatePiPParams(viewModel.isPlaying) }
 
                 // Setup Overlay Views on MainActivity
                 setupOverlay(activity, config, isTv)
@@ -271,17 +279,8 @@ class NativePlayerSession(
                 setBackgroundColor(Color.BLACK)
                 isFocusable = true
                 isFocusableInTouchMode = true
-                setOnKeyListener { _, keyCode, event ->
-                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                        if (viewModel.showSubtitleScaleOverlay) {
-                            viewModel.showSubtitleScaleOverlay = false
-                            viewModel.scheduleAutoHide()
-                        } else {
-                            dismiss("closeButton")
-                        }
-                        true
-                    } else false
-                }
+                val keyHandler = PhoneKeyHandler(viewModel, onExitRequested = { dismiss("closeButton") })
+                setOnKeyListener { _, _, event -> keyHandler.intercept(event) }
             }
         }
         overlayContainer = container
@@ -421,9 +420,8 @@ class NativePlayerSession(
 
     /**
      * Keep the screen on while playback is running and clear it on pause so
-     * the system screensaver can kick in — JS parity with the expo-keep-awake
-     * tag in direct-player (activates on play, releases on pause). Called from
-     * onPlaybackStateSync, which fires on play/pause, loading and seek.
+     * the system screensaver can kick in. Called from onPlaybackStateSync,
+     * which fires on play/pause, loading and seek.
      *
      * The flag only clears once playback has actually begun AND buffering has
      * finished — during the initial load (and replacement-stream swaps) before
@@ -515,8 +513,6 @@ class NativePlayerSession(
                 }
                 if (!viewModel.syncPlayActive && shouldPauseOnActivityStop(
                         isTelevision = DeviceKind.isTelevision(activity),
-                        // The native chrome always runs its media session.
-                        backgroundPlayback = true,
                         screenInteractive = isScreenInteractive(activity),
                         inPictureInPicture = inPictureInPicture,
                         changingConfigurations = activity.isChangingConfigurations,
@@ -527,7 +523,14 @@ class NativePlayerSession(
                 }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-            override fun onActivityDestroyed(activity: Activity) {}
+            override fun onActivityDestroyed(activity: Activity) {
+                if (activity !== hostActivity) return
+                // The overlay went with the activity while the process, the JS
+                // session and the module live on. Ended as a swipe from recents
+                // is: JS saves the progress, and the next play can present.
+                Log.i(TAG, "Host activity destroyed: closing the player")
+                dismiss("closeButton")
+            }
         }
         app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
         lifecycleRegistered = true
@@ -554,8 +557,8 @@ class NativePlayerSession(
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAutoEnterEnabled(allowPip)
-                    .setAspectRatio(Rational(16, 9))
-                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying))
+                    .withVideoGeometry()
+                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.setPictureInPictureParams(params)
             } catch (e: Exception) {
@@ -627,8 +630,8 @@ class NativePlayerSession(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
-                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying))
+                    .withVideoGeometry()
+                    .setActions(PiPActions.buildActions(activity, viewModel.isPlaying, canSeek = !viewModel.isLive))
                     .build()
                 activity.enterPictureInPictureMode(params)
             } catch (e: Exception) {
@@ -643,7 +646,8 @@ class NativePlayerSession(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
             try {
                 val builder = PictureInPictureParams.Builder()
-                    .setActions(PiPActions.buildActions(activity, isPlaying))
+                    .withVideoGeometry()
+                    .setActions(PiPActions.buildActions(activity, isPlaying, canSeek = !viewModel.isLive))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     builder.setAutoEnterEnabled(viewModel.uiOptions.allowPip)
                 }
@@ -652,6 +656,26 @@ class NativePlayerSession(
                 // Ignored
             }
         }
+    }
+
+    /**
+     * The window's shape from the video, and the picture it grows from: the system animates out
+     * of the hint, and the whole screen would start it from the black bars.
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun PictureInPictureParams.Builder.withVideoGeometry(): PictureInPictureParams.Builder {
+        val view = overlayContainer
+        val geometry = pictureInPictureGeometry(
+            viewModel.videoWidth, viewModel.videoHeight, view?.width ?: 0, view?.height ?: 0
+        )
+        setAspectRatio(geometry.aspectRatio)
+        geometry.sourceRectHint?.let { hint ->
+            // The hint is in window coordinates.
+            val origin = IntArray(2).also { view?.getLocationInWindow(it) }
+            hint.offset(origin[0], origin[1])
+            setSourceRectHint(hint)
+        }
+        return this
     }
 
     private fun registerPiPReceiver(context: Context) {
@@ -696,6 +720,9 @@ class NativePlayerSession(
                 // is still buffering. Reset the per-stream flag first so the
                 // swap is treated like an initial load.
                 playbackStarted = false
+                // The PiP window's buttons follow the stream as well as the
+                // play state: a channel loaded over a film has no skip.
+                pipActionsPlaying = null
                 viewModel.prepareForReload()
                 viewModel.apply(config)
                 startStream(config)
@@ -917,6 +944,18 @@ class NativePlayerSession(
     }
 
     // MARK: - Teardown
+
+    /**
+     * A player that ends in its picture in picture window (the film ends, the
+     * sleep timer, a stop from the group) takes the app out of the window, as
+     * the JS player's PiPController did; it stayed there with nothing in it.
+     */
+    private fun leavePictureInPicture(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity.isInPictureInPictureMode) {
+            activity.moveTaskToBack(false)
+        }
+    }
+
     fun dismiss(reason: String, completion: (() -> Unit)? = null) {
         if (isDismissing) {
             completion?.invoke()
@@ -974,6 +1013,7 @@ class NativePlayerSession(
                     // Ignored
                 }
                 restoreDisplayMode()
+                leavePictureInPicture(activity)
             }
 
             viewModel.brightnessController?.restore()
@@ -1012,7 +1052,10 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
-            activity?.let { unregisterPiPReceiver(it) }
+            activity?.let {
+                unregisterPiPReceiver(it)
+                leavePictureInPicture(it)
+            }
             restoreDisplayMode()
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()

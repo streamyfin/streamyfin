@@ -19,22 +19,10 @@ const section = (source: string, start: string, end: string) =>
  * when they left the app. Seen on an iPhone.
  */
 describe("iOS background playback", () => {
-  it("keeps it off in the embedded view until the prop turns it on", () => {
+  it("keeps it off in the embedded view, with no way to turn it on", () => {
     expect(embeddedHost).toContain("engine.backgroundPlayback = false");
-    expect(viewModule).toMatch(
-      /Prop\("backgroundPlayback"\)[\s\S]*?view\.setBackgroundPlayback\(enabled \?\? false\)/,
-    );
-  });
-
-  // Props apply in no fixed order: a source loaded before backgroundPlayback
-  // arrived took the session anyway.
-  it("loads the source once every prop of the update is in", () => {
-    expect(
-      section(viewModule, 'Prop("source")', 'Prop("backgroundPlayback")'),
-    ).toContain("view.setPendingLoad(config)");
-    expect(viewModule).toMatch(
-      /OnViewDidUpdateProps \{ \(view: MpvPlayerView\) in\s+view\.loadPendingVideo\(\)/,
-    );
+    expect(embeddedHost).not.toContain("backgroundPlayback = true");
+    expect(viewModule).not.toContain("backgroundPlayback");
   });
 
   it("takes the audio session and the remote commands only with it", () => {

@@ -7,6 +7,21 @@ class TvRemoteKeyHandler(
     private val viewModel: PlayerViewModel,
     private val onExitRequested: () -> Unit
 ) {
+    /**
+     * A skip key. A live stream has nowhere to skip to: the key brings the
+     * chrome up, LIVE badge included, where a film flashes its bar.
+     */
+    private fun skip(seconds: Double, flash: Boolean) {
+        // The error screen covers the player: nothing to skip, nothing to show.
+        if (viewModel.errorMessage != null) return
+        if (viewModel.isLive) {
+            viewModel.showControls()
+            return
+        }
+        viewModel.seekBy(seconds)
+        if (flash) viewModel.flashSeekFeedback()
+    }
+
     fun intercept(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
         val action = event.action
@@ -87,15 +102,13 @@ class TvRemoteKeyHandler(
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
-                    if (!viewModel.controlsVisible) viewModel.flashSeekFeedback()
+                    skip(viewModel.uiOptions.seekForwardSec, flash = !viewModel.controlsVisible)
                 }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_REWIND -> {
                 if (action == KeyEvent.ACTION_UP && repeatCount == 0) {
-                    viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
-                    if (!viewModel.controlsVisible) viewModel.flashSeekFeedback()
+                    skip(-viewModel.uiOptions.seekBackwardSec, flash = !viewModel.controlsVisible)
                 }
                 return true
             }
@@ -171,8 +184,7 @@ class TvRemoteKeyHandler(
                         } else if (!viewModel.syncPlayActive || repeatCount == 0) {
                             // A held key repeats about 20 times a second, and in
                             // a group every one would be a seek for everyone.
-                            viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
-                            viewModel.flashSeekFeedback()
+                            skip(-viewModel.uiOptions.seekBackwardSec, flash = true)
                         }
                     }
                     return true
@@ -186,8 +198,7 @@ class TvRemoteKeyHandler(
                             )
                             viewModel.nudgeScrub(viewModel.uiOptions.seekForwardSec * mult)
                         } else if (!viewModel.syncPlayActive || repeatCount == 0) {
-                            viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
-                            viewModel.flashSeekFeedback()
+                            skip(viewModel.uiOptions.seekForwardSec, flash = true)
                         }
                     }
                     return true

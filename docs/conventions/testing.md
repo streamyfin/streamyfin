@@ -6,7 +6,7 @@ modules included.
 
 ```bash
 bun run test:unit             # the whole suite
-bunx jest utils/chapters      # one file or a path fragment
+bunx jest utils/color         # one file or a path fragment
 bunx jest -t "resume point"   # one test by name
 bun run test:coverage         # the suite plus a coverage report in coverage/
 ```
@@ -28,14 +28,14 @@ than it protects: it fails on every refactor without ever catching a bug.
 ## Where tests live
 
 Next to the code, as `<name>.test.ts`, or `<name>.test.tsx` when the test
-contains JSX. `utils/chapters.ts` is covered by `utils/chapters.test.ts`.
+contains JSX. `utils/color.ts` is covered by `utils/color.test.ts`.
 Shared fixtures and doubles go in `test-utils/`.
 
 The one exception is a screen under `app/`. Expo Router turns every `.ts` and `.tsx`
 file there into a route, a spec included, so the spec lives with the logic the screen
 uses and the screen carries a comment pointing at it:
-`app/(auth)/player/direct-player.tsx` is covered by
-`utils/directPlayer/directPlayerPage.test.tsx`.
+the Live TV guide under `app/` is covered by
+`components/livetv/liveTvGuidePage.test.tsx`.
 
 ## Writing a test
 

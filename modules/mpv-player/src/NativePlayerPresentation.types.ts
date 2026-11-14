@@ -39,6 +39,13 @@ export type NativePlayerStreamConfig = {
    * 60Hz panel and judders. Ignored by iOS.
    */
   contentFrameRate?: number;
+  /**
+   * A Live TV channel: the stream has no start, no end and no resume point.
+   * The player offers no seek for it, from the screen, the remote, a headset,
+   * the lock screen or the picture in picture window, plays it at 1x, and
+   * shows LIVE where a film shows its bar and times.
+   */
+  isLive?: boolean;
 };
 
 export type NativePlayerMetadata = {
@@ -67,8 +74,7 @@ export type NativePlayerSegmentType =
 
 /**
  * What the player does with a segment. Resolved on the JS side from the
- * per-type skip settings so the native player never has to read settings, and
- * so both stay in step with the JS players.
+ * per-type skip settings so the native player never has to read settings.
  */
 export type NativePlayerSegmentSkipMode = "none" | "ask" | "auto";
 
@@ -233,6 +239,7 @@ export type NativePlayerStrings = Partial<
     | "continueWatching"
     | "goBack"
     | "endsAt"
+    | "live"
     | "zoomToFill"
     | "stop"
     | "stopPlayback"

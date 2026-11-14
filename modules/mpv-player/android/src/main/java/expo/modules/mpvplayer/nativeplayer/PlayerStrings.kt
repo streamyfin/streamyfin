@@ -40,6 +40,7 @@ class PlayerStrings(private val strings: Map<String, String>) {
             "continueWatching" to "Continue Watching",
             "goBack" to "Go Back",
             "endsAt" to "Ends at %TIME%",
+            "live" to "LIVE",
             "zoomToFill" to "Zoom to Fill",
             "stop" to "Stop",
             "stopPlayback" to "Stop Playback",

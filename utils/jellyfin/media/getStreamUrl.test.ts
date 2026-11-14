@@ -139,6 +139,71 @@ describe("getStreamUrl", () => {
     expect(url.searchParams.get("liveStreamId")).toBe("live-1");
   });
 
+  // A channel's page plays its selected source, whose id is the channel's.
+  // Jellyfin (10.11, 12.2 and 13 on the beta) answers PlaybackInfo with
+  // NoCompatibleStream when that id is asked for, and opens the channel when
+  // no source is named. The mock answers as the server does.
+  test("a channel played from its page opens without naming a source", async () => {
+    const api = makeApi();
+    api.mock.onPost(/\/Items\/channel-1\/PlaybackInfo/).reply((config) =>
+      JSON.parse(config.data).MediaSourceId
+        ? [200, { ErrorCode: "NoCompatibleStream", MediaSources: [] }]
+        : [
+            200,
+            {
+              PlaySessionId: "session-1",
+              MediaSources: [
+                { Id: "native-1", Container: "ts", LiveStreamId: "live-1" },
+              ],
+            },
+          ],
+    );
+
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "channel-1", Type: "TvChannel" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+      mediaSourceId: "channel-1",
+    });
+
+    const url = new URL(result!.url!);
+    expect(url.pathname).toBe("/Videos/channel-1/stream");
+    expect(url.searchParams.get("liveStreamId")).toBe("live-1");
+  });
+
+  // A quality change renegotiates the channel naming the source it opened.
+  // Named, the server shares that live stream; unnamed, a multi-profile
+  // tuner opened a second stream for the new bitrate.
+  test("a channel's quality change still names the source it opened", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost(
+        /\/Items\/channel-1\/PlaybackInfo/,
+        bodyContaining({ MediaSourceId: "native-1" }),
+      )
+      .reply(200, {
+        PlaySessionId: "session-2",
+        MediaSources: [
+          { Id: "native-1", Container: "ts", LiveStreamId: "live-1" },
+        ],
+      });
+
+    const result = await getStreamUrl({
+      api,
+      item: { Id: "channel-1", Type: "TvChannel" },
+      userId: "user-1",
+      startTimeTicks: 0,
+      deviceProfile: {},
+      mediaSourceId: "native-1",
+    });
+
+    expect(new URL(result!.url!).searchParams.get("liveStreamId")).toBe(
+      "live-1",
+    );
+  });
+
   // REACT-NATIVE-54 / REACT-NATIVE-5H: Jellyfin answers PlaybackInfo with a
   // 400 for an item that has no stream. Seen in production for a Book opened
   // from a home row (Android) and for a Season opened on Apple TV, each one

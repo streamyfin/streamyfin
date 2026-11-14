@@ -69,6 +69,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var onMetadataSync: (() -> Unit)? = null
     /** Each position report, for the media session to catch a seek or stall. */
     var onPositionSync: (() -> Unit)? = null
+    /** The video's size changed, for the picture in picture window to take its shape. */
+    var onVideoDimensionsSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
 
     /**
@@ -77,6 +79,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
      * dialogue boost, mono downmix, audio/subtitle sync).
      */
     var isMpvEngine by mutableStateOf(true)
+
+    /**
+     * A Live TV channel: the stream has no start, no end and no resume point,
+     * so nothing seeks it and the chrome shows LIVE where a film has its bar
+     * and its times.
+     */
+    var isLive by mutableStateOf(false)
+        private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -95,8 +105,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     //
     // Two sources OR-ed because neither covers every device: the output
     // volume, invisible on a box wired to a receiver that reports a fixed
-    // volume, and mpv's own mute, driven by the controls. Mirrors
-    // `useMuteState` in the JS player controls.
+    // volume, and mpv's own mute, driven by the controls.
 
     /** mpv's own mute. Survives a stream swap: it belongs to the session. */
     var isPlayerMuted by mutableStateOf(false)
@@ -231,7 +240,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         },
         execute = { command, position ->
             if (isTearingDown || engine == null) false else {
-                forceSyncSpeed()
+                forceNormalSpeed()
                 when (command.command) {
                     "Pause" -> {
                         pauseLocal()
@@ -271,7 +280,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (active == null) {
             showSyncPlayQueue = false
         } else {
-            forceSyncSpeed()
+            forceNormalSpeed()
             cancelCountdown()
             countdownRemaining = null
             showStillWatching = false
@@ -289,7 +298,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun cancelSyncPlayCommands() = syncScheduler.cancel()
 
-    private fun forceSyncSpeed() {
+    private fun forceNormalSpeed() {
         isHoldSpeedActive = false
         speedBeforeHold = null
         speed = 1.0
@@ -342,6 +351,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     private var subtitleMarginY: Int? = null
     private var subtitleVideoWidth = 0
     private var subtitleVideoHeight = 0
+    /** The video's size: the media source's until the decoder reports it, 0 when neither knows. */
+    val videoWidth: Int get() = subtitleVideoWidth
+    val videoHeight: Int get() = subtitleVideoHeight
     private var subtitleSurfaceWidth = 0
     private var subtitleSurfaceHeight = 0
     private var countdownCanceled = false
@@ -381,6 +393,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun apply(config: PlayerPresentConfigRecord) {
         updateSyncPlay(config.syncPlay)
         isMpvEngine = config.engine?.lowercase() != "exoplayer"
+        isLive = config.stream.isLive
         val newItemId = config.metadata?.itemId
         if (newItemId == null || newItemId != currentItemId) {
             countdownCanceled = false
@@ -416,6 +429,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         subtitleMarginY = config.subtitleStyle?.marginY
         subtitleVideoWidth = config.stream.videoWidth ?: 0
         subtitleVideoHeight = config.stream.videoHeight ?: 0
+        onVideoDimensionsSync?.invoke()
 
         val startPos = config.stream.startPositionSec ?: 0.0
         authoritativePosition = startPos
@@ -622,6 +636,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekTo(positionSec: Double) {
+        // Before the group branch: in a group the seek never reaches
+        // seekLocal's guard, it goes to everyone on the channel.
+        if (isLive) return
         if (syncPlayActive) {
             val target = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
             syncPlayAction("seek", mapOf("positionSec" to target))
@@ -632,6 +649,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun seekLocal(positionSec: Double, trackOnly: Boolean = !syncPlayActive) {
+        // Every seek ends here: the screen, the remote, a headset, the lock
+        // screen, the picture in picture window, a Seek from another device.
+        if (isLive) return
         val clamped = max(0.0, if (duration > 0) min(positionSec, duration) else positionSec)
         val requestId = pendingSeekReport.request(clamped)
         if (trackOnly) {
@@ -680,7 +700,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun doubleTapSeek(forward: Boolean) {
-        if (!uiOptions.doubleTapToSeekEnabled) return
+        if (!uiOptions.doubleTapToSeekEnabled || isLive) return
         val delta = if (forward) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec
         seekBy(delta)
         doubleTapSeekForward = forward
@@ -691,9 +711,16 @@ class PlayerViewModel : PlayerEngine.Delegate {
         }
     }
 
+    /**
+     * Whether the speed menu is offered. A group plays at one speed, and a
+     * live stream plays as it airs: faster drains what is buffered.
+     */
+    val canChangeSpeed: Boolean get() = !syncPlayActive && !isLive
+
     @JvmName("applySpeed")
     fun setSpeed(newSpeed: Double) {
-        if (syncPlayActive) { forceSyncSpeed(); return }
+        // Not told to JS: the speed the viewer saved stays theirs.
+        if (!canChangeSpeed) { forceNormalSpeed(); return }
         speed = newSpeed
         engine?.setSpeed(newSpeed)
         emit?.invoke("onSpeedChange", mapOf("speed" to newSpeed))
@@ -702,7 +729,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     fun startHoldSpeed() {
-        if (syncPlayActive || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
+        if (!canChangeSpeed || !uiOptions.holdToSpeedEnabled || isHoldSpeedActive || isScrubbing) return
         haptic()
         speedBeforeHold = speed
         isHoldSpeedActive = true
@@ -1313,8 +1340,13 @@ class PlayerViewModel : PlayerEngine.Delegate {
         // exists to prevent.
         if (isTearingDown) return
         authoritativePosition = position
-        if (this.duration != duration) {
-            this.duration = duration
+        // mpv gives as a live stream's duration how far it has read, which
+        // grows with every tick: each new value republished the session's
+        // metadata and the notification, some 25 times a second. A live
+        // stream has no length, so it keeps the 0 of an unknown one.
+        val length = if (isLive) 0.0 else duration
+        if (this.duration != length) {
+            this.duration = length
             onMetadataSync?.invoke()
         }
         this.cacheSeconds = cacheSeconds
@@ -1405,6 +1437,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         subtitleVideoWidth = width
         subtitleVideoHeight = height
         applySubtitleGeometry()
+        onVideoDimensionsSync?.invoke()
     }
 
     override fun onChaptersChanged(chapters: List<Map<String, Any>>) {

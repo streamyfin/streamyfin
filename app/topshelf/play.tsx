@@ -55,9 +55,7 @@ export default function TopShelfPlayRedirect() {
         return;
       }
 
-      // Land on Home first so the player (native present or JS route push)
-      // has a sane screen underneath, then run the play chooser: native
-      // player when the TV toggle is on, JS route otherwise.
+      // Land on Home first so the player has a sane screen underneath.
       router.replace("/(auth)/(tabs)/(home)");
       void playMedia({ itemId: id, offline: false }, { item });
     })();

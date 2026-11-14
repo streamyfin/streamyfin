@@ -16,6 +16,7 @@ import { AppState, type AppStateStatus, Platform } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { isPlayerSupported } from "@/utils/atoms/settings";
 import { getJellyfinHeaders, hasHeaders } from "@/utils/customHeaders";
 import { getOrSetDeviceId } from "@/utils/device";
 import { describeHttpResponse } from "@/utils/errors";
@@ -78,22 +79,15 @@ interface WebSocketContextType {
   ws: WebSocket | null;
   isConnected: boolean;
   /**
-   * @deprecated Prefer `subscribe`. `lastMessage` only keeps the most recent
-   * message, so bursts arriving in the same tick are coalesced and lost. Kept
-   * for `useWebsockets` (GeneralCommand handling) until it is migrated.
-   */
-  lastMessage: WebSocketMessage | null;
-  /**
    * Subscribe to a given message type. The handler is called synchronously for
-   * every matching message (no coalescing, unlike `lastMessage`). Returns an
-   * unsubscribe function to call on cleanup.
+   * every matching message, with no coalescing. Returns an unsubscribe
+   * function to call on cleanup.
    */
   subscribe: (
     messageType: string,
     handler: WebSocketMessageHandler,
   ) => () => void;
   sendMessage: (message: any) => void;
-  clearLastMessage: () => void;
   /** Native playback owns whether backgrounding leaves its SyncPlay group. */
   retainInBackground: () => () => void;
 }
@@ -130,7 +124,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         () => setIsConnected(false),
       ),
   );
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
     return getOrSetDeviceId();
@@ -306,9 +299,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         // Native PiP/backgrounding can suspend JS interval timers. Respond
         // in the message handler rather than wait for the next heartbeat.
         socketLifecycle.respondToKeepAlive(newWebSocket, message.MessageType);
-        // Legacy single-slot state, still consumed by useWebsockets.
-        setLastMessage(message);
-        // Pub/sub: deliver to every subscriber without coalescing.
+        // Deliver to every subscriber without coalescing. Kept out of React
+        // state: the socket carries session broadcasts continuously, and a
+        // state write per message re-rendered every consumer of the context.
         dispatchMessage(message);
       } catch (error) {
         logAndCaptureError("Error parsing WebSocket message", error);
@@ -408,8 +401,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [socketLifecycle]);
 
   // The server-initiated "Play me this item" command is handled by
-  // NativePlayerProvider (mounted below this provider): it presents the
-  // native player when active, and falls back to the JS player route.
+  // NativePlayerProvider (mounted below this provider), which presents the
+  // player.
 
   useEffect(() => {
     const cleanup = connectWebSocket();
@@ -450,7 +443,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
               "https://apps.apple.com/us/app/streamyfin/id6593660679",
             IconUrl:
               "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
-            PlayableMediaTypes: ["Audio", "Video"],
+            // An Apple TV below tvOS 26 has no video player to offer.
+            PlayableMediaTypes: isPlayerSupported
+              ? ["Audio", "Video"]
+              : ["Audio"],
             SupportedCommands: supportedCommands(Platform.isTV),
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,
@@ -510,18 +506,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     },
     [ws, isConnected],
   );
-  const clearLastMessage = useCallback(() => {
-    setLastMessage(null);
-  }, []);
   return (
     <WebSocketContext.Provider
       value={{
         ws,
         isConnected,
-        lastMessage,
         subscribe,
         sendMessage,
-        clearLastMessage,
         retainInBackground: socketLifecycle.retainInBackground,
       }}
     >

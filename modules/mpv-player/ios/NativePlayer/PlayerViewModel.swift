@@ -46,6 +46,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// objectWillChange once per second for every observer.
 	private(set) var position: Double = 0
 	@Published var duration: Double = 0
+	/// A Live TV channel: the stream has no start, no end and no resume point,
+	/// so nothing seeks it and the chrome shows LIVE where a film has its bar
+	/// and its times.
+	@Published private(set) var isLive = false
 	/// The ticking values live here, not on this object — see
 	/// PlaybackTimeModel. Views that render them observe `time` explicitly.
 	let time = PlaybackTimeModel()
@@ -93,7 +97,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var controlsLocked = false
 	@Published var unlockButtonRevealed = false
 	/// Hardware volume press while the chrome is hidden briefly shows just the
-	/// volume slider (mirror of the JS AudioSlider auto-reveal).
+	/// volume slider.
 	@Published var volumeSliderRevealed = false
 	/// Vertical brightness drag while the chrome is hidden shows just the
 	/// brightness slider as feedback.
@@ -139,7 +143,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var autoSkippedSegmentIds: Set<String> = []
 	/// When playback last became genuinely stable. Auto-skip waits on this:
 	/// seeking a transcode the instant the first frame lands asks for a segment
-	/// it has not produced yet and stalls (JS parity: AUTO_SKIP_ARM_DELAY_MS).
+	/// it has not produced yet and stalls.
 	private var autoSkipStableSince: Date?
 	private var noticeDismissTask: Task<Void, Never>?
 	@Published var nextEpisode: NextEpisodeRecord?
@@ -173,8 +177,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published private(set) var isPlayerMuted = false
 
 	/// Output volume at zero or mpv muted. What the mute button draws and what
-	/// JS is told. Two sources OR-ed because neither covers every platform,
-	/// mirroring `useMuteState` in the JS player controls.
+	/// JS is told. Two sources OR-ed because neither covers every platform.
 	@Published private(set) var isMuted = false
 
 	#if os(iOS)
@@ -483,6 +486,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func apply(config: PlayerPresentConfigRecord) {
 		syncPlayExpectsPlaying = false
+		isLive = config.stream.isLive
 		// The sticky countdown cancel survives same-item swaps (track/bitrate
 		// re-negotiation goes through load() too) and resets only when the
 		// played item actually changes.
@@ -693,7 +697,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seek(to target: Double) {
-		guard target.isFinite else { return }
+		// Every user seek ends here: the screen, the remote, the lock screen,
+		// Control Center, the picture in picture window, a group's seek.
+		guard target.isFinite, !isLive else { return }
 		if isSyncPlayActive {
 			let clamped = max(0, duration > 0 ? min(target, duration) : target)
 			syncPlayAction("seek", ["positionSec": clamped])
@@ -703,6 +709,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private func seekLocally(to target: Double, trackOnly: Bool, exact: Bool = false) {
+		// A group's correction reaches here without seek(to:).
+		guard !isLive else { return }
 		let clamped = max(0, duration > 0 ? min(target, duration) : target)
 		pendingSeekReport = true
 		pendingSeekTarget = clamped
@@ -734,11 +742,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func seekForward() {
+		guard !isLive else { return }
 		haptic()
 		seek(to: displayPosition + seekForwardSec)
 	}
 
 	func seekBackward() {
+		guard !isLive else { return }
 		haptic()
 		seek(to: displayPosition - seekBackwardSec)
 	}
@@ -748,7 +758,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// (settings.enableDoubleTapToSeek). Same guards as the surface drag —
 	/// lock mode and end-of-playback overlays swallow the gesture.
 	func doubleTapSeek(forward: Bool) {
-		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
+		guard doubleTapToSeekEnabled, !isLive, !controlsLocked, !showStillWatching,
 			errorMessage == nil, duration > 0
 		else { return }
 		if forward {
@@ -769,11 +779,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: Scrubbing
 
 	func beginScrub() {
+		// Scrubbing pauses: on a channel that would only stall it.
+		guard !isLive else { return }
 		isScrubbing = true
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
-		// Pause while scrubbing; endScrub resumes only if it was playing
-		// (mirror of the JS player's useVideoSlider).
+		// Pause while scrubbing; endScrub resumes only if it was playing.
 		wasPlayingBeforeScrub = isPlaying
 		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			engine?.pause()
@@ -971,7 +982,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	/// More than 3s into the current chapter restarts it; otherwise jumps to
-	/// the previous one (mirror of useChapterNavigation.ts).
+	/// the previous one.
 	func goToPreviousChapter() {
 		let idx = currentChapterIndex
 		guard idx >= 0 else { return }
@@ -1041,7 +1052,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		applySubtitleScale()
 	}
 
-	/// Match the embedded player's calibrated, video-relative subtitle size.
+	/// The calibrated, video-relative subtitle size the subtitle preview uses
+	/// (getEffectiveSubtitleScale in utils/subtitles.ts).
 	/// MPV renders in source-video pixels, so compensate when fitting a larger
 	/// video into a smaller display, capped at the shared 3× boost.
 	func applySubtitleScale() {
@@ -1208,8 +1220,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// Whether the speed menu is offered. A group plays at one speed, and a
+	/// live stream plays as it airs: faster drains what is buffered.
+	var canChangeSpeed: Bool { !isSyncPlayActive && !isLive }
+
 	func setSpeed(_ newSpeed: Double) {
-		guard !isSyncPlayActive else { return }
+		// Not told to JS: the speed the viewer saved stays theirs.
+		guard canChangeSpeed else { return }
 		// A deliberate speed choice (menu / remote) wins over a transient hold.
 		isHoldSpeedActive = false
 		speedBeforeHold = nil
@@ -1235,7 +1252,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// onSpeedChange — the transient rate must never be persisted as the
 	/// user's speed preference.
 	func beginHoldSpeed() {
-		guard !isSyncPlayActive else { return }
+		guard canChangeSpeed else { return }
 		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
 			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
@@ -1266,7 +1283,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	/// Applies live on the engine and notifies JS, which persists the global
-	/// subtitleSize setting (mirror of the JS in-player subtitle scale).
+	/// subtitleSize setting.
 	func setSubtitleScale(_ scale: Double) {
 		guard !subtitleScaleLocked else { return }
 		subtitleScale = min(max((scale * 10).rounded() / 10, 0.1), 3)
@@ -1312,7 +1329,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// The reported end of an outro sometimes overshoots the file. Land two
 		// seconds short so the natural end-of-video flow still runs, and do
 		// nothing at all when that target is already behind the playhead, which
-		// would otherwise rewind (JS parity: useSegmentSkipper).
+		// would otherwise rewind.
 		var target = segment.endSec
 		if segment.type == "Outro", duration > 0, target >= duration {
 			target = max(0, duration - 2)
@@ -1553,15 +1570,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 		// Only credits that run to (within 5s of) the video end auto-arm the
 		// countdown — auto-advancing out of credits with a mid/post-credits
-		// scene after them would skip content (JS parity: useCreditSkipper's
-		// hasContentAfterCredits gate). The Skip Credits pill stays available
+		// scene after them would skip content. The Skip Credits pill stays available
 		// in that case instead.
 		var inFinalCredits = false
 		if let active, active.type == "Outro", duration > 0 {
 			inFinalCredits = duration - active.endSec <= 5
 		}
-		// Items without credits markers still get the countdown near the end
-		// (JS parity: remainingTime < countdown length arms it too).
+		// Items without credits markers still get the countdown near the end,
+		// once the remaining time is under the countdown's length.
 		var nearEnd = false
 		guard !isSyncPlayActive else { return }
 		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {
@@ -1665,8 +1681,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		// This callback is 1Hz and duration is @Published — only assign on a
 		// real change, or every observer re-renders once per second (which
 		// grays out any open menu, see PlaybackTimeModel).
-		if self.duration != duration {
-			self.duration = duration
+		// mpv gives as a live stream's duration how far it has read, which
+		// grows with every tick. A live stream has no length: it keeps the 0
+		// of an unknown one, which also keeps every bar and drag off it.
+		let length = isLive ? 0 : duration
+		if self.duration != length {
+			self.duration = length
 		}
 		self.cacheSeconds = cacheSeconds
 		if !isScrubbing {

@@ -176,6 +176,24 @@ describe("InactivityProvider", () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
+  // The plugin's lock can turn the timeout on while a video plays (its
+  // settings refresh when the app comes back to the foreground); the video
+  // asked for the pause while it was off, and does not ask again.
+  test("keeps a video that started with the timeout off from being counted once it is on", async () => {
+    await signIn();
+    await renderProvider();
+    await loadSettings(0);
+    await act(() => controls.pauseInactivityTimer());
+
+    await lockTimeout(TIMEOUT_MS);
+    await wait(TIMEOUT_MS * 2);
+    expect(mockLogout).not.toHaveBeenCalled();
+
+    await act(() => controls.resumeInactivityTimer());
+    await wait(TIMEOUT_MS);
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
+
   describe("at launch", () => {
     // A session restored at launch is measured from its last activity: a TV
     // left alone while the app was closed is signed out when it opens.

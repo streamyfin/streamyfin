@@ -13,8 +13,7 @@ struct PlayerControlsRootView: View {
 	private enum DragAxis { case horizontal, vertical }
 
 	// One gesture session on the background surface: the axis locks on the
-	// first movement and sticks for the whole drag (mirror of the JS
-	// useGestureDetection).
+	// first movement and sticks for the whole drag.
 	@State private var dragAxis: DragAxis?
 	@State private var dragOnLeftHalf = false
 	@State private var dragStartFraction: Double = 0
@@ -269,13 +268,14 @@ struct PlayerControlsRootView: View {
 	/// The tap catcher. With double-tap-to-seek on, the double tap is
 	/// composed exclusively before the single tap, so the toggle waits out
 	/// the double-tap window; when off (the default, and in lock mode where
-	/// taps must keep revealing the unlock pill instantly) no double tap is
-	/// attached at all and the toggle stays immediate.
+	/// taps must keep revealing the unlock pill instantly, and on a live
+	/// stream, which has nowhere to seek) no double tap is attached at all and
+	/// the toggle stays immediate.
 	@ViewBuilder
 	private func tapSurface(size: CGSize) -> some View {
 		let surface = Color.clear.contentShape(Rectangle())
 		if viewModel.doubleTapToSeekEnabled && !viewModel.controlsLocked
-			&& !viewModel.showSubtitleScaleControl {
+			&& !viewModel.showSubtitleScaleControl && !viewModel.isLive {
 			surface.gesture(
 				SpatialTapGesture(count: 2)
 					.onEnded { value in
@@ -315,8 +315,8 @@ struct PlayerControlsRootView: View {
 	/// Horizontal drag anywhere = scrub (Apple TV app style, through the same
 	/// beginScrub/updateScrub/endScrub path as the scrubber, so trickplay,
 	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
-	/// brightness on the left half, volume on the right (JS GestureOverlay
-	/// parity), with the edge pills transiently revealed as feedback.
+	/// brightness on the left half, volume on the right, with the edge pills
+	/// transiently revealed as feedback.
 	private func surfaceDragGesture(size: CGSize) -> some Gesture {
 		DragGesture(minimumDistance: 12)
 			.onChanged { value in
@@ -726,7 +726,7 @@ private struct SubtitleScaleOverlay: View {
 }
 
 /// Bottom bar: the custom scrubber, then time labels with the wall-clock
-/// finish time under the remaining time (JS TimeDisplay). The root overlay
+/// finish time under the remaining time. The root overlay
 /// positions the current chapter relative to this scrubber's anchor.
 struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
@@ -735,12 +735,31 @@ struct PlayerBottomBar: View {
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
-		// The JS player renders hour12:false 2-digit — a fixed 24h format.
+		// A fixed 24h format, two digits each.
 		formatter.dateFormat = "HH:mm"
 		return formatter
 	}()
 
 	var body: some View {
+		// A live stream has no timeline: the badge stands where a film has
+		// its bar and its times.
+		if viewModel.isLive {
+			HStack(alignment: .center) {
+				LiveBadge(
+					text: viewModel.str("live", "LIVE"),
+					fontSize: 12, horizontalPadding: 8, verticalPadding: 3
+				)
+				Spacer()
+				sleepCountdown
+			}
+			.padding(.bottom, 8)
+		} else {
+			timeline
+		}
+	}
+
+	@ViewBuilder
+	private var timeline: some View {
 		let position = viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition
 		let remaining = max(0, viewModel.duration - position)
 
@@ -762,20 +781,7 @@ struct PlayerBottomBar: View {
 							.font(.system(size: 10).monospacedDigit())
 							.foregroundStyle(.white.opacity(0.55))
 					}
-					if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
-						// TimelineView ticks the label on its own — the
-						// countdown must keep moving while paused, when the
-						// display-link clock driving this bar is frozen.
-						TimelineView(.periodic(from: .now, by: 1)) { context in
-							HStack(spacing: 3) {
-								Image(systemName: "moon.zzz.fill")
-									.font(.system(size: 9))
-								Text(formatTime(max(0, end.timeIntervalSince(context.date))))
-									.font(.system(size: 10).monospacedDigit())
-							}
-							.foregroundStyle(.white.opacity(0.55))
-						}
-					}
+					sleepCountdown
 				}
 			}
 			.font(.footnote.monospacedDigit())
@@ -784,10 +790,28 @@ struct PlayerBottomBar: View {
 		.padding(.bottom, 8)
 	}
 
+	@ViewBuilder
+	private var sleepCountdown: some View {
+		if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
+			// TimelineView ticks the label on its own — the
+			// countdown must keep moving while paused, when the
+			// display-link clock driving this bar is frozen.
+			TimelineView(.periodic(from: .now, by: 1)) { context in
+				HStack(spacing: 3) {
+					Image(systemName: "moon.zzz.fill")
+						.font(.system(size: 9))
+					Text(formatTime(max(0, end.timeIntervalSince(context.date))))
+						.font(.system(size: 10).monospacedDigit())
+				}
+				.foregroundStyle(.white.opacity(0.55))
+			}
+		}
+	}
+
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;
 	/// translations without one (e.g. sv "slutar") get the time appended.
 	private func endsAtLabel(remaining: Double) -> String {
-		// Real remaining wall time, not speed-adjusted — matches the JS player.
+		// Real remaining wall time, not speed-adjusted.
 		let time = Self.endsAtFormatter.string(from: Date().addingTimeInterval(remaining))
 		let template = viewModel.str("endsAt", "Ends at %TIME%")
 		if template.contains("%TIME%") {

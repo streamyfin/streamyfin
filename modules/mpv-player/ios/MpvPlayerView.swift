@@ -1,8 +1,5 @@
-import AVFAudio
 import AVFoundation
-import CoreMedia
 import ExpoModulesCore
-import MediaPlayer
 import UIKit
 
 /// Configuration for loading a video
@@ -26,6 +23,8 @@ struct VideoLoadConfig {
 	var cacheSeconds: Int?     // Seconds of video to buffer
 	var demuxerMaxBytes: Int?  // Max cache size in MB
 	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
+	/// A Live TV channel: the stream starts where it is, no seek to its start.
+	var isLive = false
 
 	init(
 		url: URL,
@@ -56,23 +55,15 @@ struct VideoLoadConfig {
 	}
 }
 
-// This view will be used as a native component. Make sure to inherit from `ExpoView`
-// to apply the proper styling (e.g. border radius and shadows).
-//
-// The view is a thin host over MPVPlayerEngine (PlayerEngine.swift), which owns
-// the display layer, renderer, PiP, Now Playing and the audio session. The
-// presented native player (NativePlayer/) shares the same engine; this view's
-// job is only RN embedding: layer hosting, layout, and mapping engine delegate
-// callbacks 1:1 onto the JS EventDispatchers.
+/// The embedded view, a thin host over MPVPlayerEngine (PlayerEngine.swift).
+/// Only the subtitle preview in Settings uses it: a silent clip whose
+/// subtitles follow the settings. The engine runs without background playback
+/// here, so the view takes no audio session, lock screen controls or picture
+/// in picture. The presented player (NativePlayer/) shares the engine.
 class MpvPlayerView: ExpoView {
 	private let engine = MPVPlayerEngine()
 	private var videoContainer: UIView!
-	let onLoad = EventDispatcher()
-	let onPlaybackStateChange = EventDispatcher()
-	let onProgress = EventDispatcher()
-	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
-	let onPictureInPictureChange = EventDispatcher()
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -90,8 +81,8 @@ class MpvPlayerView: ExpoView {
 		addSubview(videoContainer)
 
 		engine.delegate = self
-		// Off until the backgroundPlayback prop turns it on: a clip shown in
-		// the app must not take the audio session or arm picture in picture.
+		// A clip shown in the app must not take the audio session or arm
+		// picture in picture: the user's music stopped.
 		engine.backgroundPlayback = false
 		engine.displayLayer.frame = bounds
 		engine.displayLayer.contentsScale = contentScaleFactor
@@ -107,10 +98,8 @@ class MpvPlayerView: ExpoView {
 		do {
 			try engine.start()
 		} catch {
-			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
+			print("[MPV] Failed to start renderer: \(error.localizedDescription)")
 		}
-		// Pause-on-background for tvOS now lives in MPVPlayerEngine so the
-		// presented native player gets it too.
 	}
 
 	override func layoutSubviews() {
@@ -125,161 +114,14 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
-	override func didMoveToWindow() {
-		super.didMoveToWindow()
-		engine.setPictureInPictureHostVisible(window != nil)
-	}
-
-	// MARK: - Now Playing Info
-
-	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]? = nil) {
-		engine.setNowPlayingMetadata(metadata, artworkHeaders: artworkHeaders)
-	}
-
 	func loadVideo(config: VideoLoadConfig) {
 		engine.loadVideo(config: config)
 	}
 
-	/// The source prop's config, loaded once every prop of the update is in
-	/// (OnViewDidUpdateProps): props apply in no fixed order, and the load has
-	/// to know whether this view plays in the background.
-	private var pendingLoad: VideoLoadConfig?
-
-	func setPendingLoad(_ config: VideoLoadConfig) {
-		pendingLoad = config
-	}
-
-	func loadPendingVideo() {
-		guard let config = pendingLoad else { return }
-		pendingLoad = nil
-		loadVideo(config: config)
-	}
-
-	func setBackgroundPlayback(_ enabled: Bool) {
-		engine.backgroundPlayback = enabled
-	}
-
-	// Convenience method for simple loads
-	func loadVideo(url: URL, headers: [String: String]? = nil) {
-		loadVideo(config: VideoLoadConfig(url: url, headers: headers))
-	}
-
-	func play() {
-		engine.play()
-	}
-
-	func pause() {
-		engine.pause()
-	}
-
-	/// Synchronously stop and destroy the mpv instance + decoder before the
-	/// next screen mounts. See MPVPlayerEngine.destroy() for the full
-	/// remount/restart rationale.
-	func destroy() {
-		engine.destroy()
-	}
-
-	func seekTo(position: Double) {
-		engine.seekTo(position: position)
-	}
-
-	func seekBy(offset: Double) {
-		engine.seekBy(offset: offset)
-	}
-
-	func setSpeed(speed: Double) {
-		engine.setSpeed(speed: speed)
-	}
-
-	func setMute(muted: Bool) {
-		engine.setMute(muted)
-	}
-
-	func getSpeed() -> Double {
-		return engine.getSpeed()
-	}
-
-	func isPaused() -> Bool {
-		return engine.isPaused()
-	}
-
-	func getCurrentPosition() -> Double {
-		return engine.getCurrentPosition()
-	}
-
-	func getDuration() -> Double {
-		return engine.getDuration()
-	}
-
-	// MARK: - Picture in Picture
-
-	func startPictureInPicture() {
-		engine.startPictureInPicture()
-	}
-
-	func stopPictureInPicture() {
-		engine.stopPictureInPicture()
-	}
-
-	func isPictureInPictureSupported() -> Bool {
-		return engine.isPictureInPictureSupported()
-	}
-
-	func isPictureInPictureActive() -> Bool {
-		return engine.isPictureInPictureActive()
-	}
-
-	// MARK: - Subtitle Controls
-
-	/// Completion fires on the mpv work queue (see MPVLayerRenderer.onQueue —
-	/// the blocking reads must never run on this view's main thread).
-	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) {
-		engine.getSubtitleTracks(completion: completion)
-	}
-
-	func setSubtitleTrack(_ trackId: Int) {
-		engine.setSubtitleTrack(trackId)
-	}
-
-	func disableSubtitles() {
-		engine.disableSubtitles()
-	}
-
-	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
-		engine.getCurrentSubtitleTrack(completion: completion)
-	}
-
-	func addSubtitleFile(url: String, select: Bool = true) {
-		engine.addSubtitleFile(url: url, select: select)
-	}
-
-	// MARK: - Audio Track Controls
-
-	/// Completion fires on the mpv work queue (see getSubtitleTracks).
-	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) {
-		engine.getAudioTracks(completion: completion)
-	}
-
-	func setAudioTrack(_ trackId: Int) {
-		engine.setAudioTrack(trackId)
-	}
-
-	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
-		engine.getCurrentAudioTrack(completion: completion)
-	}
-
-	// MARK: - Subtitle Positioning
-
-	func setSubtitlePosition(_ position: Int) {
-		engine.setSubtitlePosition(position)
-	}
+	// MARK: - Subtitle Style
 
 	func setSubtitleScale(_ scale: Double) {
 		engine.setSubtitleScale(scale)
-	}
-
-	func setSubtitleDelay(_ seconds: Double) {
-		engine.setSubtitleDelay(seconds)
 	}
 
 	func setSubtitleMarginY(_ margin: Int) {
@@ -294,194 +136,39 @@ class MpvPlayerView: ExpoView {
 		engine.setSubtitleAlignY(alignment)
 	}
 
-	func setSubtitleFontSize(_ size: Int) {
-		engine.setSubtitleFontSize(size)
-	}
-
 	func setSubtitleStyle(config: [String: Any]) {
 		engine.setSubtitleStyle(config: config)
-	}
-
-	func setSubtitleBackgroundColor(_ color: String) {
-		engine.setSubtitleBackgroundColor(color)
-	}
-
-	func setSubtitleBorderStyle(_ style: String) {
-		engine.setSubtitleBorderStyle(style)
 	}
 
 	func setSubtitleAssOverride(_ mode: String) {
 		engine.setSubtitleAssOverride(mode)
 	}
 
-	// MARK: - Video Scaling
-
-	func setZoomedToFill(_ zoomed: Bool) {
-		engine.setZoomedToFill(zoomed)
-	}
-
-	func isZoomedToFill() -> Bool {
-		return engine.isZoomedToFill()
-	}
-
-	// MARK: - Technical Info
-
-	/// Completion fires on the mpv work queue (see getSubtitleTracks).
-	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
-		engine.getTechnicalInfo(completion: completion)
-	}
-
 	deinit {
-		#if os(tvOS)
-		resetDisplayCriteria()
-		#endif
 		engine.shutdown()
 	}
 }
 
 // MARK: - MPVPlayerEngineDelegate
 
+/// The preview only waits for its tracks before styling the subtitles.
 extension MpvPlayerView: MPVPlayerEngineDelegate {
-	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {
-		onLoad(["url": config.url.absoluteString])
-	}
-
-	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
-		onProgress([
-			"position": position,
-			"duration": duration,
-			"progress": duration > 0 ? position / duration : 0,
-			"cacheSeconds": cacheSeconds,
-		])
-	}
-
-	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {
-		onPlaybackStateChange([
-			"isPaused": isPaused,
-			"isPlaying": !isPaused,
-		])
-	}
-
-	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool) {
-		onPlaybackStateChange([
-			"isLoading": isLoading,
-		])
-	}
-
-	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool) {
-		onPlaybackStateChange([
-			"isReadyToSeek": ready,
-		])
-	}
+	func engine(_ engine: MPVPlayerEngine, didLoad config: VideoLoadConfig) {}
+	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {}
+	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {}
+	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool) {}
+	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool) {}
 
 	func engine(_ engine: MPVPlayerEngine, didBecomeTracksReady ready: Bool) {
 		onTracksReady([:])
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool) {
-		onPictureInPictureChange(["isActive": isActive])
-	}
+	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool) {}
 
 	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String) {
-		onError(["error": message])
+		print("[MPV] Subtitle preview failed: \(message)")
 	}
 
-	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
-		#if os(tvOS)
-		setDisplayCriteria(for: mode, fps: Float(fps))
-		#endif
-	}
-
-	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
-		// EOF is only consumed by the presented native player (auto-advance /
-		// auto-close). The RN-embedded player's JS layer derives end-of-video
-		// from onProgress, so this is intentionally a no-op here.
-	}
+	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {}
+	func engineDidReachEnd(_ engine: MPVPlayerEngine) {}
 }
-
-// MARK: - tvOS HDR Display Criteria
-
-#if os(tvOS)
-import AVKit
-import CoreMedia
-
-extension MpvPlayerView {
-	/// Creates a CMFormatDescription with HDR metadata for display criteria
-	private func createHDRFormatDescription(hdrMode: HDRMode) -> CMFormatDescription? {
-		var formatDescription: CMFormatDescription?
-
-		// Build extensions dictionary for HDR color properties
-		var extensions: [String: Any] = [
-			kCMFormatDescriptionExtension_FullRangeVideo as String: true
-		]
-
-		switch hdrMode {
-		case .hdr10, .dolbyVision:
-			// HDR10 and Dolby Vision use BT.2020 primaries with PQ transfer function
-			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
-			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_SMPTE_ST_2084_PQ
-			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
-		case .hlg:
-			// HLG uses BT.2020 primaries with HLG transfer function
-			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
-			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_ITU_R_2100_HLG
-			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
-		case .sdr:
-			return nil
-		}
-
-		// Create a video format description with HDR extensions
-		// Using HEVC codec type and 4K resolution as typical HDR parameters
-		let status = CMVideoFormatDescriptionCreate(
-			allocator: kCFAllocatorDefault,
-			codecType: kCMVideoCodecType_HEVC,
-			width: 3840,
-			height: 2160,
-			extensions: extensions as CFDictionary,
-			formatDescriptionOut: &formatDescription
-		)
-
-		return status == noErr ? formatDescription : nil
-	}
-
-	/// Sets the preferred display criteria for HDR content on tvOS
-	func setDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
-		guard #available(tvOS 17.0, *) else {
-			print("🎬 HDR: AVDisplayCriteria requires tvOS 17.0+")
-			return
-		}
-
-		guard let window = self.window else {
-			print("🎬 HDR: No window available for display criteria")
-			return
-		}
-
-		let manager = window.avDisplayManager
-
-		if hdrMode == .sdr {
-			print("🎬 HDR: Setting display criteria to SDR (nil)")
-			manager.preferredDisplayCriteria = nil
-			return
-		}
-
-		guard let formatDescription = createHDRFormatDescription(hdrMode: hdrMode) else {
-			print("🎬 HDR: Failed to create format description for \(hdrMode)")
-			return
-		}
-
-		print("🎬 HDR: Setting display criteria to \(hdrMode), fps: \(fps)")
-		manager.preferredDisplayCriteria = AVDisplayCriteria(
-			refreshRate: fps,
-			formatDescription: formatDescription
-		)
-	}
-
-	/// Resets display criteria when playback ends
-	func resetDisplayCriteria() {
-		guard #available(tvOS 17.0, *) else { return }
-		guard let window = self.window else { return }
-		print("🎬 HDR: Resetting display criteria")
-		window.avDisplayManager.preferredDisplayCriteria = nil
-	}
-}
-#endif

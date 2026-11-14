@@ -15,7 +15,7 @@ class MediaSessionController(
     /** Ends the player when the app is swiped away from recents. */
     private val onTaskRemoved: () -> Unit,
 ) {
-    private val target = object : MediaPlaybackTarget {
+    internal val target: MediaPlaybackTarget = object : MediaPlaybackTarget {
         override val isPlaying get() = viewModel.isPlaying
         override val isBuffering get() = viewModel.isBuffering
         override val positionSeconds get() = viewModel.displayPosition
@@ -32,6 +32,7 @@ class MediaSessionController(
             else viewModel.nextEpisode != null
         override val canSkipToPrevious get() =
             !viewModel.syncPlayActive || viewModel.syncPlay?.hasPrevious == true
+        override val canSeek get() = !viewModel.isLive
 
         override fun play() = viewModel.play()
         override fun pause() = viewModel.pause()

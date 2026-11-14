@@ -67,7 +67,7 @@ describe("WebSocketProvider Performance", () => {
     globalThis.WebSocket = originalWebSocket;
   });
 
-  test("socket messages re-render every consumer of the context", async () => {
+  test("socket messages re-render only the listeners they are for", async () => {
     await measureRenders(
       <WebSocketProvider>
         {Array.from({ length: CONSUMERS }, (_, index) => (

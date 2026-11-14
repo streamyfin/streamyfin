@@ -31,6 +31,7 @@ import {
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import {
   getPlayMethod,
   type PlayMethod,
@@ -138,7 +139,8 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
-  // Exit confirmation (TV Menu press — mirror of useRemoteControl's alert).
+  live: t("player.live"),
+  // Exit confirmation, asked on a TV Menu press.
   // Native substitutes %TITLE% with the current item's title.
   stop: t("common.stop"),
   stopPlayback: t("player.stopPlayback"),
@@ -147,9 +149,8 @@ export const buildNativePlayerStrings = (
 });
 
 /**
- * The route/player validates the resume position as a whole non-negative
- * integer (deep-linkable params), falling back to the item's stored resume
- * position — mirror of direct-player.tsx startTicks.
+ * The resume position is validated as a whole non-negative integer (it can
+ * come from a deep link), falling back to the item's stored resume position.
  */
 const resolveStartTicks = (
   raw: number | undefined,
@@ -171,12 +172,12 @@ const mapOrientationLock = (
       return "none";
     default:
       // LANDSCAPE / LANDSCAPE_LEFT / LANDSCAPE_RIGHT and the unset case:
-      // video playback defaults to landscape like the JS player route.
+      // video playback defaults to landscape.
       return "landscape";
   }
 };
 
-/** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */
+/** The saved speed for this item, else its series, else the default. */
 const resolveInitialPlaybackSpeed = (
   item: BaseItemDto,
   settings: Settings,
@@ -196,8 +197,8 @@ const toFileUri = (path: string): string =>
 
 /**
  * Trickplay descriptor with fully-formed per-sheet URLs so the native side
- * needs no URL templating (offline uses the downloaded sheet files — same
- * path shape as hooks/useTrickplay.ts getTrickplayUrl).
+ * needs no URL templating (offline uses the downloaded sheet files,
+ * `<path><index>.jpg`).
  */
 export const buildTrickplayDescriptor = (
   item: BaseItemDto,
@@ -343,8 +344,8 @@ export const buildTrackMenus = (options: {
     originalLabel: options.originalLabel,
   }).map(toMenuItem);
 
-  // Quality/bitrate menu (JS DropdownView parity): online only; changing it
-  // always re-negotiates the stream, so every entry is requiresReload.
+  // Quality/bitrate menu: online only; changing it always re-negotiates the
+  // stream, so every entry is requiresReload.
   const qualityItems: NativePlayerTrackMenuItem[] = options.offline
     ? []
     : BITRATES.map((bitrate) => ({
@@ -384,8 +385,8 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
 };
 
 /**
- * Replicates direct-player.tsx's fetchItemData + fetchStreamData + videoSource
- * as one async function for the presented native player. Segments, the
+ * Fetches the item, negotiates its stream and builds the config the
+ * presented native player opens with, as one async function. Segments, the
  * next-episode preview and the episode list arrive later via updateSegments /
  * updateNextEpisode / updateEpisodeList (they need queries the caller owns).
  */
@@ -587,6 +588,9 @@ export async function buildNativePlayerConfig(params: {
         settings.matchRefreshRate === true
           ? (videoStream?.RealFrameRate ?? undefined)
           : undefined,
+      // The native chrome never sees the item: this is all it knows of a
+      // channel, which it would otherwise open as a film.
+      isLive: isLiveTvItem(item),
     },
     // Same source of truth as the device profile above: the engine the
     // chrome must decode with. Ignored by iOS's mpv-only chrome.
@@ -637,11 +641,10 @@ export async function buildNativePlayerConfig(params: {
       }),
       renderScaleMultiplier:
         Platform.OS === "android"
-          ? // Per-ENGINE calibration — the same value getEffectiveSubtitleScale
-            // applies on the JS route for the same engine: mpv keeps its
-            // renderer calibration, ExoPlayer its tested 0.6x Android TV
-            // compensation (its SubtitleView renders larger). Calibrating the
-            // exo chrome as mpv made its subtitles oversized.
+          ? // Per-ENGINE calibration: mpv keeps its renderer calibration,
+            // ExoPlayer its tested 0.6x Android TV compensation (its
+            // SubtitleView renders larger). Calibrating the exo chrome as mpv
+            // made its subtitles oversized.
             getSubtitleBaseScaleMultiplier(getActivePlayerType(settings))
           : undefined,
     },
@@ -694,7 +697,12 @@ export async function buildNativePlayerConfig(params: {
       offline,
       downloadedItem,
       stream,
-      mediaSourceId: req.mediaSourceId ?? mediaSource.Id ?? undefined,
+      // A channel's renegotiations (quality, tracks) name the live stream it
+      // opened, which the server shares. The source its page asked for is
+      // the channel itself, which would open another on the tuner.
+      mediaSourceId: isLiveTvItem(item)
+        ? (mediaSource.Id ?? undefined)
+        : (req.mediaSourceId ?? mediaSource.Id ?? undefined),
       bitrateValue,
       audioIndex,
       subtitleIndex,

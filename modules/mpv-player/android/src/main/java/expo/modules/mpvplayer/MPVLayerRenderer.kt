@@ -112,6 +112,12 @@ class MPVLayerRenderer(
     @Volatile private var pendingOwnershipToken: Any? = null
     @Volatile private var activeOwnershipToken: Any? = null
 
+    /**
+     * An embedded view's answer to a native player wanting mpv: it stops this
+     * renderer, which hands the token over. Read when the renderer claims.
+     */
+    var onPreempted: (() -> Unit)? = null
+
     // This renderer's own mpv handle. Per-instance (not singleton) — each
     // player screen gets a fresh mpv handle and drops the reference on stop.
     // We intentionally do NOT call a destroy() equivalent: libmpv 1.0's
@@ -133,7 +139,6 @@ class MPVLayerRenderer(
     // Set by recoverVideoOutput's caller so the post-reload state follows the
     // user's intent (resume) instead of assuming paused.
     override var playbackResumeIntent: Boolean = false
-    private var _playbackSpeed: Double = 1.0
     private var isReadyToSeek: Boolean = false
 
     // Progress update throttling - CRITICAL for performance!
@@ -191,6 +196,8 @@ class MPVLayerRenderer(
     private var initialSubtitleId: Int? = null
     private var initialAudioId: Int? = null
     private var currentLoop: Boolean = false
+    // The reloads below rebuild the config: a channel stays one (start=none).
+    private var currentIsLive: Boolean = false
     
     override val isPausedState: Boolean
         get() = _isPaused
@@ -218,7 +225,8 @@ class MPVLayerRenderer(
         val ownershipToken = Any()
         pendingOwnershipToken = ownershipToken
 
-        MpvOwnership.claim(mpvOwner, ownershipToken) {
+        val yieldToPlayer = onPreempted.takeIf { owner == PlayerEngine.Owner.EMBEDDED_VIEW }
+        MpvOwnership.claim(mpvOwner, ownershipToken, onPreempted = yieldToPlayer) {
             val startAction = Runnable {
                 if (pendingOwnershipToken !== ownershipToken) {
                     MpvOwnership.release(ownershipToken)
@@ -646,6 +654,7 @@ class MPVLayerRenderer(
                 initialSubtitleId = savedSid,
                 loop = currentLoop,
                 externalSubtitles = activeExternalSubtitles,
+                isLive = currentIsLive,
             ),
         )
 
@@ -702,6 +711,7 @@ class MPVLayerRenderer(
         this.initialSubtitleId = config.initialSubtitleId
         this.initialAudioId = config.initialAudioId
         this.currentLoop = config.loop
+        this.currentIsLive = config.isLive
         _videoWidth = 0
         _videoHeight = 0
         _videoRotation = 0
@@ -727,15 +737,8 @@ class MPVLayerRenderer(
         config.demuxerMaxBytes?.let { mpv?.setOptionString("demuxer-max-bytes", "${it}MiB") }
         config.demuxerMaxBackBytes?.let { mpv?.setOptionString("demuxer-max-back-bytes", "${it}MiB") }
 
-        // Set start position. mpv's time parser requires '.' as the decimal
-        // separator; use Locale.US so devices with other default locales
-        // (e.g. ',' as decimal separator) don't break resume-from-position.
         val startPosition = config.startPosition
-        if (startPosition != null && startPosition > 0) {
-            mpv?.setPropertyString("start", String.format(Locale.US, "%.2f", startPosition))
-        } else {
-            mpv?.setPropertyString("start", "0")
-        }
+        mpv?.setPropertyString("start", mpvStartOption(startPosition, config.isLive))
         // Until the first time-pos arrives the file is where it was told to
         // start. The duration event below emits this cache as the position,
         // and left at 0 (or at the previous file's position) it told the
@@ -801,6 +804,7 @@ class MPVLayerRenderer(
                     url = url,
                     headers = currentHeaders,
                     loop = currentLoop,
+                    isLive = currentIsLive,
                 ),
             )
         }
@@ -831,9 +835,10 @@ class MPVLayerRenderer(
         mpv?.observeProperty("paused-for-cache", MPV_FORMAT_FLAG)
         mpv?.observeProperty("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
         mpv?.observeProperty("eof-reached", MPV_FORMAT_FLAG)
-        // Video dimensions for PiP aspect ratio
-        mpv?.observeProperty("video-params/w", MPV_FORMAT_INT64)
-        mpv?.observeProperty("video-params/h", MPV_FORMAT_INT64)
+        // The size on screen, pixel aspect applied (dw, dh), for the PiP window and the subtitle
+        // scale: an anamorphic video stores fewer pixels across (w, h) than it shows.
+        mpv?.observeProperty("video-params/dw", MPV_FORMAT_INT64)
+        mpv?.observeProperty("video-params/dh", MPV_FORMAT_INT64)
         mpv?.observeProperty("video-params/rotate", MPV_FORMAT_INT64)
     }
 
@@ -889,7 +894,6 @@ class MPVLayerRenderer(
     }
     
     override fun setSpeed(speed: Double) {
-        _playbackSpeed = speed
         mpv?.setPropertyDouble("speed", speed)
     }
 
@@ -905,10 +909,6 @@ class MPVLayerRenderer(
         mpv?.setPropertyBoolean("mute", muted)
     }
     
-    override fun getSpeed(): Double {
-        return mpv?.getPropertyDouble("speed") ?: _playbackSpeed
-    }
-
     override fun getChapters(): List<Map<String, Any>> {
         val chapters = mutableListOf<Map<String, Any>>()
         val count = mpv?.getPropertyInt("chapter-list/count") ?: 0
@@ -989,7 +989,7 @@ class MPVLayerRenderer(
         applyBidiModeFor(-1)
     }
     
-    override fun getCurrentSubtitleTrack(): Int {
+    private fun getCurrentSubtitleTrack(): Int {
         return mpv?.getPropertyInt("sid") ?: 0
     }
     
@@ -1005,10 +1005,6 @@ class MPVLayerRenderer(
     }
     
     // MARK: - Subtitle Positioning
-    
-    override fun setSubtitlePosition(position: Int) {
-        mpv?.setPropertyInt("sub-pos", position)
-    }
     
     override fun setSubtitleScale(scale: Double) {
         mpv?.setPropertyDouble("sub-scale", scale)
@@ -1060,18 +1056,6 @@ class MPVLayerRenderer(
                 mpv?.setPropertyString("sub-border-size", "0")
             }
         }
-    }
-
-    override fun setSubtitleFontSize(size: Int) {
-        mpv?.setPropertyInt("sub-font-size", size)
-    }
-
-    override fun setSubtitleBorderStyle(style: String) {
-        mpv?.setPropertyString("sub-border-style", style)
-    }
-
-    override fun setSubtitleBackgroundColor(color: String) {
-        mpv?.setPropertyString("sub-back-color", color)
     }
 
     override fun setSubtitleAssOverride(mode: String) {
@@ -1139,7 +1123,7 @@ class MPVLayerRenderer(
         mpv?.setPropertyString("audio-channels", if (enabled) "mono" else "auto-safe")
     }
     
-    override fun getCurrentAudioTrack(): Int {
+    private fun getCurrentAudioTrack(): Int {
         return mpv?.getPropertyInt("aid") ?: 0
     }
 
@@ -1259,14 +1243,14 @@ class MPVLayerRenderer(
                 val chapters = getChapters()
                 mainHandler.post { delegate?.onChaptersChanged(chapters) }
             }
-            "video-params/w" -> {
+            "video-params/dw" -> {
                 val width = value.toInt()
                 if (width > 0 && width != _videoWidth) {
                     _videoWidth = width
                     notifyVideoDimensionsIfReady()
                 }
             }
-            "video-params/h" -> {
+            "video-params/dh" -> {
                 val height = value.toInt()
                 if (height > 0 && height != _videoHeight) {
                     _videoHeight = height
@@ -1346,6 +1330,10 @@ class MPVLayerRenderer(
                     skippedReplacedFileUpdates++
                     return
                 }
+                // A live stream's duration is how far mpv has read, and it moves
+                // many times a second: posting each one sent JS a full tick for
+                // nothing. Its position still ticks with time-pos.
+                if (currentIsLive) return
                 postPosition(generation)
             }
             "time-pos" -> {
@@ -1487,3 +1475,18 @@ class MPVLayerRenderer(
         mainHandler.post { delegate?.onPlaybackEnded() }
     }
 }
+
+/**
+ * mpv's start for a load: the resume point, or the file's start. mpv's time
+ * parser requires '.' as the decimal separator; Locale.US keeps devices with
+ * another default (',') from breaking resume-from-position. A live stream gets
+ * none: start=0 is a seek to its first timestamp, which it cannot do.
+ */
+internal fun mpvStartOption(startPosition: Double?, isLive: Boolean): String =
+    if (isLive) {
+        "none"
+    } else if (startPosition != null && startPosition > 0) {
+        String.format(Locale.US, "%.2f", startPosition)
+    } else {
+        "0"
+    }

@@ -5,11 +5,7 @@ import {
   getStillWatchingThresholds,
   isStillWatchingDue,
   isStillWatchingDueAtEnd,
-  markStillWatchingInput,
-  peekStillWatchingDecision,
-  previewStillWatchingDecision,
   recordStillWatchingAutoplay,
-  releaseStillWatchingDecision,
   resetStillWatchingSession,
   revertStillWatchingAutoplay,
   stillWatchingPresetFromEpisodeCount,
@@ -25,7 +21,6 @@ describe("isStillWatchingDue", () => {
         thresholds: null,
         playedCount: 100,
         sessionDurationMs: 1000 * MINUTE,
-        idleMs: 1000 * MINUTE,
       }),
     ).toBe(false);
   });
@@ -36,7 +31,6 @@ describe("isStillWatchingDue", () => {
         thresholds: preset,
         playedCount: 10,
         sessionDurationMs: 89 * MINUTE,
-        idleMs: 89 * MINUTE,
       }),
     ).toBe(false);
   });
@@ -47,29 +41,17 @@ describe("isStillWatchingDue", () => {
         thresholds: preset,
         playedCount: 3,
         sessionDurationMs: 90 * MINUTE,
-        idleMs: 0,
       }),
     ).toBe(true);
   });
 
-  test("fires on idle time before the episode count is reached", () => {
-    expect(
-      isStillWatchingDue({
-        thresholds: preset,
-        playedCount: 1,
-        sessionDurationMs: 120 * MINUTE,
-        idleMs: 90 * MINUTE,
-      }),
-    ).toBe(true);
-  });
-
-  test("an active viewer below the count keeps watching", () => {
+  // There is no idle time to go by: only the count may trip it.
+  test("a long session below the count keeps watching", () => {
     expect(
       isStillWatchingDue({
         thresholds: preset,
         playedCount: 2,
-        sessionDurationMs: 120 * MINUTE,
-        idleMs: 10 * MINUTE,
+        sessionDurationMs: 500 * MINUTE,
       }),
     ).toBe(false);
   });
@@ -82,17 +64,6 @@ describe("isStillWatchingDue", () => {
         sessionDurationMs: Number.NaN,
       }),
     ).toBe(false);
-  });
-
-  // The native chrome cannot report input: only the count may trip it.
-  test("without idle time, only the count fires it", () => {
-    const base = {
-      thresholds: preset,
-      sessionDurationMs: 500 * MINUTE,
-      idleMs: undefined,
-    };
-    expect(isStillWatchingDue({ ...base, playedCount: 2 })).toBe(false);
-    expect(isStillWatchingDue({ ...base, playedCount: 3 })).toBe(true);
   });
 });
 
@@ -150,51 +121,42 @@ describe("the session", () => {
     isStillWatchingDueAtEnd({
       preset: "default",
       remainingMs: 0,
-      tracksInput: true,
       nowMs: start + 100 * MINUTE,
       ...overrides,
     });
+  const autoplay = (times: number) => {
+    for (let i = 0; i < times; i++) recordStillWatchingAutoplay();
+  };
 
   beforeEach(() => resetStillWatchingSession(start));
 
-  test("fires on idle time once the session is long enough", () => {
+  test("fires on the episode count once the session is long enough", () => {
+    autoplay(3);
     expect(dueAtEnd()).toBe(true);
     expect(dueAtEnd({ nowMs: start + 80 * MINUTE })).toBe(false);
   });
 
   test("judges at the end of the episode, not now", () => {
+    autoplay(3);
     expect(
       dueAtEnd({ nowMs: start + 80 * MINUTE, remainingMs: 10 * MINUTE }),
     ).toBe(true);
   });
 
-  test("an input pushes the idle branch back", () => {
-    markStillWatchingInput(start + 50 * MINUTE);
-    expect(dueAtEnd()).toBe(false);
-  });
-
   test("counts autoplays, and a reset clears them", () => {
-    markStillWatchingInput(start + 50 * MINUTE);
-    recordStillWatchingAutoplay();
-    recordStillWatchingAutoplay();
+    autoplay(2);
     expect(dueAtEnd()).toBe(false);
-    recordStillWatchingAutoplay();
+    autoplay(1);
     expect(dueAtEnd()).toBe(true);
 
     resetStillWatchingSession(start + 50 * MINUTE);
-    expect(dueAtEnd({ nowMs: start + 200 * MINUTE })).toBe(true); // idle
-    expect(dueAtEnd({ nowMs: start + 200 * MINUTE, tracksInput: false })).toBe(
-      false,
-    );
+    expect(dueAtEnd({ nowMs: start + 200 * MINUTE })).toBe(false);
   });
 
   // The countdown ran out and the next episode failed to load: the viewer
   // never left this one, so it must not bring the prompt an episode early.
   test("an autoplay that did not happen is taken back", () => {
-    markStillWatchingInput(start + 50 * MINUTE);
-    recordStillWatchingAutoplay();
-    recordStillWatchingAutoplay();
-    recordStillWatchingAutoplay();
+    autoplay(3);
     expect(dueAtEnd()).toBe(true);
 
     revertStillWatchingAutoplay();
@@ -203,11 +165,9 @@ describe("the session", () => {
     // Never below zero: three more are still what it takes.
     resetStillWatchingSession(start);
     revertStillWatchingAutoplay();
-    markStillWatchingInput(start + 50 * MINUTE);
-    recordStillWatchingAutoplay();
-    recordStillWatchingAutoplay();
+    autoplay(2);
     expect(dueAtEnd()).toBe(false);
-    recordStillWatchingAutoplay();
+    autoplay(1);
     expect(dueAtEnd()).toBe(true);
   });
 
@@ -217,19 +177,12 @@ describe("the session", () => {
 
     revertStillWatchingAutoplay();
 
-    expect(peekStillWatchingDecision("ep-1")).toBeUndefined();
     expect(decideStillWatchingOnce("ep-1", () => false)).toBe(false);
-  });
-
-  // The native chrome has no idle time: only the count may trip it.
-  test("without input tracking, only the count fires it", () => {
-    expect(dueAtEnd({ tracksInput: false })).toBe(false);
-    for (let i = 0; i < 3; i++) recordStillWatchingAutoplay();
-    expect(dueAtEnd({ tracksInput: false })).toBe(true);
   });
 
   // At 2x the episode ends in half the media time left.
   test("turns media time into wall-clock time at the playback rate", () => {
+    autoplay(3);
     const at80 = { nowMs: start + 80 * MINUTE, remainingMs: 20 * MINUTE };
     expect(dueAtEnd({ ...at80, playbackRate: 2 })).toBe(true);
     expect(
@@ -245,34 +198,8 @@ describe("the session", () => {
   });
 
   test("never fires with the preset off", () => {
+    autoplay(3);
     expect(dueAtEnd({ preset: "disabled" })).toBe(false);
-  });
-
-  test("a decision can be read without taking one, and dropped", () => {
-    expect(peekStillWatchingDecision("ep-9")).toBeUndefined();
-    decideStillWatchingOnce("ep-9", () => true);
-    expect(peekStillWatchingDecision("ep-9")).toBe(true);
-    releaseStillWatchingDecision("ep-9");
-    expect(peekStillWatchingDecision("ep-9")).toBeUndefined();
-  });
-
-  // A render reads the decision and may be thrown away, so reading must not
-  // be what takes it.
-  test("a preview answers like the decision without taking it", () => {
-    expect(previewStillWatchingDecision("ep-1", () => true)).toBe(true);
-    expect(peekStillWatchingDecision("ep-1")).toBeUndefined();
-    // Nothing was taken, so the next preview decides for itself again.
-    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(false);
-
-    // Once taken, the preview is the decision, whatever it would be now.
-    expect(decideStillWatchingOnce("ep-1", () => true)).toBe(true);
-    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(true);
-
-    // And it goes stale exactly as the decision does: on an input since a
-    // "due" one.
-    markStillWatchingInput(start + 1);
-    expect(previewStillWatchingDecision("ep-1", () => false)).toBe(false);
-    expect(peekStillWatchingDecision("ep-1")).toBe(true);
   });
 
   // A stream swap of the same episode must not re-decide under a countdown.
@@ -289,17 +216,7 @@ describe("the session", () => {
 
     resetStillWatchingSession(start);
     expect(decideStillWatchingOnce("ep-2", () => false)).toBe(false);
-
-    // An input never turns "not due" into "due": a pause and resume inside
-    // the countdown must not swap it for the prompt.
-    markStillWatchingInput(start + 1);
     expect(decideStillWatchingOnce("ep-2", () => true)).toBe(false);
-
-    // An input since a "due" decision takes it again: idle time was reset.
-    recordStillWatchingAutoplay();
-    expect(decideStillWatchingOnce("ep-3", () => true)).toBe(true);
-    markStillWatchingInput(start + 2);
-    expect(decideStillWatchingOnce("ep-3", () => false)).toBe(false);
   });
 });
 

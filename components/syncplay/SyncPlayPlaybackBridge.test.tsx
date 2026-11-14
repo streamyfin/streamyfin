@@ -2,8 +2,6 @@ import { act, render } from "@testing-library/react-native";
 import type { SyncPlayLauncher } from "@/utils/syncplay/types";
 import { SyncPlayPlaybackBridge } from "./SyncPlayPlaybackBridge";
 
-const mockRouter = { push: jest.fn(), back: jest.fn() };
-let mockPathname = "/syncplay";
 let mockLauncher: SyncPlayLauncher | null = null;
 let mockAvailable = true;
 const mockPresent = jest.fn(async () => true);
@@ -14,12 +12,6 @@ const mockRegisterLauncher = jest.fn((launcher: SyncPlayLauncher) => {
   };
 });
 
-jest.mock("expo-router", () => ({
-  get router() {
-    return mockRouter;
-  },
-  usePathname: () => mockPathname,
-}));
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({ registerLauncher: mockRegisterLauncher }),
 }));
@@ -38,12 +30,11 @@ const request = (itemId = "movie-1", isCurrent = () => true) => ({
 });
 
 beforeEach(() => {
-  mockPathname = "/syncplay";
   mockLauncher = null;
   mockAvailable = true;
 });
 
-test("a group launch presents the native player, never a JS route", async () => {
+test("a group launch presents the player", async () => {
   await render(<SyncPlayPlaybackBridge />);
   await act(async () => {
     await mockLauncher?.(request());
@@ -52,8 +43,6 @@ test("a group launch presents the native player, never a JS route", async () => 
     { itemId: "movie-1", playbackPositionTicks: 100_000_000, offline: false },
     { isCurrent: expect.any(Function) },
   );
-  expect(mockRouter.push).not.toHaveBeenCalled();
-  expect(mockRouter.back).not.toHaveBeenCalled();
 });
 
 test("no launcher is registered where the native player cannot run", async () => {
@@ -95,16 +84,4 @@ test("a launch invalidated while the player prepares is not a failure", async ()
     completePresent();
     await launching;
   });
-});
-
-test("an open JS player is closed before the native one is presented", async () => {
-  mockPathname = "/player/direct-player";
-  await render(<SyncPlayPlaybackBridge />);
-  await act(async () => {
-    await mockLauncher?.(request());
-  });
-  expect(mockRouter.back).toHaveBeenCalledTimes(1);
-  expect(mockRouter.back.mock.invocationCallOrder[0]).toBeLessThan(
-    mockPresent.mock.invocationCallOrder[0],
-  );
 });
