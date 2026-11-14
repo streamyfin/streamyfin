@@ -5,7 +5,10 @@ import type {
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { tagOriginalAudioTrack } from "@/utils/jellyfin/trackLabel";
+import {
+  audioDisplayTitle,
+  tagOriginalAudioTrack,
+} from "@/utils/jellyfin/trackLabel";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
@@ -41,7 +44,7 @@ export const AudioTrackSelector: React.FC<Props> = ({
   const labelFor = useCallback(
     (audio: MediaStream, position: number) =>
       tagOriginalAudioTrack(
-        audio.DisplayTitle || `Audio Stream ${position + 1}`,
+        audioDisplayTitle(audio) || `Audio Stream ${position + 1}`,
         audio,
         originalLabel,
       ),
