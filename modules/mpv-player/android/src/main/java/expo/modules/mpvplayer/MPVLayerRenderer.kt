@@ -10,6 +10,8 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.View
+import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import expo.modules.mpvplayer.nativeplayer.MpvOwnership
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
@@ -555,6 +557,18 @@ class MPVLayerRenderer(
         videoTrack.suspend(m.trackProperties())
     }
 
+    /** Switches to audio only after AUDIO_ONLY_DELAY_MS if still hidden then. */
+    private fun scheduleAudioOnly() {
+        if (!audioOnlyWhenHidden || surface != null) return
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
+        mainHandler.postDelayed(enterAudioOnlyRunnable, AUDIO_ONLY_DELAY_MS)
+    }
+
+    /** True while a switch to audio only is waiting to run. */
+    @VisibleForTesting
+    @RequiresApi(Build.VERSION_CODES.Q)
+    internal fun isAudioOnlyScheduled(): Boolean = mainHandler.hasCallbacks(enterAudioOnlyRunnable)
+
     /**
      * The audio only option for the file already playing: load() reads it
      * from the config, but a source that keeps its URL is not loaded again.
@@ -610,10 +624,7 @@ class MPVLayerRenderer(
                 mpv?.attachSurface(sink.surface)
                 updateSurfaceSize(OffscreenSurfaceSink.WIDTH, OffscreenSurfaceSink.HEIGHT)
                 Log.i(TAG, "[PiP] detachSurface — rendering into the offscreen sink")
-                if (audioOnlyWhenHidden) {
-                    mainHandler.removeCallbacks(enterAudioOnlyRunnable)
-                    mainHandler.postDelayed(enterAudioOnlyRunnable, AUDIO_ONLY_DELAY_MS)
-                }
+                scheduleAudioOnly()
                 return
             }
             mpv?.detachSurface()
@@ -1487,6 +1498,11 @@ class MPVLayerRenderer(
                 // after it — for embedded-only files this is the only
                 // post-FILE_LOADED fire.
                 mainHandler.post { delegate?.onTracksReady() }
+
+                // A file loaded while hidden (the next episode with the screen
+                // off) has its video back on: the file change reset the track
+                // selection. Its own suspension waits for its tracks, here.
+                mainHandler.post { scheduleAudioOnly() }
 
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
