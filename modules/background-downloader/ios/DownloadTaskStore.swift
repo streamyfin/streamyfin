@@ -45,6 +45,17 @@ struct QueuedDownloadInfo: Codable {
   }
 }
 
+/// A download the user paused. The partial transfer lives in URLSession's resume data, written to
+/// its own file; `resumeDataFileName` is nil when the server could not resume (a transcode, or no
+/// range support), and resuming then starts the transfer again from the first byte.
+struct PausedDownloadInfo: Codable {
+  let url: String
+  let destinationPath: String?
+  var metadata: DownloadActivityMetadata?
+  var resumeDataFileName: String?
+  var pausedAt: Date = Date()
+}
+
 /// Persists in-flight task info so it survives the app being terminated mid-download.
 ///
 /// This is load-bearing, not an optimization. A background `URLSession` keeps transferring after the
@@ -58,6 +69,7 @@ struct QueuedDownloadInfo: Codable {
 final class DownloadTaskStore {
   private static let storageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.tasks"
   private static let queueStorageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.queue"
+  private static let pausedStorageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.paused"
 
   private let defaults: UserDefaults
 
@@ -116,5 +128,54 @@ final class DownloadTaskStore {
   func saveQueue(_ queue: [QueuedDownloadInfo]) {
     guard let data = try? JSONEncoder().encode(queue) else { return }
     defaults.set(data, forKey: Self.queueStorageKey)
+  }
+
+  /// Not age-capped like the tasks: a pause is the user's, and lasts until they resume or cancel.
+  func loadPaused() -> [String: PausedDownloadInfo] {
+    guard let data = defaults.data(forKey: Self.pausedStorageKey),
+      let decoded = try? JSONDecoder().decode([String: PausedDownloadInfo].self, from: data)
+    else {
+      return [:]
+    }
+    return decoded
+  }
+
+  func savePaused(_ paused: [String: PausedDownloadInfo]) {
+    guard let data = try? JSONEncoder().encode(paused) else { return }
+    defaults.set(data, forKey: Self.pausedStorageKey)
+  }
+
+  // Resume data embeds the original request, custom proxy auth headers included, so it stays in the
+  // app's own Application Support rather than the App Group container the rest of this store uses.
+  // Only the file name is stored: the container path changes when the app updates.
+  private static var resumeDataDirectory: URL? {
+    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+      .appendingPathComponent("BackgroundDownloaderResumeData", isDirectory: true)
+  }
+
+  /// Returns the file name the data was written under, or nil when it could not be written.
+  func saveResumeData(_ data: Data, itemId: String) -> String? {
+    guard let directory = Self.resumeDataDirectory else { return nil }
+    let fileName = "\(itemId.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString).resumedata"
+    do {
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
+      return fileName
+    } catch {
+      return nil
+    }
+  }
+
+  /// Reads the resume data and deletes its file: resume data is single use.
+  func takeResumeData(fileName: String) -> Data? {
+    guard let url = Self.resumeDataDirectory?.appendingPathComponent(fileName) else { return nil }
+    let data = try? Data(contentsOf: url)
+    try? FileManager.default.removeItem(at: url)
+    return data
+  }
+
+  func deleteResumeData(fileName: String) {
+    guard let url = Self.resumeDataDirectory?.appendingPathComponent(fileName) else { return }
+    try? FileManager.default.removeItem(at: url)
   }
 }

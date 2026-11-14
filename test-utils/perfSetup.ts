@@ -68,6 +68,10 @@ jest.mock("@/modules", () => {
       addCompleteListener: () => ({ remove: () => {} }),
       addErrorListener: () => ({ remove: () => {} }),
       setLiveActivityEnabled: () => {},
+      pauseDownload: async () => "kept",
+      resumeDownload: async () => 1,
+      cancelPausedDownload: () => {},
+      restorePausedDownload: () => {},
     },
   };
 });

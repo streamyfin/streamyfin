@@ -38,9 +38,19 @@ export interface ActiveDownload {
   /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
   itemId?: string;
   destinationPath?: string;
-  /** `running` for the transfer in flight, `queued` for entries waiting behind it. */
-  state?: "running" | "queued";
+  /**
+   * `running` for the transfer in flight, `queued` for entries waiting behind it, `paused` for
+   * downloads the user paused (these hold the queue until resumed or cancelled).
+   */
+  state?: "running" | "queued" | "paused";
 }
+
+/**
+ * What a pause did: `kept` stopped the transfer with its bytes saved, `discarded` stopped it but
+ * resuming starts again from the first byte (a transcode, or a server without range requests),
+ * `failed` found nothing to pause, usually because the transfer had just ended.
+ */
+export type PauseDownloadResult = "kept" | "discarded" | "failed";
 
 /**
  * Everything the iOS Live Activity needs in order to render without a JS runtime.
@@ -79,6 +89,20 @@ export interface BackgroundDownloaderModuleType {
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
+  pauseDownload(taskId: number): Promise<PauseDownloadResult>;
+  resumeDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
+  ): Promise<number>;
+  cancelPausedDownload(itemId: string, destinationPath?: string): void;
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
   /** iOS only — absent from the Android module. */
   setLiveActivityEnabled?(enabled: boolean): void;

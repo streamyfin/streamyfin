@@ -36,7 +36,7 @@ interface DownloadCardProps extends TouchableOpacityProps {
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { t } = useTranslation();
-  const { cancelDownload } = useDownload();
+  const { cancelDownload, pauseDownload, resumeDownload } = useDownload();
   const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();
 
@@ -51,7 +51,10 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
   };
 
+  const isPaused = process?.status === "paused";
+
   const eta = useMemo(() => {
+    if (isPaused) return null;
     if (!process?.estimatedTotalSizeBytes || !process?.bytesDownloaded) {
       return null;
     }
@@ -67,7 +70,12 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
 
     return formatTimeString(secondsRemaining, "s");
-  }, [process?.id, process?.bytesDownloaded, process?.estimatedTotalSizeBytes]);
+  }, [
+    isPaused,
+    process?.id,
+    process?.bytesDownloaded,
+    process?.estimatedTotalSizeBytes,
+  ]);
 
   const estimatedSize = useMemo(() => {
     if (process?.estimatedTotalSizeBytes)
@@ -124,9 +132,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       className='relative bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden'
       {...props}
     >
-      {process.status === "downloading" && (
+      {(process.status === "downloading" || isPaused) && (
         <View
-          className={`bg-purple-600 h-1 absolute bottom-0 left-0 ${isTranscoding ? "animate-pulse" : ""}`}
+          className={`${isPaused ? "bg-neutral-500" : "bg-purple-600"} h-1 absolute bottom-0 left-0 ${isTranscoding && !isPaused ? "animate-pulse" : ""}`}
           style={{
             width:
               sanitizedProgress > 0
@@ -137,9 +145,31 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       )}
 
       {/* Action buttons in bottom right corner */}
-      <View className='absolute bottom-2 right-2 flex flex-row items-center z-10'>
+      <View className='absolute bottom-2 right-2 flex flex-row items-center gap-x-2 z-10'>
+        {(process.status === "downloading" || isPaused) && (
+          <TouchableOpacity
+            onPress={() =>
+              isPaused ? resumeDownload(process.id) : pauseDownload(process.id)
+            }
+            accessibilityRole='button'
+            accessibilityLabel={t(
+              isPaused
+                ? "home.downloads.resume_download"
+                : "home.downloads.pause_download",
+            )}
+            className='p-2 bg-neutral-800 rounded-full'
+          >
+            <Ionicons
+              name={isPaused ? "play" : "pause"}
+              size={20}
+              color='white'
+            />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
+          accessibilityRole='button'
+          accessibilityLabel={t("home.downloads.cancel_download")}
           className='p-2 bg-neutral-800 rounded-full'
         >
           <Ionicons name='close' size={20} color='red' />
@@ -162,7 +192,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               />
             </View>
           )}
-          <View className='shrink mb-1 flex-1 pr-12'>
+          <View
+            className={`shrink mb-1 flex-1 ${isPaused || process.status === "downloading" ? "pr-24" : "pr-12"}`}
+          >
             <Text className='text-xs opacity-50'>{process.item.Type}</Text>
             <Text className='font-semibold shrink'>{process.item.Name}</Text>
             <Text className='text-xs opacity-50'>
@@ -177,9 +209,17 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               </View>
             )}
 
-            {/* Row 1: Progress + Downloaded/Total */}
-            <View className='flex flex-row items-center gap-x-2 mt-1.5'>
-              {sanitizedProgress === 0 ? (
+            {/* Row 1: Progress + Downloaded/Total. Wraps: "Paused · 39%" is wider than a bare
+                percentage, and the size would otherwise run under the action buttons. */}
+            <View className='flex flex-row flex-wrap items-center gap-x-2 mt-1.5'>
+              {isPaused ? (
+                <Text className='text-xs font-semibold'>
+                  {t("home.downloads.paused")}
+                  {sanitizedProgress > 0
+                    ? ` · ${sanitizedProgress.toFixed(0)}%`
+                    : ""}
+                </Text>
+              ) : sanitizedProgress === 0 ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
                 <Text className='text-xs font-semibold'>
@@ -198,7 +238,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
             {/* Row 2: Speed + ETA */}
             <View className='flex flex-row items-center gap-x-2 mt-0.5'>
-              {process.speed && process.speed > 0 && (
+              {!isPaused && process.speed && process.speed > 0 && (
                 <Text className='text-xs text-purple-400'>
                   {bytesToMB(process.speed).toFixed(2)} MB/s
                 </Text>

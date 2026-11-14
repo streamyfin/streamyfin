@@ -1,6 +1,6 @@
 # Background Downloader Module
 
-A native iOS and Android module for downloading large files in the background using `NSURLSession` (iOS) and `DownloadManager` (Android).
+A native iOS and Android module for downloading large files in the background using `NSURLSession` (iOS) and an OkHttp transfer in a foreground service (Android).
 
 ## Features
 
@@ -8,6 +8,7 @@ A native iOS and Android module for downloading large files in the background us
 - **Progress Tracking**: Real-time progress updates via events
 - **Multiple Downloads**: Support for concurrent downloads
 - **Cancellation**: Cancel individual or all downloads
+- **Pause and resume**: Pause a download and continue it later from the byte it stopped at, where the server allows
 - **Custom Destination**: Optionally specify custom file paths
 - **Error Handling**: Comprehensive error reporting
 - **Cross-Platform**: Works on both iOS and Android
@@ -115,7 +116,36 @@ Cancels a specific download by task ID.
 
 #### `cancelAllDownloads(): void`
 
-Cancels all active downloads.
+Cancels all active downloads, queued and paused ones included.
+
+#### `pauseDownload(taskId: number): Promise<'kept' | 'discarded' | 'failed'>`
+
+Stops a running download. `kept`: its bytes are saved and resuming continues from them.
+`discarded`: stopped, but resuming starts from the first byte, which is the case for transcodes
+(streamed as the server makes them) and servers without range requests. `failed`: there was no
+such transfer, usually because it had just finished.
+
+A paused download holds the queue: nothing queued behind it starts until it is resumed or
+cancelled. Pausing is how a user stops all transfers, for instance when leaving Wi-Fi.
+
+#### `resumeDownload(itemId, url, destinationPath?, metadata?, headers?): Promise<number>`
+
+Continues a paused download and resolves with its new task id. Takes what the download was
+enqueued with, so it also works when native no longer knows of the pause.
+
+- **iOS:** the URLSession resume data, kept in Application Support and surviving an app kill.
+- **Android:** a `Range` request onto the `.part` file, with `If-Range` set to the first
+  response's `ETag` or `Last-Modified`. A `200` answer starts the file over; a `416` restarts it.
+
+#### `cancelPausedDownload(itemId: string, destinationPath?: string): void`
+
+Drops a paused download and the bytes it saved, and lets the queue move on.
+
+#### `restorePausedDownload(itemId: string, url: string, destinationPath?: string): void`
+
+Hands native a pause it has forgotten, so the queue is held again. Android keeps pauses in memory,
+so after a process death JS reconciliation calls this before it re-enqueues anything. No-op when
+native already has the pause.
 
 #### `getActiveDownloads(): Promise<ActiveDownload[]>`
 
@@ -187,9 +217,11 @@ interface DownloadStartedEvent {
 }
 
 interface ActiveDownload {
-  taskId: number;
+  taskId: number; // -1 for queued and paused entries
   url: string;
-  state: 'running' | 'suspended' | 'canceling' | 'completed' | 'unknown';
+  itemId?: string;
+  destinationPath?: string;
+  state?: 'running' | 'queued' | 'paused';
 }
 ```
 
@@ -204,10 +236,11 @@ interface ActiveDownload {
 
 ### Android Background Downloads
 
-- Uses Android's `DownloadManager` API
-- Downloads are managed by the system and continue in the background
-- Shows download notification in the notification tray
-- Downloads continue even if the app is closed
+- Streams with OkHttp into a `.part` file inside a `dataSync` foreground service, renamed into
+  place when complete
+- Shows a download notification while a transfer runs; a paused download releases it
+- Queue and pauses live in memory: after a process death JS re-enqueues, and a resume still finds
+  the `.part` file
 - Requires `INTERNET` permission (automatically added by Expo)
 
 ### Background Modes

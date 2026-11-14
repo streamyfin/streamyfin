@@ -28,7 +28,7 @@ let hasReconciled = false;
 
 function jobFromRecord(
   record: PendingDownload,
-  status: "queued" | "downloading",
+  status: "queued" | "downloading" | "paused",
 ): JobStatus {
   return {
     id: record.itemId,
@@ -36,12 +36,14 @@ function jobFromRecord(
     item: record.item,
     itemId: record.itemId,
     deviceId: record.deviceId,
-    progress: 0,
+    progress: status === "paused" ? (record.progress ?? 0) : 0,
     status,
     timestamp: new Date(),
     mediaSource: record.mediaSource,
     maxBitrate: record.maxBitrate,
-    bytesDownloaded: 0,
+    bytesDownloaded: status === "paused" ? (record.bytesDownloaded ?? 0) : 0,
+    estimatedTotalSizeBytes:
+      status === "paused" ? record.estimatedTotalSizeBytes : undefined,
     trickPlayData: record.trickPlayData,
     introSegments: record.introSegments,
     creditSegments: record.creditSegments,
@@ -51,6 +53,16 @@ function jobFromRecord(
     audioStreamIndex: record.audioStreamIndex,
     subtitleStreamIndex: record.subtitleStreamIndex,
   };
+}
+
+/**
+ * Size of the record's finished video, or 0 when there is none. A stored name with a path in it is
+ * never looked up, so such a record is never taken for finished.
+ */
+function completedFileSize(record: PendingDownload): number {
+  if (!isPlainFileName(record.videoFileName)) return 0;
+  const file = new File(Paths.document, record.videoFileName);
+  return file.exists ? (file.size ?? 0) : 0;
 }
 
 /**
@@ -93,6 +105,10 @@ async function reEnqueue(
  * matched against reality:
  *
  * - task still running natively → resurrect the UI process; progress events flow again
+ * - paused (by the record, or natively) → resurrect the UI process as paused. A pause native
+ *   has forgotten (Android keeps it in memory) is handed back first, before anything is
+ *   re-enqueued, so the queue stays held behind it. A paused record whose video is finished is
+ *   not a pause: the resume started and completed while JS was dead
  * - still queued natively (iOS persists its queue and re-arms it on launch) → resurrect the UI
  *   process as queued; native starts it when its turn comes. Custom proxy headers don't survive
  *   that persistence, so a download that needs them is re-queued with them
@@ -127,6 +143,28 @@ export function useDownloadReconciliation({
           .map((download) => [download.itemId as string, download]),
       );
 
+      // Before the loop re-enqueues anything: native holds its queue behind a pause, but only one it
+      // knows of.
+      for (const record of pending) {
+        if (
+          record.status === "paused" &&
+          !nativeByItemId.has(record.itemId) &&
+          completedFileSize(record) === 0
+        ) {
+          try {
+            BackgroundDownloader.restorePausedDownload(
+              record.itemId,
+              record.inputUrl,
+              uriToFilePath(pendingDownloadFileUri(record)),
+            );
+          } catch (error) {
+            logAndCaptureError("Restoring a paused download failed", error, {
+              itemType: record.item?.Type,
+            });
+          }
+        }
+      }
+
       const restored: JobStatus[] = [];
 
       for (const record of pending) {
@@ -156,6 +194,22 @@ export function useDownloadReconciliation({
           continue;
         }
 
+        // A pause whose answer never reached JS (the app died while native paused) is still a
+        // pause: native reports it, the record does not know it yet.
+        if (record.status === "paused" || nativeTask?.state === "paused") {
+          const finishedWhileDead =
+            !nativeTask && completedFileSize(record) > 0;
+          if (nativeTask?.state !== "running" && !finishedWhileDead) {
+            console.log(`[RECONCILE] Still paused: ${record.item.Name}`);
+            updatePendingDownload(record.itemId, {
+              status: "paused",
+              taskId: undefined,
+            });
+            restored.push(jobFromRecord(record, "paused"));
+            continue;
+          }
+        }
+
         if (nativeTask) {
           console.log(`[RECONCILE] Still downloading: ${record.item.Name}`);
           updatePendingDownload(record.itemId, {
@@ -166,16 +220,12 @@ export function useDownloadReconciliation({
           continue;
         }
 
-        // A stored name with a path in it is never looked up: the record falls through and is
-        // dropped below.
-        const file = isPlainFileName(record.videoFileName)
-          ? new File(Paths.document, record.videoFileName)
-          : undefined;
-        if (file?.exists && (file.size ?? 0) > 0) {
+        const finishedSize = completedFileSize(record);
+        if (finishedSize > 0) {
           console.log(
             `[RECONCILE] Completed while app was dead: ${record.item.Name}`,
           );
-          finalizePendingDownload(record, file.size ?? 0);
+          finalizePendingDownload(record, finishedSize);
           onDataChange?.();
           continue;
         }
