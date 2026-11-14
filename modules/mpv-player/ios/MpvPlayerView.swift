@@ -39,6 +39,9 @@ class MpvPlayerView: ExpoView {
 		addSubview(videoContainer)
 
 		engine.delegate = self
+		// Off until the backgroundPlayback prop turns it on: a clip shown in
+		// the app must not take the audio session or arm picture in picture.
+		engine.backgroundPlayback = false
 		engine.displayLayer.frame = bounds
 		engine.displayLayer.contentsScale = contentScaleFactor
 		videoContainer.layer.addSublayer(engine.displayLayer)
@@ -84,6 +87,25 @@ class MpvPlayerView: ExpoView {
 
 	func loadVideo(config: VideoLoadConfig) {
 		engine.loadVideo(config: config)
+	}
+
+	/// The source prop's config, loaded once every prop of the update is in
+	/// (OnViewDidUpdateProps): props apply in no fixed order, and the load has
+	/// to know whether this view plays in the background.
+	private var pendingLoad: VideoLoadConfig?
+
+	func setPendingLoad(_ config: VideoLoadConfig) {
+		pendingLoad = config
+	}
+
+	func loadPendingVideo() {
+		guard let config = pendingLoad else { return }
+		pendingLoad = nil
+		loadVideo(config: config)
+	}
+
+	func setBackgroundPlayback(_ enabled: Bool) {
+		engine.backgroundPlayback = enabled
 	}
 
 	// Convenience method for simple loads

@@ -35,10 +35,6 @@ jest.mock("@/utils/atoms/settings", () => {
     },
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 const TIMEOUT_MS = 60_000;
 const { mockLockAtom } = jest.requireMock("@/utils/atoms/settings");

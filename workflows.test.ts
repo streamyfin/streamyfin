@@ -387,6 +387,25 @@ describe("e2e-tier1-android.yml", () => {
   });
 });
 
+describe.each(["native-tests.yml", "e2e-tier1-android.yml"])(
+  "%s checkouts",
+  (name) => {
+    // Every job installs and builds the pull request's own code after its
+    // checkout, which would otherwise leave a usable token in .git/config, as
+    // build-apps.yml already avoids.
+    const checkouts = withoutComments(readWorkflow(name))
+      .split(/\n(?=[ \t]*- (?:name|uses): )/)
+      .filter((step) => /uses: actions\/checkout@/.test(step));
+
+    test("none keeps the token after the checkout", () => {
+      expect(checkouts).not.toEqual([]);
+      expect(
+        checkouts.filter((step) => !/persist-credentials: false\b/.test(step)),
+      ).toEqual([]);
+    });
+  },
+);
+
 describe("linting.yml", () => {
   // CONTRIBUTING.md asks for `bun run test` before a pull request, and CI runs
   // the same commands as one job each. Both lists are kept by hand: CI gained

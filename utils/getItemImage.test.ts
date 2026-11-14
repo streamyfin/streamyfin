@@ -2,10 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { getItemImage } from "./getItemImage";
 
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
-
 const api = makeApi();
 
 const movie = {

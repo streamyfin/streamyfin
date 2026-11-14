@@ -9,9 +9,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,13 +30,11 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ARTWORK_SIZE = SCREEN_WIDTH * 0.5;
 
 // Cast is off on TV.
 
@@ -48,6 +46,9 @@ export default function AlbumDetailScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { playQueue } = useMusicPlayer();
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { ratio: 0.5 });
 
   const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
@@ -198,8 +199,8 @@ export default function AlbumDetailScreen() {
           {/* Album artwork */}
           <View
             style={{
-              width: ARTWORK_SIZE,
-              height: ARTWORK_SIZE,
+              width: artworkSize,
+              height: artworkSize,
               borderRadius: 8,
               overflow: "hidden",
               backgroundColor: "#1a1a1a",

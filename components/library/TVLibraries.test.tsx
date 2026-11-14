@@ -6,37 +6,31 @@ import { makeApi } from "@/test-utils/jellyfinApi";
 import { logAndCaptureError } from "@/utils/log";
 import { TVLibraries } from "./TVLibraries";
 
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return {
-    apiAtom: atom(null),
-    userAtom: atom({ Id: "user-1" }),
-  };
-});
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { hiddenLibraries: [] } }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-// The real log writes to MMKV, which no test environment has.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-// The real scale reads the settings enum the mock above leaves out.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => new Proxy({}, { get: () => 16 }),
-}));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest
+    .requireActual("@/test-utils/jellyfinProvider")
+    .makeJellyfinAtomsModule(null, { Id: "user-1" }),
+);
+jest.mock("@/utils/atoms/settings", () =>
+  jest
+    .requireActual("@/test-utils/settings")
+    .makeSettingsModule({ hiddenLibraries: [] }),
+);
 // The rows draw a backdrop only when a preview item has one.
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 
 const LIVE_TV = { Id: "livetv-1", Name: "Live TV", CollectionType: "livetv" };
 const MOVIES = { Id: "movies-1", Name: "Movies", CollectionType: "movies" };
+
+type Node = ReturnType<typeof screen.toJSON>;
+const preferredFocusNodes = (node: Node | string): unknown[] => {
+  if (!node || typeof node === "string") return [];
+  if (Array.isArray(node)) return node.flatMap(preferredFocusNodes);
+  const self = node.props?.hasTVPreferredFocus === true ? [node] : [];
+  return [
+    ...self,
+    ...(node.children ?? []).flatMap((c) => preferredFocusNodes(c as Node)),
+  ];
+};
 
 const renderLibraries = async (
   views: object[],
@@ -89,5 +83,17 @@ describe("TVLibraries", () => {
       "Failed to count the Live TV channels",
       expect.anything(),
     );
+  });
+
+  // A tab root that sets hasTVPreferredFocus pulls the focus off the tvOS tab
+  // bar the moment the tab first mounts, so swiping across the bar landed on
+  // the first library. See docs/conventions/tv.md.
+  test("leaves the initial focus on the tab bar", async () => {
+    await renderLibraries([MOVIES, LIVE_TV]);
+
+    await waitFor(() =>
+      expect(screen.getByText("12 library.item_types.movies")).toBeTruthy(),
+    );
+    expect(preferredFocusNodes(screen.toJSON())).toHaveLength(0);
   });
 });

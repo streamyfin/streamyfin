@@ -3,8 +3,11 @@ import axios, { type InternalAxiosRequestConfig } from "axios";
 import {
   assertDistinctMovies,
   cleanUp,
+  harnessAxios,
   interruptHandler,
+  REQUEST_TIMEOUT_MS,
   type SignedInClient,
+  serverWork,
   signIn,
   syncPlayEndpoint,
 } from "./harness";
@@ -25,6 +28,7 @@ interface Sent {
 const fakeServer = (
   fails: (request: Sent) => boolean = () => false,
   answers: (request: Sent) => unknown = () => null,
+  hangs: (request: Sent) => boolean = () => false,
 ) => {
   const sent: Sent[] = [];
   const instance = axios.create();
@@ -35,6 +39,7 @@ const fakeServer = (
       token: /Token="([^"]*)"/.exec(String(config.headers.Authorization))?.[1],
     };
     sent.push(request);
+    if (hangs(request)) return new Promise<never>(() => {});
     if (fails(request)) throw new Error("Request failed with status code 500");
     return {
       data: answers(request),
@@ -102,6 +107,30 @@ describe("cleanUp", () => {
     ).toHaveLength(2);
   });
 
+  test("goes on past a server that never answers", async () => {
+    // A server that takes the connection and never answers held the cleanup
+    // on its first sign-out: nothing after it ran, and the run never ended.
+    const server = fakeServer(
+      () => false,
+      () => null,
+      (request) => request.token === "guest-token",
+    );
+    const host = server.signedIn("host");
+    const guest = server.signedIn("guest");
+
+    const failures = await cleanUp(
+      [guest, host],
+      host.api,
+      "temporary-user",
+      20,
+    );
+
+    expect(failures).toEqual(["sign out guest: no answer after 20 ms"]);
+    expect(
+      server.sent.map(({ method, token }) => `${method} ${token}`),
+    ).toEqual(["POST guest-token", "DELETE host-token", "POST host-token"]);
+  });
+
   test("deletes nothing when no restricted account was created", async () => {
     const server = fakeServer();
     const host = server.signedIn("host");
@@ -111,6 +140,55 @@ describe("cleanUp", () => {
     expect(server.sent).toEqual([
       { method: "POST", path: "/Sessions/Logout", token: "host-token" },
     ]);
+  });
+});
+
+describe("serverWork", () => {
+  test("lets the cleanup see what was still being created when it started", async () => {
+    // Ctrl-C while the restricted account was being created: the cleanup read
+    // its id before the server answered, and the account outlived the run.
+    const work = serverWork();
+    let temporaryUserId: string | undefined;
+    let answer = () => {};
+    const created = work.track(async () => {
+      await new Promise<void>((resolve) => {
+        answer = resolve;
+      });
+      temporaryUserId = "temporary-user";
+    });
+
+    const settled = work.settle().then(() => temporaryUserId);
+    answer();
+
+    await expect(settled).resolves.toBe("temporary-user");
+    await created;
+  });
+
+  test("refuses new work once the cleanup has started", async () => {
+    const work = serverWork();
+    await work.settle();
+    const started = jest.fn(async () => {});
+
+    await expect(work.track(started)).rejects.toThrow("cleaning up");
+    expect(started).not.toHaveBeenCalled();
+  });
+
+  test("settles past work that failed", async () => {
+    const work = serverWork();
+    const failed = work.track(async () => {
+      throw new Error("refused");
+    });
+
+    await expect(work.settle()).resolves.toBeUndefined();
+    await expect(failed).rejects.toThrow("refused");
+  });
+});
+
+describe("harnessAxios", () => {
+  test("gives every request a deadline", () => {
+    // Axios waits for ever by default (timeout 0).
+    expect(REQUEST_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(harnessAxios().defaults.timeout).toBe(REQUEST_TIMEOUT_MS);
   });
 });
 

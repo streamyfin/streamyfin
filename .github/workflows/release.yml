@@ -85,7 +85,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # main
+            uses: expo/expo-github-action@5273c2136bd09c2a341fe3340d3e767ce5a13015 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}

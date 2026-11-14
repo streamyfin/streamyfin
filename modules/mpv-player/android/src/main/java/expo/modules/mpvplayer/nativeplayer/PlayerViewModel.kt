@@ -81,6 +81,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     var onHapticRequested: (() -> Unit)? = null
     var onPlaybackStateSync: (() -> Unit)? = null
     var onMetadataSync: (() -> Unit)? = null
+    /** Each position report, for the media session to catch a seek or stall. */
+    var onPositionSync: (() -> Unit)? = null
     var isTvChrome: Boolean = false
 
     /**
@@ -266,6 +268,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Content State
     var metadata by mutableStateOf<MetadataRecord?>(null)
+    /** The stream being played; a local file needs no Wi-Fi lock in the background. */
+    var sourceUrl: String = ""
     var chapters by mutableStateOf<List<ChapterRecord>>(emptyList())
     var segments by mutableStateOf<List<MediaSegmentRecord>>(emptyList())
     var activeSegment by mutableStateOf<MediaSegmentRecord?>(null)
@@ -344,7 +348,14 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun updateSyncPlay(state: SyncPlayStateRecord?) {
         val active = state?.takeIf { it.groupId.isNotEmpty() }
         syncScheduler.updateIdentity(active?.groupId, active?.currentPlaylistItemId, active?.connected == true)
+        val previous = syncPlay
         syncPlay = active
+        // The media session offers Previous and Next from the group's queue:
+        // republish when that changes, even while paused.
+        if ((previous == null) != (active == null) ||
+            previous?.hasPrevious != active?.hasPrevious ||
+            previous?.hasNext != active?.hasNext
+        ) onPlaybackStateSync?.invoke()
         if (active == null) {
             showSyncPlayQueue = false
         } else {
@@ -474,6 +485,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         }
         currentItemId = newItemId
         metadata = config.metadata
+        sourceUrl = config.stream.url
         chapters = config.chapters.sortedBy { it.startSec }
         segments = config.segments
         nextEpisode = config.nextEpisode
@@ -550,6 +562,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun updateNextEpisode(next: NextEpisodeRecord?) {
         nextEpisode = next
         checkSegmentsAndCountdown(displayPosition)
+        // The media session offers Next from it. Published only with the next
+        // pause or seek, a next episode that came mid-playback left the lock
+        // screen and a headset without Next for the rest of the episode.
+        onPlaybackStateSync?.invoke()
     }
 
     fun updateChapters(newChapters: List<ChapterRecord>) {
@@ -1169,13 +1185,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
     }
 
     /** Pill label for a segment type. */
-    fun skipLabel(type: String): String = when (type) {
-        "Outro" -> strings.get("skipCredits", "Skip credits")
-        "Recap" -> strings.get("skipRecap", "Skip recap")
-        "Commercial" -> strings.get("skipCommercial", "Skip commercial")
-        "Preview" -> strings.get("skipPreview", "Skip preview")
-        else -> strings.get("skipIntro", "Skip intro")
-    }
+    fun skipLabel(type: String): String = segmentSkipLabel(type, strings)
 
     /**
      * "… skipped" notice for a segment type. Whole sentences rather than a
@@ -1411,6 +1421,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (!isScrubbing) {
             displayPosition = position
         }
+        onPositionSync?.invoke()
 
         val didSeek = requestId != null
 
@@ -1520,6 +1531,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
         } else if (next?.stillWatchingRequired == true) {
             isPlaying = false
             showStillWatching = true
+            // The media session and its locks follow the play state.
+            onPlaybackStateSync?.invoke()
         } else {
             emit?.invoke("onPlaybackEnded", mapOf("positionSec" to displayPosition))
             onDismissRequested?.invoke("playbackEnded")

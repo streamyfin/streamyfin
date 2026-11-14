@@ -5,9 +5,10 @@ import { atom } from "jotai";
  * Writes are dropped.
  */
 export const makeSettingsModule = (overrides: Record<string, unknown> = {}) => {
-  // The spec mocks this module, so the real one has to be asked for by name.
+  // The spec mocks the module with this double, so the real one comes from
+  // `requireActual`.
   const { defaultValues, TVTypographyScale } = jest.requireActual(
-    "@/utils/atoms/settings",
+    "../utils/atoms/settings",
   );
   const settings = { ...defaultValues, ...overrides };
   return {

@@ -2,16 +2,15 @@ import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVCastCrewText } from "./TVCastCrewText";
 
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 // The real hook reads the settings atom, whose module graph is the whole app.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 
 const PEOPLE: BaseItemPerson[] = [
   { Id: "gilligan", Name: "Vince Gilligan", Type: "Creator" },
@@ -53,12 +52,30 @@ describe("TVCastCrewText", () => {
     expect(screen.getAllByText("Vince Gilligan")).toHaveLength(2);
   });
 
+  test("the cast line counts distinct actors, not credits", async () => {
+    await render(
+      <TVCastCrewText
+        people={[
+          { Id: "director", Name: "Director", Type: "Director" },
+          { Id: "a", Name: "Ana", Type: "Actor", Role: "Hero" },
+          { Id: "a", Name: "Ana", Type: "Actor", Role: "Mother" },
+          { Id: "b", Name: "Ben", Type: "Actor" },
+          { Name: "No Id", Type: "Actor" },
+          { Id: "c", Name: "Cy", Type: "Actor" },
+          { Id: "d", Name: "Dee", Type: "Actor" },
+        ]}
+        showCast
+      />,
+    );
+
+    expect(screen.getByText("Ana, Ben, Cy")).toBeTruthy();
+    expect(screen.queryByText("Ana, Ana, Ben")).toBeNull();
+  });
+
   test("draws nothing when nobody is credited and the cast is hidden", async () => {
     await render(
       <TVCastCrewText
         people={[{ Id: "a", Name: "An Actor", Type: "Actor" }]}
-        cast={[{ Id: "a", Name: "An Actor", Type: "Actor" }]}
-        hideCast
       />,
     );
 

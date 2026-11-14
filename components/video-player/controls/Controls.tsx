@@ -32,11 +32,14 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useServerVersion } from "@/hooks/useServerVersion";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
+import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
+import { routeTrackSelection } from "@/utils/directPlayer/routeTrackIndexes";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
+import { recordedTracks } from "@/utils/downloads/recordedTracks";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -57,6 +60,7 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { usePlayerContext } from "./contexts/PlayerContext";
 import { AndroidSubtitleScaleOverlay } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
@@ -154,6 +158,8 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const offline = useOfflineMode();
+  const { downloadedItem } = usePlayerContext();
+  const { getDownloadedItemById } = useDownload();
   const { settings } = useSettings();
   // Decides where a matched alternate version starts, see
   // getAdjacentStartTicks. Whatever is cached will do: a server does not go
@@ -171,7 +177,7 @@ export const Controls: FC<Props> = ({
   // still playing.
   const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
 
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
     item,
     isOffline: offline,
@@ -242,10 +248,10 @@ export const Controls: FC<Props> = ({
     );
     if (!videoStream?.Width || !videoStream?.Height) return 0;
     const videoAspect = videoStream.Width / videoStream.Height;
-    const screenAspect = screenWidth / screenHeight;
+    const screenAspect = windowWidth / windowHeight;
     if (screenAspect >= videoAspect) return 0;
-    return (screenHeight - screenWidth / videoAspect) / 2;
-  }, [isZoomedToFill, mediaSource, screenWidth, screenHeight]);
+    return (windowHeight - windowWidth / videoAspect) / 2;
+  }, [isZoomedToFill, mediaSource, windowWidth, windowHeight]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -615,30 +621,53 @@ export const Controls: FC<Props> = ({
       }
       stillWatchingArmedRef.current = false;
       lightHapticFeedback();
-      const previousIndexes = {
-        subtitleIndex: subtitleIndex
-          ? Number.parseInt(subtitleIndex, 10)
-          : undefined,
-        audioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
-      };
+      // What plays now, as the player and its menus resolve it: a download
+      // opens with no track in its route and plays the ones its record names.
+      const previousIndexes = routeTrackSelection({
+        audioIndex,
+        subtitleIndex,
+        offline,
+        downloaded: downloadedItem?.userData,
+      });
 
+      // Offline the next episode plays its own file, which can be another
+      // version than the server's first, with the tracks its download recorded.
+      const nextDownload =
+        offline && item.Id ? getDownloadedItemById(item.Id) : undefined;
       const {
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(item, settings, {
-        indexes: previousIndexes,
-        source: mediaSource ?? undefined,
-        offline,
-      });
+        carried,
+      } = getDefaultPlaySettings(
+        nextDownload?.mediaSource
+          ? { ...item, MediaSources: [nextDownload.mediaSource] }
+          : item,
+        settings,
+        {
+          indexes: previousIndexes,
+          source: mediaSource ?? undefined,
+          offline,
+        },
+      );
+      // What does not carry over is what the download recorded.
+      const recorded = recordedTracks(nextDownload?.userData);
+      const nextAudioIndex =
+        recorded && !carried?.audio
+          ? recorded.audioStreamIndex
+          : defaultAudioIndex;
+      const nextSubtitleIndex =
+        recorded && !carried?.subtitle
+          ? recorded.subtitleStreamIndex
+          : defaultSubtitleIndex;
 
       // Use setParams instead of replace to avoid unmounting/remounting the player,
       // which would create a new MPV native view and crash with "mp_initialize already initialized".
       router.setParams({
         ...(offline && { offline: "true" }),
         itemId: item.Id ?? "",
-        audioIndex: defaultAudioIndex?.toString() ?? "",
-        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+        audioIndex: nextAudioIndex?.toString() ?? "",
+        subtitleIndex: nextSubtitleIndex?.toString() ?? "",
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
@@ -654,6 +683,8 @@ export const Controls: FC<Props> = ({
       settings,
       subtitleIndex,
       audioIndex,
+      downloadedItem,
+      getDownloadedItemById,
       mediaSource,
       bitrateValue,
       router,
@@ -760,8 +791,6 @@ export const Controls: FC<Props> = ({
       ) : (
         <>
           <GestureOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
             showControls={showControls}
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}

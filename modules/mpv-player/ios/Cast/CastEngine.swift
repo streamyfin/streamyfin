@@ -494,6 +494,7 @@ final class CastEngine: ChromeEngine {
 
   // The lock screen is a later step.
   func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
+  func setSkipIntervals(forward: Double, backward: Double) {}
 
   // MARK: - Tracks: the ids are Jellyfin MediaStream indexes, the menus come from JS
 

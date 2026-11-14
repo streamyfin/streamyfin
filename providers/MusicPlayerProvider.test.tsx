@@ -195,22 +195,10 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
     };
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The log module loads Sentry and its timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeErrorLog: jest.fn(),
-}));
 let mockCast: CastDoubleState = createCastDoubleState();
 jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
   __esModule: true,
   CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 jest.mock("@/utils/customHeaders", () => ({
   getJellyfinHeadersForUrl: () => undefined,

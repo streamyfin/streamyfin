@@ -28,6 +28,7 @@ class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	func getCurrentPosition() -> Double { 0 }
 	func getDuration() -> Double { 0 }
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
+	func setSkipIntervals(forward: Double, backward: Double) {}
 	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
 	func setSubtitleTrack(_ trackId: Int) {}
 	func disableSubtitles() {}

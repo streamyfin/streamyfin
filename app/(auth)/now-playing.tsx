@@ -9,10 +9,10 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   ScrollView,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -40,6 +40,7 @@ import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
 
@@ -55,9 +56,6 @@ const formatSampleRate = (sampleRate?: number | null) => {
   if (!sampleRate) return null;
   return `${(sampleRate / 1000).toFixed(1)} kHz`;
 };
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ARTWORK_SIZE = SCREEN_WIDTH - 80;
 
 type ViewMode = "player" | "queue";
 
@@ -380,6 +378,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onToggleFavorite,
   onOptionsPress,
 }) => {
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { inset: 80 });
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
@@ -407,8 +408,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View
         className='self-center mb-8 mt-4'
         style={{
-          width: ARTWORK_SIZE,
-          height: ARTWORK_SIZE,
+          width: artworkSize,
+          height: artworkSize,
           borderRadius: 12,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",

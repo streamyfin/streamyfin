@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.error import URLError
 
-from bench.sessions import SessionView, check, skew_seconds, snapshot
+from bench.sessions import SessionView, check, parse_timestamp, skew_seconds, snapshot
 from bench.tests.fakes import FakeServer, bench_run
 
 OBSERVE = Path(__file__).resolve().parents[2] / "suites" / "syncplay" / "observe.py"
@@ -51,6 +51,18 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(result.play_method, "Transcode")
         self.assertEqual(result.transcoding_reasons, ["VideoCodecNotSupported"])
         self.assertEqual(result.last_activity, datetime(2026, 10, 28, tzinfo=timezone.utc))
+
+    def test_a_fractional_timestamp_keeps_its_zone_either_side_of_utc(self):
+        # Jellyfin writes seven fractional digits; trimming them dropped a negative offset and read
+        # the time as UTC, five hours off for -05:00.
+        for value, expected in (
+            ("2026-10-28T12:30:01.1234567-05:00", datetime(2026, 10, 28, 17, 30, 1, 123456, tzinfo=timezone.utc)),
+            ("2026-10-28T12:30:01.1234567+02:00", datetime(2026, 10, 28, 10, 30, 1, 123456, tzinfo=timezone.utc)),
+            ("2026-10-28T12:30:01.1234567Z", datetime(2026, 10, 28, 12, 30, 1, 123456, tzinfo=timezone.utc)),
+            ("2026-10-28T12:30:01.12", datetime(2026, 10, 28, 12, 30, 1, 120000, tzinfo=timezone.utc)),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(parse_timestamp(value), expected)
 
     def test_snapshot_filters_by_device(self):
         sessions = [raw_session(Id="s1", DeviceName="Salon"), raw_session(Id="s2", DeviceName="Cuisine")]

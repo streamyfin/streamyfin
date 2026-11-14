@@ -6,9 +6,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, ScrollView, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
@@ -28,6 +34,7 @@ import {
   useTVBelowTabBarContentTop,
 } from "@/components/tv";
 import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
+import { SUBTITLE_PREFETCH_CACHE_DIR } from "@/constants/Playback";
 import {
   STILL_WATCHING_PRESET_ORDER,
   type StillWatchingPreset,
@@ -62,6 +69,7 @@ import {
 import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import {
   getPreviousServers,
@@ -87,6 +95,8 @@ const SEGMENT_SKIP_ROWS: {
   { key: "skipPreview", labelKey: "skip_preview" },
 ];
 
+// Covered by components/tv/settings/settingsTabRoot.test.tsx: a spec under app/
+// would become a route.
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -125,6 +135,18 @@ export default function SettingsTV() {
 
   // Track if any modal is open to disable background focus
   const isAnyModalOpen = pinModalVisible || passwordModalVisible;
+
+  // The PIN and password prompts are overlays in this page: closed, they
+  // leave the focus nowhere. Hand it back to the row that opened them. The
+  // row used hasTVPreferredFocus for this, which a tab root must not set.
+  const switchUserRowRef = useRef<ViewInstance>(null);
+  const promptWasOpen = useRef(false);
+  useEffect(() => {
+    if (promptWasOpen.current && !isAnyModalOpen) {
+      requestTVFocus(switchUserRowRef.current);
+    }
+    promptWasOpen.current = isAnyModalOpen;
+  }, [isAnyModalOpen]);
 
   // Get current server and other accounts
   const currentServer = useMemo(() => {
@@ -255,12 +277,16 @@ export default function SettingsTV() {
 
               // 5. Clear Subtitle Cache
               storage.remove("downloadedSubtitles.json");
-              const subtitlesDir = new Directory(
-                Paths.cache,
+              // The downloaded remote subtitles, and the sidecars the player
+              // prefetches before an ExoPlayer session.
+              for (const name of [
                 "streamyfin-subtitles",
-              );
-              if (subtitlesDir.exists) {
-                await subtitlesDir.delete();
+                SUBTITLE_PREFETCH_CACHE_DIR,
+              ]) {
+                const subtitlesDir = new Directory(Paths.cache, name);
+                if (subtitlesDir.exists) {
+                  await subtitlesDir.delete();
+                }
               }
 
               // 6. Clear MMKV caches like extracted image colors and other non-essential storage keys
@@ -838,11 +864,11 @@ export default function SettingsTV() {
           {/* Account Section */}
           <TVSectionHeader title={t("home.settings.switch_user.account")} />
           <TVSettingsOptionButton
+            ref={switchUserRowRef}
             label={t("home.settings.switch_user.switch_user")}
             value={user?.Name || "-"}
             onPress={handleSwitchUser}
             disabled={!hasOtherAccounts || isAnyModalOpen}
-            isFirst
           />
 
           {syncPlayAvailable && (
@@ -854,7 +880,6 @@ export default function SettingsTV() {
                 onToggle={(value) =>
                   updateSettings({ syncPlayIgnoreWait: value })
                 }
-                isFirst={!hasOtherAccounts}
               />
             </>
           )}
@@ -872,7 +897,6 @@ export default function SettingsTV() {
                   updateSettings({ inactivityTimeout: value }),
               })
             }
-            isFirst={!hasOtherAccounts && !syncPlayAvailable}
           />
 
           {/* Video Player Section */}
@@ -938,6 +962,26 @@ export default function SettingsTV() {
               />
               <Text style={playerNoteStyle}>
                 {t("home.settings.video_player.native_android_tv_note")}
+              </Text>
+            </>
+          )}
+
+          {/* Refresh-rate matching — native Android TV player only (the JS
+              route reads no contentFrameRate), default off: the display mode
+              switch is non-seamless on most panels, a brief black flash on
+              frame-rate changes. */}
+          {isAndroidTv && isNativeChromeActive(settings) && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={pluginSettings?.matchRefreshRate?.locked}
+                label={t("home.settings.video_player.match_refresh_rate")}
+                value={settings.matchRefreshRate === true}
+                onToggle={(value) =>
+                  updateSettings({ matchRefreshRate: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.match_refresh_rate_note")}
               </Text>
             </>
           )}
@@ -1282,23 +1326,27 @@ export default function SettingsTV() {
               "Get your free API key at opensubtitles.com/en/consumers"}
           </Text>
 
-          {/* Buffer Settings Section */}
-          <TVSectionHeader title={t("home.settings.buffer.title")} />
-          <TVSettingsOptionButton
-            label={t("home.settings.buffer.cache_mode")}
-            value={cacheModeLabel}
-            onPress={() =>
-              showOptions({
-                title: t("home.settings.buffer.cache_mode"),
-                options: cacheModeOptions,
-                onSelect: (value) => updateSettings({ mpvCacheEnabled: value }),
-              })
-            }
-          />
-
-          {/* Video Output Section — MPV only (gpu-next/gpu is a libmpv concept) */}
+          {/* Buffer + video output sections — MPV only. The buffer knobs
+              steer mpv's demuxer cache and vo gpu-next/gpu is a libmpv
+              concept; ExoPlayer derives its LoadControl internally, so with
+              it selected these settings would be dead, and a stale value
+              could imply it still steers playback. */}
           {isMpv && (
             <>
+              <TVSectionHeader title={t("home.settings.buffer.title")} />
+              <TVSettingsOptionButton
+                label={t("home.settings.buffer.cache_mode")}
+                value={cacheModeLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t("home.settings.buffer.cache_mode"),
+                    options: cacheModeOptions,
+                    onSelect: (value) =>
+                      updateSettings({ mpvCacheEnabled: value }),
+                  })
+                }
+              />
+
               <TVSectionHeader title={t("home.settings.vo_driver.title")} />
               <TVSettingsOptionButton
                 label={t("home.settings.vo_driver.vo_mode")}
@@ -1311,66 +1359,66 @@ export default function SettingsTV() {
                   })
                 }
               />
+
+              <TVSettingsStepper
+                label={t("home.settings.buffer.buffer_duration")}
+                value={settings.mpvCacheSeconds ?? 10}
+                onDecrease={() => {
+                  const newValue = Math.max(
+                    5,
+                    (settings.mpvCacheSeconds ?? 10) - 5,
+                  );
+                  updateSettings({ mpvCacheSeconds: newValue });
+                }}
+                onIncrease={() => {
+                  const newValue = Math.min(
+                    120,
+                    (settings.mpvCacheSeconds ?? 10) + 5,
+                  );
+                  updateSettings({ mpvCacheSeconds: newValue });
+                }}
+                formatValue={(v) => `${v}s`}
+              />
+              <TVSettingsStepper
+                label={t("home.settings.buffer.max_cache_size")}
+                value={settings.mpvDemuxerMaxBytes ?? 150}
+                onDecrease={() => {
+                  const newValue = Math.max(
+                    50,
+                    (settings.mpvDemuxerMaxBytes ?? 150) - 25,
+                  );
+                  updateSettings({ mpvDemuxerMaxBytes: newValue });
+                }}
+                onIncrease={() => {
+                  const newValue = Math.min(
+                    500,
+                    (settings.mpvDemuxerMaxBytes ?? 150) + 25,
+                  );
+                  updateSettings({ mpvDemuxerMaxBytes: newValue });
+                }}
+                formatValue={(v) => `${v} MB`}
+              />
+              <TVSettingsStepper
+                label={t("home.settings.buffer.max_backward_cache")}
+                value={settings.mpvDemuxerMaxBackBytes ?? 50}
+                onDecrease={() => {
+                  const newValue = Math.max(
+                    25,
+                    (settings.mpvDemuxerMaxBackBytes ?? 50) - 25,
+                  );
+                  updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+                }}
+                onIncrease={() => {
+                  const newValue = Math.min(
+                    200,
+                    (settings.mpvDemuxerMaxBackBytes ?? 50) + 25,
+                  );
+                  updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+                }}
+                formatValue={(v) => `${v} MB`}
+              />
             </>
           )}
-
-          <TVSettingsStepper
-            label={t("home.settings.buffer.buffer_duration")}
-            value={settings.mpvCacheSeconds ?? 10}
-            onDecrease={() => {
-              const newValue = Math.max(
-                5,
-                (settings.mpvCacheSeconds ?? 10) - 5,
-              );
-              updateSettings({ mpvCacheSeconds: newValue });
-            }}
-            onIncrease={() => {
-              const newValue = Math.min(
-                120,
-                (settings.mpvCacheSeconds ?? 10) + 5,
-              );
-              updateSettings({ mpvCacheSeconds: newValue });
-            }}
-            formatValue={(v) => `${v}s`}
-          />
-          <TVSettingsStepper
-            label={t("home.settings.buffer.max_cache_size")}
-            value={settings.mpvDemuxerMaxBytes ?? 150}
-            onDecrease={() => {
-              const newValue = Math.max(
-                50,
-                (settings.mpvDemuxerMaxBytes ?? 150) - 25,
-              );
-              updateSettings({ mpvDemuxerMaxBytes: newValue });
-            }}
-            onIncrease={() => {
-              const newValue = Math.min(
-                500,
-                (settings.mpvDemuxerMaxBytes ?? 150) + 25,
-              );
-              updateSettings({ mpvDemuxerMaxBytes: newValue });
-            }}
-            formatValue={(v) => `${v} MB`}
-          />
-          <TVSettingsStepper
-            label={t("home.settings.buffer.max_backward_cache")}
-            value={settings.mpvDemuxerMaxBackBytes ?? 50}
-            onDecrease={() => {
-              const newValue = Math.max(
-                25,
-                (settings.mpvDemuxerMaxBackBytes ?? 50) - 25,
-              );
-              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
-            }}
-            onIncrease={() => {
-              const newValue = Math.min(
-                200,
-                (settings.mpvDemuxerMaxBackBytes ?? 50) + 25,
-              );
-              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
-            }}
-            formatValue={(v) => `${v} MB`}
-          />
 
           {/* Segment Skip Section */}
           <TVSectionHeader

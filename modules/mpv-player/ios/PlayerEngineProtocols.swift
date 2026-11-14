@@ -125,6 +125,8 @@ protocol TransportEngine: AnyObject {
 	func getCurrentPosition() -> Double
 	func getDuration() -> Double
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?)
+	/// The skip buttons of the lock screen and Control Center, in seconds.
+	func setSkipIntervals(forward: Double, backward: Double)
 
 	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void)
 	func setSubtitleTrack(_ trackId: Int)

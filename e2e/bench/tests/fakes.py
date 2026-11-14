@@ -105,6 +105,9 @@ class FakeReceiver:
         self.received: list[dict] = []
         self.events: list[str] = []
         self.loads = 0
+        # A receiver that stopped answering status requests, or that ignores some commands.
+        self.answers = True
+        self.ignores: set[str] = set()
 
     @property
     def app_display_name(self) -> str:
@@ -136,6 +139,8 @@ class FakeReceiver:
     def update_status(self, callback_function=None) -> None:
         if self.clock is not None:
             self.clock.tick()
+        if not self.answers:
+            return
         if self.status.player_state == "BUFFERING":
             self.status.player_state = "PLAYING"
         elif self.status.player_state == "PLAYING":
@@ -146,6 +151,8 @@ class FakeReceiver:
     def send(self, message: dict) -> None:
         self.received.append(message)
         command = message["command"]
+        if command in self.ignores:
+            return
         if command == "PlayNow":
             self.loads += 1
             item = message["options"]["items"][0]

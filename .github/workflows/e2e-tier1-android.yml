@@ -33,6 +33,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           show-progress: false
+          persist-credentials: false
 
       - name: Filter paths
         id: filter
@@ -71,6 +72,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           show-progress: false
+          persist-credentials: false
 
       - name: 🗑️ Free Disk Space
         uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3

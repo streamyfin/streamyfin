@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -110,7 +109,8 @@ def evaluate(
     if wanted and session is not None and ("transcode" if server_transcoding else "direct") != wanted:
         errors.append(f"expected {expected}, server runs {'a transcode' if server_transcoding else 'no transcode'} ({observed_server})")
     verdict = "ko" if errors else "ok"
-    if wanted and session is None:
+    # Every case that played needs the server's word, with an expectation or without one.
+    if session is None:
         errors.append("no server session to confirm it")
         if verdict == "ok":
             verdict = "incomplete"
@@ -203,6 +203,10 @@ class CastDriver:
         self.server_url = server_url
         self.watch_seconds = watch_seconds
         self.bus_start = 0
+        # Whether the receiver got this run's token, and was seen idle since: the run signs the
+        # token out only then, since the receiver keeps using it while it plays.
+        self.handed = False
+        self.idle = True
 
     def resolve(self, case: dict) -> dict | None:
         match = case["match"]
@@ -230,6 +234,7 @@ class CastDriver:
         self.bus_start = len(self.controller.bus)
         load = Load(item_id=item["Id"], previous_session=before.play_session_id, bus_start=self.bus_start)
         options = self.sender.play_now_options([item])
+        self.handed, self.idle = True, False
         self.controller.send(self.sender.build_message("PlayNow", self.server_url, self.session.token, self.session.user_id, options, self.receiver_name))
         samples = [before, self.sender.wait_for_playing(self.cast, load, self.controller.bus)]
         samples.extend(self.sender.watch(self.cast, self.watch_seconds))
@@ -251,9 +256,10 @@ class CastDriver:
         return list(self.controller.bus[self.bus_start :])
 
     def stop(self) -> None:
+        """Raises SenderTimeout when the receiver does not answer idle in time: a failed stop."""
         self.controller.send(self.sender.build_message("Stop", self.server_url, self.session.token, self.session.user_id, {}, self.receiver_name))
-        time.sleep(2)
-        self.sender.refresh_status(self.cast)
+        self.sender.wait_for(self.cast, self.sender.confirmed_idle, self.sender.STOP_TIMEOUT_SECONDS, "the receiver to stop")
+        self.idle = True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -268,8 +274,6 @@ def main(argv: list[str] | None = None) -> int:
 
     from bench import sender
     from bench.config import BenchConfigError, load_config
-    from bench.jellyfin import JellyfinClient
-    from bench.report import Report
 
     try:
         config = load_config()
@@ -280,13 +284,35 @@ def main(argv: list[str] | None = None) -> int:
     except (BenchConfigError, ValueError) as error:
         print(f"matrix: {error}", file=sys.stderr)
         return 2
+    tokens = sender.ReceiverTokens()
+    try:
+        # The sender's claim: one run at a time hands this receiver a token.
+        with tokens.claim(args.target):
+            return _measure(args, config, server, target, account, cases, tokens)
+    except sender.ReceiverBusy as busy:
+        print(f"matrix: {busy}", file=sys.stderr)
+        return 2
+
+
+def _measure(args, config, server, target, account, cases: list[dict], tokens) -> int:
+    from bench import sender
+    from bench.jellyfin import JellyfinClient
+    from bench.report import Report
+
+    # Read before the sign-in, as the sender does: a store that does not parse raised after it,
+    # outside the cleanup, and left the run's fresh token alive with no record of it.
+    orphans = tokens.orphans(args.server, args.profile)
     client = JellyfinClient(server.url)
     session = client.authenticate(account)
-    report = Report("matrix", redact=config.redact + [session.token])
+    report = Report("matrix", redact=config.redact + [session.token] + [orphan.token for orphan in orphans])
     report.add("target", name=target.name, kind=target.kind, server=args.server, cases=[c["id"] for c in cases])
     rows: list[Row] = []
     controller = None
+    driver = None
     try:
+        # A matrix run can orphan a token too: swept here as well as by the sender, they no longer
+        # pile up. Inside the cleanup's scope, so a sweep cut short still revokes the run's token.
+        sender.revoke_orphans(client, tokens, args.server, args.profile, report.add)
         cast = sender.connect(target)
         # The receiver keeps the name of the first sender that reached it: a running one is
         # restarted so that the server session is the matrix's own.
@@ -312,10 +338,21 @@ def main(argv: list[str] | None = None) -> int:
                 report.keep(args.keep, config.keep_dir)
             print(f"report: {paths.markdown}")
         finally:
-            try:
-                client.logout(session)
-            except Exception as error:  # noqa: BLE001 - a failed sign-out only leaves the token behind
-                print(f"matrix: sign-out failed, the token stays on the server ({error})", file=sys.stderr)
+            handed = driver is not None and driver.handed
+            if handed and not driver.idle:
+                # A stop not seen obeyed, or a run cut short: the receiver may play with the token.
+                tokens.put(args.server, args.profile, args.target, session)
+                print("matrix: the receiver was not seen idle; its token is kept for the sender's next command or stop", file=sys.stderr)
+            else:
+                try:
+                    client.logout(session)
+                except Exception as error:  # noqa: BLE001 - a failed sign-out only leaves the token behind
+                    # Kept for the next run to revoke: with the receiver if it holds the token, as an orphan if not.
+                    if handed:
+                        tokens.put(args.server, args.profile, args.target, session)
+                    else:
+                        tokens.orphan(args.server, args.profile, session)
+                    print(f"matrix: sign-out failed, the token is kept for the next run to revoke ({error})", file=sys.stderr)
     return exit_code(rows)
 
 

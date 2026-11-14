@@ -1,5 +1,8 @@
 import json
+import socketserver
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import mock
 from urllib.error import HTTPError
 
@@ -136,6 +139,81 @@ class JellyfinClientTests(unittest.TestCase):
                 self.client.get("/Sessions")
         self.assertEqual(caught.exception.status, 401)
         self.assertIn("/Sessions", str(caught.exception))
+
+
+class LocalServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer looks its address up in reverse DNS, which took 35 s on a Mac: a local test
+        # server needs no name.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
+def serve(handler):
+    """A real HTTP server on a free local port; returns it and its base URL."""
+    server = LocalServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}"
+
+
+class RedirectTests(unittest.TestCase):
+    """urllib copies every header, the token among them, into the request a redirect asks for,
+    wherever it points."""
+
+    def start(self, handler) -> str:
+        server, url = serve(handler)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return url
+
+    def test_a_redirect_to_another_origin_is_refused_with_its_status(self):
+        seen = []
+
+        class Elsewhere(BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append(dict(self.headers))
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, *_):
+                pass
+
+        # Another origin by its port alone.
+        elsewhere = self.start(Elsewhere)
+
+        class Redirecting(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location", elsewhere + "/Sessions")
+                self.end_headers()
+
+            def log_message(self, *_):
+                pass
+
+        client = JellyfinClient(self.start(Redirecting))
+        with self.assertRaises(JellyfinHttpError) as caught:
+            client.get("/Sessions", token="secret-token")
+        self.assertEqual(caught.exception.status, 302)
+        self.assertEqual(seen, [])
+
+    def test_a_redirect_within_the_server_is_followed(self):
+        class Moved(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == "/old":
+                    self.send_response(301)
+                    self.send_header("Location", "/new")
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(json.dumps({"token": self.headers.get("X-Emby-Token")}).encode())
+
+            def log_message(self, *_):
+                pass
+
+        client = JellyfinClient(self.start(Moved))
+        self.assertEqual(client.get("/old", token="secret-token"), {"token": "secret-token"})
 
 
 if __name__ == "__main__":

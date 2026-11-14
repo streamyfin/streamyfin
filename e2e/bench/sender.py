@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import math
 import os
@@ -57,6 +58,9 @@ CONTAINER_TYPES = frozenset({"Playlist", "MusicArtist", "MusicGenre"})
 # The token each receiver was handed and the bitrate cap of its session, kept between runs. It holds
 # live tokens: git and Biome ignore it.
 TOKENS_PATH = Path(__file__).resolve().parent / "receiver-tokens.local.json"
+# How long a status request may go unanswered, and how long a receiver gets to obey a Stop.
+STATUS_TIMEOUT_SECONDS = 5.0
+STOP_TIMEOUT_SECONDS = 10.0
 
 
 class SenderTimeout(Exception):
@@ -159,10 +163,16 @@ def receiver_name_for(device: dict | None) -> str | None:
 
 @dataclass(frozen=True)
 class MediaSample:
+    """The receiver's media status. `answered` is false when the request for it went unanswered:
+    pychromecast then still holds the last status it got, or UNKNOWN before any. `media_session`
+    is whether that status has a media session at all."""
+
     at: float
     player_state: str
     current_time: float
     custom_data: dict
+    answered: bool = True
+    media_session: bool = True
 
     @property
     def item_id(self) -> str | None:
@@ -189,22 +199,32 @@ class Load:
         return self.previous_session is None or status.play_session_id != self.previous_session
 
 
-def sample(cast: Any) -> MediaSample:
+def sample(cast: Any, answered: bool = True) -> MediaSample:
     status = cast.media_controller.status
     return MediaSample(
         at=time.monotonic(),
         player_state=str(status.player_state),
         current_time=float(status.current_time or 0.0),
         custom_data=dict(status.media_custom_data or {}),
+        answered=answered,
+        media_session=getattr(status, "media_session_id", None) is not None,
     )
 
 
-def refresh_status(cast: Any, timeout: float = 5.0) -> MediaSample:
-    """Asks the receiver for its media status and waits for the answer before sampling."""
+def refresh_status(cast: Any, timeout: float | None = None) -> MediaSample:
+    """Asks the receiver for its media status and waits for the answer before sampling; a sample
+    taken without one says so. pychromecast also calls back with False when the request failed, a
+    closed socket or a failed write, which is no answer either."""
     answered = threading.Event()
-    cast.media_controller.update_status(callback_function=lambda *_: answered.set())
-    answered.wait(timeout)
-    return sample(cast)
+    succeeded: list[bool] = []
+
+    def on_status(success, *_) -> None:
+        succeeded.append(bool(success))
+        answered.set()
+
+    cast.media_controller.update_status(callback_function=on_status)
+    waited = answered.wait(STATUS_TIMEOUT_SECONDS if timeout is None else timeout)
+    return sample(cast, answered=waited and all(succeeded))
 
 
 def wait_for(
@@ -261,16 +281,32 @@ class BusCollector:
         return parsed
 
 
-ACTIVE_STATES = frozenset({"PLAYING", "BUFFERING", "PAUSED"})
+PLAYER_STATE_IDLE = "IDLE"
+# What pychromecast says before any status, and after an answer without a media session.
+PLAYER_STATE_UNKNOWN = "UNKNOWN"
 
 
-def should_sign_out(final_state: str | None) -> bool:
+def confirmed_idle(status: MediaSample | None) -> bool:
+    """A receiver that answered it plays nothing: IDLE, or no media session at all. A status the
+    run did not get an answer for is not one, whatever pychromecast still holds."""
+    if status is None or not status.answered:
+        return False
+    return status.player_state == PLAYER_STATE_IDLE or (status.player_state == PLAYER_STATE_UNKNOWN and not status.media_session)
+
+
+def should_sign_out(final: MediaSample | None) -> bool:
     """Whether the token a run handed the receiver can be revoked. The receiver keeps the token of
     the last message for its own requests, and a sign-out while it still plays would break its
     progress reports and its transcoded stream. Only a receiver seen idle lets it go, after a stop
     too, which may have been lost or ignored: a state the run could not read after sending, cut
-    short by Ctrl-C say, keeps the token for the next run to revoke."""
-    return final_state is not None and final_state not in ACTIVE_STATES
+    short by Ctrl-C or left unanswered, keeps the token for the next run to revoke."""
+    return confirmed_idle(final)
+
+
+class ReceiverBusy(Exception):
+    def __init__(self, target: str):
+        super().__init__(f"another run is driving {target}; wait for it to end")
+        self.target = target
 
 
 class ReceiverTokens:
@@ -284,12 +320,38 @@ class ReceiverTokens:
     the loads after it, an audio change, a burned-in subtitle or a seek it cannot do in place among
     them, so each command of the session states it again: sent uncapped, a later command lifted the
     cap the session was started with. An uncapped session is kept with UNCAPPED_BITRATE, and an
-    entry without a cap is one whose cap is unknown."""
+    entry without a cap is one whose cap is unknown.
+
+    The same file keeps the orphans, tokens no receiver holds whose sign-out failed: still valid,
+    so kept until one goes through. Both live in one file, so a change to the two is one write: in
+    two files, a run stopped between them left the same token held and orphaned, and the next run
+    revoked the token the receiver still held."""
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path or TOKENS_PATH)
         # The file is replaced on every write, so the lock lives beside it, ignored by git as well.
         self.lock_path = self.path.with_suffix(".lock")
+
+    def claim_path(self, target: str) -> Path:
+        # The slug keeps the file readable; the digest of the exact name keeps "Den TV" and "Den-TV"
+        # two receivers, which the slug alone made one.
+        slug = re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-") or "target"
+        digest = hashlib.sha256(target.encode()).hexdigest()[:12]
+        return self.path.with_suffix(f".{slug}-{digest}.lock")
+
+    @contextlib.contextmanager
+    def claim(self, target: str):
+        """Held by a run for as long as it drives this receiver, from its read of the held token to
+        its write of the one it leaves. Two runs at once each handed the receiver a token, and the
+        store kept the one the receiver no longer had. A second run is refused rather than queued:
+        a matrix holds a receiver for minutes."""
+        with open(self.claim_path(target), "a") as lock:
+            if fcntl is not None:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError as error:
+                    raise ReceiverBusy(target) from error
+            yield
 
     @contextlib.contextmanager
     def _locked(self):
@@ -302,51 +364,91 @@ class ReceiverTokens:
 
     def _read(self) -> dict:
         try:
-            return json.loads(self.path.read_text())
+            data = json.loads(self.path.read_text())
         except FileNotFoundError:
-            return {}
+            data = {}
+        return {"held": data.get("held", {}), "orphans": data.get("orphans", {})}
 
     def _write(self, data: dict) -> None:
         # Written beside the file, owner only from the first byte since it holds live tokens, then
         # moved over it: an interrupted write leaves the previous tokens, never a truncated file.
+        kept = {key: tree for key, tree in data.items() if tree}
         descriptor, temporary = tempfile.mkstemp(dir=self.path.parent, prefix=f"{self.path.stem}.", suffix=".tmp")
         try:
             with os.fdopen(descriptor, "w") as file:
-                file.write(json.dumps(data, indent=2) + "\n")
+                file.write(json.dumps(kept, indent=2) + "\n")
             os.replace(temporary, self.path)
         except BaseException:
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(temporary)
             raise
 
+    @staticmethod
+    def _prune(tree: dict, server: str, profile: str) -> None:
+        if not tree.get(server, {}).get(profile, True):
+            del tree[server][profile]
+        if not tree.get(server, True):
+            del tree[server]
+
     def get(self, server: str, profile: str, target: str):
         from bench.jellyfin import AuthSession
 
-        entry = self._read().get(server, {}).get(profile, {}).get(target)
+        entry = self._read()["held"].get(server, {}).get(profile, {}).get(target)
         return AuthSession(token=entry["token"], user_id=entry["userId"]) if entry else None
 
     def max_bitrate(self, server: str, profile: str, target: str) -> int | None:
-        entry = self._read().get(server, {}).get(profile, {}).get(target)
+        entry = self._read()["held"].get(server, {}).get(profile, {}).get(target)
         return entry.get("maxBitrate") if entry else None
 
     def put(self, server: str, profile: str, target: str, session, max_bitrate: int | None = None) -> None:
         with self._locked():
             data = self._read()
+            held = data["held"].setdefault(server, {}).setdefault(profile, {})
+            replaced = held.get(target)
+            if replaced and replaced["token"] != session.token:
+                # Still valid on the server: kept for a later sign-out rather than forgotten. Its
+                # session's cap stays behind, an orphan drives no receiver.
+                self._add_orphan(data, server, profile, {"token": replaced["token"], "userId": replaced["userId"]})
             entry = {"token": session.token, "userId": session.user_id}
             if max_bitrate:
                 entry["maxBitrate"] = max_bitrate
-            data.setdefault(server, {}).setdefault(profile, {})[target] = entry
+            held[target] = entry
+            self._write(data)
+
+    def orphan(self, server: str, profile: str, session) -> None:
+        with self._locked():
+            data = self._read()
+            self._add_orphan(data, server, profile, {"token": session.token, "userId": session.user_id})
+            self._write(data)
+
+    @staticmethod
+    def _add_orphan(data: dict, server: str, profile: str, entry: dict) -> None:
+        entries = data["orphans"].setdefault(server, {}).setdefault(profile, [])
+        if all(known["token"] != entry["token"] for known in entries):
+            entries.append(entry)
+
+    def orphans(self, server: str, profile: str) -> list:
+        from bench.jellyfin import AuthSession
+
+        return [AuthSession(token=e["token"], user_id=e["userId"]) for e in self._read()["orphans"].get(server, {}).get(profile, [])]
+
+    def forget_orphan(self, server: str, profile: str, token: str) -> None:
+        with self._locked():
+            data = self._read()
+            entries = data["orphans"].get(server, {}).get(profile, [])
+            kept = [entry for entry in entries if entry["token"] != token]
+            if len(kept) == len(entries):
+                return
+            data["orphans"][server][profile] = kept
+            self._prune(data["orphans"], server, profile)
             self._write(data)
 
     def drop(self, server: str, profile: str, target: str) -> None:
         with self._locked():
             data = self._read()
-            if data.get(server, {}).get(profile, {}).pop(target, None) is None:
+            if data["held"].get(server, {}).get(profile, {}).pop(target, None) is None:
                 return
-            if not data[server][profile]:
-                del data[server][profile]
-            if not data[server]:
-                del data[server]
+            self._prune(data["held"], server, profile)
             self._write(data)
 
 
@@ -532,8 +634,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from bench.config import BenchConfigError, load_config
-    from bench.jellyfin import JellyfinClient, JellyfinHttpError
-    from bench.report import Report
 
     try:
         config = load_config()
@@ -544,12 +644,55 @@ def main(argv: list[str] | None = None) -> int:
         print(f"sender: {error}", file=sys.stderr)
         return 2
     tokens = ReceiverTokens()
+    try:
+        with tokens.claim(args.target):
+            return _drive(args, config, server, target, account, tokens)
+    except ReceiverBusy as busy:
+        print(f"sender: {busy}", file=sys.stderr)
+        return 2
+
+
+def sign_out(client, session) -> str | None:
+    """Revokes a token on the server; returns why it failed, or None once it is revoked. A token the
+    server no longer knows is as good as revoked."""
+    from bench.jellyfin import JellyfinHttpError
+
+    try:
+        client.logout(session)
+    except (JellyfinHttpError, OSError) as error:
+        if isinstance(error, JellyfinHttpError) and error.status == 401:
+            return None
+        return str(error)
+    return None
+
+
+def revoke_orphans(client, tokens: ReceiverTokens, server: str, profile: str, note: Callable[..., None]) -> None:
+    """Signs out the tokens no receiver holds that an earlier run, sender or matrix, could not, and
+    forgets each one only once its sign-out went through."""
+    reason = "an earlier run could not sign it out"
+    for orphan in tokens.orphans(server, profile):
+        error = sign_out(client, orphan)
+        if error is None:
+            tokens.forget_orphan(server, profile, orphan.token)
+            note("token revoked", reason=reason)
+        else:
+            note("sign-out failed", reason=reason, error=error)
+
+
+def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int:
+    """One command to the receiver, from the token it holds to the one the run leaves it."""
+    from bench.jellyfin import JellyfinClient
+    from bench.report import Report
+
     key = (args.server, args.profile, args.target)
     held = tokens.get(*key)
+    orphans = tokens.orphans(args.server, args.profile)
     client = JellyfinClient(server.url)
     # The run's own token reads the server; messages carry the one the receiver already holds, if any.
     own = client.authenticate(account)
-    report = Report(f"sender-{args.action}", redact=config.redact + [own.token] + ([held.token] if held else []))
+    report = Report(
+        f"sender-{args.action}", redact=config.redact + [own.token] + ([held.token] if held else []) + [orphan.token for orphan in orphans]
+    )
 
     def note(step: str, **data) -> None:
         # Each step goes in the report when it happens, so its time is the time of the step.
@@ -557,14 +700,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"step": step, "at": report.steps[-1]["at"], **data}, default=str))
 
     def revoke(session, reason: str) -> bool:
-        try:
-            client.logout(session)
-        except (JellyfinHttpError, OSError) as error:
-            # A token the server no longer knows is as good as revoked.
-            if not (isinstance(error, JellyfinHttpError) and error.status == 401):
-                note("sign-out failed", reason=reason, error=str(error))
-                return False
-        return True
+        error = sign_out(client, session)
+        if error is not None:
+            note("sign-out failed", reason=reason, error=error)
+        return error is None
 
     def revoke_held(reason: str) -> None:
         nonlocal held
@@ -577,13 +716,16 @@ def main(argv: list[str] | None = None) -> int:
 
     receiver_name = receiver_name_for({"friendlyName": target.name, "deviceId": None})
     exit_code = 0
-    final_state: str | None = None
+    final: MediaSample | None = None
     # The token this run's messages carried, from the moment one may have reached the receiver.
     handed = None
     # The cap the receiver's session runs under as far as the run knows: the kept one, then that of
     # each message once sent. None when unknown, kept so for the next command to state one.
     session_cap: int | None = None
     try:
+        # Inside the cleanup's scope: before it, a store write failing here, or a Ctrl-C during the
+        # sign-outs, left the run's own token alive with no record of it, and no report.
+        revoke_orphans(client, tokens, args.server, args.profile, note)
         if args.action == "play-now":
             # Looked up and checked before the receiver starts: a missing or refused item must not
             # close what the TV shows.
@@ -613,8 +755,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if args.action in ("status", "stop") else 1
         controller = attach(cast)
         before = refresh_status(cast)
-        note("receiver", app_id=cast.app_id, state=before.player_state)
-        if held is not None and before.player_state not in ACTIVE_STATES:
+        note("receiver", app_id=cast.app_id, state=before.player_state, answered=before.answered)
+        if held is not None and should_sign_out(before):
             revoke_held(f"receiver {before.player_state}")
         session = held or own
         # The cap this run's messages carry, and its session's from then on: a play starts the session
@@ -678,24 +820,43 @@ def main(argv: list[str] | None = None) -> int:
                 # apart, from the status read after the send.
                 identified_at = len(controller.bus)
             send({"identify": "Identify", "pause": "Pause", "unpause": "Unpause", "stop": "Stop"}[args.action])
-        time.sleep(2)
-        final = refresh_status(cast)
-        final_state = final.player_state
+        if args.action == "stop":
+            # A Stop lost or ignored leaves the receiver playing: that is a failed stop, not a success.
+            try:
+                final = wait_for(cast, confirmed_idle, STOP_TIMEOUT_SECONDS, "the receiver to stop")
+            except SenderTimeout:
+                final = refresh_status(cast)
+                note("stop not obeyed", state=final.player_state, answered=final.answered, after_seconds=STOP_TIMEOUT_SECONDS)
+                exit_code = 1
+        else:
+            time.sleep(2)
+            final = refresh_status(cast)
         wait_for_identify_answer(controller.bus, identified_at, final)
-        note("final", state=final.player_state, time=round(final.current_time, 1), custom_data=final.custom_data, bus=summarize_bus(controller.bus, identified_at, final))
+        note(
+            "final",
+            state=final.player_state,
+            answered=final.answered,
+            time=round(final.current_time, 1),
+            custom_data=final.custom_data,
+            bus=summarize_bus(controller.bus, identified_at, final),
+        )
         cast.disconnect(timeout=5)
     finally:
         # The evidence is written whatever the sign-out does: a failed one must not cost the run its report.
         try:
-            if handed is not own:
-                # Never handed to the receiver, so nothing else uses it.
-                revoke(own, "not handed to the receiver")
+            # Never handed to the receiver, so nothing else uses it; a failed sign-out leaves it
+            # for the next run to retry, instead of alive with no record of it.
+            if handed is not own and not revoke(own, "not handed to the receiver"):
+                tokens.orphan(args.server, args.profile, own)
             if handed is not None:
-                if not should_sign_out(final_state):
+                if not should_sign_out(final):
                     tokens.put(*key, handed, session_cap)
-                    state = "state unknown after sending" if final_state is None else f"still {final_state}"
+                    if final is None or not final.answered:
+                        state = "state unknown after sending"
+                    else:
+                        state = f"still {final.player_state}"
                     note("token kept", reason=f"receiver {state}; the next command to {target.name} reuses it, stop revokes it")
-                elif revoke(handed, f"receiver {final_state} after {args.action}"):
+                elif revoke(handed, f"receiver {final.player_state} after {args.action}"):
                     tokens.drop(*key)
                 else:
                     # Still valid on the server: the next run to this receiver revokes it.
