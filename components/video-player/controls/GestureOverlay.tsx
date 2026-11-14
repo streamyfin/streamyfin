@@ -4,6 +4,7 @@ import { Animated, Pressable, useWindowDimensions } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
+import { resolvePlayerGestures } from "@/utils/playerGestures";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useGestureDetection } from "./hooks/useGestureDetection";
 import { useVolumeAndBrightness } from "./hooks/useVolumeAndBrightness";
@@ -40,6 +41,8 @@ export const GestureOverlay = ({
   videoTopOffset = 0,
 }: Props) => {
   const { settings } = useSettings();
+  // The master switch and each gesture's own, as one set of flags.
+  const gestures = resolvePlayerGestures(settings);
   const lightHaptic = useHaptic("light");
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
@@ -155,7 +158,7 @@ export const GestureOverlay = ({
   });
 
   const handleSkipForward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!gestures.horizontalSwipeSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -163,7 +166,7 @@ export const GestureOverlay = ({
       showFeedback("play-forward", `+${settings.forwardSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    gestures.horizontalSwipeSkip,
     settings.forwardSkipTime,
     lightHaptic,
     onSkipForward,
@@ -171,7 +174,7 @@ export const GestureOverlay = ({
   ]);
 
   const handleSkipBackward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!gestures.horizontalSwipeSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -179,7 +182,7 @@ export const GestureOverlay = ({
       showFeedback("play-back", `-${settings.rewindSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    gestures.horizontalSwipeSkip,
     settings.rewindSkipTime,
     lightHaptic,
     onSkipBackward,
@@ -187,7 +190,7 @@ export const GestureOverlay = ({
   ]);
 
   const handleHoldSpeedStart = useCallback(() => {
-    if (!settings.enableHoldToSpeed) return;
+    if (!gestures.holdToSpeed) return;
     if (!isPlaying) return;
     if (isHoldSpeedActiveRef.current) return;
     isHoldSpeedActiveRef.current = true;
@@ -209,7 +212,7 @@ export const GestureOverlay = ({
       );
     });
   }, [
-    settings.enableHoldToSpeed,
+    gestures.holdToSpeed,
     settings.holdToSpeedRate,
     isPlaying,
     lightHaptic,
@@ -239,13 +242,13 @@ export const GestureOverlay = ({
 
   const handleVerticalDragStart = useCallback(
     (side: "left" | "right", startY: number) => {
-      if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
+      if (side === "left" && gestures.brightnessSwipe) {
         lightHaptic();
         // Defer drag start to avoid useInsertionEffect warning
         requestAnimationFrame(() => {
           startBrightnessDrag(startY);
         });
-      } else if (side === "right" && settings.enableRightSideVolumeSwipe) {
+      } else if (side === "right" && gestures.volumeSwipe) {
         lightHaptic();
         // Defer drag start to avoid useInsertionEffect warning
         requestAnimationFrame(() => {
@@ -254,8 +257,8 @@ export const GestureOverlay = ({
       }
     },
     [
-      settings.enableLeftSideBrightnessSwipe,
-      settings.enableRightSideVolumeSwipe,
+      gestures.brightnessSwipe,
+      gestures.volumeSwipe,
       lightHaptic,
       startBrightnessDrag,
       startVolumeDrag,
@@ -266,16 +269,16 @@ export const GestureOverlay = ({
     (side: "left" | "right", deltaY: number) => {
       // Use requestAnimationFrame to defer drag move updates too
       requestAnimationFrame(() => {
-        if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
+        if (side === "left" && gestures.brightnessSwipe) {
           updateBrightnessDrag(deltaY);
-        } else if (side === "right" && settings.enableRightSideVolumeSwipe) {
+        } else if (side === "right" && gestures.volumeSwipe) {
           updateVolumeDrag(deltaY);
         }
       });
     },
     [
-      settings.enableLeftSideBrightnessSwipe,
-      settings.enableRightSideVolumeSwipe,
+      gestures.brightnessSwipe,
+      gestures.volumeSwipe,
       updateBrightnessDrag,
       updateVolumeDrag,
     ],
@@ -298,7 +301,13 @@ export const GestureOverlay = ({
 
   // Wiring the long press only while enabled keeps a disabled setting from
   // swallowing the tap, swipe and drag gestures
-  const holdSpeedEnabled = settings.enableHoldToSpeed;
+  const holdSpeedEnabled = gestures.holdToSpeed;
+
+  // Turned off mid-hold (the master switch or a plugin lock), the release no
+  // longer reaches the hold's end: end it here. A no-op without a hold.
+  useEffect(() => {
+    if (!holdSpeedEnabled) handleHoldSpeedEnd();
+  }, [holdSpeedEnabled, handleHoldSpeedEnd]);
 
   const {
     handleTouchStart,
@@ -329,6 +338,7 @@ export const GestureOverlay = ({
         // press uses Pressable directly because the swipe and drag gestures
         // are not active here
         <AnimatedPressable
+          testID='player-gesture-overlay'
           onPress={onToggleControls}
           onLongPress={holdSpeedEnabled ? handleHoldSpeedStart : undefined}
           onPressOut={holdSpeedEnabled ? handleHoldSpeedEnd : undefined}
