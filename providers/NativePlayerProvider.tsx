@@ -723,7 +723,12 @@ const NativePlayerProviderInner: React.FC<{
       session.liveStreamReleased = true;
       getMediaInfoApi(currentApi)
         .closeLiveStream({ liveStreamId })
-        .catch(() => {});
+        .catch(() => {
+          // Un-mark so a later release of this session can try again, as the
+          // stop report does with reportedStopKey: nothing else gives the
+          // reference back.
+          session.liveStreamReleased = false;
+        });
     },
     [],
   );

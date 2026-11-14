@@ -190,9 +190,15 @@ const mockNextEpisode = {
   ParentIndexNumber: 1,
   IndexNumber: 2,
 };
+/** While set, remote progress reports wait in it until the test answers. */
+const mockRemoteProgress = { held: null as Array<() => void> | null };
 const mockPlayback = {
   saveLocalPlaybackProgress: () => undefined,
-  reportRemotePlaybackProgress: async () => undefined,
+  reportRemotePlaybackProgress: async () => {
+    const held = mockRemoteProgress.held;
+    if (held) await new Promise<void>((resolve) => held.push(resolve));
+    return undefined;
+  },
   nextItem: mockNextEpisode,
   previousItem: null,
 };
@@ -460,6 +466,7 @@ beforeEach(() => {
   mockNegotiation.count = 0;
   mockNegotiation.live = false;
   mockNegotiation.sharedLiveStreamId = null;
+  mockRemoteProgress.held = null;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -1029,5 +1036,40 @@ describe("a Live TV stream", () => {
     await settle();
 
     expect(liveStreamReleases()).toEqual(["live-shared", "live-shared"]);
+  });
+
+  // A close that never reached the server leaves the reference taken. The
+  // teardown of a restored swap releases the same session again, and has to
+  // try once more instead of taking the failed close for a done one.
+  test("is given back again when its close failed", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    api.mock.resetHandlers();
+    api.mock.onPost(/\/LiveStreams\/Close/).replyOnce(500);
+    api.mock.onAny().reply(200, {});
+    // The teardown sends its final progress before it releases: a round trip
+    // that, in the app, comes back after the failed close did.
+    const finalProgress: Array<() => void> = [];
+    mockRemoteProgress.held = finalProgress;
+    mockNative.refuseLoad = true;
+
+    await pickQuality(4_000_000);
+    expect(finalProgress).toHaveLength(1);
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+    await act(async () => {
+      for (const answer of finalProgress.splice(0)) answer();
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
   });
 });
