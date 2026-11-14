@@ -3,6 +3,7 @@ package expo.modules.mpvplayer
 import android.graphics.SurfaceTexture
 import android.os.Looper
 import android.view.Surface
+import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,6 +49,20 @@ class AudioOnlyNextFileTest {
     @Test fun withTheSettingOffAFileLoadedWhileHiddenKeepsItsVideo() {
         val renderer = renderer(audioOnly = false)
         renderer.fileLoaded()
+        assertFalse(renderer.isAudioOnlyScheduled())
+    }
+
+    // Second review of #2441: the switch queued for the file being replaced
+    // was left running when its replacement came with the setting off, and
+    // took the replacement's video away a few seconds later.
+    @Test fun aReplacementWithTheSettingOffDropsTheSwitchQueuedForTheOldFile() {
+        val renderer = renderer()
+        renderer.fileLoaded()
+        assertTrue(renderer.isAudioOnlyScheduled())
+
+        renderer.load(VideoLoadConfig(url = "file:///next.mkv", audioOnlyWhenHidden = false))
+        renderer.fileLoaded()
+
         assertFalse(renderer.isAudioOnlyScheduled())
     }
 }

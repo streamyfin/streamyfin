@@ -552,7 +552,7 @@ class MPVLayerRenderer(
     }
 
     private fun enterAudioOnly() {
-        if (!isRunning || surface != null) return
+        if (!audioOnlyWhenHidden || !isRunning || surface != null) return
         val m = mpv ?: return
         videoTrack.suspend(m.trackProperties())
     }
@@ -781,6 +781,10 @@ class MPVLayerRenderer(
         this.initialAudioId = config.initialAudioId
         this.currentLoop = config.loop
         audioOnlyWhenHidden = config.audioOnlyWhenHidden
+        // A switch still waiting was for the file being replaced. Left queued,
+        // it would take this one's video away even with the setting now off;
+        // this file schedules its own once loaded (FILE_LOADED).
+        mainHandler.removeCallbacks(enterAudioOnlyRunnable)
         _videoWidth = 0
         _videoHeight = 0
         _videoRotation = 0
