@@ -17,7 +17,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONArray
 import org.json.JSONException
@@ -423,7 +422,7 @@ class MPVLayerRenderer(
     override fun stop() {
         invalidateSeekReports()
         mainHandler.removeCallbacks(enterAudioOnlyRunnable)
-        endVideoTrackSuspension(null)
+        videoTrack.endForNextFile(null)
         // Released by the teardown below, once mpv no longer renders into it.
         val sink = offscreenSink
         offscreenSink = null
@@ -538,34 +537,22 @@ class MPVLayerRenderer(
     // (vid=no) and restored when a surface comes back. Off by load() unless the
     // source asks for it.
     private var audioOnlyWhenHidden = false
-    // The video track switched off for the background, to restore. Written
-    // on videoTrackExecutor only.
-    private val suspendedVideoTrack = AtomicReference<String?>(null)
-    // Which file a queued switch was asked for: load() and stop() move it on,
-    // and a switch queued for an earlier file is dropped.
-    private val videoTrackEpoch = AtomicInteger(0)
+    private val videoTrack = VideoTrackSuspension(
+        videoTrackExecutor,
+        log = { Log.i(TAG, "[Background] $it") },
+        warn = { Log.w(TAG, "[Background] $it") },
+    )
     private val enterAudioOnlyRunnable = Runnable { enterAudioOnly() }
+
+    private fun MPVLib.trackProperties() = object : TrackProperties {
+        override fun get(name: String): String? = getPropertyString(name)
+        override fun set(name: String, value: String) = setPropertyString(name, value)
+    }
 
     private fun enterAudioOnly() {
         if (!isRunning || surface != null) return
         val m = mpv ?: return
-        val epoch = videoTrackEpoch.get()
-        videoTrackExecutor.execute {
-            if (epoch != videoTrackEpoch.get()) return@execute
-            try {
-                // Without an audio track there is nothing left to play: mpv
-                // would reach the end of the file.
-                val aid = m.getPropertyString("aid")
-                if (aid.isNullOrEmpty() || aid == "no") return@execute
-                val vid = m.getPropertyString("vid")
-                if (vid.isNullOrEmpty() || vid == "no") return@execute
-                suspendedVideoTrack.set(vid)
-                m.setPropertyString("vid", "no")
-                Log.i(TAG, "[Background] audio only — video track $vid off")
-            } catch (e: Exception) {
-                Log.w(TAG, "[Background] could not switch to audio only: ${e.message}")
-            }
-        }
+        videoTrack.suspend(m.trackProperties())
     }
 
     /**
@@ -583,40 +570,7 @@ class MPVLayerRenderer(
     private fun restoreVideoTrack() {
         mainHandler.removeCallbacks(enterAudioOnlyRunnable)
         val m = mpv ?: return
-        val epoch = videoTrackEpoch.get()
-        videoTrackExecutor.execute {
-            if (epoch != videoTrackEpoch.get()) return@execute
-            val vid = suspendedVideoTrack.get() ?: return@execute
-            try {
-                m.setPropertyString("vid", vid)
-                Log.i(TAG, "[Background] video track $vid back")
-            } catch (e: Exception) {
-                Log.w(TAG, "[Background] could not restore the video track: ${e.message}")
-            }
-            // Cleared only once the track is back: until then the resume
-            // recovery must keep reading the missing video as intended.
-            suspendedVideoTrack.set(null)
-        }
-    }
-
-    /**
-     * Drops the switches queued so far. The worker runs in order, so the reset
-     * runs once a switch already under way has finished; it clears the
-     * suspension and gets [m] (if any) its video back.
-     */
-    private fun endVideoTrackSuspension(m: MPVLib?) {
-        videoTrackEpoch.incrementAndGet()
-        videoTrackExecutor.execute {
-            // vid=no outlives a loadfile, and nothing but the suspension sets
-            // it: a file replacing a suspended one would start without video.
-            if (suspendedVideoTrack.getAndSet(null) != null || m?.getPropertyString("vid") == "no") {
-                try {
-                    m?.setPropertyString("vid", "auto")
-                } catch (e: Exception) {
-                    Log.w(TAG, "[Background] could not reset the video track: ${e.message}")
-                }
-            }
-        }
+        videoTrack.restore(m.trackProperties())
     }
 
     // Stands in for the surface while there is none; see OffscreenSurfaceSink.
@@ -787,7 +741,7 @@ class MPVLayerRenderer(
                 return false
             }
             // Switched off on purpose while hidden, and coming back.
-            if (suspendedVideoTrack.get() != null) {
+            if (videoTrack.isSuspended) {
                 Log.i(TAG, "[Recover] isVideoOutputBroken — video suspended for the background, healthy")
                 return false
             }
@@ -877,9 +831,9 @@ class MPVLayerRenderer(
 
         // Load the file
         mpv?.let {
-            // A restore still queued for the previous file would pick its
-            // track ID in this one.
-            endVideoTrackSuspension(it)
+            // A switch still queued or under way for the previous file would
+            // leave its track selection to this one.
+            videoTrack.endForNextFile(it.trackProperties())
             it.command(arrayOf("loadfile", url, "replace"))
             // loadfile left this file as the playlist's only entry; its
             // MPV_EVENT_START_FILE is matched by that entry's id.
