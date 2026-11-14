@@ -149,7 +149,7 @@ bun run test:unit            # Jest, the whole suite
 bun run test:coverage        # Jest plus a coverage report in coverage/
 bun run perf                 # Reassure performance scenarios (*.perf-test.tsx)
 bun run perf:baseline        # Reassure baseline to compare `bun run perf` against
-bun run test                 # The full gate: typecheck, unit, lint, format, i18n, doctor
+bun run test                 # The full gate: typecheck, unit, e2e bench, lint, format, i18n, doctor
 
 # iOS specific
 bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build errors
@@ -190,7 +190,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
 | `docs/` | Conventions and deep dives |
-| `e2e/` | Manual end to end fixtures that need Docker, never run in CI (a local Jellyfin for SyncPlay) |
+| `e2e/` | End-to-end bench and suites (test server, devices, Cast sender, Maestro flows), see `e2e/README.md` |
 
 ## Key patterns
 
