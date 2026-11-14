@@ -825,6 +825,84 @@ describe("a detection across launches", () => {
   });
 });
 
+describe("a rate a playback showed", () => {
+  let bitrateTest: typeof import("./bitrateTest");
+  beforeEach(() => {
+    bitrateTest = require("./bitrateTest") as typeof import("./bitrateTest");
+  });
+
+  // A stream that stalled carried less than the speed test said: the next
+  // playback on that network starts from what the stream showed.
+  test("is what the next playback on the network starts from", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(3_500_000);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  test("is kept across launches", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    relaunch();
+
+    await expect(detectBitrate(api)).resolves.toBe(3_500_000);
+  });
+
+  test("leaves the minimum of the server's network in place", async () => {
+    answerEndpoint(true);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    await expect(detectBitrate(api)).resolves.toBe(140_000_000);
+  });
+
+  // A link that carried nothing read as a rate of 0, which gave the next
+  // playback a cap of 0: the server reads it as no cap at all.
+  test("is never kept at nothing", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+
+    bitrateTest.keepPlaybackRate(api, 0);
+
+    await expect(detectBitrate(api)).resolves.toBe(70_000_000);
+  });
+
+  test("of nothing, stored by an earlier build, is measured again", async () => {
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100), ...bodiesAt(10, 10));
+    await detectBitrate(api);
+    const stored = JSON.parse(mockStored.get("autoBitrateMeasures") ?? "{}");
+    for (const byNetwork of Object.values(stored) as Record<
+      string,
+      { rate: number }
+    >[]) {
+      for (const measure of Object.values(byNetwork)) measure.rate = 0;
+    }
+    mockStored.set("autoBitrateMeasures", JSON.stringify(stored));
+
+    relaunch();
+
+    await expect(detectBitrate(api)).resolves.toBe(7_000_000);
+  });
+
+  test("is not kept before the network is known", async () => {
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+    await bitrateTest.ensureNetworkKnown();
+
+    expect(bitrateTest.lastDetection(api)).toEqual({});
+  });
+});
+
 /** The device on mobile data of a generation, as NetInfo tells it. */
 const onCellular = (generation: string) => {
   mockNetworkState = {

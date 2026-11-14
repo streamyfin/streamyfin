@@ -29,7 +29,12 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
-import { AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS } from "@/constants/Bitrate";
+import {
+  ADAPTIVE_CACHE_TARGET_SECONDS,
+  ADAPTIVE_STALL_CHECK_MS,
+  AUTO_BITRATE_VALUE,
+  AUTO_STREAM_CACHED_TO_END_SLACK_SECONDS,
+} from "@/constants/Bitrate";
 import {
   NATIVE_PLAYER_CLOSE_POLL_MS,
   NATIVE_PLAYER_CLOSE_WAIT_MS,
@@ -88,12 +93,18 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
+  type AdaptiveAction,
+  AdaptiveAuto,
+  streamBitrateOf,
+} from "@/utils/adaptiveAuto";
+import {
   getActivePlayerType,
   isNativeChromeActive,
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
   type SegmentSkipMode,
+  type Settings,
   useSettings,
 } from "@/utils/atoms/settings";
 import {
@@ -107,6 +118,8 @@ import {
   bitrateLabel,
   fromNativeQualityIndex,
 } from "@/utils/bitrate";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
+import { detectBitrate, keepPlaybackRate } from "@/utils/jellyfin/bitrateTest";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -185,6 +198,10 @@ const NEXT_EPISODE_COUNTDOWN_SECONDS = NEXT_EPISODE_COUNTDOWN_MS / 1000;
 interface NativeSession extends NativePlayerSessionSeed {
   isReady: boolean;
   isBuffering: boolean;
+  /** Auto adapting the stream it asked for; none for a quality the user picked. */
+  adaptive?: AdaptiveAuto;
+  /** Looks at a stall while it lasts: the player sends nothing meanwhile. */
+  stallWatch?: ReturnType<typeof setInterval>;
   syncPlaylistItemId?: string;
   currentAudioIndex: number | undefined;
   currentSubtitleIndex: number;
@@ -362,6 +379,42 @@ const waitForClosingNativePlayer = async () => {
   }
 };
 
+/**
+ * Auto adapting a stream it asked for, the one carried over a swap of the
+ * same item or a new one, told the stream starts. None for a quality the
+ * user picked, offline, in a SyncPlay group, whose members a swap would
+ * hold, or with the setting off.
+ */
+const adaptiveAutoFor = (
+  seed: NativePlayerSessionSeed,
+  settings: Settings,
+  carried: AdaptiveAuto | undefined,
+  syncPlay: boolean,
+): AdaptiveAuto | undefined => {
+  if (
+    seed.offline ||
+    syncPlay ||
+    seed.bitrateValue !== AUTO_BITRATE_VALUE ||
+    settings.autoBitrateAdapt === false
+  ) {
+    return undefined;
+  }
+  const adaptive =
+    carried ??
+    new AdaptiveAuto({
+      ceiling: seed.maxStreamingBitrate,
+      ratio: autoBitrateOptions(settings).ratio,
+    });
+  adaptive.startStream({
+    now: Date.now(),
+    cap: seed.maxStreamingBitrate,
+    streamBitrate: streamBitrateOf(seed.playMethod, seed.stream.mediaSource),
+    mediaBitrate: seed.stream.mediaSource.Bitrate ?? undefined,
+    cacheTarget: settings.mpvCacheSeconds ?? ADAPTIVE_CACHE_TARGET_SECONDS,
+  });
+  return adaptive;
+};
+
 export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
@@ -469,6 +522,14 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // A measure can end after the provider is gone, its session still in the ref.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   const reportQueue = useRef(new NativePlaybackReportQueue()).current;
   // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
   // round trip, so overlapping play requests (double-fired next-episode, WS
@@ -1042,6 +1103,10 @@ const NativePlayerProviderInner: React.FC<{
         isCurrent?: () => boolean;
         /** The cap of a same-item, same-quality swap, see the builder. */
         maxStreamingBitrate?: { value: number | undefined };
+        /** Auto adapting the stream this swap replaces. */
+        adaptive?: AdaptiveAuto;
+        /** Asked by Auto, not by the user: not worth holding a SyncPlay group. */
+        byAuto?: boolean;
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -1102,6 +1167,15 @@ const NativePlayerProviderInner: React.FC<{
         releaseLiveStream(built.seed);
         return true;
       }
+      if (options.byAuto && syncRef.current.enabled) {
+        // The player joined a SyncPlay group while Auto's stream was being
+        // negotiated: loading it would hold every member. Dropped here, with
+        // the stream on screen and its server session untouched. Auto no
+        // longer waits for it: out of the group, it looks at the stream again.
+        releaseLiveStream(built.seed);
+        options.adaptive?.swapFailed(Date.now());
+        return true;
+      }
       if (syncRef.current.enabled && !req.offline) {
         built.config.syncPlay = nativeSyncStateRef.current || undefined;
         built.config.stream.autoplay = false;
@@ -1151,6 +1225,12 @@ const NativePlayerProviderInner: React.FC<{
         releaseLiveStream(session);
         return true;
       }
+      session.adaptive = adaptiveAutoFor(
+        built.seed,
+        currentSettings,
+        options.adaptive,
+        syncRef.current.enabled,
+      );
 
       const previous = sessionRef.current;
 
@@ -1405,6 +1485,8 @@ const NativePlayerProviderInner: React.FC<{
         positionTicks?: number;
         /** New quality. Omit to keep the current. */
         bitrateValue?: BitrateRequest;
+        /** The cap Auto stepped to, keeping Auto. */
+        cap?: { value: number | undefined };
       },
     ): Promise<boolean> => {
       const req: PlayRequest = {
@@ -1421,10 +1503,15 @@ const NativePlayerProviderInner: React.FC<{
         item: session.item,
         replace: true,
         over: session,
-        // The same quality: the cap the stream plays at, not a new measure.
+        // The same quality: the cap the stream plays at, or the one Auto
+        // stepped to, not a new measure.
         ...(overrides.bitrateValue === undefined && {
-          maxStreamingBitrate: { value: session.maxStreamingBitrate },
+          maxStreamingBitrate: overrides.cap ?? {
+            value: session.maxStreamingBitrate,
+          },
+          adaptive: session.adaptive,
         }),
+        byAuto: overrides.cap !== undefined,
       });
     },
     [beginSession],
@@ -2007,6 +2094,92 @@ const NativePlayerProviderInner: React.FC<{
   // MARK: - Native event listeners
 
   useEffect(() => {
+    /**
+     * Does what Auto asked of the session still on screen: a stream at
+     * another cap, or a measure whose bitrate goes back to it.
+     */
+    const adapt = (session: NativeSession, action: AdaptiveAction | null) => {
+      const api = apiRef.current;
+      if (!action || !api || sessionRef.current !== session) return;
+      // In a SyncPlay group a swap holds every member: a stream that joined
+      // one stops adapting, whatever it was about to do.
+      if (syncRef.current.enabled) {
+        session.adaptive = undefined;
+        return;
+      }
+      const options = autoBitrateOptions(settingsRef.current);
+      if (action.kind === "probe") {
+        // The controller rides a same-quality swap: a measure that ends after
+        // one is the new stream's to take, which may have joined it.
+        const settle = (bitrate: number | undefined) => {
+          if (!aliveRef.current || sessionRef.current !== session) return;
+          adapt(
+            session,
+            session.adaptive?.probeResult(Date.now(), bitrate) ?? null,
+          );
+        };
+        detectBitrate(api, true, options).then(settle, () => settle(undefined));
+        return;
+      }
+      if (action.kind === "stepDown") {
+        writeToLog("INFO", "Auto quality stepped down", {
+          from: session.maxStreamingBitrate,
+          to: action.cap,
+          linkCarried: action.throughput,
+        });
+      } else {
+        writeToLog("INFO", "Auto quality stepped up", {
+          from: session.maxStreamingBitrate,
+          to: action.cap,
+          measured: action.measured,
+        });
+      }
+      const controller = session.adaptive;
+      void replaceStream(session, { cap: { value: action.cap } }).then(
+        (replaced) => {
+          // The stream asked for could not start: the one playing plays on.
+          if (!replaced) {
+            session.adaptive?.swapFailed(Date.now());
+            return;
+          }
+          // A swap that was dropped resolves as one that happened: only the
+          // stream now on screen, the one Auto asked for, says it did.
+          const playing = sessionRef.current;
+          if (
+            action.kind !== "stepDown" ||
+            !controller ||
+            !playing ||
+            playing === session ||
+            playing.adaptive !== controller
+          ) {
+            return;
+          }
+          // The next playback on this network starts at the cap this one
+          // stepped to: its share of what the link carried, never under the
+          // lowest cap. A link that carried nothing reads as 0, which the
+          // server takes for no cap at all.
+          keepPlaybackRate(api, action.cap / options.ratio);
+        },
+      );
+    };
+
+    /** A stall sends no event while it lasts: Auto looks at it meanwhile. */
+    const watchStall = (session: NativeSession) => {
+      if (session.stallWatch) return;
+      session.stallWatch = setInterval(() => {
+        if (
+          sessionRef.current !== session ||
+          !session.isBuffering ||
+          !session.adaptive
+        ) {
+          clearInterval(session.stallWatch);
+          session.stallWatch = undefined;
+          return;
+        }
+        adapt(session, session.adaptive.check(Date.now()));
+      }, ADAPTIVE_STALL_CHECK_MS);
+    };
+
     const subscriptions = [
       addNativePlayerListener("onSyncPlayAction", (payload) => {
         const session = sessionRef.current;
@@ -2073,6 +2246,23 @@ const NativePlayerProviderInner: React.FC<{
           syncRef.current.notifyProgress();
         }
         if (info) void reportNativeProgress(session, info).catch(() => {});
+        const { adaptive } = session;
+        if (adaptive) {
+          const now = Date.now();
+          if (payload.trackingOnly || payload.didSeek) {
+            adaptive.seeked(now);
+          } else {
+            adapt(
+              session,
+              adaptive.tick({
+                now,
+                position: payload.position,
+                duration: payload.duration,
+                cacheSeconds: payload.cacheSeconds,
+              }),
+            );
+          }
+        }
       }),
 
       addNativePlayerListener("onPlaybackStateChange", (payload) => {
@@ -2085,6 +2275,18 @@ const NativePlayerProviderInner: React.FC<{
           session.isBuffering = payload.isLoading;
           if (syncRef.current.enabled)
             syncBufferingReporter.update(payload.isLoading, session.isReady);
+        }
+        if (session.adaptive) {
+          const playing =
+            payload.isPlaying ??
+            (payload.isPaused === undefined
+              ? session.isPlaying
+              : !payload.isPaused);
+          adapt(
+            session,
+            session.adaptive.state(Date.now(), playing, session.isBuffering),
+          );
+          if (playing && session.isBuffering) watchStall(session);
         }
         if (payload.isReadyToSeek === true) {
           if (syncRef.current.enabled) syncRef.current.notifyReady();
@@ -2295,9 +2497,17 @@ const NativePlayerProviderInner: React.FC<{
         // "Auto" stays Auto, measured by the re-negotiation.
         const requested = fromNativeQualityIndex(payload.bitrateValue);
         if (requested === session.bitrateValue) return;
+        // The user's pick goes first: this stream stops adapting while it is
+        // asked for, and adapts again only if it could not start.
+        const { adaptive } = session;
+        session.adaptive = undefined;
         void replaceStream(session, {
           bitrateValue: requested,
           positionTicks: msToTicks(payload.positionSec * 1000),
+        }).then((replaced) => {
+          if (replaced || sessionRef.current !== session) return;
+          session.adaptive = adaptive;
+          adaptive?.swapFailed(Date.now());
         });
       }),
 
@@ -2386,9 +2596,26 @@ const NativePlayerProviderInner: React.FC<{
       }),
     ];
 
+    // Listeners replaced while a stall lasts: the cleanup stopped looking at
+    // it, these listeners look on, from the session's own state.
+    const current = sessionRef.current;
+    if (
+      current?.adaptive &&
+      !current.awaitingLoad &&
+      current.isBuffering &&
+      current.isPlaying
+    ) {
+      watchStall(current);
+    }
+
     return () => {
       for (const subscription of subscriptions) {
         subscription?.remove();
+      }
+      const session = sessionRef.current;
+      if (session?.stallWatch) {
+        clearInterval(session.stallWatch);
+        session.stallWatch = undefined;
       }
     };
   }, [

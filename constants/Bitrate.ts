@@ -108,3 +108,53 @@ export const MAX_DETECTED_BITRATE = 2_147_483_647;
  * megabytes is over before a local network gets up to speed.
  */
 export const IN_NETWORK_MIN_BITRATE = 140_000_000;
+
+/**
+ * Auto during playback (`utils/adaptiveAuto.ts`). A stream that stalls this
+ * long within the window, or whose cache stays this low, is asked again at
+ * what the link carried; none of it counts during the grace that follows a
+ * start, a stream swap or a seek, nor near the end of a file, where the
+ * cache empties by itself.
+ */
+export const ADAPTIVE_STALL_BUDGET_MS = 2_000;
+export const ADAPTIVE_STALL_WINDOW_MS = 60_000;
+export const ADAPTIVE_LOW_CACHE_SECONDS = 2;
+export const ADAPTIVE_LOW_CACHE_MS = 3_000;
+export const ADAPTIVE_GRACE_MS = 5_000;
+/** How often a stall is looked at while it lasts: the player sends nothing meanwhile. */
+export const ADAPTIVE_STALL_CHECK_MS = 1_000;
+export const ADAPTIVE_END_MARGIN_SECONDS = 15;
+
+/**
+ * What the link carried is read from how the cache grew over this window, the
+ * part after the cache was last full: a full cache reads no faster than it
+ * plays. A shorter span says too little.
+ */
+export const ADAPTIVE_THROUGHPUT_WINDOW_MS = 20_000;
+export const ADAPTIVE_THROUGHPUT_MIN_SPAN_MS = 5_000;
+/** The share of its target from which the cache counts as full. */
+export const ADAPTIVE_FULL_CACHE_SHARE = 0.9;
+/** How far ahead the player reads when the settings do not say: mpv's default here. */
+export const ADAPTIVE_CACHE_TARGET_SECONDS = 10;
+
+/**
+ * A step down lowers the bitrate by a tenth at least. Without a reading of the
+ * link it takes the cap under three quarters of the bitrate; it never goes
+ * under the lowest cap.
+ */
+export const ADAPTIVE_MIN_STEP = 0.9;
+export const ADAPTIVE_STEP_DOWN_FACTOR = 0.75;
+export const ADAPTIVE_MIN_BITRATE = 250_000;
+
+/**
+ * A stream under the bitrate Auto started at is measured again once it played
+ * this long without a stall, with its cache this full, so the measure has the
+ * link to itself. It steps up when the measure allows half as much again;
+ * otherwise the next measure waits twice as long, up to the maximum.
+ */
+export const ADAPTIVE_PROBE_AFTER_MS = 2 * 60_000;
+export const ADAPTIVE_PROBE_MAX_DELAY_MS = 30 * 60_000;
+/** A lower stream that could not start is asked for again after this. */
+export const ADAPTIVE_RETRY_AFTER_FAILURE_MS = 30_000;
+export const ADAPTIVE_PROBE_CACHE_SHARE = 0.8;
+export const ADAPTIVE_STEP_UP_MARGIN = 1.5;

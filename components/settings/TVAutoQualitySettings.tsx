@@ -1,6 +1,6 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { TVSettingsOptionButton } from "@/components/tv";
+import { TVSettingsOptionButton, TVSettingsToggle } from "@/components/tv";
 import {
   AUTO_BITRATE_IN_NETWORK_MIN_CHOICES,
   AUTO_BITRATE_RATIO_CHOICES,
@@ -21,7 +21,7 @@ import {
  * playback settings: Auto plays on TV as well.
  */
 export const TVAutoQualitySettings: React.FC = () => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { t, i18n } = useTranslation();
   const { showOptions } = useTVOptionModal();
   const { last, measuring, measure } = useAutoBitrateMeasure();
@@ -92,6 +92,12 @@ export const TVAutoQualitySettings: React.FC = () => {
             (bitrate) => updateSettings({ autoBitrateInNetworkMin: bitrate }),
           )
         }
+      />
+      <TVSettingsToggle
+        label={t("home.settings.quality.adapt")}
+        value={settings.autoBitrateAdapt}
+        onToggle={(autoBitrateAdapt) => updateSettings({ autoBitrateAdapt })}
+        disabledByAdmin={pluginSettings?.autoBitrateAdapt?.locked}
       />
       <TVSettingsOptionButton
         label={t("home.settings.quality.measure_now")}
