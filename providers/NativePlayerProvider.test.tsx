@@ -861,3 +861,59 @@ describe("the next episode's subtitle warm", () => {
     expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(2);
   });
 });
+
+// The server shares a channel's stream between everyone watching it, counts
+// one reference per negotiation, and closes the stream when the count reaches
+// zero: a session that gives its reference back twice cuts the stream from
+// under the others, another device on the channel or the swap's new stream.
+describe("a Live TV stream", () => {
+  /**
+   * Each request that gives a live stream reference back: a close, and a stop
+   * report that names the stream, which Jellyfin closes as well when no
+   * session reported watching it.
+   */
+  const liveStreamReleases = () =>
+    api.mock.history.post.flatMap((request) => {
+      const url = request.url ?? "";
+      const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+      if (close) return [close[1]];
+      if (url !== "https://jellyfin.example.com/Sessions/Playing/Stopped") {
+        return [];
+      }
+      const named = JSON.parse(request.data).LiveStreamId;
+      return named ? [named] : [];
+    });
+
+  test("is given back once when the player closes", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(serverReports()).toEqual([
+      "start play-session-1",
+      "stop play-session-1",
+    ]);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  test("is given back once when a track or bitrate change swaps it", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 60,
+      }),
+    );
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+});

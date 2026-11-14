@@ -75,6 +75,8 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** Set to have the server open a live stream for the item, as for a channel. */
+let mockLiveStreamId: string | undefined;
 let mockDownloads: Record<string, unknown> = {};
 const mockSettings = {};
 const mockNoop = () => {};
@@ -189,6 +191,7 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
       Id: "source-1",
       MediaStreams: [],
       TranscodingUrl: mockTranscodingUrl,
+      LiveStreamId: mockLiveStreamId,
     },
     sessionId: `session-${item.Id}`,
     url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
@@ -363,6 +366,7 @@ describe("direct player stop report", () => {
     mockControlsProps = null;
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
+    mockLiveStreamId = undefined;
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
@@ -602,6 +606,35 @@ describe("direct player stop report", () => {
     await openPlayer();
 
     expect(mockPlayerProps?.liveStream).toBe(true);
+  });
+
+  // The server shares a channel's stream between everyone watching it and
+  // closes it when the last reference is given back. A stop report that named
+  // the stream gave one back on top of the close, and another device on the
+  // channel lost its picture.
+  test("gives a TV channel's live stream back once when the player is left", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    mockLiveStreamId = "live-1";
+    const releases = () =>
+      api.mock.history.post.flatMap((request) => {
+        const url = request.url ?? "";
+        const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+        if (close) return [close[1]];
+        if (!url.endsWith("/Sessions/Playing/Stopped")) return [];
+        const named = JSON.parse(request.data).LiveStreamId;
+        return named ? [named] : [];
+      });
+    await openPlayer();
+    await leavePlayer();
+
+    screen.unmount();
+    await waitFor(() => expect(releases()).toContain("live-1"));
+
+    expect(releases()).toEqual(["live-1"]);
   });
 
   // Fast forward and rewind from a headset or the notification went +30 and

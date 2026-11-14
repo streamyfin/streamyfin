@@ -459,10 +459,10 @@ export default function DirectPlayerPage() {
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
   // never closed, Jellyfin's M3U tuner limit fills up and every channel then
-  // fails with "simultaneous stream limit has been reached". reportPlaybackStopped
-  // handles a clean stop, but a channel switch (the player re-fetches in place)
-  // or an unmount after an error bypass it, so track the open live stream and
-  // release it on those paths too.
+  // fails with "simultaneous stream limit has been reached". This is the one
+  // place that gives it back, on a channel switch (the player re-fetches in
+  // place) and on unmount: the stop report no longer names it, since the
+  // server shares a channel's stream and a second release cuts it for others.
   const apiRef = useRef(api);
   useEffect(() => {
     apiRef.current = api;
@@ -723,12 +723,10 @@ export default function DirectPlayerPage() {
           MediaSourceId: mediaSourceId,
           PositionTicks: currentTimeInTicks,
           PlaySessionId: stream.sessionId || undefined,
-          // Release the server-side live stream (and its tuner slot) on stop.
-          // Jellyfin only closes a live stream opened via autoOpenLiveStream when
-          // the stop report carries its LiveStreamId; without it the stream leaks
-          // and Live TV eventually fails for everyone with "M3U simultaneous
-          // stream limit has been reached". Undefined for non-live items (no-op).
-          LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
+          // No LiveStreamId: releaseLiveStream gives the stream back when the
+          // player unmounts or the stream changes. Named here, it is released
+          // a second time, and a channel's stream is shared, so that cuts it
+          // from under another device on the channel.
         },
       });
     } catch (error) {
