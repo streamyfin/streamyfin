@@ -12,8 +12,8 @@ import {
   useDraxContext,
   useSortableList,
 } from "react-native-drax";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 
 export interface QueueRow {
   /** Unique within the list, and stable while the row moves. */
@@ -197,7 +197,8 @@ export const DraggableQueueList: React.FC<Props> = ({
                 }`}
               >
                 {item.imageUrl ? (
-                  <Image
+                  // A recycled row kept the cover it had, the previous queue's after a cast handed the queue back.
+                  <ArtworkImage
                     source={{ uri: item.imageUrl }}
                     style={{ width: "100%", height: "100%" }}
                     contentFit='cover'
