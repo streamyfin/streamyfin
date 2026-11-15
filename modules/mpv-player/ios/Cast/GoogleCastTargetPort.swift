@@ -7,10 +7,12 @@ struct CastTargetRoute {
   let startSession: () -> Bool
 }
 
-/// The SDK's current session when the port starts: connected, or still connecting.
+/// The SDK's current session: connected, launching, or suspended.
 struct RunningTargetSession {
   let device: TargetDevice?
   let connected: Bool
+  /// Lost and not being reconnected: the SDK tries it again only when the app comes back to the front or relaunches.
+  var suspended = false
 }
 
 /// The Cast SDK as the hub sees it. The SDK calls come in as closures so that the standalone check
@@ -144,7 +146,13 @@ final class GoogleCastTargetPort: TargetPort {
     if let running = runningSession() {
       if running.device?.id == device.id {
         // Asked back while a switch ends its session: start it again once that end comes.
-        if switching { pendingSwitch = device }
+        if switching {
+          pendingSwitch = device
+          return
+        }
+        // A suspended session is not on its way: once the receiver restarted it never came back, and the row stayed
+        // Connecting (bench, 15/11). It is ended, without the Stop a Disconnect asked, and the receiver started anew.
+        if running.suspended { restart(device) }
         // Otherwise that receiver's session is already there, or on its way.
         return
       }
@@ -186,6 +194,18 @@ final class GoogleCastTargetPort: TargetPort {
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.
     events?.sessionEvent("ended", device: nil, error: nil)
+  }
+
+  // The suspended session's end stays away from the hub, which asked for this receiver since: it starts once that end
+  // comes, as after a switch.
+  private func restart(_ device: TargetDevice) {
+    endedEarly = EndedEarly(device: device, stopWhenUp: nil)
+    pendingSwitch = device
+    if !endSession(false) {
+      endedEarly = nil
+      pendingSwitch = nil
+      events?.sessionEvent("startFailed", device: device, error: Self.endRefused)
+    }
   }
 
   private func startSession(on device: TargetDevice) {
@@ -269,7 +289,10 @@ extension GoogleCastTargetPort {
       },
       runningSession: {
         guard let session = sessionManager.currentCastSession else { return nil }
-        return RunningTargetSession(device: targetDevice(session.device), connected: session.connectionState == .connected)
+        return RunningTargetSession(
+          device: targetDevice(session.device), connected: session.connectionState == .connected,
+          suspended: session.connectionState == .disconnected
+        )
       },
       endSession: { stopPlayback in sessionManager.endSessionAndStopCasting(stopPlayback) },
       watchSessions: { relay in
