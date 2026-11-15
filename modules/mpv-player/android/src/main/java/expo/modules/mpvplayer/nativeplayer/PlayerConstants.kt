@@ -39,4 +39,23 @@ object PlayerConstants {
     // default items lasts. iOS: PlayerConstants.fakeRemoteLoadMs and fakeRemoteItemSec.
     const val FAKE_REMOTE_LOAD_MS = 600L
     const val FAKE_REMOTE_ITEM_SEC = 120.0
+
+    // The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model. A
+    // window shorter than REMOTE_COMPACT_HEIGHT_DP is couched; otherwise one at least REMOTE_WIDE_MIN_WIDTH_DP
+    // wide puts the artwork beside the controls. iOS: the same numbers in points, PlayerConstants.remote*.
+    const val REMOTE_COMPACT_HEIGHT_DP = 480.0
+    const val REMOTE_WIDE_MIN_WIDTH_DP = 600.0
+    // The artwork takes what the rest leaves, between these two; it gives up its height before anything else.
+    const val REMOTE_ARTWORK_MIN_DP = 96.0
+    const val REMOTE_ARTWORK_MAX_DP = 420.0
+    const val REMOTE_HORIZONTAL_PADDING_DP = 24.0
+    // Couched, the artwork is at most this share of the width; wide, beside the column, this one.
+    const val REMOTE_LANDSCAPE_ARTWORK_FRACTION = 0.4
+    const val REMOTE_WIDE_ARTWORK_FRACTION = 0.45
+    // What the rest of the screen takes, upright and couched: the part that keeps its size (buttons, the bar's
+    // track, gaps) and the text, counted one line each at the font scale asked for.
+    const val REMOTE_PORTRAIT_FIXED_DP = 276.0
+    const val REMOTE_PORTRAIT_TEXT_DP = 82.0
+    const val REMOTE_LANDSCAPE_FIXED_DP = 108.0
+    const val REMOTE_LANDSCAPE_TEXT_DP = 34.0
 }

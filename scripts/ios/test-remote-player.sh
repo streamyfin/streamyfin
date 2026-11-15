@@ -24,3 +24,10 @@ swiftc -module-cache-path "$test_dir/modules" \
   tests/native/RemoteEventsTests.swift \
   -o "$test_dir/remote-events"
 "$test_dir/remote-events"
+
+swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/RemoteLayout.swift \
+  tests/native/RemoteLayoutTests.swift \
+  -o "$test_dir/remote-layout"
+"$test_dir/remote-layout"
