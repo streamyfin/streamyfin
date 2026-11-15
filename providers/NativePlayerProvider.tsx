@@ -1742,6 +1742,8 @@ const NativePlayerProviderInner: React.FC<{
           session.currentAudioIndex,
         );
         if (!target.reload) await nativePlayerSetAudioTrack(target.mpvId);
+        // Another play may have taken the player during that hop.
+        if (sessionRef.current !== session) return;
       }
       pushTrackMenus(session);
     },

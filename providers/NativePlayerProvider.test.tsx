@@ -31,6 +31,13 @@ const mockNative = {
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
+  /** The audio tracks mpv reports for the file. */
+  audioTracks: [] as Array<{ lang?: string }>,
+  /** Keeps setAudioTrack pending, as the hop to mpv's queue does. */
+  holdAudioSwitch: false,
+  pendingAudioSwitches: [] as Array<() => void>,
+  /** How many times the track menus were pushed to the player. */
+  menuPushes: 0,
   emit<K extends keyof NativePlayerEvents>(
     event: K,
     payload: Parameters<NativePlayerEvents[K]>[0],
@@ -91,7 +98,14 @@ jest.mock("@/modules/mpv-player", () => {
     nativePlayerPause: done,
     nativePlayerPlay: done,
     nativePlayerSeekTo: done,
-    nativePlayerSetAudioTrack: done,
+    nativePlayerGetAudioTracks: async () => mockNative.audioTracks,
+    nativePlayerSetAudioTrack: async () => {
+      if (mockNative.holdAudioSwitch) {
+        await new Promise<void>((resolve) =>
+          mockNative.pendingAudioSwitches.push(resolve),
+        );
+      }
+    },
     nativePlayerSetSpeed: done,
     nativePlayerSetSubtitleTrack: done,
     nativePlayerShowNotice: done,
@@ -101,7 +115,9 @@ jest.mock("@/modules/mpv-player", () => {
     updateNativePlayerSegments: done,
     updateNativePlayerSubtitleSearch: done,
     updateNativePlayerSyncPlay: done,
-    updateNativePlayerTrackMenus: done,
+    updateNativePlayerTrackMenus: async () => {
+      mockNative.menuPushes += 1;
+    },
   };
 });
 
@@ -121,6 +137,10 @@ const mockNegotiation = {
   bitrate: undefined as number | undefined,
   /** Items whose stream negotiation fails. */
   failing: new Set<string>(),
+  /** The streams the server lists for each negotiated source. */
+  streams: undefined as object[] | undefined,
+  /** The audio index each negotiated session starts on. */
+  audioIndex: undefined as number | undefined,
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -176,10 +196,14 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
             ...(mockNegotiation.bitrate && {
               Bitrate: mockNegotiation.bitrate,
             }),
+            ...(mockNegotiation.streams && {
+              MediaStreams: mockNegotiation.streams,
+            }),
           },
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
+        audioIndex: mockNegotiation.audioIndex,
         // The cap a swap asked for; otherwise a fixed quality caps the
         // stream at itself, and 12 Mb/s stands for what Auto, the default,
         // measures.
@@ -479,6 +503,10 @@ beforeEach(() => {
   mockNative.loaded = [];
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
+  mockNative.audioTracks = [];
+  mockNative.holdAudioSwitch = false;
+  mockNative.pendingAudioSwitches = [];
+  mockNative.menuPushes = 0;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
@@ -486,6 +514,8 @@ beforeEach(() => {
   mockNegotiation.live = false;
   mockNegotiation.bitrate = undefined;
   mockNegotiation.failing.clear();
+  mockNegotiation.streams = undefined;
+  mockNegotiation.audioIndex = undefined;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -667,6 +697,39 @@ describe("a swap whose stream ended under it", () => {
     expect(mockNative.presented).toHaveLength(1);
     expect(mockNative.loaded).toHaveLength(0);
     expect(log.logAndCaptureError).not.toHaveBeenCalled();
+  });
+});
+
+// A server that names tracks from the file name lists one audio stream; mpv
+// finds two. Putting mpv back on the selected track waits on mpv's queue, and
+// another play can take the player meanwhile.
+describe("audio tracks only mpv found", () => {
+  test("leave the next session's menus alone when it takes the player during the switch to the selected track", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "eng" }, { lang: "fre" }];
+    await mount();
+    await open("item-1");
+
+    mockNative.holdAudioSwitch = true;
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    expect(mockNative.pendingAudioSwitches).toHaveLength(1);
+
+    mockNative.holdAudioSwitch = false;
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(true);
+    });
+    await settle();
+    const pushes = mockNative.menuPushes;
+    await act(async () => {
+      for (const release of mockNative.pendingAudioSwitches.splice(0)) {
+        release();
+      }
+    });
+    await settle();
+
+    expect(mockNative.menuPushes).toBe(pushes);
   });
 });
 
