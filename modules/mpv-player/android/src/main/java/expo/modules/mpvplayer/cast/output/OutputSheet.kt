@@ -281,7 +281,9 @@ private fun ConnectedPanelContent(
                 fontSize = 13.sp,
             )
         }
-        TextButton(onClick = { controller.change() }) { Text(strings.get("change"), color = PlayerAccentColor) }
+        TextButton(onClick = { controller.change() }, enabled = panel.canChange) {
+            Text(strings.get("change"), color = if (panel.canChange) PlayerAccentColor else CaptionColor)
+        }
     }
     if (panel.showsVolume) VolumeRow(panel, strings, controller)
     if (panel.canHandOff) {

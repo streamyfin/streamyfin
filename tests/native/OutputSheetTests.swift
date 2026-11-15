@@ -174,6 +174,22 @@ enum OutputSheetTests {
       )
     }
 
+    // Another receiver asked for while the session reconnects is a switch away from a session no receiver hears: its
+    // end, a stop, would be lost as the Stop was (iPhone, Wi-Fi cut, 14/11). "Change" waits for the session, greyed.
+    do {
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      let connected = RemoteTargetSnapshot(
+        phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
+      )
+      check(
+        "aReconnectingPanelOffersNoChange",
+        panel(outputSheetState(input(snapshot: reconnecting)))?.canChange == false
+          && panel(outputSheetState(input(snapshot: connected)))?.canChange == true
+      )
+    }
+
     // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
     do {
       let connected = RemoteTargetSnapshot(

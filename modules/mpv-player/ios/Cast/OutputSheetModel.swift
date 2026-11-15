@@ -96,6 +96,9 @@ struct ConnectedPanel: Equatable {
   let canStop: Bool
   /// Opened from the player, over a connected receiver: "Play on" hands the video off. Not while reconnecting.
   let canHandOff: Bool
+  /// "Change" opens the list. Not while reconnecting: another receiver would end a session no receiver hears, and
+  /// its stop would be lost, as a Stop there was before the port held it (iPhone, Wi-Fi cut, 14/11).
+  let canChange: Bool
 }
 
 enum OutputSheetState: Equatable {
@@ -152,7 +155,7 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
         volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted, showsVolume: showsVolume,
         canSetVolume: showsVolume && !snapshot.reconnecting, canMute: showsVolume && !snapshot.reconnecting,
         reconnecting: snapshot.reconnecting, receiverTitle: input.receiverTitle, canStop: input.receiverPlaying,
-        canHandOff: input.handOff && snapshot.phase == .connected
+        canHandOff: input.handOff && snapshot.phase == .connected, canChange: !snapshot.reconnecting
       )
     )
   }
