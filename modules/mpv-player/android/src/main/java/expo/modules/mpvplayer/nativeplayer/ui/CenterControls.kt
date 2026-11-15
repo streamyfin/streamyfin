@@ -21,17 +21,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 
+/**
+ * The transport's sizes and look. The defaults are the local chrome's; the remote screen passes its own sizes and
+ * [disc]: the play button a white disc with a dark icon and its loading ring inside, no scrim behind the others.
+ */
+data class TransportStyle(
+    val side: Dp = 44.dp,
+    val seek: Dp = 52.dp,
+    val play: Dp = 68.dp,
+    val gap: Dp = 28.dp,
+    val disc: Boolean = false,
+)
+
 @Composable
-fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
+fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier, style: TransportStyle = TransportStyle()) {
     val interactionSource = remember { MutableInteractionSource() }
+    val scrim = if (style.disc) Color.Transparent else Color.Black.copy(alpha = 0.5f)
+    val playInk = if (style.disc) Color.Black else Color.White
 
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(28.dp)
+        horizontalArrangement = Arrangement.spacedBy(style.gap)
     ) {
         // Previous Episode button if episode list exists
         val currentIdx = viewModel.episodeList.indexOfFirst { it.isCurrent }
@@ -39,9 +54,9 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         if (hasPrevious) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(style.side)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(scrim)
                     .clickable {
                         val prevItem = viewModel.episodeList[currentIdx - 1]
                         viewModel.selectEpisode(prevItem.itemId)
@@ -60,9 +75,9 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         // Seek Backward
         Box(
             modifier = Modifier
-                .size(52.dp)
+                .size(style.seek)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(scrim)
                 .clickable {
                     viewModel.haptic()
                     viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
@@ -81,9 +96,9 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         // Play / Pause main button
         Box(
             modifier = Modifier
-                .size(68.dp)
+                .size(style.play)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(if (style.disc) Color.White else Color.Black.copy(alpha = 0.6f))
                 .clickable {
                     viewModel.togglePlayPause()
                 },
@@ -91,7 +106,7 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         ) {
             if (viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == null) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = playInk,
                     modifier = Modifier.size(36.dp),
                     strokeWidth = 3.dp
                 )
@@ -99,7 +114,7 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
                 Icon(
                     imageVector = if (viewModel.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (viewModel.isPlaying) "Pause" else "Play",
-                    tint = Color.White,
+                    tint = playInk,
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -108,9 +123,9 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         // Seek Forward
         Box(
             modifier = Modifier
-                .size(52.dp)
+                .size(style.seek)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(scrim)
                 .clickable {
                     viewModel.haptic()
                     viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
@@ -131,9 +146,9 @@ fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
         if (hasNext) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(style.side)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(scrim)
                 .clickable {
                     if (viewModel.nextEpisode != null) {
                         viewModel.playNextEpisodeNow()

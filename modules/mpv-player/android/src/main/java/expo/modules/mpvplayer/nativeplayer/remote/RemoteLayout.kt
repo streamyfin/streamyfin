@@ -48,3 +48,58 @@ object RemoteMetrics {
             .coerceIn(PlayerConstants.REMOTE_ARTWORK_MIN_DP, PlayerConstants.REMOTE_ARTWORK_MAX_DP)
     }
 }
+
+/** The six slots every layout places (design §3.1). Twin: RemoteSlot in RemoteLayout.swift. */
+enum class RemoteSlot { HEADER, ARTWORK, TITLES, BAR, TRANSPORT, BOTTOM_ROW }
+
+/**
+ * Where a layout puts the slots: a bar across the top, the slot beside the rest (the artwork, on the left), the
+ * column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
+ * buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
+ */
+data class RemoteArrangement(
+    val topBar: List<RemoteSlot>,
+    val beside: RemoteSlot?,
+    val column: List<RemoteSlot>,
+    val bottom: List<RemoteSlot>,
+) {
+    companion object {
+        private val upright = listOf(
+            RemoteSlot.HEADER, RemoteSlot.ARTWORK, RemoteSlot.TITLES,
+            RemoteSlot.BAR, RemoteSlot.TRANSPORT, RemoteSlot.BOTTOM_ROW,
+        )
+
+        fun of(layout: RemoteLayout): RemoteArrangement = when (layout) {
+            RemoteLayout.PORTRAIT -> RemoteArrangement(emptyList(), null, upright, emptyList())
+            RemoteLayout.LANDSCAPE -> RemoteArrangement(
+                topBar = listOf(RemoteSlot.HEADER, RemoteSlot.TITLES, RemoteSlot.BOTTOM_ROW),
+                beside = RemoteSlot.ARTWORK,
+                column = listOf(RemoteSlot.TRANSPORT),
+                bottom = listOf(RemoteSlot.BAR),
+            )
+            RemoteLayout.WIDE -> RemoteArrangement(emptyList(), RemoteSlot.ARTWORK, upright - RemoteSlot.ARTWORK, emptyList())
+        }
+    }
+}
+
+/** The transport's buttons, the chrome's sizes, and the gap between them: narrower upright, to fit the width. */
+data class RemoteTransport(val sideDp: Double, val seekDp: Double, val playDp: Double, val gapDp: Double) {
+    companion object {
+        fun of(layout: RemoteLayout) = RemoteTransport(
+            sideDp = PlayerConstants.REMOTE_BUTTON_SMALL_DP,
+            seekDp = PlayerConstants.REMOTE_BUTTON_MEDIUM_DP,
+            playDp = PlayerConstants.REMOTE_BUTTON_PLAY_DP,
+            gapDp = if (layout == RemoteLayout.PORTRAIT) {
+                PlayerConstants.REMOTE_TRANSPORT_GAP_PORTRAIT_DP
+            } else {
+                PlayerConstants.REMOTE_TRANSPORT_GAP_DP
+            },
+        )
+    }
+}
+
+/** What lights up in the active color on the remote screen (design §3.3). */
+object RemoteActive {
+    /** Subtitles are on when the chosen entry is a real track: "None" is SUBTITLES_OFF, -1, on the JS side. */
+    fun subtitlesOn(selectedIndex: Int?): Boolean = selectedIndex != null && selectedIndex >= 0
+}

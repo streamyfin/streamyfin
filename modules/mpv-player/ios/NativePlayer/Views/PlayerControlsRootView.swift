@@ -657,7 +657,8 @@ private struct PlayerChromeAnchorPreferenceKey: PreferenceKey {
 	}
 }
 
-private struct CurrentChapterLabel: View {
+/// The current chapter's name, drawn above the bar (the remote screen's too).
+struct CurrentChapterLabel: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var time: PlaybackTimeModel
 
@@ -740,6 +741,8 @@ struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// The fast clock — time labels and the chapter caption tick off this.
 	@ObservedObject var time: PlaybackTimeModel
+	/// The remote screen's right side: "Ends at" and the duration on one line, in place of the time left.
+	var showsDuration = false
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -763,6 +766,16 @@ struct PlayerBottomBar: View {
 			HStack(alignment: .top) {
 				Text(formatTime(position))
 				Spacer()
+				if showsDuration {
+					HStack(spacing: 8) {
+						if viewModel.duration > 0 && remaining > 0 {
+							Text(endsAtLabel(remaining: remaining))
+								.font(.system(size: 11).monospacedDigit())
+								.foregroundStyle(.white.opacity(0.6))
+						}
+						Text(formatTime(viewModel.duration))
+					}
+				} else {
 				VStack(alignment: .trailing, spacing: 1) {
 					Text("-" + formatTime(remaining))
 					if viewModel.duration > 0 {
@@ -784,6 +797,7 @@ struct PlayerBottomBar: View {
 							.foregroundStyle(.white.opacity(0.55))
 						}
 					}
+				}
 				}
 			}
 			.font(.footnote.monospacedDigit())

@@ -99,7 +99,7 @@ private fun EpisodeRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(if (isCurrent) PlayerAccentColor else Color.White.copy(alpha = 0.1f)),
+                .background(if (isCurrent) (LocalPlayerActiveColor.current ?: PlayerAccentColor) else Color.White.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             if (isCurrent) {
@@ -145,7 +145,7 @@ private fun EpisodeRow(
                         modifier = Modifier
                             .fillMaxWidth((episode.progressPercent / 100.0).toFloat().coerceIn(0f, 1f))
                             .height(3.dp)
-                            .background(PlayerAccentColor)
+                            .background(LocalPlayerActiveColor.current ?: PlayerAccentColor)
                     )
                 }
             }

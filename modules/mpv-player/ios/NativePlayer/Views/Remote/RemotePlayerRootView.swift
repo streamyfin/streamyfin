@@ -1,86 +1,91 @@
 #if os(iOS)
 import SwiftUI
 
-/// The remote player's screen, upright, in the order of the design (§3.1): the chevron that closes it, the
-/// artwork, the titles, the bar with its times, the transport, the TV's name. Made of the local chrome's
-/// pieces; the layouts for landscape and tablets, the tint and the slots come with the next PR.
+/// The remote player's screen. Its layout follows the window's size class (RemoteLayout): upright, the six slots
+/// stand top to bottom; couched, the titles and menus share a bar across the top, the artwork sits left of the
+/// transport and the bar runs along the bottom; wide, the upright column stands beside the artwork. Where each slot
+/// goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
 struct RemotePlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
+	@Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+	private static let slotGap: CGFloat = 16
+	private static let padding = CGFloat(PlayerConstants.remoteHorizontalPadding)
 
 	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading, spacing: 0) {
-				Button {
-					viewModel.close()
-				} label: {
-					Image(systemName: "chevron.down")
-						.font(.system(size: 22, weight: .semibold))
-						.foregroundStyle(.white)
-						.frame(width: 44, height: 44)
-						.contentShape(Rectangle())
-				}
-				.accessibilityLabel(viewModel.str("close", "Close"))
+		GeometryReader { proxy in
+			let width = Double(proxy.size.width)
+			let height = Double(proxy.size.height)
+			let layout = RemoteLayout.of(width: width, height: height)
+			let artwork = CGFloat(RemoteMetrics.artworkHeight(layout: layout, width: width, height: height, fontScale: fontScale))
+			let arrangement = RemoteArrangement.of(layout)
 
-				artwork
-					.padding(.vertical, 16)
-
-				Text(viewModel.metadata?.title ?? "")
-					.font(.system(size: 22, weight: .bold))
-					.foregroundStyle(.white)
-					.lineLimit(2)
-					.padding(.horizontal, 16)
-				if let subtitle = viewModel.metadata?.subtitle {
-					Text(subtitle)
-						.font(.system(size: 15))
-						.foregroundStyle(.white.opacity(0.7))
-						.lineLimit(2)
-						.padding(.horizontal, 16)
-						.padding(.vertical, 4)
+			VStack(spacing: 0) {
+				if !arrangement.topBar.isEmpty {
+					RemoteTopBar(viewModel: viewModel, targetName: targetName)
 				}
 
-				PlayerBottomBar(viewModel: viewModel, time: viewModel.time)
-					.padding(.top, 16)
-
-				PlayerCenterControls(viewModel: viewModel, time: viewModel.time)
-					.frame(maxWidth: .infinity)
-					.padding(.vertical, 16)
-
-				if let targetName {
-					HStack(spacing: 8) {
-						CastGlyph(connected: true)
-							.fill(.white)
-							.frame(width: 18, height: 18)
-							.accessibilityHidden(true)
-						Text(targetName)
-							.font(.system(size: 14))
-							.foregroundStyle(.white)
-							.lineLimit(1)
+				HStack(spacing: 0) {
+					if let beside = arrangement.beside {
+						Group {
+							if layout == .wide {
+								slot(beside, layout: layout, artwork: artwork)
+									.frame(width: proxy.size.width * CGFloat(PlayerConstants.remoteWideArtworkFraction))
+							} else {
+								slot(beside, layout: layout, artwork: artwork)
+									.padding(.trailing, Self.padding)
+							}
+						}
 					}
-					.padding(.horizontal, 16)
-					.padding(.vertical, 8)
+					ScrollView {
+						VStack(alignment: .leading, spacing: Self.slotGap) {
+							ForEach(arrangement.column, id: \.self) { slot($0, layout: layout, artwork: artwork) }
+						}
+						.frame(maxWidth: .infinity)
+					}
+					.scrollBounceBehavior(.basedOnSize)
+					.frame(maxHeight: .infinity)
 				}
+				.frame(maxHeight: .infinity)
+
+				ForEach(arrangement.bottom, id: \.self) { slot($0, layout: layout, artwork: artwork) }
 			}
-			.padding(.horizontal, 16)
-			.padding(.vertical, 8)
+			.padding(.horizontal, Self.padding)
 		}
 		.background(Color.black.ignoresSafeArea())
+		.sheet(isPresented: $viewModel.showEpisodeList) {
+			EpisodeListView(viewModel: viewModel)
+		}
 	}
 
-	/// The artwork, whole, in a square as wide as the column.
-	private var artwork: some View {
-		Color.clear
-			.aspectRatio(1, contentMode: .fit)
-			.frame(maxWidth: .infinity)
-			.overlay {
-				if let uri = viewModel.metadata?.artworkUri, let url = URL(string: uri) {
-					RemoteImage(url: url, headers: viewModel.metadata?.artworkHeaders) {
-						Color.white.opacity(0.08)
-					}
-					.scaledToFit()
-				}
-			}
-			.accessibilityHidden(true)
+	/// One slot, alone in its place: the column, the side or the bottom band. The top bar draws its own three.
+	@ViewBuilder
+	private func slot(_ slot: RemoteSlot, layout: RemoteLayout, artwork: CGFloat) -> some View {
+		switch slot {
+		case .header:
+			RemoteHeader(viewModel: viewModel)
+		case .artwork:
+			RemoteArtwork(viewModel: viewModel, size: artwork)
+				.frame(maxWidth: layout == .portrait ? .infinity : nil)
+		case .titles:
+			RemoteTitles(viewModel: viewModel, compact: false)
+				.frame(maxWidth: .infinity, alignment: .leading)
+		case .bar:
+			RemoteBar(viewModel: viewModel)
+		case .transport:
+			RemoteTransportRow(viewModel: viewModel, layout: layout)
+				.frame(maxWidth: .infinity)
+		case .bottomRow:
+			RemoteBottomRow(viewModel: viewModel, targetName: targetName)
+		}
+	}
+
+	/// The text's scale against the default size, as RemoteMetrics counts it: the body style at this Dynamic Type
+	/// size over the body style at the default one.
+	private var fontScale: Double {
+		let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+		return Double(UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traits) / 100)
 	}
 }
 #endif

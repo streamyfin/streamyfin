@@ -43,3 +43,57 @@ enum RemoteMetrics {
 		return min(max(min(byWidth, byHeight), PlayerConstants.remoteArtworkMin), PlayerConstants.remoteArtworkMax)
 	}
 }
+
+/// The six slots every layout places (design §3.1). Twin: RemoteSlot in RemoteLayout.kt.
+enum RemoteSlot: String, CaseIterable {
+	case header, artwork, titles, bar, transport, bottomRow
+}
+
+/// Where a layout puts the slots: a bar across the top, the slot beside the rest (the artwork, on the left), the
+/// column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
+/// buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
+struct RemoteArrangement: Equatable {
+	let topBar: [RemoteSlot]
+	let beside: RemoteSlot?
+	let column: [RemoteSlot]
+	let bottom: [RemoteSlot]
+
+	private static let upright: [RemoteSlot] = [.header, .artwork, .titles, .bar, .transport, .bottomRow]
+
+	static func of(_ layout: RemoteLayout) -> RemoteArrangement {
+		switch layout {
+		case .portrait:
+			return RemoteArrangement(topBar: [], beside: nil, column: upright, bottom: [])
+		case .landscape:
+			return RemoteArrangement(topBar: [.header, .titles, .bottomRow], beside: .artwork, column: [.transport], bottom: [.bar])
+		case .wide:
+			return RemoteArrangement(topBar: [], beside: .artwork, column: upright.filter { $0 != .artwork }, bottom: [])
+		}
+	}
+}
+
+/// The transport's buttons, the chrome's sizes, and the gap between them: narrower upright, to fit the width.
+struct RemoteTransport: Equatable {
+	let side: Double
+	let seek: Double
+	let play: Double
+	let gap: Double
+
+	static func of(_ layout: RemoteLayout) -> RemoteTransport {
+		RemoteTransport(
+			side: PlayerConstants.remoteButtonSmall,
+			seek: PlayerConstants.remoteButtonMedium,
+			play: PlayerConstants.remoteButtonPlay,
+			gap: layout == .portrait ? PlayerConstants.remoteTransportGapPortrait : PlayerConstants.remoteTransportGap
+		)
+	}
+}
+
+/// What lights up in the active color on the remote screen (design §3.3).
+enum RemoteActive {
+	/// Subtitles are on when the chosen entry is a real track: "None" is SUBTITLES_OFF, -1, on the JS side.
+	static func subtitlesOn(selectedIndex: Int?) -> Bool {
+		guard let selectedIndex else { return false }
+		return selectedIndex >= 0
+	}
+}

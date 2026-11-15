@@ -28,4 +28,15 @@ enum PlayerConstants {
 	static let remotePortraitText: Double = 82
 	static let remoteLandscapeFixed: Double = 108
 	static let remoteLandscapeText: Double = 34
+	/// The remote transport (RemoteTransport): the chrome's three button sizes, and the gap between them,
+	/// narrower upright so five buttons fit a phone's width. Android: REMOTE_BUTTON_*_DP, REMOTE_TRANSPORT_GAP_*_DP.
+	static let remoteButtonSmall: Double = 44
+	static let remoteButtonMedium: Double = 52
+	static let remoteButtonPlay: Double = 68
+	static let remoteTransportGapPortrait: Double = 20
+	static let remoteTransportGap: Double = 28
+	/// What is active or connected on the remote screen (the TV's name, subtitles on, the current episode, the
+	/// chosen track), 0xRRGGBB: a light violet, 6:1 on the screen's darkest tones where the app's violet gives 2.2.
+	/// Android: REMOTE_ACTIVE_COLOR.
+	static let remoteActiveColor: UInt32 = 0xC9A7FB
 }

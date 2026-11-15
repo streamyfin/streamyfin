@@ -31,3 +31,9 @@ swiftc -module-cache-path "$test_dir/modules" \
   tests/native/RemoteLayoutTests.swift \
   -o "$test_dir/remote-layout"
 "$test_dir/remote-layout"
+swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/RemoteLayout.swift \
+  tests/native/RemoteArrangementTests.swift \
+  -o "$test_dir/remote-arrangement"
+"$test_dir/remote-arrangement"

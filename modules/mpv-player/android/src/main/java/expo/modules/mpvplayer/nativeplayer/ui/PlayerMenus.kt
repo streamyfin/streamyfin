@@ -17,6 +17,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,7 +63,7 @@ fun SpeedMenu(
                             Text(speedLabel(opt))
                             if (kotlin.math.abs(viewModel.speed - opt) < 0.01) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                ChosenCheck()
                             }
                         }
                     },
@@ -110,7 +111,7 @@ fun AudioMenu(
                             Text(item.label)
                             if (item.selected) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                ChosenCheck()
                             }
                         }
                     },
@@ -141,7 +142,7 @@ fun AudioMenu(
                                 Text(syncOffsetLabel(offset))
                                 if (kotlin.math.abs(viewModel.audioDelay - offset) < 0.01) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    ChosenCheck()
                                 }
                             }
                         },
@@ -169,7 +170,7 @@ fun AudioMenu(
                                 Text(if (percent == 100) viewModel.strings.get("off", "Off") else "$percent%")
                                 if (viewModel.volumeBoostPercent == percent) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    ChosenCheck()
                                 }
                             }
                         },
@@ -189,7 +190,7 @@ fun AudioMenu(
                             Text(viewModel.strings.get("dialogueBoost", "Dialogue Boost"))
                             if (viewModel.dialogueBoostEnabled) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                ChosenCheck()
                             }
                         }
                     },
@@ -206,7 +207,7 @@ fun AudioMenu(
                             Text(viewModel.strings.get("monoAudio", "Mono Audio"))
                             if (viewModel.monoAudioEnabled) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                ChosenCheck()
                             }
                         }
                     },
@@ -254,7 +255,7 @@ fun SubtitleMenu(
                             Text(item.label)
                             if (item.selected) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                ChosenCheck()
                             }
                         }
                     },
@@ -302,7 +303,7 @@ fun SubtitleMenu(
                                 Text(syncOffsetLabel(offset))
                                 if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    ChosenCheck()
                                 }
                             }
                         },
@@ -396,7 +397,7 @@ fun MoreMenu(
                                 Text(if (mins < 60) "$mins min" else "${mins / 60} h")
                                 if (viewModel.sleepTimerMinutes == mins) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    ChosenCheck()
                                 }
                             }
                         },
@@ -478,7 +479,7 @@ fun ColumnScope.QualityMenuItems(viewModel: PlayerViewModel, onPicked: () -> Uni
                         Text(q.label)
                         if (q.selected) {
                             Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                            ChosenCheck()
                         }
                     }
                 },
@@ -514,4 +515,15 @@ fun ColumnScope.ChapterMenuItems(viewModel: PlayerViewModel, onPicked: () -> Uni
         }
         HorizontalDivider()
     }
+}
+
+/** The check beside the chosen entry, in the screen's active color when it provides one. */
+@Composable
+private fun ChosenCheck() {
+    Icon(
+        Icons.Default.Check,
+        contentDescription = null,
+        modifier = Modifier.size(16.dp),
+        tint = LocalPlayerActiveColor.current ?: LocalContentColor.current,
+    )
 }

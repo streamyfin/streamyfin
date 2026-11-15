@@ -58,4 +58,16 @@ object PlayerConstants {
     const val REMOTE_PORTRAIT_TEXT_DP = 82.0
     const val REMOTE_LANDSCAPE_FIXED_DP = 108.0
     const val REMOTE_LANDSCAPE_TEXT_DP = 34.0
+
+    /** The remote transport (RemoteTransport): the chrome's three button sizes, and the gap between them,
+     *  narrower upright so five buttons fit a phone's width. */
+    const val REMOTE_BUTTON_SMALL_DP = 44.0
+    const val REMOTE_BUTTON_MEDIUM_DP = 52.0
+    const val REMOTE_BUTTON_PLAY_DP = 68.0
+    const val REMOTE_TRANSPORT_GAP_PORTRAIT_DP = 20.0
+    const val REMOTE_TRANSPORT_GAP_DP = 28.0
+
+    /** What is active or connected on the remote screen (the TV's name, subtitles on, the current episode, the
+     *  chosen track), ARGB: a light violet, 6:1 on the screen's darkest tones where the app's violet gives 2.2. */
+    const val REMOTE_ACTIVE_COLOR = 0xFFC9A7FB
 }

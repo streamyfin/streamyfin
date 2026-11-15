@@ -16,9 +16,20 @@ struct PlayerCenterControls: View {
 	/// state fresh as playback crosses chapter marks.
 	@ObservedObject var time: PlaybackTimeModel
 
+	/// The remote screen's fixed sizes and look; nil keeps the chrome's density tiers.
+	var style: TransportStyle?
+
 	private var hasChapters: Bool { !viewModel.chapters.isEmpty }
 
 	var body: some View {
+		if let style {
+			discRow(style)
+		} else {
+			tiers
+		}
+	}
+
+	private var tiers: some View {
 		ViewThatFits(in: .horizontal) {
 			row(.regular)
 			row(.compact)
@@ -129,6 +140,55 @@ struct PlayerCenterControls: View {
 		}
 	}
 
+	// MARK: - Remote row
+
+	/// Previous, back, play, forward, next at fixed sizes: play a white disc with a dark icon and its loading ring
+	/// inside, no chapter buttons (the "more" menu has the chapters).
+	private func discRow(_ s: TransportStyle) -> some View {
+		let showEpisodeButtons = viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true
+		return HStack(spacing: s.gap) {
+			if showEpisodeButtons {
+				controlButton(systemName: "backward.end.fill", iconSize: 22, frame: s.side) {
+					viewModel.playPreviousEpisode()
+				}
+				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
+			}
+
+			seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: 28, frame: s.seek) {
+				viewModel.seekBackward()
+			}
+
+			Button {
+				viewModel.togglePlayPause()
+			} label: {
+				ZStack {
+					Circle().fill(.white)
+					if viewModel.isBuffering {
+						ProgressView().tint(.black)
+					} else {
+						Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+							.font(.system(size: s.play * 0.42, weight: .bold))
+							.foregroundStyle(.black)
+					}
+				}
+				.frame(width: s.play, height: s.play)
+				.contentShape(Circle())
+			}
+
+			seekButton(prefix: "goforward", seconds: viewModel.seekForwardSec, iconSize: 28, frame: s.seek) {
+				viewModel.seekForward()
+			}
+
+			if showEpisodeButtons {
+				controlButton(systemName: "forward.end.fill", iconSize: 22, frame: s.side) {
+					viewModel.playNextEpisode()
+				}
+				.opacity((viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext == true : viewModel.nextEpisode != nil) ? 1 : 0.35)
+				.disabled(viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext != true : viewModel.nextEpisode == nil)
+			}
+		}
+	}
+
 	private func seekButton(
 		prefix: String,
 		seconds: Double,
@@ -157,6 +217,21 @@ struct PlayerCenterControls: View {
 				.frame(width: frame, height: frame)
 				.contentShape(Rectangle())
 		}
+	}
+}
+
+/// The transport's sizes when a screen fixes them (the remote one), in points.
+struct TransportStyle: Equatable {
+	let side: CGFloat
+	let seek: CGFloat
+	let play: CGFloat
+	let gap: CGFloat
+
+	init(_ t: RemoteTransport) {
+		side = CGFloat(t.side)
+		seek = CGFloat(t.seek)
+		play = CGFloat(t.play)
+		gap = CGFloat(t.gap)
 	}
 }
 #endif
