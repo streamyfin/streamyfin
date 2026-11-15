@@ -36,6 +36,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posterGridColumns } from "@/components/cards/posterGridColumns";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
@@ -178,7 +179,7 @@ const LibraryPage = () => {
   const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
@@ -496,13 +497,8 @@ const LibraryPage = () => {
       // TV uses flexWrap, so nrOfCols is just for mobile
       return 1;
     }
-    if (screenWidth < 300) return 2;
-    if (screenWidth < 500) return 3;
-    if (screenWidth < 800) return 5;
-    if (screenWidth < 1000) return 6;
-    if (screenWidth < 1500) return 7;
-    return 6;
-  }, [screenWidth, orientation]);
+    return posterGridColumns(windowWidth);
+  }, [windowWidth]);
 
   const { data: library, isLoading: isLibraryLoading } = useQuery({
     queryKey: ["library", libraryId],

@@ -442,6 +442,7 @@ export const Login: React.FC = () => {
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
               <Input
+                testID='login-server-url'
                 aria-label={t("server.server_url")}
                 placeholder={t("server.server_url_placeholder")}
                 onChangeText={setServerURL}
@@ -453,6 +454,7 @@ export const Login: React.FC = () => {
                 maxLength={500}
               />
               <Button
+                testID='login-connect'
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {

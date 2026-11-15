@@ -1,4 +1,3 @@
-import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,10 +9,11 @@ import {
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import type { CastCrewPerson } from "@/hooks/useCastCrew";
 import { TVActorCard } from "./TVActorCard";
 
 export interface TVCastSectionProps {
-  cast: BaseItemPerson[];
+  cast: CastCrewPerson[];
   apiBasePath?: string;
   onActorPress: (personId: string) => void;
   /** Setter function for the first actor card ref (for focus guide) */
@@ -72,15 +72,11 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
         >
           {cast.map((person, index) => (
             <TVActorCard
-              key={person.Id || index}
+              key={person.Id}
               ref={index === 0 ? firstActorRefSetter : undefined}
               person={person}
               apiBasePath={apiBasePath}
-              onPress={() => {
-                if (person.Id) {
-                  onActorPress(person.Id);
-                }
-              }}
+              onPress={() => onActorPress(person.Id)}
             />
           ))}
         </ScrollView>

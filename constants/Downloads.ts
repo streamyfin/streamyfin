@@ -16,6 +16,9 @@ export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
 // seconds the Toaster gives a toast leave time to read.
 export const DOWNLOAD_FAILURE_TOAST_DURATION_MS = 8000;
 
+// A failed download's card stays in the list this long, so its error is seen before it goes.
+export const FAILED_DOWNLOAD_CARD_REMOVAL_DELAY_MS = 3000;
+
 // Storage key of the downloads whose watch progress was saved while the server could not be
 // reached, per user, waiting to be pushed (utils/offlineProgressQueue.ts).
 export const OFFLINE_PROGRESS_PENDING_KEY = "offlineProgressPending";

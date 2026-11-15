@@ -135,7 +135,7 @@ getters. Update that state before calling `notifyReady`, `notifyBuffering` or
 - `modules/mpv-player/tests/native-syncplay-scheduler.swift`: the Swift scheduler,
   compiled together with `SyncPlayCommandScheduler.swift` and run as a plain executable.
 - `modules/mpv-player/android/src/test`: the Kotlin scheduler and its policies.
-- `e2e/syncplay/`: the controller against a real server in Docker, and the fixture for
+- `e2e/suites/syncplay/`: the controller against a real server in Docker, and the fixture for
   testing the native players by hand. Not run in CI.
 
 ## Known gaps

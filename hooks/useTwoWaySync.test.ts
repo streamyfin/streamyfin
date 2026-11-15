@@ -11,12 +11,6 @@ const mockUpdateDownloaded = jest.fn((_id: string, next: Record) => {
   mockRecord = next;
 });
 
-// The ownership check lives next to the offline progress queue, whose module
-// reaches the device storage.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@jellyfin/sdk/lib/utils/api", () => ({
   getLibraryApi: () => ({ getItem: mockGetItem }),
   getUserDataApi: () => ({ updateItemUserData: mockUpdateUserData }),

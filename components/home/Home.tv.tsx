@@ -30,6 +30,7 @@ import {
   TVHomeBackdrop,
   type TVHomeBackdropRef,
 } from "@/components/home/TVHomeBackdrop";
+import { useHomeInitialFocus } from "@/components/home/useHomeInitialFocus";
 import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { UPCOMING_HOME_PAGE_SIZE } from "@/constants/Upcoming";
@@ -75,6 +76,13 @@ export const Home = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const cacheVersion = useAtomValue(cacheVersionAtom);
+  // Only the first Home of a sign-in may pull the focus off the tab bar, and
+  // only its first content: clearing the cache rebuilds the content under the
+  // same Home (keyed on cacheVersion), and the new first card would ask again.
+  const firstCacheVersion = useRef(cacheVersion);
+  const takesInitialFocus =
+    useHomeInitialFocus(api?.accessToken) &&
+    cacheVersion === firstCacheVersion.current;
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -115,7 +123,7 @@ export const Home = () => {
   useRemapHiddenLibraries(data, user?.Id);
 
   // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems } = useQuery({
+  const { data: heroItems, isPending: heroPending } = useQuery({
     queryKey: ["home", "heroItems", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -435,6 +443,22 @@ export const Home = () => {
     return heroItems && heroItems.length > 0 && settings.showHeroCarousel;
   }, [heroItems, settings.showHeroCarousel]);
 
+  // One piece of content takes the initial focus: the hero when it has items,
+  // the first row otherwise. It is settled once the hero has answered, so the
+  // rows do not take it first and lose it to a hero that turns up later (its
+  // refetch), which asked for it again even with the user on the tab bar.
+  const initialFocusOwner = useRef<"hero" | "rows" | null>(null);
+  if (
+    initialFocusOwner.current === null &&
+    (!settings.showHeroCarousel || !heroPending)
+  ) {
+    initialFocusOwner.current = showHero ? "hero" : "rows";
+  }
+  const heroTakesInitialFocus =
+    takesInitialFocus && initialFocusOwner.current === "hero";
+  const rowsTakeInitialFocus =
+    takesInitialFocus && initialFocusOwner.current === "rows";
+
   // Get sections that will actually be rendered (accounting for hero slicing)
   // When hero is shown, skip the first sections since hero already displays that content
   // - If mergeNextUpAndContinueWatching: skip 1 section (combined Continue & Next Up)
@@ -577,7 +601,11 @@ export const Home = () => {
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
         {showHero && heroItems && (
-          <TVHeroCarousel items={heroItems} onItemLongPress={showItemActions} />
+          <TVHeroCarousel
+            items={heroItems}
+            onItemLongPress={showItemActions}
+            takesInitialFocus={heroTakesInitialFocus}
+          />
         )}
 
         <View
@@ -630,7 +658,8 @@ export const Home = () => {
 
             if (section.type === "InfiniteScrollingCollectionList") {
               // First section only gets preferred focus if hero is not shown
-              const isFirstSection = index === 0 && !showHero;
+              const isFirstSection =
+                rowsTakeInitialFocus && index === 0 && !showHero;
               return (
                 <View key={index} style={{ gap: SECTION_GAP }}>
                   <InfiniteScrollingCollectionList

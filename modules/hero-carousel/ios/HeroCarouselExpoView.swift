@@ -70,6 +70,8 @@ private struct HeroPayload: Decodable {
   let imageHeaders: [String: String]?
   let filterSections: [HeroFilterSection]?
   let filterLabel: String?
+  /// Largest font scale the cards follow; absent or null, the system's.
+  let maxFontScale: Double?
 }
 
 /// Observable state so SwiftUI updates in place instead of rebuilding the
@@ -79,6 +81,7 @@ final class HeroCarouselState: ObservableObject {
   @Published var imageHeaders: [String: String] = [:]
   @Published var filterSections: [HeroFilterSection] = []
   @Published var filterLabel: String = ""
+  @Published var maxFontScale: Double?
 }
 
 class HeroCarouselExpoView: ExpoView {
@@ -145,6 +148,9 @@ class HeroCarouselExpoView: ExpoView {
     let label = decoded.filterLabel ?? ""
     if label != state.filterLabel {
       state.filterLabel = label
+    }
+    if decoded.maxFontScale != state.maxFontScale {
+      state.maxFontScale = decoded.maxFontScale
     }
   }
 }

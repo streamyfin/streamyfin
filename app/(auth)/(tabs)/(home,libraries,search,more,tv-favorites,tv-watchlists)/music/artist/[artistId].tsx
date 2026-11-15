@@ -7,7 +7,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
 import { Image } from "@/components/common/ServerImage";
@@ -20,10 +20,8 @@ import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ARTWORK_SIZE = SCREEN_WIDTH * 0.4;
 
 export default function ArtistDetailScreen() {
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
@@ -33,6 +31,9 @@ export default function ArtistDetailScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { playQueue } = useMusicPlayer();
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { ratio: 0.4 });
 
   const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
@@ -173,9 +174,9 @@ export default function ArtistDetailScreen() {
           {/* Artist image */}
           <View
             style={{
-              width: ARTWORK_SIZE,
-              height: ARTWORK_SIZE,
-              borderRadius: ARTWORK_SIZE / 2,
+              width: artworkSize,
+              height: artworkSize,
+              borderRadius: artworkSize / 2,
               overflow: "hidden",
               backgroundColor: "#1a1a1a",
               shadowColor: "#000",

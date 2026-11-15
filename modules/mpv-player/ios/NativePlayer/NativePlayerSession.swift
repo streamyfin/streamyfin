@@ -159,6 +159,7 @@ final class NativePlayerSession {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
 		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
+		engine.setSkipIntervals(forward: viewModel.seekForwardSec, backward: viewModel.seekBackwardSec)
 		// Unconditional: mpv's speed property persists on the handle across
 		// loadfile, so an in-place swap from a 2× stream to a 1× config must
 		// explicitly write 1.0 or the old speed carries over.

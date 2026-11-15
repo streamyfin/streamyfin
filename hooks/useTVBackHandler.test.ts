@@ -3,9 +3,6 @@ import { stubReactNative } from "@/test-utils/reactNative";
 // Stub the router module: only
 // the pure route helpers are under test here.
 stubReactNative({ isTV: true });
-jest.mock("expo-router", () => ({
-  useSegments: () => [],
-}));
 
 import { isAtTabRoot, isTabRoute } from "./useTVBackHandler";
 

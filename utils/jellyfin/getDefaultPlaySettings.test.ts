@@ -5,25 +5,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import type { Settings } from "@/utils/atoms/settings";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-
 // BitrateSelector is a React component module; only the BITRATES table matters.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test, so it is stubbed with the surface the modules under test call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
+jest.mock(
+  "@/components/BitrateSelector",
+  () => jest.requireActual("@/test-utils/stubModules").bitrateSelectorModule,
+);
 
 import { clearMmkv } from "@/test-utils/mmkv";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
@@ -569,5 +555,26 @@ describe("getAdjacentStartTicks", () => {
     expect(getAdjacentStartTicks(item, { Id: "ep-2-4k" }, true, "12.0.0")).toBe(
       600,
     );
+  });
+});
+
+describe("the quality", () => {
+  const movie: BaseItemDto = { Id: "movie", Type: "Movie" };
+
+  // The player measures what Auto stands for; here it is only handed on.
+  test("is Auto, the default, before the settings are loaded", () => {
+    expect(getDefaultPlaySettings(movie, null).bitrate).toEqual({
+      key: "Auto",
+      value: undefined,
+    });
+  });
+
+  test("is the one the settings hold", () => {
+    const eight = { key: "8 Mb/s", value: 8_000_000 };
+
+    expect(
+      getDefaultPlaySettings(movie, { defaultBitrate: eight } as Settings)
+        .bitrate,
+    ).toBe(eight);
   });
 });

@@ -6,11 +6,6 @@ import {
 } from "@testing-library/react-native";
 import { SyncPlayOptions, SyncPlayPlayback } from "./SyncPlayControls";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://host" }),
 }));

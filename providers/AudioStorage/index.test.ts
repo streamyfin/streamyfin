@@ -1,10 +1,6 @@
 import { AUDIO_STORAGE_INDEX_KEY } from "@/constants/Music";
 import { fakeFiles } from "@/test-utils/fileSystem";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The double's own directories, unless a spec puts Documents and Caches in an iOS container or
 // makes them unreadable.
 const mockPaths: { document?: string; cache?: string; unreadable?: boolean } =

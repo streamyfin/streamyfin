@@ -2,10 +2,6 @@ import type { TFunction } from "i18next";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // BitrateSelector is a React component module; only the BITRATES table matters.
 jest.mock("@/components/BitrateSelector", () => ({
   BITRATES: [{ key: "Max", value: undefined }],
@@ -31,6 +27,12 @@ jest.mock("@/utils/log", () => ({
 }));
 // The custom-header barrel touches MMKV and SecureStore; the shared double
 // keeps the pure helpers real.
+// Auto, the default quality, measures the server through NetInfo, which has
+// no native module here; these specs are not about the quality, so the
+// measure finds nothing and the stream is asked for as under Max.
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: async () => undefined,
+}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
@@ -100,6 +102,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("mpv");
@@ -120,6 +123,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("exoplayer");
@@ -127,6 +131,49 @@ describe("cacheConfig is mpv-only wire data", () => {
     // The stream negotiation itself is engine-agnostic: still direct play.
     expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
     expect(result?.config.stream.url).toContain("static=true");
+  });
+});
+
+// The "Video output" setting is mpv's `vo`. The native player started mpv on
+// gpu-next whatever the setting said, so a device that only plays on gpu had
+// no way to choose it there.
+describe("the video output driver", () => {
+  test("is the one the setting names", async () => {
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: { ...defaultValues, mpvVoDriver: "gpu" },
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
+    });
+
+    expect(result?.config.engine).toBe("mpv");
+    expect(result?.config.voDriver).toBe("gpu");
+  });
+
+  // Like cacheConfig: the settings UI hides the section for ExoPlayer, and a
+  // hidden value must not ride along as if it steered playback.
+  test("is omitted when ExoPlayer is the engine", async () => {
+    const result = await buildNativePlayerConfig({
+      api: makeConfiguredApi(),
+      userId: "user-1",
+      settings: {
+        ...defaultValues,
+        videoPlayer: VideoPlayer.ExoPlayer,
+        mpvVoDriver: "gpu",
+      },
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
+    });
+
+    expect(result?.config.engine).toBe("exoplayer");
+    expect(result?.config.voDriver).toBeUndefined();
   });
 });
 
@@ -152,6 +199,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(prefetchExternalSubtitles).toHaveBeenCalledTimes(1);
@@ -180,6 +228,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
@@ -199,6 +248,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
     expect(result?.config.engine).toBe("mpv");

@@ -34,48 +34,12 @@ jest.mock("@/providers/JellyfinProvider", () => {
     }),
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeToLog: jest.fn(),
-}));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("sonner-native", () => ({ toast: { error: jest.fn() } }));
-// The sheet is always open here: what is under test is what confirming it
-// does, not how it is presented.
-jest.mock("@gorhom/bottom-sheet", () => {
-  const { forwardRef, useImperativeHandle } = jest.requireActual("react");
-  return {
-    BottomSheetModal: forwardRef(
-      (
-        { children }: { children: React.ReactNode },
-        ref: React.Ref<unknown>,
-      ) => {
-        useImperativeHandle(ref, () => ({ present() {}, dismiss() {} }));
-        return children;
-      },
-    ),
-    BottomSheetView: ({ children }: { children: React.ReactNode }) => children,
-    BottomSheetBackdrop: () => null,
-  };
-});
 jest.mock("@/components/common/HeaderIcon", () => ({
   HeaderIcon: ({ name }: { name: string }) => {
     const { useEffect } = jest.requireActual("react");
@@ -849,6 +813,60 @@ describe("DownloadSingleItem, picks made on two versions", () => {
         audioStreamIndex: 2,
         subtitleStreamIndex: 4,
       }),
+    );
+  });
+});
+
+describe("the quality of a download", () => {
+  beforeEach(() => {
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+  });
+
+  // A file has no connection to adapt to: Auto downloads as Max does.
+  test("is Max, with no cap, when the default quality is Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: undefined }),
+    );
+    expect(mockStartBackgroundDownload).toHaveBeenCalledWith(
+      "http://server/download",
+      expect.objectContaining({ Id: "movie-1" }),
+      MEDIA_SOURCE,
+      { key: "Max", value: undefined },
+      undefined,
+      -1,
+    );
+  });
+
+  test("is not offered as Auto", async () => {
+    mockSettings = { defaultBitrate: { key: "Auto", value: undefined } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    // The sheet lists its qualities as it renders, as the test above reads them: Auto is none of them.
+    const qualities = screen
+      .getAllByText(/^(Auto|item_card\.quality_auto|Max|\d+ [MK]b\/s)$/)
+      .map((option) => option.props.children);
+    expect(qualities).toContain("Max");
+    expect(qualities).not.toContain("Auto");
+    expect(qualities).not.toContain("item_card.quality_auto");
+  });
+
+  test("keeps a fixed default quality", async () => {
+    mockSettings = { defaultBitrate: { key: "4 Mb/s", value: 4_000_000 } };
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await confirmDownload();
+
+    expect(getDownloadStreamUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ maxStreamingBitrate: 4_000_000 }),
     );
   });
 });

@@ -2,11 +2,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { SeerrEpisodeRow } from "./SeerrEpisodeRow";
 
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
-
 const episode = {
   id: 1,
   episodeNumber: 1,

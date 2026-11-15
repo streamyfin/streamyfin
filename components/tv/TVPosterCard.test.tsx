@@ -1,11 +1,10 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVPosterCard } from "./TVPosterCard";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 jest.mock("@/components/WatchedIndicator", () => ({
   UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,
@@ -13,9 +12,6 @@ jest.mock("@/components/WatchedIndicator", () => ({
 jest.mock("@/modules/glass-poster", () => ({
   GlassPosterView: () => null,
   isGlassEffectAvailable: () => false,
-}));
-jest.mock("@/providers/JellyfinProvider", () => ({
-  apiAtom: jest.requireActual("jotai").atom(null),
 }));
 jest.mock("@/constants/TVPosterSizes", () => ({
   useScaledTVPosterSizes: () => ({ poster: 200, episode: 300 }),

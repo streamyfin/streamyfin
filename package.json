@@ -25,7 +25,9 @@
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test:unit": "jest",
     "test:coverage": "jest --coverage",
-    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
+    "e2e:smoke": "python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml",
+    "e2e:bench:test": "python3 -m unittest discover -s e2e -t e2e",
+    "test": "bun run typecheck && bun run test:unit && bun run e2e:bench:test && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "seerr:types": "bun run scripts/seerr/generate-types.ts",
     "seerr:capture": "bun run scripts/seerr/capture.ts",
     "perf": "reassure -- --config jest.perf.config.js",
@@ -116,7 +118,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.13",
-    "@biomejs/biome": "2.6.6",
+    "@biomejs/biome": "2.6.7",
     "@expo/repack-app": "0.10.4",
     "@react-native-tvos/config-tv": "0.1.7",
     "@react-native/jest-preset": "0.88.1",
@@ -192,29 +194,5 @@
     "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
     "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
     "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch"
-  },
-  "jest": {
-    "preset": "jest-expo",
-    "globalSetup": "<rootDir>/test-utils/timeZone.ts",
-    "setupFiles": [
-      "<rootDir>/test-utils/idleCallback.ts",
-      "./node_modules/react-native-gesture-handler/jestSetup.js"
-    ],
-    "moduleNameMapper": {
-      "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
-      "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(.bun|(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/.*|@jellyfin/sdk|@shopify/flash-list|native-base|react-native-svg|standard-navigation|jotai))"
-    ],
-    "collectCoverageFrom": [
-      "utils/**/*.{ts,tsx}",
-      "hooks/**/*.{ts,tsx}",
-      "providers/**/*.{ts,tsx}",
-      "components/**/*.{ts,tsx}",
-      "!**/*.test.{ts,tsx}",
-      "!**/*.perf-test.{ts,tsx}",
-      "!utils/jellyseerr/**"
-    ]
   }
 }

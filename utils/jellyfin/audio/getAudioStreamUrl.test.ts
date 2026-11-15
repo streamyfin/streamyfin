@@ -3,10 +3,10 @@ import { stubReactNative } from "@/test-utils/reactNative";
 // Stub react-native at the module boundary — pulled in transitively via the
 // track player device profile.
 stubReactNative();
-jest.mock("expo", () => ({
-  // codecSupport probes the native MPV module, which no test environment has.
-  requireOptionalNativeModule: () => null,
-}));
+jest.mock(
+  "expo",
+  () => jest.requireActual("@/test-utils/stubModules").expoWithoutNativeModule,
+);
 
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { getAudioStreamUrl } from "./getAudioStreamUrl";

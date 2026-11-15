@@ -6,14 +6,22 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, ScrollView, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { bitrateOptions } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
+import { TVAutoQualitySettings } from "@/components/settings/TVAutoQualitySettings";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVBelowTabBar,
@@ -60,9 +68,11 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { bitrateLabel } from "@/utils/bitrate";
 import { INTEGRATION_CONFIG_KEY_PREFIX } from "@/utils/customHeaders";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import {
   getPreviousServers,
@@ -88,6 +98,8 @@ const SEGMENT_SKIP_ROWS: {
   { key: "skipPreview", labelKey: "skip_preview" },
 ];
 
+// Covered by components/tv/settings/settingsTabRoot.test.tsx: a spec under app/
+// would become a route.
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -126,6 +138,18 @@ export default function SettingsTV() {
 
   // Track if any modal is open to disable background focus
   const isAnyModalOpen = pinModalVisible || passwordModalVisible;
+
+  // The PIN and password prompts are overlays in this page: closed, they
+  // leave the focus nowhere. Hand it back to the row that opened them. The
+  // row used hasTVPreferredFocus for this, which a tab root must not set.
+  const switchUserRowRef = useRef<ViewInstance>(null);
+  const promptWasOpen = useRef(false);
+  useEffect(() => {
+    if (promptWasOpen.current && !isAnyModalOpen) {
+      requestTVFocus(switchUserRowRef.current);
+    }
+    promptWasOpen.current = isAnyModalOpen;
+  }, [isAnyModalOpen]);
 
   // Get current server and other accounts
   const currentServer = useMemo(() => {
@@ -843,11 +867,11 @@ export default function SettingsTV() {
           {/* Account Section */}
           <TVSectionHeader title={t("home.settings.switch_user.account")} />
           <TVSettingsOptionButton
+            ref={switchUserRowRef}
             label={t("home.settings.switch_user.switch_user")}
             value={user?.Name || "-"}
             onPress={handleSwitchUser}
             disabled={!hasOtherAccounts || isAnyModalOpen}
-            isFirst
           />
 
           {syncPlayAvailable && (
@@ -859,7 +883,6 @@ export default function SettingsTV() {
                 onToggle={(value) =>
                   updateSettings({ syncPlayIgnoreWait: value })
                 }
-                isFirst={!hasOtherAccounts}
               />
             </>
           )}
@@ -877,7 +900,6 @@ export default function SettingsTV() {
                   updateSettings({ inactivityTimeout: value }),
               })
             }
-            isFirst={!hasOtherAccounts && !syncPlayAvailable}
           />
 
           {/* Video Player Section */}
@@ -946,6 +968,25 @@ export default function SettingsTV() {
               </Text>
             </>
           )}
+
+          <TVSettingsOptionButton
+            disabledByAdmin={pluginSettings?.defaultBitrate?.locked}
+            label={t("home.settings.other.default_quality")}
+            value={
+              settings.defaultBitrate
+                ? bitrateLabel(t, settings.defaultBitrate)
+                : ""
+            }
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.other.default_quality"),
+                options: bitrateOptions(t, settings.defaultBitrate),
+                onSelect: (value) => updateSettings({ defaultBitrate: value }),
+              })
+            }
+          />
+
+          <TVAutoQualitySettings />
 
           {/* Refresh-rate matching — native Android TV player only (the JS
               route reads no contentFrameRate), default off: the display mode

@@ -36,9 +36,6 @@ jest.mock("@/hooks/useSeerrCanRequest", () => ({
 jest.mock("@/hooks/useSeerrDiscoverData", () => ({
   useSeerrTitleDetails: () => mockDetails,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const download = { size: 100, sizeLeft: 50 } as DownloadingItem;
 

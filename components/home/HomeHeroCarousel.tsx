@@ -27,6 +27,7 @@ import {
   type HomeHeroSection,
   useSettings,
 } from "@/utils/atoms/settings";
+import { heroCardMaxFontScale } from "@/utils/heroCardFontScale";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -665,6 +666,7 @@ export const HomeHeroCarousel = () => {
       imageHeaders={imageHeaders}
       filterSections={filterSections}
       filterLabel={t("home.hero.filter")}
+      maxFontScale={heroCardMaxFontScale(windowWidth)}
       onItemPress={handleItemPress}
       onFilterToggle={handleFilterToggle}
       style={{

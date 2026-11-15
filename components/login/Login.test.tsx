@@ -31,11 +31,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({}),
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: () => null,
   MaterialCommunityIcons: (props: { name: string }) => MockIcon(props),
@@ -105,9 +100,6 @@ jest.mock("@/components/settings/CustomHeaderSheet", () => ({
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
 }));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 jest.mock("@/utils/jellyfin/checkServer", () => ({
   checkJellyfinServer: jest.fn(),
   ServerTooOldError: class extends Error {},
@@ -115,8 +107,6 @@ jest.mock("@/utils/jellyfin/checkServer", () => ({
 
 describe("Login Quick Connect", () => {
   beforeEach(() => {
-    mockStopPolling.mockClear();
-    mockJellyfin.initiateQuickConnect.mockClear();
     mockJellyfin.quickConnectStatus = "waiting";
     getDefaultStore().set(userAtom as never, null as never);
     getDefaultStore().set(pendingAccountSaveAtom as never, null as never);
@@ -223,7 +213,6 @@ describe("Login Quick Connect", () => {
 
 describe("Login with a password", () => {
   beforeEach(() => {
-    mockJellyfin.login.mockClear();
     getDefaultStore().set(userAtom as never, null as never);
   });
 

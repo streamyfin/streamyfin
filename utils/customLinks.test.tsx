@@ -13,6 +13,7 @@ import {
 import { AxiosError, type AxiosResponse } from "axios";
 import type { ReactNode } from "react";
 import { Linking } from "react-native";
+import { toast } from "sonner-native";
 import { CustomLinksGroup } from "@/components/more/CustomLinksGroup";
 import { useMenuLinks } from "@/hooks/useMenuLinks";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
@@ -23,14 +24,8 @@ const mockGetConfig = jest.fn(async (_url: string) => ({
   data: { menuLinks: mockMenuLinks() },
 }));
 const mockOpenBrowser = jest.fn<Promise<{ type: string }>, [string]>();
-const mockToastError = jest.fn();
+const mockToastError = jest.mocked(toast.error);
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("sonner-native", () => ({
-  toast: { error: (message: string) => mockToastError(message) },
-}));
 jest.mock("expo-web-browser", () => ({
   openBrowserAsync: (url: string) => mockOpenBrowser(url),
 }));

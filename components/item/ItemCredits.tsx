@@ -1,12 +1,12 @@
 import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { useCreditLines } from "@/hooks/useCastCrew";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
-import { getCreditLines } from "@/utils/jellyfin/people";
 
 // Wide enough for the English labels, so the names of every line start at the
 // same column.
@@ -21,7 +21,7 @@ export const ItemCredits: React.FC<Props> = ({ people, ...props }) => {
   const { t } = useTranslation();
   const router = useRouter();
   const isOffline = useOfflineMode();
-  const lines = useMemo(() => getCreditLines(people), [people]);
+  const lines = useCreditLines(people);
 
   if (lines.length === 0) return null;
 

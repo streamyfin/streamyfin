@@ -43,7 +43,7 @@ function isFavoriteType(value: unknown): value is FavoriteTypes {
 
 export default function FavoritesSeeAllScreen() {
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
@@ -106,11 +106,11 @@ export default function FavoritesSeeAllScreen() {
   const flatData = useMemo(() => data?.pages.flat() ?? [], [data]);
 
   const nrOfCols = useMemo(() => {
-    if (screenWidth < 350) return 2;
-    if (screenWidth < 600) return 3;
-    if (screenWidth < 900) return 5;
+    if (windowWidth < 350) return 2;
+    if (windowWidth < 600) return 3;
+    if (windowWidth < 900) return 5;
     return 6;
-  }, [screenWidth]);
+  }, [windowWidth]);
 
   const grid = useCardGrid({
     items: flatData,

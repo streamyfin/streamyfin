@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer
 
+import expo.modules.mpvplayer.playback.shouldPauseOnPictureInPictureEnd
+import expo.modules.mpvplayer.playback.shouldPauseOnActivityStop
+import android.os.PowerManager
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -18,6 +21,9 @@ import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
+import expo.modules.mpvplayer.playback.MediaPlaybackController
+import expo.modules.mpvplayer.playback.MediaPlaybackTarget
+import expo.modules.mpvplayer.playback.NowPlayingInfo
 
 /**
  * MpvPlayerView - ExpoView that hosts the MPV player.
@@ -83,6 +89,50 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var lifecycleRegistered = false
     private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
+    // Background playback: media session, notification and the media
+    // playback foreground service (see MediaPlaybackController), for the
+    // player screen only (backgroundPlayback). Created on the first load,
+    // while the app is visible, kept across destroy() (the JS stop) and
+    // released when the view leaves the window. direct-player unmounts the
+    // view between items, so the next item starts it again.
+    private var mediaPlayback: MediaPlaybackController? = null
+    // Asked for by the player screen only (the backgroundPlayback prop): a
+    // view that just shows a clip, the subtitle preview in Settings, took the
+    // audio focus and a wake lock, and stopped the user's music.
+    private var backgroundPlaybackEnabled = false
+    // The host activity is stopped: backgrounded, or the screen is off.
+    private var hostStopped = false
+    private var nowPlaying: NowPlayingInfo? = null
+    private var isLoadingMedia = false
+    // mpv keeps its last pause state after a failed load or stream.
+    private var playbackFailed = false
+    private var playbackSpeedValue = 1.0
+
+    // The user's skip settings, from the player screen (sessionSkipSeconds).
+    private var sessionSkipForward = 30.0
+    private var sessionSkipBack = 10.0
+    // Live TV (the liveStream prop): no seek from the session.
+    private var liveStream = false
+
+    private val mediaPlaybackTarget = object : MediaPlaybackTarget {
+        override val isPlaying get() = rendererStarted && !playbackFailed && !isPaused()
+        override val isBuffering get() = isLoadingMedia
+        override val positionSeconds get() = cachedPosition
+        override val durationSeconds get() = cachedDuration
+        // Cached: getSpeed() is a synchronous mpv property read.
+        override val playbackSpeed get() = playbackSpeedValue
+        override val isNetworkSource get() = currentUrl?.startsWith("http", ignoreCase = true) == true
+        override val nowPlaying get() = this@MpvPlayerView.nowPlaying
+        override val seekForwardSeconds get() = sessionSkipForward
+        override val seekBackSeconds get() = sessionSkipBack
+        override val canSeek get() = !liveStream
+
+        override fun play() = this@MpvPlayerView.play()
+        override fun pause() = this@MpvPlayerView.pause()
+        override fun seekTo(seconds: Double) = this@MpvPlayerView.seekTo(seconds)
+        override fun seekBy(seconds: Double) = this@MpvPlayerView.seekBy(seconds)
+    }
+
     init {
         setBackgroundColor(Color.BLACK)
 
@@ -116,6 +166,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         // Initialize PiP controller with Expo's AppContext for proper activity access
         pipController = PiPController(context, appContext)
+        pipController?.autoEnterAllowed = backgroundPlaybackEnabled
         pipController?.setPlayerView(surfaceView)
         pipController?.delegate = object : PiPController.Delegate {
             override fun onPlay() {
@@ -132,6 +183,16 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
             override fun onPictureInPictureModeChanged(isInPiP: Boolean) {
                 isInPictureInPicture = isInPiP
+                // Closed, the window leaves its activity stopped behind it,
+                // and the video played on with nothing to show it.
+                if (backgroundPlaybackEnabled && shouldPauseOnPictureInPictureEnd(
+                        inPictureInPicture = isInPiP,
+                        activityStopped = hostStopped,
+                        dismissing = false
+                    )) {
+                    Log.i(TAG, "Picture in picture closed: pausing")
+                    pause()
+                }
                 if (isInPiP) {
                     // Post size syncs after the PiP layout settles. Two passes
                     // catch both the immediate surface re-attach and the
@@ -278,6 +339,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun loadVideoInternal(config: VideoLoadConfig) {
         currentUrl = config.url
         currentLoop = config.loop
+        playbackFailed = false
+        ensureMediaPlayback()
 
         renderer?.load(config)
 
@@ -291,6 +354,59 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Convenience method for simple loads
     fun loadVideo(url: String, headers: Map<String, String>? = null) {
         loadVideo(VideoLoadConfig(url = url, headers = headers))
+    }
+
+    // MARK: - Background playback
+
+    /** Live TV: the session offers no seek, fast forward, rewind or restart. */
+    fun setLiveStream(live: Boolean) {
+        if (liveStream == live) return
+        liveStream = live
+        mediaPlayback?.updatePlaybackState()
+    }
+
+    /** How far the session's fast forward and rewind go: the user's skip settings. */
+    fun setSessionSkipSeconds(forward: Double?, backward: Double?) {
+        forward?.takeIf { it > 0 }?.let { sessionSkipForward = it }
+        backward?.takeIf { it > 0 }?.let { sessionSkipBack = it }
+    }
+
+    /** Turns the media session and service on or off, before a load or after it. */
+    fun setBackgroundPlayback(enabled: Boolean) {
+        if (backgroundPlaybackEnabled == enabled) return
+        backgroundPlaybackEnabled = enabled
+        pipController?.autoEnterAllowed = enabled
+        if (!enabled) releaseMediaPlayback() else if (currentUrl != null) ensureMediaPlayback()
+    }
+
+    private fun ensureMediaPlayback() {
+        if (!backgroundPlaybackEnabled || mediaPlayback != null) return
+        mediaPlayback = MediaPlaybackController(context, mediaPlaybackTarget, "StreamyfinPlayer").also {
+            it.start()
+        }
+    }
+
+    /** Now Playing metadata from JS, for the notification and lock screen. */
+    fun setNowPlayingMetadata(metadata: Map<String, Any?>?) {
+        nowPlaying = metadata?.let {
+            @Suppress("UNCHECKED_CAST")
+            NowPlayingInfo(
+                title = (it["title"] as? String)?.takeIf { t -> t.isNotBlank() } ?: "Streamyfin",
+                subtitle = (it["artist"] as? String)?.takeIf { a -> a.isNotBlank() },
+                album = (it["albumTitle"] as? String)?.takeIf { a -> a.isNotBlank() },
+                artworkUri = (it["artworkUri"] as? String)?.takeIf { a -> a.isNotBlank() },
+                artworkHeaders = (it["artworkHeaders"] as? Map<String, Any?>)
+                    ?.mapNotNull { (k, v) -> (v as? String)?.let { value -> k to value } }
+                    ?.toMap(),
+            )
+        }
+        mediaPlayback?.updateMetadata()
+    }
+
+    private fun releaseMediaPlayback() {
+        mediaPlayback?.release()
+        mediaPlayback = null
+        isLoadingMedia = false
     }
 
     // MARK: - Playback Controls
@@ -326,6 +442,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      */
     fun destroy() {
         renderer?.stop()
+        isLoadingMedia = false
+        // The next mpv handle starts at 1x; JS sets the speed again if needed.
+        playbackSpeedValue = 1.0
 
         // Reset view-level state so a subsequent loadVideo() on the SAME view
         // instance re-creates the mpv handle and re-attaches the still-live
@@ -348,6 +467,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         pendingConfig = null
         currentUrl = null
         activeSurface = null
+        // After rendererStarted: the renderer keeps its last pause state, so
+        // the session would otherwise go on saying "playing" and hold the
+        // wake lock until the next load.
+        mediaPlayback?.updatePlaybackState()
     }
 
     fun seekTo(position: Double) {
@@ -360,6 +483,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun setSpeed(speed: Double) {
         renderer?.setSpeed(speed)
+        playbackSpeedValue = speed
+        mediaPlayback?.updatePlaybackState()
     }
 
     /** Mute the player itself; the device volume is left untouched. */
@@ -520,10 +645,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             "progress" to if (duration > 0) position / duration else 0.0,
             "cacheSeconds" to cacheSeconds
         ))
+        mediaPlayback?.onPositionTick()
     }
 
     override fun onPauseChanged(isPaused: Boolean) {
         pipController?.setPlaybackRate(if (isPaused) 0.0 else 1.0)
+        mediaPlayback?.updatePlaybackState()
 
         onPlaybackStateChange(mapOf(
             "isPaused" to isPaused,
@@ -532,6 +659,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     override fun onLoadingChanged(isLoading: Boolean) {
+        isLoadingMedia = isLoading
+        mediaPlayback?.updatePlaybackState()
         onPlaybackStateChange(mapOf(
             "isLoading" to isLoading
         ))
@@ -552,6 +681,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     override fun onError(message: String) {
+        isLoadingMedia = false
+        playbackFailed = true
+        mediaPlayback?.updatePlaybackState()
         onError(mapOf("error" to message))
     }
 
@@ -601,7 +733,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
         lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityStarted(activity: Activity) {
+                if (activity === hostActivity) hostStopped = false
+            }
             override fun onActivityResumed(activity: Activity) {
                 val host = hostActivity ?: findActivity().also { hostActivity = it }
                 if (activity !== host) {
@@ -631,8 +765,22 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 }
             }
             override fun onActivityStopped(activity: Activity) {
-                if (activity === hostActivity) {
-                    Log.i(TAG, "[Recover] onActivityStopped — host stopped")
+                if (activity !== hostActivity) return
+                Log.i(TAG, "[Recover] onActivityStopped — host stopped")
+                hostStopped = true
+                // Only the player screen plays on with the screen off (the
+                // service is what keeps it going): leaving the app with the
+                // screen on is leaving the video.
+                if (shouldPauseOnActivityStop(
+                        isTelevision = DeviceKind.isTelevision(activity),
+                        backgroundPlayback = backgroundPlaybackEnabled,
+                        screenInteractive = (activity.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true,
+                        inPictureInPicture = isInPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = false
+                    )) {
+                    Log.i(TAG, "Player left with no picture in picture: pausing")
+                    pause()
                 }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
@@ -676,6 +824,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      */
     fun cleanup() {
         pipHandler.removeCallbacksAndMessages(null)
+        releaseMediaPlayback()
         unregisterLifecycleCallbacks()
         pipController?.stopPictureInPicture()
         renderer?.stop()

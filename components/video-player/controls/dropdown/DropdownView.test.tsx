@@ -57,9 +57,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { subtitleSize: 1 }, pluginSettings: {} }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const checked = (title: string) =>
   mockGroups

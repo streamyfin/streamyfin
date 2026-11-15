@@ -16,9 +16,6 @@ jest.mock("expo-router", () => {
   };
   return { Stack };
 });
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // What the layouts draw in their headers, never rendered here.
 jest.mock("@/components/Chromecast", () => ({ Chromecast: () => null }));
 jest.mock("@/components/syncplay/SyncPlayButton", () => ({
