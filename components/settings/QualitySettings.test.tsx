@@ -46,6 +46,8 @@ jest.mock("@/utils/jellyfin/bitrateTest", () => ({
   ensureNetworkKnown: async () => {
     mockNetworkKnown = true;
   },
+  // No measure made elsewhere while these settings are open.
+  onDetectionChanged: () => () => {},
 }));
 // Each dropdown lists its choices under its title, in the order it offers
 // them.
