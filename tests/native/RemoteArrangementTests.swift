@@ -40,6 +40,26 @@ enum RemoteArrangementTests {
 		}
 	}
 
+	// The column's free height, when the screen is taller than its slots: upright it opens above the bottom row, as
+	// in the mockup; couched and wide it splits around the middle, so the transport sits level with the artwork.
+	static func uprightLeavesTheFreeHeightAboveTheBottomRow() {
+		let a = RemoteArrangement.of(.portrait)
+		check(a.spaces == [a.column.firstIndex(of: .bottomRow)!], "uprightLeavesTheFreeHeightAboveTheBottomRow")
+	}
+
+	static func couchedCentersTheTransportBesideTheArtwork() {
+		let a = RemoteArrangement.of(.landscape)
+		check(a.spaces == [0, a.column.count], "couchedCentersTheTransportBesideTheArtwork")
+	}
+
+	static func wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow() {
+		let a = RemoteArrangement.of(.wide)
+		check(
+			a.spaces == [a.column.firstIndex(of: .titles)!, a.column.firstIndex(of: .bottomRow)!],
+			"wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow"
+		)
+	}
+
 	static func theTransportKeepsTheChromeSizes() {
 		for layout in [RemoteLayout.portrait, .landscape, .wide] {
 			let t = RemoteTransport.of(layout)
@@ -65,6 +85,9 @@ enum RemoteArrangementTests {
 		couchedPutsTheTitlesAndMenusInTheTopBar()
 		wideKeepsTheUprightColumnBesideTheArtwork()
 		everyLayoutPlacesEachSlotOnce()
+		uprightLeavesTheFreeHeightAboveTheBottomRow()
+		couchedCentersTheTransportBesideTheArtwork()
+		wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow()
 		theTransportKeepsTheChromeSizes()
 		theTransportGapNarrowsOnlyUpright()
 		subtitlesLightUpOnlyForARealTrack()

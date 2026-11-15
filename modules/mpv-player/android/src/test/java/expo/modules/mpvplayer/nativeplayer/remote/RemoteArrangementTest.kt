@@ -49,6 +49,26 @@ class RemoteArrangementTest {
         }
     }
 
+    // The column's free height, when the screen is taller than its slots: upright it opens above the bottom row, as
+    // in the mockup; couched and wide it splits around the middle, so the transport sits level with the artwork.
+    @Test
+    fun uprightLeavesTheFreeHeightAboveTheBottomRow() {
+        val a = RemoteArrangement.of(RemoteLayout.PORTRAIT)
+        assertEquals(listOf(a.column.indexOf(BOTTOM_ROW)), a.spaces)
+    }
+
+    @Test
+    fun couchedCentersTheTransportBesideTheArtwork() {
+        val a = RemoteArrangement.of(RemoteLayout.LANDSCAPE)
+        assertEquals(listOf(0, a.column.size), a.spaces)
+    }
+
+    @Test
+    fun wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow() {
+        val a = RemoteArrangement.of(RemoteLayout.WIDE)
+        assertEquals(listOf(a.column.indexOf(TITLES), a.column.indexOf(BOTTOM_ROW)), a.spaces)
+    }
+
     @Test
     fun theTransportKeepsTheChromeSizes() {
         RemoteLayout.entries.forEach { layout ->

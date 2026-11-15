@@ -1,14 +1,17 @@
 package expo.modules.mpvplayer.nativeplayer.ui.remote
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -77,13 +80,23 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, targetName: String?) {
                             Slot(slot, viewModel, targetName, layout, artwork)
                         }
                     }
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(SlotGap, Alignment.CenterVertically),
-                    ) {
-                        arrangement.column.forEach { slot -> Slot(slot, viewModel, targetName, layout, artwork) }
+                    // The column fills the height it is given, so its free height lands where `spaces` says;
+                    // taller than the screen, the weighted spacers get nothing and the column scrolls.
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+                        val viewport = maxHeight
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .heightIn(min = viewport),
+                        ) {
+                            arrangement.column.forEachIndexed { index, slot ->
+                                if (index > 0) Spacer(Modifier.height(SlotGap))
+                                if (index in arrangement.spaces) Spacer(Modifier.weight(1f))
+                                Slot(slot, viewModel, targetName, layout, artwork)
+                            }
+                            if (arrangement.column.size in arrangement.spaces) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
 

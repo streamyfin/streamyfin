@@ -38,13 +38,19 @@ struct RemotePlayerRootView: View {
 							}
 						}
 					}
-					ScrollView {
-						VStack(alignment: .leading, spacing: Self.slotGap) {
-							ForEach(arrangement.column, id: \.self) { slot($0, layout: layout, artwork: artwork) }
+					// The column fills the height it is given, so its free height lands where `spaces` says; taller
+					// than the screen, the spacers shrink to nothing and the column scrolls.
+					GeometryReader { viewport in
+						ScrollView {
+							VStack(alignment: .leading, spacing: Self.slotGap) {
+								ForEach(Array(arrangement.column.enumerated()), id: \.element) { index, item in
+									spaced(index, of: arrangement) { slot(item, layout: layout, artwork: artwork) }
+								}
+							}
+							.frame(maxWidth: .infinity, minHeight: viewport.size.height, alignment: .top)
 						}
-						.frame(maxWidth: .infinity)
+						.scrollBounceBehavior(.basedOnSize)
 					}
-					.scrollBounceBehavior(.basedOnSize)
 					.frame(maxHeight: .infinity)
 				}
 				.frame(maxHeight: .infinity)
@@ -78,6 +84,18 @@ struct RemotePlayerRootView: View {
 				.frame(maxWidth: .infinity)
 		case .bottomRow:
 			RemoteBottomRow(viewModel: viewModel, targetName: targetName)
+		}
+	}
+
+	/// A column slot with the free height `spaces` gives it: above it, and below it when it is the last. Nested, so
+	/// the column's own gap is not added around the spacers.
+	private func spaced<Content: View>(_ index: Int, of arrangement: RemoteArrangement, @ViewBuilder _ content: () -> Content) -> some View {
+		VStack(alignment: .leading, spacing: 0) {
+			if arrangement.spaces.contains(index) { Spacer(minLength: 0) }
+			content()
+			if index == arrangement.column.count - 1 && arrangement.spaces.contains(arrangement.column.count) {
+				Spacer(minLength: 0)
+			}
 		}
 	}
 

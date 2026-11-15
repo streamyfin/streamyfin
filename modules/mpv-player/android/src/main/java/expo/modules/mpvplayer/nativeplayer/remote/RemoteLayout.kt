@@ -56,12 +56,16 @@ enum class RemoteSlot { HEADER, ARTWORK, TITLES, BAR, TRANSPORT, BOTTOM_ROW }
  * Where a layout puts the slots: a bar across the top, the slot beside the rest (the artwork, on the left), the
  * column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
  * buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
+ * [spaces] are the column's indices where the free height goes, shared equally when the screen is taller than the
+ * slots (`column.size`: after the last): upright above the bottom row, as in the mockup; couched and wide around the
+ * middle, so the transport sits level with the artwork.
  */
 data class RemoteArrangement(
     val topBar: List<RemoteSlot>,
     val beside: RemoteSlot?,
     val column: List<RemoteSlot>,
     val bottom: List<RemoteSlot>,
+    val spaces: List<Int>,
 ) {
     companion object {
         private val upright = listOf(
@@ -70,14 +74,17 @@ data class RemoteArrangement(
         )
 
         fun of(layout: RemoteLayout): RemoteArrangement = when (layout) {
-            RemoteLayout.PORTRAIT -> RemoteArrangement(emptyList(), null, upright, emptyList())
+            RemoteLayout.PORTRAIT -> RemoteArrangement(emptyList(), null, upright, emptyList(), listOf(upright.size - 1))
             RemoteLayout.LANDSCAPE -> RemoteArrangement(
                 topBar = listOf(RemoteSlot.HEADER, RemoteSlot.TITLES, RemoteSlot.BOTTOM_ROW),
                 beside = RemoteSlot.ARTWORK,
                 column = listOf(RemoteSlot.TRANSPORT),
                 bottom = listOf(RemoteSlot.BAR),
+                spaces = listOf(0, 1),
             )
-            RemoteLayout.WIDE -> RemoteArrangement(emptyList(), RemoteSlot.ARTWORK, upright - RemoteSlot.ARTWORK, emptyList())
+            RemoteLayout.WIDE -> (upright - RemoteSlot.ARTWORK).let { column ->
+                RemoteArrangement(emptyList(), RemoteSlot.ARTWORK, column, emptyList(), listOf(1, column.size - 1))
+            }
         }
     }
 }

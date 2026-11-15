@@ -52,22 +52,29 @@ enum RemoteSlot: String, CaseIterable {
 /// Where a layout puts the slots: a bar across the top, the slot beside the rest (the artwork, on the left), the
 /// column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
 /// buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
+/// `spaces` are the column's indices where the free height goes, shared equally when the screen is taller than the
+/// slots (`column.count`: after the last): upright above the bottom row, as in the mockup; couched and wide around
+/// the middle, so the transport sits level with the artwork.
 struct RemoteArrangement: Equatable {
 	let topBar: [RemoteSlot]
 	let beside: RemoteSlot?
 	let column: [RemoteSlot]
 	let bottom: [RemoteSlot]
+	let spaces: [Int]
 
 	private static let upright: [RemoteSlot] = [.header, .artwork, .titles, .bar, .transport, .bottomRow]
 
 	static func of(_ layout: RemoteLayout) -> RemoteArrangement {
 		switch layout {
 		case .portrait:
-			return RemoteArrangement(topBar: [], beside: nil, column: upright, bottom: [])
+			return RemoteArrangement(topBar: [], beside: nil, column: upright, bottom: [], spaces: [upright.count - 1])
 		case .landscape:
-			return RemoteArrangement(topBar: [.header, .titles, .bottomRow], beside: .artwork, column: [.transport], bottom: [.bar])
+			return RemoteArrangement(
+				topBar: [.header, .titles, .bottomRow], beside: .artwork, column: [.transport], bottom: [.bar], spaces: [0, 1]
+			)
 		case .wide:
-			return RemoteArrangement(topBar: [], beside: .artwork, column: upright.filter { $0 != .artwork }, bottom: [])
+			let column = upright.filter { $0 != .artwork }
+			return RemoteArrangement(topBar: [], beside: .artwork, column: column, bottom: [], spaces: [1, column.count - 1])
 		}
 	}
 }
