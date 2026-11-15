@@ -890,6 +890,25 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     sendPlaybackProgressRef.current();
   }, [state.repeatMode, state.shuffleEnabled]);
 
+  // A pause or a play is reported at once, wherever it came from (the lock screen pauses the native player itself):
+  // the heartbeat counts seconds of playback, and a paused track plays none, so the server showed it playing (n° 14).
+  // Only within one phone play session: a start reports itself, and a queue on the receiver has no session here.
+  const playEdgeRef = useRef({
+    isPlaying: state.isPlaying,
+    playSessionId: state.playSessionId,
+  });
+  useEffect(() => {
+    const previous = playEdgeRef.current;
+    playEdgeRef.current = {
+      isPlaying: state.isPlaying,
+      playSessionId: state.playSessionId,
+    };
+    if (!state.playSessionId || !hasLiveTrackRef.current) return;
+    if (previous.playSessionId !== state.playSessionId) return;
+    if (previous.isPlaying === state.isPlaying) return;
+    sendPlaybackProgressRef.current();
+  }, [state.isPlaying, state.playSessionId]);
+
   const reportPlaybackStopped = useCallback(
     async (
       track: BaseItemDto,
@@ -1561,6 +1580,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         : -1;
       if (liveIndex >= 0) {
         await TrackPlayer.play();
+        // The server has heard of no play of this queue since the restart: this is its start.
+        void reportPlaybackStart(
+          state.queue[liveIndex],
+          activeTrack?.id === state.currentTrack?.Id
+            ? result.sessionId
+            : state.playSessionId,
+        );
         setState((prev) => {
           // prev.queue is the queue now: a shuffle during the waits may have
           // reordered the one this render captured.
@@ -1613,6 +1639,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         playSessionId: result.sessionId,
         isPlaying: true,
       }));
+      // A queue restored at launch was never reported as playing: without a start the server only saw its heartbeats
+      // (iPhone simulator, 15/11).
+      void reportPlaybackStart(state.currentTrack, result.sessionId);
       // The native queue holds this one track: load the rest of the restored
       // queue behind it, as a fresh start does, or next, previous and the end
       // of the track find nothing after it.
@@ -1635,9 +1664,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.queue,
     state.queueIndex,
     state.progress,
+    state.playSessionId,
     settings?.preferLocalAudio,
     playerReadyForControl,
     loadRemainingTracksInBackground,
+    reportPlaybackStart,
     castConnected,
     castOnReceiver,
     endPhoneSessionForReceiver,
