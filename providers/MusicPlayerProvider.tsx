@@ -1316,8 +1316,27 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
   }, []);
 
+  // "Change" in the output sheet ends the session on the TV left before the next one starts
+  // (cast-switch-ends-the-old-session): the queue the TV left was playing goes on on the next, from where it was, once
+  // that session is ready. Taken at the hand back while the target still holds a Cast receiver, and dropped once it
+  // holds none, so a later connection sends nothing on its own. A paused queue stays on the phone, as on a connection.
+  const remoteTargetRef = useRef<ReturnType<typeof useRemoteTarget> | null>(
+    null,
+  );
+  const switchCarryRef = useRef<{
+    generation: number;
+    view: MusicCastRemoteView;
+  } | null>(null);
+
   const handBackFromReceiver = useCallback(
     (view: MusicCastRemoteView) => {
+      const target = remoteTargetRef.current;
+      switchCarryRef.current =
+        view.isPlaying &&
+        target?.state !== "none" &&
+        target?.target?.kind === "cast"
+          ? { generation: sessionGenerationRef.current, view }
+          : null;
       void releasePhonePlayer();
       setState((prev) => ({
         ...prev,
@@ -1346,6 +1365,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // iPhone: a Cast target still connected holds the session until the target
   // says what became of it.
   const remoteTarget = useRemoteTarget();
+  remoteTargetRef.current = remoteTarget;
+  const remoteTargetHeld =
+    remoteTarget.state !== "none" && remoteTarget.target?.kind === "cast";
+  useEffect(() => {
+    if (!remoteTargetHeld) switchCarryRef.current = null;
+  }, [remoteTargetHeld]);
   const sessionHeld =
     castState === CastState.CONNECTED ||
     (remoteTarget.state === "connected" &&
@@ -1437,7 +1462,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     const wasReady = wasCastReady.current;
     wasCastReady.current = castReady;
     if (!castReady || wasReady) return;
-    if (!state.isPlaying || state.queue.length === 0) return;
+    const carried = switchCarryRef.current;
+    switchCarryRef.current = null;
+    const playingHere = state.isPlaying && state.queue.length > 0;
+    // What the phone plays meanwhile wins over the queue a switch carries.
+    const carry =
+      !playingHere && carried?.generation === sessionGenerationRef.current
+        ? carried.view
+        : null;
+    if (!playingHere && !carry) return;
     // A Play pressed while connecting (a film, say) is for the receiver: the phone pauses for it, and the queue stays
     // here rather than replace it there.
     if (isPressForTargetHeld()) {
@@ -1445,6 +1478,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         void TrackPlayer.pause();
         setState((prev) => ({ ...prev, isPlaying: false }));
       }
+      return;
+    }
+    if (carry) {
+      // No press asked for the receiver's controls: the user stays on the sheet or the player.
+      void castOnReceiver(carry.queue, carry.queueIndex, {
+        startSeconds: carry.progress,
+        openExpandedControls: false,
+      });
       return;
     }
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);

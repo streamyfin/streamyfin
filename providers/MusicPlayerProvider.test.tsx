@@ -636,6 +636,68 @@ const endSuspendedCast = () =>
     });
   });
 
+const BEDROOM: RemoteTarget = {
+  kind: "cast",
+  id: "device-2",
+  name: "Bedroom",
+  capabilities: { volume: true },
+};
+
+const BEDROOM_DEVICE = {
+  deviceId: "device-2",
+  friendlyName: "Bedroom",
+  modelName: "Google TV Streamer",
+  videoOut: true,
+};
+
+/**
+ * "Change" in the output sheet, in the order an Android phone reports it
+ * (bench, 15/11): the session on the TV left ends (status 2155), the target
+ * goes on to the next TV, whose session starts with no media.
+ */
+const switchCast = async () => {
+  await act(async () => {
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "ending",
+      target: LIVING_ROOM,
+    });
+  });
+  await act(async () => {
+    mockCast.castState = "connecting";
+    setCastSession(mockCast, null);
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connecting" });
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "ended",
+      sessionId: "session-1",
+      error: "Cast session status code 2155",
+    });
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connecting",
+      target: BEDROOM,
+    });
+  });
+  await settle();
+  await act(async () => {
+    mockCast.mediaStatus = null;
+    setCastSession(mockCast, "session-2", BEDROOM_DEVICE);
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "started",
+      sessionId: "session-2",
+      error: null,
+    });
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connected",
+      target: BEDROOM,
+    });
+    mockCast.castState = "connected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+  await settle();
+};
+
 describe("MusicPlayerProvider and a Cast session", () => {
   test("plays a queue on the receiver while a session is connected, not on the phone", async () => {
     mockCast.castState = "connected";
@@ -1066,6 +1128,64 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
   // As on Spotify: connected to a TV, play sends the paused queue there, from
   // the track and the place it paused on, and the phone stays silent.
+  // Seen on an Android phone (bench, 15/11): "Change" to the Streamer in the middle of a track left it on the app's
+  // screen with nothing to play, and the phone paused where the Chromecast was.
+  test("a switch to another receiver moves the queue it played there, from where it was", async () => {
+    await castAlbum();
+    await targetConnected();
+    await receiverStatus("t2", "playing", 30);
+
+    await switchCast();
+
+    expect(playNows()).toHaveLength(2);
+    expect(playNows()[1].options.items.map((item) => item.Id)).toEqual(
+      ALBUM.map((item) => item.Id),
+    );
+    expect(playNows()[1].options.startIndex).toBe(2);
+    expect(startSeconds(1)).toBeCloseTo(30, 0);
+    expect(mockNative.playing).toBe(false);
+    expect(nativeIds()).toEqual([]);
+    await receiverLoads("t2");
+    expect(player.currentTrack?.Id).toBe("t2");
+  });
+
+  test("a switch while the receiver is paused leaves the queue on the phone, paused", async () => {
+    await castAlbum();
+    await targetConnected();
+    await receiverStatus("t2", "paused", 30);
+
+    await switchCast();
+
+    expect(playNows()).toHaveLength(1);
+    expect(player.currentTrack?.Id).toBe("t2");
+    expect(player.isPlaying).toBe(false);
+    expect(player.progress).toBeCloseTo(30, 0);
+  });
+
+  test("a session that ended with no receiver asked for sends nothing to the next one connected", async () => {
+    await castAlbum();
+    await targetConnected();
+    await receiverStatus("t2", "playing", 30);
+
+    await act(async () => {
+      emitRemoteTarget(mockCast, {
+        ...NO_REMOTE_TARGET,
+        state: "ending",
+        target: LIVING_ROOM,
+      });
+    });
+    await disconnectCast();
+    await act(async () => {
+      emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+    });
+    await settle();
+    await connectCast();
+    await settle();
+
+    expect(playNows()).toHaveLength(1);
+    expect(player.isPlaying).toBe(false);
+  });
+
   test("play on a paused queue while a session is connected sends it to the receiver from where it paused", async () => {
     await castAlbum();
     await receiverStatus("t2", "playing", 30);
