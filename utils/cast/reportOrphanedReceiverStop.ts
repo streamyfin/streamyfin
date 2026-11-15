@@ -41,7 +41,7 @@ export interface EndedReceiverSession {
    */
   itemId: string;
   playSessionId?: string;
-  /** Aborted when a new Cast session starts or the user or server changes. */
+  /** Aborted when a new Cast session starts on the same TV, or the user or server changes. */
   signal?: AbortSignal;
 }
 
