@@ -1414,7 +1414,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
     endPhoneSessionForReceiver();
-    void castOnReceiver(state.queue, Math.max(index, 0));
+    // From where the phone was, as a paused queue goes on: the TV started the track over (iPhone and Android, night of
+    // 14/11).
+    void castOnReceiver(state.queue, Math.max(index, 0), {
+      startSeconds: progressRef.current,
+    });
   }, [
     castState,
     castConnected,

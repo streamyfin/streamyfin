@@ -663,6 +663,21 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t0");
   });
 
+  // Seen on an iPhone and an Android phone: the TV started the track over from 0:00 at the connection.
+  test("a queue the phone plays goes on on the receiver from where the phone was when a session connects", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 1));
+    await run((p) => p.setProgress(42));
+
+    await connectCast();
+    await settle();
+
+    expect(playNows()).toHaveLength(1);
+    expect(playNows()[0].options.startIndex).toBe(1);
+    expect(startSeconds(0)).toBeCloseTo(42, 1);
+    await receiverLoads("t1");
+  });
+
   // Only paused, the phone's player stayed on the lock screen, the notification and the headset buttons, whose Play
   // started the phone alongside the TV, and its session went on reporting under the receiver's.
   test("lets go of the phone's player when the queue moves to the receiver", async () => {
