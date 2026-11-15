@@ -2556,3 +2556,69 @@ describe("MusicPlayerProvider native player setup", () => {
     expect(player.currentTrack).toBeNull();
   });
 });
+
+describe("MusicPlayerProvider and the server's reports of a play on the phone", () => {
+  // Seen on an iPhone simulator (15/11): Play on the queue the app restored at launch played it, and the server never
+  // heard of it; only the heartbeats named it, with no start.
+  test("a queue restored at launch reports its start once played", async () => {
+    persistQueue(ALBUM, 1);
+    await mount();
+
+    await run((p) => p.togglePlayPause());
+
+    await waitFor(() => expect(reports(START_URL)).toHaveLength(1));
+    expect(reports(START_URL)[0]).toMatchObject({
+      ItemId: "t1",
+      PlaySessionId: "session-t1",
+      IsPaused: false,
+    });
+  });
+
+  // The heartbeat goes every 10 s of playback, and a paused track plays none: the server showed it playing long after
+  // the pause (n° 14).
+  test("a pause is reported at once", async () => {
+    await startPlaying();
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.togglePlayPause());
+
+    await waitFor(() => expect(reports(PROGRESS_URL)).toHaveLength(before + 1));
+    expect(reports(PROGRESS_URL)[before]).toMatchObject({
+      ItemId: "track-1",
+      IsPaused: true,
+    });
+
+    await run((p) => p.togglePlayPause());
+
+    await waitFor(() => expect(reports(PROGRESS_URL)).toHaveLength(before + 2));
+    expect(reports(PROGRESS_URL)[before + 1]).toMatchObject({
+      IsPaused: false,
+    });
+  });
+
+  // The lock screen, the notification and a headset pause the native player itself: the app hears it from the state.
+  test("a pause made outside the app is reported at once", async () => {
+    await startPlaying();
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.setIsPlaying(false));
+
+    await waitFor(() => expect(reports(PROGRESS_URL)).toHaveLength(before + 1));
+    expect(reports(PROGRESS_URL)[before]).toMatchObject({ IsPaused: true });
+  });
+
+  // The receiver's pause is the receiver's to report: the phone's session ended when the queue left it.
+  test("a pause on the receiver reports nothing for the phone", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.setIsPlaying(false));
+    await settle();
+
+    expect(reports(PROGRESS_URL)).toHaveLength(before);
+  });
+});
