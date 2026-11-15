@@ -245,11 +245,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published private(set) var isMuted = false
 
 	#if os(iOS)
-	/// System volume/brightness for the side sliders. The controllers exist
-	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
-	/// has no writable volume/brightness (remote/HDMI-CEC own them).
-	let volumeController = SystemVolumeController()
-	let brightnessController = SystemBrightnessController()
+	/// System volume/brightness for the side sliders; the show* flags gate the
+	/// UI. iOS-only: tvOS has no writable volume/brightness (remote/HDMI-CEC own
+	/// them). Made for a local engine only, by followSystemControls(): a remote
+	/// one drives the TV, not this phone, and the volume controller reads the
+	/// audio session as it is made, a call to the audio server. Lazy, so a
+	/// remote chrome, which never shows the sliders, never makes them.
+	private(set) lazy var volumeController = makeVolumeController()
+	private(set) lazy var brightnessController = SystemBrightnessController()
 	#endif
 
 	private(set) var playMethod: String?
@@ -352,10 +355,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	static let volumeBoostPresets: [Int] = [100, 125, 150, 200]
 	static let sleepTimerPresetMinutes: [Int] = [15, 30, 45, 60, 90, 120]
 
-	override init() {
-		super.init()
-		#if os(iOS)
-		volumeController.onExternalChange = { [weak self] in
+	#if os(iOS)
+	/// The local player's system volume and brightness, made with its session,
+	/// as they were with the view model before a remote engine could hold it.
+	func followSystemControls() {
+		_ = volumeController
+		_ = brightnessController
+	}
+
+	private func makeVolumeController() -> SystemVolumeController {
+		let controller = SystemVolumeController()
+		controller.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
 		}
 		// Mute transitions (hardware buttons or the in-player slider hitting
@@ -363,15 +373,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// (subtitlesOnMute setting) and revert when sound returns. iOS-only:
 		// tvOS volume lives in the TV/receiver (remote/HDMI-CEC) and is
 		// invisible to the app, so no mute event can ever fire there.
-		muteDetectionCancellable = volumeController.$volume
+		muteDetectionCancellable = controller.$volume
 			.removeDuplicates()
 			.sink { [weak self] value in
 				self?.detectMuteTransition(volume: value)
 			}
-		#endif
+		return controller
 	}
 
-	#if os(iOS)
 	private var muteDetectionCancellable: AnyCancellable?
 	private var lastVolumeForMuteDetection: Double?
 

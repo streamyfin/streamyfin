@@ -20,8 +20,9 @@ internal final class NoPresenterException: Exception, @unchecked Sendable {
 /// One presentation lifecycle of the native player: owns the engine, the view
 /// controller and the view model, and funnels every dismissal path through a
 /// single teardown ordering (see dismiss(reason:completion:)).
-final class NativePlayerSession {
+final class NativePlayerSession: PresentedPlayer {
 	let engine: ChromeEngine
+	let acceptsJsTransport = true
 	/// The screen of a local engine; nil for one without, whose surface paths do not run.
 	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 	let viewModel = PlayerViewModel()
@@ -45,6 +46,9 @@ final class NativePlayerSession {
 		self.presenterProvider = presenterProvider
 
 		viewModel.engine = engine
+		#if os(iOS)
+		viewModel.followSystemControls()
+		#endif
 		viewModel.emit = emit
 		viewModel.onDismissRequested = { [weak self] reason in
 			self?.dismiss(reason: reason)
@@ -252,15 +256,7 @@ final class NativePlayerSession {
 	}
 
 	private func resolvePresenter() -> UIViewController? {
-		if let fromContext = presenterProvider(), fromContext.presentedViewController == nil {
-			return fromContext
-		}
-		// Fallback: walk the key window's presented chain.
-		var top = SceneGeometry.keyWindow()?.rootViewController
-		while let presented = top?.presentedViewController, !presented.isBeingDismissed {
-			top = presented
-		}
-		return top
+		resolvePlayerPresenter(from: presenterProvider())
 	}
 
 	// MARK: - Teardown
