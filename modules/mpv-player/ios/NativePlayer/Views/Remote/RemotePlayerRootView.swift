@@ -7,6 +7,7 @@ import SwiftUI
 /// goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
 struct RemotePlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	@ObservedObject var screen: RemoteScreenModel
 	let targetName: String?
 	@Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -59,7 +60,21 @@ struct RemotePlayerRootView: View {
 			}
 			.padding(.horizontal, Self.padding)
 		}
-		.background(Color.black.ignoresSafeArea())
+		// Tone 20 at the top to tone 10 at remoteTintGradientEnd, flat below; a new tint fades in.
+		.background(
+			LinearGradient(
+				stops: [
+					.init(color: remoteColor(screen.colors.top), location: 0),
+					.init(color: remoteColor(screen.colors.bottom), location: PlayerConstants.remoteTintGradientEnd),
+				],
+				startPoint: .top,
+				endPoint: .bottom
+			)
+			.ignoresSafeArea()
+			.animation(.easeInOut(duration: PlayerConstants.remoteTintFadeMs / 1000), value: screen.colors)
+		)
+		.environment(\.remoteAccent, remoteColor(screen.colors.accent))
+		.animation(.easeInOut(duration: PlayerConstants.remoteTintFadeMs / 1000), value: screen.colors.accent)
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}

@@ -115,7 +115,18 @@ enum RemoteLayoutTests {
 		check(RemoteColors.of(top: "#fff", bottom: "+12345", accent: "#C9A7FB00") == neutral, "aMissingOrUnreadableTintFallsBackToTheNeutral: unreadable")
 	}
 
+	static func theArtworkRequestCarriesTheCustomHeaders() {
+		let server = ["X-Proxy-Auth": "server"]
+		let own = ["X-Proxy-Auth": "own"]
+		check(RemoteImageHeaders.of(own: own, server: server) == own, "theArtworkRequestCarriesTheCustomHeaders: own first")
+		check(RemoteImageHeaders.of(own: nil, server: server) == server, "theArtworkRequestCarriesTheCustomHeaders: server")
+		// An empty map is no headers, as on Android: the server's still apply.
+		check(RemoteImageHeaders.of(own: [:], server: server) == server, "theArtworkRequestCarriesTheCustomHeaders: empty own")
+		check(RemoteImageHeaders.of(own: nil, server: [:]) == nil, "theArtworkRequestCarriesTheCustomHeaders: none")
+	}
+
 	static func main() {
+		theArtworkRequestCarriesTheCustomHeaders()
 		aTallNarrowScreenTakesThePortraitLayout()
 		aShortScreenTakesTheLandscapeLayout()
 		aWideScreenPutsTheArtworkBesideTheControls()

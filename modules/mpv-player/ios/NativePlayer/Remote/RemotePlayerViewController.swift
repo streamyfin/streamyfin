@@ -7,10 +7,12 @@ import UIKit
 /// alone), no MPVolumeView (the volume keys keep the system's HUD and the phone's volume) and no pinch.
 final class RemotePlayerViewController: UIViewController {
 	private let viewModel: PlayerViewModel
+	private let screen: RemoteScreenModel
 	private let targetName: String?
 
-	init(viewModel: PlayerViewModel, targetName: String?) {
+	init(viewModel: PlayerViewModel, screen: RemoteScreenModel, targetName: String?) {
 		self.viewModel = viewModel
+		self.screen = screen
 		self.targetName = targetName
 		super.init(nibName: nil, bundle: nil)
 	}
@@ -28,7 +30,7 @@ final class RemotePlayerViewController: UIViewController {
 		view.backgroundColor = .black
 
 		let hosting = UIHostingController(
-			rootView: RemotePlayerRootView(viewModel: viewModel, targetName: targetName)
+			rootView: RemotePlayerRootView(viewModel: viewModel, screen: screen, targetName: targetName)
 		)
 		hosting.view.backgroundColor = .clear
 		addChild(hosting)

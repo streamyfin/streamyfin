@@ -137,3 +137,13 @@ struct RemoteColors: Equatable {
 		return UInt32(digits, radix: 16)
 	}
 }
+
+/// The headers the remote artwork is fetched with: its own (metadata.artworkHeaders), else the server's
+/// (config.imageHeaders); an empty map counts as none. Twin: remoteImageHeaders in RemoteImage.kt.
+enum RemoteImageHeaders {
+	static func of(own: [String: String]?, server: [String: String]?) -> [String: String]? {
+		if let own, !own.isEmpty { return own }
+		if let server, !server.isEmpty { return server }
+		return nil
+	}
+}

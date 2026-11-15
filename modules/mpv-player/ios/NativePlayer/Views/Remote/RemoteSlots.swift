@@ -4,12 +4,27 @@ import SwiftUI
 // The remote screen's six slots (design §3.1), which RemotePlayerRootView places by RemoteArrangement. Twin:
 // RemoteSlots.kt.
 
-/// What is on or connected: icon and text, with a dot under the icon (design §3.3).
-let remoteActiveColor = Color(
-	red: Double((PlayerConstants.remoteActiveColor >> 16) & 0xFF) / 255,
-	green: Double((PlayerConstants.remoteActiveColor >> 8) & 0xFF) / 255,
-	blue: Double(PlayerConstants.remoteActiveColor & 0xFF) / 255
-)
+/// 0xRRGGBB as a color.
+func remoteColor(_ rgb: UInt32) -> Color {
+	Color(
+		red: Double((rgb >> 16) & 0xFF) / 255,
+		green: Double((rgb >> 8) & 0xFF) / 255,
+		blue: Double(rgb & 0xFF) / 255
+	)
+}
+
+/// What is on or connected: icon and text, with a dot under the icon (design §3.3). The artwork's accent, set by
+/// RemotePlayerRootView from the tint; remoteActiveColor until there is one.
+private struct RemoteAccentKey: EnvironmentKey {
+	static let defaultValue = remoteColor(PlayerConstants.remoteActiveColor)
+}
+
+extension EnvironmentValues {
+	var remoteAccent: Color {
+		get { self[RemoteAccentKey.self] }
+		set { self[RemoteAccentKey.self] = newValue }
+	}
+}
 
 private let remoteButton = CGFloat(PlayerConstants.remoteButtonSmall)
 
@@ -34,7 +49,10 @@ struct RemoteArtwork: View {
 	var body: some View {
 		ZStack {
 			if let uri = viewModel.metadata?.artworkUri, let url = URL(string: uri) {
-				RemoteImage(url: url, headers: viewModel.metadata?.artworkHeaders) {
+				RemoteImage(
+				url: url,
+				headers: RemoteImageHeaders.of(own: viewModel.metadata?.artworkHeaders, server: viewModel.imageHeaders)
+			) {
 					Color.white.opacity(0.08)
 				}
 				.scaledToFit()
@@ -167,6 +185,7 @@ private struct RemoteTargetButton: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
 	@State private var frame: CGRect = .zero
+	@Environment(\.remoteAccent) private var accent
 
 	var body: some View {
 		Button {
@@ -175,7 +194,7 @@ private struct RemoteTargetButton: View {
 			HStack(spacing: 8) {
 				VStack(spacing: 3) {
 					CastGlyph(connected: true)
-						.fill(remoteActiveColor)
+						.fill(accent)
 						.frame(width: 20, height: 20)
 					ActiveDot(active: true)
 				}
@@ -183,7 +202,7 @@ private struct RemoteTargetButton: View {
 				if let targetName {
 					Text(targetName)
 						.font(.system(size: 14, weight: .semibold))
-						.foregroundStyle(remoteActiveColor)
+						.foregroundStyle(accent)
 						.lineLimit(1)
 				}
 			}
@@ -232,12 +251,13 @@ private struct RemoteTrackButtons: View {
 private struct ActiveIcon: View {
 	let systemName: String
 	let active: Bool
+	@Environment(\.remoteAccent) private var accent
 
 	var body: some View {
 		VStack(spacing: 3) {
 			Image(systemName: systemName)
 				.font(.system(size: 18, weight: .semibold))
-				.foregroundStyle(active ? remoteActiveColor : .white)
+				.foregroundStyle(active ? accent : .white)
 				.frame(height: 22)
 			ActiveDot(active: active)
 		}
@@ -249,10 +269,11 @@ private struct ActiveIcon: View {
 
 private struct ActiveDot: View {
 	let active: Bool
+	@Environment(\.remoteAccent) private var accent
 
 	var body: some View {
 		Circle()
-			.fill(active ? remoteActiveColor : .clear)
+			.fill(active ? accent : .clear)
 			.frame(width: 4, height: 4)
 	}
 }

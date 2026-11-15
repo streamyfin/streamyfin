@@ -1,6 +1,13 @@
 #if os(iOS)
+import Combine
 import ExpoModulesCore
 import UIKit
+
+/// What the remote screen holds beside the shared view model: its colors, from the artwork's tint. Twin:
+/// RemoteScreenModel in RemotePlayerSession.kt.
+final class RemoteScreenModel: ObservableObject {
+	@Published var colors = RemoteColors.of(top: nil, bottom: nil, accent: nil)
+}
 
 /// The native chrome over a remote engine, with no surface: a remote control for what the TV plays. It
 /// leaves the phone alone (status bar shown, the phone sleeps and turns as usual), and holds no Now Playing
@@ -8,6 +15,7 @@ import UIKit
 /// through its lease and sends nothing to the TV. Every event it emits is marked remote.
 final class RemotePlayerSession: PresentedPlayer {
 	let viewModel = PlayerViewModel()
+	let screen = RemoteScreenModel()
 	let acceptsJsTransport = false
 
 	private let lease: RemoteEngineLease
@@ -48,14 +56,20 @@ final class RemotePlayerSession: PresentedPlayer {
 		engine.delegate = viewModel
 		viewModel.engine = engine
 		viewModel.apply(config: config.toPresentConfig())
+		if let tint = config.tint { updateTint(tint) }
 
-		let vc = RemotePlayerViewController(viewModel: viewModel, targetName: config.targetName)
+		let vc = RemotePlayerViewController(viewModel: viewModel, screen: screen, targetName: config.targetName)
 		vc.modalPresentationStyle = .fullScreen
 		viewController = vc
 
 		// Starting a bound engine again does nothing: the TV keeps playing what it plays.
 		try engine.start()
 		presenter.present(vc, animated: true, completion: onPresented)
+	}
+
+	/// The artwork's colors, once JS has them; the screen fades to them (remoteTintFadeMs).
+	func updateTint(_ tint: RemoteTintRecord) {
+		screen.colors = RemoteColors.of(top: tint.top, bottom: tint.bottom, accent: tint.accent)
 	}
 
 	/// Emits onDismiss, slides the screen away, then hands the engine back: never stop() nor shutdown(),
