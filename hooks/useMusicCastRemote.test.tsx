@@ -448,6 +448,61 @@ describe("an idle receiver going on with the queue", () => {
 
     expect(result.current.stopped).toBe(true);
   });
+
+  /** An idle status as the iOS SDK reports it: the reason, and no media. */
+  const idleWithoutMedia = (idleReason: string) =>
+    rawStatus({
+      playerState: "idle",
+      idleReason,
+      currentItemId: 1,
+      streamPosition: 0,
+      playbackRate: 1,
+      volume: 1,
+      isMuted: false,
+      mediaInfo: null,
+      customData: null,
+    });
+
+  // Seen on an iPhone (2026-11-15): at each change of track the player showed
+  // the finished one at 0:00 with Play for a second, as the iOS SDK drops the
+  // media from an idle status. The idle report is about the track last reported.
+  test.each(["finished", "interrupted"])(
+    "still plays while the receiver moves on, its %s status without the media as on iOS",
+    async (idleReason) => {
+      const result = await castAlbumAt(1);
+      await receiverStatus("b", "ps-1", "playing", 148);
+      await idleWithoutMedia(idleReason);
+
+      expect(result.current.stopped).toBe(false);
+      expect(result.current.view?.currentTrack.Id).toBe("b");
+      expect(result.current.view?.isPlaying).toBe(true);
+      const before = mockCast.sent.length;
+      await act(async () => {
+        await result.current.next();
+      });
+      expect(mockCast.sent.slice(before)).toEqual([]);
+    },
+  );
+
+  test("the last track finished, its status without the media as on iOS, ends the queue at once", async () => {
+    const result = await castAlbumAt(3);
+    await receiverStatus("c", "ps-1", "playing", 148);
+    await idleWithoutMedia("finished");
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.currentTrack.Id).toBe("c");
+    expect(result.current.view?.progress).toBe(0);
+  });
+
+  test("a stop from the TV's remote, its status without the media as on iOS, stops where it was", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 30);
+    await idleWithoutMedia("cancelled");
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.currentTrack.Id).toBe("b");
+    expect(result.current.view?.progress).toBeCloseTo(30, 0);
+  });
 });
 
 // The receiver appends what it is sent to the queue it plays then, so the

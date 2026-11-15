@@ -19,6 +19,7 @@ import {
   type JellyfinCastSession,
   parseReceiverCustomData,
   queueOnJellyfinReceiver,
+  type ReceiverCustomData,
   receiverNameFor,
   receiverPositionInItem,
   sendJellyfinCastCommand,
@@ -117,7 +118,19 @@ export const useMusicCastRemote = ({
 
   // A queue another account sent is not this account's to show or hand back.
   const current = sent && sent.owner === ownerKey ? sent : null;
-  const media = parseReceiverCustomData(status?.mediaInfo?.customData);
+  // The iOS SDK drops the media from an idle status: its reason is about the
+  // track last reported, as the idle status that keeps it says on Android.
+  // Read as gone, every change of track showed the finished one stopped at 0:00
+  // on an iPhone (2026-11-15).
+  const lastMedia = useRef<{ id: number; media: ReceiverCustomData } | null>(
+    null,
+  );
+  const idleWithoutMedia =
+    status?.playerState === CastMediaPlayerState.IDLE && !status.mediaInfo;
+  const media =
+    idleWithoutMedia && current && lastMedia.current?.id === current.id
+      ? lastMedia.current.media
+      : parseReceiverCustomData(status?.mediaInfo?.customData);
   // A status of the media the queue replaced says nothing about the queue yet.
   const fresh =
     current !== null &&
@@ -132,6 +145,7 @@ export const useMusicCastRemote = ({
     current && fresh ? placeOf(current.queue, media.itemId, near) : -1;
   if (current && index >= 0) shown.current = { id: current.id, index };
   const reported = fresh && index >= 0;
+  if (current && reported) lastMedia.current = { id: current.id, media };
 
   // Once the receiver has played the queue, a status without it no longer
   // means the queue is loading. Media another sender loaded carries none of
