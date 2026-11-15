@@ -22,7 +22,6 @@ import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -65,7 +64,7 @@ class NativePlayerSession(
     private val emit: (String, Map<String, Any?>) -> Unit,
     private val onTornDown: () -> Unit,
     private val presenterProvider: () -> Activity?
-) : SurfaceHolder.Callback {
+) : SurfaceHolder.Callback, PresentedPlayer {
 
     companion object {
         private const val TAG = "NativePlayerSession"
@@ -75,7 +74,8 @@ class NativePlayerSession(
         private const val RESUME_RECOVERY_DELAY_MS = 500L
     }
 
-    val viewModel = PlayerViewModel()
+    override val viewModel = PlayerViewModel()
+    override val acceptsJsTransport = true
     var engine: ChromeEngine? = null
 
     // The screen of a local engine; null for one without, whose surface paths do not run.
@@ -412,7 +412,7 @@ class NativePlayerSession(
         }
 
         // Add overlay to activity window
-        hideAppFromAccessibility(activity)
+        accessibility.hideAppOf(activity)
         activity.addContentView(
             container,
             ViewGroup.LayoutParams(
@@ -966,27 +966,10 @@ class NativePlayerSession(
         }
     }
 
-    // The app under the player stays in the accessibility tree otherwise: TalkBack and uiautomator would reach its
-    // hidden buttons, the header's Cast button among them, named as the player's. Views added later, the output
-    // sheet's, stay reachable.
-    private val hiddenFromAccessibility = mutableListOf<Pair<View, Int>>()
-
-    private fun hideAppFromAccessibility(activity: Activity) {
-        val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
-        for (index in 0 until content.childCount) {
-            val view = content.getChildAt(index)
-            hiddenFromAccessibility += view to view.importantForAccessibility
-            view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        }
-    }
-
-    private fun restoreAppAccessibility() {
-        for ((view, importance) in hiddenFromAccessibility) view.importantForAccessibility = importance
-        hiddenFromAccessibility.clear()
-    }
+    private val accessibility = AccessibilityIsolation()
 
     // MARK: - Teardown
-    fun dismiss(reason: String, completion: (() -> Unit)? = null) {
+    override fun dismiss(reason: String, completion: (() -> Unit)?) {
         if (isDismissing) {
             completion?.invoke()
             return
@@ -1033,7 +1016,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
-            restoreAppAccessibility()
+            accessibility.restore()
 
             // Restore window state
             if (activity != null) {
@@ -1070,7 +1053,7 @@ class NativePlayerSession(
         }
     }
 
-    fun teardownImmediately() {
+    override fun teardownImmediately() {
         if (isDismissing) return
         isDismissing = true
         val activity = hostActivity
@@ -1084,7 +1067,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
-            restoreAppAccessibility()
+            accessibility.restore()
             activity?.let { unregisterPiPReceiver(it) }
             restoreDisplayMode()
             viewModel.brightnessController?.restore()
