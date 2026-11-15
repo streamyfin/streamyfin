@@ -1000,6 +1000,34 @@ describe("a detection after the app comes back", () => {
     expect(onChange).toBeDefined();
     await expect(detectBitrate(api)).resolves.toBe(7_000_000);
   });
+
+  // Finding 7 of the TV block 2: the Cast expanded controls, an activity of
+  // their own on Android, put the app in the background; back on the open
+  // settings, Auto read "Not measured yet" until the page was opened again.
+  test("shows the open settings the measure of the network it is still on", async () => {
+    const { lastDetection, onDetectionChanged } =
+      require("./bitrateTest") as typeof import("./bitrateTest");
+    const listen = jest.spyOn(AppState, "addEventListener");
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+    await detectBitrate(api);
+    const measuredAt = Date.now();
+    const heard = jest.fn();
+    onDetectionChanged(heard);
+
+    const onChange = listen.mock.calls.find(
+      ([event]) => event === "change",
+    )?.[1] as ((state: string) => void) | undefined;
+    jest.advanceTimersByTime(30_000);
+    onChange?.("active");
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(lastDetection(api)).toEqual({
+      bitrate: 70_000_000,
+      at: measuredAt,
+    });
+    expect(heard).toHaveBeenCalled();
+  });
 });
 
 describe("a failed detection remembered", () => {

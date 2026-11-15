@@ -163,10 +163,14 @@ const watchNetwork = () => {
   });
   // iOS may not tell a network change made while the app was away: back in
   // the foreground, the network is asked again before a measure is reused.
+  // The open settings hear it once known: until then they read no network,
+  // and showed "Not measured yet" until opened again.
   AppState.addEventListener("change", (state) => {
     if (state !== "active") return;
     network = undefined;
     networkChanges += 1;
+    // A NetInfo that fails leaves the network unknown, as before.
+    void currentNetwork().then(announceDetection, () => {});
   });
 };
 
