@@ -60,10 +60,31 @@ enum RemotePlayerProbe {
 		)
 		current = session
 		let config = RemotePlayerConfigRecord()
+		// Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups
+		// (same config as Android's RemotePlayerProbe.config()). The artwork comes from the bench's server.
 		let metadata = MetadataRecord()
 		metadata.title = title
+		metadata.subtitle = "S1 E1, Bench"
 		config.metadata = metadata
 		config.targetName = target
+		config.chapters = [("Opening", 0.0), ("Middle", 40.0), ("Ending", 80.0)].map { name, start in
+			let chapter = ChapterRecord()
+			chapter.name = name
+			chapter.startSec = start
+			return chapter
+		}
+		let tracks = TrackMenusRecord()
+		tracks.audio = [track("English", 1, selected: true), track("French", 2, selected: false)]
+		tracks.subtitles = [track("English", 3, selected: true), track("French", 4, selected: false)]
+		config.tracks = tracks
+		config.episodeList = (1...3).map { n in
+			let episode = EpisodeListItemRecord()
+			episode.itemId = "bench-\(n)"
+			episode.title = "Bench episode \(n)"
+			episode.indexNumber = n
+			episode.isCurrent = n == 1
+			return episode
+		}
 		if ending {
 			var next = NextEpisodeRecord()
 			next.itemId = "bench-next"
@@ -87,6 +108,14 @@ enum RemotePlayerProbe {
 			log("position \(engine.getCurrentPosition()), \(engine.isPaused() ? "paused" : "playing")")
 			logPosition(engine)
 		}
+	}
+
+	private static func track(_ label: String, _ index: Int, selected: Bool) -> TrackMenuItemRecord {
+		let track = TrackMenuItemRecord()
+		track.label = label
+		track.jellyfinIndex = index
+		track.selected = selected
+		return track
 	}
 }
 

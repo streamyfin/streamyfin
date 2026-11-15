@@ -11,9 +11,13 @@ import androidx.annotation.MainThread
 import androidx.compose.runtime.Composable
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.nativeplayer.ChapterRecord
+import expo.modules.mpvplayer.nativeplayer.EpisodeListItemRecord
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
@@ -81,10 +85,38 @@ object RemotePlayerProbe {
         return session
     }
 
-    private fun config() = RemotePlayerConfigRecord().also {
-        it.metadata = MetadataRecord().also { metadata -> metadata.title = TITLE }
+    /** Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups. */
+    internal fun config() = RemotePlayerConfigRecord().also {
+        it.metadata = MetadataRecord().also { metadata ->
+            metadata.title = TITLE
+            metadata.subtitle = SUBTITLE
+        }
         it.targetName = TARGET
+        it.chapters = CHAPTERS.map { (name, start) -> ChapterRecord().also { c -> c.name = name; c.startSec = start } }
+        it.tracks = TrackMenusRecord().also { tracks ->
+            tracks.audio = track("English", 1, selected = true) + track("French", 2, selected = false)
+            tracks.subtitles = track("English", 3, selected = true) + track("French", 4, selected = false)
+        }
+        it.episodeList = (1..3).map { n ->
+            EpisodeListItemRecord().also { e ->
+                e.itemId = "bench-$n"
+                e.title = "Bench episode $n"
+                e.indexNumber = n
+                e.isCurrent = n == 1
+            }
+        }
     }
+
+    private fun track(label: String, index: Int, selected: Boolean) = listOf(
+        TrackMenuItemRecord().also { t ->
+            t.label = label
+            t.jellyfinIndex = index
+            t.selected = selected
+        },
+    )
+
+    private const val SUBTITLE = "S1 E1, Bench"
+    private val CHAPTERS = listOf("Opening" to 0.0, "Middle" to 40.0, "Ending" to 80.0)
 }
 
 /** The fake TV with every command the chrome sends logged, and the position each one leaves. */
