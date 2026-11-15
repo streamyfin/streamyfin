@@ -345,6 +345,9 @@ def _measure(args, config, server, target, account, cases: list[dict], tokens) -
                 print("matrix: the receiver was not seen idle; its token is kept for the sender's next command or stop", file=sys.stderr)
             else:
                 try:
+                    # The receiver reports its stop after its status reads idle, with this token.
+                    if handed and not sender.wait_for_stop_report(client, session.token, driver.receiver_name, session.user_id):
+                        print("matrix: the receiver's stop report did not reach the server in time", file=sys.stderr)
                     client.logout(session)
                 except Exception as error:  # noqa: BLE001 - a failed sign-out only leaves the token behind
                     # Kept for the next run to revoke: with the receiver if it holds the token, as an orphan if not.
