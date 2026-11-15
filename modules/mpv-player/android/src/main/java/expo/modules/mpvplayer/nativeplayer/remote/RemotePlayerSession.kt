@@ -19,6 +19,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.nativeplayer.AccessibilityIsolation
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.PresentedPlayer
@@ -58,6 +59,8 @@ class RemotePlayerSession(
     }
 
     fun present(activity: Activity, config: RemotePlayerConfigRecord) {
+        // Opened from the app's Cast sheet: the sheet goes first, as for the local player.
+        OutputPickerPresenter.dismissForPlayer()
         host = activity
         val engine = lease.engine
         engine.delegate = viewModel

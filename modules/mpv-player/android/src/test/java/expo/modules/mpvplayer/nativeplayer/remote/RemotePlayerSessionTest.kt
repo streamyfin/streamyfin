@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.NativePlayerSession
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
@@ -50,11 +51,13 @@ class RemotePlayerSessionTest {
     @After
     fun closeLeftovers() {
         session?.teardownImmediately()
+        OutputPickerPresenter.dismiss()
         screen.pause().stop().destroy()
         shadowOf(getMainLooper()).idle()
     }
 
-    private fun presented(on: ComponentActivity = activity): RemotePlayerSession {
+    // `idle = false` leaves the main looper alone: Robolectric cannot compose the output sheet's material sheet.
+    private fun presented(on: ComponentActivity = activity, idle: Boolean = true): RemotePlayerSession {
         val session = RemotePlayerSession(
             lease = RemoteEngineLease(engine) { released += 1 },
             emit = { name, body -> events += name to body },
@@ -65,7 +68,7 @@ class RemotePlayerSessionTest {
             it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
             it.targetName = "Bench TV"
         })
-        shadowOf(getMainLooper()).idle()
+        if (idle) shadowOf(getMainLooper()).idle()
         this.session = session
         return session
     }
@@ -206,5 +209,17 @@ class RemotePlayerSessionTest {
         assertNull(jsTransportTarget(remote))
         assertSame(local.viewModel, jsTransportTarget(local))
         assertNull(jsTransportTarget(null))
+    }
+
+    // The remote screen opens from the app's Cast sheet: the sheet goes first, as for the local player, or it
+    // would stay under the screen with its discovery running.
+    @Test
+    fun aRemoteSessionOpeningOverTheAppsSheetClosesIt() {
+        OutputPickerPresenter.present(activity, anchor = null, playingHere = null) {}
+        assertTrue(OutputPickerPresenter.isPresented)
+
+        presented(idle = false)
+
+        assertFalse(OutputPickerPresenter.isPresented)
     }
 }

@@ -36,6 +36,11 @@ final class RemotePlayerSession: PresentedPlayer {
 
 	/// `onPresented` runs once the screen is up; the module resolves its promise there, the debug probe logs.
 	func present(config: RemotePlayerConfigRecord, onPresented: @escaping () -> Void) throws {
+		// Opened from the app's Cast sheet: the sheet goes first, as for the local player, so the screen is
+		// presented from what lies under it and never goes down with it.
+		#if !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.dismissForPlayer()
+		#endif
 		guard let presenter = resolvePlayerPresenter(from: presenterProvider()) else {
 			throw NoPresenterException()
 		}
