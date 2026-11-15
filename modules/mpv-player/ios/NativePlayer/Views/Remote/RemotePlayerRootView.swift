@@ -29,9 +29,9 @@ struct RemotePlayerRootView: View {
 				HStack(spacing: 0) {
 					if let beside = arrangement.beside {
 						Group {
-							if layout == .wide {
+							if let besideWidth = RemoteMetrics.besideWidth(layout: layout, width: width) {
 								slot(beside, layout: layout, artwork: artwork)
-									.frame(width: proxy.size.width * CGFloat(PlayerConstants.remoteWideArtworkFraction))
+									.frame(width: CGFloat(besideWidth))
 							} else {
 								slot(beside, layout: layout, artwork: artwork)
 									.padding(.trailing, Self.padding)

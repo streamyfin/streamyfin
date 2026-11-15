@@ -86,4 +86,19 @@ class RemoteLayoutTest {
         val wide = RemoteMetrics.artworkHeight(RemoteLayout.WIDE, 673.0, 841.0, 1.0)
         assertTrue("wide artwork $wide takes more than its share of 673", wide <= 673.0 * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION)
     }
+
+    @Test
+    fun theWideArtworkGetsItsShareOfTheWholeWidth() {
+        // Its box is the share of the screen's width the artwork is sized against, whatever the column beside it
+        // takes; a weight against the column's would leave it 0.45 / 1.45 of the row, under a third.
+        for (width in listOf(673.0, 800.0, 1280.0)) {
+            val box = RemoteMetrics.besideWidth(RemoteLayout.WIDE, width)
+            assertEquals(width * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION, box!!, 0.0)
+            val artwork = RemoteMetrics.artworkHeight(RemoteLayout.WIDE, width, 800.0, 1.0)
+            assertTrue("wide artwork $artwork does not fit its box $box at $width", artwork <= box)
+        }
+        // Couched, the artwork's box wraps it; upright, nothing stands beside the column.
+        assertEquals(null, RemoteMetrics.besideWidth(RemoteLayout.LANDSCAPE, 844.0))
+        assertEquals(null, RemoteMetrics.besideWidth(RemoteLayout.PORTRAIT, 390.0))
+    }
 }

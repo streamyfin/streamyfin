@@ -32,6 +32,12 @@ enum RemoteMetrics {
 		}
 	}
 
+	/// The width of the box beside the column. Wide, the artwork's share of the whole width, the one its size is
+	/// reckoned against; couched the box wraps the artwork, and upright nothing stands beside the column: nil.
+	static func besideWidth(layout: RemoteLayout, width: Double) -> Double? {
+		layout == .wide ? width * PlayerConstants.remoteWideArtworkFraction : nil
+	}
+
 	static func artworkHeight(layout: RemoteLayout, width: Double, height: Double, fontScale: Double) -> Double {
 		let byWidth: Double
 		switch layout {

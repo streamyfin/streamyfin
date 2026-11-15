@@ -37,6 +37,13 @@ object RemoteMetrics {
         RemoteLayout.WIDE -> 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP
     }
 
+    /**
+     * The width of the box beside the column. Wide, the artwork's share of the whole width, the one its size is
+     * reckoned against; couched the box wraps the artwork, and upright nothing stands beside the column: null.
+     */
+    fun besideWidth(layout: RemoteLayout, widthDp: Double): Double? =
+        if (layout == RemoteLayout.WIDE) widthDp * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION else null
+
     fun artworkHeight(layout: RemoteLayout, widthDp: Double, heightDp: Double, fontScale: Double): Double {
         val byWidth = when (layout) {
             RemoteLayout.PORTRAIT -> widthDp - 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP

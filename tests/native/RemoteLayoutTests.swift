@@ -84,6 +84,19 @@ enum RemoteLayoutTests {
 		check(wide <= 673 * PlayerConstants.remoteWideArtworkFraction, "theArtworkIsNeverWiderThanItsColumn: wide")
 	}
 
+	// Its box is the share of the screen's width the artwork is sized against, whatever the column beside it takes.
+	static func theWideArtworkGetsItsShareOfTheWholeWidth() {
+		for width in [673.0, 800, 1280] {
+			let box = RemoteMetrics.besideWidth(layout: .wide, width: width)
+			check(box == width * PlayerConstants.remoteWideArtworkFraction, "theWideArtworkGetsItsShareOfTheWholeWidth: \(String(describing: box)) at \(width)")
+			let artwork = RemoteMetrics.artworkHeight(layout: .wide, width: width, height: 800, fontScale: 1)
+			check(artwork <= (box ?? 0), "theWideArtworkGetsItsShareOfTheWholeWidth: \(artwork) does not fit at \(width)")
+		}
+		// Couched, the artwork's box wraps it; upright, nothing stands beside the column.
+		check(RemoteMetrics.besideWidth(layout: .landscape, width: 844) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: couched")
+		check(RemoteMetrics.besideWidth(layout: .portrait, width: 390) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: upright")
+	}
+
 	static func main() {
 		aTallNarrowScreenTakesThePortraitLayout()
 		aShortScreenTakesTheLandscapeLayout()
@@ -94,6 +107,7 @@ enum RemoteLayoutTests {
 		theUprightChromeMatchesTheMeasuredScreen()
 		theArtworkNeverGoesUnderItsMinimum()
 		theArtworkIsNeverWiderThanItsColumn()
+		theWideArtworkGetsItsShareOfTheWholeWidth()
 		print("PASS: remote layout (\(cases) cases)")
 	}
 }

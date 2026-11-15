@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -71,11 +72,9 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, targetName: String?) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     arrangement.beside?.let { slot ->
-                        val besideModifier = if (layout == RemoteLayout.WIDE) {
-                            Modifier.weight(PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION.toFloat())
-                        } else {
-                            Modifier.padding(end = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp)
-                        }
+                        // A width, not a weight: weighed against the column's, the share would be of the row.
+                        val besideModifier = RemoteMetrics.besideWidth(layout, width)?.let { Modifier.width(it.dp) }
+                            ?: Modifier.padding(end = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp)
                         Box(besideModifier, contentAlignment = Alignment.Center) {
                             Slot(slot, viewModel, targetName, layout, artwork)
                         }
