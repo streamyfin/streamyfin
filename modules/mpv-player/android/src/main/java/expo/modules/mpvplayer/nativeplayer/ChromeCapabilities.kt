@@ -27,7 +27,10 @@ data class ChromeCapabilities(
     val sleepTimer: Boolean = true,
     val lockControls: Boolean = true,
     val rotate: Boolean = true,
-    /** The next episode card counts down near the end and starts the next one. */
+    /**
+     * The phone decides what follows the end: the next episode card counts down and starts the next one, or
+     * the still watching card asks first. A remote target's list moves on by itself.
+     */
     val nextEpisodeCountdown: Boolean = true,
 ) {
     companion object {

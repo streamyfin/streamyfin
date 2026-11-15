@@ -1933,7 +1933,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 					"positionSec": displayPosition,
 				])
 			}
-		} else if nextEpisode?.stillWatchingRequired == true {
+		} else if nextEpisode?.stillWatchingRequired == true, capabilities.nextEpisodeCountdown {
 			// Autoplay episode cap reached: ask instead of advancing. The
 			// video sits on its last frame under the card.
 			// mpv never flips its pause property at EOF (no keep-open), so

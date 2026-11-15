@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.nativeplayer
 
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteOnlyEngine
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,5 +77,28 @@ class PlayerViewModelRemoteTest {
 
         assertNull(viewModel.countdownRemaining)
         assertTrue("no next-episode request: $emitted", "onNextEpisodeRequested" !in emitted)
+    }
+
+    // The remote screen draws no "still watching" card: asking there would leave it paused with nothing to
+    // answer. The TV's list ended, so the screen ends as it does with no next episode.
+    @Test
+    fun aRemoteEndAtTheEpisodeCapEndsInsteadOfAsking() {
+        val viewModel = remoteViewModel(RemoteOnlyEngine())
+        val emitted = mutableListOf<String>()
+        val dismissals = mutableListOf<String>()
+        viewModel.emit = { name, _ -> emitted += name }
+        viewModel.onDismissRequested = { reason -> dismissals += reason }
+        viewModel.updateNextEpisode(NextEpisodeRecord().apply {
+            itemId = "next"
+            title = "Next"
+            stillWatchingRequired = true
+        })
+        viewModel.onPauseChanged(isPaused = false)
+
+        viewModel.onPlaybackEnded()
+
+        assertFalse(viewModel.showStillWatching)
+        assertTrue("no end reported: $emitted", "onPlaybackEnded" in emitted)
+        assertEquals(listOf("playbackEnded"), dismissals)
     }
 }

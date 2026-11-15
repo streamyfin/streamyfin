@@ -1533,7 +1533,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         if (next != null && capabilities.nextEpisodeCountdown && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()
             fireNextEpisode(reason = "countdown")
-        } else if (next?.stillWatchingRequired == true) {
+        } else if (next?.stillWatchingRequired == true && capabilities.nextEpisodeCountdown) {
             isPlaying = false
             showStillWatching = true
             // The media session and its locks follow the play state.
