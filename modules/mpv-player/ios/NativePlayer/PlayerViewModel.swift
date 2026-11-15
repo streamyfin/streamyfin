@@ -707,6 +707,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Every control interaction calls this to keep the overlay up.
 	func scheduleAutoHide(delay: TimeInterval? = nil) {
 		autoHideTask?.cancel()
+		// A remote control keeps its controls up: nothing under them to uncover.
+		guard capabilities.autoHide else { return }
 		let effectiveDelay = delay ?? autoHideDelay
 		autoHideTask = Task { [weak self] in
 			try? await Task.sleep(nanoseconds: UInt64(effectiveDelay * 1_000_000_000))
@@ -840,8 +842,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
 		// Pause while scrubbing; endScrub resumes only if it was playing
-		// (mirror of the JS player's useVideoSlider).
-		wasPlayingBeforeScrub = isPlaying
+		// (mirror of the JS player's useVideoSlider). A remote target keeps
+		// playing through the drag: pausing it would stall its stream for nothing.
+		wasPlayingBeforeScrub = isPlaying && capabilities.pausesWhileScrubbing
 		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			engine?.pause()
 		}
@@ -1481,7 +1484,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// checked in 1s slices, so a stint suspended in the background fires on
 	/// resume instead of drifting.
 	func setSleepTimer(minutes: Int) {
-		guard !isSyncPlayActive else { return }
+		// Remote: a sleeping phone could not stop the TV, so the timer is not offered.
+		guard !isSyncPlayActive, capabilities.sleepTimer else { return }
 		haptic()
 		sleepTimerTask?.cancel()
 		sleepTimerMinutes = minutes
@@ -1636,7 +1640,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// Items without credits markers still get the countdown near the end
 		// (JS parity: remainingTime < countdown length arms it too).
 		var nearEnd = false
-		guard !isSyncPlayActive else { return }
+		// A remote target moves on by itself: no countdown on the phone.
+		guard !isSyncPlayActive, capabilities.nextEpisodeCountdown else { return }
 		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {
 			nearEnd = currentPosition > 0 && duration - currentPosition <= next.countdownSeconds
 		}
@@ -1905,7 +1910,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 		}
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
-		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
+		if let next = nextEpisode, capabilities.nextEpisodeCountdown, next.countdownSeconds > 0, !countdownCanceled {
 			// Idempotent: an outro skip lets a short countdown arm over the
 			// final seconds, so its tick may already have fired this request.
 			// Emit once, but stay in this branch either way so a fired

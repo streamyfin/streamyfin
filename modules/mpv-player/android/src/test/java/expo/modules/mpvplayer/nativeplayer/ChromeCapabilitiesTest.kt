@@ -39,9 +39,45 @@ class ChromeCapabilitiesTest {
                 decoderSettings = false,
                 technicalInfo = false,
                 speed = true,
+                autoHide = false,
+                pausesWhileScrubbing = false,
+                sleepTimer = false,
+                lockControls = false,
+                rotate = false,
+                nextEpisodeCountdown = false,
             ),
             ChromeCapabilities.of(isRemote = true, pictureInPictureSupported = true, canChangeSpeed = true),
         )
+    }
+
+    private val remote = ChromeCapabilities.of(isRemote = true, pictureInPictureSupported = true, canChangeSpeed = true)
+
+    // A remote screen is a remote control: nothing on it is in the way of a picture, so it never hides.
+    @Test fun aRemoteChromeKeepsItsControlsVisible() {
+        assertFalse(remote.autoHide)
+    }
+
+    // Pausing the TV for the length of a drag would stall its stream for nothing: the seek goes on release.
+    @Test fun aRemoteScrubDoesNotPauseTheTarget() {
+        assertFalse(remote.pausesWhileScrubbing)
+    }
+
+    // A sleeping phone cannot stop the TV, nothing on the phone turns, and the TV goes on by itself.
+    @Test fun aRemoteChromeHasNoSleepTimerLockRotateNorCountdown() {
+        assertFalse(remote.sleepTimer)
+        assertFalse(remote.lockControls)
+        assertFalse(remote.rotate)
+        assertFalse(remote.nextEpisodeCountdown)
+    }
+
+    @Test fun aLocalChromeKeepsThemAll() {
+        val local = ChromeCapabilities.of(isRemote = false, pictureInPictureSupported = true, canChangeSpeed = true)
+        assertTrue(local.autoHide)
+        assertTrue(local.pausesWhileScrubbing)
+        assertTrue(local.sleepTimer)
+        assertTrue(local.lockControls)
+        assertTrue(local.rotate)
+        assertTrue(local.nextEpisodeCountdown)
     }
 
     // The Cast button hands this device's video off: a local engine shows it when JS allows Cast, a remote one never.

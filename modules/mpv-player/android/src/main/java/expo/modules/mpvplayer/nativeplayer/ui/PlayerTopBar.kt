@@ -584,7 +584,7 @@ fun PlayerTopBar(
                 }
 
                 // Sleep Timer
-                if (!viewModel.syncPlayActive) {
+                if (!viewModel.syncPlayActive && viewModel.capabilities.sleepTimer) {
                     Text(
                         text = viewModel.strings.get("sleepTimer", "Sleep Timer"),
                         fontWeight = FontWeight.Bold,
@@ -623,7 +623,7 @@ fun PlayerTopBar(
                 HorizontalDivider()
 
                 // Rotate
-                DropdownMenuItem(
+                if (viewModel.capabilities.rotate) DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.RotateRight, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -638,7 +638,7 @@ fun PlayerTopBar(
                 )
 
                 // Lock Controls
-                DropdownMenuItem(
+                if (viewModel.capabilities.lockControls) DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
