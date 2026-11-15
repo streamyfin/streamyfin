@@ -16,6 +16,7 @@ import {
   createCastDoubleState,
   emitCastEvent,
   emitRemoteTarget,
+  nextCastDoubleState,
   setCastSession,
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
@@ -376,7 +377,7 @@ beforeEach(() => {
   api.mock.reset();
   api.mock.onPost().reply(204);
   // No Cast session unless a test opens one: the player plays on the phone.
-  mockCast = createCastDoubleState();
+  mockCast = nextCastDoubleState(mockCast);
   mockCast.castState = "notConnected";
   setCastSession(mockCast, null);
 });
@@ -678,6 +679,37 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t1");
   });
 
+  // Seen on the iPhone simulator (15/11): the iOS SDK reports the state connected before the session has started, so
+  // the connection had no client to send with; the phone went silent and the TV got nothing.
+  test("sends the queue once the session starts when the state reads connected first, as on iOS", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 1));
+    await run((p) => p.setProgress(42));
+
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    // Nothing to send with yet: the phone keeps playing.
+    expect(playNows()).toHaveLength(0);
+    expect(mockNative.playing).toBe(true);
+
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    // The session read, then its client, then the move: one render more than a connection seen whole.
+    await waitFor(() => expect(playNows()).toHaveLength(1));
+    expect(playNows()[0].options.startIndex).toBe(1);
+    expect(startSeconds(0)).toBeCloseTo(42, 1);
+    await receiverLoads("t1");
+  });
+
   // Only paused, the phone's player stayed on the lock screen, the notification and the headset buttons, whose Play
   // started the phone alongside the TV, and its session went on reporting under the receiver's.
   test("lets go of the phone's player when the queue moves to the receiver", async () => {
@@ -939,6 +971,8 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await resumeCast();
     await receiverStatus("t2", "playing", 40);
 
+    // The client coming back is no new connection: the queue the receiver plays is not sent again.
+    expect(playNows()).toHaveLength(1);
     expect(player.currentTrack?.Id).toBe("t2");
     expect(player.isPlaying).toBe(true);
     castNative().pause.mockClear();
