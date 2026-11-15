@@ -20,6 +20,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
+  CastMediaPlayerState,
   type RemoteTarget,
   showExpandedControls,
   useCastMediaStatus,
@@ -33,6 +34,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { toBitrateRequest } from "@/utils/bitrate";
+import { parseReceiverCustomData } from "@/utils/cast/jellyfinReceiver";
 import {
   choosePlay,
   holdForTarget,
@@ -120,9 +122,6 @@ export const PlayButton: React.FC<Props> = ({
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
-      const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
-      const isOpeningCurrentlyPlayingMedia =
-        currentTitle && currentTitle === item.Name;
       const result = await sendToReceiver(
         { api, userId: user.Id, store, t },
         {
@@ -142,14 +141,12 @@ export const PlayButton: React.FC<Props> = ({
       } else if (
         result.status === "loaded" &&
         // A later choice by then (a Continue here) presents its own player: the remote would open over it.
-        isLatestPlayChoice(choice) &&
-        // state is already set when reopening current media, so skip it here.
-        !isOpeningCurrentlyPlayingMedia
+        isLatestPlayChoice(choice)
       ) {
         showExpandedControls();
       }
     },
-    [api, user, store, item, mediaStatus, selectedOptions, t],
+    [api, user, store, item, selectedOptions, t],
   );
 
   // One Play action: the target when one is connected, this device otherwise or
@@ -359,11 +356,30 @@ export const PlayButton: React.FC<Props> = ({
     ],
   );
 
+  // The receiver plays this very item (its custom data names it; a finished one is idle): Play there is its remote.
+  const receiverPlaysItem =
+    !!item?.Id &&
+    !!mediaStatus &&
+    mediaStatus.playerState !== CastMediaPlayerState.IDLE &&
+    parseReceiverCustomData(mediaStatus.mediaInfo?.customData).itemId ===
+      item.Id;
+
   const play = useCallback(
     (longPress: boolean) => {
       if (!item) return;
 
       lightHapticFeedback();
+
+      // Loading it again restarted it from the saved position, behind the TV, with no remote (iPhone simulator, 15/11).
+      if (
+        receiverPlaysItem &&
+        resolvePlay({ target, offline: isOffline, longPress }).where ===
+          "target" &&
+        target.target?.kind === "cast"
+      ) {
+        showExpandedControls();
+        return;
+      }
 
       // Same prompt the TV item page shows: an in-progress item asks whether
       // to resume or restart instead of silently resuming. Users can turn the
@@ -400,7 +416,16 @@ export const PlayButton: React.FC<Props> = ({
 
       void startPlayback(0, longPress);
     },
-    [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog],
+    [
+      item,
+      lightHapticFeedback,
+      receiverPlaysItem,
+      target,
+      isOffline,
+      startPlayback,
+      t,
+      settings.showResumeDialog,
+    ],
   );
 
   const onPress = useCallback(() => play(false), [play]);
