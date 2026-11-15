@@ -1,1 +1,1 @@
-pychromecast==14.0.10
+pychromecast==14.1.1
