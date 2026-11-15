@@ -2,7 +2,7 @@ import Foundation
 
 // The SDK takes one generic channel per namespace per session: the JS relay and the native engine
 // share it through the hub, which also follows the session through suspends, resumes and ends. The
-// same eleven cases as ReceiverChannelHubTest.kt, plus the two that only iOS has.
+// same eleven cases as ReceiverChannelHubTest.kt, plus the four that only iOS has.
 @main
 enum ReceiverChannelHubTests {
   static var failures: [String] = []
@@ -219,6 +219,36 @@ enum ReceiverChannelHubTests {
           "register refused \(ns) session=session-1", "ended session=session-1",
         ]
       )
+    }
+
+    // An iOS resume hands back the suspended session object, which keeps the channels added to it and refuses a
+    // second one for the namespace: Repeat and Previous failed on "not connected" after one (iPhone simulator, 15/11).
+    do {
+      let hub = ReceiverChannelHub()
+      let listener = Recording()
+      _ = hub.subscribe(namespace: ns, listener: listener)
+      let session = FakeCastSession()
+      hub.attach(FakeChannelPort(sessionId: "session-1", session: session))
+      hub.suspend()
+      let resumed = FakeChannelPort(sessionId: "session-1", session: session)
+      hub.attach(resumed)
+      check(
+        "aResumeOfTheSameSessionObjectRegistersAgain",
+        resumed.registrations == [ns] && hub.isReady(namespace: ns)
+          && listener.events == ["ready session-1", "lost session-1 false", "ready session-1"]
+      )
+    }
+
+    // The same object handed over again with no suspension between (a resume the binding also found at install).
+    do {
+      let hub = ReceiverChannelHub()
+      let listener = Recording()
+      _ = hub.subscribe(namespace: ns, listener: listener)
+      let session = FakeCastSession()
+      hub.attach(FakeChannelPort(sessionId: "session-1", session: session))
+      let again = FakeChannelPort(sessionId: "session-1", session: session)
+      hub.attach(again)
+      check("aSecondPortOnTheSameSessionObjectRegistersAgain", again.registrations == [ns] && hub.isReady(namespace: ns))
     }
 
     if failures.isEmpty {
