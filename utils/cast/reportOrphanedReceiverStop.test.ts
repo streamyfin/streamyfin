@@ -117,6 +117,58 @@ describe("reportOrphanedReceiverStop", () => {
     });
   });
 
+  // Between two reports the server moves a playing session on by itself, a
+  // second every second. A Chromecast stalled at 8:46 was reported stopped
+  // 171 s further (Sintel, 15/11).
+  test("reports where the receiver last was, not where the server ran it on to", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [
+      receiverSession({
+        PlayState: { PositionTicks: 6_977_660_000, MediaSourceId: "source-1" },
+        LastPlaybackCheckIn: "2026-11-15T10:17:41.1340000Z",
+        LastActivityDate: "2026-11-15T10:20:32.1340000Z",
+      }),
+    ]);
+
+    expect(await reportOrphanedReceiverStop(ended(api))).toBe(true);
+
+    expect(sentRequest().body.PositionTicks).toBe(5_267_660_000);
+  });
+
+  test("keeps a paused receiver's position, which the server leaves alone", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [
+      receiverSession({
+        PlayState: {
+          PositionTicks: 3_000_000_000,
+          MediaSourceId: "source-1",
+          IsPaused: true,
+        },
+        LastPlaybackCheckIn: "2026-11-15T10:17:41.000Z",
+        LastActivityDate: "2026-11-15T10:20:32.000Z",
+      }),
+    ]);
+
+    expect(await reportOrphanedReceiverStop(ended(api))).toBe(true);
+
+    expect(sentRequest().body.PositionTicks).toBe(3_000_000_000);
+  });
+
+  test("never reports a position before the start", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [
+      receiverSession({
+        PlayState: { PositionTicks: 50_000_000, MediaSourceId: "source-1" },
+        LastPlaybackCheckIn: "2026-11-15T10:17:41.000Z",
+        LastActivityDate: "2026-11-15T10:20:32.000Z",
+      }),
+    ]);
+
+    expect(await reportOrphanedReceiverStop(ended(api))).toBe(true);
+
+    expect(sentRequest().body.PositionTicks).toBe(0);
+  });
+
   test("does not wait on a timer once casting was stopped", async () => {
     // Android does not fire delayed timers while the app is in the background,
     // and stopping a cast is usually followed by leaving the app: a delayed
