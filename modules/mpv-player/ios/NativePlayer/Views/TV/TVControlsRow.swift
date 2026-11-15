@@ -148,11 +148,7 @@ struct TVControlsRow: View {
 				Button {
 					viewModel.skipActiveSegment()
 				} label: {
-					Text(
-						segment.type == "Intro"
-							? viewModel.str("skipIntro", "Skip Intro")
-							: viewModel.str("skipCredits", "Skip Credits")
-					)
+					Text(viewModel.skipLabel(for: segment.type))
 					.font(.system(size: 22, weight: .semibold))
 					.frame(height: 34)
 				}

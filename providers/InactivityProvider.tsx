@@ -54,7 +54,7 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   // is not known, only a plugin lock restored with the session.
   const settingsLoaded = useAtomValue(settingsAtom) !== null;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<string | null | undefined>(AppState.currentState);
   const isPausedRef = useRef(false);
   // The user whose activity the record holds.
   const countedUserRef = useRef(userId);

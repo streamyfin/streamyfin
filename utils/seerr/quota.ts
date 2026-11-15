@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 /**
  * The share of a quota the bar shows as spent, between 0 and 1: what the
  * user has used, plus the seasons switched on, which are already taken off
@@ -21,16 +23,13 @@ export const quotaPeriod = (
   return days === 1 ? "daily" : "days";
 };
 
-/** The translation function, as i18next's `t` is called here. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
 /**
  * The words of a series quota (Seerr's QuotaDisplay), for the phone's sheet
  * and the TV's alike: how many season requests are left, over what period,
  * and, when the seasons a request needs do not fit, how many it needs.
  */
 export const seasonQuotaText = (
-  t: Translate,
+  t: TFunction,
   {
     remaining,
     limit,

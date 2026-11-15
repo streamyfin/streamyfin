@@ -2,12 +2,7 @@ import { SortByOption } from "@/utils/atoms/filters";
 import { sortOptionsFor } from "./libraryFilterSets";
 import { resolveSortKey } from "./sortOption";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // settings.ts drags in the provider stack; only the sort constants are used.
-jest.mock("@/utils/atoms/settings", () => ({}));
 
 describe("resolveSortKey", () => {
   test("keeps a key the shown list offers", () => {

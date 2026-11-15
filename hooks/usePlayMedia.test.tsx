@@ -1,6 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
+import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
+import type { BitrateRequest } from "@/utils/bitrate";
 import { usePlayMedia } from "./usePlayMedia";
 
 const mockPush = jest.fn();
@@ -40,15 +42,14 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
-const play = async (item: BaseItemDto) => {
+const play = async (item: BaseItemDto, bitrateValue?: BitrateRequest) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
-    await result.current({ itemId: item.Id!, offline: false }, { item });
+    await result.current(
+      { itemId: item.Id!, offline: false, bitrateValue },
+      { item },
+    );
   });
 };
 
@@ -119,6 +120,111 @@ describe("usePlayMedia", () => {
     );
   });
 
+  // Live TV used to skip the native player and open the JS route. The native
+  // player closes the live stream it opens on every way out, as the route did.
+  test("plays live television in the native player when it is on", async () => {
+    mockNativeChromeActive = true;
+    mockPresentFromRequest.mockResolvedValue(true);
+
+    await play({ Id: "channel-1", Type: "TvChannel" });
+    await play({ Id: "program-1", Type: "Program" });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "channel-1", offline: false },
+      { isCurrent: expect.any(Function) },
+    );
+    expect(mockPresentFromRequest).toHaveBeenCalledWith(
+      { itemId: "program-1", offline: false },
+      { isCurrent: expect.any(Function) },
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test("a native decline still opens the JS route", async () => {
+    mockNativeChromeActive = true;
+
+    await play({ Id: "movie-1", Type: "Movie" });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("/player/direct-player?itemId=movie-1"),
+    );
+  });
+
+  // A live channel takes seconds to open, long enough to press it again. The
+  // second press replaces the first, whose present then resolves false: that
+  // is not a decline, and opening the JS route for it put a second player and
+  // a second live stream under the native one.
+  test("a play replaced by a newer one does not open the JS route", async () => {
+    mockNativeChromeActive = true;
+    let settleFirst: (presented: boolean) => void = () => {};
+    mockPresentFromRequest
+      .mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            settleFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(true);
+    const channel = { Id: "channel-1", Type: "TvChannel" } as BaseItemDto;
+    const { result } = await renderHook(() => usePlayMedia());
+
+    await act(async () => {
+      const first = result.current(
+        { itemId: "channel-1", offline: false },
+        { item: channel },
+      );
+      await result.current(
+        { itemId: "channel-1", offline: false },
+        { item: channel },
+      );
+      settleFirst(false);
+      await first;
+    });
+
+    expect(mockPresentFromRequest).toHaveBeenCalledTimes(2);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // The provider drops a request whose isCurrent() turns false while it
+  // negotiates, and closes the live stream it opened.
+  const presentAfterLeaving = async (item: BaseItemDto) => {
+    mockNativeChromeActive = true;
+    let settle: () => void = () => {};
+    mockPresentFromRequest.mockImplementationOnce(
+      (_req: unknown, options?: { isCurrent?: () => boolean }) =>
+        new Promise<boolean>((resolve) => {
+          settle = () => resolve(options?.isCurrent?.() !== false);
+        }),
+    );
+    const { result, unmount } = await renderHook(() => usePlayMedia());
+    let playing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      playing = result.current({ itemId: item.Id!, offline: false }, { item });
+    });
+    await unmount();
+    await act(async () => {
+      settle();
+      await playing;
+    });
+    return mockPresentFromRequest.mock.results[0].value as Promise<boolean>;
+  };
+
+  // A tuner takes seconds to open a channel. A viewer who went back meanwhile
+  // got the player over the screen they went to, seconds later.
+  test("a live play the viewer left before it opened is dropped", async () => {
+    await expect(
+      presentAfterLeaving({ Id: "channel-1", Type: "TvChannel" }),
+    ).resolves.toBe(false);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // The top shelf route replaces itself with Home before it plays.
+  test("a video still opens after the screen that asked for it left", async () => {
+    await expect(
+      presentAfterLeaving({ Id: "episode-1", Type: "Episode" }),
+    ).resolves.toBe(true);
+  });
+
   test("shares the complete queue and selected resume point with the group", async () => {
     mockSyncPlayEnabled = true;
     const { result } = await renderHook(() => usePlayMedia());
@@ -177,5 +283,39 @@ describe("usePlayMedia", () => {
 
     expect(mockPresentFromRequest).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // Live TV plays without a cap whatever the default quality, as the guide and
+  // the channel grid do: Auto never measures for it.
+  test("plays live television without a cap under Auto", async () => {
+    await play({ Id: "channel-1", Type: "TvChannel" }, AUTO_BITRATE_VALUE);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=max"),
+    );
+  });
+
+  test("plays live television without a cap when no quality is given", async () => {
+    await play({ Id: "program-1", Type: "Program" });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=max"),
+    );
+  });
+
+  test("keeps a bitrate picked by hand for live television", async () => {
+    await play({ Id: "channel-1", Type: "TvChannel" }, 4_000_000);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=4000000"),
+    );
+  });
+
+  test("keeps Auto for anything but live television", async () => {
+    await play({ Id: "movie-1", Type: "Movie" }, AUTO_BITRATE_VALUE);
+
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringContaining("bitrateValue=auto"),
+    );
   });
 });

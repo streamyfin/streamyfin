@@ -1,3 +1,4 @@
+import { MAX_BITRATE_KEY } from "@/constants/Bitrate";
 import { LOGS_STORAGE_KEY } from "@/constants/Logs";
 import {
   LEGACY_SEERR_COOKIES_STORAGE_KEY,
@@ -5,9 +6,12 @@ import {
   SEERR_COOKIES_STORAGE_KEY,
   SEERR_USER_STORAGE_KEY,
 } from "@/constants/Seerr";
+import { AUTO_BITRATE } from "@/utils/bitrate";
+import { isPlainObject } from "@/utils/errors";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { redactStoredLog } from "@/utils/logStorage";
 import { storage } from "@/utils/mmkv";
+import { SETTINGS_KEY } from "@/utils/storedSettings";
 
 /**
  * One-off migrations for locally stored (MMKV) data.
@@ -46,6 +50,25 @@ interface Migration {
   description: string;
   run: (store: MigrationStorage) => void;
 }
+
+/**
+ * A JSON object the app stored, or undefined. One that cannot be read is left
+ * alone: the settings report it when they load it, where a failure here would
+ * hold back every later migration.
+ */
+const readStoredObject = (
+  store: MigrationStorage,
+  key: string,
+): Record<string, unknown> | undefined => {
+  const stored = store.getString(key);
+  if (stored === undefined) return undefined;
+  try {
+    const value: unknown = JSON.parse(stored);
+    return isPlainObject(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const MIGRATIONS: Migration[] = [
   {
@@ -88,6 +111,23 @@ const MIGRATIONS: Migration[] = [
       } else {
         store.set(LOGS_STORAGE_KEY, redacted);
       }
+    },
+  },
+  {
+    version: 5,
+    description:
+      "move the default quality from Max, the default until now, to Auto, the new one",
+    run: (store) => {
+      const settings = readStoredObject(store, SETTINGS_KEY);
+      const quality = settings?.defaultBitrate as { key?: unknown } | undefined;
+      // Saving any setting stored every default with it, so a Max on the
+      // device cannot be told from one nobody picked: they all move. So does
+      // one a plugin default wrote: the plugin's Max is a default without a
+      // value, which is Auto now. A locked one is in the plugin's settings,
+      // which stay as they are and win over these anyway.
+      if (!settings || quality?.key !== MAX_BITRATE_KEY) return;
+      settings.defaultBitrate = AUTO_BITRATE;
+      store.set(SETTINGS_KEY, JSON.stringify(settings));
     },
   },
 ];

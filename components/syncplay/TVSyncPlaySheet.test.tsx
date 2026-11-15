@@ -12,12 +12,8 @@ jest.mock("react-i18next", () => ({
       values ? `${key} ${Object.values(values).join(" ")}` : key,
   }),
 }));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ heading: 22, callout: 18 }),
-}));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
 }));
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Name: "Fredrik" }),

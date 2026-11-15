@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -14,7 +20,7 @@ export interface TVTrackCardProps {
   onPress: () => void;
 }
 
-export const TVTrackCard = React.forwardRef<View, TVTrackCardProps>(
+export const TVTrackCard = React.forwardRef<ViewInstance, TVTrackCardProps>(
   ({ label, sublabel, selected, hasTVPreferredFocus, onPress }, ref) => {
     const typography = useScaledTVTypography();
     const styles = createStyles(typography);

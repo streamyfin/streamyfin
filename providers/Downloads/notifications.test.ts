@@ -1,15 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import * as Notifications from "expo-notifications";
 import type { TFunction } from "i18next";
 
-const mockSchedule = jest.fn();
-const mockGetPermissions = jest.fn();
-const mockGetChannel = jest.fn();
-jest.mock("expo-notifications", () => ({
-  AndroidImportance: { NONE: 2, DEFAULT: 5 },
-  getPermissionsAsync: () => mockGetPermissions(),
-  getNotificationChannelAsync: (id: string) => mockGetChannel(id),
-  scheduleNotificationAsync: (...args: unknown[]) => mockSchedule(...args),
-}));
+const mockSchedule = Notifications.scheduleNotificationAsync as jest.Mock;
+const mockGetPermissions = Notifications.getPermissionsAsync as jest.Mock;
+const mockGetChannel = Notifications.getNotificationChannelAsync as jest.Mock;
 
 import { Platform } from "react-native";
 import { DOWNLOAD_NOTIFICATION_CHANNEL } from "@/constants/Notifications";

@@ -4,6 +4,7 @@ import {
   Easing,
   Pressable,
   TextInput,
+  type TextInputInstance,
   type TextInputProps,
 } from "react-native";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -25,7 +26,7 @@ export const TVInput: React.FC<TVInputProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const scale = useRef(new Animated.Value(1)).current;
 
   const animateFocus = (focused: boolean) => {

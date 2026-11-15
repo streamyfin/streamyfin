@@ -1,37 +1,22 @@
+import NetInfo from "@react-native-community/netinfo";
 import { act, render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import {
   NetworkStatusProvider,
   useNetworkStatus,
 } from "./NetworkStatusProvider";
 
-const mockProbe = jest.fn();
+const mockProbe = jest.mocked(jellyfinProbe);
+
 let mockNetState = { isConnected: true };
 
-// Like the real library, a new subscriber is handed the current state at once.
-const mockAddEventListener = jest.fn(
-  (handler: (state: { isConnected: boolean }) => void) => {
-    handler(mockNetState);
-    return () => undefined;
-  },
-);
+const mockAddEventListener = NetInfo.addEventListener as jest.Mock;
 
-jest.mock("@react-native-community/netinfo", () => ({
-  __esModule: true,
-  default: {
-    addEventListener: (handler: never) => mockAddEventListener(handler),
-  },
-}));
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest
     .requireActual("jotai")
     .atom({ basePath: "https://jellyfin.example.com" }),
-}));
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
-jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
-  jellyfinProbe: (...args: unknown[]) => mockProbe(...args),
 }));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -55,8 +40,15 @@ describe("NetworkStatusProvider", () => {
   beforeEach(() => {
     mockProbe.mockReset();
     mockProbe.mockResolvedValue({ status: "ok" });
-    mockAddEventListener.mockClear();
     mockNetState = { isConnected: true };
+    // Like the real library, a new subscriber is handed the current state at once.
+    mockAddEventListener.mockReset();
+    mockAddEventListener.mockImplementation(
+      (handler: (state: { isConnected: boolean }) => void) => {
+        handler(mockNetState);
+        return () => undefined;
+      },
+    );
   });
 
   // The subscription already delivers the current state, so a separate

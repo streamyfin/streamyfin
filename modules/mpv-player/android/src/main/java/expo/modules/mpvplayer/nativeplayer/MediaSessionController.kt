@@ -1,271 +1,105 @@
 package expo.modules.mpvplayer.nativeplayer
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaMetadata
-import android.media.session.MediaSession
-import android.media.session.PlaybackState
-import android.net.Uri
-import android.os.Build
-import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import java.io.File
-import java.net.URL
+import expo.modules.mpvplayer.playback.MediaPlaybackController
+import expo.modules.mpvplayer.playback.MediaPlaybackTarget
+import expo.modules.mpvplayer.playback.NowPlayingInfo
 
+/**
+ * The fully native player's media session: [MediaPlaybackController] (session,
+ * audio focus, notification, foreground service) driven by the PlayerViewModel.
+ */
 class MediaSessionController(
-    private val context: Context,
-    private val viewModel: PlayerViewModel
+    context: Context,
+    private val viewModel: PlayerViewModel,
+    /** Ends the player when the app is swiped away from recents. */
+    private val onTaskRemoved: () -> Unit,
 ) {
-    companion object {
-        private const val TAG = "MediaSessionController"
-    }
+    private val target = object : MediaPlaybackTarget {
+        override val isPlaying get() = viewModel.isPlaying
+        override val isBuffering get() = viewModel.isBuffering
+        override val positionSeconds get() = viewModel.displayPosition
+        override val durationSeconds get() = viewModel.duration
+        override val playbackSpeed get() = viewModel.speed
+        override val isNetworkSource get() = viewModel.sourceUrl.startsWith("http", ignoreCase = true)
+        override val nowPlaying get() = nowPlayingInfo(viewModel.metadata)
+        // The skips the on-screen and remote buttons use.
+        override val seekForwardSeconds get() = viewModel.uiOptions.seekForwardSec
+        override val seekBackSeconds get() = viewModel.uiOptions.seekBackwardSec
+        // In a group Next goes to the group's next item, and only that.
+        override val canSkipToNext get() =
+            if (viewModel.syncPlayActive) viewModel.syncPlay?.hasNext == true
+            else viewModel.nextEpisode != null
+        override val canSkipToPrevious get() =
+            !viewModel.syncPlayActive || viewModel.syncPlay?.hasPrevious == true
 
-    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    private var mediaSession: MediaSession? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
-    private var artworkJob: Job? = null
+        override fun play() = viewModel.play()
+        override fun pause() = viewModel.pause()
 
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var isDucked: Boolean = false
-    private var noisyReceiverRegistered = false
-
-    /**
-     * In a group pause() only asks the server, and the sound would keep
-     * coming out of the speaker until the answer returns, or for good if the
-     * request fails. Unplugged headphones and lost focus pause here first.
-     */
-    private fun pauseNow() {
-        if (viewModel.syncPlayActive) viewModel.pauseLocal()
-        viewModel.pause()
-    }
-
-    private val noisyReceiver = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
-                Log.i(TAG, "Audio becoming noisy — pausing playback")
-                pauseNow()
-            }
-        }
-    }
-
-    private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                Log.i(TAG, "Audio focus lost ($focusChange) — pausing without auto-resume")
-                pauseNow()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                Log.i(TAG, "Audio focus duck — lowering volume to 30%")
-                isDucked = true
-                viewModel.engine?.setVolumeBoost(30)
-            }
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                if (isDucked) {
-                    Log.i(TAG, "Audio focus gained — restoring volume")
-                    isDucked = false
-                    viewModel.engine?.setVolumeBoost(viewModel.volumeBoostPercent)
-                }
-            }
-        }
-    }
-
-    fun start() {
-        if (mediaSession != null) return
-
-        mediaSession = MediaSession(context, "StreamyfinNativePlayer").apply {
-            setCallback(object : MediaSession.Callback() {
-                override fun onPlay() {
-                    viewModel.play()
-                }
-
-                override fun onPause() {
-                    viewModel.pause()
-                }
-
-                override fun onSeekTo(pos: Long) {
-                    viewModel.seekTo(pos / 1000.0)
-                }
-
-                override fun onFastForward() {
-                    viewModel.seekBy(15.0)
-                }
-
-                override fun onRewind() {
-                    viewModel.seekBy(-15.0)
-                }
-
-                override fun onSkipToNext() {
-                    if (viewModel.nextEpisode != null || viewModel.syncPlay?.hasNext == true) {
-                        viewModel.playNextEpisodeNow()
-                    }
-                }
-
-                override fun onSkipToPrevious() {
-                    if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
-                    else viewModel.seekTo(0.0)
-                }
-
-                // Solo playback keeps ignoring Stop, as before SyncPlay.
-                override fun onStop() {
-                    if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
-                }
-            })
-            setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
-            isActive = true
+        /**
+         * In a group pause() only asks the server, and the sound would keep
+         * coming out of the speaker until the answer returns, or for good if
+         * the request fails. Unplugged headphones and lost focus pause here
+         * first.
+         */
+        override fun pauseForInterruption() {
+            if (viewModel.syncPlayActive) viewModel.pauseLocal()
+            viewModel.pause()
         }
 
-        requestAudioFocus()
-        registerNoisyReceiver()
-        updatePlaybackState()
-        updateMetadata()
-    }
-
-    fun updatePlaybackState() {
-        val session = mediaSession ?: return
-        val isPlaying = viewModel.isPlaying
-        val isBuffering = viewModel.isBuffering
-
-        val state = when {
-            isBuffering -> PlaybackState.STATE_BUFFERING
-            isPlaying -> PlaybackState.STATE_PLAYING
-            else -> PlaybackState.STATE_PAUSED
+        /**
+         * In a group a refused focus is this member's own business: pausing the
+         * group re-paused everyone on each resume for as long as the call
+         * lasted. Only this player stops.
+         */
+        override fun pauseForRefusedFocus() {
+            if (viewModel.syncPlayActive) viewModel.pauseLocal() else viewModel.pause()
         }
 
-        val positionMs = (viewModel.displayPosition * 1000).toLong()
-        val speedFloat = if (isPlaying) viewModel.speed.toFloat() else 0f
-
-        val actions = PlaybackState.ACTION_PLAY or
-                PlaybackState.ACTION_PAUSE or
-                PlaybackState.ACTION_PLAY_PAUSE or
-                PlaybackState.ACTION_SEEK_TO or
-                PlaybackState.ACTION_FAST_FORWARD or
-                PlaybackState.ACTION_REWIND or
-                PlaybackState.ACTION_SKIP_TO_NEXT or
-                PlaybackState.ACTION_SKIP_TO_PREVIOUS
-
-        val stateBuilder = PlaybackState.Builder()
-            .setActions(actions)
-            .setState(state, positionMs, speedFloat)
-
-        session.setPlaybackState(stateBuilder.build())
-    }
-
-    fun updateMetadata() {
-        val session = mediaSession ?: return
-        val meta = viewModel.metadata
-
-        val title = meta?.title ?: "Video"
-        val subtitle = meta?.subtitle ?: ""
-        val durationMs = (viewModel.duration * 1000).toLong()
-
-        val builder = MediaMetadata.Builder()
-            .putString(MediaMetadata.METADATA_KEY_TITLE, title)
-            .putString(MediaMetadata.METADATA_KEY_ARTIST, subtitle)
-            .putString(MediaMetadata.METADATA_KEY_ALBUM, subtitle)
-            .putLong(MediaMetadata.METADATA_KEY_DURATION, durationMs)
-
-        session.setMetadata(builder.build())
-
-        meta?.artworkUri?.let { uri ->
-            fetchArtworkAsync(uri, builder)
+        override fun seekTo(seconds: Double) = viewModel.seekTo(seconds)
+        override fun seekBy(seconds: Double) = viewModel.seekBy(seconds)
+        override fun skipToNext() = viewModel.playNextEpisodeNow()
+        override fun skipToPrevious() {
+            if (viewModel.syncPlayActive) viewModel.playPreviousEpisode()
+            else viewModel.seekTo(0.0)
         }
-    }
 
-    private fun fetchArtworkAsync(artworkUri: String, baseBuilder: MediaMetadata.Builder) {
-        artworkJob?.cancel()
-        artworkJob = scope.launch {
-            try {
-                val bitmap = if (artworkUri.startsWith("file://")) {
-                    val path = Uri.parse(artworkUri).path ?: artworkUri.removePrefix("file://")
-                    BitmapFactory.decodeFile(File(path).absolutePath)
-                } else {
-                    val url = URL(artworkUri)
-                    url.openStream().use { BitmapFactory.decodeStream(it) }
-                }
-                if (bitmap != null) {
-                    baseBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
-                    baseBuilder.putBitmap(MediaMetadata.METADATA_KEY_ART, bitmap)
-                    mediaSession?.setMetadata(baseBuilder.build())
-                }
-            } catch (e: Exception) {
-                // Ignore artwork fetch failures
-            }
+        // Solo playback keeps ignoring Stop, as before SyncPlay.
+        override fun stop() {
+            if (viewModel.syncPlayActive) viewModel.syncPlayAction("stop")
         }
-    }
 
-    private fun requestAudioFocus() {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-            .build()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(audioAttributes)
-                .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener(afChangeListener)
-                .build()
-            audioFocusRequest = req
-            audioManager.requestAudioFocus(req)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                afChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
-            )
+        override fun duck(percent: Int?) {
+            viewModel.engine?.setVolumeBoost(percent ?: viewModel.volumeBoostPercent)
         }
+
+        // Swiped away, the app keeps running for the foreground service, and a
+        // player left presented made every later play request fail.
+        override fun onTaskRemoved() = this@MediaSessionController.onTaskRemoved()
     }
 
-    private fun abandonAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(afChangeListener)
-        }
-    }
+    private val controller = MediaPlaybackController(context, target, "StreamyfinNativePlayer")
 
-    private fun registerNoisyReceiver() {
-        if (noisyReceiverRegistered) return
-        try {
-            val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-            context.registerReceiver(noisyReceiver, filter)
-            noisyReceiverRegistered = true
-        } catch (e: Exception) {
-            // Ignored
-        }
-    }
+    fun start() = controller.start()
+    fun updatePlaybackState() = controller.updatePlaybackState()
+    fun updateMetadata() = controller.updateMetadata()
+    fun onPositionTick() = controller.onPositionTick()
+    fun release() = controller.release()
+}
 
-    private fun unregisterNoisyReceiver() {
-        if (!noisyReceiverRegistered) return
-        try {
-            context.unregisterReceiver(noisyReceiver)
-            noisyReceiverRegistered = false
-        } catch (e: Exception) {
-            // Ignored
-        }
-    }
-
-    fun release() {
-        artworkJob?.cancel()
-        unregisterNoisyReceiver()
-        abandonAudioFocus()
-        mediaSession?.let {
-            it.isActive = false
-            it.release()
-        }
-        mediaSession = null
-    }
+/**
+ * The lock screen and notification metadata of the native player. The artwork
+ * headers are the user's custom proxy headers: without them a server behind
+ * such a proxy refused the artwork, retried every 30 s.
+ */
+internal fun nowPlayingInfo(metadata: MetadataRecord?): NowPlayingInfo? = metadata?.let {
+    NowPlayingInfo(
+        title = it.title ?: "Video",
+        subtitle = it.subtitle,
+        artworkUri = it.artworkUri,
+        artworkHeaders = it.artworkHeaders
+            ?.mapNotNull { (name, value) -> (value as? String)?.let { name to it } }
+            ?.toMap()
+            ?.takeIf { headers -> headers.isNotEmpty() },
+    )
 }

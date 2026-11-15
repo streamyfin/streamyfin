@@ -14,12 +14,7 @@ import {
 import type { LibraryKind } from "@/utils/library/libraryFilterSets";
 import { useFilterReset } from "./useFilterReset";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // settings.ts drags in the provider stack and the reset reads none of it.
-jest.mock("@/utils/atoms/settings", () => ({ useSettings: () => ({}) }));
 
 // A library screen puts its sort on the baseline when it gains focus; the
 // atom's own default counts as a changed sort.

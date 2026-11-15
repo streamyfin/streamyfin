@@ -4,6 +4,10 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import { SeasonDropdown } from "./SeasonDropdown";
 
+jest.mock("react-i18next", () =>
+  jest.requireActual("@/test-utils/realI18next"),
+);
+
 // The closed menu, then the options as their labels; the menu itself is not
 // under test.
 jest.mock("../PlatformDropdown", () => ({

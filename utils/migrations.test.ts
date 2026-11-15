@@ -1,9 +1,3 @@
-// Only so importing the module (which pulls in @/utils/mmkv) doesn't reach for
-// the native store — the tests below drive an injected store, not this one.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // this spec's module under test actually calls.
 const errors: string[] = [];
@@ -16,6 +10,8 @@ jest.mock("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
+// Importing the module pulls in @/utils/mmkv, which lands on the in-memory
+// double — the tests below drive an injected store, not this one.
 import { LATEST_SCHEMA_VERSION, runStorageMigrations } from "./migrations";
 
 const data = new Map<string, boolean | number | string>();
@@ -169,5 +165,88 @@ describe("the Seerr session", () => {
 
     expect(data.get("SEERR_USER")).toBe('{"id":9}');
     expect(data.has("JELLYSEERR_USER")).toBe(false);
+  });
+});
+
+describe("the default quality", () => {
+  const settings = (stored: Record<string, unknown>) =>
+    data.set("settings", JSON.stringify(stored));
+  const storedQuality = () =>
+    JSON.parse(data.get("settings") as string).defaultBitrate;
+
+  // An install from before Auto, past every migration that came before it.
+  beforeEach(() => {
+    data.set("storageSchemaVersion", 4);
+  });
+
+  // Max was the default, and saving any setting stored the defaults with it:
+  // a Max on the device cannot be told from one nobody picked.
+  test("moves from Max, the old default, to Auto", () => {
+    settings({ defaultBitrate: { key: "Max" }, forwardSkipTime: 15 });
+
+    runStorageMigrations(store);
+
+    expect(storedQuality()).toEqual({ key: "Auto" });
+    expect(JSON.parse(data.get("settings") as string).forwardSkipTime).toBe(15);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("moves once: Max picked again afterwards stays Max", () => {
+    settings({ defaultBitrate: { key: "Max" } });
+    runStorageMigrations(store);
+
+    settings({ defaultBitrate: { key: "Max" } });
+    runStorageMigrations(store);
+
+    expect(storedQuality()).toEqual({ key: "Max" });
+  });
+
+  test("keeps a fixed quality", () => {
+    settings({ defaultBitrate: { key: "8 Mb/s", value: 8_000_000 } });
+
+    runStorageMigrations(store);
+
+    expect(storedQuality()).toEqual({ key: "8 Mb/s", value: 8_000_000 });
+  });
+
+  // The plugin's Max is a default without a value, which the app now reads as
+  // its own default, Auto: the Max it seeded moves with the others.
+  test("moves a Max the server's plugin set to Auto too", () => {
+    settings({ defaultBitrate: { key: "Max" } });
+    data.set(
+      "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS",
+      JSON.stringify({ defaultBitrate: { key: "Max" } }),
+    );
+
+    runStorageMigrations(store);
+
+    expect(storedQuality()).toEqual({ key: "Auto" });
+  });
+
+  test("leaves the plugin's own settings as they are", () => {
+    const locked = JSON.stringify({ defaultBitrate: { locked: true } });
+    settings({ defaultBitrate: { key: "Max" } });
+    data.set("STREAMYFIN_PLUGIN_SETTINGS", locked);
+
+    runStorageMigrations(store);
+
+    expect(data.get("STREAMYFIN_PLUGIN_SETTINGS")).toBe(locked);
+  });
+
+  test("leaves settings it cannot read for the settings to report", () => {
+    data.set("settings", '{"defaultBitrate":');
+
+    runStorageMigrations(store);
+
+    expect(data.get("settings")).toBe('{"defaultBitrate":');
+    expect(errors).toEqual([]);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
+  });
+
+  test("has nothing to move on a device without settings", () => {
+    runStorageMigrations(store);
+
+    expect(data.has("settings")).toBe(false);
+    expect(version()).toBe(LATEST_SCHEMA_VERSION);
   });
 });

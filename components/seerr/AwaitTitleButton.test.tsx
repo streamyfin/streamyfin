@@ -33,10 +33,6 @@ jest.mock("@/hooks/useMyNotifications", () => ({
   useMyNotifications: () => ({ mine: mockMine }),
 }));
 // Button reaches the settings, and through them native modules, for its haptics.
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const matrix = {
   id: 603,

@@ -4,7 +4,7 @@ import {
   type UseQueryResult,
   useQuery,
 } from "@tanstack/react-query";
-import { useFocusEffect } from "expo-router/react-navigation";
+import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 
 export function useReactNavigationQuery<

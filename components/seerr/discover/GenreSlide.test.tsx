@@ -8,49 +8,24 @@ import GenreSlide from "./GenreSlide";
 import { TVGenreSlide } from "./TVGenreSlide";
 
 jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
 );
+
 // Ships as ES modules, which Jest does not load, and nothing here toasts.
-jest.mock("sonner-native", () => ({ toast: {} }));
-// The real log loads Sentry, whose timers keep Jest from exiting.
-jest.mock("@/utils/log", () => ({
-  writeToLog: jest.fn(),
-  writeErrorLog: jest.fn(),
-  logAndCaptureError: jest.fn(),
-}));
 // The settings atom imports the screens that edit it. The TV row only reads
 // the typography scale, and the Seerr client nothing.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: { Default: "default" },
-  useSettings: () => ({ settings: { tvTypographyScale: "default" } }),
-}));
 // The real client, answering what the test says, behind the hook the slides
 // read it from.
 jest.mock("@/hooks/useSeerr", () => ({
   ...jest.requireActual("@/hooks/useSeerr"),
   useSeerr: () => ({ seerrApi: mockSeerrApi }),
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
-jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 // FlashList ships as ES modules, which Jest does not load. FlatList reads the
 // row the same way: as many items as `data.length`, each through
 // `keyExtractor(data[index])`, which is where the phone's row crashed.
 jest.mock("@shopify/flash-list", () => ({
   FlashList: jest.requireActual("react-native").FlatList,
-}));
-// The rows' headings, by their keys: the TV's through the hook, the phone's
-// through i18next itself.
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("i18next", () => ({
-  ...jest.requireActual("i18next"),
-  t: (key: string) => key,
 }));
 
 let mockSeerrApi: SeerrApi;

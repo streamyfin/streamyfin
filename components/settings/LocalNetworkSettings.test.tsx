@@ -4,47 +4,30 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { storage } from "@/utils/mmkv";
 import { getServerLocalConfig } from "@/utils/secureCredentials";
-import type { ServerProbeOutcome } from "@/utils/serverUrl/types";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { LocalNetworkSettings } from "./LocalNetworkSettings";
 
-const mockProbe = jest.fn<Promise<ServerProbeOutcome>, [string]>();
-const mockToastError = jest.fn();
-const mockToastInfo = jest.fn();
+const mockProbe = jest.mocked(jellyfinProbe);
+const mockToastError = jest.mocked(toast.error);
+const mockToastInfo = jest.mocked(toast.info);
 const mockRefreshUrlState = jest.fn();
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The saved-server store imports the log module, which loads Sentry and its
-// timers. Nothing on the path under test logs.
-jest.mock("@/utils/log", () => ({ logAndCaptureError: () => undefined }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("sonner-native", () => ({
-  toast: {
-    error: (message: string) => mockToastError(message),
-    info: (message: string) => mockToastInfo(message),
-    success: () => {},
-  },
-}));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 jest.mock("@/hooks/useWifiSSID", () => ({
   useWifiSSID: () => ({
     permissionStatus: "granted",
     requestPermission: async () => true,
   }),
 }));
-jest.mock("@/modules/wifi-ssid", () => ({ openLocationSettings: () => {} }));
 jest.mock("@/providers/ServerUrlProvider", () => ({
   useServerUrl: () => ({
     isUsingLocalUrl: false,
@@ -52,9 +35,6 @@ jest.mock("@/providers/ServerUrlProvider", () => ({
     connectedToWifi: true,
     refreshUrlState: mockRefreshUrlState,
   }),
-}));
-jest.mock("@/utils/serverUrl/probes/jellyfin", () => ({
-  jellyfinProbe: (url: string) => mockProbe(url),
 }));
 
 const REMOTE_URL = "https://jellyfin.example.com";

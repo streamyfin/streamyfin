@@ -19,6 +19,7 @@ import {
   TVFocusGuideView,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from "react-native";
 import Animated, {
   Easing,
@@ -29,7 +30,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import {
   TVControlButton,
@@ -53,14 +53,21 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import {
+  type BitrateRequest,
+  parseBitrateParam,
+  playerQualityOptions,
+} from "@/utils/bitrate";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import { episodeSubtitle } from "@/utils/episodeLabel";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { useSegments } from "@/utils/segments";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -99,7 +106,7 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
-  onBitrateChange?: (bitrate: number | undefined) => void;
+  onBitrateChange?: (bitrate: BitrateRequest | undefined) => void;
   /** Combined device-volume and player mute state. */
   isMuted?: boolean;
   /** Toggles the player's own mute; omit to hide the control. */
@@ -254,15 +261,15 @@ export const Controls: FC<Props> = ({
 }) => {
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const { t } = useTranslation();
 
   // Calculate progress bar width (matches the padding used in bottomInner)
   const progressBarWidth = useMemo(() => {
     const leftPadding = Math.max(insets.left, 48);
     const rightPadding = Math.max(insets.right, 48);
-    return screenWidth - leftPadding - rightPadding;
-  }, [screenWidth, insets.left, insets.right]);
+    return windowWidth - leftPadding - rightPadding;
+  }, [windowWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   // Decides where a matched alternate version starts, see
@@ -305,10 +312,16 @@ export const Controls: FC<Props> = ({
 
   // State for progress bar focus and focus guide refs
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
-  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
-  const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
-  const [skipSegmentRef, setSkipSegmentRef] = useState<View | null>(null);
-  const [nextEpisodeRef, setNextEpisodeRef] = useState<View | null>(null);
+  const [playButtonRef, setPlayButtonRef] = useState<ViewInstance | null>(null);
+  const [progressBarRef, setProgressBarRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [skipSegmentRef, setSkipSegmentRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [nextEpisodeRef, setNextEpisodeRef] = useState<ViewInstance | null>(
+    null,
+  );
 
   // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
   const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
@@ -318,7 +331,7 @@ export const Controls: FC<Props> = ({
   );
 
   // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
-  const focusOverlayRef = useRef<View>(null);
+  const focusOverlayRef = useRef<ViewInstance>(null);
 
   // The row travels as the option value (same shape the TV item page uses) so
   // the selection handler can persist the pick without re-deriving its language
@@ -349,19 +362,17 @@ export const Controls: FC<Props> = ({
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
-  // string, "" meaning Max (no limit) — same encoding as the bitrateValue
-  // route param, so selection matching is a plain string compare.
-  const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
-    return BITRATES.map((bitrate) => ({
-      label: bitrate.key,
-      value: bitrate.value?.toString() ?? "",
-      selected: (bitrateValue ?? "") === (bitrate.value?.toString() ?? ""),
-    }));
-  }, [bitrateValue]);
+  // string, "max" Max (no limit) and "auto" Auto — same encoding as the
+  // bitrateValue route param, so selection matching is a plain string compare.
+  // A route that names none plays at the default quality, marked as such.
+  const bitrateOptions: TVOptionItem<string>[] = useMemo(
+    () => playerQualityOptions(t, bitrateValue, settings.defaultBitrate, item),
+    [bitrateValue, settings.defaultBitrate, t, item],
+  );
 
   const handleBitrateChange = useCallback(
     (value: string) => {
-      onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
+      onBitrateChange?.(parseBitrateParam(value));
     },
     [onBitrateChange],
   );
@@ -570,7 +581,7 @@ export const Controls: FC<Props> = ({
   ]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
-  const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
+  const isLiveTV = isLiveTvItem(item);
 
   // For live TV, determine if we're at the live edge (within 5 seconds of max)
   const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms
@@ -1092,7 +1103,7 @@ export const Controls: FC<Props> = ({
       let raf = 0;
       let attempts = 0;
       const tryFocus = () => {
-        focusOverlayRef.current?.requestTVFocus();
+        requestTVFocus(focusOverlayRef.current);
         attempts += 1;
         // ~5 frames of retries; harmless since nothing else is focusable
         // while the controls are hidden.
@@ -1127,7 +1138,7 @@ export const Controls: FC<Props> = ({
       let raf = 0;
       let attempts = 0;
       const tryFocus = () => {
-        playButtonRef.requestTVFocus();
+        requestTVFocus(playButtonRef);
         attempts += 1;
         if (attempts < 5) {
           raf = requestAnimationFrame(tryFocus);

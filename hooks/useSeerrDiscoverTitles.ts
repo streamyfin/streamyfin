@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { uniqBy } from "lodash";
+import uniqBy from "lodash/uniqBy";
 import { useMemo } from "react";
 import { Endpoints, useSeerr } from "@/hooks/useSeerr";
 import { nextResultsPage } from "@/utils/seerr/search";

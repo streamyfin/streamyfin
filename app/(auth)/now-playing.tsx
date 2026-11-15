@@ -16,10 +16,10 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   ScrollView,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -27,7 +27,6 @@ import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
-import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
 import {
   DraggableQueueList,
@@ -41,18 +40,16 @@ import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
+import { useNowPlayingVolume } from "@/hooks/useNowPlayingVolume";
+import { isSystemVolumeAvailable } from "@/modules/system-volume";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
+import { squareArtworkSide } from "@/utils/artworkSize";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
-
-// Conditionally require VolumeManager (not available on TV)
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
 
 const formatFileSize = (bytes?: number | null) => {
   if (!bytes) return null;
@@ -66,9 +63,6 @@ const formatSampleRate = (sampleRate?: number | null) => {
   if (!sampleRate) return null;
   return `${(sampleRate / 1000).toFixed(1)} kHz`;
 };
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ARTWORK_SIZE = SCREEN_WIDTH - 80;
 
 type ViewMode = "player" | "queue";
 
@@ -414,34 +408,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onOptionsPress,
   isCastConnected,
 }) => {
+  const windowSize = useWindowDimensions();
+  // The square follows the window's short side, see utils/artworkSize.ts.
+  const artworkSize = squareArtworkSide(windowSize, { inset: 80 });
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
 
-  // Volume slider state
-  const volumeProgress = useSharedValue(0);
+  // Volume slider state, covered by hooks/useNowPlayingVolume.test.ts
+  const { volume: volumeProgress, setVolume: handleVolumeChange } =
+    useNowPlayingVolume(isCastConnected);
   const volumeMin = useSharedValue(0);
   const volumeMax = useSharedValue(1);
   const isTv = Platform.isTV;
-
-  useEffect(() => {
-    if (isTv || !VolumeManager) return;
-    // Get initial volume
-    VolumeManager.getVolume().then(({ volume }: { volume: number }) => {
-      volumeProgress.value = volume;
-    });
-    // Listen to volume changes
-    const listener = VolumeManager.addVolumeListener((result: VolumeResult) => {
-      volumeProgress.value = result.volume;
-    });
-    return () => listener.remove();
-  }, [isTv, volumeProgress]);
-
-  const handleVolumeChange = useCallback((value: number) => {
-    if (VolumeManager) {
-      VolumeManager.setVolume(value);
-    }
-  }, []);
 
   const fileSize = formatFileSize(mediaSource?.Size);
   const codec = audioStream?.Codec?.toUpperCase();
@@ -457,8 +436,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View
         className='self-center mb-8 mt-4'
         style={{
-          width: ARTWORK_SIZE,
-          height: ARTWORK_SIZE,
+          width: artworkSize,
+          height: artworkSize,
           borderRadius: 12,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
@@ -646,7 +625,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </View>
 
       {/* Volume Slider */}
-      {!isTv && VolumeManager && (
+      {!isTv && isSystemVolumeAvailable() && (
         <View className='flex-row items-center mb-6'>
           <Ionicons name='volume-low' size={20} color='#666' />
           <View className='flex-1 mx-3'>

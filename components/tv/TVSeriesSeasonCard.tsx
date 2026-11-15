@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
-import { Animated, Easing, Platform, Pressable, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
@@ -18,7 +25,7 @@ export interface TVSeriesSeasonCardProps {
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
   /** Setter function for the ref (for focus guide destinations) */
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 }
 
 export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({

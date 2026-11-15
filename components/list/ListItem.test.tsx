@@ -2,10 +2,6 @@ import { render, screen } from "@testing-library/react-native";
 import { StyleSheet, Switch, TextInput } from "react-native";
 import { ListItem } from "./ListItem";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 // Android's wider font wrapped settings hints past a two-line cap, so they
 // ended in an ellipsis next to the toggle while iOS showed them in full.
 describe("ListItem", () => {

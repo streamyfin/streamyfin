@@ -23,6 +23,14 @@ data class VideoLoadConfig(
     val cacheSeconds: Int? = null,
     val demuxerMaxBytes: Int? = null,
     val demuxerMaxBackBytes: Int? = null,
+    /**
+     * Content frame rate in fps, from the server's MediaStreams.RealFrameRate.
+     * Direct-played MKV never gives the demuxer a frame rate, so the session
+     * uses this to pick a matching display mode — without it the decoder
+     * starts on its built-in default and the vendor's HDMI frame-rate
+     * adaptation fires before the real rate is known.
+     */
+    val contentFrameRate: Double? = null,
 )
 
 /**

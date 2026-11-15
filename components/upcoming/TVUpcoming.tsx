@@ -135,7 +135,7 @@ export const TVUpcoming: React.FC<Props> = ({ parentId }) => {
           }}
           onEndReached={loadMore}
           onEndReachedThreshold={1}
-          ListFooterComponent={isFetchingNextPage ? <Loader /> : null}
+          ListFooterComponent={isFetchingNextPage ? <Loader /> : undefined}
         />
       )}
     </View>

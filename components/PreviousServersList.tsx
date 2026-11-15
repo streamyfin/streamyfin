@@ -3,7 +3,9 @@ import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, TouchableOpacity, View } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useMMKVString } from "react-native-mmkv";
 import { Colors } from "@/constants/Colors";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -238,7 +240,10 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
   );
 
   const renderRightActions = useCallback(
-    (serverUrl: string, swipeableRef: React.RefObject<Swipeable | null>) => (
+    (
+      serverUrl: string,
+      swipeableRef: React.RefObject<SwipeableMethods | null>,
+    ) => (
       <View className='flex-row'>
         <TouchableOpacity
           onPress={() => {
@@ -382,7 +387,7 @@ interface ServerItemProps {
   onRemoveCredential: () => void;
   renderRightActions: (
     serverUrl: string,
-    swipeableRef: React.RefObject<Swipeable | null>,
+    swipeableRef: React.RefObject<SwipeableMethods | null>,
   ) => React.ReactNode;
   subtitle?: string;
   securityIcon: keyof typeof Ionicons.glyphMap | null;
@@ -397,11 +402,11 @@ const ServerItem: React.FC<ServerItemProps> = ({
   subtitle,
   securityIcon,
 }) => {
-  const swipeableRef = useRef<Swipeable>(null);
+  const swipeableRef = useRef<SwipeableMethods>(null);
   const hasAccounts = server.accounts?.length > 0;
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       ref={swipeableRef}
       renderRightActions={() =>
         renderRightActions(server.address, swipeableRef)
@@ -430,6 +435,6 @@ const ServerItem: React.FC<ServerItemProps> = ({
           </TouchableOpacity>
         ) : null}
       </ListItem>
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 };

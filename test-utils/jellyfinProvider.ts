@@ -19,3 +19,12 @@ export const jellyfinProviderModule = {
   ...apiAtomsModule,
   pendingAccountSaveAtom: atom(false),
 };
+
+/**
+ * `@/providers/JellyfinProvider` holding just the atoms a spec reads: the
+ * api and the signed in user, `null` when it has none.
+ */
+export const makeJellyfinAtomsModule = (
+  api: unknown = null,
+  user: unknown = null,
+) => ({ apiAtom: atom(api), userAtom: atom(user) });

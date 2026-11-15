@@ -8,7 +8,7 @@ import path from "node:path";
  */
 const SCREEN = path.join(
   __dirname,
-  "../../../app/(auth)/(tabs)/(home)/settings.tv.tsx",
+  "../../../app/(auth)/(tabs)/(more)/settings.tv.tsx",
 );
 
 /**

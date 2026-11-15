@@ -48,8 +48,8 @@ describe("CLAUDE.md stays true", () => {
     expect(missing(documentedModules, modules)).toEqual([]);
   });
 
-  // The combined group holds routes shared by several tabs; it is described in
-  // its own sentence rather than listed as a tab.
+  // The combined groups hold routes shared by several tabs; they are described
+  // in their own sentence rather than listed as tabs.
   const tabs = directories("app/(auth)/(tabs)").filter(
     (name) => name.startsWith("(") && !name.includes(","),
   );

@@ -176,7 +176,7 @@ jobs:
 
       - name: ☕ Set up JDK 17
         # The repack needs Java for the apktool that repack-app runs.
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "17"
@@ -203,7 +203,7 @@ jobs:
           tv: "0"
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this APK and repack it.
@@ -267,7 +267,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+            uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
             with:
               distribution: temurin
               java-version: "17"
@@ -318,7 +318,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this APK and repack it.
@@ -361,7 +361,7 @@ jobs:
 
       - name: ☕ Set up JDK 17
         # The repack needs Java for the apktool that repack-app runs.
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "17"
@@ -388,7 +388,7 @@ jobs:
           tv: "1"
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this APK and repack it.
@@ -449,7 +449,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+            uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
             with:
               distribution: temurin
               java-version: "17"
@@ -499,7 +499,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this APK and repack it.
@@ -570,7 +570,7 @@ jobs:
           build-profile: ci
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.
@@ -591,7 +591,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin') && (needs.fingerprint.outputs.ios_phone_source == '' || needs.repack-ios-phone.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
@@ -614,14 +614,8 @@ jobs:
               # renovate: datasource=npm depName=bun
               bun-version: "1.4.4"
 
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
-
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            uses: expo/expo-github-action@5273c2136bd09c2a341fe3340d3e767ce5a13015 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}
@@ -653,7 +647,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.
@@ -717,7 +711,7 @@ jobs:
           tv: "0"
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.
@@ -738,7 +732,7 @@ jobs:
     # which would count as a pass. The full build runs when no earlier IPA can
     # be repacked or the repack job did not succeed.
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_phone_unsigned_source == '' || needs.repack-ios-phone-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
@@ -754,18 +748,11 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - parallel:
-          - name: 🍞 Setup Bun
-            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-            with:
-              # renovate: datasource=npm depName=bun
-              bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -791,7 +778,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.
@@ -853,7 +840,7 @@ jobs:
           tv: "1"
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.
@@ -876,7 +863,7 @@ jobs:
     # be repacked or the repack job did not succeed.
     needs: [fingerprint, repack-ios-tv-unsigned]
     if: ${{ always() && !cancelled() && !contains(github.event.head_commit.message, '[skip ci]') && (needs.fingerprint.outputs.ios_tv_unsigned_source == '' || needs.repack-ios-tv-unsigned.result != 'success') }}
-    runs-on: macos-26
+    runs-on: xcode-27
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
@@ -892,18 +879,11 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - parallel:
-          - name: 🍞 Setup Bun
-            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-            with:
-              # renovate: datasource=npm depName=bun
-              bun-version: "1.4.4"
-
-          - name: 🔧 Setup Xcode
-            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-            with:
-              # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.6"
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -929,7 +909,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           # Named after the fingerprint, so a later run with the same native
           # code can find this IPA and repack it.

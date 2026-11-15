@@ -7,7 +7,6 @@ jest.mock("i18next", () => ({
   t: (key: string, params?: { server?: string }) =>
     params?.server ? `${key} (${params.server})` : key,
 }));
-jest.mock("@/hooks/useTVBackPress", () => ({ useTVBackPress: () => {} }));
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 20, heading: 28 }),
@@ -21,10 +20,6 @@ const MockTVButton = (props: {
   onPress: () => void;
   children: React.ReactNode;
 }) => <Pressable onPress={props.onPress}>{props.children}</Pressable>;
-jest.mock("react-native-qrcode-svg", () => ({
-  __esModule: true,
-  default: () => null,
-}));
 
 const renderTurnedOff = (serverName?: string) =>
   render(

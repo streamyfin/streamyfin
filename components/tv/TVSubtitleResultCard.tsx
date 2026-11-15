@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  type ViewInstance,
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -22,7 +23,7 @@ export interface TVSubtitleResultCardProps {
 }
 
 export const TVSubtitleResultCard = React.forwardRef<
-  View,
+  ViewInstance,
   TVSubtitleResultCardProps
 >(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
   const typography = useScaledTVTypography();

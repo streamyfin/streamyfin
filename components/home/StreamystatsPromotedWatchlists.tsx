@@ -79,7 +79,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
 
   const handleSeeAll = () => {
     router.push({
-      pathname: "/(auth)/(tabs)/(watchlists)/[watchlistId]",
+      pathname: "/watchlists/[watchlistId]",
       params: { watchlistId: watchlist.id.toString() },
     } as any);
   };

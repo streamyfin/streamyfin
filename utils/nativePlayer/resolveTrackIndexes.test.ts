@@ -2,27 +2,8 @@ import type {
   BaseItemDto,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
-import type { Settings } from "@/utils/atoms/settings";
-
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
-// The log module reaches Sentry, whose client keeps a timer running past the
-// last test, so it is stubbed with the surface the modules under test call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
-
 import { clearMmkv } from "@/test-utils/mmkv";
+import type { Settings } from "@/utils/atoms/settings";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 const stream = (
@@ -64,7 +45,11 @@ describe("offline", () => {
       item: simple,
       settings,
       offline: true,
-      downloaded: { audioStreamIndex: 3, subtitleStreamIndex: 4 },
+      downloaded: {
+        audioStreamIndex: 3,
+        subtitleStreamIndex: 4,
+        isTranscoded: false,
+      },
       requested: {},
     });
     expect(result).toEqual({ audioIndex: 3, subtitleIndex: 4 });
@@ -75,7 +60,11 @@ describe("offline", () => {
       item: simple,
       settings,
       offline: true,
-      downloaded: { audioStreamIndex: 1, subtitleStreamIndex: -1 },
+      downloaded: {
+        audioStreamIndex: 1,
+        subtitleStreamIndex: -1,
+        isTranscoded: false,
+      },
       requested: {},
     });
     expect(result.subtitleIndex).toBe(-1);
@@ -95,12 +84,30 @@ describe("offline", () => {
     expect(result.audioIndex).toBeUndefined();
   });
 
+  // Records written by 0.51 and older hold 0 for both tracks as a
+  // placeholder, and no isTranscoded: index 0 is then a sidecar the user
+  // never picked.
+  test("ignores the placeholders of a record from before tracks were recorded", () => {
+    const result = resolveTrackIndexes({
+      item: simple,
+      settings,
+      offline: true,
+      downloaded: { audioStreamIndex: 0, subtitleStreamIndex: 0 },
+      requested: {},
+    });
+    expect(result).toEqual({ audioIndex: undefined, subtitleIndex: -1 });
+  });
+
   test("an explicit request still wins over the record", () => {
     const result = resolveTrackIndexes({
       item: simple,
       settings,
       offline: true,
-      downloaded: { audioStreamIndex: 3, subtitleStreamIndex: 4 },
+      downloaded: {
+        audioStreamIndex: 3,
+        subtitleStreamIndex: 4,
+        isTranscoded: false,
+      },
       requested: { audioIndex: 9, subtitleIndex: 8 },
     });
     expect(result).toEqual({ audioIndex: 9, subtitleIndex: 8 });
