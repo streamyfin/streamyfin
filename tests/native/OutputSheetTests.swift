@@ -290,7 +290,7 @@ enum OutputSheetTests {
       let network = [1, 2, 14, 17, 92].allSatisfy { (code: Int) in
         failureCause(error: "Cast error \(code)", code: code) == .network
       }
-      let receiver = [20, 21, 104, 105, 106, 107].allSatisfy { (code: Int) in
+      let receiver = [20, 21, 104].allSatisfy { (code: Int) in
         failureCause(error: "Cast error \(code)", code: code) == .receiverUnavailable
       }
       check(
@@ -304,6 +304,15 @@ enum OutputSheetTests {
           && network && receiver
           && failureCause(error: "Cast error 30", code: 30) == .other("Cast error 30")
       )
+    }
+
+    // The SDK rejoining a session whose receiver app is gone: relaunched after the Chromecast restarted, the row read
+    // "could not start" for a connection nobody asked (GCKError 106, bench, 15/11). That connection was lost.
+    do {
+      let rejoined = [105, 106, 107].allSatisfy { (code: Int) in
+        failureCause(error: "Cast error \(code)", code: code) == .network
+      }
+      check("aReceiverAppGoneWhenRejoinedReadsAsALostConnection", rejoined)
     }
 
     // A cause outside the families reads as a failed connection: the SDK's own text, untranslated and with its
