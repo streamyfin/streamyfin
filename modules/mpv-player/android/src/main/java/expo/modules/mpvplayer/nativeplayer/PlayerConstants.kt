@@ -34,4 +34,9 @@ object PlayerConstants {
     // override at the TvPlayerScreen root — the dp/sp values in the ui/tv
     // composables were authored too large for a 10-foot layout.
     const val TV_CHROME_SCALE = 0.7f
+
+    // The fake remote engine (tests, debug probe): how long its "TV" takes to load, and how long each of its
+    // default items lasts. iOS: PlayerConstants.fakeRemoteLoadMs and fakeRemoteItemSec.
+    const val FAKE_REMOTE_LOAD_MS = 600L
+    const val FAKE_REMOTE_ITEM_SEC = 120.0
 }
