@@ -32,6 +32,9 @@ public class CastAppDelegate: ExpoAppDelegateSubscriber {
     #if DEBUG
     // The device proof of the Cast engine, armed by `-CastEngineProbe YES` at launch.
     if UserDefaults.standard.bool(forKey: CastEngineProbeScript.launchArgument) { CastEngineProbe.arm() }
+    // The device proof of the remote screen, armed by `-RemotePlayerProbe YES`: each
+    // `expo.modules.mpvplayer.REMOTE_PLAYER_PROBE` Darwin notification then opens it over a fake TV.
+    if UserDefaults.standard.bool(forKey: RemotePlayerProbe.launchArgument) { RemotePlayerProbe.arm() }
     // The device proof of the remote target, armed by `-CastTargetProbe <part of a receiver's name>`
     // (`-CastTargetProbeKeep YES` leaves the session up, `-CastTargetProbeHold <ms>` holds it longer,
     // `-CastTargetProbeBack YES` asks the receiver a switch leaves again before its session ends,

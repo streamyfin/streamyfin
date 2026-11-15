@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug builds only: adb arms the Cast engine and remote target probes (e2e/suites/cast/README.md).
+<!-- Debug builds only: adb arms the Cast engine, remote target and remote player probes (e2e/suites/cast/README.md).
      The DUMP permission keeps the broadcasts to the shell, which holds it, and away from other apps. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
@@ -17,6 +17,14 @@
             android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="expo.modules.mpvplayer.CAST_TARGET_PROBE" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="expo.modules.mpvplayer.REMOTE_PLAYER_PROBE" />
             </intent-filter>
         </receiver>
     </application>

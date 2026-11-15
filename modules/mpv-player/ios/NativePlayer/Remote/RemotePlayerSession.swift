@@ -34,7 +34,8 @@ final class RemotePlayerSession: PresentedPlayer {
 		}
 	}
 
-	func present(config: RemotePlayerConfigRecord, promise: Promise) throws {
+	/// `onPresented` runs once the screen is up; the module resolves its promise there, the debug probe logs.
+	func present(config: RemotePlayerConfigRecord, onPresented: @escaping () -> Void) throws {
 		guard let presenter = resolvePlayerPresenter(from: presenterProvider()) else {
 			throw NoPresenterException()
 		}
@@ -49,9 +50,7 @@ final class RemotePlayerSession: PresentedPlayer {
 
 		// Starting a bound engine again does nothing: the TV keeps playing what it plays.
 		try engine.start()
-		presenter.present(vc, animated: true) {
-			promise.resolve()
-		}
+		presenter.present(vc, animated: true, completion: onPresented)
 	}
 
 	/// Emits onDismiss, slides the screen away, then hands the engine back: never stop() nor shutdown(),

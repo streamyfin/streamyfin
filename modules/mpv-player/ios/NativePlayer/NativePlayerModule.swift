@@ -168,7 +168,7 @@ public class NativePlayerModule: Module {
 			)
 			self.presented = remote
 			do {
-				try remote.present(config: config, promise: promise)
+				try remote.present(config: config) { promise.resolve() }
 			} catch {
 				remote.teardownImmediately()
 				self.presented = nil
