@@ -45,6 +45,18 @@ final class GoogleCastTargetPort: TargetPort {
   private var discovering = false
   // The receiver a switch is waiting to start, once the SDK reports the end of the session before it.
   private var pendingSwitch: TargetDevice?
+  // A session ended before it was up, a launch or a suspended session reconnecting, which the hub was told ended at
+  // once. Ending it then reaches no receiver: a suspended session's Stop was lost, the TV went on playing and the app
+  // could not connect to it again (iPhone, Wi-Fi cut, 14/11), and a launch goes on and leaves the receiver app open
+  // (bench, 04/11, Android). The session is ended once it is up instead, as the Android port does. Its events stay
+  // away from the hub until that end.
+  private var endedEarly: EndedEarly?
+
+  /// `stopWhenUp` is the stop asked, nil once none is due: sent already, or a switch ends the session.
+  private struct EndedEarly {
+    let device: TargetDevice
+    var stopWhenUp: Bool?
+  }
 
   init(
     routes: @escaping () -> [CastTargetRoute],
@@ -88,6 +100,7 @@ final class GoogleCastTargetPort: TargetPort {
 
   func stop() {
     pendingSwitch = nil
+    endedEarly = nil
     stopDiscovery()
     watchSessions(nil)
     watchDevices(nil)
@@ -121,8 +134,13 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func connect(_ device: TargetDevice) {
-    let switching = pendingSwitch != nil
+    var switching = pendingSwitch != nil
     pendingSwitch = nil
+    if let early = endedEarly, early.device.id == device.id {
+      // Asked again before it was up, the session goes on and the hub follows it again; asked again while it is
+      // being ended, it starts again once that end comes, as for a switch back.
+      if early.stopWhenUp != nil { endedEarly = nil } else { switching = true }
+    }
     if let running = runningSession() {
       if running.device?.id == device.id {
         // Asked back while a switch ends its session: start it again once that end comes.
@@ -142,7 +160,10 @@ final class GoogleCastTargetPort: TargetPort {
         // The SDK kept the session it was asked to end: this receiver cannot start.
         pendingSwitch = nil
         events?.sessionEvent("startFailed", device: device, error: Self.endRefused)
+        return
       }
+      // The switch ends a session ended early itself: no stop is due once it is up.
+      endedEarly?.stopWhenUp = nil
       return
     }
     startSession(on: device)
@@ -151,6 +172,12 @@ final class GoogleCastTargetPort: TargetPort {
   func disconnect(stopPlayback: Bool) {
     pendingSwitch = nil
     if let running = runningSession() {
+      // Not up: a launch, or a suspended session reconnecting.
+      if !running.connected, let device = running.device {
+        endedEarly = EndedEarly(device: device, stopWhenUp: stopPlayback)
+        events?.sessionEvent("ended", device: device, error: nil)
+        return
+      }
       // The SDK kept the session: it stays, and the state says why.
       if !endSession(stopPlayback) {
         events?.sessionEvent("endRefused", device: running.device, error: Self.disconnectRefused)
@@ -172,13 +199,37 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   private func sessionChanged(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
-    events?.sessionEvent(event, device: device, error: error, code: code)
+    if !endedEarlyEvent(event, device: device) {
+      events?.sessionEvent(event, device: device, error: error, code: code)
+    }
     // No read here: a session that joins a receiver app starts before the receiver's first status, and its
     // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
     // The session a switch ended is gone: the receiver asked for meanwhile can start now.
     guard event == "ended" || event == "startFailed", let next = pendingSwitch else { return }
     pendingSwitch = nil
     startSession(on: next)
+  }
+
+  // Whether the event is the early-ended session's, which the hub no longer follows; once that session is up, it is
+  // ended with the stop asked.
+  private func endedEarlyEvent(_ event: String, device: TargetDevice?) -> Bool {
+    guard let early = endedEarly else { return false }
+    if let device, device.id != early.device.id { return false }
+    switch event {
+    case "started", "resumed":
+      guard let stop = early.stopWhenUp else { break }
+      endedEarly?.stopWhenUp = nil
+      // The SDK kept the session: the hub follows it again, and the Stop can be asked again from there.
+      if !endSession(stop) {
+        endedEarly = nil
+        return false
+      }
+    case "ended", "startFailed":
+      endedEarly = nil
+    default:
+      break
+    }
+    return true
   }
 
   private func reportDevices() {
