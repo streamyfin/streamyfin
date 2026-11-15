@@ -54,9 +54,10 @@ object PlayerConstants {
     const val REMOTE_WIDE_ARTWORK_FRACTION = 0.45
     // What the rest of the screen takes, upright and couched: the part that keeps its size (buttons, the bar's
     // track, gaps) and the text, counted one line each at the font scale asked for. Upright, measured at the probe
-    // on an iPhone 17 with every slot filled (RemoteLayoutTest.theUprightChromeMatchesTheMeasuredScreen).
-    const val REMOTE_PORTRAIT_FIXED_DP = 305.0
-    const val REMOTE_PORTRAIT_TEXT_DP = 73.0
+    // on a 1080x2400 phone with every slot filled, at font scales 1 and 1.3
+    // (RemoteLayoutTest.theUprightChromeMatchesTheMeasuredScreen); taller than iOS's 305 + 73 (Compose line heights).
+    const val REMOTE_PORTRAIT_FIXED_DP = 326.0
+    const val REMOTE_PORTRAIT_TEXT_DP = 83.0
     const val REMOTE_LANDSCAPE_FIXED_DP = 108.0
     const val REMOTE_LANDSCAPE_TEXT_DP = 34.0
 
