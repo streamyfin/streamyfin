@@ -15,14 +15,16 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   TVFocusGuideView,
   View,
+  type ViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import useRouter from "@/hooks/useAppRouter";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { TVGuideChannelRow } from "./TVGuideChannelRow";
 import { TVGuidePageNavigation } from "./TVGuidePageNavigation";
@@ -62,19 +64,21 @@ export const TVLiveTVGuide: React.FC = () => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const playMedia = usePlayMedia();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
   const [currentPage, setCurrentPage] = useState(1);
 
   // Scroll refs for synchronization
-  const channelListRef = useRef<ScrollView>(null);
-  const mainVerticalRef = useRef<ScrollView>(null);
+  const channelListRef = useRef<ScrollViewInstance>(null);
+  const mainVerticalRef = useRef<ScrollViewInstance>(null);
 
   // Focus guide refs for bidirectional navigation
-  const [firstProgramRef, setFirstProgramRef] = useState<View | null>(null);
-  const [prevButtonRef, setPrevButtonRef] = useState<View | null>(null);
+  const [firstProgramRef, setFirstProgramRef] = useState<ViewInstance | null>(
+    null,
+  );
+  const [prevButtonRef, setPrevButtonRef] = useState<ViewInstance | null>(null);
 
   // Base time - start of current hour, end time - end of day
   const [{ baseTime, endOfDay, hoursToShow }] = useState(() => {
@@ -203,17 +207,10 @@ export const TVLiveTVGuide: React.FC = () => {
 
   const handleProgramPress = useCallback(
     (program: BaseItemDto) => {
-      // Navigate to play the program/channel
-      const queryParams = new URLSearchParams({
-        itemId: program.Id ?? "",
-        audioIndex: "",
-        subtitleIndex: "",
-        mediaSourceId: "",
-        bitrateValue: "",
-      });
-      router.push(`/player/direct-player?${queryParams.toString()}`);
+      if (!program.Id) return;
+      void playMedia({ itemId: program.Id, offline: false }, { item: program });
     },
-    [router],
+    [playMedia],
   );
 
   const handlePreviousPage = useCallback(() => {

@@ -2,7 +2,10 @@ import { File } from "expo-file-system";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner-native";
-import { DOWNLOAD_FAILURE_TOAST_DURATION_MS } from "@/constants/Downloads";
+import {
+  DOWNLOAD_FAILURE_TOAST_DURATION_MS,
+  FAILED_DOWNLOAD_CARD_REMOVAL_DELAY_MS,
+} from "@/constants/Downloads";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -332,7 +335,7 @@ export function useDownloadEventHandlers({
         // Remove process after short delay
         setTimeout(() => {
           removeProcess(itemId);
-        }, 3000);
+        }, FAILED_DOWNLOAD_CARD_REMOVAL_DELAY_MS);
       },
     );
 

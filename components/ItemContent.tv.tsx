@@ -17,10 +17,16 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Dimensions, ScrollView, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  useWindowDimensions,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AwardsBadge } from "@/components/AwardsBadge";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import { type Bitrate, bitrateOptions } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -45,7 +51,13 @@ import {
   TVTechnicalDetails,
   TVTrailerButton,
 } from "@/components/tv";
+import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -64,6 +76,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { bitrateLabel, toBitrateRequest } from "@/utils/bitrate";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
@@ -78,8 +91,6 @@ import {
   type TrackMenuRow,
 } from "@/utils/subtitles/trackMenu";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // One array for "no collections", so the memoized section is not handed a new
 // one on every render.
@@ -102,6 +113,7 @@ interface ItemContentTVProps {
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -127,7 +139,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     useTVThemeMusic(item?.Id);
 
     // State for first episode card ref (used for focus guide)
-    const [_firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+    const [_firstEpisodeRef, setFirstEpisodeRef] =
+      useState<ViewInstance | null>(null);
 
     // Fetch season episodes for episodes
     const { data: seasonEpisodes = [] } = useQuery({
@@ -220,7 +233,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             audioIndex: selectedOptions.audioIndex,
             subtitleIndex: selectedOptions.subtitleIndex,
             mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-            bitrateValue: selectedOptions.bitrate?.value ?? undefined,
+            bitrateValue: toBitrateRequest(selectedOptions.bitrate),
             offline: isOffline,
             playbackPositionTicks: Number.isFinite(positionTicks)
               ? positionTicks
@@ -284,9 +297,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { showSubtitleModal } = useTVSubtitleModal();
 
     // State for first actor card ref (used for focus guide)
-    const [_firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
-      null,
-    );
+    const [_firstActorCardRef, setFirstActorCardRef] =
+      useState<ViewInstance | null>(null);
 
     /** Existing label format on this screen; kept so the menus read the same. */
     const tvTrackLabel = useCallback(
@@ -402,13 +414,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [mediaSources, selectedOptions?.mediaSource?.Id]);
 
     // Quality/bitrate options for selector
-    const qualityOptions: TVOptionItem<Bitrate>[] = useMemo(() => {
-      return BITRATES.map((bitrate) => ({
-        label: bitrate.key,
-        value: bitrate,
-        selected: bitrate.value === selectedOptions?.bitrate?.value,
-      }));
-    }, [selectedOptions?.bitrate?.value]);
+    const qualityOptions: TVOptionItem<Bitrate>[] = useMemo(
+      () => bitrateOptions(t, selectedOptions?.bitrate),
+      [t, selectedOptions?.bitrate],
+    );
 
     // Handlers for option changes. A pick here is as deliberate as one made
     // inside the player, so it feeds the per-series memory the same way —
@@ -554,9 +563,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return videoStream?.DisplayTitle || source.Name || t("item_card.video");
     }, [selectedOptions?.mediaSource, t]);
 
-    const selectedQualityLabel = useMemo(() => {
-      return selectedOptions?.bitrate?.key || t("item_card.quality");
-    }, [selectedOptions?.bitrate?.key, t]);
+    const selectedQualityLabel = useMemo(
+      () =>
+        selectedOptions?.bitrate
+          ? bitrateLabel(t, selectedOptions.bitrate)
+          : t("item_card.quality"),
+      [selectedOptions?.bitrate, t],
+    );
 
     // Format year and duration
     const year = item?.ProductionYear;
@@ -568,22 +581,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         )
       : null;
 
-    // Get cast (first 3 for text display)
-    const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
-
-    // Get full cast for visual display (up to 10 actors)
-    const fullCast = useMemo(() => {
-      return (
-        item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 10) ?? []
-      );
-    }, [item?.People]);
-
-    // Whether to show visual cast section
-    const showVisualCast =
-      (item?.Type === "Movie" ||
-        item?.Type === "Series" ||
-        item?.Type === "Episode") &&
-      fullCast.length > 0;
+    // The cast cards, and whether the text line names the cast instead.
+    const { cards: fullCast, castInText } = useTVCast(item);
 
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
@@ -689,7 +688,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           <View
             style={{
               flexDirection: "row",
-              minHeight: SCREEN_HEIGHT * 0.45,
+              minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
             }}
           >
             {/* Left side - Content */}
@@ -768,7 +767,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   style={{
                     borderRadius: scaleSize(8),
                     overflow: "hidden",
-                    maxWidth: SCREEN_WIDTH * 0.45,
+                    maxWidth: windowWidth * TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
                     marginBottom: scaleSize(24),
                   }}
                 >
@@ -971,8 +970,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               style={{
                 width:
                   item.Type === "Episode"
-                    ? SCREEN_WIDTH * 0.35
-                    : SCREEN_WIDTH * 0.22,
+                    ? windowWidth * 0.35
+                    : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
                 marginLeft: scaleSize(50),
               }}
             >
@@ -1049,7 +1048,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             />
 
             {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
-            {showVisualCast && (
+            {fullCast.length > 0 && (
               <TVCastSection
                 cast={fullCast}
                 apiBasePath={api?.basePath}
@@ -1074,8 +1073,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             <TVCastCrewText
               people={item.People}
               onPersonPress={isOffline ? undefined : handleActorPress}
-              cast={cast}
-              hideCast={showVisualCast}
+              showCast={castInText}
             />
 
             {/* Technical details */}

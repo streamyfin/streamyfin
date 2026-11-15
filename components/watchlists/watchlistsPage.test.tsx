@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Platform, StyleSheet } from "react-native";
-import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
+import WatchlistsPage from "@/app/(auth)/(tabs)/(more)/watchlists/index";
 
 /** What the watchlists query answers, set by each test. */
 let mockQuery: {
@@ -16,20 +16,9 @@ jest.mock("@/hooks/useWatchlists", () => ({
   useStreamystatsEnabled: () => true,
   useWatchlistsQuery: () => mockQuery,
 }));
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => ({
   userAtom: jest.requireActual("jotai").atom({ Id: "user" }),
 }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({
     title: 50,

@@ -1,28 +1,17 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { TFunction } from "i18next";
-import { setJellyfinHeaders } from "@/test-utils/customHeaders";
 import { fakeFiles } from "@/test-utils/fileSystem";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 
 // The Live Activity only exists on the iPhone and the iPad.
 stubReactNative({ OS: "ios", isTV: false });
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
-// No proxy headers in these specs.
-beforeEach(() => setJellyfinHeaders());
 jest.mock("@/modules", () => ({
   BackgroundDownloader: {
     // The native side hands back a plain path, not a file:// URI.
     getLiveActivityDirectory: () => "/app-group/LiveActivity",
   },
 }));
-
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 
 // liveActivity.ts reads Platform when it loads, so it is required after the stub above.
 const { buildDownloadActivityMetadata } =

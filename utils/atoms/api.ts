@@ -1,8 +1,7 @@
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom } from "jotai";
-import { getDeviceNameSync } from "react-native-device-info";
-import { getOrSetDeviceId } from "@/utils/device";
+import { getDeviceName, getOrSetDeviceId } from "@/utils/device";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
 import { storage } from "@/utils/mmkv";
 import { APP_VERSION } from "@/utils/version";
@@ -15,7 +14,7 @@ const initialApi = (() => {
     const serverUrl = storage.getString("serverUrl") || null;
     if (serverUrl && token) {
       const id = getOrSetDeviceId();
-      const deviceName = getDeviceNameSync();
+      const deviceName = getDeviceName();
       const jellyfinInstance = new Jellyfin({
         clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {

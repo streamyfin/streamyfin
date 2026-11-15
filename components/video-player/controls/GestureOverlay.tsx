@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Pressable } from "react-native";
+import { Animated, Pressable, useWindowDimensions } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
@@ -9,8 +9,6 @@ import { useGestureDetection } from "./hooks/useGestureDetection";
 import { useVolumeAndBrightness } from "./hooks/useVolumeAndBrightness";
 
 interface Props {
-  screenWidth: number;
-  screenHeight: number;
   showControls: boolean;
   onToggleControls: () => void;
   onSkipForward: () => void;
@@ -32,8 +30,6 @@ interface FeedbackState {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export const GestureOverlay = ({
-  screenWidth,
-  screenHeight,
   showControls,
   onToggleControls,
   onSkipForward,
@@ -45,6 +41,7 @@ export const GestureOverlay = ({
 }: Props) => {
   const { settings } = useSettings();
   const lightHaptic = useHaptic("light");
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
   const [feedback, setFeedback] = useState<FeedbackState>({
     visible: false,
@@ -318,8 +315,8 @@ export const GestureOverlay = ({
     onLongPressStart: holdSpeedEnabled ? handleHoldSpeedStart : undefined,
     onLongPressEnd: holdSpeedEnabled ? handleHoldSpeedEnd : undefined,
     longPressDuration: CONTROLS_CONSTANTS.HOLD_SPEED_DELAY,
-    screenWidth,
-    screenHeight,
+    windowWidth,
+    windowHeight,
   });
 
   const isTopFeedback = feedback.placement === "top";
@@ -338,8 +335,8 @@ export const GestureOverlay = ({
           delayLongPress={CONTROLS_CONSTANTS.HOLD_SPEED_DELAY}
           style={{
             position: "absolute",
-            width: screenWidth,
-            height: screenHeight,
+            width: windowWidth,
+            height: windowHeight,
             backgroundColor: "black",
             left: 0,
             right: 0,
@@ -358,8 +355,8 @@ export const GestureOverlay = ({
           onTouchCancel={handleTouchCancel}
           style={{
             position: "absolute",
-            width: screenWidth,
-            height: screenHeight,
+            width: windowWidth,
+            height: windowHeight,
             backgroundColor: "transparent",
             left: 0,
             right: 0,

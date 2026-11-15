@@ -188,7 +188,7 @@ describe("useTrailers", () => {
   });
 
   test("opens a remote trailer's link", async () => {
-    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
     mockTrailerSource = "remoteOnly";
     const { result } = await renderTrailers();
 

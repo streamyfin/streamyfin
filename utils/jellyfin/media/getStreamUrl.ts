@@ -145,6 +145,7 @@ export const getStreamUrl = async ({
   subtitleStreamIndex = undefined,
   mediaSourceId,
   deviceId,
+  autoOpenLiveStream = true,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -158,6 +159,11 @@ export const getStreamUrl = async ({
   height?: number;
   mediaSourceId?: string | null;
   deviceId?: string | null;
+  /**
+   * Off for a negotiation that plays nothing (the next-episode subtitle warm):
+   * a source that needs opening would be opened and never closed.
+   */
+  autoOpenLiveStream?: boolean;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -244,7 +250,7 @@ export const getStreamUrl = async ({
     SubtitleStreamIndex: subtitleStreamIndex,
     StartTimeTicks: startTimeTicks,
     isPlayback: true,
-    AutoOpenLiveStream: true,
+    AutoOpenLiveStream: autoOpenLiveStream,
     MaxStreamingBitrate: maxStreamingBitrate,
     AudioStreamIndex: audioStreamIndex,
     MediaSourceId: mediaSourceId,

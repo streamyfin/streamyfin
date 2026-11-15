@@ -46,7 +46,9 @@ data class HeroPayload(
   val items: List<HeroItem> = emptyList(),
   val imageHeaders: Map<String, String> = emptyMap(),
   val filterSections: List<HeroFilterSection> = emptyList(),
-  val filterLabel: String = ""
+  val filterLabel: String = "",
+  /** Largest font scale the cards follow; null, the system's. */
+  val maxFontScale: Float? = null
 ) {
   companion object {
     val EMPTY = HeroPayload()
@@ -61,7 +63,9 @@ data class HeroPayload(
           filterSections = root.optJSONArray("filterSections")
             .mapObjects { it.toFilterSection() }
             .filterNotNull(),
-          filterLabel = root.stringOrNull("filterLabel").orEmpty()
+          filterLabel = root.stringOrNull("filterLabel").orEmpty(),
+          // A cap of zero or less would draw the text at no size at all.
+          maxFontScale = root.doubleOrNull("maxFontScale")?.toFloat()?.takeIf { it > 0f }
         )
       } catch (_: Exception) {
         null

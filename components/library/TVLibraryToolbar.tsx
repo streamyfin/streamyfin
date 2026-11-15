@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { TVFocusGuideView, View } from "react-native";
+import { TVFocusGuideView, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVButton } from "@/components/tv/TVButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TV_MODAL_FOCUS_RESTORE_MS } from "@/constants/Values";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 
 // One fixed width for every action: neighbours of uneven size read as a
@@ -58,12 +59,12 @@ export const TVLibraryToolbar: React.FC<Props> = ({
   focusRequest,
 }) => {
   const typography = useScaledTVTypography();
-  const buttons = useRef<Record<string, View | null>>({});
+  const buttons = useRef<Record<string, ViewInstance | null>>({});
 
   useEffect(() => {
     if (!focusRequest) return;
     const timer = setTimeout(
-      () => (buttons.current[focusRequest.key] as any)?.requestTVFocus?.(),
+      () => requestTVFocus(buttons.current[focusRequest.key]),
       TV_MODAL_FOCUS_RESTORE_MS,
     );
     return () => clearTimeout(timer);

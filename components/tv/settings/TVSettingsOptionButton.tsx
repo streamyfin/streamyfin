@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -11,7 +11,6 @@ export interface TVSettingsOptionButtonProps {
   label: string;
   value: string;
   onPress: () => void;
-  isFirst?: boolean;
   disabled?: boolean;
   /**
    * Locked by the Streamyfin plugin. Distinct from `disabled` because the row
@@ -21,14 +20,14 @@ export interface TVSettingsOptionButtonProps {
   disabledByAdmin?: boolean;
 }
 
-export const TVSettingsOptionButton: React.FC<TVSettingsOptionButtonProps> = ({
-  label,
-  value,
-  onPress,
-  isFirst,
-  disabled,
-  disabledByAdmin,
-}) => {
+/**
+ * A settings row that opens a choice. The ref reaches its pressable, so a
+ * screen can hand the focus back to it with requestTVFocus.
+ */
+export const TVSettingsOptionButton = React.forwardRef<
+  ViewInstance,
+  TVSettingsOptionButtonProps
+>(({ label, value, onPress, disabled, disabledByAdmin }, ref) => {
   const { t } = useTranslation();
   const isDisabled = disabled || disabledByAdmin;
   const typography = useScaledTVTypography();
@@ -37,10 +36,10 @@ export const TVSettingsOptionButton: React.FC<TVSettingsOptionButtonProps> = ({
 
   return (
     <Pressable
+      ref={ref}
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirst && !isDisabled}
       disabled={isDisabled}
       focusable={!isDisabled}
     >
@@ -97,4 +96,4 @@ export const TVSettingsOptionButton: React.FC<TVSettingsOptionButtonProps> = ({
       </Animated.View>
     </Pressable>
   );
-};
+});

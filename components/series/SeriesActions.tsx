@@ -1,11 +1,10 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
+import { useActionSheet } from "@/hooks/useActionSheet";
 import { type TrailerSourceItem, useTrailers } from "@/hooks/useTrailers";
 import { trailerLabels } from "@/utils/jellyfin/media/trailers";
 
@@ -36,7 +35,6 @@ export const ItemActions = ({
 }: Props) => {
   const { t } = useTranslation();
   const { showActionSheetWithOptions } = useActionSheet();
-  const { bottom } = useSafeAreaInsets();
   const { trailers, playTrailer, isDiscovering } = useTrailers(item);
   const pendingChooseRef = useRef(false);
 
@@ -60,22 +58,13 @@ export const ItemActions = ({
         title: t("item_card.choose_trailer"),
         options: [...trailerLabels(t, trailers), t("common.cancel")],
         cancelButtonIndex: trailers.length,
-        // The library ignores the Android nav bar; pad above it ourselves.
-        containerStyle: { paddingBottom: bottom },
       },
       (index) => {
         const trailer = index === undefined ? undefined : trailers[index];
         if (trailer) playTrailer(trailer);
       },
     );
-  }, [
-    trailers,
-    playTrailer,
-    showActionSheetWithOptions,
-    t,
-    bottom,
-    isDiscovering,
-  ]);
+  }, [trailers, playTrailer, showActionSheetWithOptions, t, isDiscovering]);
 
   useEffect(() => {
     if (!isDiscovering && pendingChooseRef.current) {

@@ -85,8 +85,11 @@ export type { SystemVolumeChangeEvent } from "./system-volume";
 export {
   addSystemVolumeListener,
   getSystemVolume,
+  getSystemVolumeAsync,
+  hideSystemVolumeIndicator,
   isSystemVolumeAvailable,
   isSystemVolumeFixed,
+  setSystemVolume,
 } from "./system-volume";
 // Top Shelf cache (tvOS)
 export type {

@@ -1,14 +1,9 @@
 import { AUTHORIZATION_HEADER } from "@jellyfin/sdk/lib/constants";
 import { AxiosHeaders } from "axios";
 import { makeApi } from "@/test-utils/jellyfinApi";
-import "./api";
-
 // The plugin settings reader the module installs reaches the app log, and
 // through it MMKV.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
+import "./api";
 
 // A custom home section from the plugin carries headers of its own for its
 // endpoint, and goes through these helpers (fetchCustomHomeSection).

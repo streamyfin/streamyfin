@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer
 
+import androidx.annotation.VisibleForTesting
 import android.app.Activity
 import android.app.Application
 import android.app.PictureInPictureParams
@@ -49,6 +50,30 @@ class PiPController(private val context: Context, private val appContext: AppCon
     // (e.g. when the player unmounts) doesn't corrupt the play/pause icon
     // state that buildPiPActions() derives from playbackRate.
     private var autoEnterEnabled: Boolean = false
+
+    /**
+     * Off for a view that only shows a clip (the subtitle preview): playing it
+     * must not arm the automatic picture in picture, which on Home shrank the
+     * whole app into a PiP window. A manual start is unaffected. Turned on, a
+     * view already playing arms at once, one that has not played yet waits for
+     * its first play.
+     */
+    var autoEnterAllowed: Boolean = true
+        set(value) {
+            if (field == value) return
+            field = value
+            if (value) {
+                if (playbackRateKnown && playbackRate > 0) setPlaybackRate(playbackRate)
+            } else if (autoEnterEnabled) {
+                autoEnterEnabled = false
+                unregisterLifecycleCallbacks()
+                getActivity()?.let { clearAutoEnterParams(it) }
+            }
+        }
+    private var playbackRateKnown = false
+
+    @VisibleForTesting
+    internal val isAutoEnterArmed: Boolean get() = autoEnterEnabled
 
     private var videoWidth: Int = 0
     private var videoHeight: Int = 0
@@ -121,13 +146,19 @@ class PiPController(private val context: Context, private val appContext: AppCon
         unregisterLifecycleCallbacks()
 
         val activity = getActivity() ?: return
+        clearAutoEnterParams(activity)
+        if (activity.isInPictureInPictureMode) {
+            activity.moveTaskToBack(false)
+        }
+    }
 
-        // Push minimal params with just auto-enter disabled. Do NOT call
-        // buildPiPParams() — it calls ensurePiPReceiverRegistered() and
-        // setActions(), which would re-register the broadcast receiver
-        // (just unregistered above) and attach play/pause/skip actions to
-        // params being torn down. That leaves a live receiver + stale
-        // actions after the player has unmounted.
+    /**
+     * Minimal params with just auto-enter disabled. Not buildPiPParams(): it
+     * calls ensurePiPReceiverRegistered() and setActions(), which would
+     * re-register the broadcast receiver and attach play/pause/skip actions to
+     * params being torn down, leaving a live receiver and stale actions.
+     */
+    private fun clearAutoEnterParams(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
                 activity.setPictureInPictureParams(
@@ -138,9 +169,6 @@ class PiPController(private val context: Context, private val appContext: AppCon
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to clear PiP auto-enter params: ${e.message}")
             }
-        }
-        if (activity.isInPictureInPictureMode) {
-            activity.moveTaskToBack(false)
         }
     }
 
@@ -153,11 +181,16 @@ class PiPController(private val context: Context, private val appContext: AppCon
 
     fun setPlaybackRate(rate: Double) {
         playbackRate = rate
-        autoEnterEnabled = rate > 0
+        playbackRateKnown = true
+        autoEnterEnabled = autoEnterAllowed && rate > 0
 
-        if (rate > 0) {
+        if (autoEnterEnabled) {
             registerLifecycleCallbacks()
         }
+
+        // Without auto-enter, and outside PiP, there is nothing to publish: the
+        // params would only register the action receiver.
+        if (!autoEnterAllowed && !isInPiPMode) return
 
         // Update PiP params so autoEnterEnabled and action icons track play/pause state
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -326,6 +359,9 @@ class PiPController(private val context: Context, private val appContext: AppCon
     }
 
     private fun unregisterLifecycleCallbacks() {
+        // The action receiver comes with any params push, with lifecycle
+        // callbacks or without.
+        unregisterPiPBroadcastReceiver()
         if (!lifecycleRegistered) return
         lifecycleCallbacks?.let {
             (context.applicationContext as? Application)
@@ -334,7 +370,6 @@ class PiPController(private val context: Context, private val appContext: AppCon
         lifecycleCallbacks = null
         lifecycleRegistered = false
         pipHandler.removeCallbacksAndMessages(null)
-        unregisterPiPBroadcastReceiver()
     }
 
     private fun startFallbackPolling() {

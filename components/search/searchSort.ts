@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { orderBy } from "lodash";
+import orderBy from "lodash/orderBy";
 
 /** Which way a sort runs. */
 export type SortOrder = "asc" | "desc";

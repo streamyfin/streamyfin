@@ -19,6 +19,7 @@ import {
 } from "./Downloads/database";
 import { getDownloadedItemSize } from "./Downloads/fileOperations";
 import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHandlers";
+import { useDownloadedItems } from "./Downloads/hooks/useDownloadedItems";
 import { useDownloadOperations } from "./Downloads/hooks/useDownloadOperations";
 import { useDownloadReconciliation } from "./Downloads/hooks/useDownloadReconciliation";
 import { setDownloadLiveActivityEnabled } from "./Downloads/liveActivity";
@@ -46,10 +47,7 @@ function useDownloadProvider() {
     setDownloadLiveActivityEnabled(liveActivityEnabled);
   }, [liveActivityEnabled]);
 
-  // Reactive downloaded items that updates when refreshKey changes
-  const downloadedItems = useMemo(() => {
-    return getAllDownloadedItems();
-  }, [refreshKey]);
+  const downloadedItems = useDownloadedItems(refreshKey);
 
   // Trigger refresh of download lists
   const triggerRefresh = useCallback(() => {
@@ -143,6 +141,7 @@ function useDownloadProvider() {
     processes,
     startBackgroundDownload,
     downloadedItems, // Reactive value that auto-updates
+    refreshKey,
     getDownloadedItems: getAllDownloadedItems, // Keep for backward compatibility
     getDownloadsDatabase,
     deleteAllFiles,
@@ -172,6 +171,7 @@ export function useDownload() {
       processes: [],
       startBackgroundDownload: async () => {},
       downloadedItems: [],
+      refreshKey: 0,
       getDownloadedItems: () => [],
       getDownloadsDatabase: () => ({ movies: {}, series: {}, other: {} }),
       deleteAllFiles: async () => {},

@@ -8,6 +8,7 @@ import {
   Easing,
   Pressable,
   View,
+  type ViewInstance,
   type ViewStyle,
 } from "react-native";
 import { ProgressBar } from "@/components/common/ProgressBar";
@@ -63,7 +64,7 @@ export interface TVPosterCardProps {
   onBlur?: ((item: BaseItemDto) => void) | (() => void);
 
   /** Setter function for the ref (for focus guide destinations) */
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 
   /** Custom width - overrides default based on orientation */
   width?: number;

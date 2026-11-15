@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Platform, Pressable, View } from "react-native";
+import { FixedOrderMenu } from "@/components/common/FixedOrderMenu";
 import { Text as RNText } from "@/components/common/Text";
 import type { SortOrder } from "@/components/search/searchSort";
 import { Colors } from "@/constants/Colors";
@@ -12,7 +13,7 @@ import {
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import crashes the route tree on tvOS at module load.
 // Load it lazily and only off-TV; TV never renders this component.
-const { Button, Host, HStack, Image, Menu, Text } = Platform.isTV
+const { Button, Host, HStack, Image, Text } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : (require("@expo/ui/swift-ui") as typeof import("@expo/ui/swift-ui"));
 const { accessibilityLabel, buttonStyle, font } = Platform.isTV
@@ -68,7 +69,7 @@ export const SearchSortMenu = <T extends string>({
           marginLeft: "auto",
         }}
       >
-        <Menu
+        <FixedOrderMenu
           label={
             <Button
               modifiers={[
@@ -89,7 +90,7 @@ export const SearchSortMenu = <T extends string>({
             </Button>
           }
         >
-          <Menu
+          <FixedOrderMenu
             label={`${t("library.filters.sort_by")}: ${current?.label ?? ""}`}
           >
             {sorts.map((item) => (
@@ -102,9 +103,9 @@ export const SearchSortMenu = <T extends string>({
                 onPress={() => onSort(item.value)}
               />
             ))}
-          </Menu>
+          </FixedOrderMenu>
           {order && (
-            <Menu
+            <FixedOrderMenu
               label={`${t("library.filters.sort_order")}: ${t(
                 `library.filters.${order}`,
               )}`}
@@ -119,9 +120,9 @@ export const SearchSortMenu = <T extends string>({
                   onPress={() => onOrder(item)}
                 />
               ))}
-            </Menu>
+            </FixedOrderMenu>
           )}
-        </Menu>
+        </FixedOrderMenu>
       </Host>
     );
   }

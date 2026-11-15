@@ -4,7 +4,7 @@ import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
-import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
+import { POSTER_IMAGE_TRANSITION } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -48,7 +48,7 @@ export const MusicAlbumRowCard: React.FC<Props> = ({ album }) => {
         {imageUrl ? (
           <Image
             recyclingKey={album.Id}
-            transition={POSTER_IMAGE_TRANSITION_DURATION}
+            transition={POSTER_IMAGE_TRANSITION}
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'

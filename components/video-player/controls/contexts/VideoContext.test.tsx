@@ -56,21 +56,16 @@ jest.mock("@/hooks/useAppRouter", () => ({
 jest.mock("@/providers/JellyfinProvider", () => ({
   apiAtom: jest.requireActual("jotai").atom({ basePath: "http://server" }),
 }));
-jest.mock("@/providers/OfflineModeProvider", () => ({
-  useOfflineMode: () => false,
-}));
+jest.mock(
+  "@/providers/OfflineModeProvider",
+  () => jest.requireActual("@/test-utils/stubModules").onlineModule,
+);
 // The real settings atom loads the screens that edit it.
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {} }),
-}));
 jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
   getSubtitlesForItem: () => [],
 }));
 jest.mock("@/utils/seriesTrackMemory", () => ({
   rememberSeriesTrackFromRow: () => {},
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 let audioTracks: Track[] | null = null;
@@ -86,7 +81,6 @@ const pick = async (name: string) => {
 };
 
 beforeEach(async () => {
-  jest.clearAllMocks();
   audioTracks = null;
   await render(
     <VideoProvider>
@@ -111,6 +105,6 @@ test("reloads the stream with an external audio track instead of guessing one", 
 
   expect(mockControls.setAudioTrack).not.toHaveBeenCalled();
   expect(mockRouter.replace).toHaveBeenCalledWith(
-    expect.stringContaining("audioIndex=1"),
+    "player/direct-player?itemId=item-1&audioIndex=1&subtitleIndex=-1&mediaSourceId=source-1&bitrateValue=&playbackPosition=0",
   );
 });

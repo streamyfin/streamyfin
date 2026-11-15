@@ -4,10 +4,6 @@ import { readFromLog, redactStoredLog, storeLogEntry } from "./logStorage";
 import { storage } from "./mmkv";
 
 // The storage half of the app log, on the real module with an in-memory MMKV.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
 

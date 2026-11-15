@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
@@ -20,7 +20,7 @@ export interface TVUserIconProps {
   primaryImageTag?: string;
 }
 
-export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
+export const TVUserIcon = React.forwardRef<ViewInstance, TVUserIconProps>(
   (
     {
       username,

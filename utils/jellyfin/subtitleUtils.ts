@@ -61,13 +61,17 @@ export const isExternalSubtitle = (sub: MediaStream): boolean =>
  * Server contract (MediaInfoHelper.SetDeviceSpecificSubtitleInfo): DeliveryUrl
  * is server-relative (`/Videos/...`, may carry `?ApiKey=`) UNLESS
  * `IsExternalUrl` is set — then it is already an absolute URL and must not be
- * prefixed. Offline: DeliveryUrl holds the local file path.
+ * prefixed. Offline: DeliveryUrl holds the local file path. So does the
+ * online subtitle prefetch after it has rewritten DeliveryUrl onto a cache
+ * file — a local URI is returned as it is, since prefixing the server would
+ * concatenate the two into a garbage host.
  */
 export const getExternalSubtitleUrl = (
   sub: MediaStream,
   opts: { offline: boolean; basePath?: string | null },
 ): string | undefined => {
   if (!sub.DeliveryUrl) return undefined;
+  if (sub.DeliveryUrl.startsWith("file://")) return sub.DeliveryUrl;
   if (opts.offline || sub.IsExternalUrl) return sub.DeliveryUrl;
   return opts.basePath ? `${opts.basePath}${sub.DeliveryUrl}` : undefined;
 };
@@ -794,17 +798,21 @@ export const resolveAudioSwitch = (
  * True when switching to this subtitle forces the server to re-process the
  * stream, which cuts playback and reseeks.
  *
- * Mirrors the two guards the player already applies, so callers that want to
+ * Mirrors the guards the player already applies, so callers that want to
  * avoid an interruption can filter on the same rule: the burned-in check in
- * {@link applyMpvSubtitleSelection}, and the transcode + image-based check in
- * `direct-player`'s `handleSubtitleIndexChange`. Note that during direct play an
+ * {@link applyMpvSubtitleSelection}, the transcode + image-based check in
+ * `direct-player`'s `handleSubtitleIndexChange`, and a sidecar the native
+ * player's subtitle prefetch left out of the session, which has no URL and
+ * comes back only through a renegotiation. Note that during direct play an
  * image-based track is a real player track and needs no restart at all.
  */
 export const requiresStreamRestart = (
   sub: MediaStream,
   opts: { isTranscoding: boolean },
 ): boolean =>
-  isBurnedInSubtitle(sub) || (opts.isTranscoding && isImageBasedSubtitle(sub));
+  isBurnedInSubtitle(sub) ||
+  (opts.isTranscoding && isImageBasedSubtitle(sub)) ||
+  (sub.DeliveryMethod === EXTERNAL_DELIVERY && !sub.DeliveryUrl);
 
 /**
  * What a subtitle track is, independently of its position in the stream list.

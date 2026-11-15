@@ -4,7 +4,12 @@
  * what it replaced.
  */
 export const networkStatusModule = {
-  useNetworkStatus: () => ({ isConnected: true, serverConnected: true }),
+  useNetworkStatus: () => ({
+    isConnected: true,
+    serverConnected: true,
+    loading: false,
+    retryCheck: () => {},
+  }),
 };
 
 export const globalModalModule = {
@@ -16,6 +21,7 @@ export const downloadModule = {
     downloadedItems: [],
     processes: [],
     getDownloadedItems: () => [],
+    getDownloadedItemById: () => undefined,
     cleanCacheDirectory: async () => {},
   }),
 };

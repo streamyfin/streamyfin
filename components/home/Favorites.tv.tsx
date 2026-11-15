@@ -196,7 +196,6 @@ export const Favorites = () => {
           hideIfEmpty
           enabled={hasSession}
           pageSize={pageSize}
-          isFirstSection
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteMovies}

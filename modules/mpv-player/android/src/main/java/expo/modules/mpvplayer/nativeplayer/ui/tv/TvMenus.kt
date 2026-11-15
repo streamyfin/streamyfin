@@ -48,6 +48,8 @@ import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TvMenuScreen
 import expo.modules.mpvplayer.nativeplayer.ui.formatTimeSec
+import expo.modules.mpvplayer.nativeplayer.ui.speedLabel
+import expo.modules.mpvplayer.nativeplayer.ui.syncOffsetLabel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -270,7 +272,7 @@ private fun AudioSyncMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(presets) { index, offset ->
             val isSelected = abs(viewModel.audioDelay - offset) < 0.001
-            val label = if (offset == 0.0) "0 s" else String.format("%+g s", offset)
+            val label = syncOffsetLabel(offset)
             TvMenuRow(
                 label = label,
                 selected = isSelected,
@@ -429,7 +431,7 @@ private fun SubtitleSyncMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(presets) { index, offset ->
             val isSelected = abs(viewModel.subtitleDelay - offset) < 0.001
-            val label = if (offset == 0.0) "0 s" else String.format("%+g s", offset)
+            val label = syncOffsetLabel(offset)
             TvMenuRow(
                 label = label,
                 selected = isSelected,
@@ -456,7 +458,7 @@ private fun SpeedMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(presets) { index, option ->
             val isSelected = abs(viewModel.speed - option) < 0.001
-            val label = if (option == 1.0) "1×" else String.format("%g×", option)
+            val label = speedLabel(option)
             TvMenuRow(
                 label = label,
                 selected = isSelected,

@@ -36,9 +36,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom({ accessToken: "token" }) };
 });
-jest.mock("sonner-native", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}));
 // The key, and its values when there are some, stand for the translation.
 jest.mock("i18next", () => ({
   t: (key: string, values?: object) =>
@@ -82,7 +79,6 @@ const httpError = (status: number, data: unknown) =>
   );
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockSettings = { streamyStatsServerUrl: "http://stats" };
   for (const call of Object.values(mockApi)) {
     call.mockResolvedValue({ data: {} });

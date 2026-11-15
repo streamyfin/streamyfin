@@ -4,6 +4,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  type ViewInstance,
   type ViewStyle,
 } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
@@ -27,7 +28,7 @@ export interface TVFocusableProgressBarProps {
   /** Callback when the progress bar loses focus */
   onBlur?: () => void;
   /** Callback ref setter for focus guide destination pattern */
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
   /** Whether this component is disabled */
   disabled?: boolean;
   /** Whether this component should receive initial focus */

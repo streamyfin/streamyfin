@@ -3,12 +3,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { View } from "react-native";
+import type { ViewInstance } from "react-native";
 import { TV_MODAL_FOCUS_RESTORE_MS } from "@/constants/Values";
 import { useTrailers } from "@/hooks/useTrailers";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
 import { type Trailer, trailerLabels } from "@/utils/jellyfin/media/trailers";
+import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 import { TVButton } from "./TVButton";
 
@@ -26,7 +27,7 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
   const { trailers, playTrailer, isDiscovering } = useTrailers(item);
   const { showOptions } = useTVOptionModal();
   const modalState = useAtomValue(tvOptionModalAtom);
-  const buttonRef = useRef<View | null>(null);
+  const buttonRef = useRef<ViewInstance | null>(null);
   const pickerOpenRef = useRef(false);
   const pickedRef = useRef<Trailer | null>(null);
   const pendingChooseRef = useRef(false);
@@ -44,7 +45,7 @@ export const TVTrailerButton: React.FC<TVTrailerButtonProps> = ({
       const picked = pickedRef.current;
       pickedRef.current = null;
       if (picked) playTrailerRef.current(picked);
-      else (buttonRef.current as any)?.requestTVFocus?.();
+      else requestTVFocus(buttonRef.current);
     }, TV_MODAL_FOCUS_RESTORE_MS);
     return () => clearTimeout(timer);
   }, [modalState]);

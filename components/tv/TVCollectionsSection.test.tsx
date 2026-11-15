@@ -1,24 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { TVCollectionsSection } from "./TVCollectionsSection";
-
 // The TV size hooks only read the typography scale; the real module pulls in
 // the settings UI with it.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: { Default: "default" },
-  useSettings: () => ({ settings: { tvTypographyScale: "default" } }),
-}));
 // The poster artwork is not what this spec is about, and the real component
 // brings the proxy-header machinery along.
-jest.mock("@/components/common/ServerImage", () => ({
-  Image: () => null,
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
-});
+import { TVCollectionsSection } from "./TVCollectionsSection";
+
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
 
 const trilogy = {
   Id: "boxset-1",

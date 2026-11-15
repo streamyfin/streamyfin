@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
@@ -152,7 +152,13 @@ export const useWebSocket = ({
       goHome ? goHome() : router.push("/");
     } else if (command === "GoToSettings") {
       console.log("Command ~ GoToSettings");
-      goToSettings ? goToSettings() : router.push("/settings");
+      // TV keeps Settings as a tab of its own (utils/tvTabs.ts); the page in
+      // More, where a phone has it, cannot be reached there.
+      goToSettings
+        ? goToSettings()
+        : router.push(
+            Platform.isTV ? "/(auth)/(tabs)/(tv-settings)" : "/settings",
+          );
     } else if (command === "VolumeUp") {
       console.log("Command ~ VolumeUp");
       volumeUp?.();

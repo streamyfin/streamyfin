@@ -5,20 +5,20 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
-import { Colors } from "@/constants/Colors";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import {
   buildOfflineSeasons,
+  downloadsKeyPart,
   getDownloadedEpisodesForSeason,
+  keepThroughDownloadRefresh,
 } from "@/utils/downloads/offline-series";
 import {
   findRememberedSeason,
@@ -29,6 +29,10 @@ import { buildItemCards, type CardData } from "../cards/CardData";
 import { CardListRow } from "../cards/CardListRow";
 import { CardPill } from "../cards/CardPill";
 import { useItemCardBehavior } from "../cards/useItemCardBehavior";
+import {
+  SeasonDownloadedIcon,
+  SeasonDownloadIcon,
+} from "../common/DownloadIcons";
 import { Text } from "../common/Text";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
@@ -48,15 +52,22 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
   const isOffline = useOfflineMode();
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { getDownloadedItems, refreshKey } = useDownload();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
     [item, seasonIndexState],
   );
 
+  const seasonsKey = [
+    "seasons",
+    item.Id,
+    isOffline,
+    downloadsKeyPart(isOffline, refreshKey),
+  ];
   const seasonsQuery = useQuery({
-    queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
+    queryKey: seasonsKey,
+    placeholderData: keepThroughDownloadRefresh(seasonsKey),
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeasons(getDownloadedItems(), item.Id!);
@@ -103,14 +114,16 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     return findRememberedSeason(seasons, seasonIndex)?.IndexNumber ?? null;
   }, [isOffline, seasons, seasonIndex]);
 
+  const episodesKey = [
+    "episodes",
+    item.Id,
+    isOffline ? selectedSeasonNumber : selectedSeasonId,
+    isOffline,
+    downloadsKeyPart(isOffline, refreshKey),
+  ];
   const episodesQuery = useQuery({
-    queryKey: [
-      "episodes",
-      item.Id,
-      isOffline ? selectedSeasonNumber : selectedSeasonId,
-      isOffline,
-      downloadedItems.length,
-    ],
+    queryKey: episodesKey,
+    placeholderData: keepThroughDownloadRefresh(episodesKey),
     queryFn: async () => {
       if (isOffline) {
         return getDownloadedEpisodesForSeason(
@@ -246,16 +259,8 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
               title={t("item_card.download.download_season")}
               className='ml-2'
               items={episodes || []}
-              MissingDownloadIconComponent={() => (
-                <HeaderIcon name='downloads' size={18} />
-              )}
-              DownloadedIconComponent={() => (
-                <HeaderIcon
-                  name='downloaded'
-                  tintColor={Colors.primary}
-                  size={18}
-                />
-              )}
+              MissingDownloadIconComponent={SeasonDownloadIcon}
+              DownloadedIconComponent={SeasonDownloadedIcon}
             />
             <PlayedStatus items={episodes || []} />
             <SyncPlayQueueButton items={episodes || []} variant='icon' />
