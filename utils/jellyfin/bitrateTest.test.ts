@@ -903,6 +903,58 @@ describe("a rate a playback showed", () => {
   });
 });
 
+// The settings kept the measure they read when they opened: one a cast made meanwhile showed only once they were opened
+// again (iPhone, 15/11).
+describe("what the settings show of a detection", () => {
+  let bitrateTest: typeof import("./bitrateTest");
+  beforeEach(() => {
+    bitrateTest = require("./bitrateTest") as typeof import("./bitrateTest");
+  });
+
+  test("is announced when a detection is kept", async () => {
+    const heard = jest.fn();
+    bitrateTest.onDetectionChanged(heard);
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+
+    await detectBitrate(api);
+
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+
+  test("is announced when a detection fails", async () => {
+    const heard = jest.fn();
+    bitrateTest.onDetectionChanged(heard);
+    answerEndpoint(false);
+    mockAnswers.push({ status: 403 });
+
+    await expect(detectBitrate(api)).rejects.toThrow("403");
+
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+
+  test("is announced when a playback keeps its rate", async () => {
+    await bitrateTest.ensureNetworkKnown();
+    const heard = jest.fn();
+    bitrateTest.onDetectionChanged(heard);
+
+    bitrateTest.keepPlaybackRate(api, 5_000_000);
+
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+
+  test("is no longer announced to a listener that left", async () => {
+    const heard = jest.fn();
+    bitrateTest.onDetectionChanged(heard)();
+    answerEndpoint(false);
+    mockAnswers.push(...bodiesAt(100, 100, 100));
+
+    await detectBitrate(api);
+
+    expect(heard).not.toHaveBeenCalled();
+  });
+});
+
 /** The device on mobile data of a generation, as NetInfo tells it. */
 const onCellular = (generation: string) => {
   mockNetworkState = {
