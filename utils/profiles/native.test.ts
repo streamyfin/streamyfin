@@ -1,10 +1,10 @@
 import { stubReactNative } from "@/test-utils/reactNative";
 
 stubReactNative();
-jest.mock("expo", () => ({
-  // codecSupport probes the native MPV module, which no test environment has.
-  requireOptionalNativeModule: () => null,
-}));
+jest.mock(
+  "expo",
+  () => jest.requireActual("@/test-utils/stubModules").expoWithoutNativeModule,
+);
 
 import { generateDeviceProfile } from "./native";
 

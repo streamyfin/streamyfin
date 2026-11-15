@@ -2,10 +2,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
 import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { toast } from "sonner-native";
 import { TVLogin } from "@/components/login/TVLogin";
 import { QUICK_CONNECT_CODE_LIFETIME_MS } from "@/constants/QuickConnect";
 import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { pressTVBack } from "@/test-utils/tvBackPress";
 
 const mockInitiateQuickConnect = jest.fn(async () => "123456");
 const mockStopQuickConnectPolling = jest.fn();
@@ -43,23 +45,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => mockJellyfin,
   };
 });
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({}),
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-/** The last back handler a screen registered, to press back from the spec. */
-let mockBackHandler: (() => unknown) | null = null;
-jest.mock("@/hooks/useTVBackPress", () => ({
-  useTVBackPress: (handler: () => unknown) => {
-    mockBackHandler = handler;
-  },
-  useTVMenuKeyInterception: () => {},
-}));
 // The real scale reads the settings atom, which loads the whole settings UI.
 jest.mock("@/constants/TVTypography", () => ({
   useScaledTVTypography: () => ({ callout: 20, heading: 28 }),
@@ -99,10 +84,7 @@ type SaveModalProps = {
   allowPassword?: boolean;
   onSave: (securityType: string, pinCode?: string) => void;
 };
-const mockToastError = jest.fn();
-jest.mock("sonner-native", () => ({
-  toast: { error: (message: string) => mockToastError(message) },
-}));
+const mockToastError = jest.mocked(toast.error);
 jest.mock("@/components/login/TVSaveAccountModal", () => ({
   TVSaveAccountModal: (props: SaveModalProps) => MockSaveAccountModal(props),
 }));
@@ -134,7 +116,6 @@ jest.mock("@/components/login/TVAddServerForm", () => ({
 
 describe("TVLogin", () => {
   beforeEach(() => {
-    mockInitiateQuickConnect.mockClear();
     mockInitiateQuickConnect.mockImplementation(async () => "123456");
     mockStopQuickConnectPolling.mockReset();
     mockSaveCurrentAccount.mockReset();
@@ -150,7 +131,6 @@ describe("TVLogin", () => {
       { basePath: "http://jellyfin.local:8096" } as never,
     );
     mockSaveAccount = false;
-    mockBackHandler = null;
     getDefaultStore().set(userAtom as never, null as never);
   });
 
@@ -329,7 +309,7 @@ describe("TVLogin", () => {
     });
 
     await act(async () => {
-      mockBackHandler?.();
+      pressTVBack();
     });
     await act(async () => {
       getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
@@ -429,7 +409,7 @@ describe("TVLogin", () => {
       fireEvent.press(screen.getByText("pairing.get_new_code"));
     });
     await act(async () => {
-      mockBackHandler?.();
+      pressTVBack();
     });
     mockStopQuickConnectPolling.mockClear();
 
@@ -588,7 +568,7 @@ describe("TVLogin", () => {
     mockStopQuickConnectPolling.mockClear();
 
     await act(async () => {
-      mockBackHandler?.();
+      pressTVBack();
     });
     expect(mockStopQuickConnectPolling).toHaveBeenCalledTimes(1);
     expect(screen.getByText("add user form")).toBeTruthy();

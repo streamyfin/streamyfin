@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { Platform } from "react-native";
-import Settings from "@/app/(auth)/(tabs)/(home)/settings";
+import Settings from "@/app/(auth)/(tabs)/(more)/settings";
 
 const mockPush = jest.fn();
 jest.mock("@/hooks/useAppRouter", () => ({
@@ -14,13 +14,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => ({ logout: jest.fn() }),
   };
 });
-jest.mock("expo-router", () => ({
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 // The other sections of the screen have nothing to do with the entry.
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,
@@ -43,9 +36,6 @@ jest.mock("@/hooks/useMyNotifications", () => ({
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({ available: false }),
 }));
-jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: {}, updateSettings: () => undefined }),
-}));
 
 describe("Settings, Log in on TV", () => {
   // The entry was hidden on iOS while pairing went through a UDP broadcast.
@@ -56,7 +46,7 @@ describe("Settings, Log in on TV", () => {
 
     await fireEvent.press(screen.getByText("pairing.pair_with_phone"));
     expect(mockPush).toHaveBeenCalledWith(
-      "/(auth)/(tabs)/(home)/companion-login",
+      "/(auth)/(tabs)/(more)/companion-login",
     );
   });
 });

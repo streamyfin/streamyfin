@@ -1,4 +1,3 @@
-import "react-native-url-polyfill/auto";
 import { Platform } from "react-native";
 import "expo-router/entry";
 

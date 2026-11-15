@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import { isEqual } from "lodash";
+import isEqual from "lodash/isEqual";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
+import { useSheetContentPadding } from "@/components/common/SheetContent";
 import { Text } from "@/components/common/Text";
+import { FILTER_SINGLE_CHOICE_CLOSE_DELAY_MS } from "@/constants/Values";
 
 interface Props<T> {
   title: string;
@@ -45,7 +46,7 @@ export const FilterSheetContent = <T,>({
   onClose,
 }: Props<T>) => {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
+  const padding = useSheetContentPadding();
 
   const [values, setValues] = useState<T[]>(initialValues);
   const [search, setSearch] = useState("");
@@ -73,7 +74,7 @@ export const FilterSheetContent = <T,>({
         setValues([item]);
         set([item]);
       }
-      setTimeout(() => onClose(), 250);
+      setTimeout(() => onClose(), FILTER_SINGLE_CHOICE_CLOSE_DELAY_MS);
     }
   };
 
@@ -83,14 +84,10 @@ export const FilterSheetContent = <T,>({
       keyExtractor={(item, index) => `${renderItemLabel(item)}-${index}`}
       keyboardShouldPersistTaps='handled'
       initialNumToRender={20}
-      style={{
-        paddingLeft: Math.max(16, insets.left),
-        paddingRight: Math.max(16, insets.right),
-      }}
-      contentContainerStyle={{ paddingBottom: Math.max(16, insets.bottom) }}
+      contentContainerStyle={padding}
       ListHeaderComponent={
         <>
-          <Text className='font-bold text-2xl mt-2'>{title}</Text>
+          <Text className='font-bold text-2xl'>{title}</Text>
           <Text className='mb-2 text-neutral-500'>
             {t("search.x_items", { count: data.length })}
           </Text>

@@ -14,17 +14,6 @@ const disableForTV = (_moduleName) =>
     : undefined;
 
 const dependencies = {
-  "react-native-volume-manager": !isTV
-    ? {
-        platforms: {
-          // leaving this blank seems to enable auto-linking which is what we want for mobile
-        },
-      }
-    : {
-        platforms: {
-          android: null,
-        },
-      },
   "expo-notifications": disableForTV("expo-notifications"),
   "react-native-image-colors": disableForTV("react-native-image-colors"),
   "expo-sharing": disableForTV("expo-sharing"),

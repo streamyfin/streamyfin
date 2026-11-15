@@ -9,18 +9,12 @@ import {
   searchStudios,
 } from "./search";
 
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-
 /** The one request the api sent: its path and its query. */
 const sentRequest = (api: ReturnType<typeof makeApi>) => {
   expect(api.mock.history.get).toHaveLength(1);
   const url = new URL(api.mock.history.get[0].url ?? "");
   return { path: url.pathname, query: url.searchParams };
 };
-
-afterEach(() => {
-  jest.clearAllMocks();
-});
 
 const person = (name: string): BaseItemDto => ({
   Id: name,

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
-import { POSTER_IMAGE_TRANSITION_DURATION } from "@/constants/Values";
+import { POSTER_IMAGE_TRANSITION } from "@/constants/Values";
 import type { CardData } from "./CardData";
 
 /** What a card shows where its artwork goes: none, or one still loading. */
@@ -65,7 +65,7 @@ export const CardArtwork: React.FC<Props> = ({
         <Image
           id={card.id}
           recyclingKey={card.id}
-          transition={POSTER_IMAGE_TRANSITION_DURATION}
+          transition={POSTER_IMAGE_TRANSITION}
           source={{ uri: card.imageUrl }}
           cachePolicy='memory-disk'
           contentFit='cover'

@@ -50,7 +50,7 @@ import {
 } from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
@@ -59,6 +59,10 @@ import { defaultLabel as subtitleLabel } from "@/utils/subtitles/trackMenu";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { BITRATES, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
+import {
+  SingleItemDownloadedIcon,
+  SingleItemDownloadIcon,
+} from "./common/DownloadIcons";
 import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
@@ -93,6 +97,39 @@ export type SelectedOptions = DownloadChoices & {
   burnInIndex: number;
 };
 
+/** A track picked in the sheet, with the version it was picked on. */
+interface TrackPick {
+  source: MediaSourceInfo;
+  index: number;
+}
+
+interface TrackPicks {
+  audio?: TrackPick;
+  subtitle?: TrackPick;
+}
+
+/**
+ * The tracks to download from `version`. Stream indexes are per version, so
+ * each pick is matched again from the version it was made on: a version that
+ * lacks the track falls back to its own default and the pick stays as it was.
+ */
+const tracksOnVersion = (
+  item: BaseItemDto,
+  version: MediaSourceInfo,
+  settings: Settings | null,
+  { audio, subtitle }: TrackPicks,
+): { audioIndex?: number; subtitleIndex: number } => {
+  const { audioIndex, subtitleIndex } = getDefaultPlaySettings(
+    { ...item, MediaSources: [version] },
+    settings,
+    {
+      indexes: { audioIndex: audio?.index, subtitleIndex: subtitle?.index },
+      pickedOn: { audio: audio?.source, subtitle: subtitle?.source },
+    },
+  );
+  return { audioIndex, subtitleIndex: subtitleIndex ?? SUBTITLES_OFF };
+};
+
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
   MissingDownloadIconComponent: () => React.ReactElement;
@@ -124,6 +161,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+  // A default is not a choice, so only a picked track follows a version change.
+  const [picks, setPicks] = useState<TrackPicks>({});
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -179,6 +218,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       burnInIndex: defaultBurnIn(defaultMediaSource, defaultSubtitleIndex),
       audioIndex: defaultAudioIndex,
     }));
+    setPicks({});
   }, [
     defaults.mode,
     defaults.bitrate,
@@ -429,15 +469,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       return progress === 0 ? (
         <Loader />
       ) : (
-        <View className='-rotate-45'>
-          <ProgressCircle
-            size={PROGRESS_RING_SIZE}
-            fill={progress}
-            width={PROGRESS_RING_WIDTH}
-            tintColor={Colors.primary}
-            backgroundColor='white'
-          />
-        </View>
+        <ProgressCircle
+          size={PROGRESS_RING_SIZE}
+          fill={progress}
+          width={PROGRESS_RING_WIDTH}
+          tintColor={Colors.primary}
+          backgroundColor='white'
+        />
       );
     }
 
@@ -534,15 +572,32 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     <View className='items-start'>
                       <MediaSourceSelector
                         item={optionsItem}
-                        onChange={(mediaSource) =>
+                        onChange={(mediaSource) => {
+                          // The burn-in pick does not move the subtitle offline
+                          // playback starts on, only the burn-in.
+                          const tracks = tracksOnVersion(
+                            optionsItem,
+                            mediaSource,
+                            settings,
+                            { audio: picks.audio },
+                          );
                           choose({
                             mediaSource,
-                            burnInIndex: defaultBurnIn(
-                              mediaSource,
-                              selectedOptions?.subtitleIndex,
-                            ),
-                          })
-                        }
+                            audioIndex: tracks.audioIndex,
+                            subtitleIndex: tracks.subtitleIndex,
+                            burnInIndex: picks.subtitle
+                              ? tracksOnVersion(
+                                  optionsItem,
+                                  mediaSource,
+                                  settings,
+                                  picks,
+                                ).subtitleIndex
+                              : defaultBurnIn(
+                                  mediaSource,
+                                  tracks.subtitleIndex,
+                                ),
+                          });
+                        }}
                         selected={selectedOptions?.mediaSource}
                       />
                     </View>
@@ -554,7 +609,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                       {offersAudioChoice(selectedOptions.mediaSource) && (
                         <AudioTrackSelector
                           source={selectedOptions.mediaSource}
-                          onChange={(audioIndex) => choose({ audioIndex })}
+                          onChange={(audioIndex) => {
+                            choose({ audioIndex });
+                            const source = selectedOptions.mediaSource;
+                            if (source) {
+                              setPicks((prev) => ({
+                                ...prev,
+                                audio: { source, index: audioIndex },
+                              }));
+                            }
+                          }}
                           selected={selectedOptions.audioIndex}
                         />
                       )}
@@ -572,7 +636,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                             })),
                           ]}
                           selected={selectedOptions.burnInIndex}
-                          onChange={(burnInIndex) => choose({ burnInIndex })}
+                          onChange={(burnInIndex) => {
+                            choose({ burnInIndex });
+                            const source = selectedOptions.mediaSource;
+                            if (source) {
+                              setPicks((prev) => ({
+                                ...prev,
+                                subtitle: { source, index: burnInIndex },
+                              }));
+                            }
+                          }}
                         />
                       )}
                     </View>
@@ -597,7 +670,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   {showMoreOptions && (
                     <View className='flex flex-col space-y-2 items-start'>
                       <BitrateSelector
-                        inverted
                         onChange={(bitrate) => choose({ bitrate })}
                         selected={selectedOptions.bitrate}
                       />
@@ -651,10 +723,8 @@ export const DownloadSingleItem: React.FC<{
       }
       subtitle={item.Name!}
       items={[item]}
-      MissingDownloadIconComponent={() => <HeaderIcon name='downloads' />}
-      DownloadedIconComponent={() => (
-        <HeaderIcon name='downloaded' tintColor={Colors.primary} />
-      )}
+      MissingDownloadIconComponent={SingleItemDownloadIcon}
+      DownloadedIconComponent={SingleItemDownloadedIcon}
     />
   );
 };

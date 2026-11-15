@@ -1,4 +1,5 @@
 import Combine
+import ExpoModulesCore
 import Foundation
 import QuartzCore
 import UIKit
@@ -191,6 +192,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var hapticsEnabled = true
 	private(set) var showVolumeSlider = true
 	private(set) var showBrightnessSlider = true
+	private(set) var horizontalSwipeSeekEnabled = true
+	private(set) var brightnessSwipeEnabled = true
+	private(set) var volumeSwipeEnabled = true
 	private(set) var holdToSpeedEnabled = true
 	private(set) var holdToSpeedRate: Double = 2.0
 	private(set) var pinchToZoomEnabled = true
@@ -523,6 +527,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		hapticsEnabled = config.ui.hapticsEnabled
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
+		horizontalSwipeSeekEnabled = config.ui.horizontalSwipeSeekEnabled
+		brightnessSwipeEnabled = config.ui.brightnessSwipeEnabled
+		volumeSwipeEnabled = config.ui.volumeSwipeEnabled
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
 		holdToSpeedRate = config.ui.holdToSpeedRate
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
@@ -1043,7 +1050,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		var effectiveScale = subtitleScale * subtitleScaleMultiplier
 		if let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
 			let surface = playerSurfaceSize
-			let pixelScale = UIScreen.main.scale
+			let pixelScale = SceneGeometry.displayScale()
 			let width = Double(surface.width * pixelScale)
 			let height = Double(surface.height * pixelScale)
 			let widthScale = width / Double(videoWidth)
@@ -1060,9 +1067,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private var playerSurfaceSize: CGSize {
-		guard let engine else { return UIScreen.main.bounds.size }
+		guard let engine else { return SceneGeometry.bounds().size }
 		let size = engine.displayLayer.bounds.size
-		return size.width > 0 && size.height > 0 ? size : UIScreen.main.bounds.size
+		return size.width > 0 && size.height > 0 ? size : SceneGeometry.bounds().size
 	}
 
 	// MARK: Volume slider reveal
@@ -1278,13 +1285,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	/// Localized pill label for a segment type, e.g. "Skip intro".
 	func skipLabel(for type: String) -> String {
-		switch type {
-		case "Outro": return str("skipCredits", "Skip Outro")
-		case "Recap": return str("skipRecap", "Skip Recap")
-		case "Commercial": return str("skipCommercial", "Skip Commercial")
-		case "Preview": return str("skipPreview", "Skip Preview")
-		default: return str("skipIntro", "Skip Intro")
-		}
+		segmentSkipLabel(for: type) { str($0, $1) }
 	}
 
 	/// "… skipped" notice for a segment type. Whole sentences rather than a

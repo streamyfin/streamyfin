@@ -5,6 +5,7 @@ import {
   commonScreenOptions,
   nestedTabPageScreenOptions,
   stackScreenOptions,
+  watchlistSheetScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
 
 export default function SearchLayout() {
@@ -22,6 +23,9 @@ export default function SearchLayout() {
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
+        <Stack.Screen key={name} name={name} options={options} />
+      ))}
+      {Object.entries(watchlistSheetScreenOptions(t)).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}
       <Stack.Screen

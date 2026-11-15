@@ -69,6 +69,10 @@ describe("resolveAcceptLanguage", () => {
 });
 
 describe("getAcceptLanguage", () => {
+  // i18next 27 refuses a code like "a,b" itself, but takes a POSIX one, which
+  // is still no language tag for the header.
+  const UNUSABLE_APP_LANGUAGE = "sr@latin";
+
   test("follows the app language as it changes", async () => {
     expect(getAcceptLanguage()).toBe("sv");
 
@@ -78,14 +82,14 @@ describe("getAcceptLanguage", () => {
   });
 
   test("asks for the device locale when the app language is unusable", async () => {
-    await i18next.changeLanguage("a,b");
+    await i18next.changeLanguage(UNUSABLE_APP_LANGUAGE);
 
     expect(getAcceptLanguage()).toBe("en-US");
   });
 
   test("sends nothing when the device locale is unusable too", async () => {
     setDeviceLanguage("");
-    await i18next.changeLanguage("a,b");
+    await i18next.changeLanguage(UNUSABLE_APP_LANGUAGE);
 
     expect(getAcceptLanguage()).toBeUndefined();
   });
@@ -95,7 +99,7 @@ describe("getAcceptLanguage", () => {
     jest
       .mocked(getLocales)
       .mockReturnValue([] as unknown as ReturnType<typeof getLocales>);
-    await i18next.changeLanguage("a,b");
+    await i18next.changeLanguage(UNUSABLE_APP_LANGUAGE);
 
     expect(getAcceptLanguage()).toBeUndefined();
   });

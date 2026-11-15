@@ -13,12 +13,17 @@ import { isAxiosError } from "axios";
 import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import {
+  BITRATE_DETECTION_TTL_MS,
+  DETECTED_BITRATE_RATIO,
+  IN_NETWORK_MIN_BITRATE,
+} from "@/constants/Bitrate";
 import type { DownloadMode, DownloadVideoCodec } from "@/constants/Downloads";
 import {
   DEFAULT_MUSIC_NORMALIZATION_MODE,
   type MusicNormalizationMode,
 } from "@/constants/Music";
+import { BITRATES, type Bitrate } from "@/constants/Playback";
 import { REDACTED_PLACEHOLDER } from "@/constants/Privacy";
 import {
   DEFAULT_STILL_WATCHING_PRESET,
@@ -26,6 +31,7 @@ import {
 } from "@/constants/StillWatching";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/utils/atoms/api";
+import { AUTO_BITRATE, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import type { AudioTranscodeModeType } from "@/utils/profiles/native";
@@ -165,7 +171,11 @@ const normalizePluginValue = (
       // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
       // Anything else falls back to a key of String(value).
       if (settingsKey === "defaultBitrate") {
-        const match = BITRATES.find(
+        // Jellyfin leaves a null out of the plugin's JSON, so a default
+        // without a value is the one the plugin ships: the app's own, Auto.
+        // The plugin names Max by its key, which the lookup below finds.
+        if (value === undefined || value === null) return AUTO_BITRATE;
+        const match = PLAYBACK_BITRATES.find(
           (b) => b.key === value || b.value === value,
         );
         if (match) return match;
@@ -408,6 +418,14 @@ export type Settings = {
   /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
   showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
+  /** Auto: the share of the measured speed a stream may take. */
+  autoBitrateRatio: number;
+  /** Auto: how long a measure is used before the next, in minutes. */
+  autoBitrateTtlMinutes: number;
+  /** Auto: the least a stream gets in the server's network, in bit/s; 0 for none. */
+  autoBitrateInNetworkMin: number;
+  /** Auto: steps down when a stream stalls, and back up once the link allows. */
+  autoBitrateAdapt: boolean;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -507,6 +525,12 @@ export type Settings = {
   nativeVideoPlayerTV: boolean;
   /** Android TV only: use the fully-native Android TV player (opt-in; default off). */
   nativeVideoPlayerAndroidTV?: boolean;
+  /**
+   * Android TV only: switch the display to a refresh rate matching the
+   * video's frame rate (default off — the mode switch is non-seamless on
+   * most panels, a brief black flash on rate changes).
+   */
+  matchRefreshRate?: boolean;
   showHomeBackdrop: boolean;
   /**
    * The home hero carousel, on every platform — the TV one and the iOS one
@@ -611,7 +635,11 @@ export const defaultValues: Settings = {
   defaultDownloadBitrate: BITRATES[0],
   downloadVideoCodec: "auto",
   showDownloadLiveActivity: true,
-  defaultBitrate: BITRATES[0],
+  defaultBitrate: AUTO_BITRATE,
+  autoBitrateRatio: DETECTED_BITRATE_RATIO,
+  autoBitrateTtlMinutes: BITRATE_DETECTION_TTL_MS / 60_000,
+  autoBitrateInNetworkMin: IN_NETWORK_MIN_BITRATE,
+  autoBitrateAdapt: true,
   libraryOptions: {
     display: "list",
     cardStyle: "detailed",
@@ -694,6 +722,7 @@ export const defaultValues: Settings = {
   // TV-specific settings
   nativeVideoPlayerTV: true,
   nativeVideoPlayerAndroidTV: false,
+  matchRefreshRate: false,
   showHomeBackdrop: true,
   showHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

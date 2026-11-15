@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer.nativeplayer
 
+import expo.modules.mpvplayer.playback.shouldPauseOnPictureInPictureEnd
+import expo.modules.mpvplayer.playback.shouldPauseOnActivityStop
+import android.os.PowerManager
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.BroadcastReceiver
@@ -103,6 +106,11 @@ class NativePlayerSession(
     /** Between the host activity's onStop and its next onStart. */
     private var hostActivityStopped = false
 
+    // Refresh-rate matching: the mode we switched the window to, and the
+    // window attribute that was there before, so dismiss hands the display
+    // back to the system instead of leaving playback's rate pinned.
+    private var originalPreferredDisplayModeId: Int? = null
+
     /** The play state the PiP window's buttons were last built for. */
     private var pipActionsPlaying: Boolean? = null
 
@@ -186,7 +194,9 @@ class NativePlayerSession(
                     viewModel.onDeviceMuteChanged(volumeCtrl.volume <= 0.001f, seed = true)
                 }
 
-                val mediaCtrl = MediaSessionController(activity, viewModel)
+                // Swiped away from recents, it ends as if the user closed it:
+                // the progress is saved and a new play request can present.
+                val mediaCtrl = MediaSessionController(activity, viewModel) { dismiss("closeButton") }
                 mediaSessionController = mediaCtrl
                 mediaCtrl.start()
 
@@ -200,6 +210,9 @@ class NativePlayerSession(
                 }
                 viewModel.onMetadataSync = {
                     mediaSessionController?.updateMetadata()
+                }
+                viewModel.onPositionSync = {
+                    mediaSessionController?.onPositionTick()
                 }
 
                 // Setup Overlay Views on MainActivity
@@ -235,7 +248,7 @@ class NativePlayerSession(
     private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
         return when (config.engine?.lowercase()) {
             "exoplayer" -> ExoPlayerEngine(activity)
-            else -> MPVLayerRenderer(activity, voDriver = "gpu-next")
+            else -> MPVLayerRenderer(activity, voDriver = resolveMpvVoDriver(config.voDriver))
         }
     }
 
@@ -488,17 +501,30 @@ class NativePlayerSession(
                 hostActivityStopped = true
                 val inPictureInPicture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                     activity.isInPictureInPictureMode
-                if (!shouldLeaveSyncPlayOnActivityStop(
+                if (shouldLeaveSyncPlayOnActivityStop(
                         ownsActivity = activity === hostActivity,
                         syncPlayActive = viewModel.syncPlayActive,
                         inPictureInPicture = inPictureInPicture,
                         changingConfigurations = activity.isChangingConfigurations,
                         dismissing = isDismissing
-                    )) return
-
-                // AppState can report background before the PiP change reaches
-                // JS. Android's stopped/PiP state owns this decision instead.
-                suspendSyncPlayInBackground("stopped non-PiP host activity")
+                    )) {
+                    // AppState can report background before the PiP change reaches
+                    // JS. Android's stopped/PiP state owns this decision instead.
+                    suspendSyncPlayInBackground("stopped non-PiP host activity")
+                    return
+                }
+                if (!viewModel.syncPlayActive && shouldPauseOnActivityStop(
+                        isTelevision = DeviceKind.isTelevision(activity),
+                        // The native chrome always runs its media session.
+                        backgroundPlayback = true,
+                        screenInteractive = isScreenInteractive(activity),
+                        inPictureInPicture = inPictureInPicture,
+                        changingConfigurations = activity.isChangingConfigurations,
+                        dismissing = isDismissing
+                    )) {
+                    Log.i(TAG, "Player left with no picture in picture: pausing")
+                    viewModel.pause()
+                }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
@@ -506,6 +532,9 @@ class NativePlayerSession(
         app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
         lifecycleRegistered = true
     }
+
+    private fun isScreenInteractive(context: Context): Boolean =
+        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true
 
     private fun unregisterLifecycleCallbacks() {
         mainHandler.removeCallbacks(recoverResumeRunnable)
@@ -567,6 +596,14 @@ class NativePlayerSession(
                 syncPlayActive = viewModel.syncPlayActive,
                 dismissing = isDismissing
             )) suspendSyncPlayInBackground("picture in picture closed")
+        else if (!viewModel.syncPlayActive && shouldPauseOnPictureInPictureEnd(
+                inPictureInPicture = isInPiP,
+                activityStopped = hostActivityStopped,
+                dismissing = isDismissing
+            )) {
+            Log.i(TAG, "Picture in picture closed: pausing")
+            viewModel.pause()
+        }
         if (isInPiP) {
             viewModel.applySubtitleGeometry()
             viewModel.controlsVisible = false
@@ -678,6 +715,21 @@ class NativePlayerSession(
             return
         }
 
+        // Before the engine loads, so the mode settles while the stream
+        // buffers instead of after the first juddered frames.
+        val contentFrameRate = loadConfig.contentFrameRate
+        if (contentFrameRate == null) {
+            // Setting off, or the PlaybackInfo response carried no
+            // RealFrameRate for the video stream — one line, because this is
+            // the silent exit the refresh-rate feature loses to. The window
+            // may hold a preference an earlier stream in this session set;
+            // hand the display back to the system.
+            Log.i(TAG, "Refresh-rate match: config carries no content frame rate")
+            restoreDisplayMode()
+        } else {
+            matchContentFrameRate(contentFrameRate)
+        }
+
         engine?.load(loadConfig)
 
         // mpv's pause property is global and survives loadfile, and keep-open=
@@ -716,6 +768,96 @@ class NativePlayerSession(
             "onLoad",
             mapOf("url" to loadConfig.url, "muted" to viewModel.isMuted, "isPlaying" to loadConfig.autoplay),
         )
+    }
+
+    /**
+     * Switch the window to the display mode matching the content's frame
+     * rate. MKV direct play never gives the platform a frame rate, so the
+     * codec starts on its default and the vendor's HDMI frame-rate adaptation
+     * fires before the real rate is known — without this, 25fps content stays
+     * on a 60Hz panel and judders in an uneven 2:2:3 cadence.
+     * preferredDisplayModeId is the API Android's docs prescribe for TV
+     * boxes: Surface.setFrameRate() only drives seamless switches, and TV
+     * panels switch non-seamlessly. No qualifying mode restores the session's
+     * original preference; the best match already active is a no-op.
+     */
+    private fun matchContentFrameRate(contentFrameRate: Double) {
+        val activity = hostActivity ?: run {
+            Log.i(TAG, "Refresh-rate match: no host activity, display left as it is")
+            return
+        }
+        // The setting's contract is Android TV only — enforce it where it
+        // acts, not just in the settings UI.
+        if (!DeviceKind.isTelevision(activity)) {
+            Log.i(TAG, "Refresh-rate match: not a TV, display left as it is")
+            return
+        }
+        try {
+            // The display the window is on: preferredDisplayModeId must be
+            // one of that display's supported modes.
+            val display = activity.windowManager.defaultDisplay ?: run {
+                Log.i(TAG, "Refresh-rate match: the window has no display yet")
+                return
+            }
+            val current = display.mode
+            val candidate = RefreshRateMatcher.pickMode(display, contentFrameRate)
+            if (candidate == null) {
+                // The mode list is what jellyfin-androidtv reads too, so if
+                // it has no qualifying mode for a rate that app switches to,
+                // this line is the evidence of the difference. The window may
+                // hold a preference a previous stream set — restore it rather
+                // than pin this stream to the wrong rate.
+                Log.i(
+                    TAG,
+                    "Refresh-rate match: no mode for " + contentFrameRate + " fps" +
+                        "; current " + current.modeId + "@" + current.refreshRate + "Hz" +
+                        "; supported " + display.supportedModes.joinToString(
+                            prefix = "[", postfix = "]",
+                        ) { m ->
+                            m.modeId.toString() + "@" + m.refreshRate + "Hz " +
+                                m.physicalWidth + "x" + m.physicalHeight
+                        },
+                )
+                restoreDisplayMode()
+                return
+            }
+            if (candidate.modeId == current.modeId) {
+                Log.i(
+                    TAG,
+                    "Refresh-rate match: active mode " + current.modeId + "@" +
+                        current.refreshRate + "Hz already suits " + contentFrameRate + " fps",
+                )
+                return
+            }
+            val attributes = activity.window.attributes
+            if (originalPreferredDisplayModeId == null) {
+                originalPreferredDisplayModeId = attributes.preferredDisplayModeId
+            }
+            attributes.preferredDisplayModeId = candidate.modeId
+            activity.window.attributes = attributes
+            Log.i(
+                TAG,
+                "Matched display mode " + candidate.modeId + " (" + candidate.refreshRate +
+                    " Hz) to " + contentFrameRate + " fps"
+            )
+        } catch (e: Exception) {
+            // A refused mode switch must never take playback down with it.
+            Log.w(TAG, "Display mode match failed", e)
+        }
+    }
+
+    private fun restoreDisplayMode() {
+        val original = originalPreferredDisplayModeId ?: return
+        originalPreferredDisplayModeId = null
+        val activity = hostActivity ?: return
+        try {
+            val attributes = activity.window.attributes
+            attributes.preferredDisplayModeId = original
+            activity.window.attributes = attributes
+        } catch (e: Exception) {
+            // The window is going away anyway; logged so the restore is never a silent no-op.
+            Log.w(TAG, "Refresh-rate match: restoring the display mode failed", e)
+        }
     }
 
     private fun applySubtitleStyle(style: SubtitleStyleRecord) {
@@ -831,6 +973,7 @@ class NativePlayerSession(
                 } catch (e: Exception) {
                     // Ignored
                 }
+                restoreDisplayMode()
             }
 
             viewModel.brightnessController?.restore()
@@ -870,6 +1013,7 @@ class NativePlayerSession(
             surfaceView = null
             composeView = null
             activity?.let { unregisterPiPReceiver(it) }
+            restoreDisplayMode()
             viewModel.brightnessController?.restore()
             viewModel.volumeController?.unregister()
             mediaSessionController?.release()

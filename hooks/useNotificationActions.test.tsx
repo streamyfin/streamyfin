@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import {
   type MyNotifications,
   myNotificationsKey,
@@ -13,8 +14,8 @@ const mockClear = jest.fn(() => {
   mockLast = null;
 });
 const mockHandle = jest.fn();
-const mockSuccess = jest.fn();
-const mockError = jest.fn();
+const mockSuccess = jest.mocked(toast.success);
+const mockError = jest.mocked(toast.error);
 
 jest.mock("expo-notifications", () => ({
   DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",
@@ -37,15 +38,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     userAtom: atom({ Id: "alice" }),
   };
 });
-jest.mock("sonner-native", () => ({
-  toast: {
-    success: (...args: unknown[]) => mockSuccess(...args),
-    error: (...args: unknown[]) => mockError(...args),
-  },
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const response = (actionIdentifier: string) => ({
   actionIdentifier,
@@ -75,7 +67,6 @@ const answer = (mine: Partial<MyNotifications>) => ({
 
 describe("the buttons on a notification", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     mockLast = null;
     mockListener = null;
     client.clear();

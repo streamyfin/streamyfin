@@ -5,35 +5,21 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { toast } from "sonner-native";
 import { SeerrSettings } from "./Seerr";
 
 const mockQuickConnectEnabled = jest.fn<Promise<boolean>, []>();
 const mockSignInWithQuickConnect = jest.fn();
 const mockLogin = jest.fn();
 const mockSetSeerrUser = jest.fn();
-const mockToastError = jest.fn();
+const mockToastError = jest.mocked(toast.error);
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The log module loads Sentry and its timers. Nothing asserted here logs.
-jest.mock("@/utils/log", () => ({
-  writeErrorLog: () => undefined,
-  writeToLog: () => undefined,
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("sonner-native", () => ({
-  toast: { error: (message: string) => mockToastError(message) },
-}));
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
 // Input reads the TV font scale through the settings atom, whose module graph
 // reaches native modules a spec cannot load. Nothing here renders on TV.
-jest.mock("@/constants/TVTypography", () => ({
-  useScaledTVTypography: () => ({}),
-}));
+jest.mock(
+  "@/constants/TVTypography",
+  () => jest.requireActual("@/test-utils/stubModules").emptyTVTypographyModule,
+);
 // The provider's module graph is the whole app. The form only reads who is
 // signed in to Jellyfin, and through which client.
 jest.mock("@/providers/JellyfinProvider", () => {

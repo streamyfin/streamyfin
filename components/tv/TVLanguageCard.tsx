@@ -1,6 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -14,66 +20,67 @@ export interface TVLanguageCardProps {
   onPress: () => void;
 }
 
-export const TVLanguageCard = React.forwardRef<View, TVLanguageCardProps>(
-  ({ code, name, selected, hasTVPreferredFocus, onPress }, ref) => {
-    const typography = useScaledTVTypography();
-    const styles = createStyles(typography);
-    const { focused, handleFocus, handleBlur, animatedStyle } =
-      useTVFocusAnimation({ scaleAmount: 1.05 });
+export const TVLanguageCard = React.forwardRef<
+  ViewInstance,
+  TVLanguageCardProps
+>(({ code, name, selected, hasTVPreferredFocus, onPress }, ref) => {
+  const typography = useScaledTVTypography();
+  const styles = createStyles(typography);
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
-    return (
-      <Pressable
-        ref={ref}
-        onPress={onPress}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        hasTVPreferredFocus={hasTVPreferredFocus}
+  return (
+    <Pressable
+      ref={ref}
+      onPress={onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={[
+          styles.languageCard,
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "#fff"
+              : selected
+                ? "rgba(255,255,255,0.2)"
+                : "rgba(255,255,255,0.08)",
+          },
+        ]}
       >
-        <Animated.View
+        <Text
           style={[
-            styles.languageCard,
-            animatedStyle,
-            {
-              backgroundColor: focused
-                ? "#fff"
-                : selected
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(255,255,255,0.08)",
-            },
+            styles.languageCardText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || selected) && { fontWeight: "600" },
+          ]}
+          numberOfLines={1}
+        >
+          {name}
+        </Text>
+        <Text
+          style={[
+            styles.languageCardCode,
+            { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
           ]}
         >
-          <Text
-            style={[
-              styles.languageCardText,
-              { color: focused ? "#000" : "#fff" },
-              (focused || selected) && { fontWeight: "600" },
-            ]}
-            numberOfLines={1}
-          >
-            {name}
-          </Text>
-          <Text
-            style={[
-              styles.languageCardCode,
-              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
-            ]}
-          >
-            {code.toUpperCase()}
-          </Text>
-          {selected && !focused && (
-            <View style={styles.checkmark}>
-              <Ionicons
-                name='checkmark'
-                size={scaleSize(16)}
-                color='rgba(255,255,255,0.8)'
-              />
-            </View>
-          )}
-        </Animated.View>
-      </Pressable>
-    );
-  },
-);
+          {code.toUpperCase()}
+        </Text>
+        {selected && !focused && (
+          <View style={styles.checkmark}>
+            <Ionicons
+              name='checkmark'
+              size={scaleSize(16)}
+              color='rgba(255,255,255,0.8)'
+            />
+          </View>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+});
 
 const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({

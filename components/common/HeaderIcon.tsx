@@ -17,7 +17,6 @@
 
 import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
-import type { ColorValue } from "react-native";
 import { HEADER_ICON_SIZE } from "./HeaderButton";
 
 /**
@@ -78,7 +77,7 @@ const FALLBACK_GLYPHS: Partial<
 interface Props {
   name: HeaderIconName;
   /** Defaults to white; pass a colour to signal a toggle's "on" state. */
-  tintColor?: ColorValue;
+  tintColor?: string;
   /** Only override for icons rendered outside a header. */
   size?: number;
 }

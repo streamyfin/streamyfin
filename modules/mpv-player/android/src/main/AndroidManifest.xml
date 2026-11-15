@@ -1,9 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required for network streaming -->
     <uses-permission android:name="android.permission.INTERNET" />
-    
+
+    <!-- Background playback: Android 17 mutes an app that is neither visible
+         nor running a foreground service, so a video keeps playing with the
+         screen off only through PlaybackService. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Picture-in-Picture feature -->
     <uses-feature
         android:name="android.software.picture_in_picture"
         android:required="false" />
+
+    <application>
+        <service
+            android:name="expo.modules.mpvplayer.playback.PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
 </manifest>

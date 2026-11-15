@@ -5,6 +5,7 @@ import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useServerVersion } from "@/hooks/useServerVersion";
 import { useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { toBitrateRequest } from "@/utils/bitrate";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
@@ -73,7 +74,7 @@ export const useShuffleQueue = () => {
           audioIndex,
           subtitleIndex,
           mediaSourceId: mediaSource?.Id ?? undefined,
-          bitrateValue: bitrate?.value,
+          bitrateValue: toBitrateRequest(bitrate),
           offline: options.isOffline ?? false,
           playbackPositionTicks:
             getAdjacentStartTicks(

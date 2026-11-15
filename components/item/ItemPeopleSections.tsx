@@ -1,12 +1,11 @@
-import type {
-  BaseItemDto,
-  BaseItemPerson,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { InteractionManager, View, type ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { CAST_KINDS, MORE_MOVIES_ACTORS_LIMIT } from "@/constants/CastCrew";
+import { type CastCrewPerson, useCastCrew } from "@/hooks/useCastCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
@@ -16,15 +15,23 @@ interface Props extends ViewProps {
 
 export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
   const isOffline = useOfflineMode();
-  const [enabled, setEnabled] = useState(false);
+  // The item the idle callback cleared for loading. The people are asked for
+  // once the JS thread is idle, so the request does not compete with the rest
+  // of the item page while it mounts. Moving to another item or going offline
+  // clears it, so both wait for idle again.
+  const [readyFor, setReadyFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOffline) return;
-    const task = InteractionManager.runAfterInteractions(() =>
-      setEnabled(true),
-    );
-    return () => task.cancel();
-  }, [isOffline]);
+    const itemId = item.Id ?? "";
+    const handle = requestIdleCallback(() => setReadyFor(itemId));
+    return () => {
+      cancelIdleCallback(handle);
+      setReadyFor(null);
+    };
+  }, [isOffline, item.Id]);
+
+  const enabled = readyFor === (item.Id ?? "");
 
   const { data, isLoading } = useItemPeopleQuery(
     item.Id,
@@ -37,25 +44,15 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
     return { ...item, People: people } as BaseItemDto;
   }, [item, people]);
 
-  // Jellyfin can list the same person several times (e.g. an actor also
-  // credited as writer). Dedupe by Id so the same actor section isn't rendered
-  // twice and we still surface 3 distinct people.
-  const topPeople = useMemo(() => {
-    const seen = new Set<string>();
-    const unique: BaseItemPerson[] = [];
-    for (const person of people) {
-      if (!person.Id || seen.has(person.Id)) continue;
-      seen.add(person.Id);
-      unique.push(person);
-      if (unique.length >= 3) break;
-    }
-    return unique;
-  }, [people]);
+  // The first distinct cast members get a "more movies with" section of their
+  // own. Crew is left out: a director took one of the three rows from an actor.
+  const topActors = useCastCrew(people, {
+    kinds: CAST_KINDS,
+    limit: MORE_MOVIES_ACTORS_LIMIT,
+  });
 
   const renderActorSection = useCallback(
-    (person: BaseItemPerson, idx: number, total: number) => {
-      if (!person.Id) return null;
-
+    (person: CastCrewPerson, idx: number, total: number) => {
       const spacingClassName = idx === total - 1 ? undefined : "mb-2";
 
       return (
@@ -73,17 +70,15 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
 
   if (isOffline || !enabled) return null;
 
-  const shouldSpaceCastAndCrew = topPeople.length > 0;
-
   return (
     <View {...props}>
       <CastAndCrew
         item={itemWithPeople}
         loading={isLoading}
-        className={shouldSpaceCastAndCrew ? "mb-2" : undefined}
+        className={topActors.length > 0 ? "mb-2" : undefined}
       />
-      {topPeople.map((person, idx) =>
-        renderActorSection(person, idx, topPeople.length),
+      {topActors.map((person, idx) =>
+        renderActorSection(person, idx, topActors.length),
       )}
     </View>
   );

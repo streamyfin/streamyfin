@@ -18,7 +18,6 @@ import {
 import { Slider } from "react-native-awesome-slider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSharedValue } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Stepper } from "@/components/inputs/Stepper";
 import {
@@ -29,6 +28,8 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { playerQualityOptions } from "@/utils/bitrate";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -226,7 +227,7 @@ const DropdownView = ({
   onOpenSubtitleScale,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
-  const { item, mediaSource } = usePlayerContext();
+  const { item, mediaSource, downloadedItem } = usePlayerContext();
   const { settings, pluginSettings } = useSettings();
   const subtitleScaleModalRef = useRef<BottomSheetModal>(null);
   const router = useRouter();
@@ -242,6 +243,13 @@ const DropdownView = ({
       bitrateValue: string;
       playbackPosition: string;
     }>();
+
+  const selected = resolveRouteTrackIndexes({
+    audioIndex,
+    subtitleIndex,
+    offline: isOffline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Use ref to track playbackPosition without causing re-renders
   const playbackPositionRef = useRef(playbackPosition);
@@ -303,18 +311,21 @@ const DropdownView = ({
   const optionGroups = useMemo<OptionGroup[]>(() => {
     const groups: OptionGroup[] = [];
 
-    // Quality Section
+    // Quality Section. A route that names no quality plays at the default
+    // one, marked as such.
     if (!isOffline) {
       groups.push({
         title: t("player.menu.quality"),
-        options:
-          BITRATES?.map((bitrate) => ({
-            type: "radio" as const,
-            label: bitrate.key,
-            value: bitrate.value?.toString() ?? "",
-            selected: bitrateValue === (bitrate.value?.toString() ?? ""),
-            onPress: () => changeBitrate(bitrate.value?.toString() ?? ""),
-          })) || [],
+        options: playerQualityOptions(
+          t,
+          bitrateValue,
+          settings.defaultBitrate,
+          item,
+        ).map((option) => ({
+          type: "radio" as const,
+          ...option,
+          onPress: () => changeBitrate(option.value),
+        })),
       });
     }
 
@@ -326,7 +337,7 @@ const DropdownView = ({
           type: "radio" as const,
           label: sub.name,
           value: sub.index.toString(),
-          selected: subtitleIndex === sub.index.toString(),
+          selected: selected.subtitleIndex === sub.index,
           onPress: () => sub.setTrack(),
         })),
       });
@@ -369,7 +380,7 @@ const DropdownView = ({
           type: "radio" as const,
           label: track.name,
           value: track.index.toString(),
-          selected: audioIndex === track.index.toString(),
+          selected: selected.audioIndex === track.index,
           onPress: () => track.setTrack(),
         })),
       });
@@ -410,11 +421,12 @@ const DropdownView = ({
     t,
     isOffline,
     bitrateValue,
+    settings.defaultBitrate,
     changeBitrate,
     subtitleTracksKey,
     audioTracksKey,
-    subtitleIndex,
-    audioIndex,
+    selected.subtitleIndex,
+    selected.audioIndex,
     settings.subtitleSize,
     pluginSettings?.subtitleSize?.locked,
     openSubtitleScale,

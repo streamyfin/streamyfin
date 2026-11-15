@@ -6,6 +6,8 @@ import {
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { AxiosAdapter } from "axios";
 import type React from "react";
+import { toast } from "sonner-native";
+import { writeToLog } from "@/utils/log";
 import { DiscoverSliderType } from "@/utils/seerr/types";
 import {
   Endpoints,
@@ -14,29 +16,11 @@ import {
   useSeerrImageCache,
 } from "./useSeerr";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Ships as ES modules, which Jest does not load.
-jest.mock("sonner-native", () => ({
-  toast: { error: (...args: unknown[]) => mockToastError(...args) },
-}));
-// The real log loads Sentry, whose timers keep Jest from exiting.
-jest.mock("@/utils/log", () => ({
-  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
-  writeErrorLog: jest.fn(),
-}));
 // The settings atom imports the screens that edit it; the client reads none.
-jest.mock("@/utils/atoms/settings", () => ({ useSettings: () => ({}) }));
 
-const mockWriteToLog = jest.fn();
-const mockToastError = jest.fn();
-
-beforeEach(() => {
-  mockWriteToLog.mockClear();
-  mockToastError.mockClear();
-});
+const mockWriteToLog = jest.mocked(writeToLog);
+const mockToastError = jest.mocked(toast.error);
 
 // A Seerr that answers 200 with `body`, as the wire carries it: axios parses
 // it, and hands back a string it could not parse as it came.

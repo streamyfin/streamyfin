@@ -118,11 +118,7 @@ fun TvSkipPill(
     segment: MediaSegmentRecord,
     modifier: Modifier = Modifier
 ) {
-    val text = if (segment.type == "Intro") {
-        viewModel.str("skipIntro", "Skip Intro")
-    } else {
-        viewModel.str("skipCredits", "Skip Credits")
-    }
+    val text = viewModel.skipLabel(segment.type)
 
     Box(
         modifier = modifier

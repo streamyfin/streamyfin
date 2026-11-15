@@ -13,7 +13,7 @@ export class SocketLifecycle {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
-    private readonly appState: () => string | null,
+    private readonly appState: () => string | null | undefined,
     private readonly onDisconnect: () => void = () => {},
   ) {}
 

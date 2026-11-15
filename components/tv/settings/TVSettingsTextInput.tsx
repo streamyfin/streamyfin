@@ -1,6 +1,11 @@
 import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, TextInput } from "react-native";
+import {
+  Animated,
+  Pressable,
+  TextInput,
+  type TextInputInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -31,7 +36,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
   const { t } = useTranslation();
   const isDisabled = disabled || disabledByAdmin;
   const typography = useScaledTVTypography();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
 

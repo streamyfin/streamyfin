@@ -72,8 +72,6 @@ describe("the plugin's routes for a person's choices", () => {
   };
   const client = api as never;
 
-  beforeEach(() => jest.clearAllMocks());
-
   it("read and replace the choices", async () => {
     expect(await getMyNotifications(client)).toBe(mine);
     await setMyNotifications(client, toUpdate(mine));

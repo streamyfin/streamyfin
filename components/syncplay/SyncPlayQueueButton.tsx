@@ -1,9 +1,9 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
+import { useActionSheet } from "@/hooks/useActionSheet";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { syncPlayQueueIds } from "@/utils/syncplay/queueItems";

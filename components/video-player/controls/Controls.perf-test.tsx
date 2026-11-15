@@ -10,11 +10,6 @@ jest.mock(
   () => jest.requireActual("@/test-utils/playerControlsNative").keyEventModule,
 );
 jest.mock(
-  "react-native-volume-manager",
-  () =>
-    jest.requireActual("@/test-utils/playerControlsNative").volumeManagerModule,
-);
-jest.mock(
   "react-native-awesome-slider",
   () => jest.requireActual("@/test-utils/playerControlsNative").sliderModule,
 );

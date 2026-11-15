@@ -44,15 +44,6 @@
       "depNameTemplate": "bun"
     }
   ],
-  "customDatasources": {
-    "xcode": {
-      "defaultRegistryUrlTemplate": "https://xcodereleases.com/data.json",
-      "format": "json",
-      "transformTemplates": [
-        "{ \"releases\": [$[version.release.release=true].{\"version\": version.number}] }"
-      ]
-    }
-  },
   "vulnerabilityAlerts": {
     "enabled": true,
     "addLabels": ["🚨 security"],

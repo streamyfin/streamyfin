@@ -10,9 +10,6 @@ import { REMOTE_MODE_CONFIRM_TIMEOUT } from "@/constants/Playback";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { SessionModeControls } from "./SessionModeControls";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   const { makeApi: make } = jest.requireActual("@/test-utils/jellyfinApi");
