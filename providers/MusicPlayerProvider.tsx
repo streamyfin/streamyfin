@@ -821,7 +821,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [state.progress, state.currentTrack]);
 
   const reportPlaybackStart = useCallback(
-    async (track: BaseItemDto, sessionId: string | null) => {
+    async (
+      track: BaseItemDto,
+      sessionId: string | null,
+      // A resume starts where the track stands, which the server shows until the next heartbeat, 10 s later.
+      positionSeconds?: number,
+    ) => {
       if (!api || !user?.Id || !track.Id) return;
 
       try {
@@ -829,6 +834,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           playbackStartInfo: {
             ItemId: track.Id,
             PlaySessionId: sessionId || undefined,
+            ...(positionSeconds
+              ? { PositionTicks: Math.floor(positionSeconds * 10_000_000) }
+              : {}),
             CanSeek: true,
             IsPaused: false,
             IsMuted: false,
@@ -1635,12 +1643,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         : -1;
       if (liveIndex >= 0) {
         await TrackPlayer.play();
+        // The service may have played on after the app went: where it stands is where this start is.
+        const { position } = await TrackPlayer.getProgress();
         // The server has heard of no play of this queue since the restart: this is its start.
         void reportPlaybackStart(
           state.queue[liveIndex],
           activeTrack?.id === state.currentTrack?.Id
             ? result.sessionId
             : state.playSessionId,
+          position,
         );
         setState((prev) => {
           // prev.queue is the queue now: a shuffle during the waits may have
@@ -1696,7 +1707,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }));
       // A queue restored at launch was never reported as playing: without a start the server only saw its heartbeats
       // (iPhone simulator, 15/11).
-      void reportPlaybackStart(state.currentTrack, result.sessionId);
+      void reportPlaybackStart(
+        state.currentTrack,
+        result.sessionId,
+        progressRef.current,
+      );
       // The native queue holds this one track: load the rest of the restored
       // queue behind it, as a fresh start does, or next, previous and the end
       // of the track find nothing after it.

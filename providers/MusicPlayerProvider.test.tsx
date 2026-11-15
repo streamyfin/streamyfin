@@ -42,6 +42,8 @@ const mockNative = {
   activeIndex: undefined as number | undefined,
   /** Whether the phone plays: what play and pause last left it at. */
   playing: false,
+  /** Where the native player stands, in seconds. */
+  position: 0,
   /** Runs inside a pause, before it lands. */
   onPause: undefined as (() => Promise<void>) | undefined,
   onReset: undefined as (() => Promise<void>) | undefined,
@@ -101,7 +103,11 @@ jest.mock(
         mockNative.playing = false;
       },
       seekTo: async () => undefined,
-      getProgress: async () => ({ position: 0, duration: 0, buffered: 0 }),
+      getProgress: async () => ({
+        position: mockNative.position,
+        duration: 0,
+        buffered: 0,
+      }),
       getQueue: async () => {
         const answer = [...mockNative.queue];
         await mockNative.afterQueueRead?.();
@@ -361,6 +367,7 @@ beforeEach(() => {
   mockNative.queue = [];
   mockNative.activeIndex = undefined;
   mockNative.playing = false;
+  mockNative.position = 0;
   mockNative.onPause = undefined;
   mockNative.onReset = undefined;
   mockNative.afterQueueRead = undefined;
@@ -2571,6 +2578,40 @@ describe("MusicPlayerProvider and the server's reports of a play on the phone", 
       ItemId: "t1",
       PlaySessionId: "session-t1",
       IsPaused: false,
+    });
+  });
+
+  // The start of a resume said position 0: the server showed the track from its beginning until the next heartbeat,
+  // 10 s later (Android emulator, 15/11).
+  test("a restored queue's start reports where it resumes", async () => {
+    persistQueue(ALBUM, 1);
+    storage.set("music_player_progress", "42");
+    await mount();
+
+    await run((p) => p.togglePlayPause());
+
+    await waitFor(() => expect(reports(START_URL)).toHaveLength(1));
+    expect(reports(START_URL)[0]).toMatchObject({
+      ItemId: "t1",
+      PositionTicks: 42 * 10_000_000,
+    });
+  });
+
+  test("the start of the track a surviving service holds reports where it stands", async () => {
+    persistQueue(ALBUM, 2);
+    storage.set("music_player_progress", "12");
+    await mount();
+    mockNative.queue = [{ id: "t2" }];
+    mockNative.activeIndex = 0;
+    // The service may have played on after the app went: its position is the one that plays.
+    mockNative.position = 61;
+
+    await run((p) => p.resume());
+
+    await waitFor(() => expect(reports(START_URL)).toHaveLength(1));
+    expect(reports(START_URL)[0]).toMatchObject({
+      ItemId: "t2",
+      PositionTicks: 61 * 10_000_000,
     });
   });
 
