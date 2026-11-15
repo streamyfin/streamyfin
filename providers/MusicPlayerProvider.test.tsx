@@ -405,9 +405,22 @@ const playNows = () =>
     )
     .filter((message) => message.command === "PlayNow");
 
-/** A Cast session that connects, as the module reports it. */
+/** A Cast session that comes up, as the SDK reports it: the state and the session, whatever the target says. */
+const castSessionUp = () =>
+  act(async () => {
+    mockCast.castState = "connected";
+    setCastSession(mockCast, "session-1");
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** A Cast session that connects, as the module reports it: the target holds it. */
 const connectCast = () =>
   act(async () => {
+    emitRemoteTarget(mockCast, {
+      ...NO_REMOTE_TARGET,
+      state: "connected",
+      target: LIVING_ROOM,
+    });
     mockCast.castState = "connected";
     setCastSession(mockCast, "session-1");
     emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
@@ -530,12 +543,13 @@ const castAlbum = async () => {
   await receiverStatus("t1", "playing", 12);
 };
 
-/** The session ending, as the module reports it. */
+/** The session ending, as the module reports it: the target holds nothing any more. */
 const disconnectCast = () =>
   act(async () => {
     mockCast.castState = "notConnected";
     setCastSession(mockCast, null);
     emitCastEvent(mockCast, "onCastStateChanged", { state: "notConnected" });
+    emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
   });
 
 const LIVING_ROOM: RemoteTarget = {
@@ -756,6 +770,12 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await run((p) => p.setProgress(42));
 
     await act(async () => {
+      // The receiver picked in the sheet.
+      emitRemoteTarget(mockCast, {
+        ...NO_REMOTE_TARGET,
+        state: "connecting",
+        target: LIVING_ROOM,
+      });
       mockCast.castState = "connected";
       emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
     });
@@ -822,6 +842,37 @@ describe("MusicPlayerProvider and a Cast session", () => {
   });
 
   // A queue restored at launch waits paused: the session may well be for a film.
+  // Seen on an Android phone (bench, 15/11): Cancel while the TV launched its app. The SDK starts the session anyway and
+  // the module ends it once it is up, out of the target's sight; the queue went to it, the phone stopped, and the cast
+  // failed on the closed channel with "could not play this stream". The phone goes on (Gauvain, 15/11).
+  test("a session that starts after its connection was cancelled leaves the phone playing", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 1));
+    expect(player.isPlaying).toBe(true);
+
+    await act(async () => {
+      emitRemoteTarget(mockCast, {
+        ...NO_REMOTE_TARGET,
+        state: "connecting",
+        target: LIVING_ROOM,
+      });
+    });
+    // Cancel: the target lets the launch go at once.
+    await act(async () => {
+      emitRemoteTarget(mockCast, NO_REMOTE_TARGET);
+    });
+    // The launch comes up all the same, and is ended right after.
+    await castSessionUp();
+    await settle();
+    await disconnectCast();
+    await settle();
+
+    expect(playNows()).toHaveLength(0);
+    expect(player.isPlaying).toBe(true);
+    expect(mockNative.playing).toBe(true);
+    expect(player.currentTrack?.Id).toBe("t1");
+  });
+
   test("leaves a paused queue on the phone when a session connects", async () => {
     persistQueue(ALBUM, 2);
     await mount();

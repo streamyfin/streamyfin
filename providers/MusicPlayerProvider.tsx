@@ -1456,7 +1456,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // The move waits for the session's client as well: iOS reports the state
   // connected before the session has started, and a send then had nothing to
   // go through while the phone had already stopped (iPhone simulator, 15/11).
-  const castReady = castConnected && !!castClient;
+  // A launch cancelled in the sheet still comes up, and the module ends it out
+  // of the target's sight: only a session the target holds takes the queue, or
+  // the phone stopped for a cast that failed on the closed channel (15/11).
+  const castReady = castConnected && !!castClient && remoteTargetHeld;
   const wasCastReady = useRef(castReady);
   useEffect(() => {
     const wasReady = wasCastReady.current;
