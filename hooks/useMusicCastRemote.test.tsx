@@ -258,9 +258,37 @@ const sentCommands = () =>
     (entry) => (JSON.parse(entry.message) as { command: string }).command,
   );
 
+// A film cast from its page takes the receiver: the player showed the track
+// the phone had before the cast, not the one the receiver left (bench, 15/11).
+test("a film cast over the queue hands it back, paused where the receiver was", async () => {
+  const { result, rerender } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await receiverStatus("film", "ps-film", "playing", 5);
+  expect(result.current.view).toBeNull();
+
+  const onHandBack = props.onHandBack as jest.Mock;
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+  const view = onHandBack.mock.calls[0]?.[0] as MusicCastRemoteView;
+  expect(view.currentTrack.Id).toBe("b");
+  expect(view.queueIndex).toBe(1);
+  expect(view.progress).toBeCloseTo(30, 0);
+  expect(view.isPlaying).toBe(false);
+
+  // The film's session ending hands nothing back a second time.
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+});
+
 // Media loaded by a sender that is not Jellyfin carries none of the receiver's
-// own data: the queue is gone from the receiver, nothing to show or take back.
-test("lets go of the queue once the receiver plays media another sender loaded", async () => {
+// own data: the queue is gone from the receiver, and comes back to the phone.
+test("hands the queue back once the receiver plays media another sender loaded", async () => {
   const { result, rerender } = await mountRemote();
   await settle();
 
@@ -279,11 +307,16 @@ test("lets go of the queue once the receiver plays media another sender loaded",
     customData: null,
   });
   expect(result.current.view).toBeNull();
+  const onHandBack = props.onHandBack as jest.Mock;
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+  const view = onHandBack.mock.calls[0]?.[0] as MusicCastRemoteView;
+  expect(view.currentTrack.Id).toBe("b");
+  expect(view.isPlaying).toBe(false);
 
   await act(async () => {
     rerender({ ...props, connected: false });
   });
-  expect(props.onHandBack).not.toHaveBeenCalled();
+  expect(onHandBack).toHaveBeenCalledTimes(1);
 });
 
 // Stopped from the TV's remote, say: the receiver keeps the session and plays

@@ -339,6 +339,11 @@ export const useMusicCastRemote = ({
 
   if (connected && reported && view) lastView.current = view;
 
+  // As on Spotify: when the session ends, the queue comes back to the phone,
+  // paused where the receiver was.
+  const handBack = useRef(onHandBack);
+  handBack.current = onHandBack;
+
   // A film cast from its page, or another sender's media, replaced the queue;
   // or the account switched under it.
   const replaced =
@@ -346,14 +351,15 @@ export const useMusicCastRemote = ({
   const foreign = sent !== null && sent.owner !== ownerKey;
   useEffect(() => {
     if (!replaced && !foreign) return;
+    const last = lastView.current;
     lastView.current = null;
     setSent(null);
+    // The queue taken off the receiver comes back to the phone as at the end of the session, or the player fell back
+    // on the track the phone had before the cast (bench, 15/11). Paused: the phone does not play over the TV, and a
+    // later connection does not send it again. Another account's queue stays away from this one.
+    if (last && !foreign) handBack.current({ ...last, isPlaying: false });
   }, [replaced, foreign]);
 
-  // As on Spotify: when the session ends, the queue comes back to the phone,
-  // paused where the receiver was.
-  const handBack = useRef(onHandBack);
-  handBack.current = onHandBack;
   useEffect(() => {
     if (connected) return;
     const last = lastView.current;

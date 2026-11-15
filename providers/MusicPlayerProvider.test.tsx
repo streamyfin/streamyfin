@@ -1306,14 +1306,17 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ).toHaveLength(1);
   });
 
-  // A film cast from its page replaces the music on the TV.
+  // A film cast from its page replaces the music on the TV: the queue comes back to the phone, paused where the
+  // receiver left it, as at the end of a session.
   test("the player lets go of a receiver that plays something else", async () => {
     await castAlbum();
     castNative().pause.mockClear();
 
     await receiverStatus("film-1", "playing", 5, "ps-film");
 
-    expect(player.currentTrack?.Id).not.toBe("t1");
+    expect(player.currentTrack?.Id).toBe("t1");
+    expect(player.isPlaying).toBe(false);
+    expect(player.progress).toBeCloseTo(12, 0);
     await run((p) => p.togglePlayPause());
     expect(castNative().pause).not.toHaveBeenCalled();
   });
