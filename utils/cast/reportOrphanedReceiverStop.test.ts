@@ -92,6 +92,31 @@ describe("reportOrphanedReceiverStop", () => {
     });
   });
 
+  // Without it the server keeps the tuner's live stream open: its consumer count never went back down (Live TV,
+  // 15/11).
+  test("names the live stream the receiver played, so the server closes it", async () => {
+    const api = makeApi();
+    api.mock.onGet(/\/Sessions/).reply(200, [
+      receiverSession({
+        PlayState: {
+          PositionTicks: 120_000_000,
+          MediaSourceId: "source-live",
+          LiveStreamId: "live-stream-1",
+        },
+      }),
+    ]);
+
+    expect(await reportOrphanedReceiverStop(ended(api))).toBe(true);
+
+    expect(sentRequest().body).toEqual({
+      ItemId: "item-festen",
+      MediaSourceId: "source-live",
+      PositionTicks: 120_000_000,
+      LiveStreamId: "live-stream-1",
+      PlaySessionId: "play-1",
+    });
+  });
+
   test("does not wait on a timer once casting was stopped", async () => {
     // Android does not fire delayed timers while the app is in the background,
     // and stopping a cast is usually followed by leaving the app: a delayed

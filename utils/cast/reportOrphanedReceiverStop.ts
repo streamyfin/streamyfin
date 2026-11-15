@@ -175,6 +175,8 @@ const reportStop = async (ended: EndedReceiverSession): Promise<boolean> => {
       ItemId: session.NowPlayingItem?.Id,
       MediaSourceId: session.PlayState?.MediaSourceId ?? undefined,
       PositionTicks: session.PlayState?.PositionTicks ?? undefined,
+      // A live stream stays open on the server, its tuner held, until a stop names it.
+      LiveStreamId: session.PlayState?.LiveStreamId ?? undefined,
       // Lets the server kill the receiver's transcode right away.
       PlaySessionId: playSessionId,
     }),
