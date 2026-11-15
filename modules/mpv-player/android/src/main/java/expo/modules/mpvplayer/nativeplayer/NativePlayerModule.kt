@@ -7,6 +7,7 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 
@@ -21,6 +22,23 @@ class InvalidStreamUrlException :
 
 class UnsupportedEngineException(name: String?) :
     CodedException("The native player does not run the engine \"$name\"")
+
+class NoRemoteEngineException :
+    CodedException("No remote engine to present a remote player over")
+
+class RemotePlayerUnsupportedException :
+    CodedException("This device does not present a remote player")
+
+/**
+ * Why presentRemotePlayer refuses, checked in this order: a player already up (local or remote), a TV (TVs
+ * do not cast), then no remote engine to drive; null when it presents.
+ */
+internal fun remotePresentRefusal(presented: Boolean, hasRemoteEngine: Boolean, isTv: Boolean): CodedException? = when {
+    presented -> PlayerAlreadyPresentedException()
+    isTv -> RemotePlayerUnsupportedException()
+    !hasRemoteEngine -> NoRemoteEngineException()
+    else -> null
+}
 
 /** Why presentPlayer refuses [config] before it builds a session, checked in this order; null when it presents it. */
 internal fun presentRefusal(presented: Boolean, config: PlayerPresentConfigRecord): CodedException? = when {
@@ -80,6 +98,18 @@ class NativePlayerModule : Module() {
                 this@NativePlayerModule.session = null
                 promise.reject("PRESENT_FAILED", e.message, e)
             }
+        }
+
+        // The remote player: the chrome over a remote engine, apart from the local player's entry. No
+        // remote engine is reachable yet, so every call is refused.
+        AsyncFunction("presentRemotePlayer") { _: RemotePlayerConfigRecord, promise: Promise ->
+            val context = appContext.reactContext
+            val refusal = remotePresentRefusal(
+                presented = this@NativePlayerModule.session != null,
+                hasRemoteEngine = false,
+                isTv = context != null && DeviceKind.isTelevision(context),
+            ) ?: NoRemoteEngineException()
+            promise.reject(refusal)
         }
 
         AsyncFunction("load") { config: PlayerPresentConfigRecord, promise: Promise ->

@@ -24,6 +24,18 @@ internal final class UnsupportedEngineException: GenericException<String>, @unch
 	}
 }
 
+internal final class NoRemoteEngineException: Exception, @unchecked Sendable {
+	override var reason: String {
+		"No remote engine to present a remote player over"
+	}
+}
+
+internal final class RemotePlayerUnsupportedException: Exception, @unchecked Sendable {
+	override var reason: String {
+		"This device does not present a remote player"
+	}
+}
+
 /// Module-level (non-view) player: presents a full-screen native
 /// UIViewController with SwiftUI controls over the engine the config names.
 /// Compiles for both iOS and tvOS; the view controller hosts the platform's
@@ -34,6 +46,25 @@ internal final class UnsupportedEngineException: GenericException<String>, @unch
 /// events emitted with no listener are dropped.
 public class NativePlayerModule: Module {
 	private var session: NativePlayerSession?
+
+	private static func exception(for refusal: PresentRefusal) -> Exception {
+		switch refusal {
+		case .alreadyPresented: return PlayerAlreadyPresentedException()
+		case .invalidStream: return InvalidStreamUrlException()
+		case let .unsupportedEngine(name): return UnsupportedEngineException(name)
+		case .noRemoteEngine: return NoRemoteEngineException()
+		case .remoteUnsupported: return RemotePlayerUnsupportedException()
+		}
+	}
+
+	/// tvOS and Catalyst do not cast, so they never present the remote player.
+	private static var castsFromThisDevice: Bool {
+		#if os(tvOS) || targetEnvironment(macCatalyst)
+		return false
+		#else
+		return true
+		#endif
+	}
 
 	public func definition() -> ModuleDefinition {
 		Name("NativePlayer")
@@ -53,22 +84,13 @@ public class NativePlayerModule: Module {
 		// MARK: - Lifecycle
 
 		AsyncFunction("presentPlayer") { (config: PlayerPresentConfigRecord, promise: Promise) in
-			switch PresentRefusal(
+			if let refusal = PresentRefusal(
 				presented: self.session != nil,
 				streamIsValid: config.stream.toVideoLoadConfig() != nil,
 				engine: config.engine
 			) {
-			case .alreadyPresented:
-				promise.reject(PlayerAlreadyPresentedException())
+				promise.reject(Self.exception(for: refusal))
 				return
-			case .invalidStream:
-				promise.reject(InvalidStreamUrlException())
-				return
-			case let .unsupportedEngine(name):
-				promise.reject(UnsupportedEngineException(name))
-				return
-			case nil:
-				break
 			}
 			// The refusal above already turned every other name away: this only unwraps the kind.
 			guard let kind = NativeEngineKind(configName: config.engine) else {
@@ -95,6 +117,17 @@ public class NativePlayerModule: Module {
 				promise.reject(error)
 			}
 		}.runOnQueue(.main)
+
+		// The remote player: the chrome over a remote engine, apart from the local player's entry. No
+		// remote engine is reachable yet, so every call is refused.
+		AsyncFunction("presentRemotePlayer") { (_: RemotePlayerConfigRecord, promise: Promise) in
+			let refusal = PresentRefusal(
+				presented: self.session != nil,
+				hasRemoteEngine: false,
+				isTv: !Self.castsFromThisDevice
+			) ?? .noRemoteEngine
+			promise.reject(Self.exception(for: refusal))
+		}
 
 		AsyncFunction("load") { (config: PlayerPresentConfigRecord, promise: Promise) in
 			guard let session = self.session else {

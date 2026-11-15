@@ -16,3 +16,11 @@ swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
   tests/native/FakeRemoteEngineTests.swift \
   -o "$test_dir/fake-remote-engine"
 "$test_dir/fake-remote-engine"
+
+swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/NativePlayer/NativeEngineKind.swift \
+  modules/mpv-player/ios/NativePlayer/PresentRefusal.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/RemoteEvents.swift \
+  tests/native/RemoteEventsTests.swift \
+  -o "$test_dir/remote-events"
+"$test_dir/remote-events"

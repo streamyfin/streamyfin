@@ -243,6 +243,35 @@ struct PlayerPresentConfigRecord: Record {
 	@Field var engine: String?
 }
 
+/// What JS sends to present the remote player: what the TV plays, described for the chrome. No stream
+/// and no engine: the remote engine plays it on the TV (JS: RemotePlayerPresentConfig).
+struct RemotePlayerConfigRecord: Record {
+	@Field var metadata: MetadataRecord?
+	/// The TV's name, under the transport.
+	@Field var targetName: String?
+	@Field var chapters: [ChapterRecord] = []
+	@Field var segments: [MediaSegmentRecord] = []
+	@Field var trickplay: TrickplayRecord?
+	@Field var nextEpisode: NextEpisodeRecord?
+	@Field var episodeList: [EpisodeListItemRecord] = []
+	@Field var tracks: TrackMenusRecord?
+	@Field var ui: UIOptionsRecord = UIOptionsRecord()
+
+	/// The config the chrome's view model takes, with an empty stream it never loads.
+	func toPresentConfig() -> PlayerPresentConfigRecord {
+		var config = PlayerPresentConfigRecord()
+		config.metadata = metadata
+		config.chapters = chapters
+		config.segments = segments
+		config.trickplay = trickplay
+		config.nextEpisode = nextEpisode
+		config.episodeList = episodeList
+		config.tracks = tracks
+		config.ui = ui
+		return config
+	}
+}
+
 extension StreamConfigRecord {
 	/// Convert to the engine's load config. Returns nil for an unparseable URL.
 	func toVideoLoadConfig() -> VideoLoadConfig? {
