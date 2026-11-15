@@ -108,9 +108,10 @@ struct LastHeardStatus<T> {
 }
 
 // GCKErrorCode, from the google-cast-sdk reference: network, timeout, device not connected, network not
-// reachable, disconnected; then the receiver app not found or not running, its variants included.
-private let networkCodes: Set<Int> = [1, 2, 14, 17, 92]
-private let receiverCodes: Set<Int> = [20, 21, 104, 105, 106, 107]
+// reachable, disconnected, and the receiver app gone when the SDK rejoins it (when resumed, for join, when
+// reconnecting): that connection was lost, nothing failed to start. Then the receiver app not found or not running.
+private let networkCodes: Set<Int> = [1, 2, 14, 17, 92, 105, 106, 107]
+private let receiverCodes: Set<Int> = [20, 21, 104]
 
 /// The family of a failure, for the line under its row: the port's refusals by message, the SDK's by code.
 func failureCause(error: String?, code: Int?) -> FailureCause {
