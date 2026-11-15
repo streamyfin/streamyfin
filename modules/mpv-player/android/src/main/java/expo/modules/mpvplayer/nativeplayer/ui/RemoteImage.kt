@@ -43,7 +43,7 @@ private object RemoteImageCache {
     }
     private val inflight = ConcurrentHashMap<String, Deferred<Bitmap?>>()
 
-    suspend fun load(url: String): Bitmap? {
+    suspend fun load(url: String, headers: Map<String, String>?): Bitmap? {
         cache.get(url)?.let { return it }
         inflight[url]?.let { return it.await() }
 
@@ -53,11 +53,7 @@ private object RemoteImageCache {
                     val path = Uri.parse(url).path ?: url.removePrefix("file://")
                     BitmapFactory.decodeFile(File(path).absolutePath)
                 } else {
-                    val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 10000
-                        readTimeout = 20000
-                    }
-                    conn.inputStream.use { BitmapFactory.decodeStream(it) }
+                    remoteImageRequest(url, headers).inputStream.use { BitmapFactory.decodeStream(it) }
                 }
                 bitmap?.also { cache.put(url, it) }
             } catch (e: Exception) {
@@ -72,6 +68,26 @@ private object RemoteImageCache {
 }
 
 /**
+ * The request for an image on the server, with [headers]: the user's proxy auth headers, without which a server
+ * behind an access gateway answers 403. Nothing is sent until the caller reads it.
+ */
+internal fun remoteImageRequest(url: String, headers: Map<String, String>?): HttpURLConnection =
+    (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 10000
+        readTimeout = 20000
+        headers?.forEach { (name, value) -> setRequestProperty(name, value) }
+    }
+
+/**
+ * The headers an image is asked for with: its own (the artwork's, typed loosely as the config sends them) when
+ * there are some, else the server's; null when neither has any.
+ */
+internal fun remoteImageHeaders(own: Map<String, Any?>?, server: Map<String, String>?): Map<String, String>? {
+    val strings = own?.mapNotNull { (name, value) -> (value as? String)?.let { name to it } }?.toMap()
+    return strings?.takeIf { it.isNotEmpty() } ?: server?.takeIf { it.isNotEmpty() }
+}
+
+/**
  * Draws [url] once it resolves, holding a faint placeholder fill until then —
  * the card must not reflow when the image lands, so the caller always sizes it.
  */
@@ -79,13 +95,14 @@ private object RemoteImageCache {
 fun RemoteImage(
     url: String?,
     modifier: Modifier = Modifier,
+    headers: Map<String, String>? = null,
     contentDescription: String? = null,
     contentScale: ContentScale = ContentScale.Crop
 ) {
     var bitmap by remember(url) { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(url) {
-        bitmap = url?.takeIf { it.isNotBlank() }?.let { RemoteImageCache.load(it) }
+        bitmap = url?.takeIf { it.isNotBlank() }?.let { RemoteImageCache.load(it, headers) }
     }
 
     Box(modifier = modifier.background(Color.White.copy(alpha = 0.08f))) {

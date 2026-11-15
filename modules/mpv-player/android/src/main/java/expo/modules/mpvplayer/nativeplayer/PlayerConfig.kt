@@ -200,6 +200,13 @@ class PlayerPresentConfigRecord : Record {
  * What JS sends to present the remote player: what the TV plays, described for the chrome. No stream and
  * no engine: the remote engine plays it on the TV (JS: RemotePlayerPresentConfig).
  */
+/** The remote screen's colors, `#RRGGBB` (JS: RemotePlayerTint); RemoteColors reads them. */
+class RemoteTintRecord : Record {
+    @Field var top: String? = null
+    @Field var bottom: String? = null
+    @Field var accent: String? = null
+}
+
 class RemotePlayerConfigRecord : Record {
     @Field var metadata: MetadataRecord? = null
     /** The TV's name, under the transport. */
@@ -211,6 +218,10 @@ class RemotePlayerConfigRecord : Record {
     @Field var episodeList: List<EpisodeListItemRecord> = emptyList()
     @Field var tracks: TrackMenusRecord? = null
     @Field var ui: UIOptionsRecord = UIOptionsRecord()
+    /** Null until JS knows the artwork's color: the screen starts on the neutral. */
+    @Field var tint: RemoteTintRecord? = null
+    /** Custom proxy auth headers for the images the screen loads itself, when the artwork has none of its own. */
+    @Field var imageHeaders: Map<String, String>? = null
 
     /** The config the chrome's view model takes, with an empty stream it never loads. */
     fun toPresentConfig(): PlayerPresentConfigRecord {

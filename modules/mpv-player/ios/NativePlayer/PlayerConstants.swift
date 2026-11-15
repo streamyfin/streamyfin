@@ -40,4 +40,11 @@ enum PlayerConstants {
 	/// chosen track), 0xRRGGBB: a light violet, 6:1 on the screen's darkest tones where the app's violet gives 2.2.
 	/// Android: REMOTE_ACTIVE_COLOR.
 	static let remoteActiveColor: UInt32 = 0xC9A7FB
+	/// The remote screen's background with no tint from JS, 0xRRGGBB (constants/RemotePlayer.ts REMOTE_TINT_NEUTRAL),
+	/// how long a new tint takes to fade in (REMOTE_TINT_FADE_MS), and the share of the height where the gradient
+	/// reaches its bottom color, which then holds to the bottom edge. Android: REMOTE_TINT_*.
+	static let remoteTintNeutralTop: UInt32 = 0x342E3D
+	static let remoteTintNeutralBottom: UInt32 = 0x1F1927
+	static let remoteTintFadeMs: Double = 300
+	static let remoteTintGradientEnd: Double = 0.66
 }

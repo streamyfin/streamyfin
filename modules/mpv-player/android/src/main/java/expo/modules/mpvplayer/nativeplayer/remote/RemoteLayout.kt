@@ -56,6 +56,31 @@ object RemoteMetrics {
     }
 }
 
+/**
+ * The remote screen's colors, ARGB, from the tint JS sends (remoteTint): the background's top and bottom and the
+ * active color. A missing or unreadable tint gives the neutral background and REMOTE_ACTIVE_COLOR, the screen as it
+ * stands before JS knows the artwork's color; half a background falls back whole. Twin: RemoteColors in
+ * RemoteLayout.swift.
+ */
+data class RemoteColors(val top: Long, val bottom: Long, val accent: Long) {
+    companion object {
+        private val HEX = Regex("^#[0-9A-Fa-f]{6}$")
+
+        fun of(top: String?, bottom: String?, accent: String?): RemoteColors {
+            val background = argb(top)?.let { t -> argb(bottom)?.let { b -> t to b } }
+            return RemoteColors(
+                top = background?.first ?: PlayerConstants.REMOTE_TINT_NEUTRAL_TOP,
+                bottom = background?.second ?: PlayerConstants.REMOTE_TINT_NEUTRAL_BOTTOM,
+                accent = argb(accent) ?: PlayerConstants.REMOTE_ACTIVE_COLOR,
+            )
+        }
+
+        /** `#RRGGBB` as opaque ARGB; anything else is null. */
+        private fun argb(hex: String?): Long? =
+            hex?.takeIf { HEX.matches(it) }?.let { 0xFF000000 or it.substring(1).toLong(16) }
+    }
+}
+
 /** The six slots every layout places (design §3.1). Twin: RemoteSlot in RemoteLayout.swift. */
 enum class RemoteSlot { HEADER, ARTWORK, TITLES, BAR, TRANSPORT, BOTTOM_ROW }
 

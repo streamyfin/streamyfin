@@ -110,3 +110,30 @@ enum RemoteActive {
 		return selectedIndex >= 0
 	}
 }
+
+/// The remote screen's colors, 0xRRGGBB, from the tint JS sends (remoteTint): the background's top and bottom and
+/// the active color. A missing or unreadable tint gives the neutral background and remoteActiveColor, the screen as
+/// it stands before JS knows the artwork's color; half a background falls back whole. Twin: RemoteColors in
+/// RemoteLayout.kt.
+struct RemoteColors: Equatable {
+	let top: UInt32
+	let bottom: UInt32
+	let accent: UInt32
+
+	static func of(top: String?, bottom: String?, accent: String?) -> RemoteColors {
+		let background = rgb(top).flatMap { t in rgb(bottom).map { (t, $0) } }
+		return RemoteColors(
+			top: background?.0 ?? PlayerConstants.remoteTintNeutralTop,
+			bottom: background?.1 ?? PlayerConstants.remoteTintNeutralBottom,
+			accent: rgb(accent) ?? PlayerConstants.remoteActiveColor
+		)
+	}
+
+	/// `#RRGGBB` as 0xRRGGBB; anything else is nil.
+	private static func rgb(_ hex: String?) -> UInt32? {
+		guard let hex, hex.count == 7, hex.first == "#" else { return nil }
+		let digits = hex.dropFirst()
+		guard digits.allSatisfy(\.isHexDigit) else { return nil }
+		return UInt32(digits, radix: 16)
+	}
+}

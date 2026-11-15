@@ -3,7 +3,10 @@ import { Platform } from "react-native";
 import { NativePlayerNativeModule } from "./NativePlayerModule";
 import { isRemotePlayerEvent } from "./NativePlayerPresentation";
 import type { NativePlayerEvents } from "./NativePlayerPresentation.types";
-import type { RemotePlayerPresentConfig } from "./RemotePlayerPresentation.types";
+import type {
+  RemotePlayerPresentConfig,
+  RemotePlayerTint,
+} from "./RemotePlayerPresentation.types";
 
 /**
  * The remote player: the native chrome over the TV a Cast session drives, presented apart from the local
@@ -23,6 +26,17 @@ export const presentRemotePlayer = (
     );
   }
   return NativePlayerNativeModule.presentRemotePlayer(config);
+};
+
+/**
+ * The background and active color of the remote screen once the artwork's color is known, faded in. Nothing
+ * where no remote screen opens; a no-op natively when none is up.
+ */
+export const updateRemotePlayerTint = async (
+  tint: RemotePlayerTint,
+): Promise<void> => {
+  if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return;
+  await NativePlayerNativeModule.updateRemotePlayerTint(tint);
 };
 
 /**

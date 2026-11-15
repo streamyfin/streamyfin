@@ -97,6 +97,24 @@ enum RemoteLayoutTests {
 		check(RemoteMetrics.besideWidth(layout: .portrait, width: 390) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: upright")
 	}
 
+	static func aTintFromJsGivesTheScreenItsColors() {
+		let colors = RemoteColors.of(top: "#1F3340", bottom: "#0e1a21", accent: "#C9A7FB")
+		check(colors == RemoteColors(top: 0x1F3340, bottom: 0x0E1A21, accent: 0xC9A7FB), "aTintFromJsGivesTheScreenItsColors: \(colors)")
+	}
+
+	static func aMissingOrUnreadableTintFallsBackToTheNeutral() {
+		let neutral = RemoteColors(
+			top: PlayerConstants.remoteTintNeutralTop,
+			bottom: PlayerConstants.remoteTintNeutralBottom,
+			accent: PlayerConstants.remoteActiveColor
+		)
+		check(RemoteColors.of(top: nil, bottom: nil, accent: nil) == neutral, "aMissingOrUnreadableTintFallsBackToTheNeutral: nil")
+		// Half a background is no background: both stops fall back together.
+		let half = RemoteColors.of(top: "#1F3340", bottom: "teal", accent: "#112233")
+		check(half == RemoteColors(top: neutral.top, bottom: neutral.bottom, accent: 0x112233), "aMissingOrUnreadableTintFallsBackToTheNeutral: half")
+		check(RemoteColors.of(top: "#fff", bottom: "+12345", accent: "#C9A7FB00") == neutral, "aMissingOrUnreadableTintFallsBackToTheNeutral: unreadable")
+	}
+
 	static func main() {
 		aTallNarrowScreenTakesThePortraitLayout()
 		aShortScreenTakesTheLandscapeLayout()
@@ -108,6 +126,8 @@ enum RemoteLayoutTests {
 		theArtworkNeverGoesUnderItsMinimum()
 		theArtworkIsNeverWiderThanItsColumn()
 		theWideArtworkGetsItsShareOfTheWholeWidth()
+		aTintFromJsGivesTheScreenItsColors()
+		aMissingOrUnreadableTintFallsBackToTheNeutral()
 		print("PASS: remote layout (\(cases) cases)")
 	}
 }

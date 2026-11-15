@@ -71,4 +71,12 @@ object PlayerConstants {
     /** What is active or connected on the remote screen (the TV's name, subtitles on, the current episode, the
      *  chosen track), ARGB: a light violet, 6:1 on the screen's darkest tones where the app's violet gives 2.2. */
     const val REMOTE_ACTIVE_COLOR = 0xFFC9A7FB
+
+    /** The remote screen's background with no tint from JS, ARGB (constants/RemotePlayer.ts REMOTE_TINT_NEUTRAL),
+     *  how long a new tint takes to fade in (REMOTE_TINT_FADE_MS), and the share of the height where the gradient
+     *  reaches its bottom color, which then holds to the bottom edge. */
+    const val REMOTE_TINT_NEUTRAL_TOP = 0xFF342E3D
+    const val REMOTE_TINT_NEUTRAL_BOTTOM = 0xFF1F1927
+    const val REMOTE_TINT_FADE_MS = 300
+    const val REMOTE_TINT_GRADIENT_END = 0.66f
 }

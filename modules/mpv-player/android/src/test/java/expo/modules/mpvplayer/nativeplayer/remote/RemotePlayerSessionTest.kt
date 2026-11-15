@@ -13,6 +13,7 @@ import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.NativePlayerSession
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteOnlyEngine
 import org.junit.After
@@ -221,5 +222,16 @@ class RemotePlayerSessionTest {
         presented(idle = false)
 
         assertFalse(OutputPickerPresenter.isPresented)
+    }
+
+    @Test
+    fun aTintFromJsReachesTheScreen() {
+        val session = presented()
+        assertEquals(RemoteColors.of(null, null, null), session.screenModel?.colors)
+
+        session.updateTint(RemoteTintRecord().also { it.top = "#1F3340"; it.bottom = "#0E1A21"; it.accent = "#C9A7FB" })
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals(RemoteColors(top = 0xFF1F3340, bottom = 0xFF0E1A21, accent = 0xFFC9A7FB), session.screenModel?.colors)
     }
 }

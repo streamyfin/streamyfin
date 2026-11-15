@@ -19,11 +19,15 @@ import type {
   NativePlayerTrickplay,
 } from "./NativePlayerPresentation.types";
 
-import type { RemotePlayerPresentConfig } from "./RemotePlayerPresentation.types";
+import type {
+  RemotePlayerPresentConfig,
+  RemotePlayerTint,
+} from "./RemotePlayerPresentation.types";
 
 export declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   presentPlayer(config: NativePlayerConfig): Promise<void>;
   presentRemotePlayer(config: RemotePlayerPresentConfig): Promise<void>;
+  updateRemotePlayerTint(tint: RemotePlayerTint): Promise<void>;
   load(config: NativePlayerConfig): Promise<void>;
   dismiss(): Promise<void>;
   isPresented(): boolean;

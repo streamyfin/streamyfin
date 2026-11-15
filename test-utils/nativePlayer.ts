@@ -22,6 +22,8 @@ export interface NativePlayerDoubleState {
   remotePresented: unknown[];
   /** When set, `presentRemotePlayer` rejects with it, as a native refusal does. */
   remoteRefusal: Error | null;
+  /** Tints handed to `updateRemotePlayerTint`, in order. */
+  remoteTints: unknown[];
   listeners: Map<string, Listener[]>;
 }
 
@@ -29,6 +31,7 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   presented: [],
   remotePresented: [],
   remoteRefusal: null,
+  remoteTints: [],
   listeners: new Map(),
 });
 
@@ -52,6 +55,9 @@ export const nativePlayerDoubleModule = (
     const refusal = state().remoteRefusal;
     if (refusal) throw refusal;
     state().remotePresented.push(config);
+  }),
+  updateRemotePlayerTint: jest.fn(async (tint: unknown) => {
+    state().remoteTints.push(tint);
   }),
   isPresented: jest.fn(() => false),
   addListener: jest.fn((event: string, listener: Listener) => {

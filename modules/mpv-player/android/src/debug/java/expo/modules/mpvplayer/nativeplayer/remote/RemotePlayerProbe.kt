@@ -16,6 +16,7 @@ import expo.modules.mpvplayer.nativeplayer.EpisodeListItemRecord
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
@@ -41,7 +42,8 @@ object RemotePlayerProbe {
         activity: Activity?,
         schedule: (Long, () -> Unit) -> (() -> Unit) = mainLooperSchedule(),
         log: (String) -> Unit = { Log.i(TAG, it) },
-        screenContent: @Composable (PlayerViewModel, String?) -> Unit = { model, target -> RemotePlayerScreen(model, target) },
+        look: Look = Look(),
+        screenContent: @Composable (PlayerViewModel, RemoteScreenModel) -> Unit = { model, screen -> RemotePlayerScreen(model, screen) },
     ): RemotePlayerSession? {
         if (current != null) {
             log("already presented")
@@ -72,7 +74,7 @@ object RemotePlayerProbe {
             screenContent = screenContent,
         )
         current = session
-        session.present(activity, config())
+        session.present(activity, config(look))
         log("presented: $TITLE on $TARGET")
 
         fun logPosition() {
@@ -85,12 +87,28 @@ object RemotePlayerProbe {
         return session
     }
 
+    /**
+     * What the broadcast may add to the fixed config, to hold the screen to an artwork: its URL, the tint JS would
+     * send for it (`#top,#bottom,#accent`), and one header the images are asked for with.
+     */
+    data class Look(
+        val artwork: String? = null,
+        val tint: String? = null,
+        val headerName: String? = null,
+        val headerValue: String? = null,
+    )
+
     /** Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups. */
-    internal fun config() = RemotePlayerConfigRecord().also {
+    internal fun config(look: Look = Look()) = RemotePlayerConfigRecord().also {
         it.metadata = MetadataRecord().also { metadata ->
             metadata.title = TITLE
             metadata.subtitle = SUBTITLE
+            metadata.artworkUri = look.artwork
         }
+        it.tint = look.tint?.split(",")?.takeIf { parts -> parts.size == 3 }?.let { (top, bottom, accent) ->
+            RemoteTintRecord().also { tint -> tint.top = top; tint.bottom = bottom; tint.accent = accent }
+        }
+        if (look.headerName != null && look.headerValue != null) it.imageHeaders = mapOf(look.headerName to look.headerValue)
         it.targetName = TARGET
         it.chapters = CHAPTERS.map { (name, start) -> ChapterRecord().also { c -> c.name = name; c.startSec = start } }
         it.tracks = TrackMenusRecord().also { tracks ->
@@ -162,10 +180,19 @@ private class LoggingEngine(private val inner: ChromeEngine, private val log: (S
     }
 }
 
-/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver -a expo.modules.mpvplayer.REMOTE_PLAYER_PROBE` */
+/**
+ * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver -a expo.modules.mpvplayer.REMOTE_PLAYER_PROBE`,
+ * with `--es artwork <url> --es tint '#top,#bottom,#accent' --es headerName <name> --es headerValue <value>` if wanted.
+ */
 class RemotePlayerProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != RemotePlayerProbe.ACTION) return
-        RemotePlayerProbe.run(OutputPickerPresenter.currentActivity())
+        val look = RemotePlayerProbe.Look(
+            artwork = intent.getStringExtra("artwork"),
+            tint = intent.getStringExtra("tint"),
+            headerName = intent.getStringExtra("headerName"),
+            headerValue = intent.getStringExtra("headerValue"),
+        )
+        RemotePlayerProbe.run(OutputPickerPresenter.currentActivity(), look = look)
     }
 }

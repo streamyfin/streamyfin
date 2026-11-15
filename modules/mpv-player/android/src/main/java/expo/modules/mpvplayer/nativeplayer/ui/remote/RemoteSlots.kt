@@ -52,7 +52,9 @@ import expo.modules.mpvplayer.nativeplayer.ui.AudioMenu
 import expo.modules.mpvplayer.nativeplayer.ui.CenterControls
 import expo.modules.mpvplayer.nativeplayer.ui.MoreMenu
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerBottomBar
+import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
+import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
 import expo.modules.mpvplayer.nativeplayer.ui.SkipSegmentButton
 import expo.modules.mpvplayer.nativeplayer.ui.SubtitleMenu
 import expo.modules.mpvplayer.nativeplayer.ui.TransportStyle
@@ -61,8 +63,12 @@ import kotlin.math.roundToInt
 // The remote screen's six slots (design §3.1), which RemotePlayerScreen places by RemoteArrangement. Twin:
 // RemoteSlots.swift.
 
-/** What is on or connected: icon and text, with a dot under the icon (design §3.3). */
+/** What is on or connected: icon and text, with a dot under the icon (design §3.3). The screen provides the
+ *  tint's accent as LocalPlayerActiveColor; this is its fallback. */
 val RemoteActiveColor = Color(PlayerConstants.REMOTE_ACTIVE_COLOR)
+
+@Composable
+private fun activeColor(): Color = LocalPlayerActiveColor.current ?: RemoteActiveColor
 
 private val RemoteButton = PlayerConstants.REMOTE_BUTTON_SMALL_DP.dp
 
@@ -76,11 +82,12 @@ internal fun RemoteHeader(viewModel: PlayerViewModel, modifier: Modifier = Modif
     }
 }
 
-/** The artwork, whole, in a square of the size RemoteMetrics gives. */
+/** The artwork, whole, in a square of the size RemoteMetrics gives, asked for with the user's proxy headers. */
 @Composable
-internal fun RemoteArtwork(viewModel: PlayerViewModel, size: Dp, modifier: Modifier = Modifier) {
+internal fun RemoteArtwork(viewModel: PlayerViewModel, size: Dp, imageHeaders: Map<String, String>?, modifier: Modifier = Modifier) {
     RemoteImage(
         url = viewModel.metadata?.artworkUri,
+        headers = remoteImageHeaders(viewModel.metadata?.artworkHeaders, imageHeaders),
         contentScale = ContentScale.Fit,
         modifier = modifier
             .size(size)
@@ -218,7 +225,7 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?) 
             Spacer(Modifier.width(8.dp))
             Text(
                 text = name,
-                color = RemoteActiveColor,
+                color = activeColor(),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -261,13 +268,14 @@ private fun ActiveIconButton(icon: ImageVector, description: String, active: Boo
 private fun ActiveIcon(icon: ImageVector, description: String?, active: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Spacer(Modifier.size(7.dp))
-        Icon(icon, contentDescription = description, tint = if (active) RemoteActiveColor else Color.White, modifier = Modifier.size(22.dp))
+        val accent = activeColor()
+        Icon(icon, contentDescription = description, tint = if (active) accent else Color.White, modifier = Modifier.size(22.dp))
         Box(
             Modifier
                 .padding(top = 3.dp)
                 .size(4.dp)
                 .clip(CircleShape)
-                .background(if (active) RemoteActiveColor else Color.Transparent),
+                .background(if (active) accent else Color.Transparent),
         )
     }
 }

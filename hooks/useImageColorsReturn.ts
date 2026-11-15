@@ -2,24 +2,15 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
-import type * as ImageColorsType from "react-native-image-colors";
 import { apiAtom } from "@/providers/JellyfinProvider";
-
-// Conditionally import react-native-image-colors only on non-TV platforms
-const ImageColors = Platform.isTV
-  ? null
-  : (require("react-native-image-colors") as typeof ImageColorsType);
-
 import {
   adjustToNearBlack,
   calculateTextColor,
   isCloseToBlack,
 } from "@/utils/atoms/primaryColor";
-import {
-  getJellyfinHeadersForUrl,
-  optionsWithOptionalHeaders,
-} from "@/utils/customHeaders";
+import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getItemImage } from "@/utils/getItemImage";
+import { extractImageColor } from "@/utils/imageColors";
 import { storage } from "@/utils/mmkv";
 
 export interface ThemeColors {
@@ -89,9 +80,6 @@ export const useImageColorsReturn = ({
         return;
       }
 
-      // Extract colors from the image
-      if (!ImageColors?.getColors) return;
-
       // The image lives on the Jellyfin server, which may sit behind an access
       // gateway — without the proxy headers the download 403s and the screen
       // keeps the default colors.
@@ -99,33 +87,15 @@ export const useImageColorsReturn = ({
         ("headers" in source ? source.headers : undefined) ??
         getJellyfinHeadersForUrl(source.uri, api?.basePath);
 
-      ImageColors.getColors(
-        source.uri,
-        optionsWithOptionalHeaders(
-          {
-            fallback: "#fff",
-            cache: false,
-          },
-          headers,
-        ),
-      )
-        .then((colors: ImageColorsType.ImageColorsResult) => {
-          let primary = "#fff";
+      extractImageColor(source.uri, headers)
+        .then((color) => {
+          // No library to extract with: the colors stay as they are.
+          if (color === null) return;
+          let primary = color;
           let text = "#000";
-          let backup = "#fff";
-
-          // Select the appropriate color based on the platform
-          if (colors.platform === "android") {
-            primary = colors.dominant;
-            backup = colors.vibrant;
-          } else if (colors.platform === "ios") {
-            primary = colors.detail;
-            backup = colors.primary;
-          }
 
           // Adjust the primary color if it's too close to black
           if (primary && isCloseToBlack(primary)) {
-            if (backup && !isCloseToBlack(backup)) primary = backup;
             primary = adjustToNearBlack(primary);
           }
 

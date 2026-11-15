@@ -159,6 +159,11 @@ class NativePlayerModule : Module() {
             }
         }.runOnQueue(Queues.MAIN)
 
+        // The remote screen's colors, once JS knows the artwork's: nothing when no remote screen is up.
+        AsyncFunction("updateRemotePlayerTint") { tint: RemoteTintRecord ->
+            (this@NativePlayerModule.presented as? RemotePlayerSession)?.updateTint(tint)
+        }.runOnQueue(Queues.MAIN)
+
         AsyncFunction("load") { config: PlayerPresentConfigRecord, promise: Promise ->
             val s = this@NativePlayerModule.session
             if (s == null) {
