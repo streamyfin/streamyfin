@@ -1,9 +1,12 @@
 package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.app.Activity
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.runtime.Composable
@@ -43,7 +46,7 @@ class RemotePlayerSession(
     override val acceptsJsTransport = false
 
     private var host: Activity? = null
-    private var screen: ComposeView? = null
+    private var screen: ViewGroup? = null
     private var backCallback: OnBackPressedCallback? = null
     private var lifecycleObserver: LifecycleEventObserver? = null
     private val accessibility = AccessibilityIsolation()
@@ -63,17 +66,22 @@ class RemotePlayerSession(
         viewModel.apply(config.toPresentConfig())
 
         val targetName = config.targetName
-        val view = ComposeView(activity).apply {
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        val content = ComposeView(activity).apply {
             (activity as? LifecycleOwner)?.let { setViewTreeLifecycleOwner(it) }
             (activity as? ViewModelStoreOwner)?.let { setViewTreeViewModelStoreOwner(it) }
             (activity as? SavedStateRegistryOwner)?.let { setViewTreeSavedStateRegistryOwner(it) }
             setContent { PlayerTheme { screenContent(viewModel, targetName) } }
         }
+        val view = BackKeyFrame(activity) { dismiss("closeButton") }.apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        }
         accessibility.hideAppOf(activity)
         activity.addContentView(view, view.layoutParams)
+        view.requestFocus()
         screen = view
 
+        // A back that reaches the dispatcher (JS declined it, or predictive back) closes the screen too.
         (activity as? ComponentActivity)?.let { owner ->
             backCallback = object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() = dismiss("closeButton")
@@ -136,5 +144,23 @@ class RemotePlayerSession(
 
     private fun onMain(block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else Handler(Looper.getMainLooper()).post(block)
+    }
+}
+
+/**
+ * The screen's root. The app turns predictive back off, so a back key goes to React Native's onBackPressed, and
+ * JS, before any dispatcher callback, and JS pops its own page under the screen when it has one. Holding the
+ * focus puts this frame on the key's path first: it takes the key and closes the screen.
+ */
+private class BackKeyFrame(context: Context, private val onBack: () -> Unit) : FrameLayout(context) {
+    init {
+        isFocusable = true
+        isFocusableInTouchMode = true
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+        if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) onBack()
+        return true
     }
 }

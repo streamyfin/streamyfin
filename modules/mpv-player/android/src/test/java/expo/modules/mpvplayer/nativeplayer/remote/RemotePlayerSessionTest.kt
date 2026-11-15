@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.content.pm.ActivityInfo
 import android.os.Looper.getMainLooper
+import android.view.KeyEvent
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
@@ -53,14 +54,14 @@ class RemotePlayerSessionTest {
         shadowOf(getMainLooper()).idle()
     }
 
-    private fun presented(): RemotePlayerSession {
+    private fun presented(on: ComponentActivity = activity): RemotePlayerSession {
         val session = RemotePlayerSession(
             lease = RemoteEngineLease(engine) { released += 1 },
             emit = { name, body -> events += name to body },
             onTornDown = { tornDown += 1 },
             screenContent = { _, _ -> },
         )
-        session.present(activity, RemotePlayerConfigRecord().also {
+        session.present(on, RemotePlayerConfigRecord().also {
             it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
             it.targetName = "Bench TV"
         })
@@ -113,6 +114,35 @@ class RemotePlayerSessionTest {
         assertFalse(hasScreen())
         assertEquals(1, tornDown)
         assertEquals("closeButton", events.single { it.first == "onDismiss" }.second["reason"])
+    }
+
+    /** React Native's activity as the app has it, predictive back off: a back key reaches JS first. */
+    class JsFirstActivity : ComponentActivity() {
+        var jsBacks = 0
+
+        @Deprecated("The path a back key takes in the app")
+        override fun onBackPressed() {
+            jsBacks += 1
+        }
+    }
+
+    // The app turns predictive back off, so a back key goes to React Native's onBackPressed, and JS, before any
+    // dispatcher callback, and JS pops its own page under the remote screen when it has one. The screen takes it first.
+    @Test
+    fun theBackKeyClosesTheRemoteSessionBeforeJsSeesIt() {
+        val js = Robolectric.buildActivity(JsFirstActivity::class.java).setup()
+        val roots = js.get().findViewById<ViewGroup>(android.R.id.content).childCount
+        presented(js.get())
+
+        js.get().dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+        js.get().dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals(0, js.get().jsBacks)
+        assertEquals(1, released)
+        assertEquals("closeButton", events.single { it.first == "onDismiss" }.second["reason"])
+        assertEquals(roots, js.get().findViewById<ViewGroup>(android.R.id.content).childCount)
+        js.pause().stop().destroy()
     }
 
     @Test
