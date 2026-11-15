@@ -1,9 +1,9 @@
 import { renderHook } from "@testing-library/react-native";
 import { Alert } from "react-native";
+import { pressTVBack } from "@/test-utils/tvBackPress";
 import { useRemoteControl } from "./useRemoteControl";
 
 let mockConfirmBeforeStopping = true;
-let mockBackHandler: (() => boolean) | undefined;
 
 jest.mock(
   "react-native-reanimated",
@@ -17,11 +17,6 @@ jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({
     settings: { confirmBeforeStoppingPlayback: mockConfirmBeforeStopping },
   }),
-}));
-jest.mock("@/hooks/useTVBackPress", () => ({
-  useTVBackPress: (handler: () => boolean) => {
-    mockBackHandler = handler;
-  },
 }));
 jest.mock("@/hooks/useTVEventHandler", () => ({
   useTVEventHandler: () => undefined,
@@ -41,7 +36,7 @@ const pressBack = async (props: { showControls?: boolean } = {}) => {
       videoTitle: "Movie",
     }),
   );
-  const handled = mockBackHandler?.();
+  const handled = pressTVBack();
   return { handled, onBack, onWillExit, onHideControls };
 };
 
@@ -49,7 +44,6 @@ afterEach(() => jest.restoreAllMocks());
 
 beforeEach(() => {
   mockConfirmBeforeStopping = true;
-  mockBackHandler = undefined;
   jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
 });
 

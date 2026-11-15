@@ -1,6 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { TVSyncPlayButton } from "./TVSyncPlayButton";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 const mockOpen = jest.fn();
 let mockState = { group: null as object | null, available: true };
 
@@ -10,9 +14,6 @@ jest.mock("@expo/vector-icons", () => ({
     return <Text>{name}</Text>;
   },
 }));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
-}));
 jest.mock("@/hooks/useSyncPlaySheet", () => ({
   useSyncPlaySheet: () => mockOpen,
 }));
@@ -21,7 +22,6 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
 }));
 
 beforeEach(() => {
-  mockOpen.mockClear();
   mockState = { group: null, available: true };
 });
 

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
@@ -16,7 +16,7 @@ export interface TVOptionCardProps {
   height?: number;
 }
 
-export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
+export const TVOptionCard = React.forwardRef<ViewInstance, TVOptionCardProps>(
   (
     {
       label,

@@ -1,21 +1,15 @@
 import { stubReactNative } from "@/test-utils/reactNative";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 // TV builds leave this native module out (react-native.config.js), and loading it there
 // fails as the app starts. What the root layout and the settings pull in loads it only
 // off TV, like app/_layout.tsx does.
 jest.mock("expo-notifications", () => {
   throw new Error("expo-notifications is left out of TV builds");
 });
-jest.mock("@/providers/JellyfinProvider", () => {
-  const { atom } = jest.requireActual("jotai");
-  return { apiAtom: atom(null), userAtom: atom(null) };
-});
-jest.mock("sonner-native", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 describe("on TV", () => {
   beforeEach(() => stubReactNative({ isTV: true }));

@@ -4,6 +4,8 @@ import useAppRouter from "./useAppRouter";
 const mockReplace = jest.fn();
 let mockOffline = false;
 
+// Exercise the real hook, not the opt-in double in `test-utils/stubModules.ts`.
+jest.unmock("@/hooks/useAppRouter");
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     replace: mockReplace,
@@ -20,7 +22,6 @@ jest.mock("@/providers/OfflineModeProvider", () => ({
 
 describe("useAppRouter replace", () => {
   beforeEach(() => {
-    mockReplace.mockClear();
     mockOffline = false;
   });
 

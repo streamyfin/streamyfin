@@ -1,20 +1,25 @@
-import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, TVFocusGuideView, View } from "react-native";
+import {
+  ScrollView,
+  TVFocusGuideView,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import type { CastCrewPerson } from "@/hooks/useCastCrew";
 import { TVActorCard } from "./TVActorCard";
 
 export interface TVCastSectionProps {
-  cast: BaseItemPerson[];
+  cast: CastCrewPerson[];
   apiBasePath?: string;
   onActorPress: (personId: string) => void;
   /** Setter function for the first actor card ref (for focus guide) */
-  firstActorRefSetter?: (ref: View | null) => void;
+  firstActorRefSetter?: (ref: ViewInstance | null) => void;
   /** Ref to focus guide destination for upward navigation */
-  upwardFocusDestination?: View | null;
+  upwardFocusDestination?: ViewInstance | null;
   /** Custom horizontal padding (overrides default 80) */
   horizontalPadding?: number;
 }
@@ -67,15 +72,11 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
         >
           {cast.map((person, index) => (
             <TVActorCard
-              key={person.Id || index}
+              key={person.Id}
               ref={index === 0 ? firstActorRefSetter : undefined}
               person={person}
               apiBasePath={apiBasePath}
-              onPress={() => {
-                if (person.Id) {
-                  onActorPress(person.Id);
-                }
-              }}
+              onPress={() => onActorPress(person.Id)}
             />
           ))}
         </ScrollView>

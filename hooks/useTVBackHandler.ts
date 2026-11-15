@@ -9,15 +9,15 @@ import {
 
 export { enableTVMenuKeyInterception } from "./useTVBackPress";
 
-/** All tab route names used in the bottom tab navigator. */
+/** Every tab group: the phone bar's, and the TV bar's (utils/tvTabs.ts). */
 export const TAB_ROUTES = [
   "(home)",
   "(search)",
-  "(favorites)",
   "(libraries)",
-  "(watchlists)",
-  "(custom-links)",
-  "(settings)",
+  "(more)",
+  "(tv-favorites)",
+  "(tv-watchlists)",
+  "(tv-settings)",
 ] as const;
 
 export type TabRoute = (typeof TAB_ROUTES)[number];

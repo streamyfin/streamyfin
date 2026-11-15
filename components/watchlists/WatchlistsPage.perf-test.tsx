@@ -2,7 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import { screen } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { measureRenders } from "reassure";
-import WatchlistsPage from "@/app/(auth)/(tabs)/(watchlists)/index";
+import WatchlistsPage from "@/app/(auth)/(tabs)/(more)/watchlists/index";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { pullToRefresh } from "@/test-utils/lists";
 import { QueryWrapper } from "@/test-utils/queryWrapper";

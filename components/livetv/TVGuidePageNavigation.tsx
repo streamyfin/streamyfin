@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -12,7 +18,7 @@ interface TVGuidePageNavigationProps {
   onPrevious: () => void;
   onNext: () => void;
   disabled?: boolean;
-  prevButtonRefSetter?: (ref: View | null) => void;
+  prevButtonRefSetter?: (ref: ViewInstance | null) => void;
 }
 
 interface NavButtonProps {
@@ -21,7 +27,7 @@ interface NavButtonProps {
   label: string;
   isDisabled: boolean;
   disabled?: boolean;
-  refSetter?: (ref: View | null) => void;
+  refSetter?: (ref: ViewInstance | null) => void;
 }
 
 const NavButton: React.FC<NavButtonProps> = ({

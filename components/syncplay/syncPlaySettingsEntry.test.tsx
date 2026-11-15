@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import Settings from "@/app/(auth)/(tabs)/(home)/settings";
+import Settings from "@/app/(auth)/(tabs)/(more)/settings";
+
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => jest.requireActual("@/test-utils/stubModules").appRouterModule,
+);
 
 const mockUpdateSettings = jest.fn();
-jest.mock("@/hooks/useAppRouter", () => ({
-  __esModule: true,
-  default: () => ({ push: jest.fn() }),
-}));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   return {
@@ -13,13 +14,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     useJellyfin: () => ({ logout: jest.fn() }),
   };
 });
-jest.mock("expo-router", () => ({
-  useNavigation: () => ({ setOptions: () => {} }),
-}));
-jest.mock("i18next", () => ({ t: (key: string) => key }));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 // The other sections of the screen have nothing to do with the switch.
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,

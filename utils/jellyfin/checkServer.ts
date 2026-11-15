@@ -1,5 +1,5 @@
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
-import { escapeRegExp } from "lodash";
+import escapeRegExp from "lodash/escapeRegExp";
 import { JELLYFIN_PRODUCT_NAME } from "@/constants/Jellyfin";
 import { REDACTED_SERVER } from "@/constants/Sentry";
 import {

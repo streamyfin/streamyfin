@@ -4,6 +4,8 @@ type Captured = {
   contexts: Record<string, unknown>;
 };
 const mockCaptured: Captured[] = [];
+// The real log is under test, not the silent double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/log");
 jest.mock("@sentry/react-native", () => ({
   addBreadcrumb: () => {},
   withScope: (run: (scope: unknown) => void) => {
@@ -23,10 +25,6 @@ jest.mock("@sentry/react-native", () => ({
     mockCaptured[mockCaptured.length - 1].exception = exception;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 import { onlineManager } from "@tanstack/react-query";
 import { AxiosError, type AxiosResponse } from "axios";

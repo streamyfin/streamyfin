@@ -2,10 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ALPHABET } from "@/utils/jellyfin/alphabetJump";
 import { AlphabetRail } from "./AlphabetRail";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 const LETTER_HEIGHT = 10;
 const RAIL_TOP = 200;
 const offsetOf = (letter: string) =>

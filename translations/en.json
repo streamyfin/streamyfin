@@ -7,7 +7,6 @@
     "invalid_url": "Enter a valid address"
   },
   "login": {
-    "username_required": "Username is required",
     "error_title": "Error",
     "login_title": "Log in",
     "login_to_title": "Log in to",
@@ -252,7 +251,9 @@
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
         "native_tv": "Native player (experimental)",
         "native_tv_note": "Use the new fully-native Apple TV player. Turn it off to fall back to the previous player if you run into playback issues.",
-        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues."
+        "native_android_tv_note": "Use the new fully-native Android TV player with the same MPV or ExoPlayer engine you selected above. Turn it off to fall back to the previous player if you run into playback issues.",
+        "match_refresh_rate": "Match display refresh rate",
+        "match_refresh_rate_note": "Switch the TV to a refresh rate matching the video's frame rate, for example 50 Hz for 25 fps, so motion plays smoothly instead of juddering. The screen flashes briefly when the rate changes. Android TV only."
       },
       "external_player": {
         "title": "External player",
@@ -512,7 +513,7 @@
           "enable_movie_recommendations": "Movie recommendations",
           "enable_series_recommendations": "Series recommendations",
           "enable_promoted_watchlists": "Promoted watchlists",
-          "hide_watchlists_tab": "Hide watchlists tab",
+          "hide_watchlists_tab": "Hide watchlists",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended movies",
           "recommended_series": "Recommended series",
@@ -571,6 +572,21 @@
       },
       "toasts": {
         "error_deleting_files": "Error deleting files"
+      },
+      "quality": {
+        "title": "Quality",
+        "description": "Auto measures the connection to the server before a stream and asks for one that fits in it. During playback it steps down when the stream stalls, and back up once the connection allows. The rows under the default quality set how it measures.",
+        "share": "Share of the measured speed",
+        "remeasure_after": "Measure again after",
+        "in_network_min": "Minimum in the server's network",
+        "in_network_min_none": "None",
+        "adapt": "Adapt during playback",
+        "last_measure": "Auto streams at",
+        "last_measure_none": "Not measured yet",
+        "last_measure_failed": "Could not measure: {{cause}}",
+        "last_measure_kept": "{{bitrate}}, the last measure failed: {{cause}}",
+        "measure_now": "Measure now",
+        "measuring": "Measuring…"
       },
       "security": {
         "title": "Security",
@@ -875,8 +891,8 @@
     "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
-    "no_links": "No links",
-    "could_not_open_link": "Could not open this link"
+    "could_not_open_link": "Could not open this link",
+    "load_failed": "Couldn't load the custom links"
   },
   "player": {
     "live": "LIVE",
@@ -933,6 +949,8 @@
     "downloaded_file_message": "Do you want to play the downloaded file?",
     "downloaded_file_yes": "Yes",
     "downloaded_file_no": "No",
+    "play_downloaded_file": "Play downloaded file",
+    "stream_file": "Stream file",
     "downloaded_file_cancel": "Cancel",
     "play_in_other_app": "Play in another app",
     "choose_app": "Choose app…",
@@ -1012,6 +1030,7 @@
     "more_details": "More details",
     "media_options": "Media options",
     "quality": "Quality",
+    "quality_auto": "Auto",
     "audio": "Audio",
     "subtitles": {
       "label": "Subtitle",
@@ -1251,7 +1270,11 @@
     "library": "Library",
     "custom_links": "Custom links",
     "favorites": "Favorites",
-    "settings": "Settings"
+    "settings": "Settings",
+    "more": "More"
+  },
+  "more": {
+    "your_media": "Your media"
   },
   "music": {
     "title": "Music",

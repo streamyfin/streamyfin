@@ -3,12 +3,27 @@ import { renderHook } from "@testing-library/react-native";
 import { SIMILAR_ITEMS_LIMIT } from "@/constants/Recommendations";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
 
+let mockDownloads: { item: { Id: string } }[] = [];
+const mockTriggerRefresh = jest.fn();
+const mockSync = jest.fn(
+  async (_id: string, _options?: { stamp?: string }) => "unchanged",
+);
 jest.mock("@/providers/DownloadProvider", () => ({
-  useDownload: () => ({ getDownloadedItems: () => [] }),
+  useDownload: () => ({
+    getDownloadedItems: () => mockDownloads,
+    triggerRefresh: mockTriggerRefresh,
+  }),
 }));
 jest.mock("./useTwoWaySync", () => ({
-  useTwoWaySync: () => ({ syncPlaybackState: async () => false }),
+  useTwoWaySync: () => ({ syncPlaybackStateDetailed: mockSync }),
 }));
+
+beforeEach(() => {
+  mockDownloads = [];
+  mockTriggerRefresh.mockClear();
+  mockSync.mockReset();
+  mockSync.mockImplementation(async () => "unchanged");
+});
 
 const revalidateWith = async (client: QueryClient) => {
   const { result } = await renderHook(
@@ -40,5 +55,38 @@ describe("useInvalidatePlaybackProgressCache", () => {
 
     expect(client.getQueryState(similarKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(unrelatedKey)?.isInvalidated).toBe(false);
+  });
+
+  // The local progress is shared by every account on the device: a pull to
+  // refresh or a Home mount right after another user signed in used to send
+  // the previous user's offline progress into this one. Only the offline
+  // sync, which knows who queued it, may push.
+  test("only takes the server's state, never sends a download's", async () => {
+    mockDownloads = [
+      { item: { Id: "episode-1" } },
+      { item: { Id: "episode-2" } },
+    ];
+
+    await revalidateWith(new QueryClient());
+
+    expect(mockSync.mock.calls).toEqual([["episode-1"], ["episode-2"]]);
+  });
+
+  test("refreshes the downloads views once a download took the server's state", async () => {
+    mockDownloads = [
+      { item: { Id: "episode-1" } },
+      { item: { Id: "episode-2" } },
+    ];
+    mockSync.mockImplementation(async (id: string) =>
+      id === "episode-2" ? "pulled" : "unchanged",
+    );
+
+    await revalidateWith(new QueryClient());
+    expect(mockTriggerRefresh).toHaveBeenCalledTimes(1);
+
+    mockTriggerRefresh.mockClear();
+    mockSync.mockImplementation(async () => "unchanged");
+    await revalidateWith(new QueryClient());
+    expect(mockTriggerRefresh).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { quotaFill, quotaPeriod, seasonQuotaText } from "./quota";
 
 // How much of a series quota the bar shows as spent, the seasons switched on
@@ -41,8 +42,10 @@ describe("quotaPeriod", () => {
 
 // The words of a series quota, the phone's sheet and the TV's alike.
 describe("seasonQuotaText", () => {
-  const t = (key: string, options?: Record<string, unknown>) =>
-    options ? `${key} ${JSON.stringify(options)}` : key;
+  const t = ((key: string, options?: Record<string, unknown>) =>
+    options
+      ? `${key} ${JSON.stringify(options)}`
+      : key) as unknown as TFunction;
 
   test("says how many season requests are left, and over what", () => {
     expect(seasonQuotaText(t, { remaining: 2, limit: 8, days: 7 })).toEqual({

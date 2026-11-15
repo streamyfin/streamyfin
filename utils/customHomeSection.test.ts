@@ -1,3 +1,4 @@
+import { writeToLog } from "@/utils/log";
 // The app installs api.pluginGet, which custom endpoints go through, at launch.
 import "@/augmentations/api";
 import { makeApi } from "@/test-utils/jellyfinApi";
@@ -7,10 +8,7 @@ import {
   resetLoggedHomeSections,
 } from "./customHomeSection";
 
-const mockWriteToLog = jest.fn();
-jest.mock("@/utils/log", () => ({
-  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
-}));
+const mockWriteToLog = jest.mocked(writeToLog);
 
 const LIBRARY_ID = "f137a2dd21bbc1b99aa5c0f6bf02a805";
 const DASHED_LIBRARY_ID = "f137a2dd-21bb-c1b9-9aa5-c0f6bf02a805";
@@ -89,7 +87,6 @@ const customSection = (
 ): HomeSection => ({ custom: { endpoint, query } });
 
 beforeEach(() => {
-  mockWriteToLog.mockClear();
   resetLoggedHomeSections();
 });
 

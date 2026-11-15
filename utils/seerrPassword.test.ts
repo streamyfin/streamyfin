@@ -5,11 +5,6 @@ import {
   saveSeerrPassword,
 } from "./seerrPassword";
 
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
-
 const account = btoa("https://media.example:user-1").replace(
   /[^a-zA-Z0-9]/g,
   "_",

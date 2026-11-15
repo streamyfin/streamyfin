@@ -17,14 +17,10 @@ jest.mock(
 jest.mock("@/providers/IntroSheetProvider", () => ({
   useIntroSheet: () => ({ showIntro: () => {} }),
 }));
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 jest.mock("@/hooks/useRefreshLibraryOnFocus", () => ({
   useRefreshLibraryOnFocus: () => {},
 }));

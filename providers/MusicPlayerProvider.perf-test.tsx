@@ -48,14 +48,10 @@ jest.mock(
   "@/providers/NetworkStatusProvider",
   () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
 );
-jest.mock("@/hooks/useNetworkStatus", () => ({
-  useNetworkStatus: () => ({
-    isConnected: true,
-    serverConnected: true,
-    loading: false,
-    retryCheck: () => {},
-  }),
-}));
+jest.mock(
+  "@/hooks/useNetworkStatus",
+  () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
+);
 jest.mock("@/providers/AudioStorage", () => ({
   initAudioStorage: async () => undefined,
   setMaxCacheSizeMB: () => undefined,

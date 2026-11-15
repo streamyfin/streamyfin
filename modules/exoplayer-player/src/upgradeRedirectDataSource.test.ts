@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Both ExoPlayer paths, the JS route's ExoPlayerView and the native chrome's
-// ExoPlayerEngine, carry the same HTTP source, one copy per Gradle module, and
-// so do its JVM tests. Each pair may differ by its package line only.
+// ExoPlayerEngine, carry the same HTTP source, log redaction and DTS decoder
+// selection, one copy per Gradle module, and so do their JVM tests. Each pair
+// may differ by its package line only.
 const modules = join(__dirname, "../..");
 const read = (path: string) => readFileSync(join(modules, path), "utf8");
 const withoutPackage = (path: string) =>
@@ -23,6 +24,22 @@ const twins = [
   [
     `${exo}/test/java/expo/modules/exoplayerplayer/UpgradeRedirectDataSourceTest.kt`,
     `${mpv}/test/java/expo/modules/mpvplayer/nativeplayer/engine/UpgradeRedirectDataSourceTest.kt`,
+  ],
+  [
+    `${exo}/main/java/expo/modules/exoplayerplayer/LogRedaction.kt`,
+    `${mpv}/main/java/expo/modules/mpvplayer/LogRedaction.kt`,
+  ],
+  [
+    `${exo}/test/java/expo/modules/exoplayerplayer/LogRedactionTest.kt`,
+    `${mpv}/test/java/expo/modules/mpvplayer/LogRedactionTest.kt`,
+  ],
+  [
+    `${exo}/main/java/expo/modules/exoplayerplayer/DtsDecoderSelection.kt`,
+    `${mpv}/main/java/expo/modules/mpvplayer/nativeplayer/engine/DtsDecoderSelection.kt`,
+  ],
+  [
+    `${exo}/test/java/expo/modules/exoplayerplayer/DtsDecoderSelectionTest.kt`,
+    `${mpv}/test/java/expo/modules/mpvplayer/nativeplayer/engine/DtsDecoderSelectionTest.kt`,
   ],
 ];
 const players = [

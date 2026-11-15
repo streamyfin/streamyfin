@@ -1,7 +1,3 @@
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-background-task", () => ({
   registerTaskAsync: jest.fn(async () => {}),
   unregisterTaskAsync: jest.fn(async () => {}),
@@ -9,7 +5,6 @@ jest.mock("expo-background-task", () => ({
 jest.mock("expo-task-manager", () => ({
   isTaskRegisteredAsync: jest.fn(async () => false),
 }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 import * as BackgroundTask from "expo-background-task";
 import * as TaskManager from "expo-task-manager";
@@ -28,7 +23,6 @@ const register = BackgroundTask.registerTaskAsync as jest.Mock;
 const isRegistered = TaskManager.isTaskRegisteredAsync as jest.Mock;
 
 beforeEach(() => {
-  jest.clearAllMocks();
   storage.clearAll();
   jest.spyOn(console, "log").mockImplementation(() => {});
   isRegistered.mockResolvedValue(false);

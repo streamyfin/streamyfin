@@ -1,15 +1,5 @@
 import { DOCUMENTS } from "@/test-utils/fileSystem";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
-
 import {
   type PendingDownload,
   pendingDownloadFileUri,

@@ -1,0 +1,177 @@
+import { useNavigation } from "expo-router";
+import { t } from "i18next";
+import { useAtom } from "jotai";
+import { useEffect } from "react";
+import { Platform, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
+import { Text } from "@/components/common/Text";
+import { ListGroup } from "@/components/list/ListGroup";
+import { ListItem } from "@/components/list/ListItem";
+import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
+import { QuickConnect } from "@/components/settings/QuickConnect";
+import { StorageSettings } from "@/components/settings/StorageSettings";
+import { UserInfo } from "@/components/settings/UserInfo";
+import { NOTIFICATIONS_SETTINGS_ROUTE } from "@/constants/Notifications";
+import useRouter from "@/hooks/useAppRouter";
+import { useMyNotifications } from "@/hooks/useMyNotifications";
+import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
+import { useSyncPlay } from "@/providers/SyncPlayProvider";
+import { useSettings } from "@/utils/atoms/settings";
+
+// TV-specific settings component
+const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
+
+// Mobile settings component
+function SettingsMobile() {
+  const router = useRouter();
+  const { available: syncPlayAvailable } = useSyncPlay();
+  const { settings, updateSettings } = useSettings();
+  const insets = useSafeAreaInsets();
+  const { supported: notificationsSupported, mine: notifications } =
+    useMyNotifications();
+  const [_user] = useAtom(userAtom);
+  const { logout } = useJellyfin();
+
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <HeaderButton
+          variant='text'
+          onPress={() => {
+            logout();
+          }}
+        >
+          <Text className='text-red-600'>
+            {t("home.settings.log_out_button")}
+          </Text>
+        </HeaderButton>
+      ),
+    });
+  }, []);
+
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior='automatic'
+      contentContainerStyle={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
+      <View
+        className='p-4 flex flex-col'
+        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
+      >
+        <View className='mb-4'>
+          <UserInfo />
+        </View>
+
+        <QuickConnect className='mb-4' />
+
+        {syncPlayAvailable && (
+          <View className='mb-4'>
+            <ListGroup title={t("syncplay.title")}>
+              <ListItem
+                title={t("syncplay.ignore_wait")}
+                subtitle={t("syncplay.ignore_wait_setting_hint")}
+              >
+                <SettingSwitch
+                  testID='syncplay-settings-ignore-wait'
+                  accessibilityLabel={t("syncplay.ignore_wait")}
+                  value={settings.syncPlayIgnoreWait}
+                  onValueChange={(value) =>
+                    updateSettings({ syncPlayIgnoreWait: value })
+                  }
+                />
+              </ListItem>
+            </ListGroup>
+          </View>
+        )}
+
+        {/* On every phone: Quick Connect needs no local network access.
+            Covered by components/companion/companionLoginEntry.test.tsx. */}
+        <View className='mb-4'>
+          <ListGroup title={t("pairing.pair_with_phone_title")}>
+            <ListItem
+              onPress={() =>
+                router.push("/(auth)/(tabs)/(more)/companion-login")
+              }
+              title={t("pairing.pair_with_phone")}
+              textColor='blue'
+            />
+          </ListGroup>
+        </View>
+
+        <View className='mb-4'>
+          <AppLanguageSelector />
+        </View>
+
+        <View className='mb-4'>
+          <ListGroup title={t("home.settings.categories.title")}>
+            <ListItem
+              onPress={() => router.push("/settings/playback-controls/page")}
+              showArrow
+              title={t("home.settings.playback_controls.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/audio-subtitles/page")}
+              showArrow
+              title={t("home.settings.audio_subtitles.title")}
+            />
+            {/* Only once the server's plugin answered: an older one has no such screen. */}
+            {notificationsSupported && notifications !== undefined && (
+              <ListItem
+                onPress={() => router.push(NOTIFICATIONS_SETTINGS_ROUTE)}
+                showArrow
+                title={t("home.settings.notifications.title")}
+              />
+            )}
+            <ListItem
+              onPress={() => router.push("/settings/music/page")}
+              showArrow
+              title={t("home.settings.music.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/appearance/page")}
+              showArrow
+              title={t("home.settings.appearance.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/plugins/page")}
+              showArrow
+              title={t("home.settings.plugins.plugins_title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/intro/page")}
+              showArrow
+              title={t("home.settings.intro.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/network/page")}
+              showArrow
+              title={t("home.settings.network.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/logs/page")}
+              showArrow
+              title={t("home.settings.logs.logs_title")}
+            />
+          </ListGroup>
+        </View>
+
+        <StorageSettings />
+      </View>
+    </ScrollView>
+  );
+}
+
+export default function settings() {
+  // Use TV settings component on TV platforms
+  if (Platform.isTV && SettingsTV) {
+    return <SettingsTV />;
+  }
+
+  return <SettingsMobile />;
+}

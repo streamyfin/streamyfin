@@ -2,9 +2,6 @@ import { render, screen } from "@testing-library/react-native";
 import { CardArtwork } from "./CardArtwork";
 import type { CardData } from "./CardData";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The real image resolves auth headers through the provider tree; the double
 // keeps the props each render hands it.
 const mockImageProps: Record<string, unknown>[] = [];
@@ -40,6 +37,16 @@ test("keys its image to the card, so a reused cell drops the old artwork", async
     />,
   );
   expect(mockImageProps.at(-1)?.recyclingKey).toBe("card-2");
+});
+
+// A card scrolled back into view, or on a page opened again, has its artwork
+// in the cache: it shows at once instead of fading in a second time.
+test("fades its artwork in only when it is not cached yet", async () => {
+  await renderArtwork({ imageUrl: "http://server/a.jpg" });
+
+  expect(mockImageProps.at(-1)?.transition).toEqual(
+    expect.objectContaining({ skipOnCacheHit: "all" }),
+  );
 });
 
 describe("CardArtwork corner badge", () => {

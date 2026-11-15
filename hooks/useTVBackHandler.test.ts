@@ -3,16 +3,13 @@ import { stubReactNative } from "@/test-utils/reactNative";
 // Stub the router module: only
 // the pure route helpers are under test here.
 stubReactNative({ isTV: true });
-jest.mock("expo-router", () => ({
-  useSegments: () => [],
-}));
 
 import { isAtTabRoot, isTabRoute } from "./useTVBackHandler";
 
 describe("isAtTabRoot", () => {
   test("true at the root of a tab", () => {
     expect(isAtTabRoot(["(auth)", "(tabs)", "(home)"])).toBe(true);
-    expect(isAtTabRoot(["(auth)", "(tabs)", "(settings)"])).toBe(true);
+    expect(isAtTabRoot(["(auth)", "(tabs)", "(more)"])).toBe(true);
   });
 
   test("false on routes deeper than a tab root", () => {
@@ -36,7 +33,12 @@ describe("isAtTabRoot", () => {
 describe("isTabRoute", () => {
   test("matches tab group segments only", () => {
     expect(isTabRoute("(home)")).toBe(true);
+    expect(isTabRoute("(more)")).toBe(true);
     expect(isTabRoute("(tabs)")).toBe(false);
+    // Groups the bar no longer has: Favorites, Watchlists, Custom links and
+    // Settings live in the More menu.
+    expect(isTabRoute("(favorites)")).toBe(false);
+    expect(isTabRoute("(settings)")).toBe(false);
     expect(isTabRoute("index")).toBe(false);
   });
 });

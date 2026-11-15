@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react-native";
 import { TVFavoriteButton } from "./TVFavoriteButton";
 
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
+
 jest.mock("@/hooks/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, toggleFavorite: () => {} }),
-}));
-jest.mock("@/providers/InactivityProvider", () => ({
-  useInactivity: () => ({ resetInactivityTimer: () => {} }),
 }));
 
 /** What the TV focus engine reads off the button's focusable host view. */

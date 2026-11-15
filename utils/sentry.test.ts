@@ -1,4 +1,4 @@
-import { stubReactNative } from "@/test-utils/reactNative";
+import { requireOnPlatform, stubReactNative } from "@/test-utils/reactNative";
 
 // utils/sentry imports the SDK and app modules with native dependencies;
 // only the pure scrubbers are under test here, so each mock covers the surface
@@ -97,6 +97,14 @@ describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () 
       isUserInteractionBreadcrumb({
         type: "http",
         category: "xhr",
+        data: { url: "https://[server]/Sessions" },
+      }),
+    ).toBe(false);
+    // Since 8.34 the SDK also records expo/fetch, the global fetch on native.
+    expect(
+      isUserInteractionBreadcrumb({
+        type: "http",
+        category: "fetch",
         data: { url: "https://[server]/Sessions" },
       }),
     ).toBe(false);
@@ -210,6 +218,28 @@ describe("scrubDeep — the privacy boundary for outgoing Sentry data", () => {
     });
   });
 
+  test("scrubs a fetch breadcrumb's URL as it does an XHR one", () => {
+    expect(
+      scrubDeep({
+        type: "http",
+        category: "fetch",
+        data: {
+          method: "GET",
+          url: "https://jellyfin.example.com:8096/Sessions?api_key=secret",
+          status_code: 200,
+        },
+      }),
+    ).toEqual({
+      type: "http",
+      category: "fetch",
+      data: {
+        method: "GET",
+        url: "https://[server]/Sessions",
+        status_code: 200,
+      },
+    });
+  });
+
   test("tolerates circular structures", () => {
     const node: Record<string, unknown> = {
       url: "https://srv.example.com?token=t",
@@ -240,10 +270,9 @@ describe("dev builds do not report", () => {
   // must stay unlatched until the last of them.
   const initializesOn = (OS: "ios" | "android"): unknown[] => {
     const before = initCalls.length;
-    jest.isolateModules(() => {
-      require("@/test-utils/reactNative").stubReactNative({ OS });
-      require("./sentry").initializeSentryIfConsented();
-    });
+    requireOnPlatform({ OS }, () =>
+      require("./sentry").initializeSentryIfConsented(),
+    );
     return initCalls.splice(before);
   };
 

@@ -7,20 +7,21 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react-native";
+import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
+import { writeToLog } from "@/utils/log";
+
+jest.mock("@/providers/JellyfinProvider", () =>
+  jest.requireActual("@/test-utils/realSessionAtoms"),
+);
 
 const mockParams: { current: Record<string, unknown> } = { current: {} };
-const mockWriteToLog = jest.fn();
+const mockWriteToLog = jest.mocked(writeToLog);
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 jest.mock("expo-router", () => {
   const { useEffect } = jest.requireActual("react");
   return {
@@ -49,9 +50,6 @@ jest.mock("@/utils/atoms/api", () => {
   const { atom } = jest.requireActual("jotai");
   return { apiAtom: atom(null), userAtom: atom({ Id: "user-1" }) };
 });
-jest.mock("@/providers/JellyfinProvider", () =>
-  jest.requireMock("@/utils/atoms/api"),
-);
 jest.mock("@/providers/GlobalModalProvider", () => ({
   useGlobalModal: () => ({ showModal: () => {}, hideModal: () => {} }),
 }));
@@ -60,26 +58,8 @@ jest.mock("@/providers/GlobalModalProvider", () => ({
 jest.mock("@/components/filters/FilterSheetContent", () => ({
   FilterSheetContent: () => null,
 }));
-// The log reaches Sentry, so it is stubbed with what the page and the
-// settings it reads call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: (...args: unknown[]) => mockWriteToLog(...args),
-  logAndCaptureError: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-}));
 // The settings only read its table of bitrates. The component pulls in the
 // bottom sheet, which needs the native worklets.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The list renders its header, where the phone keeps the filter bar, and
 // what it shows when empty.
 jest.mock("@shopify/flash-list", () => ({
@@ -133,7 +113,6 @@ jest.mock("@/components/common/TouchableItemRouter", () => ({
 jest.mock("@/components/common/HeaderButton", () => ({
   HeaderButton: () => null,
 }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 jest.mock("@/components/filters/ResetFiltersButton", () => ({
   ResetFiltersButton: () => null,
 }));
@@ -164,20 +143,25 @@ const VALIDATION_PROBLEM = {
   errors: { itemId: ["The value is not valid."] },
 };
 
-const libraryServer = () => {
+const libraryServer = (items: { Id: string; Name: string }[] = []) => {
   const api = makeApi();
   api.mock.onGet(/\/Items\/Filters\?/).reply(200, { Genres: [], Years: [] });
   api.mock
     .onGet(new RegExp(`/Items/${LIBRARY_ID}\\?`))
     .reply(200, { Id: LIBRARY_ID, Name: "Films", CollectionType: "movies" });
   api.mock.onGet(/\/Items\/[^/?]+\?/).reply(400, VALIDATION_PROBLEM);
-  api.mock.onGet(/\/Items\?/).reply(200, { Items: [], TotalRecordCount: 0 });
+  api.mock
+    .onGet(/\/Items\?/)
+    .reply(200, { Items: items, TotalRecordCount: items.length });
   return api;
 };
 
-const renderLibrary = async (libraryId: unknown) => {
+const renderLibrary = async (
+  libraryId: unknown,
+  items: { Id: string; Name: string }[] = [],
+) => {
   mockParams.current = { libraryId };
-  const api = libraryServer();
+  const api = libraryServer(items);
   const errors: Error[] = [];
   // No retry, and nothing collected: either keeps Jest from exiting.
   const client = new QueryClient({
@@ -203,10 +187,6 @@ const renderLibrary = async (libraryId: unknown) => {
   await act(async () => {});
   return { requested: api.mock.history.get.map((get) => get.url), errors };
 };
-
-beforeEach(() => {
-  mockWriteToLog.mockClear();
-});
 
 describe.each([
   ["phone", false],
@@ -258,4 +238,40 @@ test("asks for nothing when the library id arrives as a list", async () => {
   const { requested } = await renderLibrary([LIBRARY_ID, LIBRARY_ID]);
 
   expect(requested).toEqual([]);
+});
+
+// The TV tab bar centres its tabs and makes each one focusable, so from the end
+// of a grid narrower than it Android's focus search reaches the outermost tab
+// and a left or right press leaves the grid. The grid traps those directions,
+// and leaves up and down free for the toolbar and the tab bar.
+test("keeps left and right presses inside the TV grid", async () => {
+  stubReactNative({ OS: "android", isTV: true });
+  await renderLibrary(LIBRARY_ID, [
+    { Id: "a", Name: "A" },
+    { Id: "b", Name: "B" },
+    { Id: "c", Name: "C" },
+  ]);
+
+  type Node = {
+    props?: Record<string, unknown>;
+    children?: (Node | string)[] | null;
+  };
+  const { StyleSheet } = require("react-native");
+  const wrapping = (node: Node | Node[] | string | null): Node[] => {
+    if (!node || typeof node === "string") return [];
+    if (Array.isArray(node)) return node.flatMap(wrapping);
+    const self =
+      StyleSheet.flatten(node.props?.style)?.flexWrap === "wrap" ? [node] : [];
+    return [...self, ...(node.children ?? []).flatMap(wrapping)];
+  };
+  // The grid renders once the items arrive.
+  await waitFor(() =>
+    expect(wrapping(screen.toJSON() as Node)).not.toHaveLength(0),
+  );
+  const [grid] = wrapping(screen.toJSON() as Node);
+  expect(grid?.props).toEqual(
+    expect.objectContaining({ trapFocusLeft: true, trapFocusRight: true }),
+  );
+  expect(grid?.props?.trapFocusUp).toBeFalsy();
+  expect(grid?.props?.trapFocusDown).toBeFalsy();
 });

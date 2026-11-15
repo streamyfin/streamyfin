@@ -12,11 +12,6 @@ import {
 } from "./secureValues";
 import type { CustomHeader } from "./types";
 
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
-
 const header = (
   key: string,
   value: string,

@@ -1,22 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
-
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// this spec's module under test actually calls.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  readFromLog: () => [],
-}));
-
 import { clearMmkv } from "@/test-utils/mmkv";
+import type { TrackMenuRow } from "@/utils/subtitles/trackMenu";
 import {
   getSeriesTrackMemory,
   rememberSeriesTrackFromRow,

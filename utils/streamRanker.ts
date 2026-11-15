@@ -38,12 +38,15 @@ abstract class StreamRankerStrategy {
     ) {
       score += 2;
     }
+    // The language alone clears the threshold: another version or release of
+    // the same film often encodes the track differently (AAC against TrueHD),
+    // titles it differently and lists it elsewhere, and the pick must survive.
     if (
       prevStream.Language &&
       prevStream.Language !== "und" &&
       prevStream.Language === stream.Language
     ) {
-      score += 2;
+      score += 3;
     }
 
     return score;
@@ -72,7 +75,11 @@ abstract class StreamRankerStrategy {
     let bestStreamIndex = null;
     let bestStreamScore = 0;
 
-    const prevStream = prevSource.MediaStreams[prevIndex];
+    // By Index, not position: a library that drops embedded subtitles leaves
+    // their Index unused, so the list has gaps.
+    const prevStream = prevSource.MediaStreams.find(
+      (stream) => stream.Index === prevIndex,
+    );
 
     if (!prevStream) {
       console.debug(`AutoSet ${this.streamType} - No prevStream`);
