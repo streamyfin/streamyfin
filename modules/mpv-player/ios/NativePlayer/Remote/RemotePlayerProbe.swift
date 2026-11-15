@@ -10,13 +10,16 @@ import UIKit
 /// it. It goes around the module, so a presentPlayer from JS while it is up is not refused. Its lines go
 /// through Logger under [RemotePlayerProbe], in `tmp/logs.txt` of the app's container: the commands with the
 /// fake's position, the position every few seconds, the close, and the fake's stop, which only the lease's
-/// release may call.
+/// release may call. `-RemotePlayerProbeEnd YES` as well gives the fake one short item and a next episode at
+/// the still watching cap: the end of the TV's list, a few seconds in.
 enum RemotePlayerProbe {
 	static let launchArgument = "RemotePlayerProbe"
 	static let notification = "expo.modules.mpvplayer.REMOTE_PLAYER_PROBE"
 	static let title = "Bench episode"
 	static let target = "Bench TV"
 	static let positionLogMs: Double = 5_000
+	static let endArgument = "RemotePlayerProbeEnd"
+	static let endItemSec: Double = 15
 
 	private static var current: RemotePlayerSession?
 	private static var cancelPositionLog: (() -> Void)?
@@ -34,7 +37,11 @@ enum RemotePlayerProbe {
 	/// One screen at a time: a notification while one is up does nothing.
 	static func run() {
 		if current != nil { return log("already presented") }
-		let fake = FakeRemoteEngine(deliver: mainQueueSchedule)
+		let ending = UserDefaults.standard.bool(forKey: endArgument)
+		let fake = FakeRemoteEngine(
+			deliver: mainQueueSchedule,
+			items: ending ? [FakeRemoteItem(id: "fake-short", durationSec: endItemSec)] : FakeRemoteEngine.defaultItems
+		)
 		let engine = LoggingRemoteEngine(inner: fake, log: log)
 		let lease = RemoteEngineLease(engine: engine) {
 			log("lease released")
@@ -57,6 +64,14 @@ enum RemotePlayerProbe {
 		metadata.title = title
 		config.metadata = metadata
 		config.targetName = target
+		if ending {
+			var next = NextEpisodeRecord()
+			next.itemId = "bench-next"
+			next.title = "Bench next"
+			next.stillWatchingRequired = true
+			config.nextEpisode = next
+			log("ending: one \(endItemSec) s item, next episode at the still watching cap")
+		}
 		do {
 			try session.present(config: config) { log("presented: \(title) on \(target)") }
 		} catch {
