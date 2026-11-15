@@ -56,6 +56,17 @@ class RemoteLayoutTest {
         assertTrue(couched + RemoteMetrics.chromeHeight(RemoteLayout.LANDSCAPE, 1.0) <= 360.0)
     }
 
+    // Measured at the probe on an iPhone 17, default text size, every slot filled: header 44, five gaps of 16, titles
+    // 48 (title 26, subtitle 18, 4 between), bar block 94 (chapter 14, times 15, the rest the track's touch area),
+    // transport 68, bottom row 44. The four text lines (73) are the part that grows with the text size.
+    @Test
+    fun theUprightChromeMatchesTheMeasuredScreen() {
+        val one = RemoteMetrics.chromeHeight(RemoteLayout.PORTRAIT, 1.0)
+        val two = RemoteMetrics.chromeHeight(RemoteLayout.PORTRAIT, 2.0)
+        assertEquals(378.0, one, 0.0)
+        assertEquals(73.0, two - one, 0.0)
+    }
+
     @Test
     fun theArtworkNeverGoesUnderItsMinimum() {
         val min = PlayerConstants.REMOTE_ARTWORK_MIN_DP

@@ -56,6 +56,16 @@ enum RemoteLayoutTests {
 		)
 	}
 
+	// Measured at the probe on an iPhone 17, default text size, every slot filled: header 44, five gaps of 16, titles
+	// 48 (title 26, subtitle 18, 4 between), bar block 94 (chapter 14, times 15, the rest the track's touch area),
+	// transport 68, bottom row 44. The four text lines (73) are the part that grows with the text size.
+	static func theUprightChromeMatchesTheMeasuredScreen() {
+		let one = RemoteMetrics.chromeHeight(layout: .portrait, fontScale: 1)
+		let two = RemoteMetrics.chromeHeight(layout: .portrait, fontScale: 2)
+		check(one == 378, "theUprightChromeMatchesTheMeasuredScreen: \(one), measured 378")
+		check(two - one == 73, "theUprightChromeMatchesTheMeasuredScreen: text \(two - one), measured 73")
+	}
+
 	static func theArtworkNeverGoesUnderItsMinimum() {
 		let min = PlayerConstants.remoteArtworkMin
 		check(RemoteMetrics.artworkHeight(layout: .portrait, width: 320, height: 480, fontScale: 3) == min, "minimum: portrait")
@@ -81,6 +91,7 @@ enum RemoteLayoutTests {
 		aFoldedThenUnfoldedPhoneChangesLayout()
 		aNarrowSplitViewOnATabletIsPortrait()
 		theArtworkShrinksBeforeAnythingIsCut()
+		theUprightChromeMatchesTheMeasuredScreen()
 		theArtworkNeverGoesUnderItsMinimum()
 		theArtworkIsNeverWiderThanItsColumn()
 		print("PASS: remote layout (\(cases) cases)")

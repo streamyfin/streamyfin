@@ -23,9 +23,10 @@ enum PlayerConstants {
 	static let remoteLandscapeArtworkFraction: Double = 0.4
 	static let remoteWideArtworkFraction: Double = 0.45
 	/// What the rest of the screen takes, upright and couched: the part that keeps its size (buttons, the
-	/// bar's track, gaps) and the text, counted one line each at the font scale asked for.
-	static let remotePortraitFixed: Double = 276
-	static let remotePortraitText: Double = 82
+	/// bar's track, gaps) and the text, counted one line each at the font scale asked for. Upright, measured at the
+	/// probe on an iPhone 17 with every slot filled (RemoteLayoutTests.theUprightChromeMatchesTheMeasuredScreen).
+	static let remotePortraitFixed: Double = 305
+	static let remotePortraitText: Double = 73
 	static let remoteLandscapeFixed: Double = 108
 	static let remoteLandscapeText: Double = 34
 	/// The remote transport (RemoteTransport): the chrome's three button sizes, and the gap between them,
