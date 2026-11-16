@@ -3,7 +3,6 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
@@ -26,6 +25,7 @@ import {
 import { toast } from "sonner-native";
 import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { SheetScrollView } from "@/components/common/SheetContent";
 import { DownloadModeToggle } from "@/components/downloads/DownloadModeToggle";
 import { DownloadOptionSelector } from "@/components/downloads/DownloadOptionSelector";
 import { Colors } from "@/constants/Colors";
@@ -524,8 +524,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         keyboardBehavior='interactive'
         keyboardBlurBehavior='restore'
       >
-        <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+        {/* More options can outgrow a short screen. */}
+        <SheetScrollView>
+          <View className='flex flex-col space-y-4 pb-4'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
                 {title}
@@ -701,7 +702,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               {t("item_card.download.download_button")}
             </Button>
           </View>
-        </BottomSheetView>
+        </SheetScrollView>
       </BottomSheetModal>
     </View>
   );

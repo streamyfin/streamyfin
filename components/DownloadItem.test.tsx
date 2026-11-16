@@ -1134,6 +1134,27 @@ describe("DownloadItems, original or transcode", () => {
       }),
     );
   });
+
+  // On a short screen More options pushed the audio channels and Download below
+  // the sheet, which did not scroll.
+  test("scrolls the expanded options down to the Download button", async () => {
+    await render(<DownloadSingleItem item={MOVIE_WITH_TWO_AUDIO_TRACKS} />);
+    await switchToTranscode();
+    await fireEvent.press(screen.getByText("item_card.download.more_options"));
+
+    type HostNode = { type: unknown; parent: HostNode | null };
+    const scrollViewAround = (text: string) => {
+      let node = screen.getByText(text) as unknown as HostNode | null;
+      while (node && node.type !== "RCTScrollView") node = node.parent;
+      return node;
+    };
+    expect(
+      scrollViewAround("home.settings.audio.transcode_mode.stereo"),
+    ).not.toBeNull();
+    expect(
+      scrollViewAround("item_card.download.download_button"),
+    ).not.toBeNull();
+  });
 });
 
 describe("DownloadItems, burning in a subtitle", () => {
