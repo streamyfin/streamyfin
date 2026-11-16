@@ -3,8 +3,9 @@ import Foundation
 /// The fake receivers' pace (FakeCastDevices), the SDK port's bounded waits, and the output sheet's timings and sizes.
 enum RemoteTargetConstants {
   /// How long after its suspension the SDK is left to end, or resume, a session it lost. It ended one itself 26 to
-  /// 28 s after a Chromecast was unplugged; asked to end it before then, it kept it suspended for good (bench, 15/11).
-  static let suspendedOwnEndMs = 35_000.0
+  /// 28 s after a Chromecast was unplugged, and 15 to 30 s after a Google TV Streamer rebooted; asked to end it before
+  /// then, it kept it suspended for good (bench, 15/11 and 16/11).
+  static let suspendedOwnEndMs = 45_000.0
   /// How long an end the port asked for, a switch's or a lost session's, may take before the start waiting on it fails.
   static let sessionEndWaitMs = 10_000.0
   /// How long a start that waited on an end waits for its receiver to show in the device list again: after the
