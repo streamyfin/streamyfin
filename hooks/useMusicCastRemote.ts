@@ -535,8 +535,16 @@ export const useMusicCastRemote = ({
     setSent(null);
   }, [transport, client]);
 
+  // Until the effects above hand the queue back, the phone shows where the receiver was. Without it, the render in
+  // between showed the queue the phone had before the cast, and Android's expo-image kept that artwork (16/11).
+  const handingBack = lastView.current;
+  const shownView =
+    view === null && handingBack && !foreign && (!connected || replaced)
+      ? { ...handingBack, isPlaying: false }
+      : view;
+
   return {
-    view,
+    view: shownView,
     /** The receiver stopped the queue and plays nothing: play casts it again, from the view's position. */
     stopped,
     /**

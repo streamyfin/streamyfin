@@ -145,6 +145,63 @@ test("hands back where the receiver was when the session ends", async () => {
   expect(view.progress).toBeCloseTo(30, 0);
 });
 
+/** Each render's track, and whether the queue was handed back by then. */
+const mountRecording = async () => {
+  const seen: { track: string | null; handedBack: boolean }[] = [];
+  const hook = await renderHook(
+    (current: Props) => {
+      const remote = useMusicCastRemote(current);
+      seen.push({
+        track: remote.view?.currentTrack.Id ?? null,
+        handedBack: (current.onHandBack as jest.Mock).mock.calls.length > 0,
+      });
+      return remote;
+    },
+    { initialProps: props },
+  );
+  return { ...hook, seen };
+};
+
+/** Renders after the receiver first reported, where the phone had neither the receiver's place nor its queue back. */
+const gapsBeforeHandBack = (
+  seen: { track: string | null; handedBack: boolean }[],
+) =>
+  seen
+    .slice(seen.findIndex((render) => render.track !== null))
+    .filter((render) => render.track === null && !render.handedBack);
+
+// A render without the receiver's place showed the queue the phone had before the cast: the mini player's artwork
+// flipped to it and back within a frame, and Android's expo-image kept the old one (16/11).
+test("keeps the receiver's place until the session's end hands the queue back", async () => {
+  const { result, rerender, seen } = await mountRecording();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+
+  expect(props.onHandBack).toHaveBeenCalledTimes(1);
+  expect(gapsBeforeHandBack(seen)).toEqual([]);
+});
+
+test("keeps the receiver's place until a film cast over the queue hands it back", async () => {
+  const { result, seen } = await mountRecording();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await receiverStatus("film", "ps-film", "playing", 5);
+
+  expect(props.onHandBack).toHaveBeenCalledTimes(1);
+  expect(gapsBeforeHandBack(seen)).toEqual([]);
+});
+
 // A track picked in the queue is cast again: until it loads, the receiver
 // still plays where it was, and that is what the phone takes back.
 test("hands back the reported place, not a pick still loading", async () => {
