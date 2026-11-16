@@ -1138,6 +1138,8 @@ describe("DownloadItems, original or transcode", () => {
   // On a short screen More options pushed the audio channels and Download below
   // the sheet, which did not scroll.
   test("scrolls the expanded options down to the Download button", async () => {
+    // Selected, so its label shows on a closed dropdown too.
+    mockSettings = { downloadAudioTranscodeMode: "stereo" };
     await render(<DownloadSingleItem item={MOVIE_WITH_TWO_AUDIO_TRACKS} />);
     await switchToTranscode();
     await fireEvent.press(screen.getByText("item_card.download.more_options"));
