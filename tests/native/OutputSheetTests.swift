@@ -306,6 +306,13 @@ enum OutputSheetTests {
       )
     }
 
+    // An end the SDK took and never gave: it lost the receiver, so the row reads the connection lost (Chromecast
+    // unplugged, 15/11).
+    check(
+      "anEndTheSdkNeverGaveReadsAsALostConnection",
+      failureCause(error: GoogleCastTargetPort.endNeverCame, code: nil) == .network
+    )
+
     // The SDK rejoining a session whose receiver app is gone: relaunched after the Chromecast restarted, the row read
     // "could not start" for a connection nobody asked (GCKError 106, bench, 15/11). That connection was lost.
     do {
