@@ -193,7 +193,9 @@ describe("usePlaybackManager, a download's play state", () => {
     mockServerConnected = false;
   });
 
-  it("keeps a watched download watched while it is played again", async () => {
+  // CodeRabbit on #2328: every account shares the record, so a kept played
+  // flag may be another account's, and the offline sync would push it.
+  it("does not carry a played flag from before into a new position", async () => {
     mockRecord = downloaded({ Played: true });
     mockRecord.item.RunTimeTicks = HOUR;
 
@@ -203,9 +205,31 @@ describe("usePlaybackManager, a download's play state", () => {
     });
 
     expect(mockRecord!.item.UserData).toMatchObject({
-      Played: true,
+      Played: false,
       PlaybackPositionTicks: HOUR / 2,
     });
+  });
+
+  // CodeRabbit on #2328: the server drops the resume point under 5% too.
+  it("clears a watched download's resume point under 5%, without a new date", async () => {
+    mockRecord = downloaded({
+      Played: true,
+      PlaybackPositionTicks: HOUR / 2,
+      LastPlayedDate: "2026-11-01T10:00:00.000Z",
+    });
+    mockRecord.item.RunTimeTicks = HOUR;
+
+    await (await manager()).reportPlaybackProgress({
+      ItemId: "episode-1",
+      PositionTicks: HOUR / 100,
+    });
+
+    expect(mockRecord!.item.UserData).toMatchObject({
+      Played: true,
+      PlaybackPositionTicks: 0,
+      LastPlayedDate: "2026-11-01T10:00:00.000Z",
+    });
+    expect(getOfflineProgress("alice")).toEqual({});
   });
 
   it("counts a download shorter than five minutes as played past 5%", async () => {

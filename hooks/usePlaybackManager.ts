@@ -218,9 +218,24 @@ export const usePlaybackManager = ({
       const state = resolvePlayState(localItem.item, positionTicks);
       const wasPlayed = localItem.item.UserData?.Played === true;
       // A watched download re-opened for a moment stays watched, as Jellyfin
-      // 12 keeps it, without a new date for the offline sync to push.
-      if (wasPlayed && !state.playedToCompletion && state.positionTicks === 0)
+      // keeps it, and only loses its resume point: no new date to sync.
+      if (wasPlayed && !state.playedToCompletion && state.positionTicks === 0) {
+        if (localItem.item.UserData?.PlaybackPositionTicks) {
+          updateDownloadedItem(itemId, {
+            ...localItem,
+            item: {
+              ...localItem.item,
+              UserData: {
+                ...localItem.item.UserData,
+                PlaybackPositionTicks: 0,
+                PlayedPercentage: 0,
+              },
+            },
+          });
+          queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+        }
         return;
+      }
       const runTimeTicks = localItem.item.RunTimeTicks ?? 0;
       const lastPlayed = new Date().toISOString();
 
@@ -234,8 +249,9 @@ export const usePlaybackManager = ({
             Key: "",
             ...localItem.item.UserData,
             PlaybackPositionTicks: Math.floor(state.positionTicks),
-            // Jellyfin never un-marks a played item for a new position.
-            Played: wasPlayed || state.playedToCompletion,
+            // Not kept from before, unlike Jellyfin: every account on the
+            // device shares this record, so it may be another account's.
+            Played: state.playedToCompletion,
             LastPlayedDate: lastPlayed,
             PlayedPercentage:
               state.positionTicks > 0
