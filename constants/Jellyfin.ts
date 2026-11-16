@@ -31,3 +31,14 @@ export const JELLYFIN_ID_PARAMETER_PATTERN = `(?:${JELLYFIN_ID_PATTERN}|\\{${DAS
  * long a feature gated on the version lags behind an upgrade.
  */
 export const SERVER_INFO_STALE_TIME_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Jellyfin's default play state thresholds (ServerConfiguration), which
+ * UserDataManager.UpdatePlayState applies to a stopped position. Progress the
+ * server never sees goes through `utils/playState.ts` to land the same way.
+ */
+export const JELLYFIN_MIN_RESUME_PCT = 5;
+export const JELLYFIN_MAX_RESUME_PCT = 90;
+export const JELLYFIN_MIN_RESUME_DURATION_SECONDS = 300;
+export const JELLYFIN_MIN_AUDIOBOOK_RESUME_MINUTES = 5;
+export const JELLYFIN_MAX_AUDIOBOOK_RESUME_MINUTES = 5;

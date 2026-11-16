@@ -19,6 +19,7 @@ import {
 } from "@/utils/externalPlayer";
 import { writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
+import { resolvePlayState } from "@/utils/playState";
 
 const ACTION_VIEW = "android.intent.action.VIEW";
 const FLAG_GRANT_READ_URI_PERMISSION = 1;
@@ -92,6 +93,15 @@ export const useExternalPlayer = () => {
           await markItemPlayed(req.itemId);
           return true;
         }
+        // The server stores the position as sent, so Jellyfin's stop rule is
+        // applied here. Without the item there is no runtime to judge by.
+        const state = item
+          ? resolvePlayState(item, result.positionTicks)
+          : { positionTicks: result.positionTicks, playedToCompletion: false };
+        if (state.playedToCompletion) {
+          await markItemPlayed(req.itemId);
+          return true;
+        }
         saveLocalPlaybackProgress({
           ItemId: req.itemId,
           PositionTicks: result.positionTicks,
@@ -105,7 +115,7 @@ export const useExternalPlayer = () => {
             itemId: req.itemId,
             userId: user.Id,
             updateUserItemDataDto: {
-              PlaybackPositionTicks: result.positionTicks,
+              PlaybackPositionTicks: state.positionTicks,
             },
           });
         }

@@ -56,6 +56,8 @@ jest.mock("react-i18next", () => ({
 }));
 
 const req = { itemId: "movie-1", offline: true, mediaSourceId: "source-1" };
+// 20 minutes: the 90 s the other app returns is 7.5% in, a point to resume.
+const RunTimeTicks = 12_000_000_000;
 
 const playReturning = async (
   extra?: object,
@@ -67,7 +69,7 @@ const playReturning = async (
   await act(async () => {
     opened = await result.current(
       req,
-      { Id: "movie-1", Name: "A Movie" },
+      { Id: "movie-1", Name: "A Movie", Type: "Movie", RunTimeTicks },
       options,
     );
   });
@@ -172,6 +174,27 @@ describe("useExternalPlayer", () => {
 
     expect(mockMarkPlayed).toHaveBeenCalledWith("movie-1");
     expect(mockSaveLocal).not.toHaveBeenCalled();
+  });
+
+  // CodeRabbit on #2328: the download counted 95% as played while the server
+  // kept an unplayed item resuming near its end. Jellyfin's own rule decides.
+  test("marks a video the other app left past 90% as played", async () => {
+    await playReturning({ position: 1_140_000 });
+
+    expect(mockMarkPlayed).toHaveBeenCalledWith("movie-1");
+    expect(mockSaveLocal).not.toHaveBeenCalled();
+    expect(mockUpdateUserData).not.toHaveBeenCalled();
+  });
+
+  test("clears the server's resume point for a position under 5%", async () => {
+    await playReturning({ position: 30_000 });
+
+    expect(mockUpdateUserData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        updateUserItemDataDto: { PlaybackPositionTicks: 0 },
+      }),
+    );
+    expect(mockMarkPlayed).not.toHaveBeenCalled();
   });
 
   // A player that sends nothing we know must leave the resume point alone.
