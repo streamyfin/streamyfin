@@ -119,6 +119,8 @@ func failureCause(error: String?, code: Int?) -> FailureCause {
   if error == GoogleCastTargetPort.startRefused || error == GoogleCastTargetPort.endRefused {
     return .receiverUnavailable
   }
+  // An end the SDK took and never gave: it lost that receiver.
+  if error == GoogleCastTargetPort.endNeverCame { return .network }
   if let code, networkCodes.contains(code) { return .network }
   if let code, receiverCodes.contains(code) { return .receiverUnavailable }
   return .other(error ?? "")
