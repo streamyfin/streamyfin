@@ -170,6 +170,8 @@ export const usePlayMedia = () => {
 
       if (checkExternal(item)) {
         if (await playExternally(req, item, options)) return;
+        // A newer play started while the handoff ran.
+        if (request !== latestPlayRequest) return;
         // Same rule as the native path: a broken handoff must not block playback.
         Alert.alert(
           t("player.error"),

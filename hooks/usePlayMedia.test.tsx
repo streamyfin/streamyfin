@@ -473,6 +473,39 @@ describe("usePlayMedia", () => {
       expect(mockPush).toHaveBeenCalled();
     });
 
+    // A failed handoff that settled after a newer play opened the in-app
+    // player over that play.
+    test("a failed handoff replaced by a newer play opens nothing", async () => {
+      mockExternalPlayerMode = "external";
+      let failFirst: () => void = () => {};
+      mockPlayExternally
+        .mockImplementationOnce(
+          () =>
+            new Promise<boolean>((resolve) => {
+              failFirst = () => resolve(false);
+            }),
+        )
+        .mockResolvedValueOnce(true);
+      const { result } = await renderHook(() => usePlayMedia());
+
+      await act(async () => {
+        const first = result.current(
+          { itemId: "movie-1", offline: false },
+          { item: movie },
+        );
+        await result.current(
+          { itemId: "movie-2", offline: false },
+          { item: { Id: "movie-2", Type: "Movie" } },
+        );
+        failFirst();
+        await first;
+      });
+
+      expect(mockPlayExternally).toHaveBeenCalledTimes(2);
+      expect(alert).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
     // The plugin can push the setting to a platform that has no handoff.
     test("ignores the setting where media cannot be handed to another app", async () => {
       mockExternalPlayerSupported = false;
