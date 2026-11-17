@@ -16,12 +16,15 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 
@@ -37,8 +40,17 @@ data class TransportStyle(
     val disc: Boolean = false,
 )
 
+/** Media controls keep their left-to-right order in right-to-left languages, seek back on the left, as the
+ *  position bar's timeline and the remote artwork's double tap halves do. */
 @Composable
 fun CenterControls(viewModel: PlayerViewModel, modifier: Modifier = Modifier, style: TransportStyle = TransportStyle()) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        CenterControlsContent(viewModel, modifier, style)
+    }
+}
+
+@Composable
+private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier, style: TransportStyle) {
     val interactionSource = remember { MutableInteractionSource() }
     val scrim = if (style.disc) Color.Transparent else Color.Black.copy(alpha = 0.5f)
     val playInk = if (style.disc) Color.Black else Color.White
