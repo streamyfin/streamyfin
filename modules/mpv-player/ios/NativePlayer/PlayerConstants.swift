@@ -47,4 +47,8 @@ enum PlayerConstants {
 	static let remoteTintNeutralBottom: UInt32 = 0x1F1927
 	static let remoteTintFadeMs: Double = 300
 	static let remoteTintGradientEnd: Double = 0.66
+	/// A drag down closes the remote screen like the chevron once it covers this share of the screen's height, or ends
+	/// faster than this many points per second (RemoteGestures). Android: REMOTE_DISMISS_*, the same numbers.
+	static let remoteDismissDragFraction: Double = 0.25
+	static let remoteDismissDragVelocity: Double = 1200
 }

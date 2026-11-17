@@ -772,6 +772,12 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun doubleTapSeek(forward: Boolean) {
         if (!uiOptions.doubleTapToSeekEnabled) return
+        seekWithPill(forward)
+    }
+
+    /** Seeks one step and flashes the chrome's pill on that side. The remote artwork's double tap calls it
+     *  directly: no setting gates it there, as no single tap shares the artwork with it. */
+    fun seekWithPill(forward: Boolean) {
         val delta = if (forward) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec
         seekBy(delta)
         doubleTapSeekForward = forward

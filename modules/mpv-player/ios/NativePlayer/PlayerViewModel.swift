@@ -829,6 +829,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
 			errorMessage == nil, duration > 0
 		else { return }
+		seekWithPill(forward: forward)
+	}
+
+	/// Seeks one step and flashes the chrome's pill on that side. The remote artwork's double tap calls it
+	/// directly: no setting gates it there, as no single tap shares the artwork with it.
+	func seekWithPill(forward: Bool) {
 		if forward {
 			seekForward()
 		} else {

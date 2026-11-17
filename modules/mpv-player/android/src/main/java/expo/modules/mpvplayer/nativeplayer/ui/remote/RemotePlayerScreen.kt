@@ -2,7 +2,11 @@ package expo.modules.mpvplayer.nativeplayer.ui.remote
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -27,16 +31,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteArrangement
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteGestures
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMetrics
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteScreenModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteSlot
+import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 
@@ -56,11 +65,13 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
     val top by animateColorAsState(Color(screen.colors.top), fade, label = "remoteTintTop")
     val bottom by animateColorAsState(Color(screen.colors.bottom), fade, label = "remoteTintBottom")
     val accent by animateColorAsState(Color(screen.colors.accent), fade, label = "remoteAccent")
+    val columnScroll = rememberScrollState()
     CompositionLocalProvider(LocalPlayerActiveColor provides accent) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Brush.verticalGradient(0f to top, PlayerConstants.REMOTE_TINT_GRADIENT_END to bottom))
+                .closeOnDragDown(viewModel, columnScroll)
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             val width = maxWidth.value.toDouble()
@@ -97,7 +108,7 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(columnScroll)
                                 .heightIn(min = viewport),
                         ) {
                             arrangement.column.forEachIndexed { index, slot ->
@@ -127,7 +138,18 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
     when (slot) {
         RemoteSlot.HEADER -> RemoteHeader(viewModel)
         RemoteSlot.ARTWORK -> Box(contentAlignment = Alignment.Center, modifier = if (layout == RemoteLayout.PORTRAIT) Modifier.fillMaxWidth() else Modifier) {
-            RemoteArtwork(viewModel, artwork, screen.imageHeaders)
+            Box {
+                RemoteArtwork(viewModel, artwork, screen.imageHeaders, Modifier.seekOnDoubleTap(viewModel))
+                // The chrome's pill, on the half that was tapped.
+                viewModel.doubleTapSeekForward?.let { forward ->
+                    Box(Modifier.matchParentSize(), contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart) {
+                        DoubleTapSeekPill(
+                            forward = forward,
+                            seconds = if (forward) viewModel.uiOptions.seekForwardSec else viewModel.uiOptions.seekBackwardSec,
+                        )
+                    }
+                }
+            }
         }
         RemoteSlot.TITLES -> RemoteTitles(viewModel, compact = false, modifier = Modifier.fillMaxWidth())
         RemoteSlot.BAR -> RemoteBar(viewModel)
@@ -137,3 +159,43 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
         RemoteSlot.BOTTOM_ROW -> RemoteBottomRow(viewModel, targetName)
     }
 }
+
+/** A double tap on a half of the artwork seeks back or forward; the offset runs from the physical left edge. */
+private fun Modifier.seekOnDoubleTap(viewModel: PlayerViewModel): Modifier =
+    pointerInput(viewModel) {
+        detectTapGestures(onDoubleTap = { offset ->
+            viewModel.seekWithPill(forward = RemoteGestures.artworkTapSeek(offset.x.toDouble() / size.width) > 0)
+        })
+    }
+
+/**
+ * Watches each drag on the screen in the Initial pass without consuming it, so the bar, the buttons and the column's
+ * scroll keep theirs, and closes the screen like the chevron when RemoteGestures accepts the drag down. A drag that
+ * scrubbed the bar, began with the column scrolled, or never passed the touch slop (a tap) leaves it open.
+ */
+private fun Modifier.closeOnDragDown(viewModel: PlayerViewModel, columnScroll: ScrollState): Modifier =
+    pointerInput(viewModel, columnScroll) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val startedAtTop = columnScroll.value == 0
+            val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+            var scrubbed = viewModel.isScrubbing
+            var passedSlop = false
+            var lastY = down.position.y
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                if (viewModel.isScrubbing) scrubbed = true
+                tracker.addPosition(change.uptimeMillis, change.position)
+                lastY = change.position.y
+                if (lastY - down.position.y > viewConfiguration.touchSlop) passedSlop = true
+                if (!change.pressed) break
+            }
+            if (scrubbed || !startedAtTop || !passedSlop) return@awaitEachGesture
+            val close = RemoteGestures.shouldDismissOnDrag(
+                distanceDp = ((lastY - down.position.y) / density).toDouble(),
+                velocityDpPerSec = (tracker.calculateVelocity().y / density).toDouble(),
+                heightDp = (size.height / density).toDouble(),
+            )
+            if (close) viewModel.close()
+        }
+    }

@@ -55,6 +55,22 @@ class PlayerViewModelRemoteTest {
     }
 
     @Test
+    fun theArtworkDoubleTapSeeksWithThePillWhateverTheSetting() {
+        val engine = RemoteOnlyEngine()
+        val viewModel = remoteViewModel(engine)
+        assertFalse(viewModel.uiOptions.doubleTapToSeekEnabled)
+
+        // The video's double tap stays behind its setting; the remote artwork has no tap to share it with.
+        viewModel.doubleTapSeek(forward = true)
+        assertEquals(emptyList<String>(), engine.seeks)
+
+        viewModel.seekWithPill(forward = true)
+
+        assertEquals(listOf("seekTo ${viewModel.uiOptions.seekForwardSec}"), engine.seeks)
+        assertEquals(true, viewModel.doubleTapSeekForward)
+    }
+
+    @Test
     fun aRemoteEndNeverStartsACountdown() {
         val viewModel = remoteViewModel(RemoteOnlyEngine())
         val emitted = mutableListOf<String>()

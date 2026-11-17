@@ -80,4 +80,9 @@ object PlayerConstants {
     const val REMOTE_TINT_NEUTRAL_BOTTOM = 0xFF1F1927
     const val REMOTE_TINT_FADE_MS = 300
     const val REMOTE_TINT_GRADIENT_END = 0.66f
+
+    /** A drag down closes the remote screen like the chevron once it covers this share of the screen's height, or
+     *  ends faster than this many dp per second (RemoteGestures). iOS: remoteDismissDrag*, the same numbers. */
+    const val REMOTE_DISMISS_DRAG_FRACTION = 0.25
+    const val REMOTE_DISMISS_VELOCITY_DP = 1200.0
 }

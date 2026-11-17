@@ -88,6 +88,7 @@ struct RemotePlayerRootView: View {
 			RemoteHeader(viewModel: viewModel)
 		case .artwork:
 			RemoteArtwork(viewModel: viewModel, size: artwork)
+				.overlay { artworkTaps }
 				.frame(maxWidth: layout == .portrait ? .infinity : nil)
 		case .titles:
 			RemoteTitles(viewModel: viewModel, compact: false)
@@ -100,6 +101,36 @@ struct RemotePlayerRootView: View {
 		case .bottomRow:
 			RemoteBottomRow(viewModel: viewModel, targetName: targetName)
 		}
+	}
+
+	/// A double tap on a half of the artwork seeks back or forward, with the chrome's pill on that half. The layer runs
+	/// left to right in every language, so the tap's x is from the physical left edge (RemoteGestures.artworkTapSeek).
+	private var artworkTaps: some View {
+		GeometryReader { box in
+			ZStack {
+				Color.clear
+					.contentShape(Rectangle())
+					.gesture(SpatialTapGesture(count: 2).onEnded { tap in
+						let fraction = Double(tap.location.x / max(box.size.width, 1))
+						viewModel.seekWithPill(forward: RemoteGestures.artworkTapSeek(xFraction: fraction) > 0)
+					})
+				if let forward = viewModel.doubleTapSeekForward {
+					HStack {
+						if forward { Spacer() }
+						DoubleTapSeekPill(
+							forward: forward,
+							seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
+						)
+						if !forward { Spacer() }
+					}
+					.id(forward)
+					.transition(.opacity)
+					.allowsHitTesting(false)
+				}
+			}
+			.environment(\.layoutDirection, .leftToRight)
+		}
+		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
 	}
 
 	/// A column slot with the free height `spaces` gives it: above it, and below it when it is the last. Nested, so

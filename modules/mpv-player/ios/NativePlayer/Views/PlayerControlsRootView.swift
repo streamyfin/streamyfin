@@ -122,14 +122,10 @@ struct PlayerControlsRootView: View {
 			if let forward = viewModel.doubleTapSeekForward {
 				HStack {
 					if forward { Spacer() }
-					SeekGlyph(
-						prefix: forward ? "goforward" : "gobackward",
-						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec,
-						size: 28
+					DoubleTapSeekPill(
+						forward: forward,
+						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
 					)
-					.foregroundStyle(.white)
-					.padding(18)
-					.background(.black.opacity(0.55), in: Circle())
 					if !forward { Spacer() }
 				}
 				.id(forward)
