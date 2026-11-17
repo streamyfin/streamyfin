@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import {
+  currentCastSession,
   onCastSessionEvent,
   useCastDevice,
   useCastMediaStatus,
@@ -14,6 +15,7 @@ import { reportOrphanedReceiverStop } from "@/utils/cast/reportOrphanedReceiverS
 import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 
 interface LastCast {
+  deviceId?: string;
   deviceName?: string;
   itemId?: string;
   playSessionId?: string;
@@ -38,6 +40,7 @@ export function JellyfinCastStopReporter() {
     const receiverName = receiverNameFor(castDevice);
     if (receiverName) {
       lastCast.current.deviceName = toReceiverDeviceName(receiverName);
+      lastCast.current.deviceId = castDevice?.deviceId;
     }
   }, [castDevice]);
 
@@ -53,10 +56,13 @@ export function JellyfinCastStopReporter() {
 
   // At most one report runs at a time; the connection-loss path waits long
   // enough for the cast or the account to change underneath it.
-  const pendingReport = useRef<AbortController | null>(null);
+  const pendingReport = useRef<{
+    controller: AbortController;
+    deviceId?: string;
+  } | null>(null);
 
   const cancelPendingReport = useCallback(() => {
-    pendingReport.current?.abort();
+    pendingReport.current?.controller.abort();
     pendingReport.current = null;
   }, []);
 
@@ -69,9 +75,15 @@ export function JellyfinCastStopReporter() {
   useEffect(() => {
     const subscription = onCastSessionEvent(({ event, error, withoutStop }) => {
       // A new cast on the same TV must not be stopped by a check left over from
-      // the previous session.
-      if (event === "starting") {
-        cancelPendingReport();
+      // the previous session. A switch starts the next TV's session right after
+      // the end of the one left, whose check goes on: the session names its
+      // TV only once it has started.
+      if (event === "started" || event === "resumed") {
+        const deviceId = currentCastSession()?.device?.deviceId;
+        const pendingId = pendingReport.current?.deviceId;
+        if (!deviceId || !pendingId || deviceId === pendingId) {
+          cancelPendingReport();
+        }
         return;
       }
       if (event !== "ended") return;
@@ -85,7 +97,8 @@ export function JellyfinCastStopReporter() {
       }
 
       const controller = new AbortController();
-      pendingReport.current = controller;
+      const pending = { controller, deviceId: last.deviceId };
+      pendingReport.current = pending;
 
       reportOrphanedReceiverStop({
         api,
@@ -114,7 +127,7 @@ export function JellyfinCastStopReporter() {
           );
         })
         .finally(() => {
-          if (pendingReport.current === controller) {
+          if (pendingReport.current === pending) {
             pendingReport.current = null;
           }
         });

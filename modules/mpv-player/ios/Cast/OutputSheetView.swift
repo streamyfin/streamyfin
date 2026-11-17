@@ -196,7 +196,8 @@ private struct ConnectedPanelView: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       Button(strings.get("change")) { controller.change() }
-        .foregroundStyle(accent)
+        .foregroundStyle(panel.canChange ? accent : captionColor)
+        .disabled(!panel.canChange)
         .fixedSize()
     }
     if panel.showsVolume {

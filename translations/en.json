@@ -158,6 +158,7 @@
         "description": "The quality a receiver plays at. The quality chosen on an item page applies to this device only.",
         "chromecast": "Chromecast",
         "same_as_chromecast": "Same as Chromecast",
+        "chromecast_stick_auto": "On a Chromecast stick, Auto goes no higher than {{bitrate}}: the stick freezes on the heavier streams the server would send it unconverted.",
         "forget": "Forget this device"
       },
       "audio_subtitles": {

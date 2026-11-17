@@ -21,8 +21,13 @@ let mockPluginSettings:
 // The options each dropdown rendered first, as the Android sheet keeps the ones it opened with.
 let mockSheets: Record<string, Option[]> = {};
 
+// A bitrate handed to a sentence follows its key, so a test reads which one it got.
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, options?: { bitrate?: string }) =>
+      options?.bitrate === undefined ? key : `${key} ${options.bitrate}`,
+    i18n: { language: "en" },
+  }),
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/utils/atoms/settings", () => {
@@ -157,6 +162,17 @@ test("lists Chromecast, then each receiver the app connected to", async () => {
     ),
   ).toBeTruthy();
   expect(screen.getAllByText("Bedroom").length).toBeGreaterThan(0);
+});
+
+// Auto's ceiling on a Chromecast stick is not a hidden default: the section says it, a value none of the
+// pickers offers.
+test("tells that Auto stays under a ceiling on a Chromecast stick", async () => {
+  await render(<RemotePlaybackQualitySettings />);
+  expect(
+    screen.getByText(
+      "home.settings.remote_quality.chromecast_stick_auto 7 Mb/s",
+    ),
+  ).toBeTruthy();
 });
 
 // Rule of 30/10: Auto is the cast's default, and a choice like the others.

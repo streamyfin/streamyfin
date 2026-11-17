@@ -71,8 +71,9 @@ final class ReceiverChannelHub {
   private var generation = 0
 
   func attach(_ port: ReceiverChannelPort) {
-    if let previous = self.port, previous !== port {
-      notifyLost(sessionId: previous.sessionId, ended: false)
+    if let previous = self.port {
+      releaseChannels(of: previous)
+      if previous !== port { notifyLost(sessionId: previous.sessionId, ended: false) }
     }
     self.port = port
     lastSessionId = port.sessionId
@@ -166,16 +167,22 @@ final class ReceiverChannelHub {
     listeners(of: namespace).forEach { $0.receiverBusDidReceive(raw) }
   }
 
-  // The SDK drops the channels of a session that goes away, so there is nothing to unregister:
-  // only what the hub knew is forgotten.
   private func detach(ended: Bool) {
     let sessionId = port?.sessionId ?? lastSessionId
+    if let port { releaseChannels(of: port) }
     port = nil
     generation += 1
     registered.removeAll()
     connected.removeAll()
     log?("\(ended ? "ended" : "suspended") session=\(sessionId ?? "nil")")
     notifyLost(sessionId: sessionId, ended: ended)
+  }
+
+  // An iOS resume hands back the suspended session object, which keeps the channels added to it and
+  // refuses a second one for a namespace (iPhone simulator, 15/11): a port the hub lets go takes its
+  // channels off first. An ended session's are gone with it, and the removal does nothing there.
+  private func releaseChannels(of port: ReceiverChannelPort) {
+    registered.forEach { port.unregister(namespace: $0) }
   }
 
   private func notifyLost(sessionId: String?, ended: Bool) {

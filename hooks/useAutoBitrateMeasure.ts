@@ -7,6 +7,7 @@ import {
   detectBitrate,
   ensureNetworkKnown,
   lastDetection,
+  onDetectionChanged,
 } from "@/utils/jellyfin/bitrateTest";
 
 /**
@@ -40,8 +41,11 @@ export const useAutoBitrateMeasure = () => {
     void ensureNetworkKnown().then(() => {
       if (mounted) measured();
     });
+    // A cast or a playback measures while the settings are open: they show it.
+    const stopListening = onDetectionChanged(measured);
     return () => {
       mounted = false;
+      stopListening();
     };
   }, []);
 

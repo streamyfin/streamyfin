@@ -137,7 +137,9 @@ public class CastModule: Module {
 
     AsyncFunction("showExpandedControls") { () -> Bool in
       self.ensureListening()
-      GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+      OutputPickerPresenter.shared.openRemote {
+        GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+      }
       return true
     }.runOnQueue(.main)
 

@@ -26,7 +26,7 @@ from bench.sender import (
     wait_for_playing,
     watch,
 )
-from bench.tests.fakes import OTHER_APP_ID, RECEIVER_APP_ID, FakeClock, FakeReceiver, FakeServer, FakeStatus, bench_run, playing
+from bench.tests.fakes import OTHER_APP_ID, RECEIVER_APP_ID, FakeClient, FakeClock, FakeReceiver, FakeServer, FakeStatus, bench_run, playing
 
 VECTORS = Path(__file__).resolve().parents[2] / "fixtures" / "receiver-protocol"
 V01 = {"Id": "item-v01", "Name": "H.264 8 bits 1080p", "Type": "Movie", "MediaType": "Video"}
@@ -520,6 +520,63 @@ def sender_main(*args: str) -> int:
     return sender.main(["--server", "beta13", "--target", "Living room", *args])
 
 
+class ReadHookServer(FakeServer):
+    """A server that runs `on_read` before each read of its sessions."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.on_read = lambda: None
+
+    def client(self, *args, **kwargs) -> FakeClient:
+        server = self
+
+        class Client(FakeClient):
+            def sessions(self, token: str) -> list[dict]:
+                server.on_read()
+                return super().sessions(token)
+
+        return Client(self)
+
+
+class StopReportingReceiver(FakeReceiver):
+    """A receiver whose server session shows what it plays. Its stop reaches the server a few reads
+    of the sessions after its status reads idle, with the token of its last message: a token revoked
+    by then answers the report 401, and the server goes on showing the receiver playing."""
+
+    def __init__(self, server: FakeServer, reads_before_report: int = 2):
+        super().__init__()
+        self.server = server
+        self.reads_before_report = reads_before_report
+        self.reads_left: int | None = None
+        self.rejected_reports = 0
+        self.device = to_receiver_device_name(receiver_name_for({"friendlyName": "Living room", "deviceId": None}))
+
+    def send(self, message: dict) -> None:
+        super().send(message)
+        if message["command"] == "PlayNow":
+            item = message["options"]["items"][0]["Id"]
+            self.server.sessions = [{"Id": "rx", "DeviceName": self.device, "Client": "Chromecast", "UserId": "user-1", "NowPlayingItem": {"Id": item}, "PlayState": {}}]
+        elif message["command"] == "Stop":
+            self.reads_left = self.reads_before_report
+
+    def server_read(self) -> None:
+        if self.reads_left is None:
+            return
+        self.reads_left -= 1
+        if self.reads_left <= 0:
+            self.report_stop()
+
+    def report_stop(self) -> None:
+        if self.reads_left is None:
+            return
+        self.reads_left = None
+        if self.token not in self.server.live:
+            self.rejected_reports += 1
+            return
+        for session in self.server.sessions:
+            session.pop("NowPlayingItem", None)
+
+
 class BufferingUntilIdentify(FakeReceiver):
     """A receiver still buffering whenever the sender reads its state, and playing by the time an
     Identify reaches it."""
@@ -584,6 +641,31 @@ class SenderMainTests(unittest.TestCase):
         self.assertEqual(server.live, [])
         # The stop went out with the token the receiver played with.
         self.assertEqual([m["accessToken"] for m in receiver.received], ["tok1", "tok1"])
+
+    # Bench, 14/11: the token was revoked as soon as the receiver read IDLE, its own stop report then
+    # answered 401, and the server showed it playing on its own until its cleanup.
+    def test_a_stop_signs_out_once_the_receiver_reported_its_stop(self):
+        server = ReadHookServer(items={"V01": V01})
+        receiver = StopReportingReceiver(server)
+        server.on_read = receiver.server_read
+        with bench_run(server, receiver):
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            self.assertEqual(sender_main("stop"), 0)
+            # What is still on its way reaches the server now.
+            receiver.report_stop()
+        self.assertEqual(receiver.rejected_reports, 0)
+        self.assertEqual([session.get("NowPlayingItem") for session in server.sessions], [None])
+        self.assertEqual(server.live, [])
+
+    def test_a_stop_report_that_never_comes_still_signs_out(self):
+        # A receiver closed under the run never reports: the token goes all the same, after the wait.
+        server = ReadHookServer(items={"V01": V01})
+        receiver = StopReportingReceiver(server, reads_before_report=10_000)
+        server.on_read = receiver.server_read
+        with bench_run(server, receiver):
+            sender_main("play-now", "--item", "V01", "--watch", "0")
+            self.assertEqual(sender_main("stop"), 0)
+        self.assertEqual(server.live, [])
 
     def test_a_later_command_reuses_the_token_the_receiver_holds(self):
         server = FakeServer(items={"V01": V01})

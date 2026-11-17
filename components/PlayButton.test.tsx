@@ -40,6 +40,8 @@ const emitTarget = (state: object) => {
 };
 // The receiver's Cast session, which a switch replaces.
 let mockSession: { id: string } | null = { id: "session-1" };
+// What the receiver plays, as its last status says.
+let mockMediaStatus: object | null = null;
 let mockOffline = false;
 let mockDownloaded: object | undefined;
 const mockShowModal = jest.fn();
@@ -99,7 +101,10 @@ jest.mock("@/modules/mpv-player/src/cast", () => {
     },
     remoteTarget: () => mockTarget,
     showExpandedControls: jest.fn(),
-    useCastMediaStatus: () => null,
+    CastMediaPlayerState: jest.requireActual(
+      "@/modules/mpv-player/src/cast/Cast.types",
+    ).CastMediaPlayerState,
+    useCastMediaStatus: () => mockMediaStatus,
     useRemoteTarget: () => mockTarget,
   };
 });
@@ -171,6 +176,7 @@ const castSession = async (call = 0) =>
 beforeEach(() => {
   mockTarget = connectedTo(mockSalon);
   mockSession = { id: "session-1" };
+  mockMediaStatus = null;
   mockOffline = false;
   mockDownloaded = undefined;
   mockShowModal.mockClear();
@@ -233,6 +239,80 @@ test("a load that lands after a later choice opens no remote", async () => {
   );
   expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
   expect(showExpandedControls).not.toHaveBeenCalled();
+});
+
+/** The receiver's status for an item it loaded, as the Jellyfin receiver names it in its custom data. */
+const receiverPlays = (itemId: string, playerState = "playing") => ({
+  playerState,
+  mediaInfo: {
+    metadata: { title: "Film" },
+    customData: { itemId, playSessionId: `ps-${itemId}` },
+  },
+});
+
+// Seen on an iPhone simulator (15/11): Play on the film the TV played loaded it again from the saved position, half a
+// minute behind the TV, and opened no remote.
+test("Play on the item the receiver plays opens its remote and loads nothing", async () => {
+  mockMediaStatus = receiverPlays("item-1");
+  const inProgress = {
+    ...(item as object),
+    UserData: { PlaybackPositionTicks: 1_818_000_000 },
+  } as never;
+  await render(
+    <PlayButton item={inProgress} selectedOptions={selectedOptions} />,
+  );
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(showExpandedControls).toHaveBeenCalledTimes(1);
+});
+
+test("Play from the start on the item the receiver plays loads nothing either", async () => {
+  mockMediaStatus = receiverPlays("item-1");
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(showExpandedControls).toHaveBeenCalledTimes(1);
+});
+
+// The title is not the item: another one of the same name loads, and its remote opens.
+test("an item of the same title as the receiver's loads and opens the remote", async () => {
+  mockMediaStatus = receiverPlays("item-2");
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(showExpandedControls).toHaveBeenCalledTimes(1);
+});
+
+// Finished on the TV, the item is not playing there any more: Play loads it again.
+test("an item the receiver finished loads again and opens the remote", async () => {
+  mockMediaStatus = receiverPlays("item-1", "idle");
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(showExpandedControls).toHaveBeenCalledTimes(1);
+});
+
+// A long press plays on this device, whatever the TV plays.
+test("a long press on the item the receiver plays plays it here", async () => {
+  mockMediaStatus = receiverPlays("item-1");
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent(screen.getByLabelText("accessibility.play_button"), "longPress"),
+  );
+  const [, choose] = mockShowActionSheet.mock.calls[0];
+  await act(async () => choose(0));
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(showExpandedControls).not.toHaveBeenCalled();
+  expect(mockPlayMedia).toHaveBeenCalledTimes(1);
 });
 
 // Nothing shows a press until the receiver's first status, a second or so later: a second press then would send the

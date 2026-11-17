@@ -219,6 +219,22 @@ class OutputSheetModelTest {
         assertEquals(false, panel.canMute)
     }
 
+    // Another receiver asked for while the session reconnects is a switch away from a session no receiver hears: its
+    // end, a stop, would be lost as the Stop was (iPhone, Wi-Fi cut, 14/11). "Change" waits for the session, greyed.
+    @Test
+    fun aReconnectingPanelOffersNoChange() {
+        val reconnecting =
+            RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(livingRoom), reconnecting = true, error = null, volume = 0.5)
+        val connected =
+            RemoteTargetSnapshot(TargetPhase.CONNECTED, RemoteTarget.cast(livingRoom), reconnecting = false, error = null, volume = 0.5)
+
+        val whileReconnecting = outputSheetState(input(snapshot = reconnecting)) as OutputSheetState.Connected
+        val once = outputSheetState(input(snapshot = connected)) as OutputSheetState.Connected
+
+        assertEquals(false, whileReconnecting.canChange)
+        assertEquals(true, once.canChange)
+    }
+
     // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
     @Test
     fun thisDeviceOffersToContinueWhileTheReceiverPlays() {

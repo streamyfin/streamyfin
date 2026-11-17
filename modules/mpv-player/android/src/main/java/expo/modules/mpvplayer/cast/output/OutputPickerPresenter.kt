@@ -222,6 +222,16 @@ object OutputPickerPresenter {
     @MainThread
     fun dismissForPlayer() = dismiss(keepHandOff = false)
 
+    /**
+     * The Cast remote JS opens (a queue that just loaded on the TV) goes over the screen once the sheet is gone, as the
+     * sheet's own Remote row does: opened over it, the sheet is back on screen when the remote closes.
+     */
+    @MainThread
+    fun openRemote(open: () -> Unit) {
+        dismiss()
+        open()
+    }
+
     private fun dismiss(keepHandOff: Boolean) {
         val view = host ?: return
         // The player's sheet closed while the receiver it asked for connects: the video still goes once it is.

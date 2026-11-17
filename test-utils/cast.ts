@@ -130,6 +130,19 @@ export const createCastDoubleState = (): CastDoubleState => ({
   },
 });
 
+/**
+ * A fresh double for the next test that keeps the listeners already registered. The native module lives as long as
+ * the JS modules, and some subscribe once for their whole life (the receiver channel's session watch): with a fresh
+ * list, the one native listener behind them stays on the double of the test before, and every event after it goes
+ * unheard.
+ */
+export const nextCastDoubleState = (
+  previous: CastDoubleState,
+): CastDoubleState => ({
+  ...createCastDoubleState(),
+  listeners: previous.listeners,
+});
+
 /** The double's device as a Cast target in the given phase, as the module publishes it. */
 export const castDoubleTarget = (
   phase: Exclude<RemoteTargetPhase, "none">,

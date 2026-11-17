@@ -61,6 +61,10 @@ TOKENS_PATH = Path(__file__).resolve().parent / "receiver-tokens.local.json"
 # How long a status request may go unanswered, and how long a receiver gets to obey a Stop.
 STATUS_TIMEOUT_SECONDS = 5.0
 STOP_TIMEOUT_SECONDS = 10.0
+# The receiver reports its stop to the server after its status reads idle: a sign-out at the IDLE answered that
+# report 401, and the server showed the receiver playing on its own until its cleanup (bench, 14/11).
+STOP_REPORT_TIMEOUT_SECONDS = 10.0
+STOP_REPORT_POLL_SECONDS = 0.5
 
 
 class SenderTimeout(Exception):
@@ -301,6 +305,27 @@ def should_sign_out(final: MediaSample | None) -> bool:
     too, which may have been lost or ignored: a state the run could not read after sending, cut
     short by Ctrl-C or left unanswered, keeps the token for the next run to revoke."""
     return confirmed_idle(final)
+
+
+def wait_for_stop_report(client, token: str, receiver_name: str | None, user_id: str | None, timeout: float = STOP_REPORT_TIMEOUT_SECONDS) -> bool:
+    """Waits until the server shows the receiver playing nothing for this user, its stop report in, so that the
+    token it reports with is still valid then. False when the report did not come in time or the sessions could
+    not be read: the caller signs out all the same, as a receiver that has not reported by then will not."""
+    from bench.jellyfin import JellyfinHttpError
+    from bench.sessions import snapshot
+
+    if not receiver_name:
+        return True
+    # Counted reads, not a deadline: the wait stays bounded whatever the clock does.
+    for _ in range(max(1, math.ceil(timeout / STOP_REPORT_POLL_SECONDS))):
+        try:
+            views = snapshot(client.sessions(token), device=receiver_name)
+        except (JellyfinHttpError, OSError):
+            return False
+        if not any(view.is_playing_something and (user_id is None or view.user_id == user_id) for view in views):
+            return True
+        time.sleep(STOP_REPORT_POLL_SECONDS)
+    return False
 
 
 class ReceiverBusy(Exception):
@@ -856,11 +881,14 @@ def _drive(args, config, server, target, account, tokens: ReceiverTokens) -> int
                     else:
                         state = f"still {final.player_state}"
                     note("token kept", reason=f"receiver {state}; the next command to {target.name} reuses it, stop revokes it")
-                elif revoke(handed, f"receiver {final.player_state} after {args.action}"):
-                    tokens.drop(*key)
                 else:
-                    # Still valid on the server: the next run to this receiver revokes it.
-                    tokens.put(*key, handed, session_cap)
+                    if not wait_for_stop_report(client, handed.token, receiver_name, handed.user_id):
+                        note("stop report", seen=False, after_seconds=STOP_REPORT_TIMEOUT_SECONDS)
+                    if revoke(handed, f"receiver {final.player_state} after {args.action}"):
+                        tokens.drop(*key)
+                    else:
+                        # Still valid on the server: the next run to this receiver revokes it.
+                        tokens.put(*key, handed, session_cap)
         finally:
             paths = report.save()
             if args.keep:

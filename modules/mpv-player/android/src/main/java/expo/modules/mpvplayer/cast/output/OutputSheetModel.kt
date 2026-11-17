@@ -119,6 +119,11 @@ sealed interface OutputSheetState {
         val canStop: Boolean,
         /** Opened from the player, over a connected receiver: "Play on" hands the video off. Not while reconnecting. */
         val canHandOff: Boolean,
+        /**
+         * "Change" opens the list. Not while reconnecting: another receiver would end a session no receiver hears,
+         * and its stop would be lost (iPhone, Wi-Fi cut, 14/11).
+         */
+        val canChange: Boolean,
     ) : OutputSheetState
 }
 
@@ -182,6 +187,7 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
             receiverTitle = input.receiverTitle,
             canStop = input.receiverPlaying,
             canHandOff = input.handOff && snapshot.phase == TargetPhase.CONNECTED,
+            canChange = !snapshot.reconnecting,
         )
     }
     // In the player the phone already has its video, and music playing here would be covered by it: there this row

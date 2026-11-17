@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import type { createStore } from "jotai";
+import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import {
   type CastClient,
@@ -20,7 +21,7 @@ import {
 } from "@/utils/cast/jellyfinReceiver";
 import { currentPlayChoice } from "@/utils/cast/playTarget";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
-import { bitrateRequestFor } from "@/utils/cast/remoteQuality";
+import { autoBitrateOn, bitrateRequestFor } from "@/utils/cast/remoteQuality";
 import { watchLoadedCast } from "@/utils/cast/watchLoadedCast";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
@@ -140,6 +141,11 @@ export const sendToReceiver = async (
           deps.api,
           quality,
           autoBitrateOptions(settings),
+        ).then((bitrate) =>
+          // The link measured is the phone's: a Chromecast stick freezes on what it would let the server copy.
+          quality === AUTO_BITRATE_VALUE
+            ? autoBitrateOn(bitrate, session.device?.modelName)
+            : bitrate,
         ),
       }))(),
       request,

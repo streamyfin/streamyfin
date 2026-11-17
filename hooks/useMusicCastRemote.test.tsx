@@ -145,6 +145,63 @@ test("hands back where the receiver was when the session ends", async () => {
   expect(view.progress).toBeCloseTo(30, 0);
 });
 
+/** Each render's track, and whether the queue was handed back by then. */
+const mountRecording = async () => {
+  const seen: { track: string | null; handedBack: boolean }[] = [];
+  const hook = await renderHook(
+    (current: Props) => {
+      const remote = useMusicCastRemote(current);
+      seen.push({
+        track: remote.view?.currentTrack.Id ?? null,
+        handedBack: (current.onHandBack as jest.Mock).mock.calls.length > 0,
+      });
+      return remote;
+    },
+    { initialProps: props },
+  );
+  return { ...hook, seen };
+};
+
+/** Renders after the receiver first reported, where the phone had neither the receiver's place nor its queue back. */
+const gapsBeforeHandBack = (
+  seen: { track: string | null; handedBack: boolean }[],
+) =>
+  seen
+    .slice(seen.findIndex((render) => render.track !== null))
+    .filter((render) => render.track === null && !render.handedBack);
+
+// A render without the receiver's place showed the queue the phone had before the cast: the mini player's artwork
+// flipped to it and back within a frame, and Android's expo-image kept the old one (16/11).
+test("keeps the receiver's place until the session's end hands the queue back", async () => {
+  const { result, rerender, seen } = await mountRecording();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+
+  expect(props.onHandBack).toHaveBeenCalledTimes(1);
+  expect(gapsBeforeHandBack(seen)).toEqual([]);
+});
+
+test("keeps the receiver's place until a film cast over the queue hands it back", async () => {
+  const { result, seen } = await mountRecording();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await receiverStatus("film", "ps-film", "playing", 5);
+
+  expect(props.onHandBack).toHaveBeenCalledTimes(1);
+  expect(gapsBeforeHandBack(seen)).toEqual([]);
+});
+
 // A track picked in the queue is cast again: until it loads, the receiver
 // still plays where it was, and that is what the phone takes back.
 test("hands back the reported place, not a pick still loading", async () => {
@@ -258,9 +315,37 @@ const sentCommands = () =>
     (entry) => (JSON.parse(entry.message) as { command: string }).command,
   );
 
+// A film cast from its page takes the receiver: the player showed the track
+// the phone had before the cast, not the one the receiver left (bench, 15/11).
+test("a film cast over the queue hands it back, paused where the receiver was", async () => {
+  const { result, rerender } = await mountRemote();
+  await settle();
+
+  await act(async () => {
+    result.current.begin(ALBUM, 0);
+  });
+  await receiverStatus("b", "ps-1", "playing", 30);
+  await receiverStatus("film", "ps-film", "playing", 5);
+  expect(result.current.view).toBeNull();
+
+  const onHandBack = props.onHandBack as jest.Mock;
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+  const view = onHandBack.mock.calls[0]?.[0] as MusicCastRemoteView;
+  expect(view.currentTrack.Id).toBe("b");
+  expect(view.queueIndex).toBe(1);
+  expect(view.progress).toBeCloseTo(30, 0);
+  expect(view.isPlaying).toBe(false);
+
+  // The film's session ending hands nothing back a second time.
+  await act(async () => {
+    rerender({ ...props, connected: false });
+  });
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+});
+
 // Media loaded by a sender that is not Jellyfin carries none of the receiver's
-// own data: the queue is gone from the receiver, nothing to show or take back.
-test("lets go of the queue once the receiver plays media another sender loaded", async () => {
+// own data: the queue is gone from the receiver, and comes back to the phone.
+test("hands the queue back once the receiver plays media another sender loaded", async () => {
   const { result, rerender } = await mountRemote();
   await settle();
 
@@ -279,11 +364,16 @@ test("lets go of the queue once the receiver plays media another sender loaded",
     customData: null,
   });
   expect(result.current.view).toBeNull();
+  const onHandBack = props.onHandBack as jest.Mock;
+  expect(onHandBack).toHaveBeenCalledTimes(1);
+  const view = onHandBack.mock.calls[0]?.[0] as MusicCastRemoteView;
+  expect(view.currentTrack.Id).toBe("b");
+  expect(view.isPlaying).toBe(false);
 
   await act(async () => {
     rerender({ ...props, connected: false });
   });
-  expect(props.onHandBack).not.toHaveBeenCalled();
+  expect(onHandBack).toHaveBeenCalledTimes(1);
 });
 
 // Stopped from the TV's remote, say: the receiver keeps the session and plays
@@ -447,6 +537,61 @@ describe("an idle receiver going on with the queue", () => {
     await receiverStatus("b", "ps-1", "idle", 0, "cancelled");
 
     expect(result.current.stopped).toBe(true);
+  });
+
+  /** An idle status as the iOS SDK reports it: the reason, and no media. */
+  const idleWithoutMedia = (idleReason: string) =>
+    rawStatus({
+      playerState: "idle",
+      idleReason,
+      currentItemId: 1,
+      streamPosition: 0,
+      playbackRate: 1,
+      volume: 1,
+      isMuted: false,
+      mediaInfo: null,
+      customData: null,
+    });
+
+  // Seen on an iPhone (2026-11-15): at each change of track the player showed
+  // the finished one at 0:00 with Play for a second, as the iOS SDK drops the
+  // media from an idle status. The idle report is about the track last reported.
+  test.each(["finished", "interrupted"])(
+    "still plays while the receiver moves on, its %s status without the media as on iOS",
+    async (idleReason) => {
+      const result = await castAlbumAt(1);
+      await receiverStatus("b", "ps-1", "playing", 148);
+      await idleWithoutMedia(idleReason);
+
+      expect(result.current.stopped).toBe(false);
+      expect(result.current.view?.currentTrack.Id).toBe("b");
+      expect(result.current.view?.isPlaying).toBe(true);
+      const before = mockCast.sent.length;
+      await act(async () => {
+        await result.current.next();
+      });
+      expect(mockCast.sent.slice(before)).toEqual([]);
+    },
+  );
+
+  test("the last track finished, its status without the media as on iOS, ends the queue at once", async () => {
+    const result = await castAlbumAt(3);
+    await receiverStatus("c", "ps-1", "playing", 148);
+    await idleWithoutMedia("finished");
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.currentTrack.Id).toBe("c");
+    expect(result.current.view?.progress).toBe(0);
+  });
+
+  test("a stop from the TV's remote, its status without the media as on iOS, stops where it was", async () => {
+    const result = await castAlbumAt(1);
+    await receiverStatus("b", "ps-1", "playing", 30);
+    await idleWithoutMedia("cancelled");
+
+    expect(result.current.stopped).toBe(true);
+    expect(result.current.view?.currentTrack.Id).toBe("b");
+    expect(result.current.view?.progress).toBeCloseTo(30, 0);
   });
 });
 
