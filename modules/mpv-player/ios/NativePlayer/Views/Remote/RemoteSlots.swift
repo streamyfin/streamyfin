@@ -68,16 +68,21 @@ struct RemoteArtwork: View {
 struct RemoteTitles: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let compact: Bool
+	// Dynamic Type: each size grows with the text style it stands for, as Android's sp do.
+	@ScaledMetric(relativeTo: .title2) private var titleSize: CGFloat = 22
+	@ScaledMetric(relativeTo: .subheadline) private var compactTitleSize: CGFloat = 15
+	@ScaledMetric(relativeTo: .subheadline) private var subtitleSize: CGFloat = 15
+	@ScaledMetric(relativeTo: .caption) private var compactSubtitleSize: CGFloat = 12
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: compact ? 1 : 4) {
 			Text(viewModel.metadata?.title ?? "")
-				.font(.system(size: compact ? 15 : 22, weight: .bold))
+				.font(.system(size: compact ? compactTitleSize : titleSize, weight: .bold))
 				.foregroundStyle(.white)
 				.lineLimit(compact ? 1 : 2)
 			if let subtitle = viewModel.metadata?.subtitle {
 				Text(subtitle)
-					.font(.system(size: compact ? 12 : 15))
+					.font(.system(size: compact ? compactSubtitleSize : subtitleSize))
 					.foregroundStyle(.white.opacity(0.7))
 					.lineLimit(compact ? 1 : 2)
 			}
@@ -184,6 +189,7 @@ private struct RemoteMoreButton: View {
 private struct RemoteTargetButton: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
+	@ScaledMetric(relativeTo: .footnote) private var nameSize: CGFloat = 14
 	@State private var frame: CGRect = .zero
 	@Environment(\.remoteAccent) private var accent
 
@@ -201,7 +207,7 @@ private struct RemoteTargetButton: View {
 				.padding(.top, 7)
 				if let targetName {
 					Text(targetName)
-						.font(.system(size: 14, weight: .semibold))
+						.font(.system(size: nameSize, weight: .semibold))
 						.foregroundStyle(accent)
 						.lineLimit(1)
 				}
