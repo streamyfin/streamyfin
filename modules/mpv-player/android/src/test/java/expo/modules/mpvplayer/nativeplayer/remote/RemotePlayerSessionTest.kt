@@ -32,6 +32,7 @@ import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
+import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -419,7 +420,10 @@ class RemotePlayerSessionTest {
                 tracks.subtitles = listOf(track("English", 2, selected = false))
             }
         })
-        shadowOf(getMainLooper()).idle()
+        assertFalse(session.screenState!!.model.transportEnabled)
+        // present() composes the screen, then follows the TV: that state is drawn on a later frame, which idle()
+        // alone does not always reach after other suites. The wait covers the tint's fade as well.
+        shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
 
         val inactive = listOf("Seek Backward", "Play", "Seek Forward", "Playback position", "Audio", "Subtitles")
         val nodes = semanticsNodes().filter { it.label() in inactive }
