@@ -7,6 +7,7 @@ import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { AUTO_BITRATE_KEY } from "@/constants/Bitrate";
+import { CHROMECAST_STICK_AUTO_MAX_BITRATE } from "@/constants/Cast";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { bitrateLabel, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import {
@@ -54,9 +55,21 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
       <ListGroup
         title={t("home.settings.remote_quality.title")}
         description={
-          <Text className='text-[#8E8D91] text-xs'>
-            {t("home.settings.remote_quality.description")}
-          </Text>
+          <View className='gap-1'>
+            <Text className='text-[#8E8D91] text-xs'>
+              {t("home.settings.remote_quality.description")}
+            </Text>
+            <Text className='text-[#8E8D91] text-xs'>
+              {t("home.settings.remote_quality.chromecast_stick_auto", {
+                bitrate: labelOf(
+                  PLAYBACK_BITRATES.find(
+                    (choice) =>
+                      choice.value === CHROMECAST_STICK_AUTO_MAX_BITRATE,
+                  )?.key ?? "",
+                ),
+              })}
+            </Text>
+          </View>
         }
         className='mb-4'
       >

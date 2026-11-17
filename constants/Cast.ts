@@ -23,6 +23,17 @@ export const RECEIVER_FALLBACK_ID_LENGTH = 8;
 export const RECEIVER_UNCAPPED_BITRATE = 120_000_000;
 
 /**
+ * Auto's ceiling, in bit/s, on a Chromecast stick, the model name the Cast SDK
+ * gives it. Above it the server copies a high-bitrate film into HLS segments
+ * cut at its keyframes, up to 25 MB each, and the stick freezes before each one
+ * of 16 MB or more, then errors, however fast its link measures. Transcoded at
+ * 9.4 Mb/s, in 3 s segments, the same film plays (3rd generation, Sintel,
+ * 17/11/2026). A quality picked by hand for the receiver passes it.
+ */
+export const CHROMECAST_STICK_MODEL = "Chromecast";
+export const CHROMECAST_STICK_AUTO_MAX_BITRATE = 8_000_000;
+
+/**
  * Receivers the remote quality settings remember, the latest first: a connection
  * adds one, and the oldest leaves the list, with its own quality, past this many.
  */

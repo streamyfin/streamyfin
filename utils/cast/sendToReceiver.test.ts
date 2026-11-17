@@ -5,7 +5,8 @@ import { choosePlay } from "@/utils/cast/playTarget";
 import { watchLoadedCast } from "@/utils/cast/watchLoadedCast";
 import { sendToReceiver } from "./sendToReceiver";
 
-let mockSession: { id: string } | null = { id: "session-1" };
+let mockSession: { id: string; device?: { modelName: string | null } } | null =
+  { id: "session-1" };
 let mockSessionError: Error | null = null;
 // The status the client holds once the receiver loaded: its first buffering report.
 let mockHeldStatus: unknown = null;
@@ -173,6 +174,63 @@ describe("Auto on the receiver", () => {
     measured(9_000_000);
     expect(await sentBitrate()).toBe(9_000_000);
     await sent;
+  });
+});
+
+// The film that froze on the bench: Auto measured 57 Mb/s and the server copied it in segments of up to 25 MB.
+describe("Auto on a Chromecast stick", () => {
+  const onModel = (modelName: string | null) => {
+    mockSession = { id: "session-1", device: { modelName } };
+  };
+
+  beforeEach(() => {
+    mockDetectBitrate.mockImplementation(async () => 56_687_567);
+  });
+
+  test("stays at the stick's ceiling", async () => {
+    withQuality({});
+    onModel("Chromecast");
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(8_000_000);
+  });
+
+  test("that measures nothing gets the ceiling", async () => {
+    withQuality({});
+    onModel("Chromecast");
+    mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(8_000_000);
+  });
+
+  test("leaves another model at the measure", async () => {
+    withQuality({});
+    onModel("Google TV Streamer");
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(56_687_567);
+  });
+
+  // A quality picked by hand passes the ceiling.
+  test("does not cap Max picked for the receiver", async () => {
+    withQuality({}, { "device-a": "Max" });
+    onModel("Chromecast");
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBeUndefined();
+  });
+
+  test("leaves live TV without a cap", async () => {
+    withQuality({});
+    onModel("Chromecast");
+    const channel = {
+      ...play,
+      item: { Id: "channel-1", Name: "News", Type: "TvChannel" } as never,
+    };
+    await sendToReceiver(deps, channel, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBeUndefined();
   });
 });
 

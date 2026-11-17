@@ -159,6 +159,14 @@ test("lists Chromecast, then each receiver the app connected to", async () => {
   expect(screen.getAllByText("Bedroom").length).toBeGreaterThan(0);
 });
 
+// Auto's ceiling on a Chromecast stick is not a hidden default: the section says it.
+test("tells that Auto stays under a ceiling on a Chromecast stick", async () => {
+  await render(<RemotePlaybackQualitySettings />);
+  expect(
+    screen.getByText("home.settings.remote_quality.chromecast_stick_auto"),
+  ).toBeTruthy();
+});
+
 // Rule of 30/10: Auto is the cast's default, and a choice like the others.
 test("Auto leads the qualities and can be picked again", async () => {
   stored({ ...mockQuality, byKind: { cast: "2 Mb/s" } });
