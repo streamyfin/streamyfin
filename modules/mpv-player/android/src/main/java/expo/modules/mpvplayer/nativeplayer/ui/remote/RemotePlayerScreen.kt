@@ -142,6 +142,9 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
                 arrangement.bottom.forEach { slot -> Slot(slot, viewModel, screen, model, layout, artwork) }
             }
 
+            // Over the top bar, not in the column: showing it moves nothing.
+            RemoteVolumeIndicator(screen.volumeIndicator, Modifier.align(Alignment.TopCenter))
+
             if (viewModel.showEpisodeList) {
                 EpisodeListSheet(viewModel = viewModel, onDismiss = { viewModel.showEpisodeList = false })
             }

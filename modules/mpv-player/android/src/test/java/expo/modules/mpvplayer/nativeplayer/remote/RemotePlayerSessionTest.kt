@@ -124,6 +124,32 @@ class RemotePlayerSessionTest {
 
     // The TV button says the session's state (connected, connecting) to TalkBack, as the local chrome's does.
     @Test
+    fun aVolumeChangeOnTheTvShowsTheIndicatorUntilTheScreenCloses() {
+        val scheduler = ManualScheduler()
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(FakeCastDevices.DEVICES[0].id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS + RemoteTargetConstants.FAKE_VOLUME_ECHO_MS)
+
+        val session = presented(hub = hub)
+        // The level read as the screen opens is no change.
+        assertNull(session.screenState?.volumeIndicator)
+
+        hub.setVolume(0.4)
+        scheduler.advance(RemoteTargetConstants.FAKE_VOLUME_ECHO_MS)
+        assertEquals(VolumeIndicator(0.4, muted = false), session.screenState?.volumeIndicator)
+
+        val state = session.screenState
+        session.dismiss("closeButton")
+        shadowOf(getMainLooper()).idle()
+        assertNull(state?.volumeIndicator)
+        // Closed, it follows the hub no more.
+        hub.setMuted(true)
+        scheduler.advance(RemoteTargetConstants.FAKE_VOLUME_ECHO_MS)
+        assertNull(state?.volumeIndicator)
+    }
+
+    @Test
     fun theTvButtonFollowsTheCastSession() {
         val scheduler = ManualScheduler()
         val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
