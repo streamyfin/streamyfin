@@ -96,6 +96,9 @@ struct ConnectedPanel: Equatable {
   let canStop: Bool
   /// Opened from the player, over a connected receiver: "Play on" hands the video off. Not while reconnecting.
   let canHandOff: Bool
+  /// "Change" opens the list. Not while reconnecting: another receiver would end a session no receiver hears, and
+  /// its stop would be lost, as a Stop there was before the port held it (iPhone, Wi-Fi cut, 14/11).
+  let canChange: Bool
 }
 
 enum OutputSheetState: Equatable {
@@ -125,9 +128,10 @@ struct LastHeardStatus<T> {
 }
 
 // GCKErrorCode, from the google-cast-sdk reference: network, timeout, device not connected, network not
-// reachable, disconnected; then the receiver app not found or not running, its variants included.
-private let networkCodes: Set<Int> = [1, 2, 14, 17, 92]
-private let receiverCodes: Set<Int> = [20, 21, 104, 105, 106, 107]
+// reachable, disconnected, and the receiver app gone when the SDK rejoins it (when resumed, for join, when
+// reconnecting): that connection was lost, nothing failed to start. Then the receiver app not found or not running.
+private let networkCodes: Set<Int> = [1, 2, 14, 17, 92, 105, 106, 107]
+private let receiverCodes: Set<Int> = [20, 21, 104]
 
 /// The family of a failure, for the line under its row: the port's refusals by message, the SDK's by code.
 func failureCause(error: String?, code: Int?) -> FailureCause {
@@ -135,6 +139,8 @@ func failureCause(error: String?, code: Int?) -> FailureCause {
   if error == GoogleCastTargetPort.startRefused || error == GoogleCastTargetPort.endRefused {
     return .receiverUnavailable
   }
+  // An end the SDK took and never gave: it lost that receiver.
+  if error == GoogleCastTargetPort.endNeverCame { return .network }
   if let code, networkCodes.contains(code) { return .network }
   if let code, receiverCodes.contains(code) { return .receiverUnavailable }
   return .other(error ?? "")
@@ -152,7 +158,7 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
         volume: input.draggedVolume ?? snapshot.volume, muted: snapshot.muted, showsVolume: showsVolume,
         canSetVolume: showsVolume && !snapshot.reconnecting, canMute: showsVolume && !snapshot.reconnecting,
         reconnecting: snapshot.reconnecting, receiverTitle: input.receiverTitle, canStop: input.receiverPlaying,
-        canHandOff: input.handOff && snapshot.phase == .connected
+        canHandOff: input.handOff && snapshot.phase == .connected, canChange: !snapshot.reconnecting
       )
     )
   }

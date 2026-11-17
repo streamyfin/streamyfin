@@ -8,6 +8,7 @@ import {
   RECEIVER_STOP_GRACE_MS,
 } from "@/constants/Cast";
 import { getJellyfinHeaders } from "@/utils/customHeaders";
+import { msToTicks } from "@/utils/time";
 
 /**
  * The official receiver only reports /Sessions/Playing/Stopped from its
@@ -40,7 +41,7 @@ export interface EndedReceiverSession {
    */
   itemId: string;
   playSessionId?: string;
-  /** Aborted when a new Cast session starts or the user or server changes. */
+  /** Aborted when a new Cast session starts on the same TV, or the user or server changes. */
   signal?: AbortSignal;
 }
 
@@ -117,6 +118,33 @@ const findOrphanedReceiverSession = async (
 };
 
 /**
+ * Between two reports of a client, the server moves a playing session's
+ * position on by itself, a second every second (SessionInfo's automatic
+ * progress), and LastActivityDate with it, while LastPlaybackCheckIn keeps
+ * the time of the last report. A receiver stalled in buffering reports
+ * nothing, so its position ran on: a Chromecast stuck at 8:46 was reported
+ * stopped 171 s further. The gap between the two dates is what the server
+ * added; the receiver reports every 5 s or so while it plays, so the position
+ * kept errs a few seconds early at most. Jellyfin's own idle cleanup stops a
+ * session at the reported position for the same reason.
+ */
+const lastReportedPositionTicks = (
+  session: SessionInfoDto,
+): number | undefined => {
+  const position = session.PlayState?.PositionTicks ?? undefined;
+  // The server does not move a paused session on.
+  if (position === undefined || session.PlayState?.IsPaused) return position;
+
+  const checkIn = Date.parse(session.LastPlaybackCheckIn ?? "");
+  const activity = Date.parse(session.LastActivityDate ?? "");
+  if (Number.isNaN(checkIn) || Number.isNaN(activity)) return position;
+
+  const added = msToTicks(Math.max(0, activity - checkIn));
+  // The server refuses a negative position.
+  return Math.max(0, position - added);
+};
+
+/**
  * Written the way the receiver identifies itself, so the server resolves it to
  * the receiver's own session. The server lets a "Chromecast" client share a
  * token without rewriting the token's device, so this leaves the phone's
@@ -174,7 +202,9 @@ const reportStop = async (ended: EndedReceiverSession): Promise<boolean> => {
     body: JSON.stringify({
       ItemId: session.NowPlayingItem?.Id,
       MediaSourceId: session.PlayState?.MediaSourceId ?? undefined,
-      PositionTicks: session.PlayState?.PositionTicks ?? undefined,
+      PositionTicks: lastReportedPositionTicks(session),
+      // A live stream stays open on the server, its tuner held, until a stop names it.
+      LiveStreamId: session.PlayState?.LiveStreamId ?? undefined,
       // Lets the server kill the receiver's transcode right away.
       PlaySessionId: playSessionId,
     }),

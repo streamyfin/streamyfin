@@ -154,7 +154,18 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
       return
     }
     finish()
+    // Taken down with the screen that presented it, the sheet has no dismissal left to wait for: `next` goes now.
+    guard hosting.presentingViewController != nil || hosting.isBeingPresented else {
+      next?()
+      return
+    }
     hosting.dismiss(animated: true, completion: next)
+  }
+
+  /// The Cast remote JS opens (a queue that just loaded on the TV) goes over the app once the sheet is gone, as the
+  /// sheet's own Remote row does: presented over it, the sheet is back on screen when the remote closes.
+  func openRemote(_ open: @escaping () -> Void) {
+    dismiss(then: open)
   }
 
   /// A player opens over the app's sheet (a remote Play): the sheet goes first, without animation, so the player is
