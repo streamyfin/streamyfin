@@ -817,10 +817,13 @@ class CastEngine(
 
     private fun isBuffering() = playerState == BUFFERING || playerState == LOADING || awaitingReceiver()
 
+    // After the last item of the queue this engine cast the receiver fetches nothing: the end comes on
+    // the next turn, once this status is the engine's, not a spinner fifteen seconds later.
     private fun armEndWait() {
         cancelEndWait()
-        log("idle finished, waiting for the next item")
-        endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
+        val lastOfOurQueue = castQueueEndsHere()
+        log(if (lastOfOurQueue) "idle finished, end of the queue" else "idle finished, waiting for the next item")
+        endWait = schedule(if (lastOfOurQueue) 0L else CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
             delegate?.onPlaybackEnded()
             notifyState()
@@ -950,6 +953,10 @@ class CastEngine(
     // A finished item the receiver goes on from: the queue this engine cast has one after it, which the
     // receiver fetches while the end waits. Play then would race it with the finished item.
     private fun nextItemComing() = endWait != null && playingIndex in 0 until queue.size - 1
+
+    // The receiver unfolds a lone typed episode into its series: that queue goes on past its one item.
+    private fun castQueueEndsHere() =
+        playingIndex >= 0 && playingIndex == queue.lastIndex && !(queue.size == 1 && queue[0].type == "Episode")
 
     // The receiver names the item it plays, not which copy of one queued twice: the copy where the
     // engine is in the queue, else the one after it (the queue went on), else the one before (it went

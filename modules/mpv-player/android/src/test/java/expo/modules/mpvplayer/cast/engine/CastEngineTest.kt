@@ -698,6 +698,56 @@ class CastEngineTest {
         assertEquals(0, delegate.ended)
     }
 
+    private fun finishedLastOf(items: List<ReceiverItem>, hasMedia: Boolean = true): CastEngine {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = items)) {}
+        items.forEachIndexed { index, item ->
+            media.report(snapshot(customData = ours("itemId" to item.id, "playSessionId" to "ps-$index")), 0)
+        }
+        val last = ours("itemId" to items.last().id, "playSessionId" to "ps-${items.lastIndex}")
+        media.report(snapshot(playerState = "idle", idleReason = "finished", customData = last.takeIf { hasMedia }, hasMedia = hasMedia), 0)
+        return engine
+    }
+
+    // The receiver has nothing to fetch after the last item of the queue this engine cast: waiting for
+    // one held a spinner on Play for fifteen seconds before the end.
+    @Test
+    fun theLastItemOfTheQueueItCastEndsAtOnce() {
+        val engine = finishedLastOf(listOf("e-1", "e-2").map { ReceiverItem(id = it, type = "Episode") })
+        scheduler.advance(0)
+        assertEquals(RemotePhase.ENDED, engine.phase)
+        assertEquals(1, delegate.ended)
+    }
+
+    @Test
+    fun aLoneEpisodeWithoutItsTypeEndsAtOnce() {
+        val engine = finishedLastOf(listOf(ReceiverItem(id = "e-1")), hasMedia = false)
+        scheduler.advance(0)
+        assertEquals(RemotePhase.ENDED, engine.phase)
+        assertEquals(1, delegate.ended)
+    }
+
+    // The receiver unfolds a lone typed episode into its series: the next episode is on its way.
+    @Test
+    fun aLoneEpisodeWithItsTypeWaitsForTheNextOne() {
+        val engine = finishedLastOf(listOf(ReceiverItem(id = "e-1", type = "Episode")))
+        scheduler.advance(0)
+        assertEquals(RemotePhase.BETWEEN, engine.phase)
+        scheduler.advance(CastEngineConstants.NEXT_ITEM_WAIT_MS)
+        assertEquals(1, delegate.ended)
+    }
+
+    @Test
+    fun anItemWithOneAfterItInTheQueueWaitsForIt() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("e-1", "e-2").map { ReceiverItem(id = it, type = "Episode") })) {}
+        media.report(snapshot(customData = ours("itemId" to "e-1", "playSessionId" to "ps-0")), 0)
+        media.report(snapshot(playerState = "idle", idleReason = "finished", customData = ours("itemId" to "e-1", "playSessionId" to "ps-0")), 0)
+        scheduler.advance(0)
+        assertEquals(RemotePhase.BETWEEN, engine.phase)
+        assertEquals(0, delegate.ended)
+    }
+
     // The session's life
 
     @Test
@@ -874,7 +924,7 @@ class CastEngineTest {
                 "load settled loaded",
                 "seek 20.0 path=bus",
                 "send Seek",
-                "idle finished, waiting for the next item",
+                "idle finished, end of the queue",
                 "binding lost session=session-1 error=null",
                 "detached from session session-1",
             ),

@@ -929,13 +929,16 @@ final class CastEngine: RemoteEngine {
 
   private func isBuffering() -> Bool { playerState == State.buffering || playerState == State.loading || awaitingReceiver() }
 
-  /// Arms the wait for the next item, or cancels it.
+  /// Arms the wait for the next item, or cancels it. After the last item of the queue this engine cast
+  /// the receiver fetches nothing: the end comes on the next turn, once this status is the engine's,
+  /// not a spinner fifteen seconds later.
   private func endWait(_ armed: Bool) {
     cancelEndWait?()
     cancelEndWait = nil
     guard armed else { return }
-    log("idle finished, waiting for the next item")
-    cancelEndWait = deliver(CastEngineConstants.nextItemWaitMs) { [weak self] in
+    let lastOfOurQueue = castQueueEndsHere()
+    log(lastOfOurQueue ? "idle finished, end of the queue" : "idle finished, waiting for the next item")
+    cancelEndWait = deliver(lastOfOurQueue ? 0 : CastEngineConstants.nextItemWaitMs) { [weak self] in
       guard let self else { return }
       self.cancelEndWait = nil
       self.delegate?.engineDidReachEnd(self)
@@ -1076,6 +1079,11 @@ final class CastEngine: RemoteEngine {
   // A finished item the receiver goes on from: the queue this engine cast has one after it, which the
   // receiver fetches while the end waits. Play then would race it with the finished item.
   private func nextItemComing() -> Bool { cancelEndWait != nil && playingIndex >= 0 && playingIndex < queue.count - 1 }
+
+  // The receiver unfolds a lone typed episode into its series: that queue goes on past its one item.
+  private func castQueueEndsHere() -> Bool {
+    playingIndex >= 0 && playingIndex == queue.count - 1 && !(queue.count == 1 && queue[0].type == "Episode")
+  }
 
   // The receiver names the item it plays, not which copy of one queued twice: the copy where the engine
   // is in the queue, else the one after it (the queue went on), else the one before (it went back),
