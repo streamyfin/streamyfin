@@ -188,3 +188,44 @@ test("nothing loaded opens nothing", async () => {
   expect(mockPlayer.remoteUpdates).toEqual([]);
   expect(openMusicPlayer).not.toHaveBeenCalled();
 });
+
+test("a send still on its way keeps Remote from replacing it", async () => {
+  api.mock.onGet(/\/Items\/s1e1/).reply(200, {
+    Id: "s1e1",
+    Name: "Episode 1",
+    Type: "Movie",
+    MediaType: "Video",
+  });
+  tvPlays({ itemId: "s1e1", queueItemIds: ["s1e1"] });
+  const sending = { play: { item: { Id: "s1e3" } }, loaded: false } as never;
+  store.set(remotePlayAtom, sending);
+
+  await expect(open()).resolves.toBe("sending");
+
+  // The send presents its own screen once the TV takes it; nothing superseded it.
+  expect(mockPlayer.remotePresented).toHaveLength(0);
+  expect(store.get(remotePlayAtom)).toBe(sending);
+});
+
+test("the TV moving on while the server answers opens what it plays now", async () => {
+  api.mock.onGet(/\/Items\/film-1/).reply(() => {
+    tvPlays({ itemId: "film-2", queueItemIds: ["film-2"] });
+    return [
+      200,
+      { Id: "film-1", Name: "Film 1", Type: "Movie", MediaType: "Video" },
+    ];
+  });
+  api.mock.onGet(/\/Items\/film-2/).reply(200, {
+    Id: "film-2",
+    Name: "Film 2",
+    Type: "Movie",
+    MediaType: "Video",
+  });
+  tvPlays({ itemId: "film-1", queueItemIds: ["film-1"] });
+
+  await expect(open()).resolves.toBe("known");
+
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  expect(presented().metadata.itemId).toBe("film-2");
+  expect(store.get(remotePlayAtom)?.play.item.Id).toBe("film-2");
+});

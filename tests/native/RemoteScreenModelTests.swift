@@ -112,6 +112,21 @@ enum RemoteScreenModelTests {
 		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: tv(.playing)), "onUpdate: no item")
 	}
 
+	// A reduced config is built from what the TV holds now and carries no item id: playing, its end is this screen's.
+	static func aReducedConfigHasSeenWhatTheTvPlays() {
+		var foreign = tv(.playing)
+		foreign.itemId = nil
+		foreign.foreign = true
+		var ended = foreign
+		ended.phase = .ended
+		var loading = foreign
+		loading.phase = .loading
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: foreign, reduced: true), "reduced: playing")
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: tv(.paused), reduced: true), "reduced: paused")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: ended, reduced: true), "reduced: ended")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: loading, reduced: true), "reduced: loading")
+	}
+
 	static func aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
 		let screen = model(tv(.stopped))
 		check(screen.closes == nil, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: closes")
@@ -215,6 +230,7 @@ enum RemoteScreenModelTests {
 		anEndTheScreenNeverSawPlayKeepsItOpen()
 		theScreenSeesPlaybackOnceTheTvHoldsTheItem()
 		aNewConfigForTheItemTheTvPlaysHasSeenItPlay()
+		aReducedConfigHasSeenWhatTheTvPlays()
 		aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume()
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()

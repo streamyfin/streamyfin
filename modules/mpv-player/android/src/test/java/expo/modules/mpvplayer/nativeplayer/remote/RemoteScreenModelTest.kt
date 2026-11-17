@@ -129,6 +129,16 @@ class RemoteScreenModelTest {
         assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, tv(RemotePhase.PLAYING)))
     }
 
+    // A reduced config is built from what the TV holds now and carries no item id: playing, its end is this screen's.
+    @Test
+    fun aReducedConfigHasSeenWhatTheTvPlays() {
+        val foreign = tv(RemotePhase.PLAYING).copy(itemId = null, foreign = true)
+        assertTrue(RemoteScreenModel.sawPlaybackOnUpdate(null, foreign, reduced = true))
+        assertTrue(RemoteScreenModel.sawPlaybackOnUpdate(null, tv(RemotePhase.PAUSED), reduced = true))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, foreign.copy(phase = RemotePhase.ENDED), reduced = true))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, foreign.copy(phase = RemotePhase.LOADING), reduced = true))
+    }
+
     @Test
     fun aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
         val screen = model(tv(RemotePhase.STOPPED))

@@ -191,6 +191,33 @@ describe("with the gate open", () => {
     expect(mockPlayer.remotePresented).toEqual([]);
     expect(mockCast.dialogs).toEqual([]);
   });
+
+  test("a second Remote while one opens asks nothing more", async () => {
+    const api = makeApi();
+    let answer: () => void = () => undefined;
+    api.mock.onGet(/\/Items\/film-1/).reply(
+      () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve([200, { Id: "film-1", Type: "Movie", MediaType: "Video" }]);
+        }),
+    );
+    getDefaultStore().set(apiAtom, api as never);
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId: "film-1",
+    };
+    await render(<OutputPickerActions />);
+
+    await sheetAnswers("remote");
+    await sheetAnswers("remote");
+    await act(async () => answer());
+
+    expect(api.mock.history.get).toHaveLength(1);
+    expect(mockPlayer.remotePresented).toHaveLength(1);
+  });
 });
 
 // An action this build does not know (a later sheet's, or none) is left alone rather than taken for the remote.

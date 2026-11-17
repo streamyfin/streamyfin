@@ -181,6 +181,8 @@ export function OutputPickerActions() {
   }, [playMedia, syncPlay.enabled, t, router]);
   // One Continue here at a time: a second tap while one runs would open a second player.
   const continuing = useRef(false);
+  // One Remote at a time: a second answer while the first opens would be refused natively and reported.
+  const opening = useRef(false);
 
   useEffect(() => {
     const subscription = onOutputPickerAction((action) => {
@@ -189,6 +191,8 @@ export function OutputPickerActions() {
         const api = store.get(apiAtom);
         const userId = store.get(userAtom)?.Id;
         if (remotePlayerRouted() && target?.kind === "cast" && api && userId) {
+          if (opening.current) return;
+          opening.current = true;
           openRemotePlayer(
             {
               api,
@@ -200,9 +204,13 @@ export function OutputPickerActions() {
                 latest.current.router.push("/(auth)/now-playing"),
             },
             target,
-          ).catch((error) => {
-            logAndCaptureError("The remote player failed to open", error);
-          });
+          )
+            .catch((error) => {
+              logAndCaptureError("The remote player failed to open", error);
+            })
+            .finally(() => {
+              opening.current = false;
+            });
           return;
         }
         showExpandedControls().catch((error) => {

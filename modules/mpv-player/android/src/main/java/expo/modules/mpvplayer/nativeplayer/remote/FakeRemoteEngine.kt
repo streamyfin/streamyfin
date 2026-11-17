@@ -299,7 +299,8 @@ class FakeRemoteEngine(
     }
 
     private fun notifyState() {
-        val state = listOf(phase, suspended, currentItemId, playingIndex)
+        // The foreign media too, as the iOS fake: a clip after another changes only its title and image.
+        val state = listOf(phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl)
         if (state == heardState || stopped) return
         heardState = state
         onStateChanged?.invoke()

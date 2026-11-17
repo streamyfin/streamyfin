@@ -159,7 +159,7 @@ final class RemotePlayerSession: PresentedPlayer {
 		// Another item: an end the TV reports before it holds it is the item before's. The item the TV plays
 		// already (JS followed it through its list) ends this screen.
 		screen.sawPlayback = RemoteScreenModel.sawPlaybackOnUpdate(
-			itemId: config.metadata?.itemId, snapshot: screen.snapshot
+			itemId: config.metadata?.itemId, snapshot: screen.snapshot, reduced: config.reduced
 		)
 		clearFailure()
 		// apply() starts the view model at the config's position: the TV's state again, as present() does.

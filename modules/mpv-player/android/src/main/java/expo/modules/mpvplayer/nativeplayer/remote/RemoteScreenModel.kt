@@ -61,10 +61,10 @@ data class RemoteScreenModel(
         /**
          * [sawPlayback] for a new config of [itemId] while the TV is at [snapshot]: the item it holds already when JS
          * followed it onto the next of its list, since no phase change comes before that item's end; another item
-         * waits for its playback.
+         * waits for its playback. A [reduced] config carries no item id and is built from what the TV holds now.
          */
-        fun sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot): Boolean =
-            itemId != null && itemId == snapshot.itemId && sawPlayback(false, snapshot.phase)
+        fun sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+            (reduced || (itemId != null && itemId == snapshot.itemId)) && sawPlayback(false, snapshot.phase)
 
         /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not

@@ -59,9 +59,9 @@ struct RemoteScreenModel: Equatable {
 
 	/// `sawPlayback` for a new config of `itemId` while the TV is at `snapshot`: the item it holds already when JS
 	/// followed it onto the next of its list, since no phase change comes before that item's end; another item
-	/// waits for its playback.
-	static func sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot) -> Bool {
-		itemId != nil && itemId == snapshot.itemId && sawPlayback(before: false, phase: snapshot.phase)
+	/// waits for its playback. A `reduced` config carries no item id and is built from what the TV holds now.
+	static func sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Bool = false) -> Bool {
+		(reduced || (itemId != nil && itemId == snapshot.itemId)) && sawPlayback(before: false, phase: snapshot.phase)
 	}
 
 	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not

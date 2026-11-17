@@ -31,18 +31,15 @@ import {
   followForeignMedia,
   followRemoteItem,
 } from "@/utils/remotePlayer/followRemoteItem";
+import { showWhatTheTvPlays } from "@/utils/remotePlayer/openRemotePlayer";
 import {
   followOnRemote,
   playOnRemote,
-  type RemotePlayDeps,
-  showForeignOnRemote,
-  showRemoteItem,
 } from "@/utils/remotePlayer/playOnRemote";
 import {
   episodeAfter,
   episodeBefore,
 } from "@/utils/remotePlayer/remoteEpisodes";
-import { resolveRemoteItem } from "@/utils/remotePlayer/resolveRemoteItem";
 import { seriesEpisodes } from "@/utils/remotePlayer/seriesEpisodes";
 import { secondsToTicks } from "@/utils/time";
 import { stopAndPlayHere } from "./OutputPickerActions";
@@ -202,39 +199,6 @@ export function RemotePlayerController() {
         });
     };
     // Media the phone did not send: the screen is rebuilt from what this server says of it, never patched.
-    const showWhatTheTvPlays = async (
-      deps: RemotePlayDeps,
-      remote: RemoteTarget,
-      state: RemotePlaybackState,
-    ) => {
-      const resolved = await resolveRemoteItem(deps, state);
-      // The TV moved on while the server answered: its newer state is read on its own. A send the phone made
-      // meanwhile owns the screen until the TV takes it.
-      if (remotePlayback().itemId !== state.itemId) return;
-      if (store.get(remotePlayAtom)?.loaded === false) return;
-      switch (resolved.kind) {
-        case "known":
-          await showRemoteItem(deps, resolved.item, remote, remotePlayback());
-          return;
-        case "foreign":
-          await showForeignOnRemote(
-            deps,
-            {
-              itemId: resolved.itemId,
-              title: resolved.title,
-              imageUrl: resolved.imageUrl,
-            },
-            remote,
-          );
-          return;
-        case "music":
-          // The app's music player shows music, not this screen.
-          store.set(remotePlayAtom, null);
-          store.set(remoteForeignAtom, null);
-          await dismissNativePlayer();
-          return;
-      }
-    };
     const follow = (state: RemotePlaybackState) => {
       const held = store.get(remotePlayAtom);
       const foreign = store.get(remoteForeignAtom);
@@ -269,7 +233,19 @@ export function RemotePlayerController() {
       }
       track(
         key,
-        showWhatTheTvPlays(deps, remote, state),
+        showWhatTheTvPlays(
+          {
+            ...deps,
+            // The app's music player shows music, not this screen.
+            onMusic: async () => {
+              store.set(remotePlayAtom, null);
+              store.set(remoteForeignAtom, null);
+              await dismissNativePlayer();
+            },
+          },
+          remote,
+          state,
+        ).then(() => undefined),
         "Following what the TV plays failed",
       );
     };
