@@ -1,6 +1,9 @@
 import { useAtomValue } from "jotai";
 import { useEffect } from "react";
-import { setRemoteServer, useCastDevice } from "@/modules/mpv-player/src/cast";
+import {
+  setRemoteServer,
+  useRemoteTarget,
+} from "@/modules/mpv-player/src/cast";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
 import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
@@ -13,8 +16,13 @@ import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 export function RemotePlayerController() {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  // The receiver names its Jellyfin device from each message: the connected TV's name goes with the server.
-  const receiverName = receiverNameFor(useCastDevice());
+  // The receiver names its Jellyfin device from each message: the TV's name goes with the server. It comes from
+  // the hub's target, which a suspended session keeps; the JS session goes null there, and a server without the
+  // name would make native drop the engine an open remote screen holds.
+  const { target } = useRemoteTarget();
+  const receiverName = receiverNameFor(
+    target?.kind === "cast" ? { friendlyName: target.name } : null,
+  );
   const routed = remotePlayerRouted();
   const serverAddress = api?.basePath;
   const accessToken = api?.accessToken;
