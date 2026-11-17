@@ -79,6 +79,17 @@ struct ScrubberView: View {
 		}
 		.frame(height: 44)
 		.animation(.spring(response: 0.25, dampingFraction: 0.9), value: viewModel.isScrubbing)
+		// One element for VoiceOver: the bar's name, the elapsed time, and a skip step per swipe up or down.
+		.accessibilityElement()
+		.accessibilityLabel(viewModel.playbackPositionLabel)
+		.accessibilityValue(formatTime(viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition))
+		.accessibilityAdjustableAction { direction in
+			switch direction {
+			case .increment: viewModel.seekForward()
+			case .decrement: viewModel.seekBackward()
+			@unknown default: break
+			}
+		}
 	}
 
 	private func fraction(of position: Double) -> CGFloat {

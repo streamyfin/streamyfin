@@ -132,6 +132,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
             else -> strings.get("castNotConnected", "Not connected")
         }
 
+    /** The position bar's name for TalkBack; its state is the elapsed time. */
+    val playbackPositionLabel: String
+        get() = strings.get("playbackPosition", "Playback position")
+
     fun followCast(hub: RemoteTargetHub = RemoteTargetHub.shared) {
         unfollowCast?.invoke()
         castPhase = hub.snapshot.phase
@@ -754,6 +758,15 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun seekBy(seconds: Double) {
         val target = max(0.0, displayPosition + seconds)
         seekTo(target)
+    }
+
+    /** TalkBack's adjustment of the position bar: one skip step toward the value it asks for, as VoiceOver's
+     *  adjustable action on iOS, rather than the 5% of the length Compose would derive. */
+    fun adjustPosition(toward: Float): Boolean {
+        val target = toward.toDouble()
+        if (target == displayPosition) return false
+        seekBy(if (target > displayPosition) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec)
+        return true
     }
 
     fun flashSeekFeedback() {

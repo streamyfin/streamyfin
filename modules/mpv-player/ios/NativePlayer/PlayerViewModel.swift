@@ -66,6 +66,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// The position bar's name for VoiceOver; its value is the elapsed time.
+	var playbackPositionLabel: String { str("playbackPosition", "Playback position") }
+
 	func followCast(_ hub: RemoteTargetHub = .shared) {
 		unfollowCast?()
 		castPhase = hub.snapshot.phase

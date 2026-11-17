@@ -42,6 +42,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -154,10 +160,18 @@ private fun ScrubberBar(
         }
     }
 
+    val lengthSec = duration.toFloat().coerceAtLeast(0f)
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp),
+            .height(36.dp)
+            // One node for TalkBack: the bar's name, the elapsed time, and a skip step per adjustment.
+            .clearAndSetSemantics {
+                contentDescription = viewModel.playbackPositionLabel
+                stateDescription = formatTimeSec(position)
+                progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat().coerceIn(0f, lengthSec), 0f..lengthSec)
+                setProgress { viewModel.adjustPosition(toward = it) }
+            },
         contentAlignment = Alignment.CenterStart
     ) {
         val totalWidthPx = constraints.maxWidth.toFloat()

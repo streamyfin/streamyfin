@@ -3,9 +3,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import i18next from "i18next";
 import type { NativePlayerStrings } from "@/modules/mpv-player";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import en from "@/translations/en.json";
 import type { Settings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { buildNativePlayerConfig } from "./buildNativePlayerConfig";
+import {
+  buildNativePlayerConfig,
+  buildNativePlayerStrings,
+} from "./buildNativePlayerConfig";
 
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
@@ -491,5 +495,20 @@ describe("the native player's swipe gestures", () => {
       brightnessSwipeEnabled: true,
       volumeSwipeEnabled: true,
     });
+  });
+});
+
+describe("the native player's playback position bar", () => {
+  test("has a name for TalkBack and VoiceOver", () => {
+    const english = i18next.createInstance();
+    english.init({
+      lng: "en",
+      resources: { en: { translation: en } },
+      initAsync: false,
+    });
+
+    expect(buildNativePlayerStrings(english.t).playbackPosition).toBe(
+      "Playback position",
+    );
   });
 });

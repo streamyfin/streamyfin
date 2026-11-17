@@ -1259,6 +1259,7 @@
     "cast_button": "Cast button",
     "cast_connected": "Connected",
     "cast_not_connected": "Not connected",
+    "playback_position": "Playback position",
     "toggle_orientation": "Toggle screen orientation",
     "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
   },
