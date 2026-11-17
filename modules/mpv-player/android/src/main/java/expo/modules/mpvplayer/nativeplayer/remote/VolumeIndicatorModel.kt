@@ -18,9 +18,12 @@ class VolumeIndicatorModel(
 ) {
     private var last: VolumeIndicator? = null
     private var cancelHide: (() -> Unit)? = null
+    private var closed = false
 
     /** The receiver's volume as the hub publishes it; [level] null when it reports none. */
     fun update(level: Double?, muted: Boolean) {
+        // A hub calls a listener removed during its publish once more.
+        if (closed) return
         if (level == null) {
             last = null
             hide()
@@ -39,8 +42,9 @@ class VolumeIndicatorModel(
         }
     }
 
-    /** The screen closes: no hide fires after it. */
+    /** The screen closes: nothing shows nor hides after it. */
     fun close() {
+        closed = true
         cancelHide?.invoke()
         cancelHide = null
     }

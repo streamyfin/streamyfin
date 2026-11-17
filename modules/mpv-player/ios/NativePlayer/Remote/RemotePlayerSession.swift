@@ -125,6 +125,8 @@ final class RemotePlayerSession: PresentedPlayer {
 			guard let self, !self.closed else { return }
 			self.unfollowPlayback = self.playback.addListener { [weak self] in self?.follow($0) }
 			self.follow(self.playback.snapshot)
+			// The first state may have closed the screen: nothing to follow while it goes.
+			guard !self.closed else { return }
 			self.followVolume()
 		}
 	}

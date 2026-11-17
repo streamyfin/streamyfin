@@ -122,7 +122,6 @@ class RemotePlayerSessionTest {
 
     private fun hasScreen(): Boolean = everyView(content()).any { it is ComposeView }
 
-    // The TV button says the session's state (connected, connecting) to TalkBack, as the local chrome's does.
     @Test
     fun aVolumeChangeOnTheTvShowsTheIndicatorUntilTheScreenCloses() {
         val scheduler = ManualScheduler()
@@ -149,6 +148,7 @@ class RemotePlayerSessionTest {
         assertNull(state?.volumeIndicator)
     }
 
+    // The TV button says the session's state (connected, connecting) to TalkBack, as the local chrome's does.
     @Test
     fun theTvButtonFollowsTheCastSession() {
         val scheduler = ManualScheduler()

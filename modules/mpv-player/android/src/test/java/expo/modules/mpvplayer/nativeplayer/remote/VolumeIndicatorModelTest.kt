@@ -104,4 +104,16 @@ class VolumeIndicatorModelTest {
         clock.advance(delay)
         assertEquals(before, shows)
     }
+
+    // A hub hands a publish to a copy of its listeners: one removed while it runs is still called once.
+    @Test
+    fun aChangeAfterClosingShowsNothing() {
+        model.update(0.30, muted = false)
+        model.close()
+        model.update(0.35, muted = false)
+        model.update(0.40, muted = true)
+        clock.advance(delay)
+        assertEquals(0, shows)
+        assertNull(shown)
+    }
 }

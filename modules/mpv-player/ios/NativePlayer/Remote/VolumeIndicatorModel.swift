@@ -19,6 +19,7 @@ final class VolumeIndicatorModel {
 	private let show: (VolumeIndicator?) -> Void
 	private var last: VolumeIndicator?
 	private var cancelHide: (() -> Void)?
+	private var closed = false
 
 	init(schedule: @escaping Schedule, show: @escaping (VolumeIndicator?) -> Void) {
 		self.schedule = schedule
@@ -27,6 +28,8 @@ final class VolumeIndicatorModel {
 
 	/// The receiver's volume as the hub publishes it; `level` nil when it reports none.
 	func update(level: Double?, muted: Bool) {
+		// A hub calls a listener removed during its publish once more.
+		guard !closed else { return }
 		guard let level else {
 			last = nil
 			hide()
@@ -45,8 +48,9 @@ final class VolumeIndicatorModel {
 		}
 	}
 
-	/// The screen closes: no hide fires after it.
+	/// The screen closes: nothing shows nor hides after it.
 	func close() {
+		closed = true
 		cancelHide?()
 		cancelHide = nil
 	}

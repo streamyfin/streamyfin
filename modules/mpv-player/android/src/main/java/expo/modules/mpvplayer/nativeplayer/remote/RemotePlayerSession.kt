@@ -130,6 +130,8 @@ class RemotePlayerSession(
         playback.attachScreen(viewModel)
         unfollowPlayback = playback.addListener(::follow)
         follow(playback.snapshot)
+        // The first state may have closed the screen, whose detach has run: nothing to follow then.
+        if (closed) return
         followVolume(model)
     }
 
@@ -146,10 +148,8 @@ class RemotePlayerSession(
             show = { state.volumeIndicator = it },
         )
         volumeIndicator = indicator
-        val read = { snapshot: RemoteTargetSnapshot ->
-            // A mute set on the device by another sender silences the TV as the stream mute does.
-            indicator.update(snapshot.volume, snapshot.muted || snapshot.deviceMuted)
-        }
+        // The port folds a device mute set by another sender into the stream's (receiverMuted).
+        val read = { snapshot: RemoteTargetSnapshot -> indicator.update(snapshot.volume, snapshot.muted) }
         read(hub.snapshot)
         unfollowVolume = hub.addListener(object : RemoteTargetListener {
             override fun targetChanged(snapshot: RemoteTargetSnapshot) = read(snapshot)

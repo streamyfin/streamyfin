@@ -111,6 +111,17 @@ enum VolumeIndicatorModelTests {
 		check(h.shows == before, "closingCancelsThePendingHide")
 	}
 
+	// A hub hands a publish to a copy of its listeners: one removed while it runs is still called once.
+	static func aChangeAfterClosingShowsNothing() {
+		let h = Harness()
+		h.model.update(level: 0.30, muted: false)
+		h.model.close()
+		h.model.update(level: 0.35, muted: false)
+		h.model.update(level: 0.40, muted: true)
+		h.clock.advance(delay)
+		check(h.shows == 0 && h.shown == nil, "aChangeAfterClosingShowsNothing")
+	}
+
 	static func main() {
 		aLevelChangeShowsTheIndicatorForAMoment()
 		anotherChangeRestartsItsDelay()
@@ -118,6 +129,7 @@ enum VolumeIndicatorModelTests {
 		noLevelShowsNothing()
 		theLevelReadAtOpeningShowsNothing()
 		closingCancelsThePendingHide()
+		aChangeAfterClosingShowsNothing()
 		print("PASS: volume indicator (\(cases) cases)")
 	}
 }
