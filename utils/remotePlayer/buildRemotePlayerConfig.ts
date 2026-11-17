@@ -25,6 +25,19 @@ import {
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { ticksToSeconds } from "@/utils/time";
 
+const remoteUi = (
+  settings: Settings,
+  strings: ReturnType<typeof buildNativePlayerStrings>,
+): RemotePlayerPresentConfig["ui"] => ({
+  allowPip: false,
+  orientationLock: "none",
+  seekForwardSec: settings.forwardSkipTime,
+  seekBackwardSec: settings.rewindSkipTime,
+  hapticsEnabled: !settings.disableHapticFeedback,
+  subtitleSearchEnabled: false,
+  strings,
+});
+
 /**
  * What the remote player shows of a play on the TV: the local player's metadata, chapters, thumbnails and track
  * menus, with no stream, since the TV plays it. None of the phone's own playback either: no picture in picture, no
@@ -79,15 +92,7 @@ export const buildRemotePlayerConfig = (params: {
           bitrateValue: params.bitrateValue ?? AUTO_BITRATE_VALUE,
         })
       : null,
-    ui: {
-      allowPip: false,
-      orientationLock: "none",
-      seekForwardSec: settings.forwardSkipTime,
-      seekBackwardSec: settings.rewindSkipTime,
-      hapticsEnabled: !settings.disableHapticFeedback,
-      subtitleSearchEnabled: false,
-      strings,
-    },
+    ui: remoteUi(settings, strings),
     tint: params.tint,
     // None at all when the user has none: native would send an empty set with every image.
     ...(hasHeaders(params.imageHeaders)
@@ -95,3 +100,31 @@ export const buildRemotePlayerConfig = (params: {
       : {}),
   };
 };
+
+/**
+ * The reduced player, for media this server does not know: what the Cast status says of it and the transport. No
+ * image headers: the image is another host's, and this server's proxy headers are not for it.
+ */
+export const buildReducedRemotePlayerConfig = (params: {
+  title: string | null;
+  imageUrl: string | null;
+  targetName: string | null;
+  settings: Settings;
+  t: TFunction;
+}): RemotePlayerPresentConfig => ({
+  metadata: {
+    ...(params.title ? { title: params.title } : {}),
+    ...(params.imageUrl ? { artworkUri: params.imageUrl } : {}),
+    isEpisode: false,
+  },
+  targetName: params.targetName,
+  chapters: [],
+  segments: [],
+  trickplay: null,
+  nextEpisode: null,
+  episodeList: [],
+  tracks: null,
+  ui: remoteUi(params.settings, buildNativePlayerStrings(params.t)),
+  tint: null,
+  reduced: true,
+});

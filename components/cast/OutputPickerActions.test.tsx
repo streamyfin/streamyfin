@@ -6,6 +6,7 @@ import type {
   CastMediaStatus,
   OutputPickerAction,
 } from "@/modules/mpv-player/src/cast";
+import { NO_REMOTE_PLAYBACK } from "@/modules/mpv-player/src/cast/Cast.types";
 import { CastNative } from "@/modules/mpv-player/src/cast/CastModule";
 import {
   type CastDoubleState,
@@ -13,7 +14,13 @@ import {
   createCastDoubleState,
   emitCastEvent,
 } from "@/test-utils/cast";
-import { userAtom } from "@/utils/atoms/api";
+import { makeApi } from "@/test-utils/jellyfinApi";
+import {
+  createNativePlayerDoubleState,
+  type NativePlayerDoubleState,
+} from "@/test-utils/nativePlayer";
+import { appRouter } from "@/test-utils/stubModules";
+import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { choosePlay } from "@/utils/cast/playTarget";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
@@ -24,6 +31,22 @@ jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
   __esModule: true,
   CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
 }));
+let mockPlayer: NativePlayerDoubleState = createNativePlayerDoubleState();
+jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
+  __esModule: true,
+  NativePlayerNativeModule:
+    require("@/test-utils/nativePlayer").nativePlayerDoubleModule(
+      () => mockPlayer,
+    ),
+}));
+let mockRouted = false;
+jest.mock("@/utils/cast/remotePlayerGate", () => ({
+  remotePlayerRouted: () => mockRouted,
+}));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => require("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -34,6 +57,10 @@ jest.mock("@/utils/atoms/api", () => {
     userAtom: atom({ Id: "user-1" }),
   };
 });
+// The remote player's tint reads the artwork natively.
+jest.mock("@/utils/imageColors", () => ({
+  extractImageColor: jest.fn(async () => null),
+}));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeErrorLog: jest.fn(),
@@ -58,6 +85,10 @@ jest.mock("@/utils/jellyfin/user-library/getUserItemData", () => ({
 
 beforeEach(() => {
   mockCast = createCastDoubleState();
+  mockPlayer = createNativePlayerDoubleState();
+  mockPlayer.remoteUpdateAnswer = false;
+  mockRouted = false;
+  appRouter.push.mockClear();
   mockSyncPlayEnabled = false;
   getDefaultStore().set(settingsAtom, null);
   getDefaultStore().set(effectiveSettingsAtom as never, {} as never);
@@ -104,10 +135,62 @@ const continueHereFromTheSheet = async () => {
 };
 
 // Mounted once for the app, it answers each action once, whichever button opened the sheet.
-test("remote opens the expanded controls", async () => {
+test("with the gate closed Remote keeps the SDK's controls", async () => {
   await render(<OutputPickerActions />);
   await sheetAnswers("remote");
   expect(mockCast.dialogs).toEqual(["expandedControls"]);
+  expect(mockPlayer.remotePresented).toEqual([]);
+});
+
+describe("with the gate open", () => {
+  beforeEach(() => {
+    mockRouted = true;
+    mockCast.remoteTarget = castDoubleTarget("connected");
+  });
+  afterEach(() => {
+    getDefaultStore().set(apiAtom, { basePath: "http://server" } as never);
+  });
+
+  test("Remote opens the remote player on what the TV plays", async () => {
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      foreign: true,
+      title: "Clip",
+    };
+    await render(<OutputPickerActions />);
+
+    await sheetAnswers("remote");
+
+    expect(mockCast.dialogs).toEqual([]);
+    expect(mockPlayer.remotePresented).toHaveLength(1);
+    expect(mockPlayer.remotePresented[0]).toMatchObject({
+      reduced: true,
+      metadata: { title: "Clip" },
+    });
+  });
+
+  test("Remote on music opens the app's music player", async () => {
+    const api = makeApi();
+    api.mock
+      .onGet(/\/Items\/track-1/)
+      .reply(200, { Id: "track-1", Type: "Audio", MediaType: "Audio" });
+    getDefaultStore().set(apiAtom, api as never);
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId: "track-1",
+    };
+    await render(<OutputPickerActions />);
+
+    await sheetAnswers("remote");
+
+    expect(appRouter.push).toHaveBeenCalledWith("/(auth)/now-playing");
+    expect(mockPlayer.remotePresented).toEqual([]);
+    expect(mockCast.dialogs).toEqual([]);
+  });
 });
 
 // An action this build does not know (a later sheet's, or none) is left alone rather than taken for the remote.

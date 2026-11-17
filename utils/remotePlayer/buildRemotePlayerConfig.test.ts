@@ -2,7 +2,10 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { defaultValues } from "@/utils/atoms/settings";
-import { buildRemotePlayerConfig } from "./buildRemotePlayerConfig";
+import {
+  buildReducedRemotePlayerConfig,
+  buildRemotePlayerConfig,
+} from "./buildRemotePlayerConfig";
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -88,4 +91,44 @@ test("the config names the target and the episode list", () => {
 // No headers is none at all: the native side would otherwise send an empty set with every image.
 test("the config leaves the image headers out when the user has none", () => {
   expect(buildRemotePlayerConfig(params())).not.toHaveProperty("imageHeaders");
+});
+
+// Another server's media: what the Cast status says of it, no menu, list or chapter, and none of this server's headers.
+test("the reduced config shows the Cast title and image and nothing of this server", () => {
+  const config = buildReducedRemotePlayerConfig({
+    title: "Foreign Film",
+    imageUrl: "https://other.example/poster.jpg",
+    targetName: "Living Room TV",
+    settings: defaultValues,
+    t,
+  });
+
+  expect(config.reduced).toBe(true);
+  expect(config.metadata).toEqual({
+    title: "Foreign Film",
+    artworkUri: "https://other.example/poster.jpg",
+    isEpisode: false,
+  });
+  expect(config.targetName).toBe("Living Room TV");
+  expect(config.tracks).toBeNull();
+  expect(config.episodeList).toEqual([]);
+  expect(config.chapters).toEqual([]);
+  expect(config.trickplay).toBeNull();
+  expect(config.nextEpisode).toBeNull();
+  expect(config.tint).toBeNull();
+  expect(config).not.toHaveProperty("imageHeaders");
+  expect(config.ui.allowPip).toBe(false);
+  expect(config.ui.strings?.playHere).toBe("player.play_here");
+});
+
+test("the reduced config without a title or image leaves them out", () => {
+  const config = buildReducedRemotePlayerConfig({
+    title: null,
+    imageUrl: null,
+    targetName: null,
+    settings: defaultValues,
+    t,
+  });
+
+  expect(config.metadata).toEqual({ isEpisode: false });
 });

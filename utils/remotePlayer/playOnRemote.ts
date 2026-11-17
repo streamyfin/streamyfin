@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { createStore } from "jotai";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
@@ -23,7 +24,7 @@ import type {
   RemotePlayerPresentConfig,
   RemotePlayerTint,
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
-import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
+import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
 import { liveTvBitrateRequest } from "@/utils/bitrate";
 import {
@@ -44,8 +45,15 @@ import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import { secondsToTicks } from "@/utils/time";
 import { type BoundedQueue, boundedEpisodeQueue } from "./boundedEpisodeQueue";
-import { buildRemotePlayerConfig } from "./buildRemotePlayerConfig";
-import { remoteEpisodeList, remoteNextUp } from "./remoteEpisodes";
+import {
+  buildReducedRemotePlayerConfig,
+  buildRemotePlayerConfig,
+} from "./buildRemotePlayerConfig";
+import {
+  episodeAfter,
+  remoteEpisodeList,
+  remoteNextUp,
+} from "./remoteEpisodes";
 import { remoteTint } from "./remoteTint";
 import { type SeriesEpisode, seriesEpisodes } from "./seriesEpisodes";
 
@@ -181,6 +189,7 @@ export const playOnRemote = async (
   );
   let config: RemotePlayerPresentConfig;
   deps.store.set(remotePlayAtom, { play, loaded: false });
+  deps.store.set(remoteForeignAtom, null);
   try {
     // An episode's list and what comes after it follow once the series is read.
     config = configFor(deps, play, remote, [], null);
@@ -349,5 +358,91 @@ export const followOnRemote = async (
   );
   deps.store.set(remotePlayAtom, { play, loaded: true, list });
   await updateRemotePlayer({ ...config, tint: shown ?? config.tint });
+  void followTint(config, send);
+};
+
+/**
+ * Shows an item of this server the TV plays, whoever sent it: the TV's list when the item is in it (the item alone
+ * otherwise), what comes after its last item, the TV's tracks. In place when the screen is up, the tint shown kept
+ * until the new one is read; opened on the neutral when it is not. A press after it goes under this phone's account.
+ * Refused natively, the error is the caller's.
+ */
+export const showRemoteItem = async (
+  deps: RemotePlayDeps,
+  item: BaseItemDto,
+  remote: RemoteTarget,
+  state: RemotePlaybackState,
+): Promise<void> => {
+  const itemId = item.Id;
+  if (!itemId) return;
+  const shown = shownTint?.send === sends ? shownTint.tint : null;
+  const send = ++sends;
+  if (shown) shownTint = { send, tint: shown };
+  const itemIds = state.queueItemIds.includes(itemId)
+    ? [...state.queueItemIds]
+    : [itemId];
+  const episodes = item.SeriesId
+    ? await seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch(
+        (error) => {
+          writeErrorLog("The series the TV plays could not be read", error);
+          return [];
+        },
+      )
+    : [];
+  if (send !== sends) return;
+  const nextUp = episodeAfter(episodes, itemIds.at(-1) ?? null);
+  const play: ReceiverPlay = {
+    item,
+    positionTicks: secondsToTicks(state.positionSec),
+    mediaSourceId: item.MediaSources?.[0]?.Id ?? undefined,
+    audioIndex: state.audioIndex >= 0 ? state.audioIndex : undefined,
+    subtitleIndex: state.subtitleIndex,
+  };
+  const config = configFor(
+    deps,
+    play,
+    remote,
+    remoteEpisodeList(deps.api, episodes, itemId),
+    remoteNextUp(deps.api, nextUp ?? undefined),
+  );
+  if (!(await updateRemotePlayer({ ...config, tint: shown ?? config.tint }))) {
+    await presentRemotePlayer(config);
+  }
+  // Set once the screen took it: a refusal leaves what the store said.
+  if (send !== sends) return;
+  deps.store.set(remoteForeignAtom, null);
+  deps.store.set(remotePlayAtom, {
+    play,
+    loaded: true,
+    list: { itemIds, nextUpId: nextUp?.id ?? null },
+  });
+  void followTint(config, send);
+};
+
+/**
+ * Shows media this server does not know on the reduced player: the Cast status's title and image, the transport and
+ * the TV. Nothing for Play here to continue, so no play is held. Refused natively, the error is the caller's.
+ */
+export const showForeignOnRemote = async (
+  deps: RemotePlayDeps,
+  media: {
+    itemId: string | null;
+    title: string | null;
+    imageUrl: string | null;
+  },
+  remote: RemoteTarget,
+): Promise<void> => {
+  const send = ++sends;
+  const config = buildReducedRemotePlayerConfig({
+    title: media.title,
+    imageUrl: media.imageUrl,
+    targetName: remote.name,
+    settings: deps.store.get(effectiveSettingsAtom),
+    t: deps.t,
+  });
+  if (!(await updateRemotePlayer(config))) await presentRemotePlayer(config);
+  if (send !== sends) return;
+  deps.store.set(remotePlayAtom, null);
+  deps.store.set(remoteForeignAtom, media);
   void followTint(config, send);
 };

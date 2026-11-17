@@ -19,7 +19,7 @@ import {
 } from "@/modules/mpv-player/src/RemotePlayerPresentation";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
-import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
+import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom } from "@/utils/atoms/settings";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
@@ -27,15 +27,22 @@ import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
-import { followRemoteItem } from "@/utils/remotePlayer/followRemoteItem";
+import {
+  followForeignMedia,
+  followRemoteItem,
+} from "@/utils/remotePlayer/followRemoteItem";
 import {
   followOnRemote,
   playOnRemote,
+  type RemotePlayDeps,
+  showForeignOnRemote,
+  showRemoteItem,
 } from "@/utils/remotePlayer/playOnRemote";
 import {
   episodeAfter,
   episodeBefore,
 } from "@/utils/remotePlayer/remoteEpisodes";
+import { resolveRemoteItem } from "@/utils/remotePlayer/resolveRemoteItem";
 import { seriesEpisodes } from "@/utils/remotePlayer/seriesEpisodes";
 import { secondsToTicks } from "@/utils/time";
 import { stopAndPlayHere } from "./OutputPickerActions";
@@ -184,35 +191,87 @@ export function RemotePlayerController() {
         logAndCaptureError("Sending the next episode to the TV failed", error);
       });
     };
-    // The item being read for the screen: the states the TV sends meanwhile do not read it again.
+    // What is being read for the screen: the states the TV sends meanwhile do not read it again.
     let following: string | null = null;
+    const track = (key: string, work: Promise<void>, failure: string) => {
+      following = key;
+      work
+        .catch((error) => logAndCaptureError(failure, error))
+        .finally(() => {
+          if (following === key) following = null;
+        });
+    };
+    // Media the phone did not send: the screen is rebuilt from what this server says of it, never patched.
+    const showWhatTheTvPlays = async (
+      deps: RemotePlayDeps,
+      remote: RemoteTarget,
+      state: RemotePlaybackState,
+    ) => {
+      const resolved = await resolveRemoteItem(deps, state);
+      // The TV moved on while the server answered: its newer state is read on its own. A send the phone made
+      // meanwhile owns the screen until the TV takes it.
+      if (remotePlayback().itemId !== state.itemId) return;
+      if (store.get(remotePlayAtom)?.loaded === false) return;
+      switch (resolved.kind) {
+        case "known":
+          await showRemoteItem(deps, resolved.item, remote, remotePlayback());
+          return;
+        case "foreign":
+          await showForeignOnRemote(
+            deps,
+            {
+              itemId: resolved.itemId,
+              title: resolved.title,
+              imageUrl: resolved.imageUrl,
+            },
+            remote,
+          );
+          return;
+        case "music":
+          // The app's music player shows music, not this screen.
+          store.set(remotePlayAtom, null);
+          store.set(remoteForeignAtom, null);
+          await dismissNativePlayer();
+          return;
+      }
+    };
     const follow = (state: RemotePlaybackState) => {
       const held = store.get(remotePlayAtom);
+      const foreign = store.get(remoteForeignAtom);
       const remote = latest.current.castTarget;
       const api = store.get(apiAtom);
       const userId = store.get(userAtom)?.Id;
-      if (!held?.loaded || !held.list || !remote || !api || !userId) return;
-      // Another item than one sent is the reduced player's, later.
-      const followed = followRemoteItem(
-        held.play.item.Id ?? null,
-        state,
-        held.list.itemIds,
+      if (!remote || !api || !userId) return;
+      const deps = { api, userId, store, t: latest.current.t };
+      let followed: "same" | "sent" | "other";
+      if (held?.loaded && held.list) {
+        followed = followRemoteItem(
+          held.play.item.Id ?? null,
+          state,
+          held.list.itemIds,
+        );
+      } else if (foreign) {
+        followed = followForeignMedia(foreign, state);
+      } else {
+        return;
+      }
+      if (followed === "same") return;
+      const key =
+        state.itemId ?? `foreign:${state.title ?? ""}:${state.imageUrl ?? ""}`;
+      if (key === following) return;
+      if (followed === "sent" && state.itemId) {
+        track(
+          key,
+          followOnRemote(deps, state.itemId, remote, state),
+          "Following the TV through the list failed",
+        );
+        return;
+      }
+      track(
+        key,
+        showWhatTheTvPlays(deps, remote, state),
+        "Following what the TV plays failed",
       );
-      const itemId = state.itemId;
-      if (followed !== "sent" || !itemId || itemId === following) return;
-      following = itemId;
-      followOnRemote(
-        { api, userId, store, t: latest.current.t },
-        itemId,
-        remote,
-        state,
-      )
-        .catch((error) => {
-          logAndCaptureError("Following the TV through the list failed", error);
-        })
-        .finally(() => {
-          if (following === itemId) following = null;
-        });
     };
     const subscriptions = [
       addRemotePlayerListener("onNextEpisodeRequested", ({ reason }) =>
@@ -245,6 +304,7 @@ export function RemotePlayerController() {
       }),
       addRemotePlayerListener("onDismiss", () => {
         store.set(remotePlayAtom, null);
+        store.set(remoteForeignAtom, null);
       }),
       onRemotePlaybackChanged(follow),
     ];

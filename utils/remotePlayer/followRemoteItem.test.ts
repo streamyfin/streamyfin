@@ -1,5 +1,5 @@
 import { NO_REMOTE_PLAYBACK } from "@/modules/mpv-player/src/cast/Cast.types";
-import { followRemoteItem } from "./followRemoteItem";
+import { followForeignMedia, followRemoteItem } from "./followRemoteItem";
 
 const tv = (itemId: string | null) => ({
   ...NO_REMOTE_PLAYBACK,
@@ -22,5 +22,39 @@ describe("followRemoteItem", () => {
 
   test("an item the phone did not send is other", () => {
     expect(followRemoteItem("e1", tv("film"), sent)).toBe("other");
+  });
+
+  test("media without an item id is other", () => {
+    expect(followRemoteItem("e1", { ...tv(null), foreign: true }, sent)).toBe(
+      "other",
+    );
+  });
+});
+
+describe("followForeignMedia", () => {
+  const shown = { itemId: null, title: "Clip", imageUrl: "https://a/1.jpg" };
+  const media = (overrides: object) => ({
+    ...tv(null),
+    foreign: true,
+    title: "Clip",
+    imageUrl: "https://a/1.jpg",
+    ...overrides,
+  });
+
+  test("the media shown, or nothing held, is the same", () => {
+    expect(followForeignMedia(shown, media({}))).toBe("same");
+    expect(followForeignMedia(shown, tv(null))).toBe("same");
+  });
+
+  test("another title, image or item id is other", () => {
+    expect(followForeignMedia(shown, media({ title: "Next clip" }))).toBe(
+      "other",
+    );
+    expect(
+      followForeignMedia(shown, media({ imageUrl: "https://a/2.jpg" })),
+    ).toBe("other");
+    expect(
+      followForeignMedia(shown, media({ foreign: false, itemId: "e1" })),
+    ).toBe("other");
   });
 });

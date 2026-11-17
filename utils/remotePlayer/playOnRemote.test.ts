@@ -15,10 +15,15 @@ import {
   type NativePlayerDoubleState,
 } from "@/test-utils/nativePlayer";
 import { stubReactNative } from "@/test-utils/reactNative";
-import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
+import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { extractImageColor } from "@/utils/imageColors";
-import { followOnRemote, playOnRemote } from "./playOnRemote";
+import {
+  followOnRemote,
+  playOnRemote,
+  showForeignOnRemote,
+  showRemoteItem,
+} from "./playOnRemote";
 import { remoteTint } from "./remoteTint";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -357,4 +362,106 @@ test("a remote player that does not open leaves the failure to the caller", asyn
   expect(mockCast.loadCalls).toEqual([]);
   expect(mockPlayer.remoteFailures).toEqual([]);
   expect(store.get(remotePlayAtom)).toBeNull();
+});
+
+const foreignFilm = {
+  itemId: "other-server-item",
+  title: "Foreign Film",
+  imageUrl: "https://other.example/poster.jpg",
+};
+
+test("a send takes the screen from the foreign media it showed", async () => {
+  store.set(remoteForeignAtom, foreignFilm);
+
+  await playOnRemote(deps(), play, livingRoom, fresh);
+
+  expect(store.get(remoteForeignAtom)).toBeNull();
+});
+
+// Opened on what the TV plays: the TV's list when it holds one, what comes after its last item, the TV's tracks.
+test("an episode the TV plays opens the full player with its series", async () => {
+  api.mock.onGet(/\/Shows\/series-1\/Episodes/).reply(200, {
+    Items: seriesOf(10),
+  });
+  store.set(remoteForeignAtom, foreignFilm);
+  const item = { ...seriesOf(10)[2], MediaSources: [{ Id: "source-1" }] };
+
+  await showRemoteItem(deps(), item, livingRoom, {
+    ...mockCast.remotePlayback,
+    connected: true,
+    phase: "playing",
+    itemId: "s1e2",
+    queueItemIds: ["s1e2", "s1e3"],
+    positionSec: 60,
+    audioIndex: 1,
+    subtitleIndex: 3,
+  });
+
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  const shown = mockPlayer.remotePresented[0] as {
+    metadata: { itemId: string };
+    episodeList: { itemId: string; isCurrent: boolean }[];
+    nextEpisode: { itemId: string } | null;
+    reduced?: boolean;
+  };
+  expect(shown.metadata.itemId).toBe("s1e2");
+  expect(shown.reduced).toBeUndefined();
+  expect(shown.episodeList.find((entry) => entry.isCurrent)?.itemId).toBe(
+    "s1e2",
+  );
+  expect(shown.nextEpisode).toMatchObject({ itemId: "s1e4" });
+  expect(store.get(remotePlayAtom)).toEqual({
+    play: {
+      item,
+      positionTicks: 600_000_000,
+      mediaSourceId: "source-1",
+      audioIndex: 1,
+      subtitleIndex: 3,
+    },
+    loaded: true,
+    list: { itemIds: ["s1e2", "s1e3"], nextUpId: "s1e4" },
+  });
+  expect(store.get(remoteForeignAtom)).toBeNull();
+});
+
+test("a film the TV plays outside its list is the list alone, shown in place", async () => {
+  mockPlayer.remoteUpdateAnswer = true;
+  const film: BaseItemDto = { Id: "film-1", Name: "Film", Type: "Movie" };
+
+  await showRemoteItem(deps(), film, livingRoom, {
+    ...mockCast.remotePlayback,
+    connected: true,
+    phase: "playing",
+    itemId: "film-1",
+    queueItemIds: ["s1e2", "s1e3"],
+  });
+
+  expect(mockPlayer.remotePresented).toEqual([]);
+  const shown = mockPlayer.remoteUpdates.at(-1) as {
+    episodeList: unknown[];
+    nextEpisode: unknown;
+    tracks: unknown;
+  };
+  expect(shown.episodeList).toEqual([]);
+  expect(shown.nextEpisode).toBeNull();
+  expect(shown.tracks).toBeNull();
+  expect(store.get(remotePlayAtom)?.list).toEqual({
+    itemIds: ["film-1"],
+    nextUpId: null,
+  });
+});
+
+test("foreign media opens the reduced player and drops the play shown", async () => {
+  store.set(remotePlayAtom, { play, loaded: true });
+
+  await showForeignOnRemote(deps(), foreignFilm, livingRoom);
+
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  expect(mockPlayer.remotePresented[0]).toMatchObject({
+    reduced: true,
+    targetName: "Living Room TV",
+    metadata: { title: "Foreign Film", artworkUri: foreignFilm.imageUrl },
+  });
+  expect(store.get(remotePlayAtom)).toBeNull();
+  expect(store.get(remoteForeignAtom)).toEqual(foreignFilm);
 });
