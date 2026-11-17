@@ -153,10 +153,15 @@ internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout
 /** The bottom row: the TV on the left, episodes, audio and subtitles on the right. */
 @Composable
 internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        RemoteTargetButton(viewModel, targetName)
-        Spacer(Modifier.weight(1f))
-        RemoteTrackButtons(viewModel)
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        // Weighted without filling, the TV is measured after the track buttons: a long name ends in an ellipsis
+        // instead of taking the row and leaving them no width. The buttons keep together in a row of their own.
+        RemoteTargetButton(viewModel, targetName, Modifier.weight(1f, fill = false))
+        Row(verticalAlignment = Alignment.CenterVertically) { RemoteTrackButtons(viewModel) }
     }
 }
 
@@ -206,10 +211,10 @@ private fun RemoteMoreButton(viewModel: PlayerViewModel) {
  * stands while a TV plays, so its TV is the connected one.
  */
 @Composable
-private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?) {
+private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?, modifier: Modifier = Modifier) {
     var anchor by remember { mutableStateOf<Rect?>(null) }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .heightIn(min = RemoteButton)
             .clip(RoundedCornerShape(8.dp))
             .clickable { anchor?.let(viewModel::openOutputSheet) }
