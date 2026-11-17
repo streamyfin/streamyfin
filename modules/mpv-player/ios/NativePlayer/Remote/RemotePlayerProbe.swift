@@ -15,7 +15,8 @@ import UIKit
 /// `-RemotePlayerProbeTint '#top,#bottom,#accent'`, `-RemotePlayerProbeHeaderName <name>` and
 /// `-RemotePlayerProbeHeaderValue <value>` add an artwork, its tint and an image header, as Android's extras do.
 /// `-RemotePlayerProbeTintDelay <s>` opens the screen neutral and sends the tint that many seconds later, as JS
-/// does once it has the artwork's colors, so the fade can be watched.
+/// does once it has the artwork's colors, so the fade can be watched. `-RemotePlayerProbeNoChapters YES` plays an
+/// item without chapters (the remote "more" menu with nothing in it), as Android's `--ez chapters false`.
 enum RemotePlayerProbe {
 	static let launchArgument = "RemotePlayerProbe"
 	static let notification = "expo.modules.mpvplayer.REMOTE_PLAYER_PROBE"
@@ -31,6 +32,7 @@ enum RemotePlayerProbe {
 	static let tintDelayArgument = "RemotePlayerProbeTintDelay"
 	static let headerNameArgument = "RemotePlayerProbeHeaderName"
 	static let headerValueArgument = "RemotePlayerProbeHeaderValue"
+	static let noChaptersArgument = "RemotePlayerProbeNoChapters"
 
 	private static var current: RemotePlayerSession?
 	private static var cancelPositionLog: (() -> Void)?
@@ -92,7 +94,8 @@ enum RemotePlayerProbe {
 			config.imageHeaders = [name: value]
 		}
 		config.targetName = target
-		config.chapters = [("Opening", 0.0), ("Middle", 40.0), ("Ending", 80.0)].map { name, start in
+		let chapters = defaults.bool(forKey: noChaptersArgument) ? [] : [("Opening", 0.0), ("Middle", 40.0), ("Ending", 80.0)]
+		config.chapters = chapters.map { name, start in
 			let chapter = ChapterRecord()
 			chapter.name = name
 			chapter.startSec = start

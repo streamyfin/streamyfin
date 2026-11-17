@@ -89,13 +89,18 @@ object RemotePlayerProbe {
 
     /**
      * What the broadcast may add to the fixed config, to hold the screen to an artwork: its URL, the tint JS would
-     * send for it (`#top,#bottom,#accent`), and one header the images are asked for with.
+     * send for it (`#top,#bottom,#accent`), and one header the images are asked for with. For the narrow layouts:
+     * the TV's name, which of the three episodes plays (the second has one before it and one after it), and an
+     * item without chapters.
      */
     data class Look(
         val artwork: String? = null,
         val tint: String? = null,
         val headerName: String? = null,
         val headerValue: String? = null,
+        val target: String = TARGET,
+        val episode: Int = 1,
+        val chapters: Boolean = true,
     )
 
     /** Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups. */
@@ -109,8 +114,8 @@ object RemotePlayerProbe {
             RemoteTintRecord().also { tint -> tint.top = top; tint.bottom = bottom; tint.accent = accent }
         }
         if (look.headerName != null && look.headerValue != null) it.imageHeaders = mapOf(look.headerName to look.headerValue)
-        it.targetName = TARGET
-        it.chapters = CHAPTERS.map { (name, start) -> ChapterRecord().also { c -> c.name = name; c.startSec = start } }
+        it.targetName = look.target
+        if (look.chapters) it.chapters = CHAPTERS.map { (name, start) -> ChapterRecord().also { c -> c.name = name; c.startSec = start } }
         it.tracks = TrackMenusRecord().also { tracks ->
             tracks.audio = track("English", 1, selected = true) + track("French", 2, selected = false)
             tracks.subtitles = track("English", 3, selected = true) + track("French", 4, selected = false)
@@ -120,7 +125,7 @@ object RemotePlayerProbe {
                 e.itemId = "bench-$n"
                 e.title = "Bench episode $n"
                 e.indexNumber = n
-                e.isCurrent = n == 1
+                e.isCurrent = n == look.episode
             }
         }
     }
@@ -182,7 +187,8 @@ private class LoggingEngine(private val inner: ChromeEngine, private val log: (S
 
 /**
  * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver -a expo.modules.mpvplayer.REMOTE_PLAYER_PROBE`,
- * with `--es artwork <url> --es tint '#top,#bottom,#accent' --es headerName <name> --es headerValue <value>` if wanted.
+ * with `--es artwork <url> --es tint '#top,#bottom,#accent' --es headerName <name> --es headerValue <value>` if wanted,
+ * and `--es target <TV name> --ei episode 2 --ez chapters false` for the narrow layouts.
  */
 class RemotePlayerProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -192,6 +198,9 @@ class RemotePlayerProbeReceiver : BroadcastReceiver() {
             tint = intent.getStringExtra("tint"),
             headerName = intent.getStringExtra("headerName"),
             headerValue = intent.getStringExtra("headerValue"),
+            target = intent.getStringExtra("target") ?: RemotePlayerProbe.TARGET,
+            episode = intent.getIntExtra("episode", 1),
+            chapters = intent.getBooleanExtra("chapters", true),
         )
         RemotePlayerProbe.run(OutputPickerPresenter.currentActivity(), look = look)
     }

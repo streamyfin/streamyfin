@@ -123,4 +123,17 @@ class RemotePlayerProbeTest {
         assertTrue(config.episodeList.size >= 2)
         assertEquals(1, config.episodeList.count { it.isCurrent })
     }
+
+    // The proof of the narrow layouts needs a long TV name, an episode with one before it and one after it (five
+    // transport buttons), and an item without chapters (the remote "more" menu with nothing in it).
+    @Test
+    fun aLookNamesTheTvPicksTheEpisodeAndDropsTheChapters() {
+        val config = RemotePlayerProbe.config(
+            RemotePlayerProbe.Look(target = "Living room Chromecast with Google TV", episode = 2, chapters = false),
+        )
+
+        assertEquals("Living room Chromecast with Google TV", config.targetName)
+        assertEquals(listOf(2), config.episodeList.filter { it.isCurrent }.map { it.indexNumber })
+        assertTrue(config.chapters.isEmpty())
+    }
 }
