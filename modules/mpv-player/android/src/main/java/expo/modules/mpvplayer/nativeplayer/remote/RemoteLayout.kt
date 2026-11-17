@@ -48,7 +48,9 @@ object RemoteMetrics {
         val byWidth = when (layout) {
             RemoteLayout.PORTRAIT -> widthDp - 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP
             RemoteLayout.LANDSCAPE -> widthDp * PlayerConstants.REMOTE_LANDSCAPE_ARTWORK_FRACTION
-            RemoteLayout.WIDE -> widthDp * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION
+            // Centered in its share, with the side margin on each side: the whole share put it against the titles.
+            RemoteLayout.WIDE ->
+                widthDp * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION - 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP
         }
         val byHeight = heightDp - chromeHeight(layout, fontScale)
         return minOf(byWidth, byHeight)

@@ -88,6 +88,18 @@ class RemoteLayoutTest {
         assertTrue("wide artwork $wide takes more than its share of 673", wide <= 673.0 * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION)
     }
 
+    // Wide, the artwork is centered in its share of the width. Sized to the whole share, it touched the titles beside
+    // it on a tablet upright or an unfolded phone; it keeps the side margin on each side of its box.
+    @Test
+    fun theWideArtworkKeepsAMarginBesideTheColumn() {
+        for (width in listOf(673.0, 800.0, 841.0)) {
+            val box = RemoteMetrics.besideWidth(RemoteLayout.WIDE, width)!!
+            val artwork = RemoteMetrics.artworkHeight(RemoteLayout.WIDE, width, 1280.0, 1.0)
+            val margin = (box - artwork) / 2
+            assertTrue("wide artwork $artwork leaves $margin beside the column at $width", margin >= PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP)
+        }
+    }
+
     // Five buttons and their gaps (340 upright) are wider than the column of a 360dp phone (312): the gap gives
     // way, never a button. Wide from 600, the column is 0.55w - 48, 282 there, under the 372 the 28 gap asks for.
     @Test

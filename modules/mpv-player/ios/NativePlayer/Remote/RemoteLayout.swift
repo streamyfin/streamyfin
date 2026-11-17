@@ -43,7 +43,8 @@ enum RemoteMetrics {
 		switch layout {
 		case .portrait: byWidth = width - 2 * PlayerConstants.remoteHorizontalPadding
 		case .landscape: byWidth = width * PlayerConstants.remoteLandscapeArtworkFraction
-		case .wide: byWidth = width * PlayerConstants.remoteWideArtworkFraction
+		// Centered in its share, with the side margin on each side: the whole share put it against the titles.
+		case .wide: byWidth = width * PlayerConstants.remoteWideArtworkFraction - 2 * PlayerConstants.remoteHorizontalPadding
 		}
 		let byHeight = height - chromeHeight(layout: layout, fontScale: fontScale)
 		return min(max(min(byWidth, byHeight), PlayerConstants.remoteArtworkMin), PlayerConstants.remoteArtworkMax)
