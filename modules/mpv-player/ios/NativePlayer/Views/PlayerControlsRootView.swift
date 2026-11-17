@@ -765,8 +765,14 @@ struct PlayerBottomBar: View {
 				if showsDuration {
 					HStack(spacing: 8) {
 						if viewModel.duration > 0 && remaining > 0 {
+							// caption2 is the 11 pt it was at the default size and grows with Dynamic Type, on one
+							// line: a second one would push the remote screen's bottom row off it. It shrinks for
+							// width only; the row is offered less height than its times take.
 							Text(endsAtLabel(remaining: remaining))
-								.font(.system(size: 11).monospacedDigit())
+								.font(.caption2.monospacedDigit())
+								.lineLimit(1)
+								.minimumScaleFactor(0.5)
+								.fixedSize(horizontal: false, vertical: true)
 								.foregroundStyle(.white.opacity(0.6))
 						}
 						Text(formatTime(viewModel.duration))
