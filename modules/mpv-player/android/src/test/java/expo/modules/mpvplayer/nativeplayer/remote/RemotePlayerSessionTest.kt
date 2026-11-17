@@ -9,6 +9,10 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.playback.RemotePlayback
@@ -24,6 +28,8 @@ import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
 import org.junit.After
@@ -392,4 +398,48 @@ class RemotePlayerSessionTest {
 
         assertEquals("Could not play there", session.screenState!!.model.failure)
     }
+
+    // A control the TV's state leaves inactive is said disabled to TalkBack, which then runs none of its actions.
+    // Each button and the bar is its own node: dimming the row around them does not reach them.
+    @Test
+    fun aReconnectingTvSaysItsInactiveControlsDisabledToTalkBack() {
+        playback.targetChanged(connected = true, suspended = true)
+        val session = RemotePlayerSession(
+            hub = RemoteTargetHub(),
+            playback = playback,
+            emit = { name, body -> events += name to body },
+            onTornDown = { tornDown += 1 },
+        )
+        this.session = session
+        session.present(activity, RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
+            it.targetName = "Bench TV"
+            it.tracks = TrackMenusRecord().also { tracks ->
+                tracks.audio = listOf(track("English", 1, selected = true))
+                tracks.subtitles = listOf(track("English", 2, selected = false))
+            }
+        })
+        shadowOf(getMainLooper()).idle()
+
+        val inactive = listOf("Seek Backward", "Play", "Seek Forward", "Playback position", "Audio", "Subtitles")
+        val nodes = semanticsNodes().filter { it.label() in inactive }
+        assertEquals(inactive.sorted(), nodes.mapNotNull { it.label() }.sorted())
+        val saidEnabled = nodes.filterNot { it.config.contains(SemanticsProperties.Disabled) }.mapNotNull { it.label() }
+        assertEquals(emptyList<String>(), saidEnabled.sorted())
+    }
+
+    private fun track(label: String, index: Int, selected: Boolean) = TrackMenuItemRecord().also {
+        it.label = label
+        it.jellyfinIndex = index
+        it.selected = selected
+    }
+
+    // The screen's nodes as TalkBack reads them, each button merged with its icon.
+    private fun semanticsNodes(): List<SemanticsNode> {
+        val root = everyView(content()).filterIsInstance<ViewRootForTest>().first()
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        return walk(root.semanticsOwner.rootSemanticsNode)
+    }
+
+    private fun SemanticsNode.label(): String? = config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
 }

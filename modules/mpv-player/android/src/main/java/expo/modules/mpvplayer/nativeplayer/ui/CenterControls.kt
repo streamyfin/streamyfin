@@ -76,14 +76,16 @@ fun CenterControls(
     style: TransportStyle = TransportStyle(),
     // The remote screen spins from the state of the TV (RemoteScreenModel), not from the engine's loading alone.
     showsSpinner: Boolean = viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == null,
+    // The remote screen cuts the transport while the session comes back: each button says it disabled to TalkBack.
+    enabled: Boolean = true,
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        CenterControlsContent(viewModel, modifier, style, showsSpinner)
+        CenterControlsContent(viewModel, modifier, style, showsSpinner, enabled)
     }
 }
 
 @Composable
-private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier, style: TransportStyle, showsSpinner: Boolean) {
+private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier, style: TransportStyle, showsSpinner: Boolean, enabled: Boolean) {
     val interactionSource = remember { MutableInteractionSource() }
     val scrim = if (style.disc) Color.Transparent else Color.Black.copy(alpha = 0.5f)
     val playInk = if (style.disc) Color.Black else Color.White
@@ -102,7 +104,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                     .size(style.side)
                     .clip(CircleShape)
                     .background(scrim)
-                    .clickable {
+                    .clickable(enabled = enabled) {
                         val prevItem = viewModel.episodeList[currentIdx - 1]
                         viewModel.selectEpisode(prevItem.itemId)
                     },
@@ -123,7 +125,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                 .size(style.seek)
                 .clip(CircleShape)
                 .background(scrim)
-                .clickable {
+                .clickable(enabled = enabled) {
                     viewModel.haptic()
                     viewModel.seekBy(-viewModel.uiOptions.seekBackwardSec)
                 },
@@ -144,7 +146,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                 .size(style.play)
                 .clip(CircleShape)
                 .background(if (style.disc) Color.White else Color.Black.copy(alpha = 0.6f))
-                .clickable {
+                .clickable(enabled = enabled) {
                     viewModel.togglePlayPause()
                 },
             contentAlignment = Alignment.Center
@@ -171,7 +173,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                 .size(style.seek)
                 .clip(CircleShape)
                 .background(scrim)
-                .clickable {
+                .clickable(enabled = enabled) {
                     viewModel.haptic()
                     viewModel.seekBy(viewModel.uiOptions.seekForwardSec)
                 },
@@ -194,7 +196,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                     .size(style.side)
                     .clip(CircleShape)
                     .background(scrim)
-                .clickable {
+                .clickable(enabled = enabled) {
                     if (viewModel.nextEpisode != null) {
                         viewModel.playNextEpisodeNow()
                     } else if (currentIdx >= 0 && currentIdx < viewModel.episodeList.size - 1) {

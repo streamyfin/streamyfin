@@ -173,13 +173,14 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
             model.failure?.let { message ->
                 Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
             }
-            RemoteBar(viewModel, Modifier.inert(!model.seekEnabled))
+            RemoteBar(viewModel, enabled = model.seekEnabled, modifier = Modifier.inert(!model.seekEnabled))
         }
         RemoteSlot.TRANSPORT -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             RemoteTransportRow(
                 viewModel,
                 layout,
                 spinner = model.playShowsSpinner,
+                enabled = model.transportEnabled,
                 modifier = Modifier.inert(!model.transportEnabled),
             )
         }

@@ -43,8 +43,6 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -133,25 +131,25 @@ internal fun RemoteTitles(viewModel: PlayerViewModel, compact: Boolean, modifier
  * on the right, the thumbnail bubble while dragging. The local "Skip intro" sits above it, on the right.
  */
 @Composable
-internal fun RemoteBar(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
+internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
         viewModel.activeSegment?.takeIf { it.skipMode != "auto" }?.let { segment ->
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                 SkipSegmentButton(viewModel = viewModel, segment = segment)
             }
         }
-        PlayerBottomBar(viewModel = viewModel)
+        PlayerBottomBar(viewModel = viewModel, enabled = enabled)
     }
 }
 
 /**
- * A control the TV's state leaves inactive: dimmed, deaf to taps and drags (taken in the Initial pass, before the
- * control sees them), and said disabled to TalkBack. The screen's drag down still sees them: it does not consume.
+ * A control the TV's state leaves inactive: dimmed, and deaf to taps and drags (taken in the Initial pass, before
+ * the control sees them). The screen's drag down still sees them: it does not consume. TalkBack reads each button
+ * and the bar as its own node, so each says it disabled itself (`enabled`): a disabled wrapper does not reach them.
  */
 internal fun Modifier.inert(inert: Boolean): Modifier =
     if (!inert) this else this
         .alpha(PlayerConstants.REMOTE_INERT_ALPHA)
-        .semantics { disabled() }
         .pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
@@ -160,13 +158,14 @@ internal fun Modifier.inert(inert: Boolean): Modifier =
 
 /** Previous, back, play, forward, next: the chrome's transport at the remote sizes, play a white disc. */
 @Composable
-internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout, spinner: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout, spinner: Boolean, enabled: Boolean, modifier: Modifier = Modifier) {
     val t = RemoteTransport.of(layout)
     CenterControls(
         viewModel = viewModel,
         modifier = modifier,
         style = TransportStyle(side = t.sideDp.dp, seek = t.seekDp.dp, play = t.playDp.dp, gap = t.gapDp.dp, disc = true, fit = true),
         showsSpinner = spinner,
+        enabled = enabled,
     )
 }
 
@@ -280,7 +279,7 @@ private fun RemoteTrackButtons(viewModel: PlayerViewModel, tracksEnabled: Boolea
     if (viewModel.audioMenu.isNotEmpty()) {
         AudioMenu(viewModel) { open ->
             Box(Modifier.inert(!tracksEnabled)) {
-                ActiveIconButton(Icons.Default.GraphicEq, viewModel.strings.get("audio", "Audio"), active = false, onClick = open)
+                ActiveIconButton(Icons.Default.GraphicEq, viewModel.strings.get("audio", "Audio"), active = false, enabled = tracksEnabled, onClick = open)
             }
         }
     }
@@ -288,15 +287,15 @@ private fun RemoteTrackButtons(viewModel: PlayerViewModel, tracksEnabled: Boolea
         val on = RemoteActive.subtitlesOn(viewModel.subtitleMenu.firstOrNull { it.selected }?.jellyfinIndex)
         SubtitleMenu(viewModel) { open ->
             Box(Modifier.inert(!tracksEnabled)) {
-                ActiveIconButton(Icons.Default.ClosedCaption, viewModel.strings.get("subtitles", "Subtitles"), active = on, onClick = open)
+                ActiveIconButton(Icons.Default.ClosedCaption, viewModel.strings.get("subtitles", "Subtitles"), active = on, enabled = tracksEnabled, onClick = open)
             }
         }
     }
 }
 
 @Composable
-private fun ActiveIconButton(icon: ImageVector, description: String, active: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(RemoteButton)) {
+private fun ActiveIconButton(icon: ImageVector, description: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(RemoteButton), enabled = enabled) {
         ActiveIcon(icon, description, active)
     }
 }
