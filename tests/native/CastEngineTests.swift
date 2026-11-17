@@ -337,6 +337,18 @@ enum CastEngineTests {
       check("anIdleErrorReportsThePlaybackError", bench.delegate.errors == ["The receiver stopped on a playback error"])
     }
 
+    // iOS's SDK drops the media from the status the receiver stops on (an empty file it could not play): the
+    // error is said all the same.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "error", customData: nil, hasMedia: false))
+      check(
+        "anErrorStopWithoutMediaReportsThePlaybackError",
+        bench.delegate.errors == ["The receiver stopped on a playback error"]
+      )
+    }
+
     // Nothing plays once the receiver stops: a stall it stopped on ends the loading.
     do {
       let bench = Bench()

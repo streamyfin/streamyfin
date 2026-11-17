@@ -698,9 +698,15 @@ final class CastEngine: RemoteEngine {
     guard let status = port.status, status.hasMedia else {
       let finished = port.status?.playerState == State.idle && port.status?.idleReason == Reason.finished
       if finished, !(playerState == State.idle && idleReason == Reason.finished) { endWait(true) }
+      let wasError = playerState == State.idle && idleReason == Reason.error
       if keepsStopped(port.status) { return holdStopped() }
       clearMedia(port.status?.playerState ?? State.idle)
       idleReason = port.status?.idleReason
+      // The SDK drops the media from the status the receiver stops on: its error is said all the same.
+      if port.status?.playerState == State.idle, idleReason == Reason.error, !wasError {
+        log("stopped on an error without media")
+        delegate?.engine(self, didFailWithError: Self.playbackError)
+      }
       notifyState()
       return
     }
