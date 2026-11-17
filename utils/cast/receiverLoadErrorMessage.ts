@@ -36,3 +36,21 @@ export const castNotStartedMessage = (
       return null;
   }
 };
+
+const RECEIVER_LOAD_ERRORS = new Set<string>([
+  "playback_info_failed",
+  "playback_failed",
+  "rejected",
+] satisfies ReceiverLoadError[]);
+
+/**
+ * User-facing text for an error the remote engine reports: one of the receiver's load errors as such, any other
+ * text (a playback error the receiver stopped on) as a failed playback.
+ */
+export const remoteErrorMessage = (
+  t: TFunction,
+  error: string | null | undefined,
+): string =>
+  error && RECEIVER_LOAD_ERRORS.has(error)
+    ? receiverLoadErrorMessage(t, error as ReceiverLoadError)
+    : t("player.chromecast_playback_failed");

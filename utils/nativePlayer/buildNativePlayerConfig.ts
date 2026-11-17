@@ -398,7 +398,8 @@ export const buildTrackMenus = (options: {
   return { subtitles: subtitleItems, audio: audioItems, quality: qualityItems };
 };
 
-const buildMetadata = (item: BaseItemDto, api: Api | null) => {
+/** What a player screen shows of the item, the remote one included. */
+export const buildMetadata = (item: BaseItemDto, api: Api | null) => {
   const isEpisode = item.Type === "Episode";
   let subtitle: string | undefined;
   if (isEpisode) {

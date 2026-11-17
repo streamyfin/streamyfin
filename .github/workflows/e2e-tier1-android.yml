@@ -52,6 +52,7 @@ jobs:
               - 'providers/MusicPlayerProvider.tsx'
               - 'providers/NativePlayerProvider.tsx'
               - 'utils/nativePlayer/buildNativePlayerConfig.ts'
+              - 'utils/remotePlayer/playOnRemote.ts'
               - 'app/(auth)/now-playing.tsx'
               - 'components/settings/RemotePlaybackQualitySettings.tsx'
               # The screens the flows find by their test ids.

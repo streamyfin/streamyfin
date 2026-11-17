@@ -42,8 +42,10 @@ import {
   resolvePlay,
   waitForTarget,
 } from "@/utils/cast/playTarget";
+import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
+import { playOnRemote } from "@/utils/remotePlayer/playOnRemote";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -122,20 +124,27 @@ export const PlayButton: React.FC<Props> = ({
         Alert.alert(t("player.client_error"), t("player.missing_parameters"));
         return;
       }
-      const result = await sendToReceiver(
-        { api, userId: user.Id, store, t },
-        {
-          item,
-          positionTicks,
-          mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
-          audioIndex: selectedOptions.audioIndex,
-          subtitleIndex: selectedOptions.subtitleIndex,
-        },
-        remote,
-        // Another account or a later play choice by then gets nothing sent.
-        () =>
-          store.get(userAtom)?.Id !== user.Id || !isLatestPlayChoice(choice),
-      );
+      const deps = { api, userId: user.Id, store, t };
+      const play = {
+        item,
+        positionTicks,
+        mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+        audioIndex: selectedOptions.audioIndex,
+        subtitleIndex: selectedOptions.subtitleIndex,
+      };
+      // Another account or a later play choice by then gets nothing sent.
+      const isStale = () =>
+        store.get(userAtom)?.Id !== user.Id || !isLatestPlayChoice(choice);
+      if (remotePlayerRouted()) {
+        // Our remote player opens at once and says a load the TV did not start itself, with Play here: only a
+        // screen that could not open is said here.
+        const result = await playOnRemote(deps, play, remote, isStale);
+        if (result.status === "failed") {
+          Alert.alert(t("player.client_error"), result.message);
+        }
+        return;
+      }
+      const result = await sendToReceiver(deps, play, remote, isStale);
       if (result.status === "notStarted" || result.status === "failed") {
         Alert.alert(t("player.client_error"), result.message);
       } else if (

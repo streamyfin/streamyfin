@@ -7,8 +7,15 @@ import {
 } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Alert } from "react-native";
-import { showExpandedControls } from "@/modules/mpv-player/src/cast";
+import {
+  loadOnReceiver,
+  showExpandedControls,
+} from "@/modules/mpv-player/src/cast";
 import { userAtom } from "@/providers/JellyfinProvider";
+import {
+  createNativePlayerDoubleState,
+  type NativePlayerDoubleState,
+} from "@/test-utils/nativePlayer";
 import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { castToJellyfinReceiver } from "@/utils/cast/jellyfinReceiver";
 import { choosePlay, isPressForTargetHeld } from "@/utils/cast/playTarget";
@@ -100,6 +107,7 @@ jest.mock("@/modules/mpv-player/src/cast", () => {
       return { remove: () => mockTargetListeners.delete(listener) };
     },
     remoteTarget: () => mockTarget,
+    loadOnReceiver: jest.fn(async () => ({ outcome: "loaded" })),
     showExpandedControls: jest.fn(),
     CastMediaPlayerState: jest.requireActual(
       "@/modules/mpv-player/src/cast/Cast.types",
@@ -151,12 +159,31 @@ jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   currentReceiverName: async () => "Salon",
   parseReceiverCustomData: jest.requireActual("@/utils/cast/jellyfinReceiver")
     .parseReceiverCustomData,
+  receiverNameFor: jest.requireActual("@/utils/cast/jellyfinReceiver")
+    .receiverNameFor,
   toReceiverRequest: jest.requireActual("@/utils/cast/jellyfinReceiver")
     .toReceiverRequest,
 }));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeErrorLog: jest.fn(),
+}));
+// The artwork's color is read natively; the remote screen stays on its neutral here.
+jest.mock("@/utils/imageColors", () => ({
+  extractImageColor: jest.fn(async () => null),
+}));
+// Closed unless a spec opens it: these specs are of the cast a release build makes, through the SDK's controls.
+let mockRouted = false;
+jest.mock("@/utils/cast/remotePlayerGate", () => ({
+  remotePlayerRouted: () => mockRouted,
+}));
+let mockPlayer: NativePlayerDoubleState = createNativePlayerDoubleState();
+jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
+  __esModule: true,
+  NativePlayerNativeModule:
+    require("@/test-utils/nativePlayer").nativePlayerDoubleModule(
+      () => mockPlayer,
+    ),
 }));
 
 const item = {
@@ -190,6 +217,38 @@ beforeEach(() => {
   getDefaultStore().set(effectiveSettingsAtom as never, mockSettings as never);
   (castToJellyfinReceiver as jest.Mock).mockClear();
   jest.mocked(showExpandedControls).mockClear();
+  mockRouted = false;
+  mockPlayer = createNativePlayerDoubleState();
+  mockPlayer.remoteUpdateAnswer = false;
+});
+
+// A development build: our remote player opens over the item and the TV loads through the session's engine.
+test("with the gate open Play goes to the remote player", async () => {
+  mockRouted = true;
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  expect(jest.mocked(loadOnReceiver).mock.calls[0][1]).toMatchObject({
+    items: [{ id: "item-1" }],
+  });
+  expect(castToJellyfinReceiver).not.toHaveBeenCalled();
+  expect(showExpandedControls).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalled();
+  expect(mockPlayMedia).not.toHaveBeenCalled();
+});
+
+// A release build: one sender only, the JS one, and the SDK's controls, until every entry opens ours.
+test("with the gate closed Play keeps the SDK's controls", async () => {
+  await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  expect(castToJellyfinReceiver).toHaveBeenCalledTimes(1);
+  expect(showExpandedControls).toHaveBeenCalledTimes(1);
+  expect(mockPlayer.remotePresented).toEqual([]);
+  expect(loadOnReceiver).not.toHaveBeenCalled();
 });
 
 // The glyph is the whole cue: the pill used to also mount the library's Cast
