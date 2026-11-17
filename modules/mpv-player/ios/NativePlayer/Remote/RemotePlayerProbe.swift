@@ -14,6 +14,8 @@ import UIKit
 /// the still watching cap: the end of the TV's list, a few seconds in. `-RemotePlayerProbeArtwork <url>`,
 /// `-RemotePlayerProbeTint '#top,#bottom,#accent'`, `-RemotePlayerProbeHeaderName <name>` and
 /// `-RemotePlayerProbeHeaderValue <value>` add an artwork, its tint and an image header, as Android's extras do.
+/// `-RemotePlayerProbeTintDelay <s>` opens the screen neutral and sends the tint that many seconds later, as JS
+/// does once it has the artwork's colors, so the fade can be watched.
 enum RemotePlayerProbe {
 	static let launchArgument = "RemotePlayerProbe"
 	static let notification = "expo.modules.mpvplayer.REMOTE_PLAYER_PROBE"
@@ -26,6 +28,7 @@ enum RemotePlayerProbe {
 	/// the tint JS would send for it (`#top,#bottom,#accent`), and one header the images are asked for with.
 	static let artworkArgument = "RemotePlayerProbeArtwork"
 	static let tintArgument = "RemotePlayerProbeTint"
+	static let tintDelayArgument = "RemotePlayerProbeTintDelay"
 	static let headerNameArgument = "RemotePlayerProbeHeaderName"
 	static let headerValueArgument = "RemotePlayerProbeHeaderValue"
 
@@ -76,12 +79,14 @@ enum RemotePlayerProbe {
 		let defaults = UserDefaults.standard
 		metadata.artworkUri = defaults.string(forKey: artworkArgument)
 		config.metadata = metadata
+		let tintDelay = defaults.double(forKey: tintDelayArgument)
+		var lateTint: RemoteTintRecord?
 		if let parts = defaults.string(forKey: tintArgument)?.split(separator: ","), parts.count == 3 {
 			let tint = RemoteTintRecord()
 			tint.top = String(parts[0])
 			tint.bottom = String(parts[1])
 			tint.accent = String(parts[2])
-			config.tint = tint
+			if tintDelay > 0 { lateTint = tint } else { config.tint = tint }
 		}
 		if let name = defaults.string(forKey: headerNameArgument), let value = defaults.string(forKey: headerValueArgument) {
 			config.imageHeaders = [name: value]
@@ -119,6 +124,12 @@ enum RemotePlayerProbe {
 			session.teardownImmediately()
 			current = nil
 			return log("failed: \(error.localizedDescription)")
+		}
+		if let lateTint {
+			DispatchQueue.main.asyncAfter(deadline: .now() + tintDelay) {
+				session.updateTint(lateTint)
+				log("tint after \(tintDelay) s")
+			}
 		}
 		logPosition(engine)
 	}
