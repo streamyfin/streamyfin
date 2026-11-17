@@ -140,6 +140,17 @@ public class CastModule: Module {
       RemotePlayback.shared.reload(server: server.server)
     }.runOnQueue(.main)
 
+    // Next or previous inside the receiver's queue: a list that is not a series moves there.
+    AsyncFunction("skipOnReceiver") { (direction: String) in
+      self.ensureListening()
+      guard let engine = RemotePlayback.shared.engine else { return }
+      switch direction {
+      case "next": engine.skipToNext()
+      case "previous": engine.skipToPrevious()
+      default: break
+      }
+    }.runOnQueue(.main)
+
     // False when discovery does not know the device; the state then follows the session events.
     AsyncFunction("connectToDevice") { (deviceId: String) -> Bool in
       self.ensureListening()
@@ -536,6 +547,7 @@ public class CastModule: Module {
       ["outcome": "notSent", "error": "No Cast on this platform"]
     }
     AsyncFunction("reloadOnReceiver") { (_: [String: Any]) in }
+    AsyncFunction("skipOnReceiver") { (_: String) in }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
     AsyncFunction("setTargetVolume") { (_: Double) in }

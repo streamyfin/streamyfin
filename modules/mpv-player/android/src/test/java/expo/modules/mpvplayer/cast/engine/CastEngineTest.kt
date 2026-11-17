@@ -964,6 +964,56 @@ class CastEngineTest {
         assertEquals(2, JSONObject(port.sent.last().second).getJSONObject("options").getInt("startIndex"))
     }
 
+    // A lone episode sent with its type is unfolded by the receiver into the rest of the series (proof of 12/11):
+    // the reload of one sent without it must not add one.
+    @Test
+    fun aReloadOfASingleUntypedEpisodeStaysUntyped() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "e1", name = "Pilot", mediaType = "Video")))) {}
+        media.report(snapshot(customData = ours("itemId" to "e1"), hasTextTracks = false), 0)
+        engine.setSubtitleTrack(3)
+        val items = JSONObject(port.sent.last().second).getJSONObject("options").getJSONArray("items")
+        assertEquals(1, items.length())
+        assertFalse(items.getJSONObject(0).has("Type"))
+    }
+
+    // The bounded list is the whole of what the TV plays: a reload for a track mid-list sends what is left of it.
+    @Test
+    fun aTrackChangeKeepsTheRestOfTheList() {
+        val engine = engine()
+        val list = listOf("e1", "e2", "e3").map { ReceiverItem(id = it, type = "Episode", mediaType = "Video") }
+        engine.load(SERVER, ReceiverPlayRequest(items = list)) {}
+        media.report(snapshot(customData = ours("itemId" to "e1", "playSessionId" to "ps-1"), hasTextTracks = false), 0)
+        media.report(snapshot(customData = ours("itemId" to "e2", "playSessionId" to "ps-2"), hasTextTracks = false), 0)
+        engine.setSubtitleTrack(3)
+        val options = JSONObject(port.sent.last().second).getJSONObject("options")
+        val items = options.getJSONArray("items")
+        val ids = (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
+        assertEquals(listOf("e2", "e3"), ids.drop(options.optInt("startIndex", 0)))
+    }
+
+    // A Cast message holds 64 KB: a long list (a disabled still watching preset) goes in a PlayNow of the first
+    // window, the rest by PlayLast once the receiver took it, a window at a time.
+    @Test
+    fun aLongListGoesOutInWindowsOfOneHundred() {
+        val engine = engine()
+        val ids = (0 until 250).map { "e$it" }
+        val results = mutableListOf<CastLoadResult>()
+        engine.load(SERVER, ReceiverPlayRequest(items = ids.map { ReceiverItem(id = it, type = "Episode", mediaType = "Video") })) { results += it }
+        val playNow = JSONObject(port.sent.single().second).getJSONObject("options").getJSONArray("items")
+        assertEquals(ids.take(CastEngineConstants.MAX_QUEUE_ITEMS), (0 until playNow.length()).map { playNow.getJSONObject(it).getString("Id") })
+        media.report(snapshot(customData = ours("itemId" to "e0", "playSessionId" to "ps-1")), 0)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+        val appended = port.sent.drop(1).map { (_, message) -> JSONObject(message) }
+        assertEquals(listOf("PlayLast", "PlayLast"), appended.map { it.getString("command") })
+        val windows = appended.map { message ->
+            val items = message.getJSONObject("options").getJSONArray("items")
+            (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
+        }
+        assertEquals(listOf(ids.subList(100, 200), ids.subList(200, 250)), windows)
+        assertEquals(ids, engine.queueItemIds)
+    }
+
     @Test
     fun aQueueThatPlaysOnFollowsTheCopyOfAnItemQueuedTwice() {
         val engine = engine()

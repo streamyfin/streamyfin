@@ -1,9 +1,13 @@
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
+  type RemoteTarget,
+  remotePlayback,
   setRemoteServer,
+  skipOnReceiver,
   useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import { dismissNativePlayer } from "@/modules/mpv-player/src/NativePlayerPresentation";
@@ -14,10 +18,19 @@ import {
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
+import { effectiveSettingsAtom } from "@/utils/atoms/settings";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
+import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
-import { logAndCaptureError } from "@/utils/log";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import { playOnRemote } from "@/utils/remotePlayer/playOnRemote";
+import {
+  episodeAfter,
+  episodeBefore,
+} from "@/utils/remotePlayer/remoteEpisodes";
+import { seriesEpisodes } from "@/utils/remotePlayer/seriesEpisodes";
 import { secondsToTicks } from "@/utils/time";
 import { stopAndPlayHere } from "./OutputPickerActions";
 
@@ -25,7 +38,8 @@ import { stopAndPlayHere } from "./OutputPickerActions";
  * Gives native the current account's server, which the remote engine plays from and names in every
  * message, and takes it back at sign out: without a server the engine goes, sending nothing to the TV.
  * While a remote player is up it answers its events: Play here goes on on the phone, an error of the
- * receiver after the load is said on the screen, and closing it only forgets the play, sending nothing.
+ * receiver after the load is said on the screen, previous, next and a pick in the episode list send that episode
+ * from its start with its own bounded list, and closing it only forgets the play, sending nothing.
  * Only behind the development gate for now. Mounted once, at the root, off TV; renders nothing.
  */
 export function RemotePlayerController() {
@@ -47,10 +61,16 @@ export function RemotePlayerController() {
   const playMedia = usePlayMedia();
   const syncPlay = useSyncPlay();
   // Read when the screen asks: set at the commit, so an event arriving before the passive effects reads it.
-  const latest = useRef({ playMedia, inGroup: syncPlay.enabled, t });
+  const castTarget = target?.kind === "cast" ? target : null;
+  const latest = useRef({
+    playMedia,
+    inGroup: syncPlay.enabled,
+    t,
+    castTarget,
+  });
   useLayoutEffect(() => {
-    latest.current = { playMedia, inGroup: syncPlay.enabled, t };
-  }, [playMedia, syncPlay.enabled, t]);
+    latest.current = { playMedia, inGroup: syncPlay.enabled, t, castTarget };
+  }, [playMedia, syncPlay.enabled, t, castTarget]);
 
   useEffect(() => {
     if (!routed) return;
@@ -92,7 +112,78 @@ export function RemotePlayerController() {
         () => latest.current.inGroup || store.get(userAtom)?.Id !== user?.Id,
       );
     };
+    // An episode from its start, its tracks from the play settings (the language remembered for the series).
+    const sendEpisode = async (itemId: string, remote: RemoteTarget) => {
+      const api = store.get(apiAtom);
+      const userId = store.get(userAtom)?.Id;
+      if (!api || !userId) return;
+      const choice = choosePlay();
+      const { data: item } = await getLibraryApi(api).getItem({
+        itemId,
+        userId,
+      });
+      const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+        item,
+        store.get(effectiveSettingsAtom),
+      );
+      const result = await playOnRemote(
+        { api, userId, store, t: latest.current.t },
+        {
+          item,
+          positionTicks: 0,
+          mediaSourceId: mediaSource?.Id ?? undefined,
+          audioIndex,
+          subtitleIndex,
+        },
+        remote,
+        () => !isLatestPlayChoice(choice) || store.get(userAtom)?.Id !== userId,
+      );
+      if (result.status === "failed") {
+        writeErrorLog("The remote player could not take the episode", result);
+      }
+    };
+    // The episode next to the one the TV plays, read from the TV and not from the screen. A list that is not a series
+    // moves inside the receiver's queue.
+    const move = async (direction: "next" | "previous") => {
+      const remote = latest.current.castTarget;
+      const api = store.get(apiAtom);
+      const userId = store.get(userAtom)?.Id;
+      const sent = store.get(remotePlayAtom)?.play.item;
+      if (!remote || !api || !userId) return;
+      if (sent?.Type !== "Episode" || !sent.SeriesId) {
+        await skipOnReceiver(direction);
+        return;
+      }
+      const episodes = await seriesEpisodes(api, userId, sent.SeriesId);
+      const current = remotePlayback().itemId;
+      const wanted =
+        direction === "next"
+          ? episodeAfter(episodes, current)
+          : episodeBefore(episodes, current);
+      if (wanted) await sendEpisode(wanted.id, remote);
+    };
+    const moveOrLog = (direction: "next" | "previous") => {
+      move(direction).catch((error) => {
+        logAndCaptureError("Moving between episodes on the TV failed", error);
+      });
+    };
     const subscriptions = [
+      addRemotePlayerListener("onNextEpisodeRequested", () =>
+        moveOrLog("next"),
+      ),
+      addRemotePlayerListener("onPreviousEpisodeRequested", () =>
+        moveOrLog("previous"),
+      ),
+      addRemotePlayerListener("onEpisodeSelected", ({ itemId }) => {
+        const remote = latest.current.castTarget;
+        if (!remote) return;
+        sendEpisode(itemId, remote).catch((error) => {
+          logAndCaptureError(
+            "Sending the episode picked to the TV failed",
+            error,
+          );
+        });
+      }),
       addRemotePlayerListener("onPlayHereRequested", ({ positionSec }) => {
         playHere(positionSec).catch((error) => {
           logAndCaptureError("Play here from the remote player failed", error);

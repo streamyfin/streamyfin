@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer.ui
 
+import expo.modules.mpvplayer.nativeplayer.engine.isRemote
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -95,9 +96,12 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (style.fit) FittingGapArrangement(style.gap) else Arrangement.spacedBy(style.gap)
     ) {
-        // Previous Episode button if episode list exists
+        // Previous Episode button if episode list exists. A remote screen asks the view model, which restarts the
+        // episode or asks JS for the one before: the receiver's queue is not the series.
+        val remote = viewModel.engine?.isRemote == true
+        val neighbours = if (remote) viewModel.remoteNeighbours else null
         val currentIdx = viewModel.episodeList.indexOfFirst { it.isCurrent }
-        val hasPrevious = currentIdx > 0
+        val hasPrevious = if (neighbours != null) neighbours.hasPrevious || neighbours.hasNext else currentIdx > 0
         if (hasPrevious) {
             Box(
                 modifier = Modifier
@@ -105,8 +109,12 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                     .clip(CircleShape)
                     .background(scrim)
                     .clickable(enabled = enabled) {
-                        val prevItem = viewModel.episodeList[currentIdx - 1]
-                        viewModel.selectEpisode(prevItem.itemId)
+                        if (remote) {
+                            viewModel.remotePrevious()
+                        } else {
+                            val prevItem = viewModel.episodeList[currentIdx - 1]
+                            viewModel.selectEpisode(prevItem.itemId)
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -189,7 +197,9 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
         }
 
         // Next Episode button
-        val hasNext = (currentIdx >= 0 && currentIdx < viewModel.episodeList.size - 1) || viewModel.nextEpisode != null
+        // On a remote screen the next episode is the list's: nextEpisode is what comes after the list sent.
+        val hasNext = neighbours?.hasNext
+            ?: ((currentIdx >= 0 && currentIdx < viewModel.episodeList.size - 1) || viewModel.nextEpisode != null)
         if (hasNext) {
             Box(
                 modifier = Modifier
@@ -197,7 +207,9 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
                     .clip(CircleShape)
                     .background(scrim)
                 .clickable(enabled = enabled) {
-                    if (viewModel.nextEpisode != null) {
+                    if (remote) {
+                        viewModel.remoteNext()
+                    } else if (viewModel.nextEpisode != null) {
                         viewModel.playNextEpisodeNow()
                     } else if (currentIdx >= 0 && currentIdx < viewModel.episodeList.size - 1) {
                         val nextItem = viewModel.episodeList[currentIdx + 1]

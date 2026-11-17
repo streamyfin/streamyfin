@@ -352,9 +352,12 @@ final class CastEngine: RemoteEngine {
       completion(.notSent(Self.noSessionError))
       return
     }
+    // A Cast message holds 64 KB: the PlayNow carries the window that starts the play, the items after it go
+    // by PlayLast once the receiver took it, as a later `enqueue` would.
+    let (first, later) = Self.firstWindow(request)
     let message: [String: Any]
     do {
-      message = try ReceiverProtocol.playNow(server: server, request: request)
+      message = try ReceiverProtocol.playNow(server: server, request: first)
     } catch {
       completion(.notSent(String(describing: error)))
       return
@@ -364,7 +367,7 @@ final class CastEngine: RemoteEngine {
     let previousIndex = playingIndex
     queueGeneration += 1
     let generation = queueGeneration
-    let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
+    let receiverRequest = ReceiverProtocol.toReceiverRequest(first)
     self.server = server
     queue = receiverRequest.items
     playingIndex = receiverRequest.startIndex ?? 0
@@ -373,7 +376,13 @@ final class CastEngine: RemoteEngine {
     endWait(false)
     noCompatibleStreamFollows = false
     // The media on the TV now, read at the send: a status of its play session is never this load.
-    let load = PendingLoad(tracker: ReceiverLoadTracker(request: request, previousPlaySessionId: ours?.playSessionId), completion: completion)
+    let settled: (CastLoadResult) -> Void = later.isEmpty ? completion : { [weak self] result in
+      if case .settled(.loaded) = result, let self, generation == self.queueGeneration {
+        self.enqueueWindows(Self.windows(of: later)[...], generation: generation)
+      }
+      completion(result)
+    }
+    let load = PendingLoad(tracker: ReceiverLoadTracker(request: first, previousPlaySessionId: ours?.playSessionId), completion: settled)
     let previous = pendingLoad
     // The new load is pending before the old one settles, so loading never blinks off between them.
     pendingLoad = load
@@ -398,6 +407,24 @@ final class CastEngine: RemoteEngine {
       self.setLoading(self.isBuffering())
       self.notifyState()
       load.completion(.notSent(error))
+    }
+  }
+
+  /// The part of `request` one PlayNow carries, the window holding its start, and the ids that come after it.
+  private static func firstWindow(_ request: ReceiverPlayRequest) -> (ReceiverPlayRequest, [String]) {
+    guard request.items.count > CastEngineConstants.maxQueueItems else { return (request, []) }
+    let selected = max(0, min(request.startIndex ?? 0, request.items.count - 1))
+    let window = ReceiverProtocol.queueWindow(request.items, selectedIndex: selected, maxItems: CastEngineConstants.maxQueueItems)
+    let end = selected - window.startIndex + window.items.count
+    var first = request
+    first.items = window.items
+    first.startIndex = window.startIndex > 0 ? window.startIndex : nil
+    return (first, request.items.dropFirst(end).compactMap(\.id))
+  }
+
+  private static func windows(of itemIds: [String]) -> [[String]] {
+    stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
+      Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
     }
   }
 
@@ -643,10 +670,7 @@ final class CastEngine: RemoteEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
-    let windows = stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
-      Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
-    }
-    enqueueWindows(windows[...], generation: queueGeneration)
+    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration)
   }
 
   // Each window once the channel took the one before: the queue then holds them in the order the

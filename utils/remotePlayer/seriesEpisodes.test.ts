@@ -15,10 +15,12 @@ describe("seriesEpisodes", () => {
     const episodes = await seriesEpisodes(api, "user-1", "series-1");
 
     // The server's order is the one its series page and the local player follow.
-    expect(episodes).toEqual([
+    expect(episodes.map(({ item: _item, ...episode }) => episode)).toEqual([
       { id: "s1e2", name: "Second", runTimeTicks: 13_200_000_000 },
       { id: "s1e1", name: null, runTimeTicks: null },
     ]);
+    // The server's item stays with it, for the episode list the remote screen shows.
+    expect(episodes[0].item).toMatchObject({ Id: "s1e2", Name: "Second" });
     const [request] = api.mock.history.get;
     const query = new URL(request.url ?? "").searchParams;
     expect(query.get("userId")).toBe("user-1");

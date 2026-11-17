@@ -287,6 +287,16 @@ class CastModule : Module() {
             RemotePlayback.shared.reload(server.toServer())
         }.runOnQueue(Queues.MAIN)
 
+        // Next or previous inside the receiver's queue: a list that is not a series moves there.
+        AsyncFunction("skipOnReceiver") { direction: String ->
+            ensureContext()
+            val engine = RemotePlayback.shared.engine ?: return@AsyncFunction
+            when (direction) {
+                "next" -> engine.skipToNext()
+                "previous" -> engine.skipToPrevious()
+            }
+        }.runOnQueue(Queues.MAIN)
+
         Function("getCurrentSession") {
             if (castContext == null) mainHandler.post { ensureContext() }
             cachedSession

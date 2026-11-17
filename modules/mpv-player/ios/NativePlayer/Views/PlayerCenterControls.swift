@@ -152,13 +152,14 @@ struct PlayerCenterControls: View {
 	/// Previous, back, play, forward, next at fixed sizes: play a white disc with a dark icon and its loading ring
 	/// inside, no chapter buttons (the "more" menu has the chapters).
 	private func discRow(_ s: TransportStyle) -> some View {
-		let showEpisodeButtons = viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true
+		// From the episode list, not nextEpisode: on a remote screen that is what comes after the list sent. Previous
+		// restarts the episode or asks JS for the one before, so it stands on the first episode of a list too.
+		let neighbours = viewModel.remoteNeighbours
 		return FittingGapStack(gap: s.gap) {
-			if showEpisodeButtons {
+			if neighbours.hasPrevious || neighbours.hasNext {
 				controlButton(systemName: "backward.end.fill", iconSize: 22, frame: s.side) {
-					viewModel.playPreviousEpisode()
+					viewModel.remotePrevious()
 				}
-				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 			}
 
 			seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: 28, frame: s.seek) {
@@ -186,12 +187,12 @@ struct PlayerCenterControls: View {
 				viewModel.seekForward()
 			}
 
-			if showEpisodeButtons {
+			if neighbours.hasPrevious || neighbours.hasNext {
 				controlButton(systemName: "forward.end.fill", iconSize: 22, frame: s.side) {
-					viewModel.playNextEpisode()
+					viewModel.remoteNext()
 				}
-				.opacity((viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext == true : viewModel.nextEpisode != nil) ? 1 : 0.35)
-				.disabled(viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext != true : viewModel.nextEpisode == nil)
+				.opacity(neighbours.hasNext ? 1 : 0.35)
+				.disabled(!neighbours.hasNext)
 			}
 		}
 	}

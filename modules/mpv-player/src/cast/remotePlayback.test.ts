@@ -16,6 +16,7 @@ import {
   reloadOnReceiver,
   remotePlayback,
   setRemoteServer,
+  skipOnReceiver,
   useRemotePlayback,
 } from "./remotePlayback";
 
@@ -130,12 +131,19 @@ test("reloadOnReceiver hands native the server", async () => {
   expect(mockCast.reloadCalls).toEqual([{ ...server, maxBitrate: 4_000_000 }]);
 });
 
+test("skipOnReceiver hands native the direction", async () => {
+  await skipOnReceiver("next");
+  await skipOnReceiver("previous");
+  expect(mockCast.skipCalls).toEqual(["next", "previous"]);
+});
+
 test("it answers notSent without the module", async () => {
   mockMissing = true;
   const result = await loadOnReceiver(server, request);
   expect(result.outcome).toBe("notSent");
   expect(result.error).toEqual(expect.any(String));
   await expect(reloadOnReceiver(server)).resolves.toBeUndefined();
+  await expect(skipOnReceiver("next")).resolves.toBeUndefined();
   expect(mockCast.loadCalls).toEqual([]);
   expect(mockCast.reloadCalls).toEqual([]);
 });
