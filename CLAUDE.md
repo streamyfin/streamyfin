@@ -130,6 +130,7 @@ Build and tooling:
 - `repack-shrunk-resources-missing-attrs` | AGP 9's R8 resource shrinking leaves XML naming attributes it removed; apktool cannot relink them, so the Android repack declares them and builds again
 - `expo-prebuilt-modules-need-matching-rn` | the prebuilt ExpoModulesCore uses React core classes of the RN patch the SDK targets; expo-modules-core 58.0.30 on react-native-tvos 0.88.0-0 dies in dyld at every iOS launch while the build stays green
 - `new-swift-file-needs-pod-install` | a Swift file added to a local module joins its Pods target only after `pod install`; until then xcodebuild fails on the types it declares
+- `robolectric-idle-hangs-on-a-playing-player` | a PlayerViewModel told it plays reposts a Choreographer frame callback every frame, so `shadowOf(getMainLooper()).idle()` never returns and the Gradle test task hangs with no error; a spec over a playing engine pauses it first or does not idle
 
 ## Project overview
 
@@ -200,7 +201,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module, the native player module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities, the remote target, the output sheet, the audio session's queues, the remote player's fake engine, its layout, its arrangement and its gestures), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities, the remote target, the output sheet, the audio session's queues, the remote player's fake engine, its layout, its arrangement, its gestures and its screen model, the remote playback holder), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

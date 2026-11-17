@@ -23,28 +23,32 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
+import expo.modules.mpvplayer.cast.playback.RemotePlaybackSnapshot
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.nativeplayer.AccessibilityIsolation
+import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.PresentedPlayer
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
-import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
 
 /**
  * The native chrome over a remote engine, with no surface: a remote control for what the TV plays. It leaves
  * the window alone (system bars shown, the phone sleeps and turns as usual), and holds no media session, no
- * volume or brightness control and no picture in picture. Closing it hands the engine back through its lease
- * and sends nothing to the TV. Every event it emits is marked remote.
+ * volume or brightness control and no picture in picture. It borrows the engine of the holder, which stays its
+ * delegate and relays its calls; closing it hands the engine back and sends nothing to the TV. The state the
+ * holder publishes decides what the screen shows and when it closes (RemoteScreenModel). Every event it emits
+ * is marked remote.
  */
 class RemotePlayerSession(
-    private val lease: RemoteEngineLease,
+    private val playback: RemotePlayback = RemotePlayback.shared,
     private val emit: (String, Map<String, Any?>) -> Unit,
     private val onTornDown: () -> Unit,
     /** What the screen draws; the session's tests draw nothing, Robolectric cannot idle an endless spinner. */
-    private val screenContent: @Composable (PlayerViewModel, RemoteScreenModel) -> Unit = { model, screen ->
+    private val screenContent: @Composable (PlayerViewModel, RemoteScreenState) -> Unit = { model, screen ->
         RemotePlayerScreen(model, screen)
     },
     /** The Cast session the TV button reports to TalkBack; the tests give their own. */
@@ -59,9 +63,10 @@ class RemotePlayerSession(
     private var lifecycleObserver: LifecycleEventObserver? = null
     private val accessibility = AccessibilityIsolation()
     private var closed = false
+    private var unfollowPlayback: (() -> Unit)? = null
 
     /** What the screen draws besides the view model; null until presented. */
-    var screenModel: RemoteScreenModel? = null
+    var screenState: RemoteScreenState? = null
         private set
 
     init {
@@ -70,19 +75,18 @@ class RemotePlayerSession(
     }
 
     fun present(activity: Activity, config: RemotePlayerConfigRecord) {
+        val engine = playback.engine ?: throw NoRemoteEngineException()
         // Opened from the app's Cast sheet: the sheet goes first, as for the local player.
         OutputPickerPresenter.dismissForPlayer()
         host = activity
-        val engine = lease.engine
-        engine.delegate = viewModel
         viewModel.engine = engine
         viewModel.applyCapabilities(pictureInPictureSupported = false, allowCast = false)
         viewModel.apply(config.toPresentConfig())
         // The TV button says the session's state to TalkBack; willTeardown stops following it.
         viewModel.followCast(hub)
 
-        val model = RemoteScreenModel(config.targetName, config.imageHeaders, config.tint)
-        screenModel = model
+        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel)
+        screenState = model
         val content = ComposeView(activity).apply {
             (activity as? LifecycleOwner)?.let { setViewTreeLifecycleOwner(it) }
             (activity as? ViewModelStoreOwner)?.let { setViewTreeViewModelStoreOwner(it) }
@@ -112,12 +116,28 @@ class RemotePlayerSession(
             }.also { lifecycle.addObserver(it) }
         }
 
-        // Starting a bound engine again does nothing: the TV keeps playing what it plays.
-        engine.start(PlayerEngine.Owner.NATIVE_SESSION) {}
+        // After apply(), which starts the view model at the config's position: the screen opens on the TV's. The
+        // holder started the engine with the session and stays its delegate.
+        playback.attachScreen(viewModel)
+        unfollowPlayback = playback.addListener(::follow)
+        follow(playback.snapshot)
+    }
+
+    // The holder publishes on the main thread. The film over with nothing after it, or the connection over: the
+    // screen closes, an end of playback reported first as the local player does.
+    private fun follow(snapshot: RemotePlaybackSnapshot) {
+        val state = screenState ?: return
+        if (closed) return
+        state.snapshot = snapshot
+        val close = state.model.closes ?: return
+        if (close == RemoteClose.PLAYBACK_ENDED) {
+            emit("onPlaybackEnded", markRemote(mapOf("positionSec" to viewModel.authoritativePosition)))
+        }
+        dismiss(close.reason)
     }
 
     /** The tint JS sends once it knows the artwork's color; the screen fades to it. */
-    fun updateTint(tint: RemoteTintRecord?) = onMain { screenModel?.updateTint(tint) }
+    fun updateTint(tint: RemoteTintRecord?) = onMain { screenState?.updateTint(tint) }
 
     override fun dismiss(reason: String, completion: (() -> Unit)?) {
         if (closed) {
@@ -146,7 +166,7 @@ class RemotePlayerSession(
         }
     }
 
-    // Detaches from the engine and hands it back: never stop(), which the lease's owner decides.
+    // Detaches from the engine and hands it back to the holder: never stop(), which the holder decides.
     private fun detach() {
         backCallback?.remove()
         backCallback = null
@@ -155,10 +175,11 @@ class RemotePlayerSession(
         screen?.let { (it.parent as? ViewGroup)?.removeView(it) }
         screen = null
         accessibility.restore()
-        if (lease.engine.delegate === viewModel) lease.engine.delegate = null
+        unfollowPlayback?.invoke()
+        unfollowPlayback = null
+        playback.detachScreen(viewModel)
         viewModel.engine = null
         host = null
-        lease.release()
         onTornDown()
     }
 
@@ -186,12 +207,34 @@ private class BackKeyFrame(context: Context, private val onBack: () -> Unit) : F
 }
 
 /**
- * What the remote screen draws besides the view model: the TV's name, the headers for the images it loads, and its
- * colors, which start from the config's tint and follow each one JS sends.
+ * What the remote screen draws besides the view model: the TV's name, the headers for the images it loads, its
+ * colors, which start from the config's tint and follow each one JS sends, and what the TV does.
  */
-class RemoteScreenModel(val targetName: String?, val imageHeaders: Map<String, String>?, tint: RemoteTintRecord?) {
+class RemoteScreenState(
+    val targetName: String?,
+    val imageHeaders: Map<String, String>?,
+    tint: RemoteTintRecord?,
+    private val viewModel: PlayerViewModel,
+) {
     var colors by mutableStateOf(colorsOf(tint))
         private set
+
+    /** What the TV does, as the holder last published it. */
+    var snapshot by mutableStateOf(RemotePlaybackSnapshot.NONE)
+        internal set
+
+    /**
+     * What the screen shows of the TV. Read in composition, it follows the snapshot, the next episode and the
+     * engine's error. The reduced player (media our server does not know) comes with the foreign media.
+     */
+    val model: RemoteScreenModel
+        get() = RemoteScreenModel.of(
+            snapshot,
+            targetName,
+            hasNext = viewModel.nextEpisode != null,
+            reduced = false,
+            failure = viewModel.errorMessage,
+        )
 
     fun updateTint(tint: RemoteTintRecord?) {
         colors = colorsOf(tint)

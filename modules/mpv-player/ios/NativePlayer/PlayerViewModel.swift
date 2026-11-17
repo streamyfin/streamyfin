@@ -1926,6 +1926,8 @@ extension PlayerViewModel: PlayerEngineDelegate {
 			syncPlayAction("ended")
 			return
 		}
+		// What follows a remote end is the remote screen's to decide, from the state of the TV (RemoteScreenModel).
+		guard capabilities.nextEpisodeCountdown else { return }
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
 		if let next = nextEpisode, capabilities.nextEpisodeCountdown, next.countdownSeconds > 0, !countdownCanceled {

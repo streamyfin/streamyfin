@@ -2,17 +2,13 @@ package expo.modules.mpvplayer.nativeplayer
 
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.DeviceKind
-import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
-import expo.modules.mpvplayer.cast.target.RemoteTargets
-import expo.modules.mpvplayer.nativeplayer.remote.FakeRemoteEngine
-import expo.modules.mpvplayer.nativeplayer.remote.RemoteEngineLease
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
 import expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerSession
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
@@ -69,20 +65,6 @@ class NativePlayerModule : Module() {
     private val propsThread = HandlerThread("mpv-props").apply { start() }
     private val propsHandler = Handler(propsThread.looper)
 
-    /**
-     * The remote engine a screen borrows, null without one. Tier 1 builds (fake Cast receivers) lend a fake
-     * TV, stopped when the screen hands it back; the engine bound to a real Cast session comes later.
-     */
-    private fun remoteEngineLease(): RemoteEngineLease? {
-        if (!RemoteTargets.fakeDevices) return null
-        val main = Handler(Looper.getMainLooper())
-        val fake = FakeRemoteEngine(
-            schedule = mainLooperSchedule(),
-            runOnMain = { block -> if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) },
-        )
-        return RemoteEngineLease(fake) { fake.stop() }
-    }
-
     override fun definition() = ModuleDefinition {
         Name("NativePlayer")
 
@@ -132,19 +114,20 @@ class NativePlayerModule : Module() {
             val context = appContext.reactContext
             val isTv = context != null && DeviceKind.isTelevision(context)
             val alreadyPresented = this@NativePlayerModule.presented != null
-            val lease = if (!alreadyPresented && !isTv) remoteEngineLease() else null
-            remotePresentRefusal(presented = alreadyPresented, hasRemoteEngine = lease != null, isTv = isTv)?.let {
+            // The engine the holder keeps with the Cast session (the fake receivers' fake one in a tier 1 build);
+            // none without a session, or in a published build, where JS gives the holder no server.
+            val hasRemoteEngine = RemotePlayback.shared.engine != null
+            remotePresentRefusal(presented = alreadyPresented, hasRemoteEngine = hasRemoteEngine, isTv = isTv)?.let {
                 promise.reject(it)
                 return@AsyncFunction
             }
             val activity = appContext.currentActivity
-            if (lease == null || activity == null) {
-                lease?.release()
+            if (activity == null) {
                 promise.reject("NO_PRESENTER", "Could not find an Activity to present the remote player from", null)
                 return@AsyncFunction
             }
             val remote = RemotePlayerSession(
-                lease = lease,
+                playback = RemotePlayback.shared,
                 emit = { name, body -> sendEvent(name, body) },
                 onTornDown = { this@NativePlayerModule.presented = null },
             )

@@ -7,12 +7,22 @@ import SwiftUI
 /// goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
 struct RemotePlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
-	@ObservedObject var screen: RemoteScreenModel
-	let targetName: String?
+	@ObservedObject var screen: RemoteScreenState
 	@Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
 	private static let slotGap: CGFloat = 16
 	private static let padding = CGFloat(PlayerConstants.remoteHorizontalPadding)
+
+	/// What the TV does; read in the body, the screen follows each snapshot, the next episode and the engine's error.
+	private var model: RemoteScreenModel { screen.model }
+
+	/// The TV button's text: the TV's name, or that the session is coming back.
+	private var targetName: String? {
+		switch model.targetLabel {
+		case let .name(name): return name
+		case .reconnecting: return viewModel.str("reconnecting", "Reconnecting")
+		}
+	}
 
 	var body: some View {
 		GeometryReader { proxy in
@@ -24,7 +34,7 @@ struct RemotePlayerRootView: View {
 
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
-					RemoteTopBar(viewModel: viewModel, targetName: targetName)
+					RemoteTopBar(viewModel: viewModel, targetName: targetName, tracksEnabled: model.trackMenusEnabled)
 				}
 
 				HStack(spacing: 0) {
@@ -87,19 +97,30 @@ struct RemotePlayerRootView: View {
 		case .header:
 			RemoteHeader(viewModel: viewModel)
 		case .artwork:
+			// The artwork's double tap seeks like the bar, so it rests when the bar does.
 			RemoteArtwork(viewModel: viewModel, size: artwork)
-				.overlay { artworkTaps }
+				.overlay { if model.seekEnabled { artworkTaps } }
 				.frame(maxWidth: layout == .portrait ? .infinity : nil)
 		case .titles:
 			RemoteTitles(viewModel: viewModel, compact: false)
 				.frame(maxWidth: .infinity, alignment: .leading)
 		case .bar:
-			RemoteBar(viewModel: viewModel)
+			VStack(alignment: .leading, spacing: 8) {
+				// A failure is said above the bar, whatever the TV does.
+				if let failure = model.failure {
+					Text(failure)
+						.font(.subheadline)
+						.foregroundStyle(.white)
+				}
+				RemoteBar(viewModel: viewModel)
+					.remoteInert(!model.seekEnabled)
+			}
 		case .transport:
-			RemoteTransportRow(viewModel: viewModel, layout: layout)
+			RemoteTransportRow(viewModel: viewModel, layout: layout, spinner: model.playShowsSpinner)
+				.remoteInert(!model.transportEnabled)
 				.frame(maxWidth: .infinity)
 		case .bottomRow:
-			RemoteBottomRow(viewModel: viewModel, targetName: targetName)
+			RemoteBottomRow(viewModel: viewModel, targetName: targetName, tracksEnabled: model.trackMenusEnabled)
 		}
 	}
 

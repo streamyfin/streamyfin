@@ -1,0 +1,70 @@
+import Foundation
+
+/// What the TV button says: the TV's name, or that the session is coming back.
+enum TargetLabel: Equatable {
+	case name(String?)
+	case reconnecting
+}
+
+/// Why the model closes the screen.
+enum RemoteClose: Equatable {
+	/// The film is over, or the list ended with nothing after it.
+	case playbackEnded
+	/// The connection to the TV is over.
+	case remoteEnded
+
+	/// The dismiss reason JS gets.
+	var reason: String {
+		switch self {
+		case .playbackEnded: return "playbackEnded"
+		case .remoteEnded: return "remoteEnded"
+		}
+	}
+}
+
+/// What the remote screen shows for the state of the TV, the design's table of states: a loading TV spins in
+/// the play button, a reconnecting one dims the controls and cuts the transport, between two items the bar and
+/// the track menus rest, a TV stopped from its remote keeps the screen and play resumes, and the end of the film
+/// or of the connection closes it. Pure. Twin: RemoteScreenModel.kt.
+struct RemoteScreenModel: Equatable {
+	var targetLabel: TargetLabel
+	var controlsDimmed: Bool
+	var transportEnabled: Bool
+	var seekEnabled: Bool
+	var trackMenusEnabled: Bool
+	var playShowsSpinner: Bool
+	var nextUpVisible: Bool
+	/// A failure, shown whatever the rest says.
+	var failure: String?
+	var closes: RemoteClose?
+
+	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not
+	/// know, so there are no track menus.
+	static func of(
+		_ snapshot: RemotePlaybackSnapshot, targetName: String?, hasNext: Bool, reduced: Bool, failure: String?
+	) -> RemoteScreenModel {
+		let reconnecting = snapshot.reconnecting
+		// Something is loaded on the TV, so a seek or a track change has something to act on.
+		let itemLoaded = [.loading, .playing, .paused].contains(snapshot.phase)
+		let ended = snapshot.phase == .ended
+		let closes: RemoteClose?
+		if !snapshot.connected {
+			closes = .remoteEnded
+		} else if ended, !hasNext {
+			closes = .playbackEnded
+		} else {
+			closes = nil
+		}
+		return RemoteScreenModel(
+			targetLabel: reconnecting ? .reconnecting : .name(targetName),
+			controlsDimmed: reconnecting,
+			transportEnabled: !reconnecting,
+			seekEnabled: !reconnecting && itemLoaded,
+			trackMenusEnabled: !reconnecting && itemLoaded && !reduced,
+			playShowsSpinner: !reconnecting && (snapshot.phase == .loading || snapshot.phase == .between),
+			nextUpVisible: snapshot.connected && ended && hasNext,
+			failure: failure,
+			closes: closes
+		)
+	}
+}

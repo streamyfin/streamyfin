@@ -161,6 +161,8 @@ export const buildNativePlayerStrings = (
   castConnected: t("accessibility.cast_connected"),
   castNotConnected: t("accessibility.cast_not_connected"),
   castConnecting: t("cast.output.connecting"),
+  // The remote player's TV button while the Cast session comes back.
+  reconnecting: t("cast.output.reconnecting"),
   // The position bar's name for a screen reader; its value is the elapsed time.
   playbackPosition: t("accessibility.playback_position"),
   unlock: t("player.unlock"),

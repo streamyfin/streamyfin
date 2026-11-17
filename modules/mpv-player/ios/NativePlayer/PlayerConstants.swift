@@ -19,6 +19,9 @@ enum PlayerConstants {
 	static let remoteArtworkMin: Double = 96
 	static let remoteArtworkMax: Double = 420
 	static let remoteHorizontalPadding: Double = 24
+	/// A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
+	/// Android: REMOTE_INERT_ALPHA.
+	static let remoteInertOpacity: Double = 0.4
 	/// Couched, the artwork is at most this share of the width; wide, beside the column, this one.
 	static let remoteLandscapeArtworkFraction: Double = 0.4
 	static let remoteWideArtworkFraction: Double = 0.45

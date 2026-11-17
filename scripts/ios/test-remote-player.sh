@@ -28,6 +28,14 @@ swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
 "$test_dir/remote-playback"
 
 swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/PlayerEngineProtocols.swift \
+  modules/mpv-player/ios/Cast/RemotePlaybackSnapshot.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/RemoteScreenModel.swift \
+  tests/native/RemoteScreenModelTests.swift \
+  -o "$test_dir/remote-screen-model"
+"$test_dir/remote-screen-model"
+
+swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/NativePlayer/NativeEngineKind.swift \
   modules/mpv-player/ios/NativePlayer/PresentRefusal.swift \
   modules/mpv-player/ios/NativePlayer/Remote/RemoteEvents.swift \

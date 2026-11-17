@@ -9,6 +9,8 @@ enum PlayerDismissReason: String {
 	case programmatic
 	case playbackEnded
 	case error
+	/// The connection to the TV is over (the remote player).
+	case remoteEnded
 }
 
 internal final class NoPresenterException: Exception, @unchecked Sendable {

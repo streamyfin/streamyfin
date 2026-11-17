@@ -7,16 +7,14 @@ import UIKit
 /// alone), no MPVolumeView (the volume keys keep the system's HUD and the phone's volume) and no pinch.
 final class RemotePlayerViewController: UIViewController {
 	private let viewModel: PlayerViewModel
-	private let screen: RemoteScreenModel
-	private let targetName: String?
+	private let screen: RemoteScreenState
 	/// Set as a drag begins: it started on a scrolled column, or it scrubs the bar. Either keeps the screen open.
 	private var dragStartedScrolled = false
 	private var dragScrubbed = false
 
-	init(viewModel: PlayerViewModel, screen: RemoteScreenModel, targetName: String?) {
+	init(viewModel: PlayerViewModel, screen: RemoteScreenState) {
 		self.viewModel = viewModel
 		self.screen = screen
-		self.targetName = targetName
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -33,7 +31,7 @@ final class RemotePlayerViewController: UIViewController {
 		view.backgroundColor = .black
 
 		let hosting = UIHostingController(
-			rootView: RemotePlayerRootView(viewModel: viewModel, screen: screen, targetName: targetName)
+			rootView: RemotePlayerRootView(viewModel: viewModel, screen: screen)
 		)
 		hosting.view.backgroundColor = .clear
 		addChild(hosting)

@@ -26,7 +26,8 @@ struct ChromeCapabilities: Equatable {
 	var lockControls = true
 	var rotate = true
 	/// The phone decides what follows the end: the next episode card counts down and starts the next one,
-	/// or the still watching card asks first. A remote target's list moves on by itself.
+	/// or the still watching card asks first. A remote target's list moves on by itself, and the remote screen
+	/// decides what its end leads to.
 	var nextEpisodeCountdown = true
 
 	static func of(

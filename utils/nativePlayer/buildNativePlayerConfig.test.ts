@@ -512,3 +512,18 @@ describe("the native player's playback position bar", () => {
     );
   });
 });
+
+describe("the remote player's TV button", () => {
+  test("says the session is coming back while it reconnects", () => {
+    const english = i18next.createInstance();
+    english.init({
+      lng: "en",
+      resources: { en: { translation: en } },
+      initAsync: false,
+    });
+
+    expect(buildNativePlayerStrings(english.t).reconnecting).toBe(
+      "Reconnecting",
+    );
+  });
+});
