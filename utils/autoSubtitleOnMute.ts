@@ -69,6 +69,20 @@ export const carryAutoSubtitleState = (
       : null,
 });
 
+/**
+ * Whether the subtitle showing is one this feature switched on, on this item or
+ * carried over from the previous one, rather than the user's own pick. A
+ * released state holds neither, so a pick made since always counts as theirs.
+ */
+export const showsAutoSubtitle = (
+  state: AutoSubtitleState,
+  currentSubtitleIndex: number,
+  currentTrack: AutoSubtitleTrackIdentity | null,
+): boolean =>
+  currentSubtitleIndex !== SUBTITLES_OFF &&
+  (currentSubtitleIndex === state.appliedIndex ||
+    sameSubtitleTrack(currentTrack, state.carriedTrack));
+
 type Resolution = { action: AutoSubtitleAction; state: AutoSubtitleState };
 
 const nothing = (state: AutoSubtitleState): Resolution => ({

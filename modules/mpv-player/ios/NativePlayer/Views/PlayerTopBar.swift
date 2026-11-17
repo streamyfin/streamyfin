@@ -11,6 +11,13 @@ struct PlayerTopBar: View {
 	/// the whole overlay — so zoom + speed fold into the More menu and the
 	/// buttons tighten.
 	var compact = false
+	/// Narrower still (an iPhone SE or 13 mini in portrait): with the Cast button, the compact row outgrows the side
+	/// padding, so picture in picture folds into More too.
+	var foldsPictureInPicture = false
+
+	/// The window width under which picture in picture folds into More: the compact row with every button, Cast
+	/// included, needs about 332 pt, and a 375 pt screen leaves 327 inside the 24 pt side padding.
+	static let pictureInPictureFoldWidth: CGFloat = 380
 
 	private var buttonSize: CGFloat { compact ? 40 : 44 }
 
@@ -49,13 +56,18 @@ struct PlayerTopBar: View {
 					.accessibilityIdentifier("syncplay-open-queue")
 			}
 
-			if viewModel.engine?.isPictureInPictureSupported() == true {
+			// Not in a SyncPlay group, which a later join can bring into a player that showed it.
+			if viewModel.capabilities.cast && !viewModel.isSyncPlayActive {
+				CastBarButton(viewModel: viewModel, size: buttonSize)
+			}
+
+			if viewModel.capabilities.pictureInPicture && !foldsPictureInPicture {
 				barButton(systemName: viewModel.isPipActive ? "pip.exit" : "pip.enter") {
 					viewModel.togglePictureInPicture()
 				}
 			}
 
-			if !compact {
+			if !compact && viewModel.capabilities.zoom {
 				barButton(
 					systemName: viewModel.isZoomedToFill
 						? "arrow.down.right.and.arrow.up.left"
@@ -73,7 +85,7 @@ struct PlayerTopBar: View {
 				.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 			}
 
-			if !compact && !viewModel.isSyncPlayActive {
+			if !compact && !viewModel.isSyncPlayActive && viewModel.capabilities.speed {
 				speedMenu
 			}
 
@@ -121,15 +133,17 @@ struct PlayerTopBar: View {
 	private var audioTracksMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
-			Divider()
-			Menu {
-				syncOffsetEntries(current: viewModel.audioDelay) { viewModel.setAudioDelay($0) }
-			} label: {
-				Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
+			if viewModel.capabilities.decoderSettings {
+				Divider()
+				Menu {
+					syncOffsetEntries(current: viewModel.audioDelay) { viewModel.setAudioDelay($0) }
+				} label: {
+					Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
+				}
+				volumeBoostMenu
+				dialogueBoostButton
+				monoAudioButton
 			}
-			volumeBoostMenu
-			dialogueBoostButton
-			monoAudioButton
 		} label: {
 			barIcon(systemName: "waveform")
 		}
@@ -222,20 +236,22 @@ struct PlayerTopBar: View {
 	private var subtitlesMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
-			Divider()
-			Button {
-				viewModel.showSubtitleScaleControl = true
-			} label: {
-				Label(
-					"\(viewModel.str("subtitleSize", "Subtitle size")): \(String(format: "%.1f×", viewModel.subtitleScale))",
-					systemImage: "textformat.size"
-				)
-			}
-			.disabled(viewModel.subtitleScaleLocked)
-			Menu {
-				syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
-			} label: {
-				Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
+			if viewModel.capabilities.decoderSettings {
+				Divider()
+				Button {
+					viewModel.showSubtitleScaleControl = true
+				} label: {
+					Label(
+						"\(viewModel.str("subtitleSize", "Subtitle size")): \(String(format: "%.1f×", viewModel.subtitleScale))",
+						systemImage: "textformat.size"
+					)
+				}
+				.disabled(viewModel.subtitleScaleLocked)
+				Menu {
+					syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
+				} label: {
+					Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
+				}
 			}
 			if viewModel.subtitleSearchEnabled {
 				Button {
@@ -254,17 +270,29 @@ struct PlayerTopBar: View {
 
 	private var moreMenu: some View {
 		Menu {
-			if compact {
+			if foldsPictureInPicture && viewModel.capabilities.pictureInPicture {
 				Button {
-					viewModel.toggleZoomToFill()
+					viewModel.togglePictureInPicture()
 				} label: {
-					if viewModel.isZoomedToFill {
-						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "checkmark")
-					} else {
-						Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
+					Label(
+						viewModel.str("pictureInPicture", "Picture in picture"),
+						systemImage: viewModel.isPipActive ? "pip.exit" : "pip.enter"
+					)
+				}
+			}
+			if compact {
+				if viewModel.capabilities.zoom {
+					Button {
+						viewModel.toggleZoomToFill()
+					} label: {
+						if viewModel.isZoomedToFill {
+							Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "checkmark")
+						} else {
+							Label(viewModel.str("zoomToFill", "Zoom to fill"), systemImage: "arrow.up.left.and.arrow.down.right")
+						}
 					}
 				}
-				if !viewModel.isSyncPlayActive {
+				if !viewModel.isSyncPlayActive && viewModel.capabilities.speed {
 					Menu {
 						speedMenuEntries
 					} label: {
@@ -303,14 +331,16 @@ struct PlayerTopBar: View {
 			} label: {
 				Label(viewModel.str("lockControls", "Lock controls"), systemImage: "lock")
 			}
-			Button {
-				viewModel.showTechnicalInfo.toggle()
-				viewModel.scheduleAutoHide()
-			} label: {
-				if viewModel.showTechnicalInfo {
-					Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "checkmark")
-				} else {
-					Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "info.circle")
+			if viewModel.capabilities.technicalInfo {
+				Button {
+					viewModel.showTechnicalInfo.toggle()
+					viewModel.scheduleAutoHide()
+				} label: {
+					if viewModel.showTechnicalInfo {
+						Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "checkmark")
+					} else {
+						Label(viewModel.str("technicalInfo", "Technical info"), systemImage: "info.circle")
+					}
 				}
 			}
 		} label: {
@@ -377,6 +407,41 @@ struct PlayerTopBar: View {
 			.foregroundStyle(.white)
 			.frame(width: buttonSize, height: buttonSize)
 			.contentShape(Rectangle())
+	}
+}
+
+/// Hands the video off to a receiver through the output sheet; the glyph says whether one is connected, and a ring
+/// turns while one connects or reconnects. The sheet points at the button, from its frame in the window.
+private struct CastBarButton: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	let size: CGFloat
+	@State private var frame: CGRect = .zero
+
+	var body: some View {
+		let connected = viewModel.castPhase == .connected
+		Button {
+			viewModel.openOutputSheet(anchor: frame)
+		} label: {
+			ZStack {
+				CastGlyph(connected: connected)
+					.fill(connected ? castConnectedTint : .white)
+					.frame(width: 20, height: 20)
+				if viewModel.castPhase == .connecting {
+					ProgressView().tint(.white)
+				}
+			}
+			.frame(width: size, height: size)
+			.contentShape(Rectangle())
+		}
+		.background(
+			GeometryReader { proxy in
+				Color.clear
+					.onAppear { frame = proxy.frame(in: .global) }
+					.onChange(of: proxy.frame(in: .global)) { frame = $0 }
+			}
+		)
+		.accessibilityLabel(viewModel.castButtonLabel)
+		.accessibilityValue(viewModel.castButtonState)
 	}
 }
 #endif

@@ -5,7 +5,6 @@
     "": {
       "name": "streamyfin",
       "dependencies": {
-        "@douglowder/expo-av-route-picker-view": "^0.0.5",
         "@expo/metro-runtime": "~58.0.17",
         "@expo/react-native-action-sheet": "^4.1.1",
         "@expo/ui": "~58.0.27",
@@ -65,7 +64,6 @@
         "react-native-drax": "1.1.0",
         "react-native-edge-to-edge": "1.8.2",
         "react-native-gesture-handler": "3.5.0",
-        "react-native-google-cast": "^4.9.1",
         "react-native-image-colors": "2.6.1",
         "react-native-mmkv": "4.3.2",
         "react-native-nitro-modules": "0.37.2",
@@ -115,10 +113,9 @@
     "@sentry/cli",
   ],
   "patchedDependencies": {
-    "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
     "react-native-drax@1.1.0": "patches/react-native-drax@1.1.0.patch",
-    "react-native-google-cast@4.9.1": "patches/react-native-google-cast@4.9.1.patch",
+    "react-native-track-player@github:lovegaoshi/react-native-track-player#d371784": "patches/react-native-track-player@4.1.1.patch",
   },
   "overrides": {
     "uuid": "11.1.1",
@@ -343,8 +340,6 @@
     "@csstools/css-parser-algorithms": ["@csstools/css-parser-algorithms@3.0.5", "", { "peerDependencies": { "@csstools/css-tokenizer": "^3.0.4" } }, "sha512-DaDeUkXZKjdGhgYaHNJTV9pV7Y9B3b644jCLs9Upc3VeNGg6LWARAT6O+Q+/COo+2gg/bM5rhpMAtf70WqfBdQ=="],
 
     "@csstools/css-tokenizer": ["@csstools/css-tokenizer@3.0.4", "", {}, "sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw=="],
-
-    "@douglowder/expo-av-route-picker-view": ["@douglowder/expo-av-route-picker-view@0.0.5", "", { "peerDependencies": { "expo": "*", "react": "*" } }, "sha512-oT4wf8aYYNfLEuZEkwZIH7CtEHKnEHWnjs6/hNwbFGEC0FnfjjWBNrQEt4fo5/gkafqa2G5ILkxndMyBZvk5dg=="],
 
     "@epic-web/invariant": ["@epic-web/invariant@1.0.0", "", {}, "sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA=="],
 
@@ -1845,8 +1840,6 @@
     "react-native-edge-to-edge": ["react-native-edge-to-edge@1.8.2", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-9yhI/RpaXVkMqFKNHz72A7Vi8KrT6BqDcY8HOdck/so+qH0fq1EkIeNTSLplnoFW84DcLn2D7s9L/xfYSN8gyQ=="],
 
     "react-native-gesture-handler": ["react-native-gesture-handler@3.5.0", "", { "dependencies": { "@types/react-test-renderer": "^19.1.0", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-bm8yepwMBUhEOSeU7WQbNNrstD0Hbv6i+XsApARBJSlb+WlRvyaQsobi+tZ5Uyr5kDVgXzg6kPb+CWY9zvyfEw=="],
-
-    "react-native-google-cast": ["react-native-google-cast@4.9.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-/HvIKAaWHtG6aTNCxrNrqA2ftWGkfH0M/2iN+28pdGUXpKmueb33mgL1m8D4zzwEODQMcmpfoCsym1IwDvugBQ=="],
 
     "react-native-image-colors": ["react-native-image-colors@2.6.1", "", { "dependencies": { "node-vibrant": "^4.0.3" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-IvCvFRfUrIdPGpcYBTrWObLoj47wnFJadkoMX3QfOrkx4KJXK57SAPbRGJtzonJUUB/3adoOkNiw9W86xSUhgQ=="],
 

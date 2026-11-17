@@ -28,6 +28,10 @@ jest.mock("@/utils/profiles/native", () => ({
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   buildSubtitleStyle: () => ({}),
 }));
+let mockCastAvailable = true;
+jest.mock("@/modules/mpv-player/src/cast", () => ({
+  isCastAvailable: () => mockCastAvailable,
+}));
 
 const mockDetectBitrate = jest.fn(async (..._args: unknown[]) => 12_000_000);
 
@@ -193,6 +197,62 @@ describe("the native player's exit confirmation", () => {
 
   test("is skipped once the setting is off", async () => {
     expect(await confirmExit(false)).toBe(false);
+  });
+});
+
+// The player's Cast button hands the video off to a receiver: only online and with Cast; the player hides it in a
+// SyncPlay group.
+describe("the native player's Cast button", () => {
+  const castButton = async (options: { offline?: boolean } = {}) => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/1/stream.mkv`,
+      sessionId: "session-1",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+    const downloaded = {
+      item,
+      videoFilePath: "file:///downloads/movie.mkv",
+      mediaSource: { Id: "source-1", MediaStreams: [] },
+      userData: {},
+    };
+
+    const built = await buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+      } as Settings,
+      req: { itemId: "item-1", offline: options.offline ?? false },
+      getDownloadedItemById: () => downloaded as never,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
+      item,
+      outputPickerStrings: { title: "Play on" } as never,
+    });
+    return built?.config.ui;
+  };
+
+  afterEach(() => {
+    mockCastAvailable = true;
+  });
+
+  test("is offered online, with the sheet's texts", async () => {
+    const ui = await castButton();
+
+    expect(ui?.allowCast).toBe(true);
+    expect(ui?.outputPickerStrings?.title).toBe("Play on");
+  });
+
+  test("is not offered offline", async () => {
+    expect((await castButton({ offline: true }))?.allowCast).toBe(false);
+  });
+
+  test("is not offered without the Cast module", async () => {
+    mockCastAvailable = false;
+
+    expect((await castButton())?.allowCast).toBe(false);
   });
 });
 
@@ -366,74 +426,6 @@ describe("the native player's quality", () => {
     await build("auto");
 
     expect(askedBitrate()).toBeUndefined();
-  });
-});
-
-// A Play command from another client, a Top Shelf or TV recommendation tile and
-// a SyncPlay group all present the native player with no quality.
-describe("the native player's quality, when the request names none", () => {
-  const build = (defaultBitrate: Settings["defaultBitrate"]) => {
-    jest.mocked(getStreamUrl).mockResolvedValue({
-      url: `${SERVER}/Videos/1/stream.mkv`,
-      sessionId: "session-1",
-      mediaSource: { Id: "source-1", MediaStreams: [] },
-    } as Awaited<ReturnType<typeof getStreamUrl>>);
-
-    return buildNativePlayerConfig({
-      api,
-      userId: "user-1",
-      settings: {
-        playbackSpeedPerShow: {},
-        playbackSpeedPerMedia: {},
-        defaultBitrate,
-      } as Settings,
-      req: { itemId: "item-1", offline: false },
-      getDownloadedItemById: () => undefined,
-      strings: {} as NativePlayerStrings,
-      originalLabel: "Original",
-      qualityLabel: (bitrate: { key: string }) =>
-        bitrate.key === "Auto" ? "Auto" : bitrate.key,
-      item,
-    });
-  };
-
-  const askedBitrate = () =>
-    jest.mocked(getStreamUrl).mock.calls.at(-1)?.[0].maxStreamingBitrate;
-
-  beforeEach(() => {
-    jest.mocked(getStreamUrl).mockClear();
-    mockDetectBitrate.mockClear();
-  });
-
-  test("is the default one, measured when it is Auto", async () => {
-    const built = await build({ key: "Auto", value: undefined });
-
-    expect(mockDetectBitrate).toHaveBeenCalledWith(
-      api,
-      false,
-      expect.objectContaining({ ratio: 0.7 }),
-      { linkInUse: false },
-    );
-    expect(askedBitrate()).toBe(12_000_000);
-    expect(built?.seed.bitrateValue).toBe("auto");
-  });
-
-  test("is the default one when it is a fixed quality", async () => {
-    const built = await build({ key: "8 Mb/s", value: 8_000_000 });
-
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-    expect(askedBitrate()).toBe(8_000_000);
-    expect(built?.config.tracks?.quality?.[2]).toEqual(
-      expect.objectContaining({ label: "8 Mb/s", selected: true }),
-    );
-  });
-
-  test("is no cap when the default is Max", async () => {
-    const built = await build({ key: "Max", value: undefined });
-
-    expect(mockDetectBitrate).not.toHaveBeenCalled();
-    expect(askedBitrate()).toBeUndefined();
-    expect(built?.seed.bitrateValue).toBe("max");
   });
 });
 

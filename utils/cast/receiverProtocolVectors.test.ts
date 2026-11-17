@@ -7,29 +7,35 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import type { RemoteMediaClient } from "react-native-google-cast";
+import type { CastClient } from "@/modules/mpv-player/src/cast";
 import {
   createCastDoubleState,
   lastCastChannel,
-} from "@/test-utils/googleCast";
+  receiveOnChannel,
+  sentOn,
+  setCastSession,
+} from "@/test-utils/cast";
 import {
   castToJellyfinReceiver,
   type JellyfinCastSession,
   parseReceiverCustomData,
   playOnJellyfinReceiver,
   queueWindow,
+  ReceiverContainerRefusedError,
   type ReceiverMessage,
   receiverNameFor,
+  receiverPositionInItem,
   sendJellyfinCastCommand,
   subscribeToJellyfinReceiverMessages,
   toReceiverDeviceName,
 } from "./jellyfinReceiver";
 
 const mockCast = createCastDoubleState();
-jest.mock("react-native-google-cast", () =>
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
   // The factory runs before this file's body, so the state is read lazily.
-  require("@/test-utils/googleCast").castDoubleModule(() => mockCast),
-);
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
 
 type Vector = any;
 
@@ -61,10 +67,13 @@ const sessionFrom = (raw: {
   ...(raw.maxBitrate ? { maxBitrate: raw.maxBitrate } : {}),
 });
 
+const sentMessages = () =>
+  mockCast.channels.flatMap((channel) => sentOn(channel));
+
 let session = 0;
 beforeEach(() => {
   session += 1;
-  mockCast.sessionId = `session-${session}`;
+  setCastSession(mockCast, `session-${session}`);
   mockCast.channels = [];
   mockCast.connectOnAdd = true;
 });
@@ -73,6 +82,13 @@ describe("play-now.json", () => {
   const { cases } = vectors("play-now.json");
   test.each(table(cases))("%s", async (_name, vector) => {
     const castSession = sessionFrom(vector.session);
+    if (vector.expected.refused === "container") {
+      await expect(
+        playOnJellyfinReceiver(castSession, vector.request),
+      ).rejects.toThrow(ReceiverContainerRefusedError);
+      expect(sentMessages()).toEqual([]);
+      return;
+    }
     if (vector.request) {
       await playOnJellyfinReceiver(castSession, vector.request);
     } else {
@@ -82,9 +98,7 @@ describe("play-now.json", () => {
         vector.options,
       );
     }
-    expect(lastCastChannel(mockCast).sendMessage).toHaveBeenCalledWith(
-      vector.expected,
-    );
+    expect(sentOn(lastCastChannel(mockCast))[0]).toEqual(vector.expected);
   });
 });
 
@@ -123,7 +137,7 @@ describe("bus-messages.json", () => {
       "Identify",
       sessionFrom(vectors("play-now.json").cases[0].session),
     );
-    lastCastChannel(mockCast).receive(vector.input);
+    receiveOnChannel(mockCast, lastCastChannel(mockCast), vector.input);
     unsubscribe();
     if (vector.expected.invalid) {
       expect(received).toEqual([vector.input]);
@@ -140,11 +154,18 @@ describe("media-status-custom-data.json", () => {
   });
 });
 
+describe("media-position.json", () => {
+  const { cases } = vectors("media-position.json");
+  test.each(table(cases))("%s", (_name, vector) => {
+    const { currentTime, customData } = vector.input;
+    expect(
+      receiverPositionInItem(currentTime, parseReceiverCustomData(customData)),
+    ).toBe(vector.expected);
+  });
+});
+
 describe("load-outcomes.json", () => {
   const file = vectors("load-outcomes.json");
-  const request = {
-    items: [{ Id: file.request.itemId, Name: "Item" } as BaseItemDto],
-  };
   const statusOf = (data: Record<string, unknown>) => ({
     playerState: data.playerState,
     mediaInfo: { customData: { ...data, playerState: undefined } },
@@ -162,6 +183,7 @@ describe("load-outcomes.json", () => {
   };
 
   test.each(table(file.cases))("%s", async (_name, vector) => {
+    const request: { items: BaseItemDto[] } = vector.request ?? file.request;
     let listener: ((status: unknown) => void) | undefined;
     const client = {
       getMediaStatus: async () =>
@@ -175,19 +197,28 @@ describe("load-outcomes.json", () => {
         listener = handler;
         return { remove: () => {} };
       },
-    } as unknown as RemoteMediaClient;
+    } as unknown as CastClient;
     const castSession = sessionFrom(vectors("play-now.json").cases[1].session);
+    // A refused cast rejects at once: caught here, so that its events still
+    // play out before the outcome is read.
     const outcome = castToJellyfinReceiver(
       client,
       castSession,
       request,
       file.timeoutMs,
+    ).then(
+      (result) => ({ result, error: undefined }),
+      (error: unknown) => ({ result: undefined, error }),
     );
     await flush();
     for (const event of vector.events) {
       if (event.status) listener?.(statusOf(event.status));
       if (event.message)
-        lastCastChannel(mockCast).receive(JSON.stringify(event.message));
+        receiveOnChannel(
+          mockCast,
+          lastCastChannel(mockCast),
+          JSON.stringify(event.message),
+        );
       if (event.timeout) jest.advanceTimersByTime(file.timeoutMs);
       if (event.supersede) {
         void castToJellyfinReceiver(
@@ -199,8 +230,14 @@ describe("load-outcomes.json", () => {
       }
       await flush();
     }
-    const result = await outcome;
-    expect(result.status).toBe(vector.expected.status);
+    const { result, error } = await outcome;
+    if (vector.expected.refused === "container") {
+      expect(error).toBeInstanceOf(ReceiverContainerRefusedError);
+      expect(sentMessages()).toEqual([]);
+      return;
+    }
+    expect(error).toBeUndefined();
+    expect(result?.status).toBe(vector.expected.status);
     if (vector.expected.error) {
       expect((result as { error?: string }).error).toBe(vector.expected.error);
     }

@@ -4,14 +4,6 @@ import CoreMedia
 import CoreVideo
 import AVFoundation
 
-/// HDR mode detected from video properties
-enum HDRMode {
-    case sdr
-    case hdr10
-    case dolbyVision
-    case hlg
-}
-
 protocol MPVLayerRendererDelegate: AnyObject {
     /// `loadGeneration` names the load whose file produced the position.
     func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double, loadGeneration: UInt)

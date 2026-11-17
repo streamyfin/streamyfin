@@ -54,7 +54,12 @@ struct PlayerControlsRootView: View {
 				// and must cover the play/skip buttons in landscape, not duck
 				// under them. Hit-testing is unaffected — the layer's empty
 				// middle isn't tappable.
-				topChrome(compact: size.width < 500)
+				topChrome(
+					compact: size.width < 500,
+					// The fold makes room for the Cast button: without it the row fits.
+					foldsPictureInPicture: size.width < PlayerTopBar.pictureInPictureFoldWidth
+						&& viewModel.capabilities.cast && !viewModel.isSyncPlayActive
+				)
 					.transition(.opacity)
 					.zIndex(1)
 			}
@@ -156,7 +161,7 @@ struct PlayerControlsRootView: View {
 				.transition(.opacity)
 			}
 
-			if viewModel.showTechnicalInfo {
+			if viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo {
 				VStack {
 					HStack {
 						TechnicalInfoOverlay(viewModel: viewModel)
@@ -375,8 +380,9 @@ struct PlayerControlsRootView: View {
 						dragAxis = .vertical
 						dragOnLeftHalf = onLeftHalf
 						if dragOnLeftHalf {
-							// First: starting the interaction reads the screen's brightness.
-							viewModel.brightnessController.isUserInteracting = true
+							// First: starting the interaction reads the screen's brightness. An engine with no
+							// screen here leaves no brightness to drive.
+							viewModel.brightnessController.isUserInteracting = viewModel.capabilities.brightness
 							dragStartLevel = viewModel.brightnessController.brightness
 						} else {
 							dragStartLevel = viewModel.volumeController.volume
@@ -394,8 +400,10 @@ struct PlayerControlsRootView: View {
 				case .vertical:
 					let level = dragStartLevel - value.translation.height / verticalDragRange
 					if dragOnLeftHalf {
-						viewModel.brightnessController.setBrightness(level)
-						viewModel.revealBrightnessSliderTransiently()
+						if viewModel.capabilities.brightness {
+							viewModel.brightnessController.setBrightness(level)
+							viewModel.revealBrightnessSliderTransiently()
+						}
 					} else {
 						viewModel.volumeController.setVolume(level)
 						viewModel.revealVolumeSliderTransiently()
@@ -443,9 +451,9 @@ struct PlayerControlsRootView: View {
 		viewModel.scheduleAutoHide()
 	}
 
-	private func topChrome(compact: Bool) -> some View {
+	private func topChrome(compact: Bool, foldsPictureInPicture: Bool) -> some View {
 		VStack(spacing: 0) {
-			PlayerTopBar(viewModel: viewModel, compact: compact)
+			PlayerTopBar(viewModel: viewModel, compact: compact, foldsPictureInPicture: foldsPictureInPicture)
 			Spacer()
 		}
 		.padding(.horizontal, 24)
@@ -453,7 +461,7 @@ struct PlayerControlsRootView: View {
 	}
 
 	private var brightnessSliderVisible: Bool {
-		viewModel.showBrightnessSlider
+		viewModel.showBrightnessSlider && viewModel.capabilities.brightness
 			&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed)
 	}
 

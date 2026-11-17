@@ -22,6 +22,7 @@ import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -47,8 +48,14 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
+import expo.modules.mpvplayer.cast.CastExpandedControllerActivity
+import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
+import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.ExoPlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerScreen
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 import expo.modules.mpvplayer.nativeplayer.ui.tv.TvPlayerScreen
@@ -69,7 +76,11 @@ class NativePlayerSession(
     }
 
     val viewModel = PlayerViewModel()
-    var engine: PlayerEngine? = null
+    var engine: ChromeEngine? = null
+
+    // The screen of a local engine; null for one without, whose surface paths do not run.
+    private val rendering: RenderingEngine?
+        get() = engine as? RenderingEngine
     private var mediaSessionController: MediaSessionController? = null
 
     private var hostActivity: Activity? = null
@@ -171,9 +182,15 @@ class NativePlayerSession(
 
         activity.runOnUiThread {
             try {
+                // A remote Play can open the player over the app's sheet: the sheet goes first, as on iOS.
+                OutputPickerPresenter.dismissForPlayer()
                 val newEngine = createEngine(activity, config)
                 newEngine.delegate = viewModel
                 viewModel.engine = newEngine
+                viewModel.applyCapabilities(pictureInPictureSupported = isPiPSupported(), allowCast = config.ui.allowCast)
+                followCastIfAllowed(activity, config)
+                // The menus follow the engine built here: a later load never swaps it.
+                viewModel.isMpvEngine = NativeEngineKind.of(config.engine) == NativeEngineKind.MPV
                 this.engine = newEngine
 
                 // Initialize controllers
@@ -221,13 +238,15 @@ class NativePlayerSession(
                 newEngine.start(PlayerEngine.Owner.NATIVE_SESSION) {
                     if (engine !== newEngine) return@start
                     rendererStarted = true
+                    // The engine is the new one here: rendering is its screen, when it has one.
                     surfaceView?.takeIf { it.holder.surface?.isValid == true }?.let { sv ->
-                        newEngine.attachSurfaceView(sv)
+                        rendering?.attachSurfaceView(sv)
                         syncSurfaceSize()
                     }
                     val configToLoad = pendingConfig ?: config
                     pendingConfig = null
                     viewModel.apply(configToLoad)
+                    followCastIfAllowed(activity, configToLoad)
                     startStream(configToLoad)
                 }
 
@@ -241,14 +260,15 @@ class NativePlayerSession(
     }
 
     /**
-     * Build the engine the chrome drives, from the config's `engine` field.
-     * An absent/unknown engine falls back to mpv (older JS configs, mobile,
-     * iOS — where ExoPlayer doesn't ship).
+     * Build the engine the chrome drives, from the config's `engine` field: no field means
+     * mpv (older JS configs). The module refuses a name the chrome does not build, so an
+     * unknown one never starts mpv in its place.
      */
-    private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): PlayerEngine {
-        return when (config.engine?.lowercase()) {
-            "exoplayer" -> ExoPlayerEngine(activity)
-            else -> MPVLayerRenderer(activity, voDriver = resolveMpvVoDriver(config.voDriver))
+    private fun createEngine(activity: Activity, config: PlayerPresentConfigRecord): ChromeEngine {
+        val kind = NativeEngineKind.of(config.engine) ?: throw UnsupportedEngineException(config.engine)
+        return when (kind) {
+            NativeEngineKind.MPV -> MPVLayerRenderer(activity, voDriver = resolveMpvVoDriver(config.voDriver))
+            NativeEngineKind.EXOPLAYER -> ExoPlayerEngine(activity)
         }
     }
 
@@ -304,7 +324,7 @@ class NativePlayerSession(
         // Engine-provided layer (e.g. the Exo SubtitleView) sits between the
         // video surface and the chrome so cues render over video but under
         // the controls. mpv provides none (subtitles render in-surface).
-        engine?.subtitleOverlay?.let { overlay ->
+        rendering?.subtitleOverlay?.let { overlay ->
             overlay.layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -364,7 +384,7 @@ class NativePlayerSession(
                 PlayerTheme {
                     PlayerScreen(
                         viewModel = viewModel,
-                        onPipClick = if (isPiPSupported()) {
+                        onPipClick = if (viewModel.capabilities.pictureInPicture) {
                             { enterPiP() }
                         } else null
                     )
@@ -392,6 +412,7 @@ class NativePlayerSession(
         }
 
         // Add overlay to activity window
+        hideAppFromAccessibility(activity)
         activity.addContentView(
             container,
             ViewGroup.LayoutParams(
@@ -459,7 +480,7 @@ class NativePlayerSession(
         if (!rendererStarted) return
         if (viewModel.isPipActive) return
         val surface = surfaceView?.holder?.surface?.takeIf { it.isValid }
-        val videoBroken = engine?.isVideoOutputBroken() ?: false
+        val videoBroken = rendering?.isVideoOutputBroken() ?: false
         val playing = viewModel.isPlaying
         if (playing && !videoBroken) {
             Log.i(TAG, "[Recover] onResume recovery — playing and pipeline healthy, skipping")
@@ -472,7 +493,7 @@ class NativePlayerSession(
         // Preserve position/tracks/loop/external subs across the reload and
         // follow the user's play intent afterwards.
         engine?.playbackResumeIntent = playing
-        engine?.recoverVideoOutput(surface)
+        rendering?.recoverVideoOutput(surface)
     }
 
     private fun registerLifecycleCallbacks() {
@@ -698,6 +719,7 @@ class NativePlayerSession(
                 playbackStarted = false
                 viewModel.prepareForReload()
                 viewModel.apply(config)
+                followCastIfAllowed(activity, config)
                 startStream(config)
             }
         }
@@ -744,7 +766,7 @@ class NativePlayerSession(
         }
 
         viewModel.setSpeed(config.ui.initialPlaybackSpeed)
-        engine?.setSubtitleDelay(viewModel.subtitleDelay)
+        rendering?.setSubtitleDelay(viewModel.subtitleDelay)
         engine?.setAudioDelay(viewModel.audioDelay)
         engine?.setVolumeBoost(viewModel.volumeBoostPercent)
         engine?.setDialogueBoost(viewModel.dialogueBoostEnabled)
@@ -866,12 +888,12 @@ class NativePlayerSession(
         style.font?.let { appearance["font"] = it }
         style.background?.let { appearance["background"] = it }
         style.backgroundPadding?.let { appearance["backgroundPadding"] = it }
-        engine?.setSubtitleStyle(appearance)
+        rendering?.setSubtitleStyle(appearance)
 
         viewModel.applySubtitleGeometry()
-        style.alignX?.let { engine?.setSubtitleAlignX(it) }
-        style.alignY?.let { engine?.setSubtitleAlignY(it) }
-        style.assOverride?.let { engine?.setSubtitleAssOverride(it) }
+        style.alignX?.let { rendering?.setSubtitleAlignX(it) }
+        style.alignY?.let { rendering?.setSubtitleAlignY(it) }
+        style.assOverride?.let { rendering?.setSubtitleAssOverride(it) }
     }
 
     private fun syncSurfaceSize() {
@@ -885,14 +907,14 @@ class NativePlayerSession(
     }
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
-        engine?.updateSurfaceSize(width, height)
+        rendering?.updateSurfaceSize(width, height)
         viewModel.updateSubtitleGeometry(width, height)
     }
 
     // MARK: - SurfaceHolder.Callback
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceReady = true
-        surfaceView?.let { engine?.attachSurfaceView(it) }
+        surfaceView?.let { rendering?.attachSurfaceView(it) }
         syncSurfaceSize()
 
         if (rendererStarted) {
@@ -913,7 +935,54 @@ class NativePlayerSession(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
-        engine?.detachSurface()
+        rendering?.detachSurface()
+    }
+
+    // A config that allows Cast needs the button's sheet, once: a player presented with a downloaded file, then given
+    // a stream in place, had none.
+    private fun followCastIfAllowed(activity: Activity?, config: PlayerPresentConfigRecord) {
+        if (activity == null || !viewModel.capabilities.cast || viewModel.onOutputSheetRequested != null) return
+        followCastFrom(activity, config.ui.outputPickerStrings)
+    }
+
+    // The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+    // model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+    // app's sheet does.
+    private fun followCastFrom(activity: Activity, strings: Map<String, String>) {
+        viewModel.followCast()
+        viewModel.onOutputSheetRequested = { anchor ->
+            OutputPickerPresenter.strings = OutputPickerStrings(strings)
+            OutputPickerPresenter.present(
+                activity,
+                anchor,
+                playingHere = viewModel.metadata?.title,
+                handOff = true,
+                onHandOff = { viewModel.requestCastHandOff() },
+            ) {
+                activity.startActivity(
+                    Intent(activity, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+    }
+
+    // The app under the player stays in the accessibility tree otherwise: TalkBack and uiautomator would reach its
+    // hidden buttons, the header's Cast button among them, named as the player's. Views added later, the output
+    // sheet's, stay reachable.
+    private val hiddenFromAccessibility = mutableListOf<Pair<View, Int>>()
+
+    private fun hideAppFromAccessibility(activity: Activity) {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
+        for (index in 0 until content.childCount) {
+            val view = content.getChildAt(index)
+            hiddenFromAccessibility += view to view.importantForAccessibility
+            view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
+    }
+
+    private fun restoreAppAccessibility() {
+        for ((view, importance) in hiddenFromAccessibility) view.importantForAccessibility = importance
+        hiddenFromAccessibility.clear()
     }
 
     // MARK: - Teardown
@@ -927,6 +996,8 @@ class NativePlayerSession(
         val activity = hostActivity
         val dismissAction = {
             viewModel.willTeardown()
+            // The sheet the player opened goes with it: left over the app, its hand-off would reach a closed player.
+            OutputPickerPresenter.dismissPlayerSheet()
 
             if (activity != null) {
                 unregisterPiPReceiver(activity)
@@ -962,6 +1033,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
 
             // Restore window state
             if (activity != null) {
@@ -1012,6 +1084,7 @@ class NativePlayerSession(
             overlayContainer = null
             surfaceView = null
             composeView = null
+            restoreAppAccessibility()
             activity?.let { unregisterPiPReceiver(it) }
             restoreDisplayMode()
             viewModel.brightnessController?.restore()

@@ -1,5 +1,8 @@
 import ExpoModulesCore
 import UIKit
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import GoogleCast
+#endif
 
 enum PlayerDismissReason: String {
 	case closeButton
@@ -18,7 +21,9 @@ internal final class NoPresenterException: Exception, @unchecked Sendable {
 /// controller and the view model, and funnels every dismissal path through a
 /// single teardown ordering (see dismiss(reason:completion:)).
 final class NativePlayerSession {
-	let engine = MPVPlayerEngine()
+	let engine: ChromeEngine
+	/// The screen of a local engine; nil for one without, whose surface paths do not run.
+	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 	let viewModel = PlayerViewModel()
 
 	private var viewController: NativePlayerViewController?
@@ -29,10 +34,12 @@ final class NativePlayerSession {
 	private var backgroundObserver: NSObjectProtocol?
 
 	init(
+		engine: ChromeEngine,
 		emit: @escaping (String, [String: Any]) -> Void,
 		onTornDown: @escaping () -> Void,
 		presenterProvider: @escaping () -> UIViewController? = { nil }
 	) {
+		self.engine = engine
 		self.emit = emit
 		self.onTornDown = onTornDown
 		self.presenterProvider = presenterProvider
@@ -55,6 +62,9 @@ final class NativePlayerSession {
 	// MARK: - Presentation
 
 	func present(config: PlayerPresentConfigRecord, promise: Promise) throws {
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.dismissForPlayer()
+		#endif
 		guard let presenter = resolvePresenter() else {
 			throw NoPresenterException()
 		}
@@ -62,6 +72,9 @@ final class NativePlayerSession {
 		try engine.start()
 
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		if viewModel.capabilities.cast { followCast() }
+		#endif
 
 		let vc = NativePlayerViewController(
 			engine: engine,
@@ -86,6 +99,26 @@ final class NativePlayerSession {
 			promise: promise
 		)
 	}
+
+	#if os(iOS) && !targetEnvironment(macCatalyst)
+	// The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
+	// model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
+	// app's sheet does.
+	private func followCast() {
+		viewModel.followCast()
+		viewModel.onOutputSheetRequested = { [weak viewModel] anchor in
+			guard let viewModel else { return }
+			let presenter = OutputPickerPresenter.shared
+			presenter.strings = OutputPickerStrings(viewModel.outputPickerStrings)
+			presenter.present(
+				anchor: anchor, playingHere: viewModel.metadata?.title, handOff: true,
+				onHandOff: { [weak viewModel] in viewModel?.requestCastHandOff() }
+			) {
+				GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+			}
+		}
+	}
+	#endif
 
 	/// The JS coordinator locks the window to landscape (expo-screen-orientation)
 	/// right before calling present, which starts rotating the whole app.
@@ -152,24 +185,31 @@ final class NativePlayerSession {
 	func load(config: PlayerPresentConfigRecord) {
 		viewModel.prepareForReload()
 		viewModel.apply(config: config)
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// A stream that brings the Cast button needs its sheet: a player presented with a downloaded file had none.
+		if viewModel.capabilities.cast && viewModel.onOutputSheetRequested == nil { followCast() }
+		#endif
 		startStream(config: config, force: true)
 	}
 
 	private func startStream(config: PlayerPresentConfigRecord, force: Bool = false) {
 		guard let loadConfig = config.stream.toVideoLoadConfig() else { return }
 		engine.loadVideo(config: loadConfig, force: force)
-		engine.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
+		rendering?.setPictureInPictureAutoStartEnabled(config.ui.allowPip)
 		engine.setSkipIntervals(forward: viewModel.seekForwardSec, backward: viewModel.seekBackwardSec)
-		// Unconditional: mpv's speed property persists on the handle across
-		// loadfile, so an in-place swap from a 2× stream to a 1× config must
-		// explicitly write 1.0 or the old speed carries over.
-		let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
-		engine.setSpeed(speed: speed)
-		viewModel.speed = speed
+		// Written on every swap, not only on a change: mpv's speed property
+		// persists on the handle across loadfile, so an in-place swap from a 2×
+		// stream to a 1× config must write 1.0 or the old speed carries over.
+		// An engine that cannot change speed is left alone; mpv always can.
+		if viewModel.capabilities.speed {
+			let speed = config.syncPlay == nil ? config.ui.initialPlaybackSpeed : 1.0
+			engine.setSpeed(speed: speed)
+			viewModel.speed = speed
+		}
 		// Same persistence rule as speed: sync offsets and gain survive on
 		// the mpv handle across loadfile, so write the view model's current
 		// values on every swap (apply() resets them when the item changes).
-		engine.setSubtitleDelay(viewModel.subtitleDelay)
+		rendering?.setSubtitleDelay(viewModel.subtitleDelay)
 		engine.setAudioDelay(viewModel.audioDelay)
 		engine.setVolumeBoost(viewModel.volumeBoostPercent)
 		engine.setDialogueBoost(viewModel.dialogueBoostEnabled)
@@ -186,18 +226,19 @@ final class NativePlayerSession {
 	}
 
 	private func applySubtitleStyle(_ style: SubtitleStyleRecord) {
-		if let marginY = style.marginY { engine.setSubtitleMarginY(marginY) }
-		if let alignX = style.alignX { engine.setSubtitleAlignX(alignX) }
-		if let alignY = style.alignY { engine.setSubtitleAlignY(alignY) }
+		guard let rendering else { return }
+		if let marginY = style.marginY { rendering.setSubtitleMarginY(marginY) }
+		if let alignX = style.alignX { rendering.setSubtitleAlignX(alignX) }
+		if let alignY = style.alignY { rendering.setSubtitleAlignY(alignY) }
 
 		var appearance: [String: Any] = [:]
 		if let color = style.color { appearance["color"] = color }
 		if let font = style.font { appearance["font"] = font }
 		if let background = style.background { appearance["background"] = background }
 		if let padding = style.backgroundPadding { appearance["backgroundPadding"] = padding }
-		if !appearance.isEmpty { engine.setSubtitleStyle(config: appearance) }
+		if !appearance.isEmpty { rendering.setSubtitleStyle(config: appearance) }
 
-		if let assOverride = style.assOverride { engine.setSubtitleAssOverride(assOverride) }
+		if let assOverride = style.assOverride { rendering.setSubtitleAssOverride(assOverride) }
 	}
 
 	func applyNowPlayingMetadata(_ metadata: MetadataRecord) {
@@ -238,9 +279,13 @@ final class NativePlayerSession {
 		isDismissing = true
 
 		viewModel.willTeardown()
-		engine.setPictureInPictureAutoStartEnabled(false)
-		if engine.isPictureInPictureActive() {
-			engine.stopPictureInPicture()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		// The player's dismissal takes the sheet it opened down too, without telling the sheet.
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
+		rendering?.setPictureInPictureAutoStartEnabled(false)
+		if rendering?.isPictureInPictureActive() == true {
+			rendering?.stopPictureInPicture()
 		}
 
 		let duration = engine.getDuration()
@@ -294,6 +339,9 @@ final class NativePlayerSession {
 		guard !isDismissing else { return }
 		isDismissing = true
 		viewModel.willTeardown()
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		OutputPickerPresenter.shared.releasePlayerSheet()
+		#endif
 		let presenter = viewController?.presentingViewController
 		presenter?.dismiss(animated: false)
 		#if os(iOS)

@@ -63,6 +63,29 @@ describe("native-tests.yml", () => {
       [],
     );
   });
+
+  // The standalone Swift checks (scripts/ios/test-*.sh) need swiftc, so only
+  // a macOS runner can run them; the runner script picks up every check, a new
+  // one included.
+  test("runs every standalone Swift check on macOS", () => {
+    const workflow = withoutComments(readWorkflow("native-tests.yml"));
+    expect(workflow).toMatch(/runs-on: macos-/);
+    expect(workflow).toContain("bash scripts/ios/run-native-checks.sh");
+  });
+
+  // The JUnit and Swift readers replay the receiver vectors, and the Swift
+  // checks live outside modules/: a change to any of them must start the job.
+  test("starts on a change to what the native checks read", () => {
+    const rules = listUnder(readWorkflow("native-tests.yml"), "modules");
+    expect(rules).toEqual(
+      expect.arrayContaining([
+        "modules/**",
+        "tests/native/**",
+        "scripts/ios/**",
+        "e2e/fixtures/receiver-protocol/**",
+      ]),
+    );
+  });
 });
 
 /**
@@ -198,8 +221,9 @@ const matches = (rule: string, file: string) => {
 const GLOB_SYNTAX = /[()[\]{}?!+@]/;
 
 // Free disk space, dependencies, prebuild and the APK build: about 28 minutes
-// in the first runs of the workflow.
-const MINUTES_BEFORE_THE_EMULATOR = 30;
+// in the first runs of the workflow, and the throwaway server for the sheet
+// flow, about 3 more.
+const MINUTES_BEFORE_THE_EMULATOR = 33;
 
 describe("e2e-tier1-android.yml", () => {
   const workflow = readWorkflow("e2e-tier1-android.yml");
@@ -245,14 +269,21 @@ describe("e2e-tier1-android.yml", () => {
       ).toEqual([]);
     });
 
-    test("covers the screen the smoke flow drives", () => {
-      // The smoke flow finds the server screen by its test ids: a change to
-      // that screen would otherwise skip the flow that depends on it.
-      const flow = readFileSync(
-        join(root, "e2e/suites/cast/flows/smoke-launch.yml"),
-        "utf8",
-      );
-      const ids = [...flow.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
+    test("covers the screens the flows drive", () => {
+      // The flows find their screens by test ids: a change to one of those
+      // screens would otherwise skip the flows that depend on it.
+      const flows = join(root, "e2e/suites/cast/flows");
+      const ids = readdirSync(flows)
+        .filter((name) => name.endsWith(".yml"))
+        .flatMap((name) => [
+          ...readFileSync(join(flows, name), "utf8").matchAll(/id: "([^"]+)"/g),
+        ])
+        .map((match) => match[1]);
+      // A non-empty list here names ids no screen has: a typo, or a test id
+      // the flow needs and the screen lost.
+      expect(
+        ids.filter((id) => screensDrivenBy([id], files).length === 0),
+      ).toEqual([]);
       const screens = screensDrivenBy(ids, files);
       expect(screens).not.toEqual([]);
       expect(
@@ -334,11 +365,12 @@ describe("e2e-tier1-android.yml", () => {
         // it; maestro.py stops it and fails the attempt, and the runner then
         // shuts the emulator down before the retry boots one.
         expect(step).not.toMatch(/\bmaestro\s+test\b/);
-        const flowSeconds = Number(
-          step.match(/e2e\/bench\/maestro\.py .*--timeout[ =](\d+)/)?.[1],
-        );
+        const flowSeconds = [
+          ...step.matchAll(/e2e\/bench\/maestro\.py .*--timeout[ =](\d+)/g),
+        ].reduce((sum, match) => sum + Number(match[1]), 0);
+        expect(flowSeconds).toBeGreaterThan(0);
         // The step's own bound, which covers the boot and the install too,
-        // comes after it.
+        // comes after all of its flows.
         expect(flowSeconds).toBeLessThan(minutes(step) * 60);
       },
     );

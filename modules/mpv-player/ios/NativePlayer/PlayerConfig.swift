@@ -182,6 +182,9 @@ struct UIOptionsRecord: Record {
 	/// stopPlayingTitle a %TITLE% placeholder). Native falls
 	/// back to English for missing keys.
 	@Field var strings: [String: String] = [:]
+	/// The Cast button, and the texts of the output sheet it opens (JS: buildNativePlayerConfig).
+	@Field var allowCast: Bool = false
+	@Field var outputPickerStrings: [String: String] = [:]
 }
 
 struct SyncPlayPlaylistItemRecord: Record {
@@ -234,9 +237,9 @@ struct PlayerPresentConfigRecord: Record {
 	@Field var tracks: TrackMenusRecord?
 	@Field var subtitleStyle: SubtitleStyleRecord?
 	@Field var ui: UIOptionsRecord = UIOptionsRecord()
-	/// Which engine decodes the stream ("mpv" | "exoplayer"). Mirrored for
-	/// record-shape parity with Android; iOS's chrome always runs mpv and
-	/// ignores this field.
+	/// Which engine decodes the stream ("mpv" | "exoplayer"). iOS builds mpv
+	/// only: the module refuses any other name (NativeEngineKind) rather than
+	/// running mpv in its place.
 	@Field var engine: String?
 }
 

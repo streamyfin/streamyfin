@@ -9,14 +9,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image } from "@/components/common/ServerImage";
+import { OutputButton } from "@/components/cast/OutputButton";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
@@ -32,6 +35,8 @@ import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
+
+// Cast is off on TV.
 
 export default function AlbumDetailScreen() {
   const { albumId } = useLocalSearchParams<{ albumId: string }>();
@@ -96,6 +101,13 @@ export default function AlbumDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
+      headerRight: Platform.isTV
+        ? undefined
+        : () => (
+            <HeaderButtonGroup>
+              <OutputButton />
+            </HeaderButtonGroup>
+          ),
     });
   }, [album?.Name, navigation]);
 
@@ -200,7 +212,7 @@ export default function AlbumDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
+              <ArtworkImage
                 source={{ uri: imageUrl }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'

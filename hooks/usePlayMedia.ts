@@ -10,6 +10,7 @@ import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { liveTvBitrateRequest } from "@/utils/bitrate";
+import { choosePlay } from "@/utils/cast/playTarget";
 import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { writeErrorLog } from "@/utils/log";
@@ -30,6 +31,11 @@ interface PlayMediaOptions {
    * of a SyncPlay group.
    */
   item?: BaseItemDto | null;
+  /**
+   * `item` is the server's whole answer for it (an item lookup, not a list's partial item): the native player
+   * takes it rather than fetching it again.
+   */
+  itemIsComplete?: boolean;
 }
 
 // Module level, not per hook: the channel grid, the guide and the Play button
@@ -63,6 +69,9 @@ export const usePlayMedia = () => {
 
   return useCallback(
     async (req: PlayRequest, options?: PlayMediaOptions): Promise<void> => {
+      // Any play asked here is the latest choice, whatever started it (a Shuffle among them): a Continue here or a
+      // receiver load still on its way gives way to it.
+      choosePlay();
       // A Book, a Season or a folder has no stream: both players would open,
       // get a 400 from the server and leave the user on a dead screen. Say
       // why instead, and leave the shuffle queue and auto-play chain alone.
@@ -117,7 +126,11 @@ export const usePlayMedia = () => {
       const isCurrent = isLive ? () => mountedRef.current : undefined;
       if (
         isNativeChromeActive(settings) &&
-        (await presentFromRequest(req, { isCurrent }))
+        (await presentFromRequest(req, {
+          isCurrent,
+          item:
+            options?.itemIsComplete && options.item ? options.item : undefined,
+        }))
       ) {
         return;
       }

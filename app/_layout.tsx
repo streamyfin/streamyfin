@@ -56,6 +56,15 @@ const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 const JellyfinCastStopReporter = Platform.isTV
   ? null
   : require("@/components/JellyfinCastStopReporter").JellyfinCastStopReporter;
+const RemoteTargetMemory = Platform.isTV
+  ? null
+  : require("@/components/cast/RemoteTargetMemory").RemoteTargetMemory;
+const OutputPickerActions = Platform.isTV
+  ? null
+  : require("@/components/cast/OutputPickerActions").OutputPickerActions;
+const CastFailureNotice = Platform.isTV
+  ? null
+  : require("@/components/cast/CastFailureNotice").CastFailureNotice;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -347,6 +356,15 @@ function Layout() {
                                       />
                                       {JellyfinCastStopReporter && (
                                         <JellyfinCastStopReporter />
+                                      )}
+                                      {RemoteTargetMemory && (
+                                        <RemoteTargetMemory />
+                                      )}
+                                      {OutputPickerActions && (
+                                        <OutputPickerActions />
+                                      )}
+                                      {CastFailureNotice && (
+                                        <CastFailureNotice />
                                       )}
                                       <Stack>
                                         <Stack.Screen

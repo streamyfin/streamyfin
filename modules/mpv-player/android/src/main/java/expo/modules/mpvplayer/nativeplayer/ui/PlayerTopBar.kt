@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer.ui
 
+import android.graphics.Rect
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Close
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TextFormat
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -46,13 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import expo.modules.mpvplayer.cast.target.TargetPhase
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import kotlin.math.roundToInt
 
 @Composable
 fun PlayerTopBar(
@@ -120,6 +128,9 @@ fun PlayerTopBar(
             }
         }
 
+        // Not in a SyncPlay group, which a later join can bring into a player that showed it.
+        if (viewModel.capabilities.cast && !viewModel.syncPlayActive) CastButton(viewModel)
+
         if (viewModel.syncPlayActive) {
             IconButton(onClick = { viewModel.openSyncPlayQueue() }, modifier = Modifier.size(48.dp)) {
                 Icon(
@@ -138,14 +149,14 @@ fun PlayerTopBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.PictureInPicture,
-                    contentDescription = "Picture in Picture",
+                    contentDescription = viewModel.str("pictureInPicture", "Picture in picture"),
                     tint = Color.White
                 )
             }
         }
 
         // Zoom to fill button (if not compact)
-        if (!compact) {
+        if (!compact && viewModel.capabilities.zoom) {
             IconButton(
                 onClick = { viewModel.toggleZoomToFill() },
                 modifier = Modifier.size(40.dp)
@@ -176,7 +187,7 @@ fun PlayerTopBar(
         }
 
         // Speed Menu Button (if not compact)
-        if (!compact && !viewModel.syncPlayActive) {
+        if (!compact && !viewModel.syncPlayActive && viewModel.capabilities.speed) {
             Box {
                 IconButton(
                     onClick = {
@@ -272,7 +283,7 @@ fun PlayerTopBar(
 
                     // The blocks below drive mpv-only engine calls (no-ops on
                     // the Media3 engine) — hidden for an exo session.
-                    if (viewModel.isMpvEngine) {
+                    if (viewModel.isMpvEngine && viewModel.capabilities.decoderSettings) {
                         HorizontalDivider()
 
                         // Sync Delays
@@ -421,7 +432,7 @@ fun PlayerTopBar(
 
                     HorizontalDivider()
 
-                    if (!viewModel.subtitleScaleLocked) {
+                    if (!viewModel.subtitleScaleLocked && viewModel.capabilities.decoderSettings) {
                         Text(
                             text = viewModel.strings.get("subtitleSize", "Subtitle Size"),
                             fontWeight = FontWeight.Bold,
@@ -440,30 +451,32 @@ fun PlayerTopBar(
                         HorizontalDivider()
                     }
 
-                    // Subtitle Sync
-                    Text(
-                        text = viewModel.strings.get("subtitleSync", "Subtitle Sync"),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                    PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(syncOffsetLabel(offset))
-                                    if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            },
-                            onClick = {
-                                viewModel.setSubtitleDelay(offset)
-                                showSubtitleMenu = false
-                            }
+                    if (viewModel.capabilities.decoderSettings) {
+                        // Subtitle Sync
+                        Text(
+                            text = viewModel.strings.get("subtitleSync", "Subtitle Sync"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
+                        PlayerConstants.SYNC_OFFSET_PRESETS.forEach { offset ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(syncOffsetLabel(offset))
+                                        if (kotlin.math.abs(viewModel.subtitleDelay - offset) < 0.01) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.setSubtitleDelay(offset)
+                                    showSubtitleMenu = false
+                                }
+                            )
+                        }
                     }
 
                     if (viewModel.uiOptions.subtitleSearchEnabled) {
@@ -509,7 +522,7 @@ fun PlayerTopBar(
                     viewModel.scheduleAutoHide()
                 }
             ) {
-                if (compact) {
+                if (compact && viewModel.capabilities.zoom) {
                     DropdownMenuItem(
                         text = { Text(viewModel.strings.get("zoomToFill", "Zoom to Fill")) },
                         onClick = {
@@ -639,20 +652,22 @@ fun PlayerTopBar(
                     }
                 )
 
-                // Technical Info
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                if (viewModel.capabilities.technicalInfo) {
+                    // Technical Info
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                            }
+                        },
+                        onClick = {
+                            viewModel.showTechnicalInfo = !viewModel.showTechnicalInfo
+                            showMoreMenu = false
                         }
-                    },
-                    onClick = {
-                        viewModel.showTechnicalInfo = !viewModel.showTechnicalInfo
-                        showMoreMenu = false
-                    }
-                )
+                    )
+                }
             }
         }
     }
@@ -667,5 +682,34 @@ fun formatTimeSec(seconds: Double): String {
         String.format("%d:%02d:%02d", hrs, mins, secs)
     } else {
         String.format("%d:%02d", mins, secs)
+    }
+}
+
+// Hands the video off to a receiver through the output sheet; the glyph says whether one is connected, and a ring
+// turns while one connects or reconnects. The sheet points at the button, from its bounds in the window.
+@Composable
+private fun CastButton(viewModel: PlayerViewModel) {
+    var anchor by remember { mutableStateOf<Rect?>(null) }
+    val connected = viewModel.castPhase == TargetPhase.CONNECTED
+    Box(contentAlignment = Alignment.Center) {
+        IconButton(
+            onClick = { anchor?.let(viewModel::openOutputSheet) },
+            modifier = Modifier
+                .size(40.dp)
+                .onGloballyPositioned { coordinates ->
+                    val bounds = coordinates.boundsInWindow()
+                    anchor = Rect(bounds.left.roundToInt(), bounds.top.roundToInt(), bounds.right.roundToInt(), bounds.bottom.roundToInt())
+                },
+        ) {
+            Icon(
+                imageVector = if (connected) Icons.Default.CastConnected else Icons.Default.Cast,
+                // Joined as React Native joins the header button's label and value: "Cast button, Connected".
+                contentDescription = "${viewModel.castButtonLabel}, ${viewModel.castButtonState}",
+                tint = if (connected) PlayerAccentColor else Color.White,
+            )
+        }
+        if (viewModel.castPhase == TargetPhase.CONNECTING) {
+            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp, color = Color.White)
+        }
     }
 }

@@ -11,7 +11,7 @@ import {
   getShowApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -84,6 +84,12 @@ import {
   updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
+import {
+  castClientFor,
+  currentCastSession,
+  remoteTarget,
+  showExpandedControls,
+} from "@/modules/mpv-player/src/cast";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -118,6 +124,9 @@ import {
   bitrateLabel,
   fromNativeQualityIndex,
 } from "@/utils/bitrate";
+import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
+import { chooseRemotePlay } from "@/utils/cast/playTarget";
+import { sendToReceiver } from "@/utils/cast/sendToReceiver";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { detectBitrate, keepPlaybackRate } from "@/utils/jellyfin/bitrateTest";
 import {
@@ -146,12 +155,17 @@ import {
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
-import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
   type PlayRequest,
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
+import {
+  mayHandOff,
+  nextStepAfterSend,
+  resolveCastHandOff,
+  stepAfterRefusal,
+} from "@/utils/nativePlayer/resolveCastHandOff";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
 import { resolveTeardownReport } from "@/utils/nativePlayer/resolveTeardownReport";
 import {
@@ -282,7 +296,8 @@ interface NativePlayerContextValue {
    */
   presentFromRequest: (
     req: PlayRequest,
-    options?: { isCurrent?: () => boolean },
+    /** `item`: the server's whole answer for the item, which the player then does not fetch again. */
+    options?: { isCurrent?: () => boolean; item?: BaseItemDto },
   ) => Promise<boolean>;
   isActive: boolean;
 }
@@ -444,7 +459,7 @@ const PlayCommandRouteFallback: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         // Someone chose this play, from another client: a new session.
         resetStillWatchingSession();
@@ -464,6 +479,7 @@ const NativePlayerProviderInner: React.FC<{
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
+  const store = useStore();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
@@ -520,6 +536,8 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // Counts the player's hand-offs: only the latest closes or resumes the player.
+  const handOffCountRef = useRef(0);
   // A measure can end after the provider is gone, its session still in the ref.
   const aliveRef = useRef(true);
   useEffect(() => {
@@ -1122,6 +1140,7 @@ const NativePlayerProviderInner: React.FC<{
         originalLabel: t("common.original_audio"),
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
+        outputPickerStrings: buildOutputPickerStrings(t),
         maxStreamingBitrate: options.maxStreamingBitrate,
         // The stream on screen goes on downloading while this one is asked,
         // unless its cache already holds it to the end.
@@ -1433,7 +1452,7 @@ const NativePlayerProviderInner: React.FC<{
   const presentFromRequest = useCallback(
     async (
       req: PlayRequest,
-      options?: { isCurrent?: () => boolean },
+      options?: { isCurrent?: () => boolean; item?: BaseItemDto },
     ): Promise<boolean> => {
       // Present while a session is active (e.g. WS Play command) swaps in
       // place; beginSession closes the old server session once the new
@@ -1444,6 +1463,7 @@ const NativePlayerProviderInner: React.FC<{
         warmedSubtitleItemIdsRef.current.clear();
       }
       return beginSession(req, {
+        item: options?.item,
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
       });
@@ -2575,6 +2595,78 @@ const NativePlayerProviderInner: React.FC<{
           void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
+      // The output sheet handed the video off: the receiver gets the item where the player paused, then the player
+      // closes and the receiver's controls open, or it says why and plays on.
+      addNativePlayerListener(
+        "onCastHandOffRequested",
+        ({ positionSec, itemId, wasPlaying = true }) => {
+          const session = sessionRef.current;
+          const currentApi = apiRef.current;
+          const userId = userRef.current?.Id;
+          const target = remoteTarget();
+          const request = {
+            itemId,
+            session,
+            inSyncPlay: syncRef.current.enabled,
+            receiverConnected: target.state === "connected",
+            wasPlaying,
+          };
+          if (
+            !session ||
+            !currentApi ||
+            !userId ||
+            !target.target ||
+            !mayHandOff(request)
+          ) {
+            if (stepAfterRefusal(request).kind === "resume")
+              void nativePlayerPlay();
+            return;
+          }
+          // A later hand-off, to another receiver say, owns the player once it starts.
+          const handOff = ++handOffCountRef.current;
+          void sendToReceiver(
+            { api: currentApi, userId, store, t },
+            resolveCastHandOff(session, positionSec),
+            target.target,
+            // Another item in the player by then, or a group it now plays for: nothing goes to the receiver.
+            () => sessionRef.current !== session || syncRef.current.enabled,
+          ).then((result) => {
+            const current = sessionRef.current;
+            // The player closed meanwhile: what the receiver plays is the user's.
+            if (!current) return;
+            const step = nextStepAfterSend(result, {
+              latest: handOff === handOffCountRef.current,
+              inSyncPlay: syncRef.current.enabled,
+              wasPlaying,
+              // Another episode, or played here again while the receiver loaded.
+              movedOn: current !== session || session.isPlaying,
+            });
+            switch (step.kind) {
+              case "dismiss":
+                void dismissNativePlayer();
+                void showExpandedControls();
+                return;
+              case "notice":
+                void nativePlayerShowNotice(step.message);
+                if (step.resume) void nativePlayerPlay();
+                return;
+              case "resume":
+                void nativePlayerPlay();
+                return;
+              case "stopReceiver": {
+                const cast = currentCastSession();
+                if (cast)
+                  void castClientFor(cast)
+                    .stop()
+                    .catch(() => {});
+                return;
+              }
+              case "none":
+                return;
+            }
+          });
+        },
+      ),
     ];
 
     // Listeners replaced while a stall lasts: the cleanup stopped looking at
@@ -2618,6 +2710,8 @@ const NativePlayerProviderInner: React.FC<{
     updateSettings,
     lockOrientation,
     syncBufferingReporter,
+    store,
+    t,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)
@@ -2628,7 +2722,7 @@ const NativePlayerProviderInner: React.FC<{
   useEffect(
     () =>
       subscribe("Play", (data: unknown) => {
-        const req = parseRemotePlayCommand(data);
+        const req = chooseRemotePlay(data);
         if (!req) return;
         if (syncRef.current.enabled && !req.offline) {
           void syncRef.current

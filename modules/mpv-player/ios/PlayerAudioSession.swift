@@ -22,9 +22,14 @@ final class PlayerAudioSession {
 	static let shared = PlayerAudioSession()
 
 	private let queue = DispatchQueue(label: "streamyfin.player.audio-session", qos: .userInitiated)
+	// Getters wait on the audio server too: on a queue of their own, a slow read
+	// never delays the changes playback waits for.
+	private let reads = DispatchQueue(label: "streamyfin.player.audio-session.reads", qos: .userInitiated)
 
 	private init() {}
 
+	// AVAudioSession is iOS and tvOS only; the standalone checks build this file on macOS for its queues.
+	#if !os(macOS)
 	/// Applies the playback category and activates the session. `completion`
 	/// runs on the main thread afterwards, whether or not the session took it.
 	func activate(completion: (() -> Void)? = nil) {
@@ -50,6 +55,25 @@ final class PlayerAudioSession {
 			let session = AVAudioSession.sharedInstance()
 			try? session.setActive(false, options: .notifyOthersOnDeactivation)
 			try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+		}
+	}
+
+	/// The name of the AirPlay output in the current route, nil without one:
+	/// `currentRoute` is a call to the audio server like the setters. `completion`
+	/// runs on the main thread.
+	func airPlayOutputName(completion: @escaping (String?) -> Void) {
+		read({
+			AVAudioSession.sharedInstance().currentRoute.outputs.first { $0.portType == .airPlay }?.portName
+		}, completion: completion)
+	}
+	#endif
+
+	/// Runs a getter of the session off the main thread, and hands its answer to
+	/// `completion` on the main thread.
+	func read<Value>(_ value: @escaping () -> Value, completion: @escaping (Value) -> Void) {
+		reads.async {
+			let answer = value()
+			DispatchQueue.main.async { completion(answer) }
 		}
 	}
 

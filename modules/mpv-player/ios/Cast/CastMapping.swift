@@ -1,0 +1,87 @@
+import Foundation
+
+/// The SDK's raw enum values as the names the JS side reads (see Cast.types.ts). No
+/// GoogleCast import, so the harness in scripts/ios/test-cast-mapping.sh compiles it alone.
+enum CastMapping {
+  static let receiverAppIdKey = "StreamyfinCastReceiverAppId"
+  static let defaultReceiverAppId = "F007D354"
+  /// Lets the SDK present its expanded controls when the user taps the playing media in the Cast
+  /// dialog or the mini controller, as react-native-google-cast set it.
+  static let useDefaultExpandedMediaControls = true
+
+  /// GCKCastState: noDevicesAvailable 0, notConnected 1, connecting 2, connected 3.
+  static func castStateName(_ rawValue: Int) -> String? {
+    switch rawValue {
+    case 0: return "noDevicesAvailable"
+    case 1: return "notConnected"
+    case 2: return "connecting"
+    case 3: return "connected"
+    default: return nil
+    }
+  }
+
+  /// GCKMediaPlayerState: unknown 0, idle 1, playing 2, paused 3, buffering 4, loading 5.
+  static func playerStateName(_ rawValue: Int) -> String {
+    switch rawValue {
+    case 1: return "idle"
+    case 2: return "playing"
+    case 3: return "paused"
+    case 4: return "buffering"
+    case 5: return "loading"
+    default: return "unknown"
+    }
+  }
+
+  /// GCKMediaPlayerIdleReason: none 0, finished 1, cancelled 2, interrupted 3, error 4. The engine
+  /// tells a natural end from a playback error by it.
+  static func idleReasonName(_ rawValue: Int) -> String {
+    switch rawValue {
+    case 1: return "finished"
+    case 2: return "cancelled"
+    case 3: return "interrupted"
+    case 4: return "error"
+    default: return "none"
+    }
+  }
+
+  /// Something plays on the receiver, with a title or without. Not once it stopped: a stop from the TV keeps the
+  /// idle media and its metadata, and the output sheet would offer to stop it again. GCKMediaPlayerState: playing 2
+  /// to loading 5.
+  static func isPlaying(_ playerState: Int) -> Bool {
+    (2...5).contains(playerState)
+  }
+
+  /// The title of what the receiver plays, none once it stopped.
+  static func playingTitle(_ playerState: Int, title: String?) -> String? {
+    isPlaying(playerState) ? title : nil
+  }
+
+  /// Whether this phone can go on with the receiver's media: a Jellyfin item (media another sender loaded has none),
+  /// neither live TV, whose position means nothing here, nor audio, whose queue goes back with B4. The Jellyfin
+  /// receiver gives its Audio items the music track metadata type, GCKMediaMetadataType 3, and every audio item, an
+  /// audiobook among them (generic metadata), an audio/ content type.
+  static func goesOnHere(metadataType: Int?, contentType: String?, itemId: String?, liveStreamId: String?) -> Bool {
+    itemId != nil && liveStreamId == nil && metadataType != 3
+      && contentType?.lowercased().hasPrefix("audio/") != true
+  }
+
+  /// GCKMediaTrackType text is 1. A subtitle change goes over the bus only when the media carries
+  /// text tracks; without any, the receiver has to reload the stream to burn the subtitles in.
+  static func hasTextTracks(_ trackTypes: [Int]) -> Bool {
+    trackTypes.contains(1)
+  }
+
+  /// Nil only when the session ended without an error, which the SDK reports for a stop
+  /// asked from this phone; that stop also closes the receiver app. Any other end may leave
+  /// the TV playing, and the stop reporter checks on it.
+  static func sessionEndError(_ error: Error?) -> String? {
+    guard let error = error as NSError? else { return nil }
+    return "\(error.domain) \(error.code): \(error.localizedDescription)"
+  }
+
+  /// The receiver id the config plugin wrote to the Info.plist, Jellyfin's receiver by default.
+  static func receiverAppId(fromInfoPlist info: [String: Any]) -> String {
+    guard let id = info[receiverAppIdKey] as? String, !id.isEmpty else { return defaultReceiverAppId }
+    return id
+  }
+}

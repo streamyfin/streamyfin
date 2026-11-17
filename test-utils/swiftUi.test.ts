@@ -10,16 +10,28 @@ const SOURCE_DIRS = ["app", "components", "hooks", "providers", "utils"];
 const DESTRUCTURED_REQUIRE =
   /const\s*\{([^}]*)\}\s*=[^;]*?require\("@expo\/ui\/swift-ui"\)/g;
 
+const sourceFiles = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // A hidden folder holds no source. The lint specs write their probes in
+      // components/.lint-probe-* and remove them while this scan, in another
+      // worker, may be listing or reading them: the suite failed on ENOENT.
+      return entry.name === "node_modules" || entry.name.startsWith(".")
+        ? []
+        : sourceFiles(file);
+    }
+    return /\.tsx?$/.test(entry.name) && !/\.(perf-)?test\./.test(entry.name)
+      ? [file]
+      : [];
+  });
+
 /** Every view a source file takes out of `@expo/ui/swift-ui`, by name. */
 const swiftUiViewsUsed = () => {
   const names = new Set<string>();
   for (const dir of SOURCE_DIRS) {
-    const files = readdirSync(path.join(ROOT, dir), {
-      recursive: true,
-    }) as string[];
-    for (const file of files) {
-      if (!/\.tsx?$/.test(file) || /\.(perf-)?test\./.test(file)) continue;
-      const source = readFileSync(path.join(ROOT, dir, file), "utf8");
+    for (const file of sourceFiles(path.join(ROOT, dir))) {
+      const source = readFileSync(file, "utf8");
       for (const [, list] of source.matchAll(DESTRUCTURED_REQUIRE)) {
         for (const entry of list.split(",")) {
           const name = entry.split(":")[0].trim();

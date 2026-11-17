@@ -8,7 +8,7 @@ from bench.config import CAST_KINDS
 from bench.jellyfin import JellyfinHttpError
 from bench.sender import BusMessage, MediaSample, SenderTimeout
 from bench.sessions import SessionView
-from bench.tests.fakes import NO_WAIT_TIME, RECEIVER_APP_ID, FakeReceiver, FakeServer, FakeStatus, bench_run
+from bench.tests.fakes import NO_WAIT_TIME, RECEIVER_APP_ID, FakeClient, FakeReceiver, FakeServer, FakeStatus, bench_run
 from suites.cast import matrix
 from suites.cast.matrix import CastDriver, Row, evaluate, load_cases, run, to_markdown
 
@@ -66,6 +66,8 @@ class FakeDriver:
         self.handed = False
         self.idle = True
         self.stop_obeyed = True
+        # The name the receiver registers under; none, nothing to wait for on the server.
+        self.receiver_name = None
 
     def fail(self, step: str, case_id: str) -> None:
         if (case_id, step) in self.failures:
@@ -161,10 +163,10 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(transcoded.verdict, "ok")
 
     def test_evaluate_reports_receiver_error_from_bus(self):
-        bus = [BusMessage(type="playbackerror", message="Unable to load media")]
+        bus = [BusMessage(type="playbackerror", message="NoCompatibleStream")]
         row = evaluate(case(), "chromecast-gen3", samples([BEFORE]), None, bus, item_id=ITEM)
         self.assertEqual(row.verdict, "ko")
-        self.assertIn("playbackerror: Unable to load media", row.errors)
+        self.assertIn("playbackerror: NoCompatibleStream", row.errors)
 
     def test_evaluate_ko_when_playback_never_started(self):
         row = evaluate(case(), "chromecast-gen3", samples([BEFORE, status("BUFFERING", 0)]), None, [], item_id=ITEM)
@@ -173,10 +175,10 @@ class EvaluateTests(unittest.TestCase):
         self.assertIsNone(row.startup_seconds)
 
     def test_evaluate_ko_on_timeout_keeps_the_receiver_error(self):
-        bus = [BusMessage(type="playbackerror", message="Could not start")]
+        bus = [BusMessage(type="playbackerror", message="NotAllowed")]
         row = evaluate(case(), "chromecast-gen3", [], None, bus, item_id=ITEM)
         self.assertEqual(row.verdict, "ko")
-        self.assertIn("playbackerror: Could not start", row.errors)
+        self.assertIn("playbackerror: NotAllowed", row.errors)
         self.assertIn("playback never started", row.errors)
 
     def test_evaluate_ko_on_timeout_without_bus_or_session(self):
@@ -481,6 +483,37 @@ class MatrixMainTests(unittest.TestCase):
             code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
         self.assertEqual(code, 0)
         self.assertIn("sign-out failed", result.stderr.getvalue())
+
+    # Bench, 14/11: the run signed out as soon as the receiver read IDLE, its own stop report then answered 401, and
+    # the server showed it playing on its own until its cleanup.
+    def test_the_sign_out_waits_for_the_receivers_stop_report(self):
+        server = FakeServer()
+        server.sessions = [{"Id": "rx", "DeviceName": "Living room", "Client": "Chromecast", "UserId": "user-1", "NowPlayingItem": {"Id": "id-V01"}}]
+        reads = []
+        rejected = []
+
+        def report_after_two_reads():
+            reads.append(1)
+            if len(reads) == 2:
+                if "tok1" in server.live:
+                    server.sessions[0].pop("NowPlayingItem")
+                else:
+                    rejected.append(1)
+
+        class Client(FakeClient):
+            def sessions(self, token):
+                report_after_two_reads()
+                return super().sessions(token)
+
+        server.client = lambda *_args, **_kwargs: Client(server)
+        driver = FakeDriver()
+        driver.receiver_name = "Living room"
+        with bench_run(server, FakeReceiver()), mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+            code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+        self.assertEqual(code, 0)
+        self.assertEqual(rejected, [])
+        self.assertNotIn("NowPlayingItem", server.sessions[0])
+        self.assertEqual(server.live, [])
 
     def test_a_receiver_still_playing_at_the_end_keeps_the_token(self):
         # The receiver plays with the run's token: signing it out cut the stream and its reports.

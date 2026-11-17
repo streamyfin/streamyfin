@@ -3,9 +3,9 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { AnimatedEqualizer } from "@/components/music/AnimatedEqualizer";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import {
@@ -145,7 +145,7 @@ export const MusicTrackItem: React.FC<Props> = ({
           }}
         >
           {imageUrl ? (
-            <Image
+            <ArtworkImage
               source={{ uri: imageUrl }}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'

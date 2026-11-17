@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, useWindowDimensions, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { OutputButton } from "@/components/cast/OutputButton";
 import {
   SingleItemDownloadedIcon,
   SingleItemDownloadIcon,
@@ -40,6 +41,8 @@ import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
 // Height of the backdrop header, in layout points.
 const HEADER_HEIGHT = 400;
+
+// Cast is off on TV.
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -170,6 +173,7 @@ const page: React.FC = () => {
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <HeaderButtonGroup>
+            <OutputButton offline={isOffline} />
             {shuffleButton}
             {!Platform.isTV && !isOffline && (
               <SyncPlayButton items={allEpisodes} title={item.Name} />

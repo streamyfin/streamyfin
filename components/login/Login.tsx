@@ -339,6 +339,7 @@ export const Login: React.FC = () => {
                 </Text>
                 <Text className='text-xs text-neutral-400'>{api.basePath}</Text>
                 <Input
+                  testID='login-username'
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, username: text }))
@@ -363,6 +364,7 @@ export const Login: React.FC = () => {
                 />
 
                 <Input
+                  testID='login-password'
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, password: text }))
@@ -402,6 +404,7 @@ export const Login: React.FC = () => {
                 </TouchableOpacity>
                 <View className='flex flex-row items-center justify-between'>
                   <Button
+                    testID='login-submit'
                     onPress={handleLogin}
                     loading={loading}
                     disabled={!credentials.username.trim()}

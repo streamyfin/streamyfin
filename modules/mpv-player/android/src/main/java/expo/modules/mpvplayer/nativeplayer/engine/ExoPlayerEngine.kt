@@ -153,7 +153,7 @@ class ExoPlayerEngine(private val context: Context) : PlayerEngine {
         private const val MAX_STALL_RELOADS_PER_EPISODE = 5
     }
 
-    override var delegate: PlayerEngine.Delegate? = null
+    override var delegate: TransportEngine.Delegate? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
