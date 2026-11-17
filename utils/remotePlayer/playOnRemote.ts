@@ -95,6 +95,8 @@ export const playOnRemote = async (
 ): Promise<SendResult> => {
   if (isStale()) return { status: "superseded" };
   const send = ++sends;
+  // The screen opens for this session's TV: a switch to another one by the time the load leaves sends nothing.
+  const session = currentCastSession();
   const settings = deps.store.get(effectiveSettingsAtom);
   const quality = liveTvBitrateRequest(
     play.item,
@@ -141,7 +143,6 @@ export const playOnRemote = async (
     return { status: "notStarted", message };
   };
   try {
-    const session = currentCastSession();
     // The receiver knows no Auto: it gets the bitrate measured here, held under a stick's ceiling, and its own
     // ceiling for no cap, as `sendToReceiver` hands it.
     const measured = await resolveMaxStreamingBitrate(
@@ -153,8 +154,14 @@ export const playOnRemote = async (
       quality === AUTO_BITRATE_VALUE
         ? autoBitrateOn(measured, session?.device?.modelName)
         : measured;
-    // A press made while Auto measured owns the screen now: this one sends nothing.
-    if (isStale() || send !== sends) return { status: "superseded" };
+    // A press made while Auto measured owns the screen now, or another TV took the session: this one sends nothing.
+    if (
+      isStale() ||
+      send !== sends ||
+      currentCastSession()?.id !== session?.id
+    ) {
+      return { status: "superseded" };
+    }
     const receiverName = receiverNameFor({ friendlyName: remote.name });
     const sent = toReceiverRequest({
       items: [play.item],

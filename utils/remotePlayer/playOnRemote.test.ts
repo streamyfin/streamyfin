@@ -219,6 +219,22 @@ test("a stale send presents nothing", async () => {
   expect(mockCast.loadCalls).toEqual([]);
 });
 
+// A switch to another TV records no play choice: only the session read at the press may get the send.
+test("a TV switched while Auto measures gets nothing", async () => {
+  const { resolveMaxStreamingBitrate } = jest.requireMock(
+    "@/utils/jellyfin/maxStreamingBitrate",
+  );
+  jest.mocked(resolveMaxStreamingBitrate).mockImplementationOnce(async () => {
+    setCastSession(mockCast, "session-2");
+    return 30_000_000;
+  });
+
+  const result = await playOnRemote(deps(), play, livingRoom, fresh);
+
+  expect(result).toEqual({ status: "superseded" });
+  expect(mockCast.loadCalls).toEqual([]);
+});
+
 test("a send while the player is up updates it in place", async () => {
   mockPlayer.remoteUpdateAnswer = true;
 
