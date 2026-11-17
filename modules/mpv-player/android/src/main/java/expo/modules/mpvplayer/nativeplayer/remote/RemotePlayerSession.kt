@@ -23,6 +23,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.nativeplayer.AccessibilityIsolation
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.PresentedPlayer
@@ -46,6 +47,8 @@ class RemotePlayerSession(
     private val screenContent: @Composable (PlayerViewModel, RemoteScreenModel) -> Unit = { model, screen ->
         RemotePlayerScreen(model, screen)
     },
+    /** The Cast session the TV button reports to TalkBack; the tests give their own. */
+    private val hub: RemoteTargetHub = RemoteTargetHub.shared,
 ) : PresentedPlayer {
     override val viewModel = PlayerViewModel()
     override val acceptsJsTransport = false
@@ -75,6 +78,8 @@ class RemotePlayerSession(
         viewModel.engine = engine
         viewModel.applyCapabilities(pictureInPictureSupported = false, allowCast = false)
         viewModel.apply(config.toPresentConfig())
+        // The TV button says the session's state to TalkBack; willTeardown stops following it.
+        viewModel.followCast(hub)
 
         val model = RemoteScreenModel(config.targetName, config.imageHeaders, config.tint)
         screenModel = model

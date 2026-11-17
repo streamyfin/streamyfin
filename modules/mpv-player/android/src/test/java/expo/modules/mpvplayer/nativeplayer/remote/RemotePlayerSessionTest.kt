@@ -9,7 +9,12 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
+import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.target.FakeCastDevices
+import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
+import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.TargetPhase
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.NativePlayerSession
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
@@ -58,8 +63,13 @@ class RemotePlayerSessionTest {
     }
 
     // `idle = false` leaves the main looper alone: Robolectric cannot compose the output sheet's material sheet.
-    private fun presented(on: ComponentActivity = activity, idle: Boolean = true): RemotePlayerSession {
+    private fun presented(
+        on: ComponentActivity = activity,
+        idle: Boolean = true,
+        hub: RemoteTargetHub = RemoteTargetHub(),
+    ): RemotePlayerSession {
         val session = RemotePlayerSession(
+            hub = hub,
             lease = RemoteEngineLease(engine) { released += 1 },
             emit = { name, body -> events += name to body },
             onTornDown = { tornDown += 1 },
@@ -80,6 +90,23 @@ class RemotePlayerSessionTest {
         if (root is ViewGroup) listOf(root) + (0 until root.childCount).flatMap { everyView(root.getChildAt(it)) } else listOf(root)
 
     private fun hasScreen(): Boolean = everyView(content()).any { it is ComposeView }
+
+    // The TV button says the session's state (connected, connecting) to TalkBack, as the local chrome's does.
+    @Test
+    fun theTvButtonFollowsTheCastSession() {
+        val scheduler = ManualScheduler()
+        val hub = RemoteTargetHub().also { it.install(FakeCastDevices(scheduler.schedule)) }
+        hub.startDiscovery(RemoteTargetHub.APP_DISCOVERY)
+        hub.connect(FakeCastDevices.DEVICES[0].id)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+
+        val session = presented(hub = hub)
+        assertEquals(TargetPhase.CONNECTED, session.viewModel.castPhase)
+
+        hub.disconnect(stopPlayback = false)
+        scheduler.advance(RemoteTargetConstants.FAKE_CONNECT_DELAY_MS)
+        assertEquals(TargetPhase.NONE, session.viewModel.castPhase)
+    }
 
     @Test
     fun aRemoteSessionShowsNoSurface() {

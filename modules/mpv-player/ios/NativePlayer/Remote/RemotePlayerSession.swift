@@ -56,6 +56,8 @@ final class RemotePlayerSession: PresentedPlayer {
 		engine.delegate = viewModel
 		viewModel.engine = engine
 		viewModel.apply(config: config.toPresentConfig())
+		// The TV button says the session's state to VoiceOver; willTeardown stops following it.
+		viewModel.followCast()
 		if let tint = config.tint { updateTint(tint) }
 
 		let vc = RemotePlayerViewController(viewModel: viewModel, screen: screen, targetName: config.targetName)
