@@ -9,7 +9,9 @@ struct FakeRemoteItem: Equatable {
 /// that moves one second per progress step, with the Cast engine's transport and queue faces. It has no
 /// rendering face, so the chrome reads it as remote. Main thread only, like the Cast engine; after
 /// `shutdown()` it announces nothing. The simulate calls play the scenes of a real TV the remote screen
-/// has to follow: a suspended session, its resume, a stop from the TV's own remote.
+/// has to follow: a suspended session, its resume, a stop from the TV's own remote. A load plays the items it
+/// asks for, `PlayerConstants.fakeRemoteItemSec` each, and one that starts with `PlayerConstants.fakeRemoteFailId`
+/// fails as a receiver that cannot play it.
 final class FakeRemoteEngine: RemoteEngine {
 	/// Runs the closure after a delay in milliseconds and hands back its cancel, as `CastEngine.Delivery`.
 	typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
@@ -17,18 +19,21 @@ final class FakeRemoteEngine: RemoteEngine {
 	static let defaultItems = (1...3).map {
 		FakeRemoteItem(id: "fake-episode-\($0)", durationSec: PlayerConstants.fakeRemoteItemSec)
 	}
+	static let stoppedError = "The fake TV was let go of"
+	private static let failMessage = #"{"type":"playbackerror","message":"NotAllowed"}"#
 
 	weak var delegate: PlayerEngineDelegate?
 	var onStateChanged: (() -> Void)?
 
 	private let deliver: Delivery
-	private let items: [FakeRemoteItem]
+	private var items: [FakeRemoteItem]
 	private var index = 0
 	private var position = 0.0
 	private var paused = true
 	private var loaded = false
 	private var stopped = false
 	private var cancelLoad: (() -> Void)?
+	private var pendingCompletion: ((CastLoadResult) -> Void)?
 	private var cancelTick: (() -> Void)?
 	private var volume = 0.5
 	private var suspended = false
@@ -79,6 +84,7 @@ final class FakeRemoteEngine: RemoteEngine {
 		stopped = true
 		cancelLoad?()
 		cancelLoad = nil
+		supersedePending()
 		stopTicking()
 	}
 
@@ -86,6 +92,49 @@ final class FakeRemoteEngine: RemoteEngine {
 
 	// A remote screen has no stream to load: what plays is the fake's list.
 	func loadVideo(config: VideoLoadConfig, force: Bool) {}
+
+	// The fake has no envelope to carry: its TV plays on as it was.
+	func useServer(_ server: ReceiverServer) {}
+	func reloadCurrentItem(server: ReceiverServer) {}
+
+	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
+		guard !stopped else { return completion(.notSent(Self.stoppedError)) }
+		// The load before this one, still on its way, is replaced; the TV starts over on this one.
+		cancelLoad?()
+		supersedePending()
+		stopTicking()
+		loaded = false
+		stoppedFromReceiver = false
+		pendingCompletion = completion
+		delegate?.engine(self, didChangeLoading: true)
+		cancelLoad = deliver(PlayerConstants.fakeRemoteLoadMs) { [weak self] in
+			guard let self else { return }
+			self.cancelLoad = nil
+			self.pendingCompletion = nil
+			self.items = request.items.map { FakeRemoteItem(id: $0.id ?? "", durationSec: PlayerConstants.fakeRemoteItemSec) }
+			self.delegate?.engine(self, didChangeLoading: false)
+			guard request.items.first?.id != PlayerConstants.fakeRemoteFailId else {
+				self.notifyState()
+				completion(.settled(.failed(.playbackFailed, .unparsed(Self.failMessage))))
+				return
+			}
+			self.index = request.startIndex ?? 0
+			self.position = Double(request.startPositionTicks ?? 0) / ReceiverProtocol.ticksPerSecond
+			self.loaded = true
+			self.delegate?.engine(self, didBecomeReadyToSeek: true)
+			if self.paused { self.setPaused(false) } else { self.scheduleTick() }
+			self.report()
+			self.notifyState()
+			completion(.settled(.loaded))
+		}
+		notifyState()
+	}
+
+	private func supersedePending() {
+		guard let pending = pendingCompletion else { return }
+		pendingCompletion = nil
+		pending(.settled(.superseded))
+	}
 
 	// MARK: - Transport
 

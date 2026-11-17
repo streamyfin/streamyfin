@@ -126,6 +126,20 @@ public class CastModule: Module {
       RemotePlayback.shared.setServer(record?.server)
     }.runOnQueue(.main)
 
+    // A load through the session's engine, answered once it settles: RemoteLoadResult in Cast.types.ts.
+    AsyncFunction("loadOnReceiver") { (server: ReceiverServerRecord, request: ReceiverPlayRequestRecord, promise: Promise) in
+      self.ensureListening()
+      RemotePlayback.shared.load(server: server.server, request: request.request) { result in
+        promise.resolve(RemotePlayback.resultForJs(result))
+      }
+    }.runOnQueue(.main)
+
+    // The TV's item again where it is, under the server given: how a quality change applies its cap.
+    AsyncFunction("reloadOnReceiver") { (server: ReceiverServerRecord) in
+      self.ensureListening()
+      RemotePlayback.shared.reload(server: server.server)
+    }.runOnQueue(.main)
+
     // False when discovery does not know the device; the state then follows the session events.
     AsyncFunction("connectToDevice") { (deviceId: String) -> Bool in
       self.ensureListening()
@@ -517,6 +531,11 @@ public class CastModule: Module {
     Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
     Function("getRemotePlayback") { () -> [String: Any?] in RemotePlaybackSnapshot.none.toDictionary() }
     AsyncFunction("setRemoteServer") { (_: [String: Any]?) in }
+    // No Cast here: a load is never sent.
+    AsyncFunction("loadOnReceiver") { (_: [String: Any], _: [String: Any]) -> [String: Any] in
+      ["outcome": "notSent", "error": "No Cast on this platform"]
+    }
+    AsyncFunction("reloadOnReceiver") { (_: [String: Any]) in }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
     AsyncFunction("setTargetVolume") { (_: Double) in }

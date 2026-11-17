@@ -6,6 +6,7 @@ cd "$(dirname "$0")/../.."
 test_dir=$(mktemp -d "${TMPDIR:-/tmp}/streamyfin-engine-protocols.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT
 swiftc -module-cache-path "$test_dir/modules" \
-  modules/mpv-player/ios/PlayerEngineProtocols.swift tests/native/EngineProtocolsTests.swift \
+  modules/mpv-player/ios/PlayerEngineProtocols.swift modules/mpv-player/ios/Cast/ReceiverProtocol.swift \
+  tests/native/EngineProtocolsTests.swift \
   -o "$test_dir/test"
 "$test_dir/test"

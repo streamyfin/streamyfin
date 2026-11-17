@@ -1,6 +1,13 @@
 package expo.modules.mpvplayer.nativeplayer.remote
 
 import expo.modules.mpvplayer.cast.engine.CastEngineConstants
+import expo.modules.mpvplayer.cast.engine.CastLoadResult
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadError
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
+import expo.modules.mpvplayer.cast.receiver.ReceiverMessage
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
+import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
@@ -15,15 +22,19 @@ data class FakeRemoteItem(val id: String, val durationSec: Double)
  * that moves one second per progress step, with the Cast engine's transport and queue faces. It has no
  * rendering face, so the chrome reads it as remote. Every entry runs through [runOnMain], as the Cast
  * engine's do; after [stop] it announces nothing. The simulate calls play the scenes of a real TV the
- * remote screen has to follow: a suspended session, its resume, a stop from the TV's own remote.
+ * remote screen has to follow: a suspended session, its resume, a stop from the TV's own remote. A load plays
+ * the items it asks for, [PlayerConstants.FAKE_REMOTE_ITEM_SEC] each, and one that starts with
+ * [PlayerConstants.FAKE_REMOTE_FAIL_ID] fails as a receiver that cannot play it.
  */
 class FakeRemoteEngine(
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val runOnMain: (() -> Unit) -> Unit,
-    private val items: List<FakeRemoteItem> = DEFAULT_ITEMS,
+    private var items: List<FakeRemoteItem> = DEFAULT_ITEMS,
 ) : RemoteEngine {
     companion object {
         val DEFAULT_ITEMS = (1..3).map { FakeRemoteItem("fake-episode-$it", PlayerConstants.FAKE_REMOTE_ITEM_SEC) }
+        const val STOPPED_ERROR = "The fake TV was let go of"
+        private const val FAIL_MESSAGE = """{"type":"playbackerror","message":"NotAllowed"}"""
     }
 
     override var delegate: TransportEngine.Delegate? = null
@@ -36,6 +47,7 @@ class FakeRemoteEngine(
     private var loaded = false
     private var stopped = false
     private var cancelLoad: (() -> Unit)? = null
+    private var pendingResult: ((CastLoadResult) -> Unit)? = null
     private var cancelTick: (() -> Unit)? = null
     private var volume = 0.5
     private var suspended = false
@@ -86,12 +98,52 @@ class FakeRemoteEngine(
         stopped = true
         cancelLoad?.invoke()
         cancelLoad = null
+        pendingResult?.let { pendingResult = null; it(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)) }
         stopTicking()
     }
 
     // A remote screen has no stream to load: what plays is the fake's list.
     override fun load(config: VideoLoadConfig) {}
     override fun reloadCurrentItem() {}
+
+    // The fake has no envelope to carry: its TV plays on as it was.
+    override fun useServer(server: ReceiverServer) {}
+    override fun reloadCurrentItem(server: ReceiverServer) {}
+
+    override fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
+        if (stopped) {
+            onResult(CastLoadResult.NotSent(STOPPED_ERROR))
+            return@runOnMain
+        }
+        // The load before this one, still on its way, is replaced; the TV starts over on this one.
+        cancelLoad?.invoke()
+        pendingResult?.let { pendingResult = null; it(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)) }
+        stopTicking()
+        loaded = false
+        stoppedFromReceiver = false
+        pendingResult = onResult
+        delegate?.onLoadingChanged(true)
+        cancelLoad = schedule(PlayerConstants.FAKE_REMOTE_LOAD_MS) {
+            cancelLoad = null
+            pendingResult = null
+            items = request.items.map { FakeRemoteItem(it.id.orEmpty(), PlayerConstants.FAKE_REMOTE_ITEM_SEC) }
+            delegate?.onLoadingChanged(false)
+            if (request.items.firstOrNull()?.id == PlayerConstants.FAKE_REMOTE_FAIL_ID) {
+                notifyState()
+                onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Failed(ReceiverLoadError.PLAYBACK_FAILED, ReceiverMessage.Unparsed(FAIL_MESSAGE))))
+                return@schedule
+            }
+            index = request.startIndex ?: 0
+            position = (request.startPositionTicks ?: 0L).toDouble() / ReceiverProtocol.TICKS_PER_SECOND
+            loaded = true
+            delegate?.onReadyToSeek()
+            if (paused) setPaused(false) else scheduleTick()
+            report()
+            notifyState()
+            onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded))
+        }
+        notifyState()
+    }
 
     // MARK: - Transport
 

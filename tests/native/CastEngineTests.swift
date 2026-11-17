@@ -830,6 +830,62 @@ enum CastEngineTests {
       check("aLoadSettlesOnceItsStatusIsTheEngines", bench.media.seeks == [30])
     }
 
+    // Two presses on Play that cross: the first answers superseded and loading never blinks off between them.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let first = engine.loadRecorded()
+      var second: [String] = []
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-2")])) { second.append(describe($0)) }
+      let superseded = first() == ["settled superseded"] && bench.delegate.loadings == [true]
+      bench.media.report(snapshot(customData: ours(["itemId": "item-2", "playSessionId": "ps-2"])))
+      check(
+        "aSecondLoadSupersedesTheFirst",
+        superseded && second == ["settled loaded"] && commandsSent(on: bench.port) == ["PlayNow", "PlayNow"]
+      )
+    }
+
+    // The account's server changed under a live engine: nothing is sent then, the next command carries it.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let sent = bench.port.sent.count
+      engine.useServer(
+        ReceiverServer(
+          serverAddress: server.serverAddress, accessToken: "tok-other", userId: server.userId,
+          receiverName: server.receiverName, maxBitrate: 4_000_000
+        )
+      )
+      let quiet = bench.port.sent.count == sent
+      engine.skipToNext()
+      let last = bench.sentMessages().last
+      check(
+        "aNewServerIsUsedByTheNextCommand",
+        quiet && last?["command"] as? String == "NextTrack" && last?["accessToken"] as? String == "tok-other"
+          && (last?["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000
+      )
+    }
+
+    // The account's server names no cap, which only a load knows (Auto measures at the send): the cap stays the
+    // last load's, so a command from the remote screen does not lift it.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var loadServer = server
+      loadServer.maxBitrate = 3_000_000
+      engine.load(server: loadServer, request: request) { _ in }
+      bench.media.report(snapshot())
+      engine.useServer(
+        ReceiverServer(serverAddress: server.serverAddress, accessToken: "tok-other", userId: server.userId, receiverName: server.receiverName)
+      )
+      engine.skipToNext()
+      let last = bench.sentMessages().last
+      check(
+        "aServerWithoutACapKeepsTheCapOfTheLastLoad",
+        last?["accessToken"] as? String == "tok-other" && (last?["maxBitrate"] as? NSNumber)?.int64Value == 3_000_000
+      )
+    }
+
     do {
       let bench = Bench()
       _ = bench.playing()

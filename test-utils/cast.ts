@@ -23,7 +23,9 @@ import {
   NO_REMOTE_TARGET,
   type OutputPickerOptions,
   type PlayServicesStateValue,
+  type ReceiverPlayRequest,
   type ReceiverServerRecord,
+  type RemoteLoadResult,
   type RemotePlaybackState,
   type RemoteTargetPhase,
   type RemoteTargetState,
@@ -83,6 +85,12 @@ export interface CastDoubleState {
   remotePlayback: RemotePlaybackState;
   /** Servers handed to `setRemoteServer`, in order, null for a drop. */
   remoteServerCalls: (ReceiverServerRecord | null)[];
+  /** What `loadOnReceiver` answers. */
+  loadAnswer: RemoteLoadResult;
+  /** Loads handed to `loadOnReceiver`, in order. */
+  loadCalls: { server: ReceiverServerRecord; request: ReceiverPlayRequest }[];
+  /** Servers handed to `reloadOnReceiver`, in order. */
+  reloadCalls: ReceiverServerRecord[];
   /** Options handed to `presentOutputPicker`, in order. */
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
@@ -126,6 +134,9 @@ export const createCastDoubleState = (): CastDoubleState => ({
   muteCalls: [],
   remotePlayback: NO_REMOTE_PLAYBACK,
   remoteServerCalls: [],
+  loadAnswer: { outcome: "loaded" },
+  loadCalls: [],
+  reloadCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
   listeners: {
@@ -302,6 +313,15 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   getRemotePlayback: jest.fn(() => ({ ...state().remotePlayback })),
   setRemoteServer: jest.fn(async (server: ReceiverServerRecord | null) => {
     state().remoteServerCalls.push(server);
+  }),
+  loadOnReceiver: jest.fn(
+    async (server: ReceiverServerRecord, request: ReceiverPlayRequest) => {
+      state().loadCalls.push({ server, request });
+      return { ...state().loadAnswer };
+    },
+  ),
+  reloadOnReceiver: jest.fn(async (server: ReceiverServerRecord) => {
+    state().reloadCalls.push(server);
   }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");

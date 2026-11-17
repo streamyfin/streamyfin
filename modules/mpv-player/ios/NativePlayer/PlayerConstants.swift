@@ -5,10 +5,12 @@ enum PlayerConstants {
 	/// More than this far into a chapter, "previous chapter" restarts it; past it into an item, the
 	/// Cast engine's previous restarts the item.
 	static let chapterRestartThreshold: Double = 3
-	/// The fake remote engine (tests, debug probe): how long its "TV" takes to load, and how long each of
-	/// its default items lasts. Android: FAKE_REMOTE_LOAD_MS and FAKE_REMOTE_ITEM_SEC.
+	/// The fake remote engine (tests, debug probe): how long its "TV" takes to load, how long each of its items
+	/// lasts, and the item id whose load it fails, as a receiver the account cannot play on. Android:
+	/// FAKE_REMOTE_LOAD_MS, FAKE_REMOTE_ITEM_SEC and FAKE_REMOTE_FAIL_ID.
 	static let fakeRemoteLoadMs: Double = 600
 	static let fakeRemoteItemSec: Double = 120
+	static let fakeRemoteFailId = "fake-fail"
 
 	/// The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model, in
 	/// points: Android's REMOTE_*_DP, the same numbers. A window shorter than remoteCompactHeight is couched;

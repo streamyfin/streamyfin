@@ -11,6 +11,18 @@ import Foundation
 final class RemotePlayback: PlayerEngineDelegate {
   /// The one the module, the remote screen and the debug probe share; installDefault gives it its factory.
   static let shared = RemotePlayback()
+  static let noEngineError = "No remote engine: no Cast session, or no server from JS"
+
+  /// A load's answer as JS reads it (RemoteLoadResult in Cast.types.ts): a failure names its code.
+  static func resultForJs(_ result: CastLoadResult) -> [String: Any] {
+    switch result {
+    case .notSent(let error): return ["outcome": "notSent", "error": error]
+    case .settled(.loaded): return ["outcome": "loaded"]
+    case .settled(.superseded): return ["outcome": "superseded"]
+    case .settled(.timedOut): return ["outcome": "timedOut"]
+    case .settled(.failed(let error, _)): return ["outcome": "failed", "error": error.rawValue]
+    }
+  }
 
   private(set) var engine: RemoteEngine?
 
@@ -55,12 +67,29 @@ final class RemotePlayback: PlayerEngineDelegate {
     reconcile()
   }
 
-  /// The account's server; none, and no engine is made. Another server makes another engine.
+  /// The account's server; none, and no engine is made. Another one while an engine lives goes to it, whose next
+  /// commands carry it: an open screen keeps its engine through an address switched on another network or a TV
+  /// renamed.
   func setServer(_ server: ReceiverServer?) {
     guard server != self.server else { return }
     self.server = server
+    if let server, let engine {
+      engine.useServer(server)
+      return
+    }
     drop()
     reconcile()
+  }
+
+  /// Plays `request` on the TV through the session's engine, under `server`; never sent without one.
+  func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
+    guard let engine else { return completion(.notSent(Self.noEngineError)) }
+    engine.load(server: server, request: request, completion: completion)
+  }
+
+  /// The TV's item again where it is, under `server`; nothing without an engine.
+  func reload(server: ReceiverServer) {
+    engine?.reloadCurrentItem(server: server)
   }
 
   /// What the target hub says of the session: connected, or suspended while the SDK tries to resume it.

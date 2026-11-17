@@ -7,7 +7,9 @@ import type {
   CastStateValue,
   OutputPickerOptions,
   PlayServicesStateValue,
+  ReceiverPlayRequest,
   ReceiverServerRecord,
+  RemoteLoadResult,
   RemotePlaybackState,
   RemoteTargetState,
 } from "./Cast.types";
@@ -35,6 +37,13 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   getRemotePlayback(): RemotePlaybackState;
   /** The account's server for the remote engine; null drops the engine, sending nothing to the TV. */
   setRemoteServer(server: ReceiverServerRecord | null): Promise<void>;
+  /** Loads on the TV through the session's engine; resolves when the load settles. */
+  loadOnReceiver(
+    server: ReceiverServerRecord,
+    request: ReceiverPlayRequest,
+  ): Promise<RemoteLoadResult>;
+  /** Reloads what the TV plays under this server, from where it is. */
+  reloadOnReceiver(server: ReceiverServerRecord): Promise<void>;
   showExpandedControls(): Promise<boolean>;
   /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
   presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;

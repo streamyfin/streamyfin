@@ -25,6 +25,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.cast.output.LastHeardStatus
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.output.OutputPickerStrings
+import expo.modules.mpvplayer.cast.playback.ReceiverPlayRequestRecord
 import expo.modules.mpvplayer.cast.playback.ReceiverServerRecord
 import expo.modules.mpvplayer.cast.playback.RemotePlayback
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
@@ -270,6 +271,20 @@ class CastModule : Module() {
         AsyncFunction("setRemoteServer") { server: ReceiverServerRecord? ->
             ensureContext()
             RemotePlayback.shared.setServer(server?.toServer())
+        }.runOnQueue(Queues.MAIN)
+
+        // A load through the session's engine, answered once it settles: RemoteLoadResult in Cast.types.ts.
+        AsyncFunction("loadOnReceiver") { server: ReceiverServerRecord, request: ReceiverPlayRequestRecord, promise: Promise ->
+            ensureContext()
+            RemotePlayback.shared.load(server.toServer(), request.toRequest()) { result ->
+                promise.resolve(RemotePlayback.resultForJs(result))
+            }
+        }.runOnQueue(Queues.MAIN)
+
+        // The TV's item again where it is, under the server given: how a quality change applies its cap.
+        AsyncFunction("reloadOnReceiver") { server: ReceiverServerRecord ->
+            ensureContext()
+            RemotePlayback.shared.reload(server.toServer())
         }.runOnQueue(Queues.MAIN)
 
         Function("getCurrentSession") {

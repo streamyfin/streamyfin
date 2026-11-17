@@ -275,6 +275,43 @@ export interface ReceiverServerRecord {
   maxBitrate?: number;
 }
 
+/** One item of a load, as the receiver's PlayNow names it. */
+export interface ReceiverPlayItem {
+  id: string;
+  name?: string;
+  type?: string;
+  mediaType?: string;
+  isFolder: boolean;
+}
+
+/** What the remote engine loads on the TV: the items, where to start, and the tracks. */
+export interface ReceiverPlayRequest {
+  items: ReceiverPlayItem[];
+  startIndex?: number;
+  startPositionTicks?: number;
+  mediaSourceId?: string;
+  audioStreamIndex?: number;
+  subtitleStreamIndex?: number;
+  liveStreamId?: string;
+}
+
+/**
+ * How a load ended: `superseded` when a later load replaced it, `notSent` when no
+ * engine took it (no session, no server, or no module).
+ */
+export type RemoteLoadOutcome =
+  | "loaded"
+  | "superseded"
+  | "timedOut"
+  | "failed"
+  | "notSent";
+
+/** `error` is the receiver's code for `failed`, the reason for `notSent`. */
+export interface RemoteLoadResult {
+  outcome: RemoteLoadOutcome;
+  error?: string;
+}
+
 /** The keys of the output sheet's texts, those of OutputPickerStrings.kt and OutputPickerStrings.swift. */
 export type OutputPickerStringKey =
   | "title"

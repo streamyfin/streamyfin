@@ -337,6 +337,13 @@ final class CastEngine: RemoteEngine {
     delegate?.engine(self, didFailWithError: Self.urlLoadError)
   }
 
+  func useServer(_ server: ReceiverServer) {
+    onMain()
+    var next = server
+    next.maxBitrate = server.maxBitrate ?? self.server.maxBitrate
+    self.server = next
+  }
+
   /// Plays `request` on the receiver, the way JS does (spec §5.2): one PlayNow, settled by what the
   /// receiver reports, the first event winning, or never sent. A newer load supersedes this one.
   func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {

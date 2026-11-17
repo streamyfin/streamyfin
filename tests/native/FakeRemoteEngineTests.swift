@@ -243,6 +243,69 @@ enum FakeRemoteEngineTests {
 		)
 	}
 
+	static let loadServer = ReceiverServer(serverAddress: "https://jellyfin.example.test", accessToken: "tok-123", userId: "user-1")
+
+	static func describe(_ result: CastLoadResult) -> String {
+		switch result {
+		case .settled(let outcome):
+			if case .failed(let error, _) = outcome { return "failed \(error.rawValue)" }
+			return outcome.wireName
+		case .notSent(let error):
+			return "notSent \(error)"
+		}
+	}
+
+	// What JS asks for is what the fake plays: loading for the fake's load time, then the items asked, each as
+	// long as a default one, from the start asked.
+	static func theFakeEnginePlaysWhatItIsAskedToLoad() {
+		let bench = Bench()
+		bench.started()
+		var results: [String] = []
+		let request = ReceiverPlayRequest(
+			items: [ReceiverItem(id: "ep-1"), ReceiverItem(id: "ep-2")], startIndex: 1, startPositionTicks: 300_000_000
+		)
+		bench.engine.load(server: loadServer, request: request) { results.append(describe($0)) }
+		let loading = bench.engine.phase == .loading && bench.delegate.loadings.last == true && results.isEmpty
+		bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+		check(
+			loading && results == ["loaded"] && bench.engine.phase == .playing && bench.engine.queueItemIds == ["ep-1", "ep-2"]
+				&& bench.engine.playingIndex == 1 && bench.engine.currentItemId == "ep-2" && bench.engine.getCurrentPosition() == 30
+				&& bench.engine.getDuration() == PlayerConstants.fakeRemoteItemSec && bench.delegate.loadings.last == false,
+			"theFakeEnginePlaysWhatItIsAskedToLoad"
+		)
+	}
+
+	static func theFakeEngineFailsOnDemand() {
+		let bench = Bench()
+		bench.started()
+		var results: [String] = []
+		bench.engine.load(server: loadServer, request: ReceiverPlayRequest(items: [ReceiverItem(id: PlayerConstants.fakeRemoteFailId)])) {
+			results.append(describe($0))
+		}
+		bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+		check(
+			results == ["failed playback_failed"] && bench.engine.phase == .none && bench.engine.currentItemId == nil
+				&& bench.delegate.loadings.last == false,
+			"theFakeEngineFailsOnDemand"
+		)
+	}
+
+	// Two loads that cross: the first answers superseded, the TV plays the second.
+	static func theFakeEngineSupersedesALoadWithTheNextOne() {
+		let bench = Bench()
+		bench.started()
+		var first: [String] = []
+		var second: [String] = []
+		bench.engine.load(server: loadServer, request: ReceiverPlayRequest(items: [ReceiverItem(id: "ep-1")])) { first.append(describe($0)) }
+		bench.engine.load(server: loadServer, request: ReceiverPlayRequest(items: [ReceiverItem(id: "ep-2")])) { second.append(describe($0)) }
+		let superseded = first == ["superseded"]
+		bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+		check(
+			superseded && second == ["loaded"] && bench.engine.currentItemId == "ep-2",
+			"theFakeEngineSupersedesALoadWithTheNextOne"
+		)
+	}
+
 	static func main() {
 		theFakePhaseFollowsItsList()
 		theFakeTellsItsStateButNotItsTicks()
@@ -255,6 +318,9 @@ enum FakeRemoteEngineTests {
 		skippingMovesToTheNextItem()
 		theFakeCannotChangeSpeed()
 		stoppingSendsNothingMore()
+		theFakeEnginePlaysWhatItIsAskedToLoad()
+		theFakeEngineFailsOnDemand()
+		theFakeEngineSupersedesALoadWithTheNextOne()
 		print("PASS: fake remote engine (\(cases) cases)")
 	}
 }

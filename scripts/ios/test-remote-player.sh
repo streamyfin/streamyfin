@@ -5,8 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 test_dir=$(mktemp -d "${TMPDIR:-/tmp}/streamyfin-remote-player.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT
+# The remote engine's load face speaks the receiver's types: the engine protocols come with the receiver protocol.
 shared=(
   modules/mpv-player/ios/PlayerEngineProtocols.swift
+  modules/mpv-player/ios/Cast/ReceiverProtocol.swift
   modules/mpv-player/ios/Cast/CastEngineConstants.swift
   modules/mpv-player/ios/NativePlayer/PlayerConstants.swift
 )
@@ -19,7 +21,6 @@ swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
 
 swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
   modules/mpv-player/ios/NativePlayer/Remote/FakeRemoteEngine.swift \
-  modules/mpv-player/ios/Cast/ReceiverProtocol.swift \
   modules/mpv-player/ios/Cast/RemoteTarget.swift \
   modules/mpv-player/ios/Cast/RemotePlaybackSnapshot.swift \
   modules/mpv-player/ios/Cast/RemotePlayback.swift \
@@ -29,6 +30,7 @@ swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
 
 swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/PlayerEngineProtocols.swift \
+  modules/mpv-player/ios/Cast/ReceiverProtocol.swift \
   modules/mpv-player/ios/Cast/RemotePlaybackSnapshot.swift \
   modules/mpv-player/ios/NativePlayer/Remote/RemoteScreenModel.swift \
   tests/native/RemoteScreenModelTests.swift \

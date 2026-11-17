@@ -240,6 +240,20 @@ private final class LoggingRemoteEngine: RemoteEngine {
 		log("\(what): \(from) -> \(inner.getCurrentPosition())")
 	}
 
+	// The server's envelope carries the account's token: the log names the request, never the server.
+	func useServer(_ server: ReceiverServer) { inner.useServer(server) }
+	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
+		log("load of \(request.items.count) items")
+		inner.load(server: server, request: request) { [log] result in
+			log("load answered \(result)")
+			completion(result)
+		}
+	}
+	func reloadCurrentItem(server: ReceiverServer) {
+		log("reload")
+		inner.reloadCurrentItem(server: server)
+	}
+
 	func loadVideo(config: VideoLoadConfig, force: Bool) { inner.loadVideo(config: config, force: force) }
 	func setSpeed(speed: Double) { inner.setSpeed(speed: speed) }
 	func setMute(_ muted: Bool) { inner.setMute(muted) }
