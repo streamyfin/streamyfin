@@ -22,7 +22,14 @@ interface RemoteEngine : ChromeEngine {
     val queueItemIds: List<String>
     val playingIndex: Int
 
-    /** Called on the main thread when anything but the position changed: phase, item, list, index, a track, [reconnecting]. */
+    /** The TV holds media without our receiver's item id: another app or sender loaded it. */
+    val foreign: Boolean
+
+    /** The Cast metadata's title and first image of what the TV holds, whoever loaded it; null without media. */
+    val mediaTitle: String?
+    val mediaImageUrl: String?
+
+    /** Called on the main thread when anything but the position changed: phase, item, list, index, a track, [reconnecting], the media's title or image. */
     var onStateChanged: (() -> Unit)?
 
     /**

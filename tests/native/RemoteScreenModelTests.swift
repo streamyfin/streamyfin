@@ -146,6 +146,37 @@ enum RemoteScreenModelTests {
 		check(screen.transportEnabled, "aReducedPlayerHasNoTrackMenus: transport")
 	}
 
+	// Media our server does not know (PR 6): the title, the artwork, play, pause, both skips, the bar, the TV and the
+	// volume; nothing that needs the item from the server, so no menu, no list, no next episode and no Play here.
+	static func aReducedPlayerShowsOnlyTransportBarAndVolume() {
+		let name = "aReducedPlayerShowsOnlyTransportBarAndVolume"
+		let screen = model(tv(.playing), hasNext: true, reduced: true, failure: "Could not play there", canPlayHere: true)
+		check(!screen.showsEpisodes, "\(name): episodes")
+		check(!screen.showsTrackMenus, "\(name): track menus")
+		check(!screen.showsMoreMenu, "\(name): more")
+		check(!screen.showsPreviousNext, "\(name): previous and next")
+		check(!screen.canPlayHere, "\(name): play here")
+		check(screen.transportEnabled && screen.seekEnabled, "\(name): transport and bar")
+		check(screen.targetLabel == .name("Bench TV"), "\(name): TV")
+		// Its end offers nothing after it and closes the screen.
+		let ended = model(tv(.ended), hasNext: true, reduced: true)
+		check(!ended.nextUpVisible && ended.closes == .playbackEnded, "\(name): end")
+	}
+
+	static func aFullPlayerShowsEverything() {
+		let name = "aFullPlayerShowsEverything"
+		for snapshot in [tv(.playing), tv(.loading), tv(.playing, reconnecting: true)] {
+			let screen = model(snapshot)
+			// A TV that loads or reconnects rests the controls; it never takes them away.
+			check(
+				screen.showsEpisodes && screen.showsTrackMenus && screen.showsMoreMenu && screen.showsPreviousNext,
+				"\(name): \(snapshot.phase)"
+			)
+		}
+		check(model(tv(.stopped), failure: "Could not play there", canPlayHere: true).canPlayHere, "\(name): play here")
+		check(model(tv(.ended), hasNext: true).nextUpVisible, "\(name): next up")
+	}
+
 	// Play here goes with a failure that offers it, never alone.
 	static func aFailureOffersPlayHereOnlyWhenItSaysSo() {
 		let what = "aFailureOffersPlayHereOnlyWhenItSaysSo"
@@ -188,6 +219,8 @@ enum RemoteScreenModelTests {
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()
 		aReducedPlayerHasNoTrackMenus()
+		aFullPlayerShowsEverything()
+		aReducedPlayerShowsOnlyTransportBarAndVolume()
 		aFailureOffersPlayHereOnlyWhenItSaysSo()
 		aFailureClearsWhenTheTvLoadsOrPlaysAgain()
 		theReasonsAreTheJsOnes()

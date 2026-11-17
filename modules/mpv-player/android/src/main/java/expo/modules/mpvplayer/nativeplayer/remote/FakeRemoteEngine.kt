@@ -52,6 +52,9 @@ class FakeRemoteEngine(
     private var volume = 0.5
     private var suspended = false
     private var stoppedFromReceiver = false
+
+    // Another sender's media, its title and image: it holds the TV until this engine loads again.
+    private var foreignMedia: Pair<String?, String?>? = null
     private var heardState: List<Any?>? = null
 
     private val current: FakeRemoteItem? get() = items.getOrNull(index)
@@ -61,11 +64,12 @@ class FakeRemoteEngine(
     override val duration: Double get() = current?.durationSec ?: 0.0
     override val isTv = false
     override val canChangeSpeed = false
-    override val currentItemId: String? get() = if (loaded) current?.id else null
+    override val currentItemId: String? get() = if (loaded && foreignMedia == null) current?.id else null
     override val targetVolume: Double get() = volume
 
     override val phase: RemotePhase
         get() = when {
+            foreignMedia != null -> if (paused) RemotePhase.PAUSED else RemotePhase.PLAYING
             !loaded -> if (cancelLoad != null) RemotePhase.LOADING else RemotePhase.NONE
             current == null -> RemotePhase.ENDED
             stoppedFromReceiver -> RemotePhase.STOPPED
@@ -74,7 +78,10 @@ class FakeRemoteEngine(
         }
     override val reconnecting: Boolean get() = suspended
     override val queueItemIds: List<String> get() = items.map { it.id }
-    override val playingIndex: Int get() = if (loaded && current != null) index else -1
+    override val playingIndex: Int get() = if (loaded && current != null && foreignMedia == null) index else -1
+    override val foreign: Boolean get() = foreignMedia != null
+    override val mediaTitle: String? get() = foreignMedia?.first
+    override val mediaImageUrl: String? get() = foreignMedia?.second
 
     // MARK: - Lifecycle
 
@@ -121,6 +128,7 @@ class FakeRemoteEngine(
         stopTicking()
         loaded = false
         stoppedFromReceiver = false
+        foreignMedia = null
         pendingResult = onResult
         delegate?.onLoadingChanged(true)
         cancelLoad = schedule(PlayerConstants.FAKE_REMOTE_LOAD_MS) {
@@ -174,6 +182,14 @@ class FakeRemoteEngine(
         suspended = false
         delegate?.onLoadingChanged(false)
         report()
+        notifyState()
+    }
+
+    /** Another sender loads media our receiver does not name; the fake's own list is left behind. */
+    fun simulateForeignMedia(title: String?, imageUrl: String?) = runOnMain {
+        if (stopped) return@runOnMain
+        foreignMedia = title to imageUrl
+        stoppedFromReceiver = false
         notifyState()
     }
 

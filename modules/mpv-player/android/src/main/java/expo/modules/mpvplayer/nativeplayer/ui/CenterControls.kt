@@ -79,14 +79,23 @@ fun CenterControls(
     showsSpinner: Boolean = viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == null,
     // The remote screen cuts the transport while the session comes back: each button says it disabled to TalkBack.
     enabled: Boolean = true,
+    // The reduced remote player has no episodes: neither previous nor next, whatever the view model holds.
+    showsPreviousNext: Boolean = true,
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        CenterControlsContent(viewModel, modifier, style, showsSpinner, enabled)
+        CenterControlsContent(viewModel, modifier, style, showsSpinner, enabled, showsPreviousNext)
     }
 }
 
 @Composable
-private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier, style: TransportStyle, showsSpinner: Boolean, enabled: Boolean) {
+private fun CenterControlsContent(
+    viewModel: PlayerViewModel,
+    modifier: Modifier,
+    style: TransportStyle,
+    showsSpinner: Boolean,
+    enabled: Boolean,
+    showsPreviousNext: Boolean,
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val scrim = if (style.disc) Color.Transparent else Color.Black.copy(alpha = 0.5f)
     val playInk = if (style.disc) Color.Black else Color.White
@@ -102,7 +111,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
         val neighbours = if (remote) viewModel.remoteNeighbours else null
         val currentIdx = viewModel.episodeList.indexOfFirst { it.isCurrent }
         val hasPrevious = if (neighbours != null) neighbours.hasPrevious || neighbours.hasNext else currentIdx > 0
-        if (hasPrevious) {
+        if (showsPreviousNext && hasPrevious) {
             Box(
                 modifier = Modifier
                     .size(style.side)
@@ -200,7 +209,7 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
         // On a remote screen the next episode is the list's: nextEpisode is what comes after the list sent.
         val hasNext = neighbours?.hasNext
             ?: ((currentIdx >= 0 && currentIdx < viewModel.episodeList.size - 1) || viewModel.nextEpisode != null)
-        if (hasNext) {
+        if (showsPreviousNext && hasNext) {
             Box(
                 modifier = Modifier
                     .size(style.side)

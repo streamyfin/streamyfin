@@ -32,6 +32,11 @@ struct RemoteScreenModel: Equatable {
 	var transportEnabled: Bool
 	var seekEnabled: Bool
 	var trackMenusEnabled: Bool
+	/// What the reduced player leaves out: it plays media our server does not know, so nothing comes from it.
+	var showsEpisodes: Bool
+	var showsTrackMenus: Bool
+	var showsMoreMenu: Bool
+	var showsPreviousNext: Bool
 	var playShowsSpinner: Bool
 	var nextUpVisible: Bool
 	/// A failure, shown whatever the rest says.
@@ -70,10 +75,12 @@ struct RemoteScreenModel: Equatable {
 		// Something is loaded on the TV, so a seek or a track change has something to act on.
 		let itemLoaded = [.loading, .playing, .paused].contains(snapshot.phase)
 		let ended = snapshot.phase == .ended && sawPlayback
+		// The reduced player knows nothing after what plays, nor how to play it on the phone.
+		let next = hasNext && !reduced
 		let closes: RemoteClose?
 		if !snapshot.connected {
 			closes = .remoteEnded
-		} else if ended, !hasNext {
+		} else if ended, !next {
 			closes = .playbackEnded
 		} else {
 			closes = nil
@@ -84,10 +91,14 @@ struct RemoteScreenModel: Equatable {
 			transportEnabled: !reconnecting,
 			seekEnabled: !reconnecting && itemLoaded,
 			trackMenusEnabled: !reconnecting && itemLoaded && !reduced,
+			showsEpisodes: !reduced,
+			showsTrackMenus: !reduced,
+			showsMoreMenu: !reduced,
+			showsPreviousNext: !reduced,
 			playShowsSpinner: !reconnecting && (snapshot.phase == .loading || snapshot.phase == .between),
-			nextUpVisible: snapshot.connected && ended && hasNext,
+			nextUpVisible: snapshot.connected && ended && next,
 			failure: failure,
-			canPlayHere: failure != nil && canPlayHere,
+			canPlayHere: failure != nil && canPlayHere && !reduced,
 			closes: closes
 		)
 	}

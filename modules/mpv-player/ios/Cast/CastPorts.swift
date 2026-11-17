@@ -13,6 +13,9 @@ struct CastMediaSnapshot {
   var customData: [String: Any]?
   var streamDuration: TimeInterval
   var hasTextTracks: Bool
+  /// The Cast metadata's title and first image: all another app's media says of itself.
+  var title: String?
+  var imageUrl: String?
 }
 
 protocol CastMediaListener: AnyObject {

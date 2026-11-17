@@ -38,6 +38,8 @@ final class FakeRemoteEngine: RemoteEngine {
 	private var volume = 0.5
 	private var suspended = false
 	private var stoppedFromReceiver = false
+	// Another sender's media, its title and image: it holds the TV until this engine loads again.
+	private var foreignMedia: (title: String?, imageUrl: String?)?
 	private var heardState: [AnyHashable?]?
 
 	init(deliver: @escaping Delivery, items: [FakeRemoteItem] = FakeRemoteEngine.defaultItems) {
@@ -49,10 +51,11 @@ final class FakeRemoteEngine: RemoteEngine {
 
 	var intendedPlayState: Bool { !paused }
 	var canChangeSpeed: Bool { false }
-	var currentItemId: String? { loaded ? current?.id : nil }
+	var currentItemId: String? { loaded && foreignMedia == nil ? current?.id : nil }
 	var targetVolume: Double? { volume }
 
 	var phase: RemotePhase {
+		if foreignMedia != nil { return paused ? .paused : .playing }
 		guard loaded else { return cancelLoad != nil ? .loading : .none }
 		guard current != nil else { return .ended }
 		if stoppedFromReceiver { return .stopped }
@@ -60,7 +63,10 @@ final class FakeRemoteEngine: RemoteEngine {
 	}
 	var reconnecting: Bool { suspended }
 	var queueItemIds: [String] { items.map(\.id) }
-	var playingIndex: Int { loaded && current != nil ? index : -1 }
+	var playingIndex: Int { loaded && current != nil && foreignMedia == nil ? index : -1 }
+	var foreign: Bool { foreignMedia != nil }
+	var mediaTitle: String? { foreignMedia?.title }
+	var mediaImageUrl: String? { foreignMedia?.imageUrl }
 
 	// MARK: - Lifecycle
 
@@ -105,6 +111,7 @@ final class FakeRemoteEngine: RemoteEngine {
 		stopTicking()
 		loaded = false
 		stoppedFromReceiver = false
+		foreignMedia = nil
 		pendingCompletion = completion
 		delegate?.engine(self, didChangeLoading: true)
 		cancelLoad = deliver(PlayerConstants.fakeRemoteLoadMs) { [weak self] in
@@ -180,6 +187,14 @@ final class FakeRemoteEngine: RemoteEngine {
 		suspended = false
 		delegate?.engine(self, didChangeLoading: false)
 		report()
+		notifyState()
+	}
+
+	/// Another sender loads media our receiver does not name; the fake's own list is left behind.
+	func simulateForeignMedia(title: String?, imageUrl: String?) {
+		guard !stopped else { return }
+		foreignMedia = (title, imageUrl)
+		stoppedFromReceiver = false
 		notifyState()
 	}
 
@@ -273,7 +288,7 @@ final class FakeRemoteEngine: RemoteEngine {
 	}
 
 	private func notifyState() {
-		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex]
+		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl]
 		guard !stopped, state != heardState else { return }
 		heardState = state
 		onStateChanged?()

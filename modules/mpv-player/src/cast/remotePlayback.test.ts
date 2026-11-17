@@ -44,6 +44,9 @@ const playing: RemotePlaybackState = {
   subtitleIndex: 3,
   queueItemIds: ["episode-1", "episode-2"],
   playingIndex: 0,
+  foreign: false,
+  title: "Episode 1",
+  imageUrl: null,
 };
 
 const server: ReceiverServerRecord = {

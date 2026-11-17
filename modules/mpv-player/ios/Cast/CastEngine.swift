@@ -54,6 +54,8 @@ final class CastEngine: RemoteEngine {
   // for media another sender loaded, which carries no customData.
   private var ours: ReceiverCustomData?
   private var hasMedia = false
+  private var title: String?
+  private var imageUrl: String?
   private var playerState = State.unknown
   private var idleReason: String?
   private var position = 0.0
@@ -153,6 +155,9 @@ final class CastEngine: RemoteEngine {
     let playingIndex: Int
     let audio: Int
     let subtitle: Int
+    let foreign: Bool
+    let title: String?
+    let imageUrl: String?
   }
 
   private var heardState: HeardState?
@@ -196,6 +201,8 @@ final class CastEngine: RemoteEngine {
     stopTicking()
     ours = nil
     hasMedia = false
+    title = nil
+    imageUrl = nil
     playSessionId = nil
     chosenAudio = nil
     chosenSubtitle = nil
@@ -692,6 +699,11 @@ final class CastEngine: RemoteEngine {
 
   var currentItemId: String? { read { $0.itemId } }
 
+  // Read on the main thread, as phase is.
+  var foreign: Bool { hasMedia && ours?.itemId == nil }
+  var mediaTitle: String? { title }
+  var mediaImageUrl: String? { imageUrl }
+
   // The receiver plays at 1x: it takes no playback rate.
   var canChangeSpeed: Bool { false }
 
@@ -773,6 +785,8 @@ final class CastEngine: RemoteEngine {
     }
     ours = data
     hasMedia = true
+    title = status.title
+    imageUrl = status.imageUrl
     itemDuration = Self.duration(of: data, streamDuration: status.streamDuration)
     if !holdsPosition(status.playerState) { position = currentPosition(of: status, port: port, data: data) }
     if newPlaySession || status.playerState != playerState {
@@ -863,6 +877,8 @@ final class CastEngine: RemoteEngine {
   private func clearMedia(_ state: String) {
     hasMedia = false
     ours = nil
+    title = nil
+    imageUrl = nil
     playerState = state
     playSessionId = nil
     chosenAudio = nil
@@ -1102,7 +1118,8 @@ final class CastEngine: RemoteEngine {
     let state = HeardState(
       phase: phase, reconnecting: suspended, itemId: ours?.itemId, queue: queueItemIds, playingIndex: playingIndex,
       audio: ours == nil ? -1 : chosenAudio ?? ours?.audioStreamIndex ?? -1,
-      subtitle: ours == nil ? -1 : chosenSubtitle ?? ours?.subtitleStreamIndex ?? -1
+      subtitle: ours == nil ? -1 : chosenSubtitle ?? ours?.subtitleStreamIndex ?? -1,
+      foreign: foreign, title: title, imageUrl: imageUrl
     )
     guard state != heardState else { return }
     heardState = state

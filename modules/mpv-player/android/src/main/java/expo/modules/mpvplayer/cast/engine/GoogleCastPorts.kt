@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.MainThread
 import com.google.android.gms.cast.Cast
+import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastReasonCodes
@@ -200,6 +201,8 @@ internal class GoogleCastMediaPort(val client: RemoteMediaClient) : CastMediaPor
                 customData = info?.customData,
                 streamDurationMs = info?.streamDuration ?: -1L,
                 hasTextTracks = CastMapping.hasTextTracks(trackTypes),
+                title = info?.metadata?.getString(MediaMetadata.KEY_TITLE),
+                imageUrl = info?.metadata?.images?.firstOrNull()?.url?.toString(),
             )
         }
 

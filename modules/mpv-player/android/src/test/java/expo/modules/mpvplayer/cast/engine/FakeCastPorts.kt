@@ -24,6 +24,8 @@ fun snapshot(
     streamDurationMs: Long = -1,
     hasTextTracks: Boolean = true,
     hasMedia: Boolean = true,
+    title: String? = null,
+    imageUrl: String? = null,
 ) = CastMediaSnapshot(
     playerState = playerState,
     idleReason = idleReason,
@@ -33,6 +35,8 @@ fun snapshot(
     customData = customData,
     streamDurationMs = streamDurationMs,
     hasTextTracks = hasTextTracks,
+    title = title,
+    imageUrl = imageUrl,
 )
 
 class FakeMedia : CastMediaPort {

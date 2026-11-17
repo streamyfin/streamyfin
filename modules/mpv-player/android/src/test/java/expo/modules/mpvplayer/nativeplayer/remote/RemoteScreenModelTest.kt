@@ -164,6 +164,40 @@ class RemoteScreenModelTest {
         assertTrue(screen.transportEnabled)
     }
 
+    // Media our server does not know (PR 6): the title, the artwork, play, pause, both skips, the bar, the TV and the
+    // volume; nothing that needs the item from the server, so no menu, no list, no next episode and no Play here.
+    @Test
+    fun aReducedPlayerShowsOnlyTransportBarAndVolume() {
+        val screen = model(tv(RemotePhase.PLAYING), hasNext = true, reduced = true, failure = "Could not play there", canPlayHere = true)
+
+        assertFalse(screen.showsEpisodes)
+        assertFalse(screen.showsTrackMenus)
+        assertFalse(screen.showsMoreMenu)
+        assertFalse(screen.showsPreviousNext)
+        assertFalse(screen.canPlayHere)
+        assertTrue(screen.transportEnabled)
+        assertTrue(screen.seekEnabled)
+        assertEquals(TargetLabel.Name("Bench TV"), screen.targetLabel)
+        // Its end offers nothing after it and closes the screen.
+        val ended = model(tv(RemotePhase.ENDED), hasNext = true, reduced = true)
+        assertFalse(ended.nextUpVisible)
+        assertEquals(RemoteClose.PLAYBACK_ENDED, ended.closes)
+    }
+
+    @Test
+    fun aFullPlayerShowsEverything() {
+        listOf(tv(RemotePhase.PLAYING), tv(RemotePhase.LOADING), tv(RemotePhase.PLAYING, reconnecting = true)).forEach { snapshot ->
+            val screen = model(snapshot)
+            // A TV that loads or reconnects rests the controls; it never takes them away.
+            assertTrue(screen.showsEpisodes)
+            assertTrue(screen.showsTrackMenus)
+            assertTrue(screen.showsMoreMenu)
+            assertTrue(screen.showsPreviousNext)
+        }
+        assertTrue(model(tv(RemotePhase.STOPPED), failure = "Could not play there", canPlayHere = true).canPlayHere)
+        assertTrue(model(tv(RemotePhase.ENDED), hasNext = true).nextUpVisible)
+    }
+
     // Play here goes with a failure that offers it, never alone.
     @Test
     fun aFailureOffersPlayHereOnlyWhenItSaysSo() {

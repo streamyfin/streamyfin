@@ -1333,6 +1333,41 @@ class CastEngineTest {
 
     // The phase and the state listener: what the remote screen shows comes from them.
 
+    // Media another sender loaded: the remote screen shows what its Cast metadata says, the reduced player (PR 6).
+
+    @Test
+    fun aForeignMediaPublishesItsTitleAndImage() {
+        val engine = engine()
+        val changes = engine.countStateChanges()
+        media.report(snapshot(customData = null, title = "Big Buck Bunny", imageUrl = "https://other.example.test/bbb.jpg"))
+        assertTrue(engine.foreign)
+        assertEquals("Big Buck Bunny", engine.mediaTitle)
+        assertEquals("https://other.example.test/bbb.jpg", engine.mediaImageUrl)
+        assertEquals(RemotePhase.PLAYING, engine.phase)
+        val before = changes()
+        // Another track of the same app: nothing but the metadata changed, and the screen follows it.
+        media.report(snapshot(customData = null, title = "Elephants Dream", imageUrl = null))
+        assertEquals("Elephants Dream", engine.mediaTitle)
+        assertNull(engine.mediaImageUrl)
+        assertEquals(before + 1, changes())
+        // Gone from the TV: nothing is left of it.
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled", customData = null, hasMedia = false))
+        assertFalse(engine.foreign)
+        assertNull(engine.mediaTitle)
+    }
+
+    // The receiver names its item even when another server sent it: the JS asks the server, and needs the title
+    // the TV shows when the server does not know it.
+    @Test
+    fun aReceiverItemIsNotForeignAndKeepsItsTitle() {
+        val engine = engine()
+        media.report(snapshot(title = "Episode 2", imageUrl = "https://jellyfin.example.test/Items/item-1/Images/Primary"))
+        assertFalse(engine.foreign)
+        assertEquals("item-1", engine.currentItemId)
+        assertEquals("Episode 2", engine.mediaTitle)
+        assertEquals("https://jellyfin.example.test/Items/item-1/Images/Primary", engine.mediaImageUrl)
+    }
+
     private fun CastEngine.countStateChanges(): () -> Int {
         var changes = 0
         onStateChanged = { changes += 1 }

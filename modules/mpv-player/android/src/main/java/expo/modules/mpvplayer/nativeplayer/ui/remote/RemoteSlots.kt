@@ -52,6 +52,7 @@ import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteActive
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMore
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteScreenModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteSpeech
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteTransport
 import expo.modules.mpvplayer.nativeplayer.ui.AudioMenu
@@ -80,11 +81,11 @@ private val RemoteButton = PlayerConstants.REMOTE_BUTTON_SMALL_DP.dp
 
 /** Header: the chevron that closes the screen without stopping the TV, and the "more" menu. */
 @Composable
-internal fun RemoteHeader(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
+internal fun RemoteHeader(viewModel: PlayerViewModel, model: RemoteScreenModel, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RemoteChevron(viewModel)
         Spacer(Modifier.weight(1f))
-        RemoteMoreButton(viewModel)
+        if (model.showsMoreMenu) RemoteMoreButton(viewModel)
     }
 }
 
@@ -158,7 +159,14 @@ internal fun Modifier.inert(inert: Boolean): Modifier =
 
 /** Previous, back, play, forward, next: the chrome's transport at the remote sizes, play a white disc. */
 @Composable
-internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout, spinner: Boolean, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteTransportRow(
+    viewModel: PlayerViewModel,
+    layout: RemoteLayout,
+    spinner: Boolean,
+    enabled: Boolean,
+    showsPreviousNext: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val t = RemoteTransport.of(layout)
     CenterControls(
         viewModel = viewModel,
@@ -166,12 +174,13 @@ internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout
         style = TransportStyle(side = t.sideDp.dp, seek = t.seekDp.dp, play = t.playDp.dp, gap = t.gapDp.dp, disc = true, fit = true),
         showsSpinner = spinner,
         enabled = enabled,
+        showsPreviousNext = showsPreviousNext,
     )
 }
 
 /** The bottom row: the TV on the left, episodes, audio and subtitles on the right. */
 @Composable
-internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, tracksEnabled: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, model: RemoteScreenModel, modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -180,13 +189,13 @@ internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, tr
         // Weighted without filling, the TV is measured after the track buttons: a long name ends in an ellipsis
         // instead of taking the row and leaving them no width. The buttons keep together in a row of their own.
         RemoteTargetButton(viewModel, targetName, Modifier.weight(1f, fill = false))
-        Row(verticalAlignment = Alignment.CenterVertically) { RemoteTrackButtons(viewModel, tracksEnabled) }
+        Row(verticalAlignment = Alignment.CenterVertically) { RemoteTrackButtons(viewModel, model) }
     }
 }
 
 /** Couched: the chevron, the titles, the TV, the track buttons and "more", in one bar across the top. */
 @Composable
-internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, tracksEnabled: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, model: RemoteScreenModel, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RemoteChevron(viewModel)
         RemoteTitles(
@@ -197,8 +206,8 @@ internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, track
                 .padding(horizontal = 8.dp),
         )
         RemoteTargetButton(viewModel, targetName)
-        RemoteTrackButtons(viewModel, tracksEnabled)
-        RemoteMoreButton(viewModel)
+        RemoteTrackButtons(viewModel, model)
+        if (model.showsMoreMenu) RemoteMoreButton(viewModel)
     }
 }
 
@@ -266,16 +275,18 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?, 
 }
 
 /**
- * Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on. Audio and subtitles
- * rest while nothing is loaded on the TV: a track change would have nothing to act on.
+ * Episodes, audio and subtitles, each when it has something to offer and the player is not reduced; subtitles light
+ * up while on. Audio and subtitles rest while nothing is loaded on the TV: a track change would have nothing to act on.
  */
 @Composable
-private fun RemoteTrackButtons(viewModel: PlayerViewModel, tracksEnabled: Boolean) {
-    if (viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
+private fun RemoteTrackButtons(viewModel: PlayerViewModel, model: RemoteScreenModel) {
+    val tracksEnabled = model.trackMenusEnabled
+    if (model.showsEpisodes && viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
         ActiveIconButton(Icons.AutoMirrored.Filled.FormatListBulleted, viewModel.strings.get("episodes", "Episodes"), active = false) {
             viewModel.showEpisodeList = true
         }
     }
+    if (!model.showsTrackMenus) return
     if (viewModel.audioMenu.isNotEmpty()) {
         AudioMenu(viewModel) { open ->
             Box(Modifier.inert(!tracksEnabled)) {

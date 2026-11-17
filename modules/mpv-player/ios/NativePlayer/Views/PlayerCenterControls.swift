@@ -20,6 +20,8 @@ struct PlayerCenterControls: View {
 	var style: TransportStyle?
 	/// The remote screen spins from the state of the TV (RemoteScreenModel); nil follows the engine's loading.
 	var showsSpinner: Bool?
+	/// The reduced remote player has no episodes: neither previous nor next, whatever the view model holds.
+	var showsPreviousNext = true
 
 	private var hasChapters: Bool { !viewModel.chapters.isEmpty }
 
@@ -156,7 +158,7 @@ struct PlayerCenterControls: View {
 		// restarts the episode or asks JS for the one before, so it stands on the first episode of a list too.
 		let neighbours = viewModel.remoteNeighbours
 		return FittingGapStack(gap: s.gap) {
-			if neighbours.hasPrevious || neighbours.hasNext {
+			if showsPreviousNext && (neighbours.hasPrevious || neighbours.hasNext) {
 				controlButton(systemName: "backward.end.fill", iconSize: 22, frame: s.side) {
 					viewModel.remotePrevious()
 				}
@@ -187,7 +189,7 @@ struct PlayerCenterControls: View {
 				viewModel.seekForward()
 			}
 
-			if neighbours.hasPrevious || neighbours.hasNext {
+			if showsPreviousNext && (neighbours.hasPrevious || neighbours.hasNext) {
 				controlButton(systemName: "forward.end.fill", iconSize: 22, frame: s.side) {
 					viewModel.remoteNext()
 				}

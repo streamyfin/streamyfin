@@ -229,6 +229,8 @@ class RemotePlayerConfigRecord : Record {
     @Field var tint: RemoteTintRecord? = null
     /** Custom proxy auth headers for the images the screen loads itself, when the artwork has none of its own. */
     @Field var imageHeaders: Map<String, String>? = null
+    /** The TV plays media our server does not know: the reduced player (RemoteScreenModel). */
+    @Field var reduced: Boolean = false
 
     /** The config the chrome's view model takes, with an empty stream it never loads. */
     fun toPresentConfig(): PlayerPresentConfigRecord {

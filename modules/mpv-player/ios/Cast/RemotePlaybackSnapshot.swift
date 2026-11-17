@@ -5,7 +5,7 @@ import Foundation
 struct RemotePlaybackSnapshot: Equatable {
   static let none = RemotePlaybackSnapshot(
     connected: false, phase: .none, reconnecting: false, itemId: nil, positionSec: 0, durationSec: 0, audioIndex: -1,
-    subtitleIndex: -1, queueItemIds: [], playingIndex: -1
+    subtitleIndex: -1, queueItemIds: [], playingIndex: -1, foreign: false, title: nil, imageUrl: nil
   )
 
   /// A session holds, suspended included, and there is a server to play from.
@@ -19,12 +19,17 @@ struct RemotePlaybackSnapshot: Equatable {
   var subtitleIndex: Int
   var queueItemIds: [String]
   var playingIndex: Int
+  /// Media without our receiver's item id, and the title and image its Cast metadata names (any media's).
+  var foreign: Bool
+  var title: String?
+  var imageUrl: String?
 
   func toDictionary() -> [String: Any?] {
     [
       "connected": connected, "phase": phase.rawValue, "reconnecting": reconnecting, "itemId": itemId,
       "positionSec": positionSec, "durationSec": durationSec, "audioIndex": audioIndex, "subtitleIndex": subtitleIndex,
-      "queueItemIds": queueItemIds, "playingIndex": playingIndex,
+      "queueItemIds": queueItemIds, "playingIndex": playingIndex, "foreign": foreign, "title": title,
+      "imageUrl": imageUrl,
     ]
   }
 }
