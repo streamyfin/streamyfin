@@ -251,6 +251,13 @@ struct RemoteTintRecord: Record {
 	@Field var accent: String?
 }
 
+/// A send that failed, as the remote screen says it (JS: RemotePlayerFailure).
+struct RemotePlayerFailureRecord: Record {
+	@Field var message: String = ""
+	/// Offers Play here, which plays on the phone from where the TV is.
+	@Field var canPlayHere: Bool = false
+}
+
 /// What JS sends to present the remote player: what the TV plays, described for the chrome. No stream
 /// and no engine: the remote engine plays it on the TV (JS: RemotePlayerPresentConfig).
 struct RemotePlayerConfigRecord: Record {

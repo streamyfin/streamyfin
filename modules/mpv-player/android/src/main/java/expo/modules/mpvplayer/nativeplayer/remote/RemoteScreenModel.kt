@@ -34,14 +34,30 @@ data class RemoteScreenModel(
     val nextUpVisible: Boolean,
     /** A failure, shown whatever the rest says. */
     val failure: String?,
+    /** The failure offers to play on the phone instead. */
+    val canPlayHere: Boolean,
     val closes: RemoteClose?,
 ) {
     companion object {
         /**
-         * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
-         * know, so there are no track menus.
+         * Whether a failure shown while the TV was at [from] goes as it moves to [to]: the TV loads again or plays
+         * again. A TV already loading when the failure came (a timed out load) keeps it until it plays.
          */
-        fun of(snapshot: RemotePlaybackSnapshot, targetName: String?, hasNext: Boolean, reduced: Boolean, failure: String?): RemoteScreenModel {
+        fun failureClears(from: RemotePhase, to: RemotePhase): Boolean =
+            from != to && (to == RemotePhase.LOADING || to == RemotePhase.PLAYING)
+
+        /**
+         * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
+         * know, so there are no track menus. [canPlayHere] only counts with a [failure].
+         */
+        fun of(
+            snapshot: RemotePlaybackSnapshot,
+            targetName: String?,
+            hasNext: Boolean,
+            reduced: Boolean,
+            failure: String?,
+            canPlayHere: Boolean = false,
+        ): RemoteScreenModel {
             val reconnecting = snapshot.reconnecting
             // Something is loaded on the TV, so a seek or a track change has something to act on.
             val itemLoaded = snapshot.phase in setOf(RemotePhase.LOADING, RemotePhase.PLAYING, RemotePhase.PAUSED)
@@ -55,6 +71,7 @@ data class RemoteScreenModel(
                 playShowsSpinner = !reconnecting && (snapshot.phase == RemotePhase.LOADING || snapshot.phase == RemotePhase.BETWEEN),
                 nextUpVisible = snapshot.connected && ended && hasNext,
                 failure = failure,
+                canPlayHere = failure != null && canPlayHere,
                 closes = when {
                     !snapshot.connected -> RemoteClose.REMOTE_ENDED
                     ended && !hasNext -> RemoteClose.PLAYBACK_ENDED

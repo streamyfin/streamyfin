@@ -9,7 +9,11 @@ final class RemoteScreenState: ObservableObject {
 	@Published var colors = RemoteColors.of(top: nil, bottom: nil, accent: nil)
 	/// What the TV does, as the holder last published it.
 	@Published var snapshot = RemotePlaybackSnapshot.none
-	var targetName: String?
+	@Published var targetName: String?
+	/// What JS said of a send that failed; the engine's own error shows when there is none.
+	@Published var failure: RemoteFailure?
+	/// The screen's Play here button; the session sets it.
+	var playHere: () -> Void = {}
 
 	private let viewModel: PlayerViewModel
 
@@ -23,9 +27,15 @@ final class RemoteScreenState: ObservableObject {
 	var model: RemoteScreenModel {
 		RemoteScreenModel.of(
 			snapshot, targetName: targetName, hasNext: viewModel.nextEpisode != nil, reduced: false,
-			failure: viewModel.errorMessage
+			failure: failure?.message ?? viewModel.errorMessage, canPlayHere: failure?.canPlayHere == true
 		)
 	}
+}
+
+/// A failed send as the remote screen says it.
+struct RemoteFailure: Equatable {
+	let message: String
+	let canPlayHere: Bool
 }
 
 /// The native chrome over a remote engine, with no surface: a remote control for what the TV plays. It
@@ -65,6 +75,7 @@ final class RemotePlayerSession: PresentedPlayer {
 		viewModel.onDismissRequested = { [weak self] reason in
 			self?.dismiss(reason: reason)
 		}
+		screen.playHere = { [weak self] in self?.playHere() }
 	}
 
 	/// `onPresented` runs once the screen is up; the module resolves its promise there, the debug probe logs.
@@ -108,7 +119,10 @@ final class RemotePlayerSession: PresentedPlayer {
 	// screen closes, an end of playback reported first as the local player does.
 	private func follow(_ snapshot: RemotePlaybackSnapshot) {
 		guard !closed else { return }
+		// A failure goes once the TV loads or plays again.
+		let clears = RemoteScreenModel.failureClears(from: screen.snapshot.phase, to: snapshot.phase)
 		screen.snapshot = snapshot
+		if clears { clearFailure() }
 		guard let close = screen.model.closes else { return }
 		switch close {
 		case .playbackEnded:
@@ -122,6 +136,40 @@ final class RemotePlayerSession: PresentedPlayer {
 	/// The artwork's colors, once JS has them; the screen fades to them (remoteTintFadeMs).
 	func updateTint(_ tint: RemoteTintRecord) {
 		screen.colors = RemoteColors.of(top: tint.top, bottom: tint.bottom, accent: tint.accent)
+	}
+
+	/// A new config for the open screen, in place: another item sent, the TV's name, the tracks, the tint. The
+	/// whole config is replaced and the failure goes; the screen stays on where the TV is. False when none is open.
+	func update(config: RemotePlayerConfigRecord) -> Bool {
+		guard viewController != nil, !closed else { return false }
+		viewModel.apply(config: config.toPresentConfig())
+		screen.targetName = config.targetName
+		screen.colors = RemoteColors.of(top: config.tint?.top, bottom: config.tint?.bottom, accent: config.tint?.accent)
+		clearFailure()
+		// apply() starts the view model at the config's position: the TV's state again, as present() does.
+		_ = playback.attachScreen(viewModel)
+		return true
+	}
+
+	/// What JS says of a send that failed, shown with Play here when it offers it; nil takes it away.
+	func showFailure(_ failure: RemotePlayerFailureRecord?) {
+		guard let failure else {
+			clearFailure()
+			return
+		}
+		screen.failure = RemoteFailure(message: failure.message, canPlayHere: failure.canPlayHere)
+	}
+
+	// Play here: JS plays on the phone from the TV's position, and closes this screen first.
+	private func playHere() {
+		guard !closed else { return }
+		emit("onPlayHereRequested", markRemote(["positionSec": viewModel.position]))
+	}
+
+	// Both failures go: the one JS said, and the engine's own error.
+	private func clearFailure() {
+		screen.failure = nil
+		viewModel.errorMessage = nil
 	}
 
 	/// Emits onDismiss, slides the screen away, then hands the engine back to the holder: never stop() nor

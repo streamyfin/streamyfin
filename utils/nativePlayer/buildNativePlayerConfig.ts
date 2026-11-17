@@ -168,6 +168,8 @@ export const buildNativePlayerStrings = (
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
+  // The remote player's way out of a failed send.
+  playHere: t("player.play_here"),
   goBack: t("player.go_back"),
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").

@@ -54,6 +54,9 @@ object PlayerConstants {
     // A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
     // iOS: PlayerConstants.remoteInertOpacity.
     const val REMOTE_INERT_ALPHA = 0.4f
+    // The Play here pill under a failed send, at least the small button's height: white at this opacity over the
+    // tint. iOS: PlayerConstants.remotePlayHereFillOpacity.
+    const val REMOTE_PLAY_HERE_FILL_ALPHA = 0.18f
     // Couched, the artwork is at most this share of the width; wide, beside the column, this one.
     const val REMOTE_LANDSCAPE_ARTWORK_FRACTION = 0.4
     const val REMOTE_WIDE_ARTWORK_FRACTION = 0.45

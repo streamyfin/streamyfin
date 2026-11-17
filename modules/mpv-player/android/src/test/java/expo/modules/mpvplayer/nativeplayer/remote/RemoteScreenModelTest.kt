@@ -19,7 +19,15 @@ class RemoteScreenModelTest {
         hasNext: Boolean = false,
         reduced: Boolean = false,
         failure: String? = null,
-    ) = RemoteScreenModel.of(snapshot, targetName = "Bench TV", hasNext = hasNext, reduced = reduced, failure = failure)
+        canPlayHere: Boolean = false,
+    ) = RemoteScreenModel.of(
+        snapshot,
+        targetName = "Bench TV",
+        hasNext = hasNext,
+        reduced = reduced,
+        failure = failure,
+        canPlayHere = canPlayHere,
+    )
 
     @Test
     fun aPlayingTvLeavesEveryControlOn() {
@@ -118,6 +126,29 @@ class RemoteScreenModelTest {
         assertFalse(screen.trackMenusEnabled)
         assertTrue(screen.seekEnabled)
         assertTrue(screen.transportEnabled)
+    }
+
+    // Play here goes with a failure that offers it, never alone.
+    @Test
+    fun aFailureOffersPlayHereOnlyWhenItSaysSo() {
+        assertTrue(model(tv(RemotePhase.STOPPED), failure = "Could not play there", canPlayHere = true).canPlayHere)
+        assertFalse(model(tv(RemotePhase.STOPPED), failure = "Could not play there").canPlayHere)
+        assertFalse(model(tv(RemotePhase.STOPPED), canPlayHere = true).canPlayHere)
+    }
+
+    // A failure stays until the TV loads again or plays again: a change into loading or playing, not a TV that was
+    // already there when the failure came (a timed out load still loading).
+    @Test
+    fun aFailureClearsWhenTheTvLoadsOrPlaysAgain() {
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.STOPPED, RemotePhase.LOADING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.PAUSED, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.NONE, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.PLAYING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.PAUSED))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.STOPPED))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.BETWEEN))
     }
 
     @Test

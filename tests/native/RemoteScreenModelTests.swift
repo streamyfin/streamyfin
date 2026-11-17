@@ -21,9 +21,13 @@ enum RemoteScreenModelTests {
 	}
 
 	static func model(
-		_ snapshot: RemotePlaybackSnapshot, hasNext: Bool = false, reduced: Bool = false, failure: String? = nil
+		_ snapshot: RemotePlaybackSnapshot, hasNext: Bool = false, reduced: Bool = false, failure: String? = nil,
+		canPlayHere: Bool = false
 	) -> RemoteScreenModel {
-		RemoteScreenModel.of(snapshot, targetName: "Bench TV", hasNext: hasNext, reduced: reduced, failure: failure)
+		RemoteScreenModel.of(
+			snapshot, targetName: "Bench TV", hasNext: hasNext, reduced: reduced, failure: failure,
+			canPlayHere: canPlayHere
+		)
 	}
 
 	static func aPlayingTvLeavesEveryControlOn() {
@@ -112,6 +116,29 @@ enum RemoteScreenModelTests {
 		check(screen.transportEnabled, "aReducedPlayerHasNoTrackMenus: transport")
 	}
 
+	// Play here goes with a failure that offers it, never alone.
+	static func aFailureOffersPlayHereOnlyWhenItSaysSo() {
+		let what = "aFailureOffersPlayHereOnlyWhenItSaysSo"
+		check(model(tv(.stopped), failure: "Could not play there", canPlayHere: true).canPlayHere, "\(what): offered")
+		check(!model(tv(.stopped), failure: "Could not play there").canPlayHere, "\(what): not offered")
+		check(!model(tv(.stopped), canPlayHere: true).canPlayHere, "\(what): no failure")
+	}
+
+	// A failure stays until the TV loads again or plays again: a change into loading or playing, not a TV that was
+	// already there when the failure came (a timed out load still loading).
+	static func aFailureClearsWhenTheTvLoadsOrPlaysAgain() {
+		let what = "aFailureClearsWhenTheTvLoadsOrPlaysAgain"
+		check(RemoteScreenModel.failureClears(from: .stopped, to: .loading), "\(what): stopped to loading")
+		check(RemoteScreenModel.failureClears(from: .paused, to: .playing), "\(what): paused to playing")
+		check(RemoteScreenModel.failureClears(from: .loading, to: .playing), "\(what): loading to playing")
+		check(RemoteScreenModel.failureClears(from: .none, to: .loading), "\(what): none to loading")
+		check(!RemoteScreenModel.failureClears(from: .loading, to: .loading), "\(what): still loading")
+		check(!RemoteScreenModel.failureClears(from: .playing, to: .playing), "\(what): still playing")
+		check(!RemoteScreenModel.failureClears(from: .playing, to: .paused), "\(what): paused")
+		check(!RemoteScreenModel.failureClears(from: .loading, to: .stopped), "\(what): stopped")
+		check(!RemoteScreenModel.failureClears(from: .playing, to: .between), "\(what): between")
+	}
+
 	static func theReasonsAreTheJsOnes() {
 		check(RemoteClose.playbackEnded.reason == "playbackEnded", "theReasonsAreTheJsOnes: playbackEnded")
 		check(RemoteClose.remoteEnded.reason == "remoteEnded", "theReasonsAreTheJsOnes: remoteEnded")
@@ -128,6 +155,8 @@ enum RemoteScreenModelTests {
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()
 		aReducedPlayerHasNoTrackMenus()
+		aFailureOffersPlayHereOnlyWhenItSaysSo()
+		aFailureClearsWhenTheTvLoadsOrPlaysAgain()
 		theReasonsAreTheJsOnes()
 		print("PASS: remote screen model (\(cases) cases)")
 	}

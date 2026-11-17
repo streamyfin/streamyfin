@@ -207,6 +207,13 @@ class RemoteTintRecord : Record {
     @Field var accent: String? = null
 }
 
+/** A send that failed, as the remote screen says it (JS: RemotePlayerFailure). */
+class RemotePlayerFailureRecord : Record {
+    @Field var message: String = ""
+    /** Offers Play here, which plays on the phone from where the TV is. */
+    @Field var canPlayHere: Boolean = false
+}
+
 class RemotePlayerConfigRecord : Record {
     @Field var metadata: MetadataRecord? = null
     /** The TV's name, under the transport. */

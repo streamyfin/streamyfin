@@ -4,6 +4,7 @@ import { NativePlayerNativeModule } from "./NativePlayerModule";
 import { isRemotePlayerEvent } from "./NativePlayerPresentation";
 import type { NativePlayerEvents } from "./NativePlayerPresentation.types";
 import type {
+  RemotePlayerFailure,
   RemotePlayerPresentConfig,
   RemotePlayerTint,
 } from "./RemotePlayerPresentation.types";
@@ -37,6 +38,28 @@ export const updateRemotePlayerTint = async (
 ): Promise<void> => {
   if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return;
   await NativePlayerNativeModule.updateRemotePlayerTint(tint);
+};
+
+/**
+ * A new send while the remote screen is up: the whole config replaces the one it shows, in place, and its
+ * failure goes. False when no remote screen is up, or where none opens.
+ */
+export const updateRemotePlayer = async (
+  config: RemotePlayerPresentConfig,
+): Promise<boolean> => {
+  if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return false;
+  return NativePlayerNativeModule.updateRemotePlayer(config);
+};
+
+/**
+ * What the remote screen says of a send that failed, under the title, with Play here when `canPlayHere`;
+ * null takes it away. It also goes as the TV loads or plays again.
+ */
+export const showRemotePlayerFailure = async (
+  failure: RemotePlayerFailure | null,
+): Promise<void> => {
+  if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return;
+  await NativePlayerNativeModule.showRemotePlayerFailure(failure);
 };
 
 /**
