@@ -1,5 +1,7 @@
+import { INITIAL_AUTO_SUBTITLE_STATE } from "@/utils/autoSubtitleOnMute";
 import { localSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 import {
+  type HandOffSession,
   mayHandOff,
   nextStepAfterSend,
   resolveCastHandOff,
@@ -7,13 +9,22 @@ import {
 } from "./resolveCastHandOff";
 
 const item = { Id: "item-1", Name: "Film", Type: "Movie" } as never;
-const session = {
+const session: HandOffSession = {
   item,
   mediaSourceId: "source-1",
   currentAudioIndex: 2,
   currentSubtitleIndex: 4,
   awaitingLoad: false,
   positionMs: 0,
+  autoSubtitle: INITIAL_AUTO_SUBTITLE_STATE,
+  stream: {
+    mediaSource: {
+      MediaStreams: [
+        { Type: "Subtitle", Index: 3, Language: "eng", IsForced: false },
+        { Type: "Subtitle", Index: 4, Language: "fra", IsForced: false },
+      ],
+    },
+  },
 };
 
 test("the hand-off sends the session's streams at the position", () => {
@@ -56,6 +67,72 @@ test("subtitles turned off stay off", () => {
     resolveCastHandOff({ ...session, currentSubtitleIndex: -1 }, 0)
       .subtitleIndex,
   ).toBe(-1);
+});
+
+// The phone muted with subtitles off: the automation switched English on for the phone's silence, not for the
+// TV, whose sound plays. The receiver got that track anyway (iPhone 17e, 17/11).
+test("a subtitle switched on by the mute automation stays on the phone", () => {
+  expect(
+    resolveCastHandOff(
+      {
+        ...session,
+        currentSubtitleIndex: 3,
+        autoSubtitle: {
+          appliedIndex: 3,
+          appliedTrack: { language: "eng", isForced: false },
+          released: false,
+          carriedTrack: null,
+        },
+      },
+      0,
+    ).subtitleIndex,
+  ).toBe(-1);
+});
+
+// The previous episode ended muted with the automation's track on, and the next one started with it carried over:
+// still the automation's, not the user's.
+test("a subtitle the mute automation carried over from the previous item stays on the phone", () => {
+  expect(
+    resolveCastHandOff(
+      {
+        ...session,
+        currentSubtitleIndex: 3,
+        autoSubtitle: {
+          ...INITIAL_AUTO_SUBTITLE_STATE,
+          carriedTrack: { language: "eng", isForced: false },
+        },
+      },
+      0,
+    ).subtitleIndex,
+  ).toBe(-1);
+});
+
+// A pick made after the automation acted takes the subtitle back: it is the user's and goes to the receiver.
+test("a subtitle the user picked after the mute automation goes to the receiver", () => {
+  expect(
+    resolveCastHandOff(
+      {
+        ...session,
+        currentSubtitleIndex: 4,
+        autoSubtitle: { ...INITIAL_AUTO_SUBTITLE_STATE, released: true },
+      },
+      0,
+    ).subtitleIndex,
+  ).toBe(4);
+  // Carried English, French picked since: French is the user's.
+  expect(
+    resolveCastHandOff(
+      {
+        ...session,
+        currentSubtitleIndex: 4,
+        autoSubtitle: {
+          ...INITIAL_AUTO_SUBTITLE_STATE,
+          carriedTrack: { language: "eng", isForced: false },
+        },
+      },
+      0,
+    ).subtitleIndex,
+  ).toBe(4);
 });
 
 // A subtitle file on this device is not the server's: the receiver plays without subtitles.

@@ -1,6 +1,17 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaStream,
+} from "@jellyfin/sdk/lib/generated-client";
+import {
+  type AutoSubtitleState,
+  showsAutoSubtitle,
+} from "@/utils/autoSubtitleOnMute";
 import type { ReceiverPlay, SendResult } from "@/utils/cast/sendToReceiver";
-import { toServerSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
+import { findSubtitleTrackIdentity } from "@/utils/jellyfin/subtitleUtils";
+import {
+  SUBTITLES_OFF,
+  toServerSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
 import { secondsToTicks } from "@/utils/time";
 
 /** What the hand-off reads from the native player's session. */
@@ -13,6 +24,9 @@ export interface HandOffSession {
   awaitingLoad: boolean;
   /** The position JS tracks, the incoming item's start until its stream loads. */
   positionMs: number;
+  /** The mute automation's state: a subtitle it switched on is not the user's pick. */
+  autoSubtitle: AutoSubtitleState;
+  stream: { mediaSource: { MediaStreams?: MediaStream[] | null } };
 }
 
 /**
@@ -54,6 +68,8 @@ export const mayHandOff = (request: HandOffRequest): boolean =>
  * it. A subtitle file on this device has no server stream, so the receiver plays without subtitles. A live channel
  * has no position to go on from: the receiver joins it live, as the item page's Play sends it. During an in-place
  * swap the player still reports the outgoing stream, so the incoming item goes from the position JS tracks for it.
+ * A subtitle the mute automation switched on stands in for the phone's sound, which the receiver has its own of: it
+ * plays with the user's choice, which was none.
  */
 export const resolveCastHandOff = (
   session: HandOffSession,
@@ -68,7 +84,18 @@ export const resolveCastHandOff = (
         ),
   mediaSourceId: session.mediaSourceId,
   audioIndex: session.currentAudioIndex,
-  subtitleIndex: toServerSubtitleIndex(session.currentSubtitleIndex),
+  subtitleIndex: showsAutoSubtitle(
+    session.autoSubtitle,
+    session.currentSubtitleIndex,
+    findSubtitleTrackIdentity(
+      (session.stream.mediaSource.MediaStreams ?? []).filter(
+        (stream) => stream.Type === "Subtitle",
+      ),
+      session.currentSubtitleIndex,
+    ),
+  )
+    ? SUBTITLES_OFF
+    : toServerSubtitleIndex(session.currentSubtitleIndex),
 });
 
 /**
