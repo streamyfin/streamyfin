@@ -36,6 +36,12 @@ final class FakeMedia: CastMediaPort {
     listener?.castMediaDidUpdateStatus()
   }
 
+  /// The SDK forgetting the media status altogether, as iOS's does a moment after the receiver stopped.
+  func reportNoStatus() {
+    status = nil
+    listener?.castMediaDidUpdateStatus()
+  }
+
   func finishSeek(_ succeeded: Bool) {
     seeksInFlight.removeFirst()(succeeded)
   }
@@ -1800,6 +1806,28 @@ enum CastEngineTests {
         "aStopFromTheReceiverIsStoppedAndPlayResumesWhereItWas",
         stopped && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && engine.phase == .loading
           && changes() == 2
+      )
+    }
+
+    // iOS only: the SDK drops the media from the status the receiver stops on, then the status itself
+    // (the bench, 17/11: idle cancelled without media, then none). The item stays, stopped, and Play
+    // casts it again where it stopped, as on Android where the status keeps the media.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", customData: nil, hasMedia: false), position: 0)
+      let stopped = engine.phase == .stopped
+      bench.media.reportNoStatus()
+      let still = engine.phase == .stopped
+      engine.play()
+      let sent = bench.sentMessages()
+      let options = sent.first?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "aStopWhoseStatusLosesTheMediaStaysStoppedAndPlayCastsTheItemAgain",
+        stopped && still && sent.count == 1 && sent[0]["command"] as? String == "PlayNow" && ids == ["item-1"]
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && bench.media.calls.isEmpty
+          && bench.logs.filter { $0 == "stopped without media, item kept" }.count == 1
       )
     }
 

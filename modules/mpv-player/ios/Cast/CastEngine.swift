@@ -50,8 +50,8 @@ final class CastEngine: RemoteEngine {
   private var busEar: BusEar?
   private var sessionEar: SessionEar?
 
-  // What the last status said. `ours` is nil without media, and for media another sender loaded,
-  // which carries no customData.
+  // What the last status said. `ours` is nil without media (but through a stop, see keptStopped), and
+  // for media another sender loaded, which carries no customData.
   private var ours: ReceiverCustomData?
   private var hasMedia = false
   private var playerState = State.unknown
@@ -667,7 +667,7 @@ final class CastEngine: RemoteEngine {
   // Read on the main thread, where the callbacks that change these run.
   var phase: RemotePhase {
     ReceiverProtocol.phase(
-      hasMedia: hasMedia, playerState: playerState, idleReason: idleReason ?? Reason.none,
+      hasMedia: hasMedia || keptStopped, playerState: playerState, idleReason: idleReason ?? Reason.none,
       loadPending: pendingLoad != nil || reload != nil, waitingForNext: cancelEndWait != nil, hasQueue: !queue.isEmpty
     )
   }
@@ -691,6 +691,7 @@ final class CastEngine: RemoteEngine {
     guard let status = port.status, status.hasMedia else {
       let finished = port.status?.playerState == State.idle && port.status?.idleReason == Reason.finished
       if finished, !(playerState == State.idle && idleReason == Reason.finished) { endWait(true) }
+      if keepsStopped(port.status) { return holdStopped() }
       clearMedia(port.status?.playerState ?? State.idle)
       idleReason = port.status?.idleReason
       notifyState()
@@ -830,6 +831,30 @@ final class CastEngine: RemoteEngine {
     setPause(true)
     setLoading(awaitingReceiver())
     publishState()
+  }
+
+  // iOS's SDK drops the media from the status the receiver stops on, then the status itself, where
+  // Android's keeps both (cast-stop-from-tv-leaves-an-idle-status): our item stays, stopped, so Play
+  // casts it again where it stopped. Kept, `ours` outlives `hasMedia` until a status brings media.
+  private var keptStopped: Bool { !hasMedia && ours != nil }
+
+  private func keepsStopped(_ status: CastMediaSnapshot?) -> Bool {
+    guard ours?.itemId != nil else { return false }
+    guard let status else { return keptStopped }
+    guard status.playerState == State.idle else { return false }
+    return status.idleReason == Reason.cancelled || (keptStopped && status.idleReason == Reason.none)
+  }
+
+  private func holdStopped() {
+    if !keptStopped { log("stopped without media, item kept") }
+    hasMedia = false
+    playerState = State.idle
+    idleReason = Reason.cancelled
+    stopTicking()
+    setPause(true)
+    setLoading(awaitingReceiver())
+    publishState()
+    notifyState()
   }
 
   private func reportState(_ state: String, reason: String, data: ReceiverCustomData?) {
@@ -1002,9 +1027,10 @@ final class CastEngine: RemoteEngine {
     return data
   }
 
-  // Our item, stopped with its media still in the status, and nothing on its way to replace it.
+  // Our item, stopped with its media still in the status or kept through a stop that lost it, and
+  // nothing on its way to replace it.
   private func stoppedItem() -> ReceiverCustomData? {
-    guard hasMedia, playerState == State.idle, idleReason != Reason.interrupted, !awaitingReceiver(), !nextItemComing(),
+    guard hasMedia || keptStopped, playerState == State.idle, idleReason != Reason.interrupted, !awaitingReceiver(), !nextItemComing(),
       let data = ours, data.itemId != nil
     else { return nil }
     return data
@@ -1098,6 +1124,7 @@ final class CastEngine: RemoteEngine {
     static let error = "error"
     static let interrupted = "interrupted"
     static let finished = "finished"
+    static let cancelled = "cancelled"
   }
 }
 
