@@ -142,3 +142,9 @@ object RemoteActive {
     /** Subtitles are on when the chosen entry is a real track: "None" is SUBTITLES_OFF, -1, on the JS side. */
     fun subtitlesOn(selectedIndex: Int?): Boolean = selectedIndex != null && selectedIndex >= 0
 }
+
+/** What TalkBack says for the remote screen's own controls. */
+object RemoteSpeech {
+    /** The TV button: the TV's name, or the Cast label when it has none, then the session state, as on iOS. */
+    fun targetButton(name: String?, label: String, state: String): String = "${name ?: label}, $state"
+}

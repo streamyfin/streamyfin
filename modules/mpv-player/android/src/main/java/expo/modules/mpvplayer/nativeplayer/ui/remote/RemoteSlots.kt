@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteActive
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteSpeech
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteTransport
 import expo.modules.mpvplayer.nativeplayer.ui.AudioMenu
 import expo.modules.mpvplayer.nativeplayer.ui.CenterControls
@@ -218,11 +220,12 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?) 
     ) {
         ActiveIcon(
             icon = Icons.Default.Cast,
-            description = if (targetName == null) "${viewModel.castButtonLabel}, ${viewModel.castButtonState}" else null,
+            description = RemoteSpeech.targetButton(targetName, viewModel.castButtonLabel, viewModel.castButtonState),
             active = true,
         )
         targetName?.let { name ->
             Spacer(Modifier.width(8.dp))
+            // The icon's description already says the name; the text would say it twice.
             Text(
                 text = name,
                 color = activeColor(),
@@ -230,6 +233,7 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?) 
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
     }
