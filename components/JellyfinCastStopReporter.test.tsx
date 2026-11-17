@@ -28,6 +28,11 @@ jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeInfoLog: jest.fn(),
 }));
+// The refresh itself is covered by its own spec; here only when it runs.
+const mockRefreshProgress = jest.fn(async () => {});
+jest.mock("@/hooks/useRevalidatePlaybackProgressCache", () => ({
+  useInvalidatePlaybackProgressCache: () => mockRefreshProgress,
+}));
 
 beforeEach(() => {
   mockCast = createCastDoubleState();
@@ -187,4 +192,51 @@ test("a session starting on the same TV drops the check left over", async () => 
   });
 
   expect(pendingSignal(0).aborted).toBe(true);
+});
+
+// Cast from a film's page, stopped from the Cast dialog, Play on the same page: the page still held the resume point
+// it had before the cast and sent 0, and the receiver's next report wrote 0 over the server's position (iPhone 17e,
+// 17/11). The pages read it again once the stop is on the server.
+test("the pages read the resume point again once the stop of a cast is reported", async () => {
+  let settle: (reported: boolean) => void = () => {};
+  mockReport.mockImplementation(
+    () => new Promise<boolean>((resolve) => (settle = resolve)),
+  );
+  await render(<JellyfinCastStopReporter />);
+  await act(async () => {});
+
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "ended");
+  });
+  expect(mockRefreshProgress).not.toHaveBeenCalled();
+
+  await act(async () => settle(true));
+  expect(mockRefreshProgress).toHaveBeenCalledTimes(1);
+});
+
+test("a stop report that fails still has the pages read the resume point again", async () => {
+  mockReport.mockImplementation(async () => {
+    throw new Error("offline");
+  });
+  await render(<JellyfinCastStopReporter />);
+  await act(async () => {});
+
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "ended", "NETWORK_ERROR (7)");
+  });
+
+  expect(mockRefreshProgress).toHaveBeenCalledTimes(1);
+});
+
+test("a session that cast no item has nothing to read again", async () => {
+  mockCast.mediaStatus = null;
+  await render(<JellyfinCastStopReporter />);
+  await act(async () => {});
+
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "ended");
+  });
+
+  expect(mockReport).not.toHaveBeenCalled();
+  expect(mockRefreshProgress).not.toHaveBeenCalled();
 });
