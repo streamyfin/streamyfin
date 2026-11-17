@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -178,14 +179,15 @@ private fun Modifier.closeOnDragDown(viewModel: PlayerViewModel, columnScroll: S
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             val startedAtTop = columnScroll.value == 0
-            val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+            // Each event's batched history goes in too: the latest position alone reads a flick slower than it is.
+            val tracker = VelocityTracker().apply { addPointerInputChange(down) }
             var scrubbed = viewModel.isScrubbing
             var passedSlop = false
             var lastY = down.position.y
             while (true) {
                 val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
                 if (viewModel.isScrubbing) scrubbed = true
-                tracker.addPosition(change.uptimeMillis, change.position)
+                tracker.addPointerInputChange(change)
                 lastY = change.position.y
                 if (lastY - down.position.y > viewConfiguration.touchSlop) passedSlop = true
                 if (!change.pressed) break
