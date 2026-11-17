@@ -13,7 +13,7 @@ enum CastEngineError: Error {
 ///
 /// Track ids are Jellyfin MediaStream indexes, not the bridge-facing ids TransportEngine names: the
 /// receiver picks its streams by index, and the chrome already emits that index (spec §3.3).
-final class CastEngine: ChromeEngine {
+final class CastEngine: RemoteEngine {
   /// Runs a block after a delay in milliseconds and returns what cancels it: the progress tick, the
   /// reload deadline. The main queue in the app, a manual clock in the checks.
   typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
@@ -25,6 +25,7 @@ final class CastEngine: ChromeEngine {
 
   weak var delegate: PlayerEngineDelegate?
   weak var bindingListener: CastBindingListener?
+  var onStateChanged: (() -> Void)?
   private(set) var intendedPlayState = false
 
   /// Whether the receiver's Jellyfin identity is this sender's: it keeps the one of the first message
@@ -101,7 +102,7 @@ final class CastEngine: ChromeEngine {
   private var queue: [ReceiverItem] = []
 
   // Where in `queue` the receiver plays: it names the item, not which copy of one queued twice.
-  private var playingIndex = -1
+  private(set) var playingIndex = -1
 
   // Bumped by each load: a send result that comes back after a newer load (Android's Play Services
   // hands it over later) no longer describes the receiver's queue.
@@ -142,6 +143,19 @@ final class CastEngine: ChromeEngine {
 
   private let lock = NSLock()
   private var published = Published()
+
+  // What the state listener last heard: it hears again only when something but the position changed.
+  private struct HeardState: Equatable {
+    let phase: RemotePhase
+    let reconnecting: Bool
+    let itemId: String?
+    let queue: [String]
+    let playingIndex: Int
+    let audio: Int
+    let subtitle: Int
+  }
+
+  private var heardState: HeardState?
 
   init(
     server: ReceiverServer, sessions: CastSessionSource, hub: ReceiverChannelHub,
@@ -189,6 +203,7 @@ final class CastEngine: ChromeEngine {
     itemDuration = 0
     readyToSeekFor = nil
     publishState()
+    notifyState()
   }
 
   private func bind(_ session: CastSessionPort) -> Bool {
@@ -251,6 +266,7 @@ final class CastEngine: ChromeEngine {
     if session != nil { log("detached from session \(boundSessionId ?? "?")") }
     session = nil
     boundSessionId = nil
+    heardState = nil
   }
 
   // The SDK reports every session: only the bound one's suspend or end concerns the engine. Android's
@@ -269,6 +285,7 @@ final class CastEngine: ChromeEngine {
     stopTicking()
     setLoading(true)
     log("session \(boundSessionId ?? "?") suspended")
+    notifyState()
   }
 
   // A resume hands a new session object under the same id, with a new media client.
@@ -284,6 +301,7 @@ final class CastEngine: ChromeEngine {
     attachMedia(resumed.media)
     publishState()
     log("session \(resumed.sessionId ?? "?") resumed")
+    notifyState()
   }
 
   fileprivate func endBinding(sessionId: String?, error: String?) {
@@ -358,6 +376,7 @@ final class CastEngine: ChromeEngine {
       self.settleLoad(load, outcome)
     }
     setLoading(true)
+    notifyState()
     sendMessage("PlayNow", message, sent: { [weak self] in self?.busClaimed = true }) { [weak self] error in
       guard let self else { return }
       // Never sent: the receiver keeps its queue, under its server.
@@ -370,6 +389,7 @@ final class CastEngine: ChromeEngine {
       load.cancelTimer()
       self.pendingLoad = nil
       self.setLoading(self.isBuffering())
+      self.notifyState()
       load.completion(.notSent(error))
     }
   }
@@ -398,6 +418,7 @@ final class CastEngine: ChromeEngine {
     load.cancelTimer()
     if pendingLoad === load { pendingLoad = nil }
     setLoading(isBuffering())
+    notifyState()
     load.completion(.settled(outcome))
   }
 
@@ -551,10 +572,12 @@ final class CastEngine: ChromeEngine {
       playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, undo: undo)
       return
     }
+    notifyState()
     send("SetSubtitleStreamIndex", ["index": index]) { [weak self] error in
       guard let self else { return }
       undo()
       self.publishState()
+      self.notifyState()
       self.delegate?.engine(self, didFailWithError: error)
     }
   }
@@ -629,6 +652,7 @@ final class CastEngine: ChromeEngine {
       sent: { [weak self] in
         guard let self, generation == self.queueGeneration else { return }
         self.queue += window.map { ReceiverItem(id: $0) }
+        self.notifyState()
         self.enqueueWindows(windows.dropFirst(), generation: generation)
       },
       failed: reportFailure
@@ -636,6 +660,22 @@ final class CastEngine: ChromeEngine {
   }
 
   var currentItemId: String? { read { $0.itemId } }
+
+  // The receiver plays at 1x: it takes no playback rate.
+  var canChangeSpeed: Bool { false }
+
+  // Read on the main thread, where the callbacks that change these run.
+  var phase: RemotePhase {
+    ReceiverProtocol.phase(
+      hasMedia: hasMedia, playerState: playerState, idleReason: idleReason ?? Reason.none,
+      loadPending: pendingLoad != nil || reload != nil, waitingForNext: cancelEndWait != nil, hasQueue: !queue.isEmpty
+    )
+  }
+
+  var reconnecting: Bool { suspended }
+
+  // One entry per queued item, so `playingIndex` addresses it: an item without an id stays as "".
+  var queueItemIds: [String] { queue.map { $0.id ?? "" } }
 
   var targetVolume: Double? { read { $0.volume } }
 
@@ -653,6 +693,7 @@ final class CastEngine: ChromeEngine {
       if finished, !(playerState == State.idle && idleReason == Reason.finished) { endWait(true) }
       clearMedia(port.status?.playerState ?? State.idle)
       idleReason = port.status?.idleReason
+      notifyState()
       return
     }
     let data = status.customData.map(ReceiverProtocol.parseCustomData)
@@ -712,6 +753,7 @@ final class CastEngine: ChromeEngine {
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
+    notifyState()
   }
 
   // The position stays on its target through a reload, and where it was on an idle status: Android's
@@ -751,6 +793,7 @@ final class CastEngine: ChromeEngine {
       if let value = state["AudioStreamIndex"] { chosenAudio = (value as? NSNumber)?.intValue }
       if let value = state["SubtitleStreamIndex"] { chosenSubtitle = (value as? NSNumber)?.intValue }
       publishState()
+      notifyState()
     }
     guard let error = ReceiverProtocol.loadErrorOf(message) else { return }
     if let load = pendingLoad, let outcome = load.tracker.onMessage(message) {
@@ -834,6 +877,7 @@ final class CastEngine: ChromeEngine {
       guard let self else { return }
       self.cancelEndWait = nil
       self.delegate?.engineDidReachEnd(self)
+      self.notifyState()
     }
   }
 
@@ -867,6 +911,7 @@ final class CastEngine: ChromeEngine {
     position = target
     setLoading(true)
     publishState()
+    notifyState()
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     send { [weak self] error in
       // Never sent: nothing will reload, so the position goes back to what the receiver reports.
@@ -875,6 +920,7 @@ final class CastEngine: ChromeEngine {
       self.reload = nil
       pending.undo()
       self.publishState()
+      self.notifyState()
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
     }
@@ -897,6 +943,7 @@ final class CastEngine: ChromeEngine {
     case .loaded, .superseded: break
     }
     if recompute { recomputePosition() }
+    notifyState()
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.
@@ -977,6 +1024,17 @@ final class CastEngine: ChromeEngine {
     playingIndex = near ?? queue.firstIndex { $0.id == itemId } ?? -1
   }
 
+  private func notifyState() {
+    let state = HeardState(
+      phase: phase, reconnecting: suspended, itemId: ours?.itemId, queue: queueItemIds, playingIndex: playingIndex,
+      audio: ours == nil ? -1 : chosenAudio ?? ours?.audioStreamIndex ?? -1,
+      subtitle: ours == nil ? -1 : chosenSubtitle ?? ours?.subtitleStreamIndex ?? -1
+    )
+    guard state != heardState else { return }
+    heardState = state
+    onStateChanged?()
+  }
+
   private func publishState() {
     let data = ours
     let update = Published(
@@ -1036,6 +1094,7 @@ final class CastEngine: ChromeEngine {
   }
 
   private enum Reason {
+    static let none = "none"
     static let error = "error"
     static let interrupted = "interrupted"
     static let finished = "finished"

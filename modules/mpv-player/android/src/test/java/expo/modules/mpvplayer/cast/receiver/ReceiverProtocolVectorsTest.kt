@@ -168,6 +168,22 @@ class ReceiverProtocolVectorsTest {
     }
 
     @Test
+    fun everyVectorPhaseMatches() {
+        failures("phases.json", vectors("phases.json").getJSONArray("cases").objects()) { case ->
+            val input = case.getJSONObject("input")
+            val phase = ReceiverProtocol.phase(
+                hasMedia = input.getBoolean("hasMedia"),
+                playerState = input.getString("playerState"),
+                idleReason = input.getString("idleReason"),
+                loadPending = input.getBoolean("loadPending"),
+                waitingForNext = input.getBoolean("waitingForNext"),
+                hasQueue = input.getBoolean("hasQueue"),
+            )
+            assertEquals(case.getString("expected"), phase.name.lowercase())
+        }
+    }
+
+    @Test
     fun loadOutcomeVectors() {
         val file = vectors("load-outcomes.json")
         failures("load-outcomes.json", file.getJSONArray("cases").objects()) { case ->

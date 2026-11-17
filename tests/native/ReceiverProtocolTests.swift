@@ -184,6 +184,16 @@ enum ReceiverProtocolTests {
 			check("load-outcomes.json", c["name"] as! String, ok)
 		}
 
+		for c in vectors(dir, "phases.json")["cases"] as! [[String: Any]] {
+			let input = c["input"] as! [String: Any]
+			let phase = ReceiverProtocol.phase(
+				hasMedia: input["hasMedia"] as! Bool, playerState: input["playerState"] as! String,
+				idleReason: input["idleReason"] as! String, loadPending: input["loadPending"] as! Bool,
+				waitingForNext: input["waitingForNext"] as! Bool, hasQueue: input["hasQueue"] as! Bool
+			)
+			check("phases.json", c["name"] as! String, phase.rawValue == c["expected"] as! String)
+		}
+
 		// Not a shared vector: TypeScript and Python keep any number, while Swift's integer initializers
 		// trap outside their range. A receiver's out-of-range value saturates, as Kotlin's toInt() and
 		// toLong() do, instead of crashing the app.

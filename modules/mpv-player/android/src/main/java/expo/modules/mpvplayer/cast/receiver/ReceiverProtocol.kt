@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast.receiver
 
 import android.util.JsonReader
 import android.util.JsonToken
+import expo.modules.mpvplayer.nativeplayer.engine.RemotePhase
 import java.io.IOException
 import java.io.StringReader
 import org.json.JSONArray
@@ -283,4 +284,28 @@ object ReceiverProtocol {
 
     /** Whether the receiver would play children it picks itself instead of this item. */
     fun isContainer(item: ReceiverItem): Boolean = item.type in CONTAINER_TYPES || item.isFolder
+
+    /**
+     * The phase of what the TV plays (phases.json), from the media status in CastMapping's names and
+     * what the engine holds: a load or reload on its way, the wait for the next item after an end,
+     * and a list it can play again. An interrupted item is loading: the SDK names that idle reason
+     * for a stream another load replaces.
+     */
+    fun phase(
+        hasMedia: Boolean,
+        playerState: String,
+        idleReason: String,
+        loadPending: Boolean,
+        waitingForNext: Boolean,
+        hasQueue: Boolean,
+    ): RemotePhase = when {
+        loadPending || playerState == "buffering" || playerState == "loading" -> RemotePhase.LOADING
+        playerState == "playing" -> RemotePhase.PLAYING
+        playerState == "paused" -> RemotePhase.PAUSED
+        playerState != "idle" -> RemotePhase.NONE
+        idleReason == "finished" -> if (waitingForNext) RemotePhase.BETWEEN else RemotePhase.ENDED
+        idleReason == "interrupted" -> RemotePhase.LOADING
+        hasMedia || hasQueue -> RemotePhase.STOPPED
+        else -> RemotePhase.NONE
+    }
 }
