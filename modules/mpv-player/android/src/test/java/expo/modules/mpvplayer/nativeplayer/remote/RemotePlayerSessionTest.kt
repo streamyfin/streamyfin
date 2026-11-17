@@ -421,8 +421,8 @@ class RemotePlayerSessionTest {
             }
         })
         assertFalse(session.screenState!!.model.transportEnabled)
-        // present() composes the screen, then follows the TV: that state is drawn on a later frame, which idle()
-        // alone does not always reach after other suites. The wait covers the tint's fade as well.
+        // The screen composes as present() attaches it, from the TV's state: no later frame is needed, which
+        // Compose does not always ask for under Robolectric after other suites. The wait covers the tint's fade.
         shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
 
         val inactive = listOf("Seek Backward", "Play", "Seek Forward", "Playback position", "Audio", "Subtitles")

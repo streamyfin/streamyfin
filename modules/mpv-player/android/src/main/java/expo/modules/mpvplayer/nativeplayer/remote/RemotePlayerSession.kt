@@ -86,6 +86,9 @@ class RemotePlayerSession(
         viewModel.followCast(hub)
 
         val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel)
+        // The screen composes as it is attached: it starts from the TV's state rather than from nothing, which a
+        // later frame would have to correct (the controls of a reconnecting TV said enabled until then).
+        model.snapshot = playback.snapshot
         screenState = model
         val content = ComposeView(activity).apply {
             (activity as? LifecycleOwner)?.let { setViewTreeLifecycleOwner(it) }
