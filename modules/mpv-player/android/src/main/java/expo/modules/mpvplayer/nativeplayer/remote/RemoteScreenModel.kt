@@ -54,6 +54,14 @@ data class RemoteScreenModel(
             before || phase == RemotePhase.PLAYING || phase == RemotePhase.PAUSED
 
         /**
+         * [sawPlayback] for a new config of [itemId] while the TV is at [snapshot]: the item it holds already when JS
+         * followed it onto the next of its list, since no phase change comes before that item's end; another item
+         * waits for its playback.
+         */
+        fun sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot): Boolean =
+            itemId != null && itemId == snapshot.itemId && sawPlayback(false, snapshot.phase)
+
+        /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
          * know, so there are no track menus. [canPlayHere] only counts with a [failure]. [sawPlayback]: see
          * [sawPlayback]; an end the screen never saw play neither closes it nor offers the next episode.

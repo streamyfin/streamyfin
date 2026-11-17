@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
+  onRemotePlaybackChanged,
+  type RemotePlaybackState,
   type RemoteTarget,
   remotePlayback,
   setRemoteServer,
@@ -25,7 +27,11 @@ import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
-import { playOnRemote } from "@/utils/remotePlayer/playOnRemote";
+import { followRemoteItem } from "@/utils/remotePlayer/followRemoteItem";
+import {
+  followOnRemote,
+  playOnRemote,
+} from "@/utils/remotePlayer/playOnRemote";
 import {
   episodeAfter,
   episodeBefore,
@@ -39,7 +45,8 @@ import { stopAndPlayHere } from "./OutputPickerActions";
  * message, and takes it back at sign out: without a server the engine goes, sending nothing to the TV.
  * While a remote player is up it answers its events: Play here goes on on the phone, an error of the
  * receiver after the load is said on the screen, previous, next and a pick in the episode list send that episode
- * from its start with its own bounded list, and closing it only forgets the play, sending nothing.
+ * from its start with its own bounded list, the TV going on in the list it got is shown in place, Continue at the end
+ * of that list sends what comes after it, and closing it only forgets the play, sending nothing.
  * Only behind the development gate for now. Mounted once, at the root, off TV; renders nothing.
  */
 export function RemotePlayerController() {
@@ -167,9 +174,48 @@ export function RemotePlayerController() {
         logAndCaptureError("Moving between episodes on the TV failed", error);
       });
     };
+    // The list played out: the TV holds no item to move on from, the next up is what came after the list.
+    const continueNextUp = () => {
+      const nextUpId = store.get(remotePlayAtom)?.list?.nextUpId;
+      const remote = latest.current.castTarget;
+      if (!nextUpId || !remote) return;
+      sendEpisode(nextUpId, remote).catch((error) => {
+        logAndCaptureError("Sending the next episode to the TV failed", error);
+      });
+    };
+    // The item being read for the screen: the states the TV sends meanwhile do not read it again.
+    let following: string | null = null;
+    const follow = (state: RemotePlaybackState) => {
+      const held = store.get(remotePlayAtom);
+      const remote = latest.current.castTarget;
+      const api = store.get(apiAtom);
+      const userId = store.get(userAtom)?.Id;
+      if (!held?.loaded || !held.list || !remote || !api || !userId) return;
+      // Another item than one sent is the reduced player's, later.
+      const followed = followRemoteItem(
+        held.play.item.Id ?? null,
+        state,
+        held.list.itemIds,
+      );
+      const itemId = state.itemId;
+      if (followed !== "sent" || !itemId || itemId === following) return;
+      following = itemId;
+      followOnRemote(
+        { api, userId, store, t: latest.current.t },
+        itemId,
+        remote,
+        state,
+      )
+        .catch((error) => {
+          logAndCaptureError("Following the TV through the list failed", error);
+        })
+        .finally(() => {
+          if (following === itemId) following = null;
+        });
+    };
     const subscriptions = [
-      addRemotePlayerListener("onNextEpisodeRequested", () =>
-        moveOrLog("next"),
+      addRemotePlayerListener("onNextEpisodeRequested", ({ reason }) =>
+        reason === "nextUp" ? continueNextUp() : moveOrLog("next"),
       ),
       addRemotePlayerListener("onPreviousEpisodeRequested", () =>
         moveOrLog("previous"),
@@ -199,6 +245,7 @@ export function RemotePlayerController() {
       addRemotePlayerListener("onDismiss", () => {
         store.set(remotePlayAtom, null);
       }),
+      onRemotePlaybackChanged(follow),
     ];
     return () => {
       for (const subscription of subscriptions) subscription?.remove();

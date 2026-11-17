@@ -53,6 +53,7 @@ jobs:
               - 'providers/NativePlayerProvider.tsx'
               - 'utils/nativePlayer/buildNativePlayerConfig.ts'
               - 'utils/remotePlayer/boundedEpisodeQueue.ts'
+              - 'utils/remotePlayer/followRemoteItem.ts'
               - 'utils/remotePlayer/playOnRemote.ts'
               - 'app/(auth)/now-playing.tsx'
               - 'components/settings/RemotePlaybackQualitySettings.tsx'

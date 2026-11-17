@@ -18,7 +18,7 @@ import { stubReactNative } from "@/test-utils/reactNative";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { extractImageColor } from "@/utils/imageColors";
-import { playOnRemote } from "./playOnRemote";
+import { followOnRemote, playOnRemote } from "./playOnRemote";
 import { remoteTint } from "./remoteTint";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -183,7 +183,11 @@ test("a loaded outcome leaves the player as it is", async () => {
   });
 
   expect(mockPlayer.remoteFailures).toEqual([]);
-  expect(store.get(remotePlayAtom)).toEqual({ play, loaded: true });
+  expect(store.get(remotePlayAtom)).toEqual({
+    play,
+    loaded: true,
+    list: { itemIds: ["episode-1"], nextUpId: null },
+  });
   expect(mockCast.loadCalls[0].request).toEqual({
     // An episode alone goes without its type: the receiver would unfold a typed one into its series.
     items: [
@@ -315,6 +319,32 @@ test("the tint follows once the artwork's color is known", async () => {
   await flush();
 
   expect(mockPlayer.remoteTints).toEqual([remoteTint("#1F6F8B")]);
+});
+
+// The TV went on in its list: the screen keeps the tint it shows until the new episode's is read, rather than going
+// back to the neutral.
+test("following the TV keeps the tint shown", async () => {
+  jest.mocked(extractImageColor).mockResolvedValue("#1F6F8B");
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  await flush();
+  jest.mocked(extractImageColor).mockResolvedValue(null);
+  api.mock
+    .onGet(/\/Items\/episode-2/)
+    .reply(200, { Id: "episode-2", Name: "Second", Type: "Episode" });
+  mockPlayer.remoteUpdateAnswer = true;
+
+  await followOnRemote(deps(), "episode-2", livingRoom, {
+    ...mockCast.remotePlayback,
+    itemId: "episode-2",
+    phase: "playing",
+  });
+
+  const shown = mockPlayer.remoteUpdates.at(-1) as {
+    metadata: { itemId: string };
+    tint: unknown;
+  };
+  expect(shown.metadata.itemId).toBe("episode-2");
+  expect(shown.tint).toEqual(remoteTint("#1F6F8B"));
 });
 
 // Refused natively (no remote engine for the session): no screen says it, so the caller does, and nothing loads.

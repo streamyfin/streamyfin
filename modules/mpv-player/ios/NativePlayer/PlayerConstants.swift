@@ -24,9 +24,12 @@ enum PlayerConstants {
 	/// A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
 	/// Android: REMOTE_INERT_ALPHA.
 	static let remoteInertOpacity: Double = 0.4
-	/// The Play here pill under a failed send, at least the small button's height: white at this opacity over
-	/// the tint. Android: REMOTE_PLAY_HERE_FILL_ALPHA.
+	/// The Play here pill under a failed send and the Continue one under the next episode, at least the small
+	/// button's height: white at this opacity over the tint. Android: REMOTE_PLAY_HERE_FILL_ALPHA.
 	static let remotePlayHereFillOpacity: Double = 0.18
+	/// The next episode's card at the end of the list the TV got: its 16:9 image is this wide.
+	/// Android: REMOTE_NEXT_UP_IMAGE_WIDTH_DP.
+	static let remoteNextUpImageWidth: Double = 112
 	/// Couched, the artwork is at most this share of the width; wide, beside the column, this one.
 	static let remoteLandscapeArtworkFraction: Double = 0.4
 	static let remoteWideArtworkFraction: Double = 0.45

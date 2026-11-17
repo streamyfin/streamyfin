@@ -86,7 +86,7 @@ class RemotePlayerSession(
         // The TV button says the session's state to TalkBack; willTeardown stops following it.
         viewModel.followCast(hub)
 
-        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere)
+        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere, ::continueNextUp)
         // The screen composes as it is attached: it starts from the TV's state rather than from nothing, which a
         // later frame would have to correct (the controls of a reconnecting TV said enabled until then).
         model.snapshot = playback.snapshot
@@ -157,8 +157,9 @@ class RemotePlayerSession(
         if (closed) return false
         viewModel.apply(config.toPresentConfig())
         state.replace(config.targetName, config.imageHeaders, config.tint)
-        // Another item: an end the TV reports before it holds it is the item before's.
-        state.sawPlayback = false
+        // Another item: an end the TV reports before it holds it is the item before's. The item the TV plays
+        // already (JS followed it through its list) ends this screen.
+        state.sawPlayback = RemoteScreenModel.sawPlaybackOnUpdate(config.metadata?.itemId, state.snapshot)
         clearFailure()
         // apply() starts the view model at the config's position: the TV's state again, as present() does.
         playback.attachScreen(viewModel)
@@ -175,6 +176,15 @@ class RemotePlayerSession(
     private fun playHere() {
         if (closed) return
         emit("onPlayHereRequested", markRemote(mapOf("positionSec" to viewModel.authoritativePosition)))
+    }
+
+    // Continue on the next episode's card: JS sends what comes after the list the TV got.
+    private fun continueNextUp() {
+        if (closed) return
+        emit("onNextEpisodeRequested", markRemote(mapOf(
+            "reason" to "nextUp",
+            "positionSec" to viewModel.authoritativePosition,
+        )))
     }
 
     // Both failures go: the one JS said, and the engine's own error.
@@ -260,6 +270,7 @@ class RemoteScreenState(
     tint: RemoteTintRecord?,
     private val viewModel: PlayerViewModel,
     private val onPlayHere: () -> Unit = {},
+    private val onContinueNextUp: () -> Unit = {},
 ) {
     var targetName by mutableStateOf(targetName)
         private set
@@ -310,6 +321,9 @@ class RemoteScreenState(
 
     /** The screen's Play here button. */
     fun playHere() = onPlayHere()
+
+    /** Continue on the next episode's card. */
+    fun continueNextUp() = onContinueNextUp()
 
     private fun colorsOf(tint: RemoteTintRecord?) = RemoteColors.of(tint?.top, tint?.bottom, tint?.accent)
 }

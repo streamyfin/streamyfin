@@ -428,7 +428,8 @@ export type NativePlayerTrackSelectionRequest = {
 };
 
 export type NativePlayerNextEpisodeRequest = {
-  reason: "userTap" | "countdown";
+  /** `nextUp`: Continue on the remote player's card, at the end of the list the TV got. */
+  reason: "userTap" | "countdown" | "nextUp";
   positionSec: number;
 };
 

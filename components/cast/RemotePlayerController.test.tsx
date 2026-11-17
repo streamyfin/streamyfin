@@ -9,6 +9,7 @@ import {
 import {
   type CastDoubleState,
   createCastDoubleState,
+  emitCastEvent,
   emitRemoteTarget,
   setCastSession,
 } from "@/test-utils/cast";
@@ -390,6 +391,112 @@ describe("moving between episodes from the remote player", () => {
       mediaSourceId: "source-s1e3",
       audioStreamIndex: 2,
     });
+  });
+
+  // The phone sent the first three episodes; the fourth comes after them.
+  const sentList = {
+    play: { item: series[0], positionTicks: 0 },
+    loaded: true,
+    list: { itemIds: ["s1e0", "s1e1", "s1e2"], nextUpId: "s1e3" },
+  };
+
+  const tvMovesTo = async (itemId: string) => {
+    tvPlays(itemId, sentList.list.itemIds);
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+  };
+
+  type Shown = {
+    metadata: { itemId: string; title: string };
+    nextEpisode: { itemId: string } | null;
+    episodeList: { itemId: string; isCurrent: boolean }[];
+  };
+  const lastShown = () => mockPlayer.remoteUpdates.at(-1) as Shown;
+
+  test("when the TV moves to the next episode the player shows it", async () => {
+    store.set(remotePlayAtom, sentList);
+    tvPlays("s1e0", sentList.list.itemIds);
+    await render(<RemotePlayerController />);
+
+    await tvMovesTo("s1e1");
+
+    await waitFor(() => expect(mockPlayer.remoteUpdates).toHaveLength(1));
+    expect(lastShown().metadata).toMatchObject({
+      itemId: "s1e1",
+      title: "Episode 1",
+    });
+    expect(
+      lastShown().episodeList.find((entry) => entry.isCurrent)?.itemId,
+    ).toBe("s1e1");
+    // Nothing is sent: the TV goes on with its list.
+    expect(mockCast.loadCalls).toEqual([]);
+    expect(store.get(remotePlayAtom)?.play.item.Id).toBe("s1e1");
+  });
+
+  test("the next up stays what comes after the list", async () => {
+    store.set(remotePlayAtom, sentList);
+    tvPlays("s1e0", sentList.list.itemIds);
+    await render(<RemotePlayerController />);
+
+    await tvMovesTo("s1e1");
+
+    await waitFor(() => expect(mockPlayer.remoteUpdates).toHaveLength(1));
+    expect(lastShown().nextEpisode).toMatchObject({ itemId: "s1e3" });
+  });
+
+  test("Continue sends the next up with a new bounded list", async () => {
+    store.set(remotePlayAtom, sentList);
+    // The list played out: the TV holds no item any more.
+    tvPlays("s1e2", sentList.list.itemIds);
+    mockCast.remotePlayback = {
+      ...mockCast.remotePlayback,
+      phase: "ended",
+      itemId: null,
+      playingIndex: -1,
+    };
+    await render(<RemotePlayerController />);
+
+    await act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onNextEpisodeRequested", {
+        reason: "nextUp",
+        positionSec: 0,
+        remote: true,
+      });
+    });
+
+    await waitFor(() => expect(mockCast.loadCalls).toHaveLength(1));
+    expect(sentIds()).toEqual(["s1e3", "s1e4", "s1e5"]);
+    expect(mockCast.loadCalls[0].request.startPositionTicks).toBe(0);
+  });
+
+  test("the end of the series closes the player", async () => {
+    // The last list ran to the end of the series: nothing comes after it, so the screen closes at its end.
+    const toTheEnd = {
+      ...sentList,
+      play: { item: series[4], positionTicks: 0 },
+      list: { itemIds: ["s1e4", "s1e5"], nextUpId: null },
+    };
+    store.set(remotePlayAtom, toTheEnd);
+    tvPlays("s1e4", toTheEnd.list.itemIds);
+    await render(<RemotePlayerController />);
+
+    tvPlays("s1e5", toTheEnd.list.itemIds);
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+
+    await waitFor(() => expect(mockPlayer.remoteUpdates).toHaveLength(1));
+    expect(lastShown().metadata.itemId).toBe("s1e5");
+    expect(lastShown().nextEpisode).toBeNull();
   });
 
   test("a playlist moves inside the receiver's queue", async () => {
