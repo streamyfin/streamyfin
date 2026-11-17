@@ -93,4 +93,13 @@ class RemoteArrangementTest {
         assertEquals(false, RemoteActive.subtitlesOn(selectedIndex = -1))
         assertEquals(false, RemoteActive.subtitlesOn(selectedIndex = null))
     }
+
+    // The remote "more" menu holds what the remote capabilities leave of the local one: quality and chapters. An
+    // item with neither opened an empty menu, so the button is not drawn.
+    @Test
+    fun theMoreButtonShowsOnlyWithChaptersOrQualities() {
+        assertEquals(false, RemoteMore.shows(chapters = 0, qualities = 0))
+        assertEquals(true, RemoteMore.shows(chapters = 3, qualities = 0))
+        assertEquals(true, RemoteMore.shows(chapters = 0, qualities = 2))
+    }
 }

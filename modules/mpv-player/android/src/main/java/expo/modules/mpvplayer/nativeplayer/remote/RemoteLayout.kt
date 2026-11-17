@@ -160,6 +160,14 @@ object RemoteActive {
     fun subtitlesOn(selectedIndex: Int?): Boolean = selectedIndex != null && selectedIndex >= 0
 }
 
+/**
+ * The remote "more" menu: what ChromeCapabilities leaves of the local one, quality and chapters. With neither, its
+ * button is not drawn, as it would open an empty menu. Twin: RemoteMore in RemoteLayout.swift.
+ */
+object RemoteMore {
+    fun shows(chapters: Int, qualities: Int): Boolean = chapters > 0 || qualities > 0
+}
+
 /** What TalkBack says for the remote screen's own controls. */
 object RemoteSpeech {
     /** The TV button: the TV's name, or the Cast label when it has none, then the session state, as on iOS. */

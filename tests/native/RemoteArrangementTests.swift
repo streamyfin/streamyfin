@@ -85,6 +85,14 @@ enum RemoteArrangementTests {
 		check(!RemoteActive.subtitlesOn(selectedIndex: nil), "subtitlesLightUpOnlyForARealTrack: none chosen")
 	}
 
+	// The remote "more" menu holds what the remote capabilities leave of the local one: quality and chapters. An item
+	// with neither opened an empty menu, so the button is not drawn.
+	static func theMoreButtonShowsOnlyWithChaptersOrQualities() {
+		check(!RemoteMore.shows(chapters: 0, qualities: 0), "theMoreButtonShowsOnlyWithChaptersOrQualities: neither")
+		check(RemoteMore.shows(chapters: 3, qualities: 0), "theMoreButtonShowsOnlyWithChaptersOrQualities: chapters")
+		check(RemoteMore.shows(chapters: 0, qualities: 2), "theMoreButtonShowsOnlyWithChaptersOrQualities: qualities")
+	}
+
 	static func main() {
 		uprightStacksTheSixSlotsTopToBottom()
 		couchedPutsTheTitlesAndMenusInTheTopBar()
@@ -96,6 +104,7 @@ enum RemoteArrangementTests {
 		theTransportKeepsTheChromeSizes()
 		theTransportGapNarrowsOnlyUpright()
 		subtitlesLightUpOnlyForARealTrack()
+		theMoreButtonShowsOnlyWithChaptersOrQualities()
 		print("PASS: remote arrangement (\(cases) cases)")
 	}
 }

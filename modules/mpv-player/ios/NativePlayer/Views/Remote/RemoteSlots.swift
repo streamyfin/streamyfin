@@ -168,19 +168,21 @@ private struct RemoteChevron: View {
 	}
 }
 
-/// Quality, chapters and technical info: what the remote capabilities leave of the local "more" menu.
+/// Quality and chapters: what the remote capabilities leave of the local "more" menu; nothing when it has neither.
 private struct RemoteMoreButton: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
 	var body: some View {
-		MoreMenu(viewModel: viewModel) {
-			Image(systemName: "ellipsis")
-				.font(.system(size: 20, weight: .semibold))
-				.foregroundStyle(.white)
-				.frame(width: remoteButton, height: remoteButton)
-				.contentShape(Rectangle())
+		if RemoteMore.shows(chapters: viewModel.chapters.count, qualities: viewModel.qualityMenu.count) {
+			MoreMenu(viewModel: viewModel) {
+				Image(systemName: "ellipsis")
+					.font(.system(size: 20, weight: .semibold))
+					.foregroundStyle(.white)
+					.frame(width: remoteButton, height: remoteButton)
+					.contentShape(Rectangle())
+			}
+			.accessibilityLabel(viewModel.str("more", "More"))
 		}
-		.accessibilityLabel(viewModel.str("more", "More"))
 	}
 }
 

@@ -48,6 +48,7 @@ import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteActive
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteMore
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteSpeech
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteTransport
 import expo.modules.mpvplayer.nativeplayer.ui.AudioMenu
@@ -189,9 +190,10 @@ private fun RemoteChevron(viewModel: PlayerViewModel) {
     }
 }
 
-/** Quality, chapters and technical info: what the remote capabilities leave of the local "more" menu. */
+/** Quality and chapters: what the remote capabilities leave of the local "more" menu; nothing when it has neither. */
 @Composable
 private fun RemoteMoreButton(viewModel: PlayerViewModel) {
+    if (!RemoteMore.shows(viewModel.chapters.size, viewModel.qualityMenu.size)) return
     MoreMenu(viewModel, compact = false) { open ->
         IconButton(onClick = open, modifier = Modifier.size(RemoteButton)) {
             Icon(Icons.Default.MoreVert, contentDescription = viewModel.strings.get("more", "More"), tint = Color.White)

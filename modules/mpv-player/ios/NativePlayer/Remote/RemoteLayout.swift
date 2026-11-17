@@ -120,6 +120,14 @@ struct RemoteTransport: Equatable {
 	}
 }
 
+/// The remote "more" menu: what ChromeCapabilities leaves of the local one, quality and chapters. With neither, its
+/// button is not drawn, as it would open an empty menu. Twin: RemoteMore in RemoteLayout.kt.
+enum RemoteMore {
+	static func shows(chapters: Int, qualities: Int) -> Bool {
+		chapters > 0 || qualities > 0
+	}
+}
+
 /// What lights up in the active color on the remote screen (design §3.3).
 enum RemoteActive {
 	/// Subtitles are on when the chosen entry is a real track: "None" is SUBTITLES_OFF, -1, on the JS side.
