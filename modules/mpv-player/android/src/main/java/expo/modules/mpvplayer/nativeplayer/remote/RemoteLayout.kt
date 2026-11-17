@@ -89,8 +89,8 @@ enum class RemoteSlot { HEADER, ARTWORK, TITLES, BAR, TRANSPORT, BOTTOM_ROW }
  * column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
  * buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
  * [spaces] are the column's indices where the free height goes, shared equally when the screen is taller than the
- * slots (`column.size`: after the last): upright above the bottom row, as in the mockup; couched and wide around the
- * middle, so the transport sits level with the artwork.
+ * slots (`column.size`: after the last): upright above and below the artwork, the rest kept together at the
+ * bottom as Spotify's player does; couched and wide around the middle, so the transport sits level with the artwork.
  */
 data class RemoteArrangement(
     val topBar: List<RemoteSlot>,
@@ -106,7 +106,10 @@ data class RemoteArrangement(
         )
 
         fun of(layout: RemoteLayout): RemoteArrangement = when (layout) {
-            RemoteLayout.PORTRAIT -> RemoteArrangement(emptyList(), null, upright, emptyList(), listOf(upright.size - 1))
+            RemoteLayout.PORTRAIT -> RemoteArrangement(
+                emptyList(), null, upright, emptyList(),
+                listOf(upright.indexOf(RemoteSlot.ARTWORK), upright.indexOf(RemoteSlot.TITLES)),
+            )
             RemoteLayout.LANDSCAPE -> RemoteArrangement(
                 topBar = listOf(RemoteSlot.HEADER, RemoteSlot.TITLES, RemoteSlot.BOTTOM_ROW),
                 beside = RemoteSlot.ARTWORK,

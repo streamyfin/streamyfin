@@ -49,12 +49,14 @@ class RemoteArrangementTest {
         }
     }
 
-    // The column's free height, when the screen is taller than its slots: upright it opens above the bottom row, as
-    // in the mockup; couched and wide it splits around the middle, so the transport sits level with the artwork.
+    // The column's free height, when the screen is taller than its slots: upright it splits above and below the
+    // artwork, which floats in the middle of its zone while the titles, the bar, the transport and the TV's row
+    // stay together at the bottom (as Spotify's player does); couched and wide it splits around the middle, so the
+    // transport sits level with the artwork.
     @Test
-    fun uprightLeavesTheFreeHeightAboveTheBottomRow() {
+    fun uprightLeavesTheFreeHeightAroundTheArtwork() {
         val a = RemoteArrangement.of(RemoteLayout.PORTRAIT)
-        assertEquals(listOf(a.column.indexOf(BOTTOM_ROW)), a.spaces)
+        assertEquals(listOf(a.column.indexOf(ARTWORK), a.column.indexOf(TITLES)), a.spaces)
     }
 
     @Test

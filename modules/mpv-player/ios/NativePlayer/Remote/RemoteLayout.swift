@@ -59,8 +59,8 @@ enum RemoteSlot: String, CaseIterable {
 /// column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
 /// buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
 /// `spaces` are the column's indices where the free height goes, shared equally when the screen is taller than the
-/// slots (`column.count`: after the last): upright above the bottom row, as in the mockup; couched and wide around
-/// the middle, so the transport sits level with the artwork.
+/// slots (`column.count`: after the last): upright above and below the artwork, the rest kept together at the bottom
+/// as Spotify's player does; couched and wide around the middle, so the transport sits level with the artwork.
 struct RemoteArrangement: Equatable {
 	let topBar: [RemoteSlot]
 	let beside: RemoteSlot?
@@ -73,7 +73,10 @@ struct RemoteArrangement: Equatable {
 	static func of(_ layout: RemoteLayout) -> RemoteArrangement {
 		switch layout {
 		case .portrait:
-			return RemoteArrangement(topBar: [], beside: nil, column: upright, bottom: [], spaces: [upright.count - 1])
+			return RemoteArrangement(
+				topBar: [], beside: nil, column: upright, bottom: [],
+				spaces: [upright.firstIndex(of: .artwork)!, upright.firstIndex(of: .titles)!]
+			)
 		case .landscape:
 			return RemoteArrangement(
 				topBar: [.header, .titles, .bottomRow], beside: .artwork, column: [.transport], bottom: [.bar], spaces: [0, 1]

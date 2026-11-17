@@ -40,11 +40,16 @@ enum RemoteArrangementTests {
 		}
 	}
 
-	// The column's free height, when the screen is taller than its slots: upright it opens above the bottom row, as
-	// in the mockup; couched and wide it splits around the middle, so the transport sits level with the artwork.
-	static func uprightLeavesTheFreeHeightAboveTheBottomRow() {
+	// The column's free height, when the screen is taller than its slots: upright it splits above and below the
+	// artwork, which floats in the middle of its zone while the titles, the bar, the transport and the TV's row stay
+	// together at the bottom (as Spotify's player does); couched and wide it splits around the middle, so the
+	// transport sits level with the artwork.
+	static func uprightLeavesTheFreeHeightAroundTheArtwork() {
 		let a = RemoteArrangement.of(.portrait)
-		check(a.spaces == [a.column.firstIndex(of: .bottomRow)!], "uprightLeavesTheFreeHeightAboveTheBottomRow")
+		check(
+			a.spaces == [a.column.firstIndex(of: .artwork)!, a.column.firstIndex(of: .titles)!],
+			"uprightLeavesTheFreeHeightAroundTheArtwork: \(a.spaces)"
+		)
 	}
 
 	static func couchedCentersTheTransportBesideTheArtwork() {
@@ -85,7 +90,7 @@ enum RemoteArrangementTests {
 		couchedPutsTheTitlesAndMenusInTheTopBar()
 		wideKeepsTheUprightColumnBesideTheArtwork()
 		everyLayoutPlacesEachSlotOnce()
-		uprightLeavesTheFreeHeightAboveTheBottomRow()
+		uprightLeavesTheFreeHeightAroundTheArtwork()
 		couchedCentersTheTransportBesideTheArtwork()
 		wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow()
 		theTransportKeepsTheChromeSizes()
