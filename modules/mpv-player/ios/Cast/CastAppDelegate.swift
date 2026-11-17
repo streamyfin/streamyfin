@@ -18,6 +18,10 @@ enum CastContextBootstrap {
     // local network, from launch. The hub starts discovery when the output sheet opens.
     options.startDiscoveryAfterFirstTapOnCastButton = true
     options.suspendSessionsWhenBackgrounded = true
+    // During a Cast session the volume buttons set the TV's level while the app is in front (Android does it with
+    // no option, in the background too); the SDK shows nothing, the remote screen's indicator does. Its side
+    // effect, accepted: Control Center's slider stays still and sets the TV too, without following its level.
+    options.physicalVolumeButtonsWillControlDeviceVolume = true
     GCKCastContext.setSharedInstanceWith(options)
     GCKCastContext.sharedInstance().useDefaultExpandedMediaControls = CastMapping.useDefaultExpandedMediaControls
   }
