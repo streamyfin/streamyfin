@@ -474,6 +474,33 @@ describe("moving between episodes from the remote player", () => {
     expect(mockCast.loadCalls[0].request.startPositionTicks).toBe(0);
   });
 
+  test("next on the end card sends the episode after the one that ended", async () => {
+    // The screen followed the TV to the last episode of the list, which then ended: the TV holds no item any more.
+    store.set(remotePlayAtom, {
+      ...sentList,
+      play: { item: series[2], positionTicks: 0 },
+    });
+    tvPlays("s1e2", sentList.list.itemIds);
+    mockCast.remotePlayback = {
+      ...mockCast.remotePlayback,
+      phase: "ended",
+      itemId: null,
+      playingIndex: -1,
+    };
+    await render(<RemotePlayerController />);
+
+    await act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onNextEpisodeRequested", {
+        reason: "userTap",
+        positionSec: 0,
+        remote: true,
+      });
+    });
+
+    await waitFor(() => expect(mockCast.loadCalls).toHaveLength(1));
+    expect(sentIds()).toEqual(["s1e3", "s1e4", "s1e5"]);
+  });
+
   test("the end of the series closes the player", async () => {
     // The last list ran to the end of the series: nothing comes after it, so the screen closes at its end.
     const toTheEnd = {

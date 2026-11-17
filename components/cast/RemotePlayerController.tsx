@@ -162,7 +162,8 @@ export function RemotePlayerController() {
         return;
       }
       const episodes = await seriesEpisodes(api, userId, sent.SeriesId);
-      const current = remotePlayback().itemId;
+      // Once an item ended the TV holds none: the held play is the episode the screen followed to that end.
+      const current = remotePlayback().itemId ?? sent.Id ?? null;
       const wanted =
         direction === "next"
           ? episodeAfter(episodes, current)
