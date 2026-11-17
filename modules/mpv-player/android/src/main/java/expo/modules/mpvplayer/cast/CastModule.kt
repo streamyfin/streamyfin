@@ -25,6 +25,8 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.mpvplayer.cast.output.LastHeardStatus
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.output.OutputPickerStrings
+import expo.modules.mpvplayer.cast.playback.ReceiverServerRecord
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.RemoteTargetListener
@@ -66,6 +68,7 @@ class CastModule : Module() {
         stop = { remoteTargets.stopDiscovery(RemoteTargetHub.APP_DISCOVERY) },
     )
     private var removeTargetRelay: (() -> Unit)? = null
+    private var removePlaybackRelay: (() -> Unit)? = null
     private var mediaClient: RemoteMediaClient? = null
     // What the output sheet reads of the receiver through a suspension, which drops the media client.
     private val heardStatus = LastHeardStatus<MediaStatus>()
@@ -152,6 +155,7 @@ class CastModule : Module() {
             "onMediaStatusChanged",
             "onReceiverMessage",
             "onRemoteTargetChanged",
+            "onRemotePlaybackChanged",
             "onOutputPickerAction",
             "onOutputPickerDismissed",
         )
@@ -254,6 +258,18 @@ class CastModule : Module() {
         AsyncFunction("setTargetMuted") { muted: Boolean ->
             if (ensureContext() != null) remoteTargets.setMuted(muted)
             Unit
+        }.runOnQueue(Queues.MAIN)
+
+        // What the TV plays, as the holder of the remote engine publishes it.
+        Function("getRemotePlayback") {
+            if (castContext == null) mainHandler.post { ensureContext() }
+            RemotePlayback.shared.snapshot.toMap()
+        }
+
+        // The account's server for the remote engine: none drops the engine, sending nothing to the TV.
+        AsyncFunction("setRemoteServer") { server: ReceiverServerRecord? ->
+            ensureContext()
+            RemotePlayback.shared.setServer(server?.toServer())
         }.runOnQueue(Queues.MAIN)
 
         Function("getCurrentSession") {
@@ -407,6 +423,11 @@ class CastModule : Module() {
         GoogleCastChannelBinding.install(cast.sessionManager)
         // Relayed before the port is installed: a session the port finds running reaches JS as connected.
         if (removeTargetRelay == null) removeTargetRelay = remoteTargets.addListener(targetRelay)
+        if (removePlaybackRelay == null) {
+            removePlaybackRelay = RemotePlayback.shared.addListener { snapshot ->
+                if (!destroyed) sendEvent("onRemotePlaybackChanged", snapshot.toMap())
+            }
+        }
         RemoteTargets.installDefault(reactContext, cast)
         cast.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         cast.sessionManager.currentCastSession?.let { session ->
@@ -469,6 +490,8 @@ class CastModule : Module() {
         appDiscovery.release()
         removeTargetRelay?.invoke()
         removeTargetRelay = null
+        removePlaybackRelay?.invoke()
+        removePlaybackRelay = null
         detachMedia()
         // The relays hold this instance and the hub outlives it: a live session would keep calling them.
         removeJsSubscriptions()

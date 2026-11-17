@@ -216,6 +216,65 @@ export const NO_REMOTE_TARGET: RemoteTargetState = Object.freeze({
   failedTarget: null,
 });
 
+/**
+ * Where the TV is in what it plays. `between`: an item just finished and the TV
+ * fetches the next one of its list; `stopped`: stopped before the end, play
+ * resumes where it was; `ended`: the list is over.
+ */
+export type RemotePlaybackPhase =
+  | "none"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "between"
+  | "stopped"
+  | "ended";
+
+/**
+ * What the TV plays, as the native holder publishes it: the remote engine lives
+ * with the session, whatever screen is open. Track indexes are Jellyfin's, -1
+ * unknown.
+ */
+export interface RemotePlaybackState {
+  /** A session holds, suspended included, and native has a server to play from. */
+  connected: boolean;
+  phase: RemotePlaybackPhase;
+  /** The session is suspended: what the engine holds may be stale. */
+  reconnecting: boolean;
+  itemId: string | null;
+  positionSec: number;
+  durationSec: number;
+  audioIndex: number;
+  subtitleIndex: number;
+  /** The list the native engine cast, and where in it the TV plays, -1 when nowhere. */
+  queueItemIds: string[];
+  playingIndex: number;
+}
+
+export const NO_REMOTE_PLAYBACK: RemotePlaybackState = Object.freeze({
+  connected: false,
+  phase: "none",
+  reconnecting: false,
+  itemId: null,
+  positionSec: 0,
+  durationSec: 0,
+  audioIndex: -1,
+  subtitleIndex: -1,
+  queueItemIds: [],
+  playingIndex: -1,
+}) as RemotePlaybackState;
+
+/** The envelope every receiver message carries, which native needs to play from the account's server. */
+export interface ReceiverServerRecord {
+  serverAddress: string;
+  accessToken: string;
+  userId: string;
+  /** The name the receiver takes as its Jellyfin device name: see `receiverNameFor`. */
+  receiverName?: string;
+  /** Bit/s; none sends the receiver's own ceiling. */
+  maxBitrate?: number;
+}
+
 /** The keys of the output sheet's texts, those of OutputPickerStrings.kt and OutputPickerStrings.swift. */
 export type OutputPickerStringKey =
   | "title"
@@ -295,5 +354,7 @@ export type CastNativeEvents = {
    * remoteTarget() once, when it subscribes, for the state until the first event.
    */
   onRemoteTargetChanged: (payload: RemoteTargetState) => void;
+  /** Carries the new state, sent on each change but the position; remotePlayback() reads the present. */
+  onRemotePlaybackChanged: (payload: RemotePlaybackState) => void;
   onOutputPickerAction: (payload: { action: OutputPickerAction }) => void;
 };

@@ -113,6 +113,7 @@ const listeners: { [K in EventName]: Set<Listener<K>> } = {
   onMediaStatusChanged: new Set(),
   onReceiverMessage: new Set(),
   onRemoteTargetChanged: new Set(),
+  onRemotePlaybackChanged: new Set(),
   onOutputPickerAction: new Set(),
 };
 const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
@@ -153,6 +154,9 @@ const subscribe = <K extends EventName>(
     },
   };
 };
+
+/** The shared subscription, for the module's other files (remotePlayback.ts). */
+export { subscribe as subscribeToCast };
 
 export const onCastStateChanged = (
   listener: (state: CastStateValue) => void,

@@ -17,6 +17,16 @@ swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
   -o "$test_dir/fake-remote-engine"
 "$test_dir/fake-remote-engine"
 
+swiftc -module-cache-path "$test_dir/modules" "${shared[@]}" \
+  modules/mpv-player/ios/NativePlayer/Remote/FakeRemoteEngine.swift \
+  modules/mpv-player/ios/Cast/ReceiverProtocol.swift \
+  modules/mpv-player/ios/Cast/RemoteTarget.swift \
+  modules/mpv-player/ios/Cast/RemotePlaybackSnapshot.swift \
+  modules/mpv-player/ios/Cast/RemotePlayback.swift \
+  tests/native/RemotePlaybackTests.swift \
+  -o "$test_dir/remote-playback"
+"$test_dir/remote-playback"
+
 swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/NativePlayer/NativeEngineKind.swift \
   modules/mpv-player/ios/NativePlayer/PresentRefusal.swift \

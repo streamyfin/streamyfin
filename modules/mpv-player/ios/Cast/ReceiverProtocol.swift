@@ -1,7 +1,7 @@
 import Foundation
 
 /// What every message carries: the receiver re-reads the server and the token on each one.
-struct ReceiverServer {
+struct ReceiverServer: Equatable {
   let serverAddress: String
   let accessToken: String
   let userId: String

@@ -59,6 +59,9 @@ const JellyfinCastStopReporter = Platform.isTV
 const RemoteTargetMemory = Platform.isTV
   ? null
   : require("@/components/cast/RemoteTargetMemory").RemoteTargetMemory;
+const RemotePlayerController = Platform.isTV
+  ? null
+  : require("@/components/cast/RemotePlayerController").RemotePlayerController;
 const OutputPickerActions = Platform.isTV
   ? null
   : require("@/components/cast/OutputPickerActions").OutputPickerActions;
@@ -359,6 +362,9 @@ function Layout() {
                                       )}
                                       {RemoteTargetMemory && (
                                         <RemoteTargetMemory />
+                                      )}
+                                      {RemotePlayerController && (
+                                        <RemotePlayerController />
                                       )}
                                       {OutputPickerActions && (
                                         <OutputPickerActions />
