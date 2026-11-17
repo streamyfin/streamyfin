@@ -3,8 +3,9 @@ import Foundation
 import UIKit
 
 /// The device proof of the remote screen, in debug builds only: `-RemotePlayerProbe YES` at launch arms it,
-/// and each `expo.modules.mpvplayer.REMOTE_PLAYER_PROBE` Darwin notification then opens the remote chrome over
-/// a fake TV of its own, with a fixed config, whatever the build's fake receivers flag says. On a simulator:
+/// and each `expo.modules.mpvplayer.REMOTE_PLAYER_PROBE` Darwin notification then opens the remote chrome, with a
+/// fixed config, over the engine the holder keeps with a Cast session when one holds, and over a fake TV of its
+/// own otherwise, whatever the build's fake receivers flag says. On a simulator:
 /// `xcrun simctl spawn <udid> notifyutil -p expo.modules.mpvplayer.REMOTE_PLAYER_PROBE`. It is not presented
 /// at launch: the dev client swaps the window's root once the bundle loads, which would take the screen with
 /// it. It goes around the module, so a presentPlayer from JS while it is up is not refused. Its lines go
@@ -51,18 +52,28 @@ enum RemotePlayerProbe {
 	static func run() {
 		if current != nil { return log("already presented") }
 		let ending = UserDefaults.standard.bool(forKey: endArgument)
-		let fake = FakeRemoteEngine(
-			deliver: mainQueueSchedule,
-			items: ending ? [FakeRemoteItem(id: "fake-short", durationSec: endItemSec)] : FakeRemoteEngine.defaultItems
-		)
-		let engine = LoggingRemoteEngine(inner: fake, log: log)
-		// A holder of its own, its session made up: the screen borrows the fake as it would the Cast engine, and
-		// the fake stops only when that session ends, after the screen handed it back.
-		let playback = RemotePlayback(engineFactory: { _ in engine })
-		playback.setServer(
-			ReceiverServer(serverAddress: "https://probe.invalid", accessToken: "probe", userId: "probe", receiverName: target)
-		)
-		playback.targetChanged(connected: true, suspended: false)
+		// The session's engine is the holder's: the screen hands it back and the TV plays on.
+		let onSession = RemotePlayback.shared.engine
+		let playback: RemotePlayback
+		let engine: ChromeEngine
+		if let onSession {
+			playback = .shared
+			engine = onSession
+		} else {
+			let fake = FakeRemoteEngine(
+				deliver: mainQueueSchedule,
+				items: ending ? [FakeRemoteItem(id: "fake-short", durationSec: endItemSec)] : FakeRemoteEngine.defaultItems
+			)
+			let logging = LoggingRemoteEngine(inner: fake, log: log)
+			// A holder of its own, its session made up: the screen borrows the fake as it would the Cast engine, and
+			// the fake stops only when that session ends, after the screen handed it back.
+			playback = RemotePlayback(engineFactory: { _ in logging })
+			playback.setServer(
+				ReceiverServer(serverAddress: "https://probe.invalid", accessToken: "probe", userId: "probe", receiverName: target)
+			)
+			playback.targetChanged(connected: true, suspended: false)
+			engine = logging
+		}
 		let session = RemotePlayerSession(
 			playback: playback,
 			emit: { name, body in
@@ -72,6 +83,7 @@ enum RemotePlayerProbe {
 				cancelPositionLog?()
 				cancelPositionLog = nil
 				current = nil
+				guard onSession == nil else { return }
 				log("lease released")
 				playback.targetChanged(connected: false, suspended: false)
 			}
@@ -127,7 +139,9 @@ enum RemotePlayerProbe {
 			log("ending: one \(endItemSec) s item, next episode at the still watching cap")
 		}
 		do {
-			try session.present(config: config) { log("presented: \(title) on \(target)") }
+			try session.present(config: config) {
+				log("presented: \(title) on \(onSession == nil ? target : "the session's engine")")
+			}
 		} catch {
 			session.teardownImmediately()
 			current = nil

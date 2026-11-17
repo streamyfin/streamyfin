@@ -25,8 +25,9 @@ import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
 
-// The device proof of the remote screen, in debug builds only: a broadcast opens the remote chrome over a
-// fake TV of its own, with a fixed config, whatever the build's fake receivers flag says. It goes around
+// The device proof of the remote screen, in debug builds only: a broadcast opens the remote chrome, with a fixed
+// config, over the engine the holder keeps with a Cast session when one holds, and over a fake TV of its own
+// otherwise, whatever the build's fake receivers flag says. It goes around
 // the module, so a presentPlayer from JS while it is up is not refused. Everything it logs is what the
 // proof reads: the commands with the fake's position, the position every few seconds, the close, and the
 // fake's stop, which only the end of its holder's session may cause.
@@ -46,6 +47,7 @@ object RemotePlayerProbe {
         schedule: (Long, () -> Unit) -> (() -> Unit) = mainLooperSchedule(),
         log: (String) -> Unit = { Log.i(TAG, it) },
         look: Look = Look(),
+        holder: RemotePlayback = RemotePlayback.shared,
         screenContent: @Composable (PlayerViewModel, RemoteScreenState) -> Unit = { model, screen -> RemotePlayerScreen(model, screen) },
     ): RemotePlayerSession? {
         if (current != null) {
@@ -56,6 +58,7 @@ object RemotePlayerProbe {
             log("failed: no activity to present from")
             return null
         }
+        holder.engine?.let { return runOnSession(activity, schedule, log, look, holder, screenContent) }
         val main = Handler(Looper.getMainLooper())
         val fake = FakeRemoteEngine(
             schedule = schedule,
@@ -87,6 +90,40 @@ object RemotePlayerProbe {
         fun logPosition() {
             cancelPositionLog = schedule(POSITION_LOG_MS) {
                 log("position ${engine.currentPosition}, ${if (engine.isPausedState) "paused" else "playing"}")
+                logPosition()
+            }
+        }
+        logPosition()
+        return session
+    }
+
+    // The session's engine is the holder's: the screen hands it back and the TV plays on.
+    private fun runOnSession(
+        activity: Activity,
+        schedule: (Long, () -> Unit) -> (() -> Unit),
+        log: (String) -> Unit,
+        look: Look,
+        holder: RemotePlayback,
+        screenContent: @Composable (PlayerViewModel, RemoteScreenState) -> Unit,
+    ): RemotePlayerSession {
+        var cancelPositionLog: (() -> Unit)? = null
+        val session = RemotePlayerSession(
+            playback = holder,
+            emit = { name, body -> if (name == "onDismiss") log("dismissed: ${body["reason"]}") },
+            onTornDown = {
+                cancelPositionLog?.invoke()
+                current = null
+            },
+            screenContent = screenContent,
+        )
+        current = session
+        session.present(activity, config(look))
+        log("presented: $TITLE on the session's engine")
+
+        fun logPosition() {
+            cancelPositionLog = schedule(POSITION_LOG_MS) {
+                val snapshot = holder.snapshot
+                log("position ${snapshot.positionSec}, ${snapshot.phase.name.lowercase()}")
                 logPosition()
             }
         }
