@@ -806,6 +806,9 @@ struct PlayerBottomBar: View {
 			.foregroundStyle(.white.opacity(0.85))
 		}
 		.padding(.bottom, 8)
+		// The timeline runs left to right in every language: the bar's drag reads its x from the left edge, and
+		// a mirrored layout drew the elapsed part from the right.
+		.environment(\.layoutDirection, .leftToRight)
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

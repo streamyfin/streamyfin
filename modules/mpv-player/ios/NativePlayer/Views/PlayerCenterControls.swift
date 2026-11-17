@@ -22,11 +22,16 @@ struct PlayerCenterControls: View {
 	private var hasChapters: Bool { !viewModel.chapters.isEmpty }
 
 	var body: some View {
-		if let style {
-			discRow(style)
-		} else {
-			tiers
+		Group {
+			if let style {
+				discRow(style)
+			} else {
+				tiers
+			}
 		}
+		// Media controls keep their left-to-right order in right-to-left languages, seek back on the left, as the
+		// position bar's timeline and the remote artwork's double tap halves do.
+		.environment(\.layoutDirection, .leftToRight)
 	}
 
 	private var tiers: some View {
