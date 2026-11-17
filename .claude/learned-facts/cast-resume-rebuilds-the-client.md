@@ -15,12 +15,16 @@ session id. `setMessageReceivedCallbacks` also returns without doing anything, a
 exception, on a session whose client is not connected, so registering a suspended session
 silently registers nothing.
 
-On iOS (google-cast-sdk 4.8), a suspended session is ended, and the resume hands an object
-built with the same identifier: a `GCKGenericChannel` added to the old object cannot send at
-all, and a new channel has to be added to the new one, which connects later
+On iOS (google-cast-sdk 4.8.6), the resume hands back the `GCKCastSession` object that was
+suspended (iPhone simulator, 15/11: `didSuspend` and `didResumeSession` on the same object;
+an earlier note had read it as a new object under the same id). That object keeps the
+`GCKGenericChannel` added to it before the suspension, and `add` refuses a second one for the
+namespace: the resumed session then had no live channel, and Repeat, Previous and picking a
+track in the queue failed on "not connected". A channel added after the resume connects later
 (`castChannelDidConnect`).
 
 Neither the media client nor a channel registration survives a resume. `ReceiverChannelHub`
 (both platforms) registers every namespace again on each session it is attached to, a resume
 included, and calls a namespace ready only once its channel is live; a session id never stands
-for an object.
+for an object. On iOS the hub also takes a port's channels off the session before it lets the
+port go (suspension, end, or another port attached), so the resumed object takes a new one.

@@ -19,6 +19,7 @@ import {
   type JellyfinCastSession,
   parseReceiverCustomData,
   queueOnJellyfinReceiver,
+  type ReceiverCustomData,
   receiverNameFor,
   receiverPositionInItem,
   sendJellyfinCastCommand,
@@ -117,7 +118,19 @@ export const useMusicCastRemote = ({
 
   // A queue another account sent is not this account's to show or hand back.
   const current = sent && sent.owner === ownerKey ? sent : null;
-  const media = parseReceiverCustomData(status?.mediaInfo?.customData);
+  // The iOS SDK drops the media from an idle status: its reason is about the
+  // track last reported, as the idle status that keeps it says on Android.
+  // Read as gone, every change of track showed the finished one stopped at 0:00
+  // on an iPhone (2026-11-15).
+  const lastMedia = useRef<{ id: number; media: ReceiverCustomData } | null>(
+    null,
+  );
+  const idleWithoutMedia =
+    status?.playerState === CastMediaPlayerState.IDLE && !status.mediaInfo;
+  const media =
+    idleWithoutMedia && current && lastMedia.current?.id === current.id
+      ? lastMedia.current.media
+      : parseReceiverCustomData(status?.mediaInfo?.customData);
   // A status of the media the queue replaced says nothing about the queue yet.
   const fresh =
     current !== null &&
@@ -132,6 +145,7 @@ export const useMusicCastRemote = ({
     current && fresh ? placeOf(current.queue, media.itemId, near) : -1;
   if (current && index >= 0) shown.current = { id: current.id, index };
   const reported = fresh && index >= 0;
+  if (current && reported) lastMedia.current = { id: current.id, media };
 
   // Once the receiver has played the queue, a status without it no longer
   // means the queue is loading. Media another sender loaded carries none of
@@ -325,6 +339,11 @@ export const useMusicCastRemote = ({
 
   if (connected && reported && view) lastView.current = view;
 
+  // As on Spotify: when the session ends, the queue comes back to the phone,
+  // paused where the receiver was.
+  const handBack = useRef(onHandBack);
+  handBack.current = onHandBack;
+
   // A film cast from its page, or another sender's media, replaced the queue;
   // or the account switched under it.
   const replaced =
@@ -332,14 +351,15 @@ export const useMusicCastRemote = ({
   const foreign = sent !== null && sent.owner !== ownerKey;
   useEffect(() => {
     if (!replaced && !foreign) return;
+    const last = lastView.current;
     lastView.current = null;
     setSent(null);
+    // The queue taken off the receiver comes back to the phone as at the end of the session, or the player fell back
+    // on the track the phone had before the cast (bench, 15/11). Paused: the phone does not play over the TV, and a
+    // later connection does not send it again. Another account's queue stays away from this one.
+    if (last && !foreign) handBack.current({ ...last, isPlaying: false });
   }, [replaced, foreign]);
 
-  // As on Spotify: when the session ends, the queue comes back to the phone,
-  // paused where the receiver was.
-  const handBack = useRef(onHandBack);
-  handBack.current = onHandBack;
   useEffect(() => {
     if (connected) return;
     const last = lastView.current;
@@ -515,8 +535,16 @@ export const useMusicCastRemote = ({
     setSent(null);
   }, [transport, client]);
 
+  // Until the effects above hand the queue back, the phone shows where the receiver was. Without it, the render in
+  // between showed the queue the phone had before the cast, and Android's expo-image kept that artwork (16/11).
+  const handingBack = lastView.current;
+  const shownView =
+    view === null && handingBack && !foreign && (!connected || replaced)
+      ? { ...handingBack, isPlaying: false }
+      : view;
+
   return {
-    view,
+    view: shownView,
     /** The receiver stopped the queue and plays nothing: play casts it again, from the view's position. */
     stopped,
     /**

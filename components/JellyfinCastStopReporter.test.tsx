@@ -4,6 +4,7 @@ import {
   castDoubleDevice,
   createCastDoubleState,
   emitCastSessionEvent,
+  setCastSession,
 } from "@/test-utils/cast";
 import { JellyfinCastStopReporter } from "./JellyfinCastStopReporter";
 
@@ -44,7 +45,8 @@ beforeEach(() => {
     },
     customData: null,
   };
-  mockReport.mockClear();
+  mockReport.mockReset();
+  mockReport.mockImplementation(async (_input: unknown) => true);
 });
 
 // The SDK reports no error only for a stop asked from this phone, which also
@@ -117,4 +119,72 @@ test("a stop still reports the orphaned session", async () => {
     receiverClosed: true,
     itemId: "item-1",
   });
+});
+
+const SECOND_TV = {
+  deviceId: "9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d",
+  friendlyName: "Bedroom TV",
+  modelName: "Google TV Streamer",
+  videoOut: true,
+};
+
+const pendingSignal = (call: number) =>
+  (mockReport.mock.calls[call][0] as { signal: AbortSignal }).signal;
+
+// The check of a receiver that may still play waits for it (3 s, then 15 s), until it ends or is cancelled.
+const holdReports = () =>
+  mockReport.mockImplementation(
+    (input: unknown) =>
+      new Promise<boolean>((resolve) =>
+        (input as { signal: AbortSignal }).signal.addEventListener(
+          "abort",
+          () => resolve(false),
+        ),
+      ),
+  );
+
+// A switch from the output sheet ends the session on the TV left (status 2155 on Android) and starts one on the
+// next 7 ms later (bench, 15/11): the check of the TV left must go on, or its playback stays on the dashboard.
+test("a session starting on another TV keeps the check of the TV left", async () => {
+  holdReports();
+  await render(<JellyfinCastStopReporter />);
+  await act(async () => {});
+
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "ended", "Cast session status code 2155");
+  });
+  await act(async () => {
+    setCastSession(mockCast, "session-2", SECOND_TV);
+    emitCastSessionEvent(mockCast, "starting");
+  });
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "started");
+  });
+
+  expect(mockReport).toHaveBeenCalledTimes(1);
+  expect(mockReport.mock.calls[0][0]).toMatchObject({
+    deviceName: "Living Room TV",
+    receiverClosed: false,
+  });
+  expect(pendingSignal(0).aborted).toBe(false);
+});
+
+// The check of a TV must not stop a new cast the same TV plays.
+test("a session starting on the same TV drops the check left over", async () => {
+  holdReports();
+  await render(<JellyfinCastStopReporter />);
+  await act(async () => {});
+
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "ended", "NETWORK_ERROR (7)");
+  });
+  await act(async () => {
+    setCastSession(mockCast, "session-2", castDoubleDevice());
+    emitCastSessionEvent(mockCast, "starting");
+  });
+  await act(async () => {
+    emitCastSessionEvent(mockCast, "started");
+  });
+
+  expect(pendingSignal(0).aborted).toBe(true);
 });

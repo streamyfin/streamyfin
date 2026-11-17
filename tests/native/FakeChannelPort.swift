@@ -1,5 +1,19 @@
 import Foundation
 
+/// The SDK's session object, which an iOS resume hands back: it keeps the channels added to it, and refuses a second
+/// one for a namespace it has.
+final class FakeCastSession {
+  private(set) var namespaces = Set<String>()
+
+  func add(_ namespace: String) -> Bool {
+    namespaces.insert(namespace).inserted
+  }
+
+  func remove(_ namespace: String) {
+    namespaces.remove(namespace)
+  }
+}
+
 /// A session's receiver channel without the SDK: records what the hub asks of it and plays the receiver back.
 final class FakeChannelPort: ReceiverChannelPort {
   let sessionId: String?
@@ -15,14 +29,18 @@ final class FakeChannelPort: ReceiverChannelPort {
   private(set) var sent: [(namespace: String, text: String)] = []
   private var onMessage: ((String) -> Void)?
   private var onConnected: (() -> Void)?
+  /// The session object the channels go to, when a test shares one between ports.
+  private let session: FakeCastSession?
 
-  init(sessionId: String? = "session-1", isConnected: Bool = true) {
+  init(sessionId: String? = "session-1", isConnected: Bool = true, session: FakeCastSession? = nil) {
     self.sessionId = sessionId
     self.isConnected = isConnected
+    self.session = session
   }
 
   func register(namespace: String, onMessage: @escaping (String) -> Void, onConnected: @escaping () -> Void) -> Bool {
     if refuse { return false }
+    if let session, !session.add(namespace) { return false }
     registrations.append(namespace)
     self.onMessage = onMessage
     self.onConnected = onConnected
@@ -31,6 +49,7 @@ final class FakeChannelPort: ReceiverChannelPort {
 
   func unregister(namespace: String) {
     unregistrations.append(namespace)
+    session?.remove(namespace)
   }
 
   func isChannelConnected(namespace: String) -> Bool {

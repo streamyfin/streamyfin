@@ -8,7 +8,7 @@ from bench.config import CAST_KINDS
 from bench.jellyfin import JellyfinHttpError
 from bench.sender import BusMessage, MediaSample, SenderTimeout
 from bench.sessions import SessionView
-from bench.tests.fakes import NO_WAIT_TIME, RECEIVER_APP_ID, FakeReceiver, FakeServer, FakeStatus, bench_run
+from bench.tests.fakes import NO_WAIT_TIME, RECEIVER_APP_ID, FakeClient, FakeReceiver, FakeServer, FakeStatus, bench_run
 from suites.cast import matrix
 from suites.cast.matrix import CastDriver, Row, evaluate, load_cases, run, to_markdown
 
@@ -66,6 +66,8 @@ class FakeDriver:
         self.handed = False
         self.idle = True
         self.stop_obeyed = True
+        # The name the receiver registers under; none, nothing to wait for on the server.
+        self.receiver_name = None
 
     def fail(self, step: str, case_id: str) -> None:
         if (case_id, step) in self.failures:
@@ -481,6 +483,37 @@ class MatrixMainTests(unittest.TestCase):
             code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
         self.assertEqual(code, 0)
         self.assertIn("sign-out failed", result.stderr.getvalue())
+
+    # Bench, 14/11: the run signed out as soon as the receiver read IDLE, its own stop report then answered 401, and
+    # the server showed it playing on its own until its cleanup.
+    def test_the_sign_out_waits_for_the_receivers_stop_report(self):
+        server = FakeServer()
+        server.sessions = [{"Id": "rx", "DeviceName": "Living room", "Client": "Chromecast", "UserId": "user-1", "NowPlayingItem": {"Id": "id-V01"}}]
+        reads = []
+        rejected = []
+
+        def report_after_two_reads():
+            reads.append(1)
+            if len(reads) == 2:
+                if "tok1" in server.live:
+                    server.sessions[0].pop("NowPlayingItem")
+                else:
+                    rejected.append(1)
+
+        class Client(FakeClient):
+            def sessions(self, token):
+                report_after_two_reads()
+                return super().sessions(token)
+
+        server.client = lambda *_args, **_kwargs: Client(server)
+        driver = FakeDriver()
+        driver.receiver_name = "Living room"
+        with bench_run(server, FakeReceiver()), mock.patch.object(matrix, "CastDriver", lambda *_args, **_kwargs: driver):
+            code = matrix.main(["--server", "beta13", "--target", "Living room", "--cases", "V01"])
+        self.assertEqual(code, 0)
+        self.assertEqual(rejected, [])
+        self.assertNotIn("NowPlayingItem", server.sessions[0])
+        self.assertEqual(server.live, [])
 
     def test_a_receiver_still_playing_at_the_end_keeps_the_token(self):
         # The receiver plays with the run's token: signing it out cut the stream and its reports.

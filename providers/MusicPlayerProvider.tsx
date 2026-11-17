@@ -544,7 +544,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const { isConnected, serverConnected } = useNetworkStatus();
   const { subscribe } = useWebSocketContext();
   const isOffline = !isConnected || serverConnected === false;
-  const { castQueue, castState } = useMusicCast({ api, userId: user?.Id });
+  const {
+    castQueue,
+    castState,
+    client: castClient,
+  } = useMusicCast({ api, userId: user?.Id });
   // Offline, the downloaded tracks stay on the phone: the receiver streams.
   const castConnected = castState === CastState.CONNECTED && !isOffline;
   const initializedRef = useRef(false);
@@ -817,7 +821,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [state.progress, state.currentTrack]);
 
   const reportPlaybackStart = useCallback(
-    async (track: BaseItemDto, sessionId: string | null) => {
+    async (
+      track: BaseItemDto,
+      sessionId: string | null,
+      // A resume starts where the track stands, which the server shows until the next heartbeat, 10 s later.
+      positionSeconds?: number,
+    ) => {
       if (!api || !user?.Id || !track.Id) return;
 
       try {
@@ -825,6 +834,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           playbackStartInfo: {
             ItemId: track.Id,
             PlaySessionId: sessionId || undefined,
+            ...(positionSeconds
+              ? { PositionTicks: Math.floor(positionSeconds * 10_000_000) }
+              : {}),
             CanSeek: true,
             IsPaused: false,
             IsMuted: false,
@@ -893,6 +905,25 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     if (!hasLiveTrackRef.current) return;
     sendPlaybackProgressRef.current();
   }, [state.repeatMode, state.shuffleEnabled]);
+
+  // A pause or a play is reported at once, wherever it came from (the lock screen pauses the native player itself):
+  // the heartbeat counts seconds of playback, and a paused track plays none, so the server showed it playing (n° 14).
+  // Only within one phone play session: a start reports itself, and a queue on the receiver has no session here.
+  const playEdgeRef = useRef({
+    isPlaying: state.isPlaying,
+    playSessionId: state.playSessionId,
+  });
+  useEffect(() => {
+    const previous = playEdgeRef.current;
+    playEdgeRef.current = {
+      isPlaying: state.isPlaying,
+      playSessionId: state.playSessionId,
+    };
+    if (!state.playSessionId || !hasLiveTrackRef.current) return;
+    if (previous.playSessionId !== state.playSessionId) return;
+    if (previous.isPlaying === state.isPlaying) return;
+    sendPlaybackProgressRef.current();
+  }, [state.isPlaying, state.playSessionId]);
 
   const reportPlaybackStopped = useCallback(
     async (
@@ -1285,8 +1316,27 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
   }, []);
 
+  // "Change" in the output sheet ends the session on the TV left before the next one starts
+  // (cast-switch-ends-the-old-session): the queue the TV left was playing goes on on the next, from where it was, once
+  // that session is ready. Taken at the hand back while the target still holds a Cast receiver, and dropped once it
+  // holds none, so a later connection sends nothing on its own. A paused queue stays on the phone, as on a connection.
+  const remoteTargetRef = useRef<ReturnType<typeof useRemoteTarget> | null>(
+    null,
+  );
+  const switchCarryRef = useRef<{
+    generation: number;
+    view: MusicCastRemoteView;
+  } | null>(null);
+
   const handBackFromReceiver = useCallback(
     (view: MusicCastRemoteView) => {
+      const target = remoteTargetRef.current;
+      switchCarryRef.current =
+        view.isPlaying &&
+        target?.state !== "none" &&
+        target?.target?.kind === "cast"
+          ? { generation: sessionGenerationRef.current, view }
+          : null;
       void releasePhonePlayer();
       setState((prev) => ({
         ...prev,
@@ -1315,6 +1365,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // iPhone: a Cast target still connected holds the session until the target
   // says what became of it.
   const remoteTarget = useRemoteTarget();
+  remoteTargetRef.current = remoteTarget;
+  const remoteTargetHeld =
+    remoteTarget.state !== "none" && remoteTarget.target?.kind === "cast";
+  useEffect(() => {
+    if (!remoteTargetHeld) switchCarryRef.current = null;
+  }, [remoteTargetHeld]);
   const sessionHeld =
     castState === CastState.CONNECTED ||
     (remoteTarget.state === "connected" &&
@@ -1397,12 +1453,27 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Connecting while the phone plays moves the queue to the receiver. A queue
   // left paused, restored at launch say, stays: the session may be for a film.
-  const previousCastState = useRef(castState);
+  // The move waits for the session's client as well: iOS reports the state
+  // connected before the session has started, and a send then had nothing to
+  // go through while the phone had already stopped (iPhone simulator, 15/11).
+  // A launch cancelled in the sheet still comes up, and the module ends it out
+  // of the target's sight: only a session the target holds takes the queue, or
+  // the phone stopped for a cast that failed on the closed channel (15/11).
+  const castReady = castConnected && !!castClient && remoteTargetHeld;
+  const wasCastReady = useRef(castReady);
   useEffect(() => {
-    const previous = previousCastState.current;
-    previousCastState.current = castState;
-    if (!castConnected || previous === CastState.CONNECTED) return;
-    if (!state.isPlaying || state.queue.length === 0) return;
+    const wasReady = wasCastReady.current;
+    wasCastReady.current = castReady;
+    if (!castReady || wasReady) return;
+    const carried = switchCarryRef.current;
+    switchCarryRef.current = null;
+    const playingHere = state.isPlaying && state.queue.length > 0;
+    // What the phone plays meanwhile wins over the queue a switch carries.
+    const carry =
+      !playingHere && carried?.generation === sessionGenerationRef.current
+        ? carried.view
+        : null;
+    if (!playingHere && !carry) return;
     // A Play pressed while connecting (a film, say) is for the receiver: the phone pauses for it, and the queue stays
     // here rather than replace it there.
     if (isPressForTargetHeld()) {
@@ -1412,12 +1483,23 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
       return;
     }
+    if (carry) {
+      // No press asked for the receiver's controls: the user stays on the sheet or the player.
+      void castOnReceiver(carry.queue, carry.queueIndex, {
+        startSeconds: carry.progress,
+        openExpandedControls: false,
+      });
+      return;
+    }
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
     endPhoneSessionForReceiver();
-    void castOnReceiver(state.queue, Math.max(index, 0));
+    // From where the phone was, as a paused queue goes on: the TV started the track over (iPhone and Android, night of
+    // 14/11).
+    void castOnReceiver(state.queue, Math.max(index, 0), {
+      startSeconds: progressRef.current,
+    });
   }, [
-    castState,
-    castConnected,
+    castReady,
     castOnReceiver,
     endPhoneSessionForReceiver,
     state.isPlaying,
@@ -1605,6 +1687,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         : -1;
       if (liveIndex >= 0) {
         await TrackPlayer.play();
+        // The service may have played on after the app went: where it stands is where this start is.
+        const { position } = await TrackPlayer.getProgress();
+        // The server has heard of no play of this queue since the restart: this is its start.
+        void reportPlaybackStart(
+          state.queue[liveIndex],
+          activeTrack?.id === state.currentTrack?.Id
+            ? result.sessionId
+            : state.playSessionId,
+          position,
+        );
         setState((prev) => {
           // prev.queue is the queue now: a shuffle during the waits may have
           // reordered the one this render captured.
@@ -1657,6 +1749,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         playSessionId: result.sessionId,
         isPlaying: true,
       }));
+      // A queue restored at launch was never reported as playing: without a start the server only saw its heartbeats
+      // (iPhone simulator, 15/11).
+      void reportPlaybackStart(
+        state.currentTrack,
+        result.sessionId,
+        progressRef.current,
+      );
       // The native queue holds this one track: load the rest of the restored
       // queue behind it, as a fresh start does, or next, previous and the end
       // of the track find nothing after it.
@@ -1679,9 +1778,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.queue,
     state.queueIndex,
     state.progress,
+    state.playSessionId,
     settings?.preferLocalAudio,
     playerReadyForControl,
     loadRemainingTracksInBackground,
+    reportPlaybackStart,
     castConnected,
     castOnReceiver,
     endPhoneSessionForReceiver,

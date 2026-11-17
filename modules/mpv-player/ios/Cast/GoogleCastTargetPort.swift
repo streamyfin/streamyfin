@@ -7,10 +7,12 @@ struct CastTargetRoute {
   let startSession: () -> Bool
 }
 
-/// The SDK's current session when the port starts: connected, or still connecting.
+/// The SDK's current session: connected, launching, or suspended.
 struct RunningTargetSession {
   let device: TargetDevice?
   let connected: Bool
+  /// Lost and not being reconnected: the SDK tries it again only when the app comes back to the front or relaunches.
+  var suspended = false
 }
 
 /// The Cast SDK as the hub sees it. The SDK calls come in as closures so that the standalone check
@@ -22,6 +24,7 @@ final class GoogleCastTargetPort: TargetPort {
   static let startRefused = "The Cast SDK did not start the session"
   static let endRefused = "The Cast SDK did not end the session a switch had to end"
   static let disconnectRefused = "The Cast SDK did not end the session"
+  static let endNeverCame = "The Cast SDK never ended the session it was asked to end"
 
   /// The receiver's level, or none for a fixed-volume session: a Google TV whose sound the TV sets through
   /// HDMI-CEC reports 0 there, which is no level a sender can set.
@@ -41,10 +44,33 @@ final class GoogleCastTargetPort: TargetPort {
   private let setSessionVolume: (Double) -> Void
   private let setSessionMuted: (Bool) -> Void
   private let watchVolume: (((Double, Bool) -> Void)?) -> Void
+  /// Main-queue timers, cancellable: the waits on the SDK below are bounded.
+  private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
   private var events: TargetPortEvents?
   private var discovering = false
   // The receiver a switch is waiting to start, once the SDK reports the end of the session before it.
   private var pendingSwitch: TargetDevice?
+  // The receiver of a lost session asked again: the hub follows that session's resumption, but not its end, after
+  // which the receiver starts anew.
+  private var restarting: TargetDevice?
+  // A start that waited on an end, its receiver missing from the SDK's device list since.
+  private var awaitingRoute: TargetDevice?
+  // Bounds the wait for the end a start waits on, then for its receiver to show again: neither comes for sure.
+  private var cancelWait: (() -> Void)?
+  // Set from a suspension for as long as the SDK may end that lost session by itself (suspendedOwnEndMs).
+  private var cancelOwnEnd: (() -> Void)?
+  // A session ended before it was up, a launch or a suspended session reconnecting, which the hub was told ended at
+  // once. Ending it then reaches no receiver: a suspended session's Stop was lost, the TV went on playing and the app
+  // could not connect to it again (iPhone, Wi-Fi cut, 14/11), and a launch goes on and leaves the receiver app open
+  // (bench, 04/11, Android). The session is ended once it is up instead, as the Android port does. Its events stay
+  // away from the hub until that end.
+  private var endedEarly: EndedEarly?
+
+  /// `stopWhenUp` is the stop asked, nil once none is due: sent already, or a switch ends the session.
+  private struct EndedEarly {
+    let device: TargetDevice
+    var stopWhenUp: Bool?
+  }
 
   init(
     routes: @escaping () -> [CastTargetRoute],
@@ -56,7 +82,8 @@ final class GoogleCastTargetPort: TargetPort {
     sessionVolume: @escaping () -> (Double, Bool)?,
     setSessionVolume: @escaping (Double) -> Void,
     setSessionMuted: @escaping (Bool) -> Void,
-    watchVolume: @escaping (((Double, Bool) -> Void)?) -> Void
+    watchVolume: @escaping (((Double, Bool) -> Void)?) -> Void,
+    schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void)
   ) {
     self.routes = routes
     self.runningSession = runningSession
@@ -68,6 +95,7 @@ final class GoogleCastTargetPort: TargetPort {
     self.setSessionVolume = setSessionVolume
     self.setSessionMuted = setSessionMuted
     self.watchVolume = watchVolume
+    self.schedule = schedule
   }
 
   func start(events: TargetPortEvents) {
@@ -75,7 +103,10 @@ final class GoogleCastTargetPort: TargetPort {
     watchSessions { [weak self] event, device, error, code in
       self?.sessionChanged(event, device: device, error: error, code: code)
     }
-    watchDevices { [weak self] in self?.reportDevices() }
+    watchDevices { [weak self] in
+      self?.reportDevices()
+      self?.startIfBack()
+    }
     watchVolume { [weak self] level, muted in self?.events?.volumeChanged(level: level, muted: muted) }
     reportDevices()
     // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
@@ -88,6 +119,12 @@ final class GoogleCastTargetPort: TargetPort {
 
   func stop() {
     pendingSwitch = nil
+    restarting = nil
+    awaitingRoute = nil
+    endWait()
+    cancelOwnEnd?()
+    cancelOwnEnd = nil
+    endedEarly = nil
     stopDiscovery()
     watchSessions(nil)
     watchDevices(nil)
@@ -121,12 +158,29 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   func connect(_ device: TargetDevice) {
-    let switching = pendingSwitch != nil
+    var switching = pendingSwitch != nil
     pendingSwitch = nil
+    restarting = nil
+    // A start waiting for its receiver to show again gives way to this request.
+    if awaitingRoute != nil {
+      awaitingRoute = nil
+      endWait()
+    }
+    if let early = endedEarly, early.device.id == device.id {
+      // Asked again before it was up, the session goes on and the hub follows it again; asked again while it is
+      // being ended, it starts again once that end comes, as for a switch back.
+      if early.stopWhenUp != nil { endedEarly = nil } else { switching = true }
+    }
     if let running = runningSession() {
       if running.device?.id == device.id {
         // Asked back while a switch ends its session: start it again once that end comes.
-        if switching { pendingSwitch = device }
+        if switching {
+          pendingSwitch = device
+          return
+        }
+        // A lost session is not on its way: after the receiver restarted it never came back, and the row stayed
+        // Connecting (bench, 15/11). The receiver starts anew once that session is gone.
+        if running.suspended { waitForLostSession(then: device) }
         // Otherwise that receiver's session is already there, or on its way.
         return
       }
@@ -135,14 +189,14 @@ final class GoogleCastTargetPort: TargetPort {
         pendingSwitch = device
         return
       }
+      if running.suspended {
+        waitForLostSession(then: device)
+        return
+      }
       // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
       // answers NO): end it, and start this receiver once the SDK reports the end.
       pendingSwitch = device
-      if !endSession(true) {
-        // The SDK kept the session it was asked to end: this receiver cannot start.
-        pendingSwitch = nil
-        events?.sessionEvent("startFailed", device: device, error: Self.endRefused)
-      }
+      askEnd(stopPlayback: true, then: device)
       return
     }
     startSession(on: device)
@@ -150,7 +204,16 @@ final class GoogleCastTargetPort: TargetPort {
 
   func disconnect(stopPlayback: Bool) {
     pendingSwitch = nil
+    restarting = nil
+    awaitingRoute = nil
+    endWait()
     if let running = runningSession() {
+      // Not up: a launch, or a suspended session reconnecting.
+      if !running.connected, let device = running.device {
+        endedEarly = EndedEarly(device: device, stopWhenUp: stopPlayback)
+        events?.sessionEvent("ended", device: device, error: nil)
+        return
+      }
       // The SDK kept the session: it stays, and the state says why.
       if !endSession(stopPlayback) {
         events?.sessionEvent("endRefused", device: running.device, error: Self.disconnectRefused)
@@ -159,6 +222,74 @@ final class GoogleCastTargetPort: TargetPort {
     }
     // Asked before the SDK started a session: nothing would end, so the request ends here.
     events?.sessionEvent("ended", device: nil, error: nil)
+  }
+
+  // The SDK ends a session it lost by itself, 26 to 28 s after the suspension. Asked to end it before then, it reported
+  // the end under way, suspended the session again and kept it, the row Connecting for 5 min with the TV back
+  // (Chromecast unplugged, 15/11). A request over a lost session waits for that end, or for its resumption, and asks
+  // the end itself only once the SDK had that time: after a receiver restart, the SDK kept one for minutes.
+  private func waitForLostSession(then device: TargetDevice) {
+    pendingSwitch = device
+    if runningSession()?.device?.id == device.id { restarting = device }
+    if cancelOwnEnd == nil { endLostSession() }
+  }
+
+  // The end a waiting start needs, once the SDK has had its time; the Stop only for another receiver.
+  private func endLostSession() {
+    guard let next = pendingSwitch, let running = runningSession() else { return }
+    askEnd(stopPlayback: running.device?.id != next.id, then: next)
+  }
+
+  private func askEnd(stopPlayback: Bool, then next: TargetDevice) {
+    // Armed first: the SDK can report the end, or the session suspended again, inside the call.
+    waitForEnd()
+    if !endSession(stopPlayback) {
+      // The SDK kept the session it was asked to end: this receiver cannot start.
+      endWait()
+      pendingSwitch = nil
+      restarting = nil
+      events?.sessionEvent("startFailed", device: next, error: Self.endRefused)
+      return
+    }
+    // The end asked ends a session ended early itself: no stop is due once it is up.
+    endedEarly?.stopWhenUp = nil
+  }
+
+  private func waitForEnd() {
+    cancelWait?()
+    cancelWait = schedule(RemoteTargetConstants.sessionEndWaitMs) { [weak self] in
+      guard let self, let next = self.pendingSwitch else { return }
+      self.cancelWait = nil
+      self.pendingSwitch = nil
+      self.restarting = nil
+      self.events?.sessionEvent("startFailed", device: next, error: Self.endNeverCame)
+    }
+  }
+
+  private func endWait() {
+    cancelWait?()
+    cancelWait = nil
+  }
+
+  // A start that waited on an end: the SDK's device list can miss its receiver for a few seconds then, so the start
+  // waits for the list to show it again.
+  private func startAfterEnd(_ device: TargetDevice) {
+    guard !routes().contains(where: { $0.device.id == device.id }) else { return startSession(on: device) }
+    awaitingRoute = device
+    endWait()
+    cancelWait = schedule(RemoteTargetConstants.receiverBackWaitMs) { [weak self] in
+      guard let self, let missing = self.awaitingRoute else { return }
+      self.cancelWait = nil
+      self.awaitingRoute = nil
+      self.events?.sessionEvent("startFailed", device: missing, error: Self.receiverGone)
+    }
+  }
+
+  private func startIfBack() {
+    guard let device = awaitingRoute, routes().contains(where: { $0.device.id == device.id }) else { return }
+    awaitingRoute = nil
+    endWait()
+    startSession(on: device)
   }
 
   private func startSession(on device: TargetDevice) {
@@ -172,13 +303,79 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   private func sessionChanged(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
-    events?.sessionEvent(event, device: device, error: error, code: code)
+    followOwnEnd(event)
+    let endedEarlyOwn = endedEarlyEvent(event, device: device)
+    let restartingOwn = restartingEvent(event, device: device)
+    if !endedEarlyOwn && !restartingOwn {
+      events?.sessionEvent(event, device: device, error: error, code: code)
+    }
     // No read here: a session that joins a receiver app starts before the receiver's first status, and its
     // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
     // The session a switch ended is gone: the receiver asked for meanwhile can start now.
     guard event == "ended" || event == "startFailed", let next = pendingSwitch else { return }
     pendingSwitch = nil
-    startSession(on: next)
+    endWait()
+    startAfterEnd(next)
+  }
+
+  // The time the SDK may end a lost session in by itself runs from its suspension, until that session is back or gone.
+  private func followOwnEnd(_ event: String) {
+    switch event {
+    case "suspended":
+      // Suspended again by an end the port asked, the SDK keeps the session: it ends it by itself no more.
+      guard cancelOwnEnd == nil, cancelWait == nil else { return }
+      cancelOwnEnd = schedule(RemoteTargetConstants.suspendedOwnEndMs) { [weak self] in
+        self?.cancelOwnEnd = nil
+        self?.endLostSession()
+      }
+    case "started", "resumed", "ended", "startFailed":
+      cancelOwnEnd?()
+      cancelOwnEnd = nil
+    default:
+      break
+    }
+  }
+
+  // Whether the event is the lost session's a connection back to its receiver waits on, which the hub does not hear:
+  // its resumption is that connection, but its end would read as that connection's failure.
+  private func restartingEvent(_ event: String, device: TargetDevice?) -> Bool {
+    guard let restarting, device == nil || device?.id == restarting.id else { return false }
+    switch event {
+    case "resuming":
+      return false
+    case "started", "resumed":
+      self.restarting = nil
+      pendingSwitch = nil
+      endWait()
+      return false
+    case "ended", "startFailed":
+      self.restarting = nil
+      return true
+    default:
+      return true
+    }
+  }
+
+  // Whether the event is the early-ended session's, which the hub no longer follows; once that session is up, it is
+  // ended with the stop asked.
+  private func endedEarlyEvent(_ event: String, device: TargetDevice?) -> Bool {
+    guard let early = endedEarly else { return false }
+    if let device, device.id != early.device.id { return false }
+    switch event {
+    case "started", "resumed":
+      guard let stop = early.stopWhenUp else { break }
+      endedEarly?.stopWhenUp = nil
+      // The SDK kept the session: the hub follows it again, and the Stop can be asked again from there.
+      if !endSession(stop) {
+        endedEarly = nil
+        return false
+      }
+    case "ended", "startFailed":
+      endedEarly = nil
+    default:
+      break
+    }
+    return true
   }
 
   private func reportDevices() {
@@ -218,7 +415,10 @@ extension GoogleCastTargetPort {
       },
       runningSession: {
         guard let session = sessionManager.currentCastSession else { return nil }
-        return RunningTargetSession(device: targetDevice(session.device), connected: session.connectionState == .connected)
+        return RunningTargetSession(
+          device: targetDevice(session.device), connected: session.connectionState == .connected,
+          suspended: session.connectionState == .disconnected
+        )
       },
       endSession: { stopPlayback in sessionManager.endSessionAndStopCasting(stopPlayback) },
       watchSessions: { relay in
@@ -244,7 +444,8 @@ extension GoogleCastTargetPort {
       setSessionVolume: { level in sessionManager.currentCastSession?.setDeviceVolume(Float(level)) },
       setSessionMuted: { muted in sessionManager.currentCastSession?.setDeviceMuted(muted) },
       // The volume comes through the session manager's listener, which watchSessions installs.
-      watchVolume: { relay in volumeRelay = relay }
+      watchVolume: { relay in volumeRelay = relay },
+      schedule: mainQueueSchedule
     )
   }
 }

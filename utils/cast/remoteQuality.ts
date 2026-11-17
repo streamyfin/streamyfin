@@ -1,5 +1,9 @@
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
-import { REMOTE_QUALITY_KNOWN_TARGETS_MAX } from "@/constants/Cast";
+import {
+  CHROMECAST_STICK_AUTO_MAX_BITRATE,
+  CHROMECAST_STICK_MODEL,
+  REMOTE_QUALITY_KNOWN_TARGETS_MAX,
+} from "@/constants/Cast";
 import type {
   RemoteTarget,
   RemoteTargetKind,
@@ -45,6 +49,22 @@ export const bitrateRequestFor = (
   const bitrate = PLAYBACK_BITRATES.find((choice) => choice.key === key);
   return bitrate ? toBitrateRequest(bitrate) : AUTO_BITRATE_VALUE;
 };
+
+/**
+ * The bitrate Auto hands a receiver of this model: what the link measured,
+ * held under the Chromecast stick's ceiling there, which also stands in for a
+ * measure that failed.
+ */
+export const autoBitrateOn = (
+  measured: number | undefined,
+  model: string | null | undefined,
+): number | undefined =>
+  model === CHROMECAST_STICK_MODEL
+    ? Math.min(
+        measured ?? CHROMECAST_STICK_AUTO_MAX_BITRATE,
+        CHROMECAST_STICK_AUTO_MAX_BITRATE,
+      )
+    : measured;
 
 /** A connection puts the target first, under its name of now; past the cap the oldest goes, its quality with it. */
 export const rememberTarget = (

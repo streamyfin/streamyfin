@@ -443,6 +443,7 @@ enum RemoteTargetTests {
     var volumesSet: [Double] = []
     var mutesSet: [Bool] = []
     var volumeWatches: [((Double, Bool) -> Void)?] = []
+    let clock = Clock()
 
     // The port holds the fake, not the other way round: a test may drop the fake and keep the port.
     func port() -> GoogleCastTargetPort {
@@ -467,7 +468,8 @@ enum RemoteTargetTests {
         sessionVolume: { sdk.volume },
         setSessionVolume: { sdk.volumesSet.append($0) },
         setSessionMuted: { sdk.mutesSet.append($0) },
-        watchVolume: { sdk.volumeWatches.append($0) }
+        watchVolume: { sdk.volumeWatches.append($0) },
+        schedule: sdk.clock.schedule
       )
     }
   }
@@ -561,6 +563,391 @@ enum RemoteTargetTests {
       port.start(events: events)
       port.disconnect(stopPlayback: true)
       check("disconnectEndsTheRunningSession", sdk.ended == [true] && events.sessions == ["resumed device-a nil"])
+    }
+
+    // A launch on its way to the living room: the SDK's session still starting.
+    func launching(_ sdk: Sdk, _ events: PortEventsRecording) -> GoogleCastTargetPort {
+      sdk.receivers = [chromecast, streamer]
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(chromecast)
+      sdk.running = RunningTargetSession(device: chromecast, connected: false)
+      sdk.sessionWatches.last??("starting", chromecast, nil, nil)
+      return port
+    }
+
+    // A Stop while the session is suspended reaches no receiver: asked of the SDK then, it was lost and the TV went
+    // on playing, and the app could not connect to that TV again (iPhone, Wi-Fi cut, 14/11). It is sent once the
+    // session is back.
+    do {
+      let sdk = Sdk()
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.running = RunningTargetSession(device: chromecast, connected: false)
+      sdk.sessionWatches.last??("suspended", chromecast, nil, nil)
+      port.disconnect(stopPlayback: true)
+      let whileSuspended = sdk.ended
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("resumed", chromecast, nil, nil)
+      check(
+        "aStopWhileSuspendedReachesTheReceiverOnceItIsBack",
+        whileSuspended.isEmpty && sdk.ended == [true]
+          && events.sessions == ["resumed device-a nil", "suspended device-a nil", "ended device-a nil"]
+      )
+    }
+
+    // A Cancel while the receiver app launches: ending a session still starting lets the launch go on, and the app
+    // stays open on the TV (bench, 04/11, Android). The session is ended once it is up, which closes the app.
+    do {
+      let sdk = Sdk()
+      let port = launching(sdk, PortEventsRecording())
+      port.disconnect(stopPlayback: true)
+      let atTheCancel = sdk.ended
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check("aCancelBeforeTheSessionIsUpStopsTheReceiverOnceItIs", atTheCancel.isEmpty && sdk.ended == [true])
+    }
+
+    // The hub hears the end at once: the rest of that session is the port's own.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      check(
+        "theCancelledLaunchNeverReachesTheHub",
+        events.sessions == ["starting device-a nil", "ended device-a nil"] && sdk.ended == [true]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      let port = launching(sdk, PortEventsRecording())
+      port.disconnect(stopPlayback: false)
+      let atTheCancel = sdk.ended
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check("aCancelWithoutStopEndsTheSessionWithoutStop", atTheCancel.isEmpty && sdk.ended == [false])
+    }
+
+    // endSessionAndStopCasting answering NO once the session is up keeps it: the hub follows it again, so the Stop can
+    // be asked again from there, instead of a session on the TV the app no longer shows.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      sdk.endAccepted = false
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      check(
+        "aStopTheSdkRefusesOnceTheSessionIsUpGivesItBackToTheHub",
+        sdk.ended == [true]
+          && events.sessions == [
+            "starting device-a nil", "ended device-a nil", "started device-a nil", "ending device-a nil",
+          ]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      sdk.running = nil
+      sdk.sessionWatches.last??("startFailed", chromecast, "Cast session status code 2005 (2005)", 2005)
+      // A later session on that receiver, from the SDK's own dialog say, is the hub's again, and it stays.
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check(
+        "aCancelledLaunchThatFailsLeavesNothingBehind",
+        sdk.ended.isEmpty
+          && events.sessions == ["starting device-a nil", "ended device-a nil", "started device-a nil"]
+      )
+    }
+
+    // Asked again before it was up, the session goes on: the hub follows it again and nothing stops it. This is the
+    // row that did nothing after the lost Stop (iPhone, 14/11).
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      port.connect(chromecast)
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check(
+        "aConnectionBackBeforeTheLaunchIsUpKeepsIt",
+        sdk.ended.isEmpty && events.sessions.last == "started device-a nil"
+      )
+    }
+
+    // The living room's session lost and suspended, then a Disconnect on Reconnecting: the hub hears the end at once.
+    func suspendedAfterADisconnect(_ sdk: Sdk, _ events: PortEventsRecording) -> GoogleCastTargetPort {
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.running = RunningTargetSession(device: chromecast, connected: false, suspended: true)
+      sdk.sessionWatches.last??("suspended", chromecast, nil, nil)
+      port.disconnect(stopPlayback: true)
+      return port
+    }
+    let lostThenDisconnected = ["resumed device-a nil", "suspended device-a nil", "ended device-a nil"]
+
+    // The SDK ends a session it lost 26 to 28 s after the suspension. Asked to end it before then, it reported the end
+    // under way, suspended it again and never ended it: the row read Connecting for 5 min, the TV back (Chromecast
+    // unplugged, 15/11). A connection back to that receiver lets the SDK end it, then starts the receiver anew.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      sdk.clock.advance(8_000)
+      port.connect(chromecast)
+      let atTheConnect = (sdk.ended, sdk.started)
+      sdk.clock.advance(18_000)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, "Network connection error", 1)
+      sdk.running = RunningTargetSession(device: chromecast, connected: false)
+      sdk.sessionWatches.last??("starting", chromecast, nil, nil)
+      check(
+        "aConnectionBackToALostSessionLetsTheSdkEndItFirst",
+        atTheConnect.0.isEmpty && atTheConnect.1.isEmpty && sdk.ended.isEmpty && sdk.started == [chromecast]
+          && events.sessions == lostThenDisconnected + ["starting device-a nil"]
+      )
+    }
+
+    // After a receiver restart the SDK kept the lost session for minutes (bench, 15/11): once it had the time to end it
+    // itself, the port asks the end, without the Stop the Disconnect asked, and starts the receiver at that end.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      sdk.clock.advance(120_000)
+      port.connect(chromecast)
+      let atTheConnect = (sdk.ended, sdk.started)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      check(
+        "aConnectionBackToASessionTheSdkKeepsEndsItThenStartsTheReceiver",
+        atTheConnect.0 == [false] && atTheConnect.1.isEmpty && sdk.started == [chromecast]
+          && events.sessions == lostThenDisconnected
+      )
+    }
+
+    // The same before the SDK's time is up: the port waits it out, then asks.
+    do {
+      let sdk = Sdk()
+      let port = suspendedAfterADisconnect(sdk, PortEventsRecording())
+      port.connect(chromecast)
+      sdk.clock.advance(RemoteTargetConstants.suspendedOwnEndMs - 1)
+      let beforeItsTime = sdk.ended
+      sdk.clock.advance(1)
+      check("aLostSessionIsEndedOnlyOnceTheSdkHadTheTimeToEndItself", beforeItsTime.isEmpty && sdk.ended == [false])
+    }
+
+    // An SDK that takes the end, suspends the session again and never ends it: the connection fails, as a lost one,
+    // instead of Connecting for good.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(chromecast)
+      sdk.clock.advance(RemoteTargetConstants.suspendedOwnEndMs)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.sessionWatches.last??("suspended", chromecast, nil, nil)
+      let whileItHolds = events.sessions
+      sdk.clock.advance(RemoteTargetConstants.sessionEndWaitMs)
+      check(
+        "aLostSessionTheSdkNeverEndsFailsTheConnectionBack",
+        sdk.ended == [false] && sdk.started.isEmpty && whileItHolds == lostThenDisconnected
+          && events.sessions == lostThenDisconnected + ["startFailed device-a " + GoogleCastTargetPort.endNeverCame]
+      )
+    }
+
+    // The SDK resuming the lost session, the app back to the front: that session is the connection, nothing ends.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(chromecast)
+      sdk.sessionWatches.last??("resuming", chromecast, nil, nil)
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("resumed", chromecast, nil, nil)
+      sdk.clock.advance(RemoteTargetConstants.suspendedOwnEndMs + RemoteTargetConstants.sessionEndWaitMs)
+      check(
+        "aLostSessionTheSdkResumesIsTheConnectionBack",
+        sdk.ended.isEmpty && sdk.started.isEmpty
+          && events.sessions == lostThenDisconnected + ["resuming device-a nil", "resumed device-a nil"]
+      )
+    }
+
+    // Back to the front, the SDK ended the lost session (GCKError 44) while its device list missed the receiver: the
+    // start failed at once, "no longer on the network", and a second tap connected (iPhone, 15/11). The start waits
+    // for the receiver to show again.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(chromecast)
+      sdk.receivers = [streamer]
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, "SSL certificate is not trusted", 44)
+      sdk.clock.advance(5_000)
+      let whileMissing = (events.sessions, sdk.started)
+      sdk.receivers = [chromecast, streamer]
+      sdk.deviceWatches.last??()
+      check(
+        "aReceiverMissingAfterTheLostSessionEndsStartsOnceItShowsAgain",
+        whileMissing.0 == lostThenDisconnected && whileMissing.1.isEmpty && sdk.started == [chromecast]
+      )
+    }
+
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(chromecast)
+      sdk.receivers = []
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, "Network connection error", 1)
+      let atTheEnd = events.sessions
+      sdk.clock.advance(RemoteTargetConstants.receiverBackWaitMs)
+      check(
+        "aReceiverThatDoesNotShowAgainFailsTheConnectionBack",
+        atTheEnd == lostThenDisconnected && sdk.started.isEmpty
+          && events.sessions == lostThenDisconnected + ["startFailed device-a " + GoogleCastTargetPort.receiverGone]
+      )
+    }
+
+    // Another receiver asked over the lost session: the SDK ends that one first too, and the other starts at its end.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(streamer)
+      let atTheConnect = sdk.ended
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, "Network connection error", 1)
+      check(
+        "aSwitchFromALostSessionLetsTheSdkEndItFirst",
+        atTheConnect.isEmpty && sdk.ended.isEmpty && sdk.started == [streamer]
+          && events.sessions == lostThenDisconnected
+      )
+    }
+
+    // A Disconnect while the connection back waits: nothing starts, and the lost session is left to the SDK.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = suspendedAfterADisconnect(sdk, events)
+      port.connect(chromecast)
+      port.disconnect(stopPlayback: true)
+      sdk.clock.advance(RemoteTargetConstants.suspendedOwnEndMs + RemoteTargetConstants.sessionEndWaitMs)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, "Network connection error", 1)
+      sdk.clock.advance(RemoteTargetConstants.receiverBackWaitMs)
+      check(
+        "aDisconnectWhileTheConnectionBackWaitsDropsIt",
+        sdk.ended.isEmpty && sdk.started.isEmpty && events.sessions == lostThenDisconnected + ["ended device-a nil"]
+      )
+    }
+
+    // The SDK keeping that suspended session: the connection ends in startFailed rather than Connecting for good.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast]
+      sdk.endAccepted = false
+      sdk.running = RunningTargetSession(device: chromecast, connected: false, suspended: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.disconnect(stopPlayback: true)
+      port.connect(chromecast)
+      sdk.sessionWatches.last??("resumed", chromecast, nil, nil)
+      check(
+        "aSuspendedSessionTheSdkKeepsFailsTheConnectionBack",
+        sdk.ended == [false] && sdk.started.isEmpty
+          && events.sessions == [
+            "resuming device-a nil", "ended device-a nil", "startFailed device-a " + GoogleCastTargetPort.endRefused,
+            "resumed device-a nil",
+          ]
+      )
+    }
+
+    // A switch whose end never comes: the receiver asked fails instead of Connecting for good.
+    do {
+      let sdk = Sdk()
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let events = PortEventsRecording()
+      let port = sdk.port()
+      port.start(events: events)
+      port.connect(streamer)
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.clock.advance(RemoteTargetConstants.sessionEndWaitMs)
+      check(
+        "aSwitchWhoseEndNeverComesFails",
+        sdk.ended == [true] && sdk.started.isEmpty
+          && events.sessions == [
+            "resumed device-a nil", "ending device-a nil", "startFailed device-b " + GoogleCastTargetPort.endNeverCame,
+          ]
+      )
+    }
+
+    // Asked again while that session is being ended: it starts again once the end comes, as for a switch back, and the
+    // end itself stays away from the hub.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      port.connect(chromecast)
+      let whileEnding = sdk.started
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      check(
+        "aConnectionBackWhileTheCancelledSessionEndsWaitsForItsEnd",
+        whileEnding == [chromecast] && sdk.started == [chromecast, chromecast]
+          && events.sessions == ["starting device-a nil", "ended device-a nil"]
+      )
+    }
+
+    // Cancel, then another receiver at once: the SDK starts none while the first session is there, so the switch ends
+    // it, and that end neither stops nor disturbs the new connection.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: true)
+      port.connect(streamer)
+      let atTheSwitch = sdk.ended
+      sdk.sessionWatches.last??("ending", chromecast, nil, nil)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      sdk.running = RunningTargetSession(device: streamer, connected: false)
+      sdk.sessionWatches.last??("starting", streamer, nil, nil)
+      sdk.running = RunningTargetSession(device: streamer, connected: true)
+      sdk.sessionWatches.last??("started", streamer, nil, nil)
+      check(
+        "aConnectionAfterACancelIsNotStopped",
+        atTheSwitch == [true] && sdk.ended == [true] && sdk.started == [chromecast, streamer]
+          && events.sessions == [
+            "starting device-a nil", "ended device-a nil", "starting device-b nil", "started device-b nil",
+          ]
+      )
     }
 
     // GCKSessionManager.startSession(with:) answers NO while a session is established: a switch ends it

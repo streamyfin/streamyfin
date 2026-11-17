@@ -4,7 +4,8 @@ import Foundation
 import GoogleCast
 
 /// One Cast session object's receiver channels, as the hub sees them: a generic channel per
-/// namespace, added to this object and gone with it. A resume hands a new object, so a new port.
+/// namespace, added to this object. A resume hands back the same object to a new port, so the
+/// hub takes a port's channels off before it lets the port go.
 final class GoogleCastChannelPort: ReceiverChannelPort {
   private weak var session: GCKCastSession?
   let sessionId: String?
@@ -86,8 +87,8 @@ enum GoogleCastChannelBinding {
     }
   }
 
-  // A suspended session is ended on iOS, and its resume is a new object under the same id: each
-  // start and resume hands the hub a port of its own.
+  // A resume hands back the object that was suspended, with the channels added to it before
+  // (iPhone simulator, 15/11): each start and resume still hands the hub a port of its own.
   private final class SessionListener: NSObject, GCKSessionManagerListener {
     private let hub: ReceiverChannelHub
 

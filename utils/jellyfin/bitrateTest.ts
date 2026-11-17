@@ -163,10 +163,14 @@ const watchNetwork = () => {
   });
   // iOS may not tell a network change made while the app was away: back in
   // the foreground, the network is asked again before a measure is reused.
+  // The open settings hear it once known: until then they read no network,
+  // and showed "Not measured yet" until opened again.
   AppState.addEventListener("change", (state) => {
     if (state !== "active") return;
     network = undefined;
     networkChanges += 1;
+    // A NetInfo that fails leaves the network unknown, as before.
+    void currentNetwork().then(announceDetection, () => {});
   });
 };
 
@@ -306,6 +310,24 @@ export type DetectionContext = {
   linkInUse?: boolean;
 };
 
+const detectionListeners = new Set<() => void>();
+
+/**
+ * Hears every detection kept or failed, and every rate a playback keeps:
+ * what `lastDetection` reads has changed. A cast or a playback measures
+ * while the settings are open, and they show the latest. Returns the removal.
+ */
+export const onDetectionChanged = (listener: () => void): (() => void) => {
+  detectionListeners.add(listener);
+  return () => {
+    detectionListeners.delete(listener);
+  };
+};
+
+const announceDetection = () => {
+  for (const listener of [...detectionListeners]) listener();
+};
+
 const detect = async (
   api: Api,
   net: string,
@@ -326,6 +348,7 @@ const detect = async (
     if (sameNetwork) {
       keepMeasure(api.basePath, net, measure);
       failed.delete(failureKey(api.basePath, net));
+      announceDetection();
     }
     return toBitrate(measure, options) as number;
   }
@@ -346,6 +369,7 @@ const detect = async (
       cause: why,
       fallback,
     });
+    announceDetection();
   }
   if (bitrate === undefined) throw failure(why);
   return bitrate;
@@ -390,6 +414,7 @@ export const keepPlaybackRate = (api: Api, rate: number): void => {
     at: Date.now(),
   });
   failed.delete(failureKey(api.basePath, network));
+  announceDetection();
 };
 
 const resolveDetection = async (

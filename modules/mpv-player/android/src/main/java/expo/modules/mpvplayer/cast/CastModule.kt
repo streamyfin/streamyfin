@@ -296,7 +296,7 @@ class CastModule : Module() {
         AsyncFunction("showExpandedControls") {
             if (ensureContext() == null) return@AsyncFunction false
             val intent = Intent(context, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
+            OutputPickerPresenter.openRemote { context.startActivity(intent) }
             true
         }.runOnQueue(Queues.MAIN)
 

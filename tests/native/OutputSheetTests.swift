@@ -174,6 +174,22 @@ enum OutputSheetTests {
       )
     }
 
+    // Another receiver asked for while the session reconnects is a switch away from a session no receiver hears: its
+    // end, a stop, would be lost as the Stop was (iPhone, Wi-Fi cut, 14/11). "Change" waits for the session, greyed.
+    do {
+      let reconnecting = RemoteTargetSnapshot(
+        phase: .connecting, target: .cast(livingRoom), reconnecting: true, error: nil, volume: 0.5
+      )
+      let connected = RemoteTargetSnapshot(
+        phase: .connected, target: .cast(livingRoom), reconnecting: false, error: nil, volume: 0.5
+      )
+      check(
+        "aReconnectingPanelOffersNoChange",
+        panel(outputSheetState(input(snapshot: reconnecting)))?.canChange == false
+          && panel(outputSheetState(input(snapshot: connected)))?.canChange == true
+      )
+    }
+
     // Over a receiver that plays, outside the player, this phone's row offers to take the video over where it is.
     do {
       let connected = RemoteTargetSnapshot(
@@ -274,7 +290,7 @@ enum OutputSheetTests {
       let network = [1, 2, 14, 17, 92].allSatisfy { (code: Int) in
         failureCause(error: "Cast error \(code)", code: code) == .network
       }
-      let receiver = [20, 21, 104, 105, 106, 107].allSatisfy { (code: Int) in
+      let receiver = [20, 21, 104].allSatisfy { (code: Int) in
         failureCause(error: "Cast error \(code)", code: code) == .receiverUnavailable
       }
       check(
@@ -288,6 +304,22 @@ enum OutputSheetTests {
           && network && receiver
           && failureCause(error: "Cast error 30", code: 30) == .other("Cast error 30")
       )
+    }
+
+    // An end the SDK took and never gave: it lost the receiver, so the row reads the connection lost (Chromecast
+    // unplugged, 15/11).
+    check(
+      "anEndTheSdkNeverGaveReadsAsALostConnection",
+      failureCause(error: GoogleCastTargetPort.endNeverCame, code: nil) == .network
+    )
+
+    // The SDK rejoining a session whose receiver app is gone: relaunched after the Chromecast restarted, the row read
+    // "could not start" for a connection nobody asked (GCKError 106, bench, 15/11). That connection was lost.
+    do {
+      let rejoined = [105, 106, 107].allSatisfy { (code: Int) in
+        failureCause(error: "Cast error \(code)", code: code) == .network
+      }
+      check("aReceiverAppGoneWhenRejoinedReadsAsALostConnection", rejoined)
     }
 
     // A cause outside the families reads as a failed connection: the SDK's own text, untranslated and with its
