@@ -134,6 +134,7 @@ class RemotePlayerSession(
         val state = screenState ?: return
         if (closed) return
         val clears = RemoteScreenModel.failureClears(state.snapshot.phase, snapshot.phase)
+        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, snapshot.phase)
         state.snapshot = snapshot
         if (clears) clearFailure()
         val close = state.model.closes ?: return
@@ -156,6 +157,8 @@ class RemotePlayerSession(
         if (closed) return false
         viewModel.apply(config.toPresentConfig())
         state.replace(config.targetName, config.imageHeaders, config.tint)
+        // Another item: an end the TV reports before it holds it is the item before's.
+        state.sawPlayback = false
         clearFailure()
         // apply() starts the view model at the config's position: the TV's state again, as present() does.
         playback.attachScreen(viewModel)
@@ -275,6 +278,10 @@ class RemoteScreenState(
     var snapshot by mutableStateOf(RemotePlaybackSnapshot.NONE)
         internal set
 
+    /** The TV held this screen's item at some point (RemoteScreenModel.sawPlayback). */
+    var sawPlayback by mutableStateOf(false)
+        internal set
+
     /**
      * What the screen shows of the TV. Read in composition, it follows the snapshot, the next episode and the
      * engine's error. The reduced player (media our server does not know) comes with the foreign media.
@@ -287,6 +294,7 @@ class RemoteScreenState(
             reduced = false,
             failure = failure?.message ?: viewModel.errorMessage,
             canPlayHere = failure?.canPlayHere == true,
+            sawPlayback = sawPlayback,
         )
 
     fun updateTint(tint: RemoteTintRecord?) {

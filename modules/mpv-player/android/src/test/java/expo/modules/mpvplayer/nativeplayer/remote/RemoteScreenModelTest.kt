@@ -20,6 +20,7 @@ class RemoteScreenModelTest {
         reduced: Boolean = false,
         failure: String? = null,
         canPlayHere: Boolean = false,
+        sawPlayback: Boolean = true,
     ) = RemoteScreenModel.of(
         snapshot,
         targetName = "Bench TV",
@@ -27,6 +28,7 @@ class RemoteScreenModelTest {
         reduced = reduced,
         failure = failure,
         canPlayHere = canPlayHere,
+        sawPlayback = sawPlayback,
     )
 
     @Test
@@ -91,6 +93,28 @@ class RemoteScreenModelTest {
 
         assertFalse(screen.nextUpVisible)
         assertEquals(RemoteClose.PLAYBACK_ENDED, screen.closes)
+    }
+
+    // A screen opened on a TV still on the end of the item before: that end is not this screen's.
+    @Test
+    fun anEndTheScreenNeverSawPlayKeepsItOpen() {
+        val alone = model(tv(RemotePhase.ENDED), sawPlayback = false)
+        val withNext = model(tv(RemotePhase.ENDED), hasNext = true, sawPlayback = false)
+
+        assertNull(alone.closes)
+        assertNull(withNext.closes)
+        assertFalse(withNext.nextUpVisible)
+    }
+
+    @Test
+    fun theScreenSeesPlaybackOnceTheTvHoldsTheItem() {
+        assertTrue(RemoteScreenModel.sawPlayback(false, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.sawPlayback(false, RemotePhase.PAUSED))
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.ENDED))
+        // A load that fails falls back to the end before: still not this screen's.
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.NONE))
+        assertTrue(RemoteScreenModel.sawPlayback(true, RemotePhase.ENDED))
     }
 
     @Test

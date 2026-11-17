@@ -46,16 +46,23 @@ struct RemoteScreenModel: Equatable {
 		from != to && (to == .loading || to == .playing)
 	}
 
+	/// Whether the screen has seen the TV hold an item since it opened or took a new config, once the TV is at
+	/// `phase`. Until then an end is the item before's (the SDK keeps a finished status), not this screen's.
+	static func sawPlayback(before: Bool, phase: RemotePhase) -> Bool {
+		before || phase == .playing || phase == .paused
+	}
+
 	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not
-	/// know, so there are no track menus. `canPlayHere` only counts with a `failure`.
+	/// know, so there are no track menus. `canPlayHere` only counts with a `failure`. `sawPlayback`: see
+	/// `sawPlayback(before:phase:)`; an end the screen never saw play neither closes it nor offers the next episode.
 	static func of(
 		_ snapshot: RemotePlaybackSnapshot, targetName: String?, hasNext: Bool, reduced: Bool, failure: String?,
-		canPlayHere: Bool = false
+		canPlayHere: Bool = false, sawPlayback: Bool = true
 	) -> RemoteScreenModel {
 		let reconnecting = snapshot.reconnecting
 		// Something is loaded on the TV, so a seek or a track change has something to act on.
 		let itemLoaded = [.loading, .playing, .paused].contains(snapshot.phase)
-		let ended = snapshot.phase == .ended
+		let ended = snapshot.phase == .ended && sawPlayback
 		let closes: RemoteClose?
 		if !snapshot.connected {
 			closes = .remoteEnded

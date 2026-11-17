@@ -351,6 +351,19 @@ class RemotePlayerSessionTest {
         assertFalse(hasScreen())
     }
 
+    // The SDK keeps a TV's finished status: Play on the next item opens the screen before its load leaves, and the
+    // end of the item before must not close it.
+    @Test
+    fun aScreenOpenedOnAFinishedTvStaysForTheNextLoad() {
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        presented()
+
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" || it.first == "onPlaybackEnded" })
+    }
+
     // The next episode is known: the screen stays for the card that offers it, no countdown and no question.
     @Test
     fun anEndWithANextEpisodeKeepsTheScreen() {

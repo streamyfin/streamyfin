@@ -22,11 +22,11 @@ enum RemoteScreenModelTests {
 
 	static func model(
 		_ snapshot: RemotePlaybackSnapshot, hasNext: Bool = false, reduced: Bool = false, failure: String? = nil,
-		canPlayHere: Bool = false
+		canPlayHere: Bool = false, sawPlayback: Bool = true
 	) -> RemoteScreenModel {
 		RemoteScreenModel.of(
 			snapshot, targetName: "Bench TV", hasNext: hasNext, reduced: reduced, failure: failure,
-			canPlayHere: canPlayHere
+			canPlayHere: canPlayHere, sawPlayback: sawPlayback
 		)
 	}
 
@@ -80,6 +80,25 @@ enum RemoteScreenModelTests {
 		let screen = model(tv(.ended), hasNext: false)
 		check(!screen.nextUpVisible, "aFilmThatEndsClosesThePlayer: next up")
 		check(screen.closes == .playbackEnded, "aFilmThatEndsClosesThePlayer: closes")
+	}
+
+	// A screen opened on a TV still on the end of the item before: that end is not this screen's.
+	static func anEndTheScreenNeverSawPlayKeepsItOpen() {
+		let alone = model(tv(.ended), sawPlayback: false)
+		let withNext = model(tv(.ended), hasNext: true, sawPlayback: false)
+		check(alone.closes == nil, "anEndTheScreenNeverSawPlayKeepsItOpen: closes")
+		check(withNext.closes == nil, "anEndTheScreenNeverSawPlayKeepsItOpen: closes with next")
+		check(!withNext.nextUpVisible, "anEndTheScreenNeverSawPlayKeepsItOpen: next up")
+	}
+
+	static func theScreenSeesPlaybackOnceTheTvHoldsTheItem() {
+		check(RemoteScreenModel.sawPlayback(before: false, phase: .playing), "theScreenSeesPlayback: playing")
+		check(RemoteScreenModel.sawPlayback(before: false, phase: .paused), "theScreenSeesPlayback: paused")
+		check(!RemoteScreenModel.sawPlayback(before: false, phase: .loading), "theScreenSeesPlayback: loading")
+		check(!RemoteScreenModel.sawPlayback(before: false, phase: .ended), "theScreenSeesPlayback: ended")
+		// A load that fails falls back to the end before: still not this screen's.
+		check(!RemoteScreenModel.sawPlayback(before: false, phase: .none), "theScreenSeesPlayback: none")
+		check(RemoteScreenModel.sawPlayback(before: true, phase: .ended), "theScreenSeesPlayback: kept")
 	}
 
 	static func aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
@@ -151,6 +170,8 @@ enum RemoteScreenModelTests {
 		betweenTwoItemsTheBarAndTrackMenusAreInactive()
 		theEndOfTheListOffersTheNextEpisode()
 		aFilmThatEndsClosesThePlayer()
+		anEndTheScreenNeverSawPlayKeepsItOpen()
+		theScreenSeesPlaybackOnceTheTvHoldsTheItem()
 		aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume()
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()

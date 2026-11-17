@@ -9,6 +9,8 @@ final class RemoteScreenState: ObservableObject {
 	@Published var colors = RemoteColors.of(top: nil, bottom: nil, accent: nil)
 	/// What the TV does, as the holder last published it.
 	@Published var snapshot = RemotePlaybackSnapshot.none
+	/// The TV held this screen's item at some point (RemoteScreenModel.sawPlayback).
+	@Published var sawPlayback = false
 	@Published var targetName: String?
 	/// What JS said of a send that failed; the engine's own error shows when there is none.
 	@Published var failure: RemoteFailure?
@@ -27,7 +29,8 @@ final class RemoteScreenState: ObservableObject {
 	var model: RemoteScreenModel {
 		RemoteScreenModel.of(
 			snapshot, targetName: targetName, hasNext: viewModel.nextEpisode != nil, reduced: false,
-			failure: failure?.message ?? viewModel.errorMessage, canPlayHere: failure?.canPlayHere == true
+			failure: failure?.message ?? viewModel.errorMessage, canPlayHere: failure?.canPlayHere == true,
+			sawPlayback: sawPlayback
 		)
 	}
 }
@@ -99,6 +102,7 @@ final class RemotePlayerSession: PresentedPlayer {
 		// After apply(), which starts the view model at the config's position: the screen opens on the TV's. The
 		// holder started the engine with the session and stays its delegate.
 		_ = playback.attachScreen(viewModel)
+		screen.sawPlayback = false
 		screen.snapshot = playback.snapshot
 
 		let vc = RemotePlayerViewController(viewModel: viewModel, screen: screen)
@@ -121,6 +125,7 @@ final class RemotePlayerSession: PresentedPlayer {
 		guard !closed else { return }
 		// A failure goes once the TV loads or plays again.
 		let clears = RemoteScreenModel.failureClears(from: screen.snapshot.phase, to: snapshot.phase)
+		screen.sawPlayback = RemoteScreenModel.sawPlayback(before: screen.sawPlayback, phase: snapshot.phase)
 		screen.snapshot = snapshot
 		if clears { clearFailure() }
 		guard let close = screen.model.closes else { return }
@@ -145,6 +150,8 @@ final class RemotePlayerSession: PresentedPlayer {
 		viewModel.apply(config: config.toPresentConfig())
 		screen.targetName = config.targetName
 		screen.colors = RemoteColors.of(top: config.tint?.top, bottom: config.tint?.bottom, accent: config.tint?.accent)
+		// Another item: an end the TV reports before it holds it is the item before's.
+		screen.sawPlayback = false
 		clearFailure()
 		// apply() starts the view model at the config's position: the TV's state again, as present() does.
 		_ = playback.attachScreen(viewModel)

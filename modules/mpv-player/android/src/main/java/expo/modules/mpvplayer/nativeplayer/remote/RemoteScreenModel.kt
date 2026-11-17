@@ -47,8 +47,16 @@ data class RemoteScreenModel(
             from != to && (to == RemotePhase.LOADING || to == RemotePhase.PLAYING)
 
         /**
+         * Whether the screen has seen the TV hold an item since it opened or took a new config, once the TV is at
+         * [phase]. Until then an end is the item before's (the SDK keeps a finished status), not this screen's.
+         */
+        fun sawPlayback(before: Boolean, phase: RemotePhase): Boolean =
+            before || phase == RemotePhase.PLAYING || phase == RemotePhase.PAUSED
+
+        /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
-         * know, so there are no track menus. [canPlayHere] only counts with a [failure].
+         * know, so there are no track menus. [canPlayHere] only counts with a [failure]. [sawPlayback]: see
+         * [sawPlayback]; an end the screen never saw play neither closes it nor offers the next episode.
          */
         fun of(
             snapshot: RemotePlaybackSnapshot,
@@ -57,11 +65,12 @@ data class RemoteScreenModel(
             reduced: Boolean,
             failure: String?,
             canPlayHere: Boolean = false,
+            sawPlayback: Boolean = true,
         ): RemoteScreenModel {
             val reconnecting = snapshot.reconnecting
             // Something is loaded on the TV, so a seek or a track change has something to act on.
             val itemLoaded = snapshot.phase in setOf(RemotePhase.LOADING, RemotePhase.PLAYING, RemotePhase.PAUSED)
-            val ended = snapshot.phase == RemotePhase.ENDED
+            val ended = snapshot.phase == RemotePhase.ENDED && sawPlayback
             return RemoteScreenModel(
                 targetLabel = if (reconnecting) TargetLabel.Reconnecting else TargetLabel.Name(targetName),
                 controlsDimmed = reconnecting,
