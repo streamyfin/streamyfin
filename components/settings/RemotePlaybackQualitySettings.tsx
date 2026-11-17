@@ -9,6 +9,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { AUTO_BITRATE_KEY } from "@/constants/Bitrate";
 import { CHROMECAST_STICK_AUTO_MAX_BITRATE } from "@/constants/Cast";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
+import { megabitsLabel } from "@/utils/autoBitrateLabels";
 import { bitrateLabel, PLAYBACK_BITRATES } from "@/utils/bitrate";
 import {
   forgetTarget,
@@ -31,7 +32,7 @@ const Trigger: React.FC<{ label: string }> = ({ label }) => (
  * which follows Chromecast's until it is given its own. The item page's quality caps this device only.
  */
 export const RemotePlaybackQualitySettings: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const store = useStore();
   // Locked by the admin: the section shows the plugin's quality and takes no change, as every other one does.
@@ -61,11 +62,10 @@ export const RemotePlaybackQualitySettings: React.FC = () => {
             </Text>
             <Text className='text-[#8E8D91] text-xs'>
               {t("home.settings.remote_quality.chromecast_stick_auto", {
-                bitrate: labelOf(
-                  PLAYBACK_BITRATES.find(
-                    (choice) =>
-                      choice.value === CHROMECAST_STICK_AUTO_MAX_BITRATE,
-                  )?.key ?? "",
+                // Not one of the caps the pickers offer: named as the measures are.
+                bitrate: megabitsLabel(
+                  CHROMECAST_STICK_AUTO_MAX_BITRATE,
+                  i18n.language,
                 ),
               })}
             </Text>

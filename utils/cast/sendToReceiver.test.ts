@@ -187,12 +187,13 @@ describe("Auto on a Chromecast stick", () => {
     mockDetectBitrate.mockImplementation(async () => 56_687_567);
   });
 
+  // 7 Mb/s, not 8: at 8 the same film, transcoded, never started from its beginning on the stick (4 tries of 4).
   test("stays at the stick's ceiling", async () => {
     withQuality({});
     onModel("Chromecast");
     await sendToReceiver(deps, play, livingRoom, () => false);
 
-    expect(await sentBitrate()).toBe(8_000_000);
+    expect(await sentBitrate()).toBe(7_000_000);
   });
 
   test("that measures nothing gets the ceiling", async () => {
@@ -201,7 +202,7 @@ describe("Auto on a Chromecast stick", () => {
     mockDetectBitrate.mockRejectedValueOnce(new Error("nothing measured"));
     await sendToReceiver(deps, play, livingRoom, () => false);
 
-    expect(await sentBitrate()).toBe(8_000_000);
+    expect(await sentBitrate()).toBe(7_000_000);
   });
 
   test("leaves another model at the measure", async () => {
@@ -213,6 +214,14 @@ describe("Auto on a Chromecast stick", () => {
   });
 
   // A quality picked by hand passes the ceiling.
+  test("keeps a bitrate above the ceiling picked for the receiver", async () => {
+    withQuality({}, { "device-a": "8 Mb/s" });
+    onModel("Chromecast");
+    await sendToReceiver(deps, play, livingRoom, () => false);
+
+    expect(await sentBitrate()).toBe(8_000_000);
+  });
+
   test("does not cap Max picked for the receiver", async () => {
     withQuality({}, { "device-a": "Max" });
     onModel("Chromecast");
