@@ -720,6 +720,9 @@ final class CastEngine: RemoteEngine {
   fileprivate func onStatus(from port: CastMediaPort) {
     guard port === media else { return }
     guard let status = port.status, status.hasMedia else {
+      // The SDK forgets the status a moment after it reported a finished item (the bench, 17/11, within the
+      // second): the end, or the wait for the next item, stays, and the next episode card with it.
+      if port.status == nil, playerState == State.idle, idleReason == Reason.finished { return }
       let finished = port.status?.playerState == State.idle && port.status?.idleReason == Reason.finished
       if finished, !(playerState == State.idle && idleReason == Reason.finished) { endWait(true) }
       let wasError = playerState == State.idle && idleReason == Reason.error

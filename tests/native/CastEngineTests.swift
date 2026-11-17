@@ -1123,6 +1123,26 @@ enum CastEngineTests {
       check("anItemWithOneAfterItInTheQueueWaitsForIt", engine.phase == .between && bench.delegate.ended == 0)
     }
 
+    // iOS only: the SDK reports a finished item without its media, then forgets the status (the bench,
+    // 17/11, within the second). The end stays, and the next episode card with it.
+    do {
+      let (bench, engine) = finishedLast(of: [ReceiverItem(id: "e-1")], hasMedia: false)
+      bench.clock.advance(0)
+      bench.media.reportNoStatus()
+      check("anEndOutlivesTheStatusTheSdkForgets", engine.phase == .ended && bench.delegate.ended == 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let episodes = ["e-1", "e-2"].map { ReceiverItem(id: $0, type: "Episode") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: episodes)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1", "playSessionId": "ps-0"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: nil, hasMedia: false), position: 0)
+      bench.media.reportNoStatus()
+      check("aWaitForTheNextItemOutlivesTheStatusTheSdkForgets", engine.phase == .between)
+    }
+
     // The session's life
 
     do {
