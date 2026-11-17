@@ -123,7 +123,19 @@ data class RemoteArrangement(
 
 /** The transport's buttons, the chrome's sizes, and the gap between them: narrower upright, to fit the width. */
 data class RemoteTransport(val sideDp: Double, val seekDp: Double, val playDp: Double, val gapDp: Double) {
+    /** The gap between [count] buttons [buttonsDp] wide in all, in a row [widthDp] wide (fittingGap). */
+    fun fittingGap(widthDp: Double, buttonsDp: Double, count: Int): Double = fittingGap(widthDp, buttonsDp, count, gapDp)
+
     companion object {
+        /**
+         * [gap] when the row has room for it, less when it has not, never under 0: the gap gives way so that no
+         * button shrinks. Five buttons upright (340 at the 20 gap) are wider than a 360dp phone's column (312),
+         * and the wide column (0.55w - 48) is under the 372 the 28 gap asks for below about 763. Twin:
+         * RemoteTransport.fittingGap in RemoteLayout.swift.
+         */
+        fun fittingGap(width: Double, buttons: Double, count: Int, gap: Double): Double =
+            if (count < 2) gap else ((width - buttons) / (count - 1)).coerceIn(0.0, gap)
+
         fun of(layout: RemoteLayout) = RemoteTransport(
             sideDp = PlayerConstants.REMOTE_BUTTON_SMALL_DP,
             seekDp = PlayerConstants.REMOTE_BUTTON_MEDIUM_DP,

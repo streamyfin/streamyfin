@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,14 +24,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteTransport
+import kotlin.math.roundToInt
 
 /**
- * The transport's sizes and look. The defaults are the local chrome's; the remote screen passes its own sizes and
- * [disc]: the play button a white disc with a dark icon and its loading ring inside, no scrim behind the others.
+ * The transport's sizes and look. The defaults are the local chrome's; the remote screen passes its own sizes,
+ * [disc]: the play button a white disc with a dark icon and its loading ring inside, no scrim behind the others,
+ * and [fit]: the row takes the width it is given and its gaps give way when the buttons and their gaps are wider
+ * (FittingGapArrangement), where the local chrome's spacedBy squeezes the last button.
  */
 data class TransportStyle(
     val side: Dp = 44.dp,
@@ -38,7 +44,28 @@ data class TransportStyle(
     val play: Dp = 68.dp,
     val gap: Dp = 28.dp,
     val disc: Boolean = false,
+    val fit: Boolean = false,
 )
+
+/**
+ * Centers the buttons [gap] apart, or closer when the row is narrower than the buttons and their gaps
+ * (RemoteTransport.fittingGap). Its spacing is 0 so that the Row measures every button at its size before the gaps
+ * are known: a spacing reserved there is what squeezed the last button.
+ */
+internal class FittingGapArrangement(private val gap: Dp) : Arrangement.Horizontal {
+    override val spacing: Dp = 0.dp
+
+    override fun Density.arrange(totalSize: Int, sizes: IntArray, layoutDirection: LayoutDirection, outPositions: IntArray) {
+        val buttons = sizes.sum().toDouble()
+        val fitted = RemoteTransport.fittingGap(totalSize.toDouble(), buttons, sizes.size, gap.toPx().toDouble())
+        var x = ((totalSize - buttons - fitted * (sizes.size - 1)) / 2).coerceAtLeast(0.0)
+        sizes.forEachIndexed { index, size ->
+            val start = x.roundToInt()
+            outPositions[index] = if (layoutDirection == LayoutDirection.Ltr) start else totalSize - start - size
+            x += size + fitted
+        }
+    }
+}
 
 /** Media controls keep their left-to-right order in right-to-left languages, seek back on the left, as the
  *  position bar's timeline and the remote artwork's double tap halves do. */
@@ -56,9 +83,9 @@ private fun CenterControlsContent(viewModel: PlayerViewModel, modifier: Modifier
     val playInk = if (style.disc) Color.Black else Color.White
 
     Row(
-        modifier = modifier,
+        modifier = if (style.fit) modifier.fillMaxWidth() else modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(style.gap)
+        horizontalArrangement = if (style.fit) FittingGapArrangement(style.gap) else Arrangement.spacedBy(style.gap)
     ) {
         // Previous Episode button if episode list exists
         val currentIdx = viewModel.episodeList.indexOfFirst { it.isCurrent }

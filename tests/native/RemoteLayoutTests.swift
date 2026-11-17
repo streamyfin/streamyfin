@@ -97,6 +97,20 @@ enum RemoteLayoutTests {
 		check(RemoteMetrics.besideWidth(layout: .portrait, width: 390) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: upright")
 	}
 
+	// Five buttons and their gaps (340 upright) are wider than the column of a 375pt iPhone (327) or a 360dp phone
+	// (312): the gap gives way, never a button. Wide from 600, the column is 0.55w - 48, 282 there, under the 372 the
+	// 28 gap asks for.
+	static func theTransportGapGivesWayOnANarrowColumn() {
+		let upright = RemoteTransport.of(.portrait)
+		let five = 2 * upright.side + 2 * upright.seek + upright.play
+		check(abs(upright.fittingGap(width: 312, buttons: five, count: 5) - 13) < 1e-9, "theTransportGapGivesWayOnANarrowColumn: 312")
+		check(abs(RemoteTransport.of(.wide).fittingGap(width: 282, buttons: five, count: 5) - 5.5) < 1e-9, "theTransportGapGivesWayOnANarrowColumn: wide")
+		// With room, the design's gap; never below zero; one button has no gap to fit.
+		check(upright.fittingGap(width: 363, buttons: five, count: 5) == PlayerConstants.remoteTransportGapPortrait, "theTransportGapGivesWayOnANarrowColumn: room")
+		check(upright.fittingGap(width: 200, buttons: five, count: 5) == 0, "theTransportGapGivesWayOnANarrowColumn: floor")
+		check(upright.fittingGap(width: 10, buttons: upright.play, count: 1) == upright.gap, "theTransportGapGivesWayOnANarrowColumn: one")
+	}
+
 	static func aTintFromJsGivesTheScreenItsColors() {
 		let colors = RemoteColors.of(top: "#1F3340", bottom: "#0e1a21", accent: "#C9A7FB")
 		check(colors == RemoteColors(top: 0x1F3340, bottom: 0x0E1A21, accent: 0xC9A7FB), "aTintFromJsGivesTheScreenItsColors: \(colors)")
@@ -137,6 +151,7 @@ enum RemoteLayoutTests {
 		theArtworkNeverGoesUnderItsMinimum()
 		theArtworkIsNeverWiderThanItsColumn()
 		theWideArtworkGetsItsShareOfTheWholeWidth()
+		theTransportGapGivesWayOnANarrowColumn()
 		aTintFromJsGivesTheScreenItsColors()
 		aMissingOrUnreadableTintFallsBackToTheNeutral()
 		print("PASS: remote layout (\(cases) cases)")

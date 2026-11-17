@@ -151,7 +151,7 @@ struct PlayerCenterControls: View {
 	/// inside, no chapter buttons (the "more" menu has the chapters).
 	private func discRow(_ s: TransportStyle) -> some View {
 		let showEpisodeButtons = viewModel.isSyncPlayActive || viewModel.metadata?.isEpisode == true
-		return HStack(spacing: s.gap) {
+		return FittingGapStack(gap: s.gap) {
 			if showEpisodeButtons {
 				controlButton(systemName: "backward.end.fill", iconSize: 22, frame: s.side) {
 					viewModel.playPreviousEpisode()
@@ -221,6 +221,35 @@ struct PlayerCenterControls: View {
 				.foregroundStyle(.white)
 				.frame(width: frame, height: frame)
 				.contentShape(Rectangle())
+		}
+	}
+}
+
+/// The remote transport's row: its buttons at their own sizes, `gap` apart, or closer when the width offered is
+/// narrower than the buttons and their gaps (RemoteTransport.fittingGap). An HStack at a fixed spacing spilled past
+/// a narrow column instead.
+struct FittingGapStack: Layout {
+	let gap: CGFloat
+
+	func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+		let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+		let buttons = sizes.reduce(0) { $0 + $1.width }
+		let natural = buttons + gap * CGFloat(max(sizes.count - 1, 0))
+		// Never narrower than the buttons alone: a gap may give way, a button may not.
+		let width = proposal.width.map { max(min($0, natural), buttons) } ?? natural
+		return CGSize(width: width, height: sizes.map(\.height).max() ?? 0)
+	}
+
+	func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+		let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+		let buttons = sizes.reduce(0) { $0 + $1.width }
+		let fitted = CGFloat(RemoteTransport.fittingGap(
+			width: Double(bounds.width), buttons: Double(buttons), count: sizes.count, gap: Double(gap)
+		))
+		var x = bounds.minX + max((bounds.width - buttons - fitted * CGFloat(max(sizes.count - 1, 0))) / 2, 0)
+		for (subview, size) in zip(subviews, sizes) {
+			subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(size))
+			x += size.width + fitted
 		}
 	}
 }

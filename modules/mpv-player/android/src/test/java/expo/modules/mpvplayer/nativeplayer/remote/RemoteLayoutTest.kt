@@ -88,6 +88,20 @@ class RemoteLayoutTest {
         assertTrue("wide artwork $wide takes more than its share of 673", wide <= 673.0 * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION)
     }
 
+    // Five buttons and their gaps (340 upright) are wider than the column of a 360dp phone (312): the gap gives
+    // way, never a button. Wide from 600, the column is 0.55w - 48, 282 there, under the 372 the 28 gap asks for.
+    @Test
+    fun theTransportGapGivesWayOnANarrowColumn() {
+        val upright = RemoteTransport.of(RemoteLayout.PORTRAIT)
+        val five = 2 * upright.sideDp + 2 * upright.seekDp + upright.playDp
+        assertEquals(13.0, upright.fittingGap(312.0, five, 5), 1e-9)
+        assertEquals(5.5, RemoteTransport.of(RemoteLayout.WIDE).fittingGap(282.0, five, 5), 1e-9)
+        // With room, the design's gap; never below zero; one button has no gap to fit.
+        assertEquals(PlayerConstants.REMOTE_TRANSPORT_GAP_PORTRAIT_DP, upright.fittingGap(363.0, five, 5), 0.0)
+        assertEquals(0.0, upright.fittingGap(200.0, five, 5), 0.0)
+        assertEquals(upright.gapDp, upright.fittingGap(10.0, upright.playDp, 1), 0.0)
+    }
+
     @Test
     fun theWideArtworkGetsItsShareOfTheWholeWidth() {
         // Its box is the share of the screen's width the artwork is sized against, whatever the column beside it

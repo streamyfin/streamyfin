@@ -100,6 +100,20 @@ struct RemoteTransport: Equatable {
 			gap: layout == .portrait ? PlayerConstants.remoteTransportGapPortrait : PlayerConstants.remoteTransportGap
 		)
 	}
+
+	/// The gap between `count` buttons `buttons` wide in all, in a row `width` wide (fittingGap).
+	func fittingGap(width: Double, buttons: Double, count: Int) -> Double {
+		RemoteTransport.fittingGap(width: width, buttons: buttons, count: count, gap: gap)
+	}
+
+	/// `gap` when the row has room for it, less when it has not, never under 0: the gap gives way so that no button
+	/// shrinks or spills. Five buttons upright (340 at the 20 gap) are wider than a 375pt iPhone's column (327), and
+	/// the wide column (0.55w - 48) is under the 372 the 28 gap asks for below about 763. Twin:
+	/// RemoteTransport.fittingGap in RemoteLayout.kt.
+	static func fittingGap(width: Double, buttons: Double, count: Int, gap: Double) -> Double {
+		guard count > 1 else { return gap }
+		return min(max((width - buttons) / Double(count - 1), 0), gap)
+	}
 }
 
 /// What lights up in the active color on the remote screen (design §3.3).

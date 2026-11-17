@@ -145,7 +145,7 @@ internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout
     CenterControls(
         viewModel = viewModel,
         modifier = modifier,
-        style = TransportStyle(side = t.sideDp.dp, seek = t.seekDp.dp, play = t.playDp.dp, gap = t.gapDp.dp, disc = true),
+        style = TransportStyle(side = t.sideDp.dp, seek = t.seekDp.dp, play = t.playDp.dp, gap = t.gapDp.dp, disc = true, fit = true),
     )
 }
 
