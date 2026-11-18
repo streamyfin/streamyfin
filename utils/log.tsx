@@ -129,22 +129,33 @@ const describeErrorForLog = (error: unknown): unknown => {
 const isErrorForLog = (value: unknown): boolean =>
   isAxiosError(value) || value instanceof Error;
 
+// A value that serializes itself is read the way storage's JSON.stringify
+// reads it, through its own toJSON: what that leaves out stays out.
+const serializedForLog = (value: unknown): unknown =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { toJSON?: unknown }).toJSON === "function"
+    ? (value as { toJSON: (key: string) => unknown }).toJSON("")
+    : value;
+
 // A caller can wrap what it caught ({ itemId, error }) or list several, so
 // the values one level down are reduced too. Only a plain object or an array
-// that holds an error is rebuilt: anything else keeps the JSON it already
-// had, a toJSON of its own included.
+// that holds an error is rebuilt: anything else keeps the JSON it already had.
 const reduceErrorsForLog = (data: unknown): unknown => {
   // Reading a value can throw (a getter) and the logger must not. The value
   // unreduced is no fallback: it would keep what reduction is there to drop.
   try {
     if (isErrorForLog(data)) return describeErrorForLog(data);
-    if (!Array.isArray(data) && !isPlainObject(data)) return data;
-    if (!Object.values(data).some(isErrorForLog)) return data;
-    if (Array.isArray(data)) return data.map(describeErrorForLog);
+    // An error the wrapper's toJSON hands back is reduced like any other.
+    const value = serializedForLog(data);
+    if (isErrorForLog(value)) return describeErrorForLog(value);
+    if (!Array.isArray(value) && !isPlainObject(value)) return value;
+    if (!Object.values(value).some(isErrorForLog)) return value;
+    if (Array.isArray(value)) return value.map(describeErrorForLog);
     return Object.fromEntries(
-      Object.entries(data).map(([key, value]) => [
+      Object.entries(value).map(([key, entry]) => [
         key,
-        describeErrorForLog(value),
+        describeErrorForLog(entry),
       ]),
     );
   } catch {

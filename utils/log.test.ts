@@ -194,6 +194,35 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     expect(readFromLog()[0].data).toEqual({ itemId: "item-1" });
   });
 
+  // A wrapper is read through its own toJSON, as storage would read it: what
+  // that leaves out stays out, and an error it hands back is still reduced.
+  test("a wrapper with its own toJSON is read through it, then reduced", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    const hidden = {
+      itemId: "item-1",
+      Authorization: 'MediaBrowser Token="token-in-field"',
+      error,
+    };
+    Object.defineProperty(hidden, "toJSON", {
+      value: () => ({ itemId: "item-1", error }),
+    });
+    const handedBack = { itemId: "item-2", error, toJSON: () => ({ error }) };
+    writeErrorLog("Sync failed", hidden);
+    writeErrorLog("Sync failed", handedBack);
+
+    const stored = JSON.stringify(readFromLog());
+    expect(stored).not.toContain("token-in-header");
+    expect(stored).not.toContain("token-in-field");
+    expect(readFromLog().map((entry) => entry.data)).toMatchObject([
+      { itemId: "item-1", error: { message: "Network Error" } },
+      { error: { message: "Network Error" } },
+    ]);
+  });
+
   // axios sets isAxiosError on the error itself, so a spread copy still is one,
   // config and headers included, while being a plain object.
   test("a copy of a failed request is reduced like the request", async () => {
