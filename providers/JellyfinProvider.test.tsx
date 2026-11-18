@@ -21,7 +21,7 @@ import {
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
-import { JellyfinProvider, useJellyfin } from "./JellyfinProvider";
+import { apiAtom, JellyfinProvider, useJellyfin } from "./JellyfinProvider";
 
 // The provider's own decisions stay real; what it reads settings and Seerr
 // through is replaced, as neither has a say in a sign-out.
@@ -622,6 +622,109 @@ describe("JellyfinProvider sign-out", () => {
       await signInWaits(signIn(provider), SERVER, opens);
       expect(migrated).toHaveBeenCalled();
     });
+  });
+});
+
+// Switching account on the TV, from the settings: the session signed in now
+// gives way to another account saved on the same server.
+describe("JellyfinProvider account switch", () => {
+  const signedInWithAnotherAccountSaved = async () => {
+    signedInAtLaunch();
+    await saveAccount({
+      token: OTHER_TOKEN,
+      userId: OTHER_USER.Id,
+      username: OTHER_USER.Name,
+    });
+    server
+      .onGet(`${SERVER}/Users/Me`)
+      .reply((config) => [
+        200,
+        tokenOf(config) === OTHER_TOKEN ? OTHER_USER : USER,
+      ]);
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: OTHER_USER });
+    const provider = await renderProvider();
+    await waitFor(() => expect(store.get(apiAtom)?.accessToken).toBe(TOKEN));
+    return provider;
+  };
+
+  it.each([
+    [
+      "a saved account",
+      (p: Provider) => p.loginWithSavedCredential(SERVER, OTHER_USER.Id),
+    ],
+    [
+      "an account that asks for its password",
+      (p: Provider) => p.loginWithPassword(SERVER, OTHER_USER.Name, "secret"),
+    ],
+  ])(
+    "ends the session it leaves for %s, so its token stops working",
+    async (_case, switchAccount) => {
+      const provider = await signedInWithAnotherAccountSaved();
+
+      await act(() => switchAccount(provider));
+
+      expect(storage.getString("token")).toBe(OTHER_TOKEN);
+      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
+    },
+  );
+
+  // The server ends every session of the device when it ends one, the next
+  // account's included if it were live already.
+  it("puts the next account live only once the session it leaves has ended", async () => {
+    const provider = await signedInWithAnotherAccountSaved();
+    let answerEnd = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+
+    try {
+      const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
+      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      expect(storage.getString("token")).toBe(TOKEN);
+
+      answerEnd();
+      await act(() => switched);
+      expect(storage.getString("token")).toBe(OTHER_TOKEN);
+    } finally {
+      answerEnd();
+      await act(() => sessionEndsSettled(SERVER));
+    }
+  });
+
+  it("keeps the token of a saved account it switches away from", async () => {
+    await saveAccount();
+    const provider = await signedInWithAnotherAccountSaved();
+
+    await act(() => provider.loginWithSavedCredential(SERVER, OTHER_USER.Id));
+    await act(() => sessionEndsSettled(SERVER));
+
+    expect(storage.getString("token")).toBe(OTHER_TOKEN);
+    expect(sessionEnds()).toHaveLength(0);
+  });
+
+  it("leaves the session alone when the switch fails", async () => {
+    const provider = await signedInWithAnotherAccountSaved();
+    server
+      .onGet(`${SERVER}/Users/Me`)
+      .reply((config) =>
+        tokenOf(config) === OTHER_TOKEN ? [401] : [200, USER],
+      );
+
+    await act(() =>
+      expect(
+        provider.loginWithSavedCredential(SERVER, OTHER_USER.Id),
+      ).rejects.toThrow(),
+    );
+    await act(() => sessionEndsSettled(SERVER));
+
+    expect(storage.getString("token")).toBe(TOKEN);
+    expect(sessionEnds()).toHaveLength(0);
   });
 });
 

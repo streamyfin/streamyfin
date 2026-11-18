@@ -698,6 +698,29 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  /**
+   * Ends on the server the session a switch of account leaves, as a sign-out
+   * does, once the next account is known to sign in. Waited for: the server
+   * ends every session of the device with it, the next account's included if
+   * it were live already.
+   */
+  const endSessionLeftFor = useCallback(
+    async (serverUrl: string, nextToken: string) => {
+      const current = store.get(apiAtom);
+      const token = current?.accessToken;
+      if (!jellyfin || !current || !token || token === nextToken) return;
+
+      endSessionOnServerAfter(Promise.resolve(), {
+        jellyfin,
+        serverUrl: current.basePath,
+        token,
+        userId: store.get(userAtom)?.Id,
+      });
+      await sessionEndsSettled(serverUrl);
+    },
+    [jellyfin],
+  );
+
   const loginWithSavedCredentialMutation = useMutation({
     mutationFn: async ({
       serverUrl: savedServerUrl,
@@ -747,6 +770,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // Validate token by fetching current user
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
+
+        await endSessionLeftFor(serverUrl, credential.token);
 
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
@@ -871,6 +896,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
       if (auth.data.AccessToken && auth.data.User) {
+        await endSessionLeftFor(serverUrl, auth.data.AccessToken);
+
         // Clear React Query cache to prevent data from previous account lingering
         queryClient.clear();
         storage.remove("REACT_QUERY_OFFLINE_CACHE");
