@@ -830,6 +830,38 @@ describe("audio tracks only mpv found", () => {
     expect(mockNegotiation.params).toHaveLength(1);
   });
 
+  test("leave the next session's menus alone when it takes the player during a switch picked from the menu", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    await mount();
+    await open("item-1");
+
+    mockNative.holdAudioSwitch = true;
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+    expect(mockNative.pendingAudioSwitches).toHaveLength(1);
+
+    mockNative.holdAudioSwitch = false;
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(true);
+    });
+    await settle();
+    const pushes = mockNative.menuPushes;
+    await act(async () => {
+      for (const release of mockNative.pendingAudioSwitches.splice(0)) {
+        release();
+      }
+    });
+    await settle();
+
+    expect(mockNative.menuPushes).toBe(pushes);
+  });
+
   test("leave the next session's menus alone when it takes the player during the switch to the selected track", async () => {
     mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
     mockNegotiation.audioIndex = 1;

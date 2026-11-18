@@ -1794,6 +1794,8 @@ const NativePlayerProviderInner: React.FC<{
       }
       session.currentAudioIndex = jellyfinIndex;
       await nativePlayerSetAudioTrack(target.mpvId);
+      // Another play may have taken the player during that hop.
+      if (sessionRef.current !== session) return;
       pushTrackMenus(session);
     },
     [replaceStream, pushTrackMenus],
