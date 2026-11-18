@@ -662,6 +662,41 @@ class RemotePlayerSessionTest {
         assertEquals(emptyList<String>(), saidEnabled.sorted())
     }
 
+    // "Technical info" in the More menu shows the panel on the remote screen, and JS writes its lines (what the TV
+    // plays) only while it is up: shown, it asks for them; closed, here with the screen, it stops. The flag is up
+    // before the screen composes: under Robolectric, after other suites, Compose does not always run a later frame,
+    // so the test reads the first composition and the disposal, which need none.
+    @Test
+    fun theTechnicalInfoFlagShowsThePanelAndAsksJsForItsLinesWhileItIsUp() {
+        val session = RemotePlayerSession(
+            hub = RemoteTargetHub(),
+            playback = playback,
+            emit = { name, body -> events += name to body },
+            onTornDown = { tornDown += 1 },
+        )
+        this.session = session
+        session.viewModel.showTechnicalInfo = true
+        session.present(activity, RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
+            it.targetName = "Bench TV"
+        })
+        shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
+        val panelEvents = { events.filter { it.first.startsWith("onTechnicalInfo") } }
+
+        assertTrue("no panel on the screen", panelShown())
+        assertEquals(listOf("onTechnicalInfoRequested" to mapOf<String, Any?>("remote" to true)), panelEvents())
+
+        session.teardownImmediately()
+        shadowOf(getMainLooper()).idle()
+        assertEquals(listOf("onTechnicalInfoRequested", "onTechnicalInfoClosed"), panelEvents().map { it.first })
+    }
+
+    private fun panelShown(): Boolean =
+        semanticsNodes().any { "Technical Info" in texts(it) }
+
+    private fun texts(node: SemanticsNode): List<String> =
+        node.config.getOrNull(SemanticsProperties.Text)?.map { it.text }.orEmpty()
+
     private fun track(label: String, index: Int, selected: Boolean) = TrackMenuItemRecord().also {
         it.label = label
         it.jellyfinIndex = index
