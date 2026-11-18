@@ -8,6 +8,17 @@ enum TrackRowText {
 		return detail
 	}
 
+	/// A row of the phone's track menus. Choosing a row adds its check and leaves its text as it is.
+	struct MenuRow {
+		let title: String
+		let subtitle: String?
+		let checked: Bool
+	}
+
+	static func menuRow(_ label: String, _ detail: String?, selected: Bool) -> MenuRow {
+		MenuRow(title: label, subtitle: detailLine(detail), checked: selected)
+	}
+
 	/// One line, for menus that draw a single line per row (the TV's).
 	static func oneLine(_ label: String, _ detail: String?) -> String {
 		detailLine(detail).map { "\(label) · \($0)" } ?? label

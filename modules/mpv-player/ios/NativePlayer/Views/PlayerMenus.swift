@@ -342,25 +342,18 @@ enum TrackMenuItems {
 			Button {
 				onSelect(item)
 			} label: {
-				// A menu draws a button's second Text as the row's subtitle.
-				if item.selected {
-					Label {
-						rowText(item)
-					} icon: {
-						Image(systemName: "checkmark")
-					}
+				// A menu takes the button's first Text or Label as the row's title and the Text beside it as its
+				// subtitle. A Label keeps only its first Text, so the subtitle stays beside the check, not inside it.
+				let row = TrackRowText.menuRow(item.label, item.detail, selected: item.selected)
+				if row.checked {
+					Label(row.title, systemImage: "checkmark")
 				} else {
-					rowText(item)
+					Text(row.title)
+				}
+				if let subtitle = row.subtitle {
+					Text(subtitle)
 				}
 			}
-		}
-	}
-
-	@ViewBuilder
-	private static func rowText(_ item: TrackMenuItemRecord) -> some View {
-		Text(item.label)
-		if let detail = TrackRowText.detailLine(item.detail) {
-			Text(detail)
 		}
 	}
 }

@@ -18,6 +18,21 @@ enum TrackRowTextTests {
 			"the TV's one-line row joins the label and the detail"
 		)
 		expect(TrackRowText.oneLine("English", nil) == "English", "a row without detail keeps its label")
+
+		// aChosenTrackKeepsItsSecondLine: the phone's menu drew the chosen track's label alone, so two
+		// "Undetermined" rows stood apart only by the format of the one not playing (bench of 18/11).
+		let chosen = TrackRowText.menuRow("Undetermined", "AC3 · 5.1", selected: true)
+		let other = TrackRowText.menuRow("Undetermined", "AC3 · 5.1", selected: false)
+		expect(chosen.subtitle == "AC3 · 5.1", "the chosen row keeps its second line")
+		expect(chosen.checked && !other.checked, "only the chosen row has the check")
+		expect(
+			chosen.title == other.title && chosen.subtitle == other.subtitle,
+			"choosing a row changes its check, not its text"
+		)
+		expect(
+			TrackRowText.menuRow("Off", " ", selected: true).subtitle == nil,
+			"a chosen row without detail draws no empty line"
+		)
 		print("TrackRowText tests passed")
 	}
 }
