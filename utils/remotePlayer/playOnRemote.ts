@@ -123,6 +123,34 @@ const segmentsOf = async (
   }
 };
 
+/**
+ * The segments of an item a follow showed, in place once read: never waited for, as a send does not (before 10.11
+ * they are two reads). The update keeps the tracks the TV took and the tint read since.
+ */
+const showSegmentsLater = (
+  deps: RemotePlayDeps,
+  config: RemotePlayerPresentConfig,
+  play: ReceiverPlay,
+  remote: RemoteTarget,
+  send: number,
+): void => {
+  segmentsOf(deps, play.item)
+    .then(async (segments) => {
+      if (segments.length === 0 || send !== sends) return;
+      const held = deps.store.get(remotePlayAtom)?.play;
+      const current = held && held.item.Id === play.item.Id ? held : play;
+      await updateRemotePlayer({
+        ...config,
+        segments,
+        tracks: configFor(deps, current, remote, [], null).tracks,
+        tint: shownTint?.send === send ? shownTint.tint : config.tint,
+      });
+    })
+    .catch((error) =>
+      writeErrorLog("The remote player's segments could not be shown", error),
+    );
+};
+
 /** What the screen shows of `play` on `remote`; the tint fades in once read. */
 const configFor = (
   deps: RemotePlayDeps,
@@ -387,15 +415,14 @@ export const followOnRemote = async (
     itemId,
     userId: deps.userId,
   });
-  const [episodes, segments] = await Promise.all([
-    item.SeriesId
-      ? seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch((error) => {
+  const episodes = item.SeriesId
+    ? await seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch(
+        (error) => {
           writeErrorLog("The series the TV plays could not be read", error);
           return [];
-        })
-      : [],
-    segmentsOf(deps, item),
-  ]);
+        },
+      )
+    : [];
   if (send !== sends) return;
   const play: ReceiverPlay = {
     item,
@@ -413,11 +440,11 @@ export const followOnRemote = async (
       deps.api,
       episodes.find(({ id }) => id === list.nextUpId),
     ),
-    segments,
   );
   deps.store.set(remotePlayAtom, { play, loaded: true, list });
   await updateRemotePlayer({ ...config, tint: shown ?? config.tint });
   void followTint(config, send);
+  showSegmentsLater(deps, config, play, remote, send);
 };
 
 /**
@@ -440,15 +467,14 @@ export const showRemoteItem = async (
   const itemIds = state.queueItemIds.includes(itemId)
     ? [...state.queueItemIds]
     : [itemId];
-  const [episodes, segments] = await Promise.all([
-    item.SeriesId
-      ? seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch((error) => {
+  const episodes = item.SeriesId
+    ? await seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch(
+        (error) => {
           writeErrorLog("The series the TV plays could not be read", error);
           return [];
-        })
-      : [],
-    segmentsOf(deps, item),
-  ]);
+        },
+      )
+    : [];
   if (send !== sends) return;
   const nextUp = episodeAfter(episodes, itemIds.at(-1) ?? null);
   const play: ReceiverPlay = {
@@ -464,7 +490,6 @@ export const showRemoteItem = async (
     remote,
     remoteEpisodeList(deps.api, episodes, itemId),
     remoteNextUp(deps.api, nextUp ?? undefined),
-    segments,
   );
   if (!(await updateRemotePlayer({ ...config, tint: shown ?? config.tint }))) {
     await presentRemotePlayer(config);
@@ -478,6 +503,7 @@ export const showRemoteItem = async (
     list: { itemIds, nextUpId: nextUp?.id ?? null },
   });
   void followTint(config, send);
+  showSegmentsLater(deps, config, play, remote, send);
 };
 
 /**

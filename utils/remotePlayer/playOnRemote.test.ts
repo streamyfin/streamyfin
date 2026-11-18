@@ -489,8 +489,13 @@ test("the item the TV plays comes with its intro to skip", async () => {
     phase: "playing",
     itemId: "film-1",
   });
+  await flush();
 
-  expect((mockPlayer.remotePresented[0] as Shown).segments).toEqual([INTRO]);
+  // In place once read, on the screen it opened.
+  expect((mockPlayer.remotePresented[0] as Shown).metadata.itemId).toBe(
+    "film-1",
+  );
+  expect((mockPlayer.remoteUpdates.at(-1) as Shown).segments).toEqual([INTRO]);
 });
 
 test("a send gives the screen the item's segments once read", async () => {
@@ -592,10 +597,94 @@ test("the next item the TV plays brings its own segments", async () => {
     itemId: "episode-2",
     phase: "playing",
   });
+  await flush();
 
   const shown = mockPlayer.remoteUpdates.at(-1) as Shown;
   expect(shown.metadata.itemId).toBe("episode-2");
   expect(shown.segments).toEqual([INTRO]);
+});
+
+// Never waited for, as a send does not: on a server before 10.11 they are two reads, the intro plugin's after the
+// segments endpoint, and the screen would keep the item before until both answer.
+test("the screen follows the TV before the next item's segments are read", async () => {
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  const land = lateSegments();
+  api.mock
+    .onGet(/\/Items\/episode-2/)
+    .reply(200, { Id: "episode-2", Name: "Second", Type: "Episode" });
+  mockPlayer.remoteUpdateAnswer = true;
+
+  const following = followOnRemote(deps(), "episode-2", livingRoom, {
+    ...mockCast.remotePlayback,
+    itemId: "episode-2",
+    phase: "playing",
+  });
+  for (let i = 0; i < 5; i++) await flush();
+  expect((mockPlayer.remoteUpdates.at(-1) as Shown).metadata.itemId).toBe(
+    "episode-2",
+  );
+
+  land();
+  await following;
+  for (let i = 0; i < 3; i++) await flush();
+  const shown = mockPlayer.remoteUpdates.at(-1) as Shown;
+  expect(shown.metadata.itemId).toBe("episode-2");
+  expect(shown.segments).toEqual([INTRO]);
+});
+
+test("segments of an item the TV has left are not shown", async () => {
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  const land = lateSegments();
+  api.mock
+    .onGet(/\/Items\/episode-2/)
+    .reply(200, { Id: "episode-2", Name: "Second", Type: "Episode" });
+  api.mock
+    .onGet(/\/Items\/episode-3/)
+    .reply(200, { Id: "episode-3", Name: "Third", Type: "Episode" });
+  mockPlayer.remoteUpdateAnswer = true;
+  const state = { ...mockCast.remotePlayback, phase: "playing" as const };
+
+  await followOnRemote(deps(), "episode-2", livingRoom, {
+    ...state,
+    itemId: "episode-2",
+  });
+  // Its segments asked for, still unanswered, before the third episode's read answers at once.
+  await flush();
+  api.mock.onGet(SEGMENTS).reply(200, { Items: [] });
+  await followOnRemote(deps(), "episode-3", livingRoom, {
+    ...state,
+    itemId: "episode-3",
+  });
+  // The second episode's land once the screen shows the third.
+  land();
+  for (let i = 0; i < 3; i++) await flush();
+
+  const shown = mockPlayer.remoteUpdates.at(-1) as Shown;
+  expect(shown.metadata.itemId).toBe("episode-3");
+  expect(shown.segments).toEqual([]);
+});
+
+test("an item shown from the TV does not wait for its segments", async () => {
+  mockPlayer.remoteUpdateAnswer = true;
+  const land = lateSegments();
+  const film: BaseItemDto = { Id: "film-1", Name: "Film", Type: "Movie" };
+
+  const showing = showRemoteItem(deps(), film, livingRoom, {
+    ...mockCast.remotePlayback,
+    connected: true,
+    phase: "playing",
+    itemId: "film-1",
+    queueItemIds: [],
+  });
+  for (let i = 0; i < 5; i++) await flush();
+  expect(
+    (mockPlayer.remoteUpdates.at(-1) as Shown | undefined)?.metadata.itemId,
+  ).toBe("film-1");
+
+  land();
+  await showing;
+  for (let i = 0; i < 3; i++) await flush();
+  expect((mockPlayer.remoteUpdates.at(-1) as Shown).segments).toEqual([INTRO]);
 });
 
 // A segment the user set to none is never shown, as in the local player.
