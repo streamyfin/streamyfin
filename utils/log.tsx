@@ -124,10 +124,12 @@ const describeErrorForLog = (error: unknown): unknown => {
 
 // A caller can wrap what it caught ({ itemId, error }) or list several, so
 // the values one level down are reduced too. Only a plain object or an array
-// is opened: a Date or another class keeps the JSON it already had.
+// is opened: a Date or another class keeps the JSON it already had. A spread
+// copy of an AxiosError is a plain object that still carries isAxiosError and
+// its config, so it is reduced as the request it is.
 const reduceErrorsForLog = (data: unknown): unknown => {
   if (Array.isArray(data)) return data.map(describeErrorForLog);
-  if (isPlainObject(data)) {
+  if (isPlainObject(data) && !isAxiosError(data)) {
     return Object.fromEntries(
       Object.entries(data).map(([key, value]) => [
         key,

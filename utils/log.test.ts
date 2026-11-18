@@ -164,6 +164,24 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     });
   });
 
+  // axios sets isAxiosError on the error itself, so a spread copy still is one,
+  // config and headers included, while being a plain object.
+  test("a copy of a failed request is reduced like the request", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Sync failed", { ...(error as object) });
+    logAndCaptureError("Sync failed", { ...(error as object) });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog().map((entry) => entry.data)).toMatchObject([
+      { message: "Network Error", code: "ERR_NETWORK" },
+      { message: "Network Error", code: "ERR_NETWORK" },
+    ]);
+  });
+
   test("errors in a list are reduced one by one", async () => {
     const error = await failureOf(
       unreachable.get("https://jellyfin.example.test/Items", {
