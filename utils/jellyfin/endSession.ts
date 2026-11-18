@@ -16,6 +16,11 @@ interface SessionToEnd {
   serverUrl: string;
   token: string;
   userId?: string;
+  /**
+   * The server's proxy headers, read before they are deleted along with the
+   * server: the request otherwise reads them as it goes out.
+   */
+  headers?: Record<string, string>;
 }
 
 // The session ends still on their way, by address: a sign-in waits for those
@@ -92,6 +97,7 @@ export async function endSessionOnServer({
   serverUrl,
   token,
   userId,
+  headers,
 }: SessionToEnd): Promise<void> {
   try {
     if (userId && (await savedAccountSignsInWith(userId, token))) return;
@@ -101,6 +107,7 @@ export async function endSessionOnServer({
     const api = createApiWithCustomHeaders(jellyfin, serverUrl, token);
     await getSessionApi(api).reportSessionEnded({
       timeout: SIGN_OUT_SESSION_END_TIMEOUT_MS,
+      headers,
     });
     writeInfoLog("Ended the session on the server");
   } catch (error) {

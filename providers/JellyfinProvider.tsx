@@ -35,6 +35,7 @@ import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import {
   getIntegrationHeaders,
+  getJellyfinHeaders,
   makeIntegrationHeadersReadableWhileLocked,
   normalizeHttpBaseUrl,
 } from "@/utils/customHeaders";
@@ -66,9 +67,12 @@ import {
   deleteAccountCredential,
   getAccountCredential,
   getCredentialOrForgetAccount,
+  getPreviousServers,
   hashPIN,
   makeServerHeadersReadableWhileLocked,
   migrateToMultiAccount,
+  removeServerFromList,
+  type ServerCredential,
   saveAccountCredential,
   updateAccountToken,
 } from "@/utils/secureCredentials";
@@ -151,12 +155,20 @@ interface JellyfinContextValue {
     password: string,
   ) => Promise<void>;
   removeSavedCredential: (serverUrl: string, userId: string) => Promise<void>;
+  removeSavedServer: (serverUrl: string) => Promise<void>;
   switchServerUrl: (newUrl: string) => void;
 }
 
 const JellyfinContext = createContext<JellyfinContextValue | undefined>(
   undefined,
 );
+
+/**
+ * The credential of a saved account the user removes. A keychain that will not
+ * hand it over leaves its session running, but must not keep the account.
+ */
+const savedCredentialOrNone = (serverUrl: string, userId: string) =>
+  getAccountCredential(serverUrl, userId).catch(() => null);
 
 export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -947,6 +959,32 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  /**
+   * Ends on the server the session of a saved account the user removes, once
+   * it is forgotten: until then the account still signs in with its token,
+   * which the end keeps. Not the session running now, which goes on unsaved.
+   */
+  const endRemovedSessionAfter = useCallback(
+    (
+      removed: Promise<unknown>,
+      serverUrl: string,
+      credential: ServerCredential | null,
+      headers?: Record<string, string>,
+    ) => {
+      if (!jellyfin || !credential?.token) return;
+      if (credential.token === store.get(apiAtom)?.accessToken) return;
+
+      endSessionOnServerAfter(removed, {
+        jellyfin,
+        serverUrl,
+        token: credential.token,
+        userId: credential.userId,
+        headers,
+      });
+    },
+    [jellyfin],
+  );
+
   const removeSavedCredentialMutation = useMutation({
     mutationFn: async ({
       serverUrl,
@@ -955,10 +993,37 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       serverUrl: string;
       userId: string;
     }) => {
-      await deleteAccountCredential(serverUrl, userId);
+      const credential = await savedCredentialOrNone(serverUrl, userId);
+      const removed = deleteAccountCredential(serverUrl, userId);
+      endRemovedSessionAfter(removed, serverUrl, credential);
+      await removed;
     },
     onError: (error) => {
       console.error("Failed to remove saved credential:", error);
+    },
+  });
+
+  const removeSavedServerMutation = useMutation({
+    mutationFn: async (serverUrl: string) => {
+      const accounts =
+        getPreviousServers().find((server) => server.address === serverUrl)
+          ?.accounts ?? [];
+      const credentials = await Promise.all(
+        accounts.map((account) =>
+          savedCredentialOrNone(serverUrl, account.userId),
+        ),
+      );
+      // Read now: they go with the server, and a gateway in front of it
+      // refuses the end without them.
+      const headers = getJellyfinHeaders(serverUrl);
+      const removed = removeServerFromList(serverUrl);
+      for (const credential of credentials) {
+        endRemovedSessionAfter(removed, serverUrl, credential, headers);
+      }
+      await removed;
+    },
+    onError: (error) => {
+      console.error("Failed to remove saved server:", error);
     },
   });
 
@@ -1163,6 +1228,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       loginWithPasswordMutation.mutateAsync({ serverUrl, username, password }),
     removeSavedCredential: (serverUrl, userId) =>
       removeSavedCredentialMutation.mutateAsync({ serverUrl, userId }),
+    removeSavedServer: (serverUrl) =>
+      removeSavedServerMutation.mutateAsync(serverUrl),
     switchServerUrl,
   };
 

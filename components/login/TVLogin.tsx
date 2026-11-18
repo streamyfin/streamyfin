@@ -22,7 +22,6 @@ import { scaleSize } from "@/utils/scaleSize";
 import {
   type AccountSecurityType,
   getPreviousServers,
-  removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
@@ -59,6 +58,7 @@ export const TVLogin: React.FC = () => {
     loginWithSavedCredential,
     loginWithPassword,
     saveCurrentAccount,
+    removeSavedServer,
   } = useJellyfin();
 
   const {
@@ -264,7 +264,7 @@ export const TVLogin: React.FC = () => {
 
   // Handle deleting a server
   const handleDeleteServer = async (server: SavedServer) => {
-    await removeServerFromList(server.address);
+    await removeSavedServer(server.address);
     refreshServers();
     // If we deleted the currently selected server, clear it
     if (selectedTVServer?.address === server.address) {

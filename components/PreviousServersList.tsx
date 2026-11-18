@@ -9,11 +9,10 @@ import ReanimatedSwipeable, {
 import { useMMKVString } from "react-native-mmkv";
 import { Colors } from "@/constants/Colors";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+import { useJellyfin } from "@/providers/JellyfinProvider";
 import {
-  deleteAccountCredential,
   getPreviousServers,
   getServerCustomHeaders,
-  removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
   updateServerCustomHeaders,
@@ -63,6 +62,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   const { t } = useTranslation();
   const { showModal, hideModal } = useGlobalModal();
+  const { removeSavedCredential, removeSavedServer } = useJellyfin();
 
   const refreshServers = () => {
     const servers = getPreviousServers();
@@ -179,7 +179,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   const handleForgotPIN = async () => {
     if (selectedServer && selectedAccount) {
-      await deleteAccountCredential(
+      await removeSavedCredential(
         selectedServer.address,
         selectedAccount.userId,
       );
@@ -205,7 +205,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           style: "destructive",
           onPress: async () => {
             // Remove first account
-            await deleteAccountCredential(serverUrl, server.accounts[0].userId);
+            await removeSavedCredential(serverUrl, server.accounts[0].userId);
             refreshServers();
           },
         },
@@ -215,10 +215,10 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   const handleRemoveServer = useCallback(
     async (serverUrl: string) => {
-      await removeServerFromList(serverUrl);
+      await removeSavedServer(serverUrl);
       refreshServers();
     },
-    [setPreviousServers],
+    [removeSavedServer, setPreviousServers],
   );
 
   /**

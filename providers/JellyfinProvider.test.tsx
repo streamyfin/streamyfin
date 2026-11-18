@@ -2,12 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react-native";
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import MockAdapter from "axios-mock-adapter";
+import * as SecureStore from "expo-secure-store";
 import { Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
 import { SIGN_OUT_SESSION_END_TIMEOUT_MS } from "@/constants/Jellyfin";
 import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
 import { clearMmkv } from "@/test-utils/mmkv";
-import { clearSecureStore } from "@/test-utils/secureStore";
+import { clearSecureStore, secureStoreValues } from "@/test-utils/secureStore";
 import * as endSession from "@/utils/jellyfin/endSession";
 import { sessionEndsSettled } from "@/utils/jellyfin/endSession";
 import * as legacyServerAddress from "@/utils/jellyfin/legacyServerAddress";
@@ -18,10 +19,16 @@ import {
   getAccountCredential,
   getPreviousServers,
   saveAccountCredential,
+  updateServerCustomHeaders,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
-import { apiAtom, JellyfinProvider, useJellyfin } from "./JellyfinProvider";
+import {
+  apiAtom,
+  JellyfinProvider,
+  useJellyfin,
+  userAtom,
+} from "./JellyfinProvider";
 
 // The provider's own decisions stay real; what it reads settings and Seerr
 // through is replaced, as neither has a say in a sign-out.
@@ -129,6 +136,10 @@ const renderProvider = async () => {
       provider().login(username, password),
     initiateQuickConnect: () => provider().initiateQuickConnect(),
     stopQuickConnectPolling: () => provider().stopQuickConnectPolling(),
+    removeSavedCredential: (serverUrl: string, userId: string) =>
+      provider().removeSavedCredential(serverUrl, userId),
+    removeSavedServer: (serverUrl: string) =>
+      provider().removeSavedServer(serverUrl),
   };
 };
 
@@ -725,6 +736,150 @@ describe("JellyfinProvider account switch", () => {
 
     expect(storage.getString("token")).toBe(TOKEN);
     expect(sessionEnds()).toHaveLength(0);
+  });
+});
+
+// Removing a saved account or a whole server, from the login screen.
+describe("JellyfinProvider saved account removal", () => {
+  // The store outlives a test: the session the previous one left would pass
+  // here for the one running now, which the removal keeps.
+  beforeEach(() => {
+    store.set(apiAtom, null);
+    store.set(userAtom, null);
+  });
+
+  const saveOtherAccount = () =>
+    saveAccount({
+      token: OTHER_TOKEN,
+      userId: OTHER_USER.Id,
+      username: OTHER_USER.Name,
+    });
+
+  it("ends the session of a saved account the user removes", async () => {
+    await saveAccount();
+    // A device's keychain takes its time to let go, and until it has, the
+    // account still signs in with the token, which the end then keeps.
+    const keychainDelete = jest
+      .spyOn(SecureStore, "deleteItemAsync")
+      .mockImplementation(async (key) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        secureStoreValues.delete(key);
+      });
+    try {
+      const provider = await renderProvider();
+
+      await act(() => provider.removeSavedCredential(SERVER, USER.Id));
+
+      expect(await getAccountCredential(SERVER, USER.Id)).toBeNull();
+      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
+    } finally {
+      keychainDelete.mockRestore();
+    }
+  });
+
+  it("ends the session of every account of a server the user removes", async () => {
+    await saveAccount();
+    await saveOtherAccount();
+    const provider = await renderProvider();
+
+    await act(() => provider.removeSavedServer(SERVER));
+
+    expect(getPreviousServers()).toEqual([]);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(2));
+    expect(sessionEnds().map(tokenOf).sort()).toEqual(
+      [TOKEN, OTHER_TOKEN].sort(),
+    );
+  });
+
+  // Removing the server deletes its proxy headers, and a gateway in front of
+  // it refuses a request without them.
+  it("reaches a server it removes through the gateway in front of it", async () => {
+    await saveAccount();
+    updateServerCustomHeaders(SERVER, [
+      {
+        key: "CF-Access-Client-Secret",
+        value: "gateway-secret",
+        enabled: true,
+      },
+    ]);
+    const provider = await renderProvider();
+
+    await act(() => provider.removeSavedServer(SERVER));
+
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    expect(
+      (sessionEnds()[0].headers as Record<string, unknown>)?.[
+        "CF-Access-Client-Secret"
+      ],
+    ).toBe("gateway-secret");
+  });
+
+  it("still removes an account whose token the keychain will not hand over", async () => {
+    await saveAccount();
+    const keychainRead = jest
+      .spyOn(SecureStore, "getItemAsync")
+      .mockRejectedValueOnce(new Error("User interaction is not allowed"));
+    try {
+      const provider = await renderProvider();
+
+      await act(() => provider.removeSavedCredential(SERVER, USER.Id));
+
+      expect(getPreviousServers()[0]?.accounts).toEqual([]);
+    } finally {
+      keychainRead.mockRestore();
+    }
+  });
+
+  it("keeps the token the current session runs on", async () => {
+    signedInAtLaunch();
+    await saveAccount();
+    const provider = await renderProvider();
+    await waitFor(() => expect(store.get(apiAtom)?.accessToken).toBe(TOKEN));
+
+    await act(() => provider.removeSavedCredential(SERVER, USER.Id));
+    await act(() => sessionEndsSettled(SERVER));
+
+    expect(sessionEnds()).toHaveLength(0);
+    expect(storage.getString("token")).toBe(TOKEN);
+  });
+
+  // A forgotten PIN removes the account and opens the sign-in form at once:
+  // the server would end the new session along with the old one.
+  it("lets a sign-in wait for the end of an account just removed", async () => {
+    await saveAccount();
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: USER });
+    let answerEnd = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+    const authentications = () =>
+      server.history.post.filter((request) =>
+        request.url?.endsWith("/Users/AuthenticateByName"),
+      );
+    const provider = await renderProvider();
+    await act(() => provider.removeSavedCredential(SERVER, USER.Id));
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+
+    try {
+      await provider.selectServer(SERVER);
+      const signedIn = provider.signIn(USER.Name, "secret");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(authentications()).toHaveLength(0);
+
+      answerEnd();
+      await act(async () => {
+        await signedIn;
+      });
+      expect(authentications()).toHaveLength(1);
+    } finally {
+      answerEnd();
+    }
   });
 });
 
