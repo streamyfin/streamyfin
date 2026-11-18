@@ -126,7 +126,11 @@ export const PlayButton: React.FC<Props> = ({
       }
       const deps = { api, userId: user.Id, store, t };
       const play = {
-        item,
+        // The item page loads its item without media sources; the remote menus read the one chosen here.
+        item:
+          item.MediaSources || !selectedOptions.mediaSource
+            ? item
+            : { ...item, MediaSources: [selectedOptions.mediaSource] },
         positionTicks,
         mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
         audioIndex: selectedOptions.audioIndex,

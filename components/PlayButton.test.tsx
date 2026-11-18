@@ -239,6 +239,40 @@ test("with the gate open Play goes to the remote player", async () => {
   expect(mockPlayMedia).not.toHaveBeenCalled();
 });
 
+// The item page loads its item without media sources and keeps the chosen one apart: the remote menus come from it.
+test("the remote player offers the tracks of the chosen source", async () => {
+  mockRouted = true;
+  const mediaSource = {
+    Id: "source-1",
+    MediaStreams: [
+      { Type: "Audio", Index: 1, Codec: "aac", Language: "eng" },
+      { Type: "Audio", Index: 2, Codec: "aac", Language: "fra" },
+      { Type: "Subtitle", Index: 3, Codec: "subrip", Language: "eng" },
+    ],
+  };
+  await render(
+    <PlayButton
+      item={item}
+      selectedOptions={
+        {
+          bitrate: { key: "Auto", value: undefined },
+          mediaSource,
+          audioIndex: 2,
+          subtitleIndex: 3,
+        } as never
+      }
+    />,
+  );
+  await act(async () =>
+    fireEvent.press(screen.getByLabelText("accessibility.play_button")),
+  );
+  const config = mockPlayer.remotePresented[0] as {
+    tracks?: { audio: unknown[]; subtitles: unknown[] };
+  };
+  expect(config.tracks?.audio).toHaveLength(2);
+  expect(config.tracks?.subtitles.length).toBeGreaterThan(1);
+});
+
 // A release build: one sender only, the JS one, and the SDK's controls, until every entry opens ours.
 test("with the gate closed Play keeps the SDK's controls", async () => {
   await render(<PlayButton item={item} selectedOptions={selectedOptions} />);
