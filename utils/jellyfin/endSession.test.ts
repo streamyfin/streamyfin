@@ -62,14 +62,31 @@ describe("sessionEndsSettled", () => {
         homeWifiSSIDs: [],
         enabled: true,
       });
-      endPendingOn(endedOn);
-      addServerToList("http://10.0.0.5:8096");
+      let release = () => {};
+      endSessionOnServerAfter(
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+        { jellyfin: {} as Jellyfin, serverUrl: endedOn, token: "token" },
+      );
+      try {
+        addServerToList("http://10.0.0.5:8096");
 
+        expect(await stateOf(sessionEndsSettled("http://10.0.0.5:8096"))).toBe(
+          "pending",
+        );
+        expect(await stateOf(sessionEndsSettled("https://home.example"))).toBe(
+          "pending",
+        );
+      } finally {
+        release();
+      }
+      // Free again under both once it ran, so the next case holds only its own.
       expect(await stateOf(sessionEndsSettled("http://10.0.0.5:8096"))).toBe(
-        "pending",
+        "settled",
       );
       expect(await stateOf(sessionEndsSettled("https://home.example"))).toBe(
-        "pending",
+        "settled",
       );
     },
   );

@@ -727,8 +727,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         throw markExpectedError(new Error(t("server.session_expired")));
       }
 
-      // And one on the address the server just moved to.
-      await sessionEndsSettled(serverUrl);
+      // And once moved, on both addresses: a sign-out during the move files
+      // its end under the one as saved.
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -834,11 +838,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
       // As for a saved token: an end still on its way is waited for before
-      // the server moves off a legacy prefix, and after on the new address.
+      // the server moves off a legacy prefix, and after on both addresses.
       await sessionEndsSettled(savedServerUrl);
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
-      await sessionEndsSettled(serverUrl);
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
