@@ -638,6 +638,13 @@ describe("JellyfinProvider sign-out", () => {
 
 // Switching account on the TV, from the settings: the session signed in now
 // gives way to another account saved on the same server.
+// The end of a session, held until the test answers it.
+const holdTheEnd = () => {
+  const end = held<[number]>([204]);
+  server.onPost(`${SERVER}/Sessions/Logout`).reply(() => end.answered);
+  return end;
+};
+
 describe("JellyfinProvider account switch", () => {
   const signedInWithAnotherAccountSaved = async () => {
     signedInAtLaunch();
@@ -686,26 +693,15 @@ describe("JellyfinProvider account switch", () => {
   // account's included if it were live already.
   it("puts the next account live only once the session it leaves has ended", async () => {
     const provider = await signedInWithAnotherAccountSaved();
-    let answerEnd = () => {};
-    server.onPost(`${SERVER}/Sessions/Logout`).reply(
-      () =>
-        new Promise((resolve) => {
-          answerEnd = () => resolve([204]);
-        }),
-    );
+    const end = holdTheEnd();
 
-    try {
-      const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
-      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-      expect(storage.getString("token")).toBe(TOKEN);
+    const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    expect(storage.getString("token")).toBe(TOKEN);
 
-      answerEnd();
-      await act(() => switched);
-      expect(storage.getString("token")).toBe(OTHER_TOKEN);
-    } finally {
-      answerEnd();
-      await act(() => sessionEndsSettled(SERVER));
-    }
+    end.answer();
+    await act(() => switched);
+    expect(storage.getString("token")).toBe(OTHER_TOKEN);
   });
 
   // Once its end lands, the session left answers 401 to the requests it still
@@ -714,51 +710,40 @@ describe("JellyfinProvider account switch", () => {
     const provider = await signedInWithAnotherAccountSaved();
     const leftApi = store.get(apiAtom);
     if (!leftApi) throw new Error("no session at launch");
-    const answers: Array<() => void> = [];
-    server.onGet(`${SERVER}/Items`).reply(
-      () =>
-        new Promise((resolve) => {
-          answers.push(() => resolve([401]));
-        }),
-    );
-    let answerEnd = () => {};
-    server.onPost(`${SERVER}/Sessions/Logout`).reply(
-      () =>
-        new Promise((resolve) => {
-          answerEnd = () => resolve([204]);
-        }),
-    );
+    const refusals: Array<() => void> = [];
+    server.onGet(`${SERVER}/Items`).reply(() => {
+      const refusal = held<[number]>([401]);
+      refusals.push(refusal.answer);
+      return refusal.answered;
+    });
+    const end = holdTheEnd();
     const users: Array<string | undefined> = [];
     const unsubscribe = store.sub(userAtom, () =>
       users.push(store.get(userAtom)?.Id),
     );
 
-    try {
-      // Out before the switch, answered while the end is on its way and after
-      // the next account is in.
-      const requests = [
-        leftApi.axiosInstance.get(`${SERVER}/Items`).catch(() => {}),
-        leftApi.axiosInstance.get(`${SERVER}/Items`).catch(() => {}),
-      ];
-      await waitFor(() => expect(answers).toHaveLength(2));
-      const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
-      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-      answers[0]();
-      await act(() => requests[0]);
+    // Out before the switch, answered while the end is on its way and after
+    // the next account is in.
+    const duringEnd = leftApi.axiosInstance
+      .get(`${SERVER}/Items`)
+      .catch(() => {});
+    const afterSwitch = leftApi.axiosInstance
+      .get(`${SERVER}/Items`)
+      .catch(() => {});
+    await waitFor(() => expect(refusals).toHaveLength(2));
+    const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    refusals[0]();
+    await act(() => duringEnd);
+    end.answer();
+    await act(() => switched);
+    refusals[1]();
+    await act(() => afterSwitch);
+    unsubscribe();
 
-      answerEnd();
-      await act(() => switched);
-      answers[1]();
-      await act(() => requests[1]);
-
-      expect(storage.getString("token")).toBe(OTHER_TOKEN);
-      expect(store.get(userAtom)?.Id).toBe(OTHER_USER.Id);
-      expect(users).not.toContain(undefined);
-    } finally {
-      unsubscribe();
-      answerEnd();
-      for (const answer of answers) answer();
-    }
+    expect(storage.getString("token")).toBe(OTHER_TOKEN);
+    expect(store.get(userAtom)?.Id).toBe(OTHER_USER.Id);
+    expect(users).not.toContain(undefined);
   });
 
   // A saved account keeps its token through the switch, so coming back to it
@@ -832,43 +817,26 @@ describe("JellyfinProvider saved account removal", () => {
     await saveAccount();
     // A device's keychain takes its time to let go, and until it has, the
     // account still signs in with the token, which the end then keeps.
-    const keychainDelete = jest
+    jest
       .spyOn(SecureStore, "deleteItemAsync")
       .mockImplementation(async (key) => {
         await new Promise((resolve) => setTimeout(resolve, 20));
         secureStoreValues.delete(key);
       });
-    try {
-      const provider = await renderProvider();
-
-      await act(() => provider.removeSavedCredential(SERVER, USER.Id));
-
-      expect(await getAccountCredential(SERVER, USER.Id)).toBeNull();
-      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-      expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
-    } finally {
-      keychainDelete.mockRestore();
-    }
-  });
-
-  it("ends the session of every account of a server the user removes", async () => {
-    await saveAccount();
-    await saveOtherAccount();
     const provider = await renderProvider();
 
-    await act(() => provider.removeSavedServer(SERVER));
+    await act(() => provider.removeSavedCredential(SERVER, USER.Id));
 
-    expect(getPreviousServers()).toEqual([]);
-    await waitFor(() => expect(sessionEnds()).toHaveLength(2));
-    expect(sessionEnds().map(tokenOf).sort()).toEqual(
-      [TOKEN, OTHER_TOKEN].sort(),
-    );
+    expect(await getAccountCredential(SERVER, USER.Id)).toBeNull();
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
   });
 
   // Removing the server deletes its proxy headers, and a gateway in front of
   // it refuses a request without them.
-  it("reaches a server it removes through the gateway in front of it", async () => {
+  it("ends the session of every account of a server the user removes, through its gateway", async () => {
     await saveAccount();
+    await saveOtherAccount();
     updateServerCustomHeaders(SERVER, [
       {
         key: "CF-Access-Client-Secret",
@@ -880,29 +848,43 @@ describe("JellyfinProvider saved account removal", () => {
 
     await act(() => provider.removeSavedServer(SERVER));
 
-    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-    expect(
-      (sessionEnds()[0].headers as Record<string, unknown>)?.[
-        "CF-Access-Client-Secret"
-      ],
-    ).toBe("gateway-secret");
-  });
-
-  it("still removes an account whose token the keychain will not hand over", async () => {
-    await saveAccount();
-    const keychainRead = jest
-      .spyOn(SecureStore, "getItemAsync")
-      .mockRejectedValueOnce(new Error("User interaction is not allowed"));
-    try {
-      const provider = await renderProvider();
-
-      await act(() => provider.removeSavedCredential(SERVER, USER.Id));
-
-      expect(getPreviousServers()[0]?.accounts).toEqual([]);
-    } finally {
-      keychainRead.mockRestore();
+    expect(getPreviousServers()).toEqual([]);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(2));
+    expect(sessionEnds().map(tokenOf).sort()).toEqual(
+      [TOKEN, OTHER_TOKEN].sort(),
+    );
+    for (const end of sessionEnds()) {
+      expect(
+        (end.headers as Record<string, unknown>)?.["CF-Access-Client-Secret"],
+      ).toBe("gateway-secret");
     }
   });
+
+  it.each([
+    [
+      "an account",
+      (p: Provider) => p.removeSavedCredential(SERVER, USER.Id),
+      () => getPreviousServers()[0]?.accounts,
+    ],
+    [
+      "a server",
+      (p: Provider) => p.removeSavedServer(SERVER),
+      () => getPreviousServers(),
+    ],
+  ])(
+    "still removes %s whose token the keychain will not hand over",
+    async (_case, remove, left) => {
+      await saveAccount();
+      jest
+        .spyOn(SecureStore, "getItemAsync")
+        .mockRejectedValueOnce(new Error("User interaction is not allowed"));
+      const provider = await renderProvider();
+
+      await act(() => remove(provider));
+
+      expect(left()).toEqual([]);
+    },
+  );
 
   it("keeps the token the current session runs on", async () => {
     signedInAtLaunch();
@@ -924,35 +906,21 @@ describe("JellyfinProvider saved account removal", () => {
     server
       .onPost(`${SERVER}/Users/AuthenticateByName`)
       .reply(200, { AccessToken: OTHER_TOKEN, User: USER });
-    let answerEnd = () => {};
-    server.onPost(`${SERVER}/Sessions/Logout`).reply(
-      () =>
-        new Promise((resolve) => {
-          answerEnd = () => resolve([204]);
-        }),
-    );
-    const authentications = () =>
-      server.history.post.filter((request) =>
-        request.url?.endsWith("/Users/AuthenticateByName"),
-      );
+    const end = holdTheEnd();
     const provider = await renderProvider();
     await act(() => provider.removeSavedCredential(SERVER, USER.Id));
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
 
-    try {
-      await provider.selectServer(SERVER);
-      const signedIn = provider.signIn(USER.Name, "secret");
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(authentications()).toHaveLength(0);
+    await provider.selectServer(SERVER);
+    const signedIn = provider.signIn(USER.Name, "secret");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(requests(byPassword)).toHaveLength(0);
 
-      answerEnd();
-      await act(async () => {
-        await signedIn;
-      });
-      expect(authentications()).toHaveLength(1);
-    } finally {
-      answerEnd();
-    }
+    end.answer();
+    await act(async () => {
+      await signedIn;
+    });
+    expect(requests(byPassword)).toHaveLength(1);
   });
 });
 
