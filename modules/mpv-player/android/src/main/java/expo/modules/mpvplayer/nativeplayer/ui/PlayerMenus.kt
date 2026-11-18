@@ -450,6 +450,11 @@ fun MoreMenu(
                             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                            // Checked while the panel is up, as the menu's other rows.
+                            if (viewModel.showTechnicalInfo) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                ChosenCheck()
+                            }
                         }
                     },
                     onClick = {
