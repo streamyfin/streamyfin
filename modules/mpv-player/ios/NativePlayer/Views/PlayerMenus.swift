@@ -342,12 +342,25 @@ enum TrackMenuItems {
 			Button {
 				onSelect(item)
 			} label: {
+				// A menu draws a button's second Text as the row's subtitle.
 				if item.selected {
-					Label(item.label, systemImage: "checkmark")
+					Label {
+						rowText(item)
+					} icon: {
+						Image(systemName: "checkmark")
+					}
 				} else {
-					Text(item.label)
+					rowText(item)
 				}
 			}
+		}
+	}
+
+	@ViewBuilder
+	private static func rowText(_ item: TrackMenuItemRecord) -> some View {
+		Text(item.label)
+		if let detail = TrackRowText.detailLine(item.detail) {
+			Text(detail)
 		}
 	}
 }

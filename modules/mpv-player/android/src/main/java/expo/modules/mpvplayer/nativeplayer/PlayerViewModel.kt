@@ -1604,6 +1604,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val orig = this
         return TrackMenuItemRecord().apply {
             label = orig.label
+            detail = orig.detail
             jellyfinIndex = orig.jellyfinIndex
             this.selected = selected
             requiresReload = orig.requiresReload

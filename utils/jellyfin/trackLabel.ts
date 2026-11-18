@@ -59,3 +59,76 @@ export const tagOriginalAudioTrack = (
 
   return label ? `${label}${TAG_SEPARATOR}${originalLabel}` : originalLabel;
 };
+
+/** The words a track row's detail line can carry, in the app's language. */
+export interface TrackTags {
+  forced: string;
+  default: string;
+  external: string;
+}
+
+/** Joins the parts of a detail line. */
+const DETAIL_SEPARATOR = " · ";
+
+/** ffmpeg's subtitle codec names, as people know the formats. Others are shown upper-cased. */
+const SUBTITLE_FORMAT_NAMES: Record<string, string> = {
+  subrip: "SRT",
+  pgssub: "PGS",
+  hdmv_pgs_subtitle: "PGS",
+  dvd_subtitle: "VOBSUB",
+  dvdsub: "VOBSUB",
+  webvtt: "VTT",
+};
+
+const upperCodec = (stream: MediaStream): string | undefined =>
+  stream.Codec ? stream.Codec.toUpperCase() : undefined;
+
+// DTS's profile tells the variant ("DTS-HD MA"), the codec alone says "DTS" for all of them.
+const audioCodecName = (stream: MediaStream): string | undefined =>
+  stream.Codec?.toLowerCase() === "dts" && stream.Profile
+    ? stream.Profile
+    : upperCodec(stream);
+
+// ffmpeg writes "5.1(side)" or "stereo"; the variant in parentheses means nothing to a viewer.
+const channelsName = (stream: MediaStream): string | undefined => {
+  const layout = stream.ChannelLayout?.replace(/\(.*\)$/, "").trim();
+  if (layout) return layout.charAt(0).toUpperCase() + layout.slice(1);
+  return stream.Channels ? `${stream.Channels} ch` : undefined;
+};
+
+/**
+ * A track's row in the player menus: the language the server resolved (Jellyfin 12), else the server's own title,
+ * else the raw language code, else the index. Only a language label gets a detail line, since the server's title
+ * already names the format and the flags.
+ */
+export const trackMenuText = (
+  stream: Jellyfin12MediaStream,
+  tags: TrackTags,
+): { label: string; detail?: string } => {
+  const language = stream.LocalizedLanguage;
+  if (!language) {
+    return {
+      label: stream.DisplayTitle || stream.Language || `#${stream.Index}`,
+    };
+  }
+
+  const title =
+    stream.Title && stream.Title.toLowerCase() !== language.toLowerCase()
+      ? stream.Title
+      : undefined;
+  const parts =
+    stream.Type === "Subtitle"
+      ? [
+          title,
+          stream.Codec
+            ? (SUBTITLE_FORMAT_NAMES[stream.Codec.toLowerCase()] ??
+              upperCodec(stream))
+            : undefined,
+          stream.IsForced ? tags.forced : undefined,
+          stream.IsDefault ? tags.default : undefined,
+          stream.IsExternal ? tags.external : undefined,
+        ]
+      : [title, audioCodecName(stream), channelsName(stream)];
+  const detail = parts.filter(Boolean).join(DETAIL_SEPARATOR);
+  return detail ? { label: language, detail } : { label: language };
+};

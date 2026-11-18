@@ -88,6 +88,7 @@ const build = (settings: Record<string, unknown>) =>
     getDownloadedItemById: () => undefined,
     strings,
     originalLabel: "Original",
+    trackTags: { forced: "Forced", default: "Default", external: "External" },
     qualityLabel: (bitrate: { key: string }) => bitrate.key,
   });
 
@@ -127,6 +128,7 @@ describe("contentFrameRate is opt-in wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
     expect(result?.config.stream.contentFrameRate).toBeUndefined();

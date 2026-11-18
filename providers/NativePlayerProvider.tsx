@@ -153,6 +153,7 @@ import {
   buildNativePlayerStrings,
   buildTrackMenus,
   type NativePlayerSessionSeed,
+  trackTagLabels,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
@@ -1139,6 +1140,7 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
+        trackTags: trackTagLabels(t),
         item: options.item,
         outputPickerStrings: buildOutputPickerStrings(t),
         maxStreamingBitrate: options.maxStreamingBitrate,
@@ -1650,6 +1652,7 @@ const NativePlayerProviderInner: React.FC<{
           originalLabel: t("common.original_audio"),
           qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
           bitrateValue: session.bitrateValue,
+          trackTags: trackTagLabels(t),
           localSubtitle: session.localSubtitle
             ? {
                 label: session.localSubtitle.label,

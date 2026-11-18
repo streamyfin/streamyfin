@@ -117,6 +117,8 @@ export type NativePlayerNextEpisode = {
 
 export type NativePlayerTrackMenuItem = {
   label: string;
+  /** A second line under the label: format, codec and flags. Absent when the label says it all. */
+  detail?: string;
   jellyfinIndex: number;
   selected?: boolean;
   /**

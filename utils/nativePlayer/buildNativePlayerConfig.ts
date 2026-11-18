@@ -54,7 +54,7 @@ import {
   getExternalSubtitleUrl,
   getMpvAudioId,
 } from "@/utils/jellyfin/subtitleUtils";
-import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
+import { type TrackTags, trackMenuText } from "@/utils/jellyfin/trackLabel";
 import { logAndCaptureError } from "@/utils/log";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
@@ -320,9 +320,12 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
-/** Native menu labels: DisplayTitle, else language, else the raw index. */
-const nativeLabel = (s: MediaStream) =>
-  s.DisplayTitle || streamLanguageName(s) || `#${s.Index}`;
+/** The words of the track rows' detail lines, in the app's language. */
+export const trackTagLabels = (t: TFunction): TrackTags => ({
+  forced: t("common.track_forced"),
+  default: t("common.track_default"),
+  external: t("common.track_external"),
+});
 
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
@@ -339,6 +342,8 @@ export const buildTrackMenus = (options: {
   bitrateValue: BitrateRequest;
   /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
   localSubtitle?: { label: string; selected: boolean };
+  /** The flags a row's detail line names (`trackTagLabels`). */
+  trackTags: TrackTags;
 }): NativePlayerTrackMenus => {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
@@ -349,12 +354,24 @@ export const buildTrackMenus = (options: {
   const offlineTranscoded =
     options.offline && options.downloadedItem?.userData?.isTranscoded === true;
 
-  const toMenuItem = (row: TrackMenuRow): NativePlayerTrackMenuItem => ({
-    label: row.label,
-    jellyfinIndex: row.index,
-    selected: row.selected,
-    requiresReload: row.requiresReload,
-  });
+  const menuLabel = (stream: MediaStream) =>
+    trackMenuText(stream, options.trackTags).label;
+  // The second line of a server row, looked up by its index: the shared rows carry the label only.
+  const streamsByIndex = new Map(streams.map((s) => [s.Index, s]));
+  const toMenuItem = (row: TrackMenuRow): NativePlayerTrackMenuItem => {
+    const stream =
+      row.kind === "server" ? streamsByIndex.get(row.index) : undefined;
+    const detail = stream
+      ? trackMenuText(stream, options.trackTags).detail
+      : undefined;
+    return {
+      label: row.label,
+      ...(detail ? { detail } : {}),
+      jellyfinIndex: row.index,
+      selected: row.selected,
+      requiresReload: row.requiresReload,
+    };
+  };
 
   const subtitleItems: NativePlayerTrackMenuItem[] = buildSubtitleMenu(
     streams,
@@ -362,7 +379,7 @@ export const buildTrackMenus = (options: {
       selectedIndex: options.subtitleIndex,
       offLabel: options.offLabel,
       isTranscoding,
-      formatLabel: nativeLabel,
+      formatLabel: menuLabel,
       localSubs: options.localSubtitle
         ? // The native session carries at most one sidecar, so it always occupies
           // position 0 of the shared block. The path is unused here — selection
@@ -377,7 +394,7 @@ export const buildTrackMenus = (options: {
     selectedIndex: options.audioIndex,
     isTranscoding,
     offlineTranscoded,
-    formatLabel: nativeLabel,
+    formatLabel: menuLabel,
     originalLabel: options.originalLabel,
   }).map(toMenuItem);
 
@@ -446,6 +463,8 @@ export async function buildNativePlayerConfig(params: {
   originalLabel: string;
   /** The name of a quality, finished in JS for the same reason. */
   qualityLabel: (bitrate: Bitrate) => string;
+  /** The words of the track rows' detail lines, finished in JS for the same reason. */
+  trackTags: TrackTags;
   /** Skip the item refetch when the caller already has it (episode switch). */
   item?: BaseItemDto;
   /** The output sheet's texts, for the player's Cast button. */
@@ -704,6 +723,7 @@ export async function buildNativePlayerConfig(params: {
       originalLabel: params.originalLabel,
       qualityLabel: params.qualityLabel,
       bitrateValue,
+      trackTags: params.trackTags,
     }),
     subtitleStyle: {
       ...buildSubtitleStyle(settings, {

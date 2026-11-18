@@ -84,6 +84,8 @@ struct NextEpisodeRecord: Record {
 
 struct TrackMenuItemRecord: Record {
 	@Field var label: String = ""
+	/// Format, codec and flags, drawn under the label; nil when the label says it all.
+	@Field var detail: String? = nil
 	@Field var jellyfinIndex: Int = -1
 	@Field var selected: Bool = false
 	/// Burned-in subtitle / audio-change-under-transcode: selecting this item

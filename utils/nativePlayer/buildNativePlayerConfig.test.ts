@@ -71,6 +71,7 @@ const streamHeaders = async (stream: {
     getDownloadedItemById: () => undefined,
     strings: {} as NativePlayerStrings,
     originalLabel: "Original",
+    trackTags: { forced: "Forced", default: "Default", external: "External" },
     qualityLabel: (bitrate: { key: string }) =>
       bitrate.key === "Auto" ? "Auto" : bitrate.key,
     item,
@@ -158,6 +159,7 @@ describe("the native player's video output driver", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) =>
         bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,
@@ -188,6 +190,7 @@ describe("the native player's exit confirmation", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) =>
         bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,
@@ -231,6 +234,7 @@ describe("the native player's Cast button", () => {
       getDownloadedItemById: () => downloaded as never,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
       item,
       outputPickerStrings: { title: "Play on" } as never,
@@ -294,6 +298,7 @@ describe("the native player's quality", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) =>
         bitrate.key === "Auto" ? "Automatique" : bitrate.key,
       item: played,
@@ -456,6 +461,7 @@ describe("the native player's swipe gestures", () => {
       getDownloadedItemById: () => undefined,
       strings: {} as NativePlayerStrings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) =>
         bitrate.key === "Auto" ? "Auto" : bitrate.key,
       item,

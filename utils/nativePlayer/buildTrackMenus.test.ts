@@ -25,6 +25,7 @@ const menus = (streams: Jellyfin12MediaStream[]) =>
     qualityLabel: (bitrate: { key: string }) =>
       bitrate.key === "Auto" ? "Auto" : bitrate.key,
     bitrateValue: "max",
+    trackTags: { forced: "Forced", default: "Default", external: "External" },
   });
 
 describe("buildTrackMenus", () => {
@@ -93,5 +94,106 @@ describe("buildTrackMenus", () => {
     ]);
     expect(quality[0].jellyfinIndex).toBe(-2);
     expect(quality.every((entry) => entry.requiresReload)).toBe(true);
+  });
+
+  // Jellyfin 12 resolves the language to a name; the rest of the title moves to a second line.
+  test("an audio row carries its language as label and its codec and channels as detail", () => {
+    const { audio } = menus([
+      {
+        Type: "Audio",
+        Index: 1,
+        DisplayTitle: "English - AC3 - 5.1 - Default",
+        Language: "eng",
+        LocalizedLanguage: "English",
+        Codec: "ac3",
+        ChannelLayout: "5.1(side)",
+        Channels: 6,
+        IsDefault: true,
+      },
+      {
+        Type: "Audio",
+        Index: 2,
+        DisplayTitle: "Commentary - English - AAC - Stereo",
+        Title: "Commentary",
+        Language: "eng",
+        LocalizedLanguage: "English",
+        Codec: "aac",
+        Channels: 2,
+      },
+    ]);
+    expect(audio.map(({ label, detail }) => ({ label, detail }))).toEqual([
+      { label: "English", detail: "AC3 · 5.1" },
+      { label: "English", detail: "Commentary · AAC · 2 ch" },
+    ]);
+  });
+
+  test("a subtitle row says its format and whether it is forced, default or external", () => {
+    const { subtitles } = menus([
+      {
+        Type: "Subtitle",
+        Index: 3,
+        Language: "fre",
+        LocalizedLanguage: "French",
+        Codec: "subrip",
+        IsForced: true,
+        IsDefault: true,
+      },
+      {
+        Type: "Subtitle",
+        Index: 4,
+        Language: "eng",
+        LocalizedLanguage: "English",
+        Codec: "pgssub",
+      },
+      {
+        Type: "Subtitle",
+        Index: 5,
+        Language: "eng",
+        LocalizedLanguage: "English",
+        Codec: "ass",
+        IsExternal: true,
+      },
+    ]);
+    expect(subtitles.map(({ label, detail }) => ({ label, detail }))).toEqual([
+      { label: "None", detail: undefined },
+      { label: "French", detail: "SRT · Forced · Default" },
+      { label: "English", detail: "PGS" },
+      { label: "English", detail: "ASS · External" },
+    ]);
+  });
+
+  // Before Jellyfin 12 the language is a raw ISO code: the server's own title reads better, and it already
+  // says the codec, so nothing is repeated under it.
+  test("a row without a language falls back to its display title", () => {
+    const { audio, subtitles } = menus([
+      {
+        Type: "Audio",
+        Index: 1,
+        DisplayTitle: "English - AAC - Stereo",
+        Language: "eng",
+        Codec: "aac",
+        Channels: 2,
+      },
+      { Type: "Subtitle", Index: 2, DisplayTitle: "Signs", Codec: "ass" },
+    ]);
+    expect(audio[0]).toEqual(
+      expect.objectContaining({ label: "English - AAC - Stereo" }),
+    );
+    expect(audio[0].detail).toBeUndefined();
+    expect(subtitles[1].label).toBe("Signs");
+    expect(subtitles[1].detail).toBeUndefined();
+  });
+
+  test("a row with nothing to add has no detail", () => {
+    const { audio } = menus([
+      {
+        Type: "Audio",
+        Index: 1,
+        Language: "eng",
+        LocalizedLanguage: "English",
+      },
+    ]);
+    expect(audio[0].label).toBe("English");
+    expect(audio[0].detail).toBeUndefined();
   });
 });

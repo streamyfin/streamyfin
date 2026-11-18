@@ -21,6 +21,7 @@ import {
   buildNativePlayerStrings,
   buildTrackMenus,
   buildTrickplayDescriptor,
+  trackTagLabels,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { ticksToSeconds } from "@/utils/time";
@@ -90,6 +91,7 @@ export const buildRemotePlayerConfig = (params: {
           originalLabel: t("common.original_audio"),
           qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
           bitrateValue: params.bitrateValue ?? AUTO_BITRATE_VALUE,
+          trackTags: trackTagLabels(t),
         })
       : null,
     ui: remoteUi(settings, strings),

@@ -92,6 +92,8 @@ class NextEpisodeRecord : Record {
 
 class TrackMenuItemRecord : Record {
     @Field var label: String = ""
+    /** Format, codec and flags, drawn under the label; null when the label says it all. */
+    @Field var detail: String? = null
     @Field var jellyfinIndex: Int = -1
     @Field var selected: Boolean = false
     @Field var requiresReload: Boolean = false

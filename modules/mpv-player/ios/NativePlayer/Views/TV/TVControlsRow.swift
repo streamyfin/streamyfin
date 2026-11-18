@@ -439,7 +439,7 @@ struct TVControlsRow: View {
 		onSelect: @escaping (TrackMenuItemRecord) -> Void
 	) -> some View {
 		ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-			menuRow(label: item.label, selected: item.selected) {
+			menuRow(label: TrackRowText.oneLine(item.label, item.detail), selected: item.selected) {
 				onSelect(item)
 			}
 		}
