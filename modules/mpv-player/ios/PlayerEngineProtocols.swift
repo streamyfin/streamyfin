@@ -252,8 +252,8 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void)
 	/// The item again where it is, under `server`: how a quality change applies its new cap. With
 	/// `subtitleStreamIndex`, that subtitle instead (one the server just downloaded), and a server that names no cap
-	/// keeps the TV's, as `useServer` does.
-	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?)
+	/// keeps the TV's, as `useServer` does. `completion` hears how the receiver answered, or why nothing left.
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void)
 }
 
 /// Whether the chrome offers picture in picture: only an engine with a screen that can float.

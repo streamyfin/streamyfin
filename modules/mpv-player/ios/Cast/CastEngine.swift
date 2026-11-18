@@ -19,6 +19,8 @@ final class CastEngine: RemoteEngine {
   typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
 
   static let noSessionError = "No connected Cast session"
+  static let nothingLoadedError = "The receiver has no item of ours loaded to play again"
+  static let unencodableError = "The PlayNow message could not be built"
   static let urlLoadError = "The Cast engine plays Jellyfin items, not URLs"
   static let playbackError = "The receiver stopped on a playback error"
   static let sessionReplacedError = "The Cast session was replaced"
@@ -82,6 +84,7 @@ final class CastEngine: RemoteEngine {
     // What the request changed that the receiver has to confirm: the chosen track.
     let undo: () -> Void
     let itemId: String?
+    var completion: (CastLoadResult) -> Void = { _ in }
   }
 
   private var reload: Reload?
@@ -444,32 +447,34 @@ final class CastEngine: RemoteEngine {
 
   /// The item again where it is, under `server`: how a quality change applies the envelope's new cap. A subtitle the
   /// receiver did not load (one the server just downloaded) goes with it, checked at once.
-  func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int? = nil) {
+  func reloadCurrentItem(
+    server: ReceiverServer, subtitleStreamIndex: Int? = nil, completion: @escaping (CastLoadResult) -> Void = { _ in }
+  ) {
     onMain()
     guard let index = subtitleStreamIndex else {
       self.server = server
-      reloadCurrent()
+      reloadCurrent(completion: completion)
       return
     }
     // A subtitle reload names no cap: the TV keeps the one the last load or reload named.
     var next = server
     next.maxBitrate = server.maxBitrate ?? self.server.maxBitrate
     self.server = next
-    guard let data = loadedItem() else { return }
+    guard let data = loadedItem() else { return completion(.notSent(Self.nothingLoadedError)) }
     let previous = chosenSubtitle
     chosenSubtitle = index
     publishState()
     let audio = read { $0.audio }
-    playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index) { [weak self] in
+    playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, completion: completion) { [weak self] in
       guard let self, self.chosenSubtitle == index else { return }
       self.chosenSubtitle = previous
     }
   }
 
-  private func reloadCurrent() {
-    guard let data = loadedItem() else { return }
+  private func reloadCurrent(completion: @escaping (CastLoadResult) -> Void = { _ in }) {
+    guard let data = loadedItem() else { return completion(.notSent(Self.nothingLoadedError)) }
     let state = read { $0 }
-    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle)
+    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle, completion: completion)
   }
 
   private func settleLoad(_ load: PendingLoad, _ outcome: ReceiverLoadOutcome) {
@@ -644,7 +649,10 @@ final class CastEngine: RemoteEngine {
   // PlayNow replaces the receiver's queue: the one this engine cast goes again from the item the
   // receiver plays, in the window that fits one message, or that item alone when the queue is
   // someone else's.
-  private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: @escaping () -> Void = {}) {
+  private func playAgain(
+    _ data: ReceiverCustomData, audio: Int?, subtitle: Int?,
+    completion: @escaping (CastLoadResult) -> Void = { _ in }, undo: @escaping () -> Void = {}
+  ) {
     let index = queue.indices.contains(playingIndex) && queue[playingIndex].id == data.itemId
       ? playingIndex : queue.firstIndex { $0.id == data.itemId }
     let window = ReceiverProtocol.queueWindow(
@@ -659,8 +667,12 @@ final class CastEngine: RemoteEngine {
       subtitleStreamIndex: subtitle,
       liveStreamId: data.liveStreamId
     )
-    guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else { return }
-    startReload(target: position, data: data, undo: undo) { failed in self.sendMessage("PlayNow", message, failed: failed) }
+    guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else {
+      return completion(.notSent(Self.unencodableError))
+    }
+    startReload(target: position, data: data, undo: undo, completion: completion) { failed in
+      self.sendMessage("PlayNow", message, failed: failed)
+    }
   }
 
   // Local-only processing: the receiver has no such controls.
@@ -999,10 +1011,13 @@ final class CastEngine: RemoteEngine {
   // MARK: - Reloads
 
   private func startReload(
-    target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {}, send: (@escaping (String) -> Void) -> Void
+    target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {},
+    completion: @escaping (CastLoadResult) -> Void = { _ in }, send: (@escaping (String) -> Void) -> Void
   ) {
     let previous = reload
     previous?.cancelTimer()
+    // Replaced before the receiver answered: that request did not settle on its own.
+    previous?.completion(.settled(.superseded))
     // A reload the receiver has not answered: when this one fails, what that one chose goes too.
     let undoAll: () -> Void = previous.map { previous in { undo(); previous.undo() } } ?? undo
     let tracker = ReceiverLoadTracker(request: ReceiverPlayRequest(items: [ReceiverItem(id: data.itemId)]), previousPlaySessionId: data.playSessionId)
@@ -1010,7 +1025,7 @@ final class CastEngine: RemoteEngine {
       guard let self, let pending = self.reload, pending.tracker === tracker, let outcome = tracker.timeOut() else { return }
       self.settleReload(pending, outcome, recompute: true)
     }
-    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undoAll, itemId: data.itemId)
+    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undoAll, itemId: data.itemId, completion: completion)
     position = target
     setLoading(true)
     publishState()
@@ -1026,6 +1041,7 @@ final class CastEngine: RemoteEngine {
       self.notifyState()
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
+      pending.completion(.notSent(error))
     }
   }
 
@@ -1047,6 +1063,7 @@ final class CastEngine: RemoteEngine {
     }
     if recompute { recomputePosition() }
     notifyState()
+    pending.completion(.settled(outcome))
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.

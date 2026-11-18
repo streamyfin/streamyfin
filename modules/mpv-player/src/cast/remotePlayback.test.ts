@@ -163,7 +163,9 @@ test("it answers notSent without the module", async () => {
   const result = await loadOnReceiver(server, request);
   expect(result.outcome).toBe("notSent");
   expect(result.error).toEqual(expect.any(String));
-  await expect(reloadOnReceiver(server)).resolves.toBeUndefined();
+  await expect(reloadOnReceiver(server)).resolves.toEqual(
+    expect.objectContaining({ outcome: "notSent" }),
+  );
   await expect(skipOnReceiver("next")).resolves.toBeUndefined();
   expect(mockCast.loadCalls).toEqual([]);
   expect(mockCast.reloadCalls).toEqual([]);

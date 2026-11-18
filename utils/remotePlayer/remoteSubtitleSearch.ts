@@ -184,7 +184,7 @@ export const remoteSubtitleSearch = (deps: SearchDeps) => {
     const receiverName = receiverNameFor({ friendlyName: remote.name });
     try {
       // No cap named: the TV keeps the quality it plays at.
-      await reloadOnReceiver(
+      const reloaded = await reloadOnReceiver(
         {
           serverAddress: current.basePath,
           accessToken: current.accessToken,
@@ -193,6 +193,12 @@ export const remoteSubtitleSearch = (deps: SearchDeps) => {
         },
         { subtitleStreamIndex: found.index },
       );
+      // Nothing of ours loaded (stopped from the TV), a PlayNow refused or replaced: the TV did not play it.
+      if (reloaded.outcome !== "loaded") {
+        writeErrorLog("The TV did not play the downloaded subtitle", reloaded);
+        await failed(deps.t()("player.subtitle_apply_failed"));
+        return;
+      }
     } catch (error) {
       writeErrorLog("The TV could not play the downloaded subtitle", error);
       await failed(deps.t()("player.subtitle_apply_failed"));

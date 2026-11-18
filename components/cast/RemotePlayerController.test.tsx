@@ -1381,6 +1381,28 @@ describe("subtitle search from the remote player", () => {
     );
   });
 
+  // Stopped from the TV, or a PlayNow it refused: the TV played nothing again, so the sheet does not say it did.
+  test("a reload the TV did not play is no success", async () => {
+    mockCast.reloadAnswer = {
+      outcome: "notSent",
+      error: "The receiver has no item of ours loaded to play again",
+    };
+    api.mock.onPost(DOWNLOAD).reply(204);
+    api.mock.onGet(ITEM).reply(200, withFrench);
+    await render(<RemotePlayerController />);
+    await download();
+    await poll(1);
+
+    await waitFor(() => expect(mockCast.reloadSubtitles).toEqual([3]));
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates.at(-1)).toEqual({
+        status: "results",
+        results: [result],
+        errorMessage: "player.subtitle_apply_failed",
+      }),
+    );
+  });
+
   test("a downloaded subtitle reloads the TV with it selected", async () => {
     api.mock.onPost(DOWNLOAD).reply(204);
     api.mock.onGet(ITEM).reply(200, withFrench);

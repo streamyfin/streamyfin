@@ -88,8 +88,9 @@ final class RemotePlayback: PlayerEngineDelegate {
   }
 
   /// The TV's item again where it is, under `server`, with `subtitleStreamIndex` when named; nothing without an engine.
-  func reload(server: ReceiverServer, subtitleStreamIndex: Int? = nil) {
-    engine?.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex)
+  func reload(server: ReceiverServer, subtitleStreamIndex: Int? = nil, completion: @escaping (CastLoadResult) -> Void = { _ in }) {
+    guard let engine else { return completion(.notSent(Self.noEngineError)) }
+    engine.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
   }
 
   /// The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine.

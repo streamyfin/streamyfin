@@ -282,10 +282,12 @@ class CastModule : Module() {
         }.runOnQueue(Queues.MAIN)
 
         // The TV's item again where it is, under the server given: how a quality change applies its cap, and a
-        // subtitle the server just downloaded plays (null keeps the TV's).
-        AsyncFunction("reloadOnReceiver") { server: ReceiverServerRecord, subtitleStreamIndex: Int? ->
+        // subtitle the server just downloaded plays (null keeps the TV's). Answered once it settles, as a load.
+        AsyncFunction("reloadOnReceiver") { server: ReceiverServerRecord, subtitleStreamIndex: Int?, promise: Promise ->
             ensureContext()
-            RemotePlayback.shared.reload(server.toServer(), subtitleStreamIndex)
+            RemotePlayback.shared.reload(server.toServer(), subtitleStreamIndex) { result ->
+                promise.resolve(RemotePlayback.resultForJs(result))
+            }
         }.runOnQueue(Queues.MAIN)
 
         // The remote player's menus: a track by Jellyfin index, -1 for no subtitles.

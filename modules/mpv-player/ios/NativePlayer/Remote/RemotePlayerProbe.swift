@@ -253,9 +253,9 @@ private final class LoggingRemoteEngine: RemoteEngine {
 			completion(result)
 		}
 	}
-	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void) {
 		log("reload")
-		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex)
+		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
 	}
 
 	func loadVideo(config: VideoLoadConfig, force: Bool) { inner.loadVideo(config: config, force: force) }

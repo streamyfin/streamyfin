@@ -1054,6 +1054,39 @@ enum CastEngineTests {
       )
     }
 
+    // The sheet that asked for that subtitle hears whether the TV played it: a refusal and a message the channel could
+    // not send are no success.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var results: [CastLoadResult] = []
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9) { results.append($0) }
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "subtitleStreamIndex": 9])))
+      var loaded = false
+      if results.count == 1, case .settled(.loaded) = results[0] { loaded = true }
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9) { results.append($0) }
+      bench.port.deliver(#"{"type":"connectionerror","message":"Request failed"}"#)
+      var refused = false
+      if results.count == 2, case .settled(.failed) = results[1] { refused = true }
+      bench.port.sendError = "receiver busy"
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9) { results.append($0) }
+      var unsent = false
+      if results.count == 3, case .notSent("receiver busy") = results[2] { unsent = true }
+      check("aSubtitleReloadSaysWhetherTheTvPlayedIt", loaded && refused && unsent)
+    }
+
+    // Stopped from the TV, nothing is loaded to play again: no PlayNow, and the sheet hears it.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 0), position: 0)
+      var results: [CastLoadResult] = []
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9) { results.append($0) }
+      var unsent = false
+      if results.count == 1, case .notSent = results[0] { unsent = true }
+      check("aSubtitleReloadWithNothingLoadedSaysSo", bench.sentMessages().isEmpty && unsent)
+    }
+
     // A subtitle reload names no cap, as useServer: the TV keeps the one the last load or reload named.
     do {
       let bench = Bench()

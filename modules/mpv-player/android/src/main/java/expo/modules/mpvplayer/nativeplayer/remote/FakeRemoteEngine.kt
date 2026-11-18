@@ -117,7 +117,8 @@ class FakeRemoteEngine(
 
     // The fake has no envelope to carry: its TV plays on as it was.
     override fun useServer(server: ReceiverServer) {}
-    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {}
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) =
+        onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded))
 
     override fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
         if (stopped) {

@@ -89,6 +89,8 @@ export interface CastDoubleState {
   loadAnswer: RemoteLoadResult;
   /** Loads handed to `loadOnReceiver`, in order. */
   loadCalls: { server: ReceiverServerRecord; request: ReceiverPlayRequest }[];
+  /** What `reloadOnReceiver` answers. */
+  reloadAnswer: RemoteLoadResult;
   /** Servers handed to `reloadOnReceiver`, in order. */
   reloadCalls: ReceiverServerRecord[];
   /** The subtitle index each `reloadOnReceiver` carried, null for the one the TV plays. */
@@ -142,6 +144,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   remoteServerCalls: [],
   loadAnswer: { outcome: "loaded" },
   loadCalls: [],
+  reloadAnswer: { outcome: "loaded" },
   reloadCalls: [],
   reloadSubtitles: [],
   skipCalls: [],
@@ -336,6 +339,7 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     ) => {
       state().reloadCalls.push(server);
       state().reloadSubtitles.push(subtitleStreamIndex);
+      return { ...state().reloadAnswer };
     },
   ),
   skipOnReceiver: jest.fn(async (direction: "next" | "previous") => {

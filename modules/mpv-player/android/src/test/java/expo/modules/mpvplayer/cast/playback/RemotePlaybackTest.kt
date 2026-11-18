@@ -62,11 +62,11 @@ private class RecordingRemoteEngine(val inner: FakeRemoteEngine) : RemoteEngine 
 
     /** The subtitle index each reload carried, null for the one the TV plays. */
     val reloadSubtitles = mutableListOf<Int?>()
-    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) {
         calls += "reload"
         servers += server
         reloadSubtitles += subtitleStreamIndex
-        inner.reloadCurrentItem(server, subtitleStreamIndex)
+        inner.reloadCurrentItem(server, subtitleStreamIndex, onResult)
     }
     override fun setAudioTrack(trackId: Int) { calls += "setAudioTrack $trackId"; inner.setAudioTrack(trackId) }
     override fun setSubtitleTrack(trackId: Int) { calls += "setSubtitleTrack $trackId"; inner.setSubtitleTrack(trackId) }
@@ -316,10 +316,12 @@ class RemotePlaybackTest {
         playback.reload(CAPPED)
         assertEquals(listOf("start", "reload"), made.single().calls)
         assertEquals(listOf(CAPPED), made.single().servers)
-        // Without an engine, nothing to reload and nothing made.
+        // Without an engine, nothing to reload and nothing made: the caller hears it.
         playback.setServer(null)
-        playback.reload(CAPPED)
+        val results = mutableListOf<CastLoadResult>()
+        playback.reload(CAPPED) { results += it }
         assertEquals(1, made.size)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.NotSent(RemotePlayback.NO_ENGINE_ERROR)), results)
     }
 
     @Test

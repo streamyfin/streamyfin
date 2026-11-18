@@ -650,6 +650,36 @@ class CastEngineTest {
         assertEquals(9, options.getInt("subtitleStreamIndex"))
     }
 
+    // The sheet that asked for that subtitle hears whether the TV played it: a refusal and a message the channel
+    // could not send are no success.
+    @Test
+    fun aSubtitleReloadSaysWhetherTheTvPlayedIt() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to 9)))
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        assertTrue((results.last() as CastLoadResult.Settled).outcome is ReceiverLoadOutcome.Failed)
+
+        port.sendError = "No Cast session to send on"
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        assertEquals(CastLoadResult.NotSent("No Cast session to send on"), results.last())
+    }
+
+    // Stopped from the TV, nothing is loaded to play again: no PlayNow, and the sheet hears it.
+    @Test
+    fun aSubtitleReloadWithNothingLoadedSaysSo() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        val results = mutableListOf<CastLoadResult>()
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+        assertTrue(results.single() is CastLoadResult.NotSent)
+    }
+
     // A subtitle reload names no cap, as useServer: the TV keeps the one the last load or reload named.
     @Test
     fun aSubtitleReloadKeepsTheCapTheTvHas() {

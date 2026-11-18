@@ -91,11 +91,11 @@ final class RecordingRemoteEngine: RemoteEngine {
 	}
 	/// The subtitle index each reload carried, nil for the one the TV plays.
 	private(set) var reloadSubtitles: [Int?] = []
-	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void) {
 		calls.append("reload")
 		servers.append(server)
 		reloadSubtitles.append(subtitleStreamIndex)
-		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex)
+		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
 	}
 }
 
@@ -443,10 +443,13 @@ enum RemotePlaybackTests {
 			bench.connected()
 			bench.playback.reload(server: capped)
 			let reloaded = bench.made[0].calls == ["start", "reload"] && bench.made[0].servers == [capped]
-			// Without an engine, nothing to reload and nothing made.
+			// Without an engine, nothing to reload and nothing made: the caller hears it.
 			bench.playback.setServer(nil)
-			bench.playback.reload(server: capped)
-			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1)
+			var unsent = false
+			bench.playback.reload(server: capped) { result in
+				if case .notSent(RemotePlayback.noEngineError) = result { unsent = true }
+			}
+			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1 && unsent)
 		}
 
 		do {

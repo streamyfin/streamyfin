@@ -54,13 +54,15 @@ export const loadOnReceiver = async (
 
 /**
  * Reloads what the TV plays under this server, from where it is: a new bitrate cap, or a subtitle the server just
- * downloaded, which plays checked. A server without a cap keeps the TV's for a subtitle.
+ * downloaded, which plays checked. A server without a cap keeps the TV's for a subtitle. Resolves once the reload
+ * settles, as a load does: not sent when the TV has nothing of ours loaded.
  */
 export const reloadOnReceiver = async (
   server: ReceiverServerRecord,
   options?: { subtitleStreamIndex?: number },
-): Promise<void> => {
-  await CastNative?.reloadOnReceiver(
+): Promise<RemoteLoadResult> => {
+  if (!CastNative) return { ...NO_MODULE_LOAD };
+  return CastNative.reloadOnReceiver(
     server,
     options?.subtitleStreamIndex ?? null,
   );

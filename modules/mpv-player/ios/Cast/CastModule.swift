@@ -135,10 +135,12 @@ public class CastModule: Module {
     }.runOnQueue(.main)
 
     // The TV's item again where it is, under the server given: how a quality change applies its cap, and a subtitle
-    // the server just downloaded plays (nil keeps the TV's).
-    AsyncFunction("reloadOnReceiver") { (server: ReceiverServerRecord, subtitleStreamIndex: Int?) in
+    // the server just downloaded plays (nil keeps the TV's). Answered once it settles, as a load.
+    AsyncFunction("reloadOnReceiver") { (server: ReceiverServerRecord, subtitleStreamIndex: Int?, promise: Promise) in
       self.ensureListening()
-      RemotePlayback.shared.reload(server: server.server, subtitleStreamIndex: subtitleStreamIndex)
+      RemotePlayback.shared.reload(server: server.server, subtitleStreamIndex: subtitleStreamIndex) { result in
+        promise.resolve(RemotePlayback.resultForJs(result))
+      }
     }.runOnQueue(.main)
 
     // The remote player's menus: a track by Jellyfin index, -1 for no subtitles.
@@ -558,7 +560,9 @@ public class CastModule: Module {
     AsyncFunction("loadOnReceiver") { (_: [String: Any], _: [String: Any]) -> [String: Any] in
       ["outcome": "notSent", "error": "No Cast on this platform"]
     }
-    AsyncFunction("reloadOnReceiver") { (_: [String: Any], _: Int?) in }
+    AsyncFunction("reloadOnReceiver") { (_: [String: Any], _: Int?) -> [String: Any] in
+      ["outcome": "notSent", "error": "No Cast on this platform"]
+    }
     AsyncFunction("skipOnReceiver") { (_: String) in }
     AsyncFunction("setRemoteAudioTrack") { (_: Int) in }
     AsyncFunction("setRemoteSubtitleTrack") { (_: Int) in }

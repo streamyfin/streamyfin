@@ -188,8 +188,10 @@ export const changeRemoteQuality = async (
     currentCastSession()?.id !== session?.id
   )
     return;
-  await reloadOnReceiver({ ...deps.server, maxBitrate });
+  // The reload answers once the TV settles, seconds later: the menus mark the pick now, as for the item shown now.
+  const reloaded = reloadOnReceiver({ ...deps.server, maxBitrate });
   if (shown) await showMenus(deps, shown, quality);
+  await reloaded;
 };
 
 /**
