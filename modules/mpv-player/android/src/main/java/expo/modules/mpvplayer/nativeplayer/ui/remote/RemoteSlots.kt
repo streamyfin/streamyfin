@@ -1,6 +1,9 @@
 package expo.modules.mpvplayer.nativeplayer.ui.remote
 
 import android.graphics.Rect
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -41,6 +45,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,7 +67,6 @@ import expo.modules.mpvplayer.nativeplayer.ui.PlayerBottomBar
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
 import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
-import expo.modules.mpvplayer.nativeplayer.ui.SkipSegmentButton
 import expo.modules.mpvplayer.nativeplayer.ui.SubtitleMenu
 import expo.modules.mpvplayer.nativeplayer.ui.TransportStyle
 import kotlin.math.roundToInt
@@ -129,19 +133,58 @@ internal fun RemoteTitles(viewModel: PlayerViewModel, compact: Boolean, modifier
 
 /**
  * The bar, the local chrome's: chapter name, the bar with its marks, elapsed on the left, "Ends at" and the duration
- * on the right, the thumbnail bubble while dragging. The local "Skip intro" sits above it, on the right.
+ * on the right, the thumbnail bubble while dragging. The segment skip is a band on the artwork, [RemoteSkipBanner].
  */
 @Composable
 internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
-        viewModel.activeSegment?.takeIf { it.skipMode != "auto" }?.let { segment ->
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                SkipSegmentButton(viewModel = viewModel, segment = segment)
-            }
-        }
         PlayerBottomBar(viewModel = viewModel, enabled = enabled)
     }
 }
+
+/**
+ * Skip the segment the TV is in, as a band across the bottom of the artwork: the artwork's whole width, so a long
+ * label in any language stays on one line (cut with an ellipsis past it; TalkBack reads it whole). Hidden in auto
+ * mode, where the TV skips by itself. It fades in and out without moving anything, the artwork being there in every
+ * layout. The last segment shown is kept for the fade out.
+ */
+@Composable
+internal fun RemoteSkipBanner(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
+    val active = viewModel.activeSegment?.takeIf { it.skipMode != "auto" }
+    var shown by remember { mutableStateOf(active) }
+    if (active != null && active != shown) shown = active
+    AnimatedVisibility(visible = active != null, enter = fadeIn(), exit = fadeOut(), modifier = modifier.fillMaxWidth()) {
+        val segment = shown ?: return@AnimatedVisibility
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = RemoteSkipBannerHeight)
+                .background(RemoteSkipBannerBackground)
+                .clickable(role = Role.Button) { viewModel.skipActiveSegment() }
+                .inert(!enabled)
+                .padding(horizontal = 12.dp),
+        ) {
+            Text(
+                text = viewModel.skipLabel(segment.type),
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+private val RemoteSkipBannerHeight = 44.dp
+
+// Smoked glass over the artwork: dark enough for white text on any image.
+private val RemoteSkipBannerBackground = Color.Black.copy(alpha = 0.62f)
 
 /**
  * A control the TV's state leaves inactive: dimmed, and deaf to taps and drags (taken in the Initial pass, before

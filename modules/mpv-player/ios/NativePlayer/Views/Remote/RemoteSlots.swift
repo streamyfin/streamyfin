@@ -65,6 +65,48 @@ struct RemoteArtwork: View {
 	}
 }
 
+/// Skip the segment the TV is in, as a band across the bottom of the artwork: the artwork's whole width, so a long
+/// label in any language stays on one line (cut with an ellipsis past it; VoiceOver reads it whole). Hidden in auto
+/// mode, where the TV skips by itself. It fades in and out without moving anything, the artwork being there in every
+/// layout.
+struct RemoteSkipBanner: View {
+	@ObservedObject var viewModel: PlayerViewModel
+
+	private static let height: CGFloat = 44
+
+	var body: some View {
+		let segment = viewModel.activeSegment.flatMap { $0.skipMode == "auto" ? nil : $0 }
+		ZStack {
+			if let segment {
+				Button {
+					viewModel.skipActiveSegment()
+				} label: {
+					HStack(spacing: 6) {
+						Text(viewModel.skipLabel(for: segment.type))
+							.font(.subheadline.weight(.semibold))
+							.lineLimit(1)
+							.truncationMode(.tail)
+						Image(systemName: "forward.fill")
+							.font(.system(size: 12, weight: .semibold))
+							.accessibilityHidden(true)
+					}
+					.foregroundStyle(.white)
+					.padding(.horizontal, 12)
+					.frame(maxWidth: .infinity, minHeight: Self.height)
+					// Smoked glass over the artwork: dark enough for white text on any image.
+					.background(Color.black.opacity(0.35))
+					.background(.ultraThinMaterial)
+					.environment(\.colorScheme, .dark)
+					.contentShape(Rectangle())
+				}
+				.buttonStyle(.plain)
+				.transition(.opacity)
+			}
+		}
+		.animation(.easeInOut(duration: 0.2), value: segment?.startSec)
+	}
+}
+
 /// Title and subtitle, left-aligned; compact keeps each to one smaller line, for the couched top bar.
 struct RemoteTitles: View {
 	@ObservedObject var viewModel: PlayerViewModel
@@ -92,18 +134,12 @@ struct RemoteTitles: View {
 }
 
 /// The bar, the local chrome's: chapter name, the bar with its marks and thumbnail bubble, elapsed on the left,
-/// "Ends at" and the duration on the right. The local "Skip intro" sits above it, on the right.
+/// "Ends at" and the duration on the right. The segment skip is a band on the artwork, RemoteSkipBanner.
 struct RemoteBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
-			if let segment = viewModel.activeSegment, segment.skipMode != "auto" {
-				HStack {
-					Spacer(minLength: 0)
-					SkipSegmentButton(viewModel: viewModel, segment: segment)
-				}
-			}
 			CurrentChapterLabel(viewModel: viewModel, time: viewModel.time)
 			PlayerBottomBar(viewModel: viewModel, time: viewModel.time, showsDuration: true)
 		}

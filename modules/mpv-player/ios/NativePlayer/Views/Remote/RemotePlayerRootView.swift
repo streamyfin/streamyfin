@@ -102,6 +102,9 @@ struct RemotePlayerRootView: View {
 			// The artwork's double tap seeks like the bar, so it rests when the bar does.
 			RemoteArtwork(viewModel: viewModel, size: artwork)
 				.overlay { if model.seekEnabled { artworkTaps } }
+				// The segment skip rests with the bar too, as it did above it.
+				.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
+				.clipShape(RoundedRectangle(cornerRadius: 8))
 				.frame(maxWidth: layout == .portrait ? .infinity : nil)
 		case .titles:
 			RemoteTitles(viewModel: viewModel, compact: false)
