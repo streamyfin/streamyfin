@@ -71,13 +71,19 @@ final class CastEngine: RemoteEngine {
   private var chosenSubtitle: Int?
 
   // A subtitle picked while the receiver loads: sent then, the receiver names it in its reports and turns no track
-  // on (bench, 18/11, 3 times out of 4), so it goes once the receiver has left loading, in this play session.
+  // on (bench, 18/11, 3 times out of 4); sent at the buffering that follows, the receiver turns it off again as its
+  // load completes, with the track that load named (3 times out of 3). It goes once the receiver plays, in this play
+  // session.
   private struct SubtitleOnceLoaded {
     let index: Int
     let previous: Int?
   }
 
   private var subtitleOnceLoaded: SubtitleOnceLoaded?
+
+  // Whether the receiver has played or paused in this play session: until then its load has not completed, and a
+  // buffering status is that load, not a stall.
+  private var sessionPlayed = false
 
   private var reportedPause: Bool?
   private var reportedLoading: Bool?
@@ -505,7 +511,14 @@ final class CastEngine: RemoteEngine {
   private func reloadCurrent(completion: @escaping (CastLoadResult) -> Void = { _ in }) {
     guard let data = loadedItem() else { return completion(.notSent(Self.nothingLoadedError)) }
     let state = read { $0 }
-    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle, completion: completion)
+    // A subtitle waiting for the receiver to play goes with the reload, the new stream loads it.
+    let waiting = subtitleOnceLoaded
+    subtitleOnceLoaded = nil
+    let audio = state.audio >= 0 ? state.audio : nil
+    playAgain(data, audio: audio, subtitle: waiting?.index ?? state.subtitle, completion: completion) { [weak self] in
+      guard let self, let waiting, self.chosenSubtitle == waiting.index else { return }
+      self.chosenSubtitle = waiting.previous
+    }
   }
 
   private func afterStreamSettled() {
@@ -677,7 +690,7 @@ final class CastEngine: RemoteEngine {
     let previous = subtitleOnceLoaded.map { $0.previous } ?? chosenSubtitle
     chosenSubtitle = index
     publishState()
-    if playerState == State.loading {
+    if playerState == State.loading || !sessionPlayed {
       subtitleOnceLoaded = SubtitleOnceLoaded(index: index, previous: previous)
       notifyState()
       return
@@ -875,9 +888,11 @@ final class CastEngine: RemoteEngine {
       chosenSubtitle = nil
       // That session plays what its own load named.
       subtitleOnceLoaded = nil
+      sessionPlayed = false
       // The next item: what ended was not the end.
       if data?.playSessionId != nil { endWait(false) }
     }
+    if status.playerState == State.playing || status.playerState == State.paused { sessionPlayed = true }
     ours = data
     hasMedia = true
     title = status.title
@@ -889,11 +904,6 @@ final class CastEngine: RemoteEngine {
       log("status \(status.playerState) playSession=\(data?.playSessionId ?? "nil") playMethod=\(data?.playMethod ?? "nil") canClientSeek=\(canClientSeek)")
     }
     reportState(status.playerState, reason: status.idleReason, data: data)
-    if let waiting = subtitleOnceLoaded, status.playerState != State.loading {
-      subtitleOnceLoaded = nil
-      // Stopped, or replaced by a load on its way: nothing takes the command.
-      if let item = loadedItem() { sendSubtitle(item, index: waiting.index, previous: waiting.previous) }
-    }
     // A load on its way carries the envelope of its own server: the reclaim waits for it to settle.
     if reclaimPending, pendingLoad == nil, let playSession = data?.playSessionId, playSession == ownPlaySession {
       reclaimPending = false
@@ -908,7 +918,14 @@ final class CastEngine: RemoteEngine {
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
+    // A reload that goes now takes the subtitle waiting with it.
     sendQueuedReload()
+    if let waiting = subtitleOnceLoaded, status.playerState != State.loading,
+      sessionPlayed || status.playerState == State.idle {
+      subtitleOnceLoaded = nil
+      // Stopped, or replaced by a load on its way: nothing takes the command.
+      if let item = loadedItem() { sendSubtitle(item, index: waiting.index, previous: waiting.previous) }
+    }
     notifyState()
   }
 
@@ -947,7 +964,10 @@ final class CastEngine: RemoteEngine {
   fileprivate func onBusMessage(_ message: ReceiverMessage) {
     if let state = Self.playState(of: message) {
       if let value = state["AudioStreamIndex"] { chosenAudio = (value as? NSNumber)?.intValue }
-      if let value = state["SubtitleStreamIndex"] { chosenSubtitle = (value as? NSNumber)?.intValue }
+      // While a pick waits, the receiver still reports the subtitle its load named.
+      if let value = state["SubtitleStreamIndex"], subtitleOnceLoaded == nil {
+        chosenSubtitle = (value as? NSNumber)?.intValue
+      }
       publishState()
       notifyState()
     }
@@ -985,6 +1005,7 @@ final class CastEngine: RemoteEngine {
     chosenAudio = nil
     chosenSubtitle = nil
     subtitleOnceLoaded = nil
+    sessionPlayed = false
     stopTicking()
     setPause(true)
     setLoading(awaitingReceiver())

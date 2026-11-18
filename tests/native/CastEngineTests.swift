@@ -549,7 +549,9 @@ enum CastEngineTests {
     }
 
     // Sent while the receiver loads, a subtitle is named in its reports and no track turns on (bench, 18/11,
-    // 3 times out of 4): the pick shows at once and goes once the receiver has left loading.
+    // 3 times out of 4). Sent at the buffering that follows, it is turned off again: the receiver sets the track
+    // its load named once that load completes, after buffering (bench, 18/11, 3 times out of 3). The pick shows
+    // at once and goes once the receiver plays.
     do {
       let bench = Bench()
       let engine = bench.engine()
@@ -557,10 +559,12 @@ enum CastEngineTests {
       engine.setSubtitleTrack(0)
       let heldBack = bench.commands().isEmpty && subtitle(engine) == 0
       bench.media.report(snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      let heldWhileBuffering = bench.commands().isEmpty && subtitle(engine) == 0
       bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": 0])), position: 0.5)
       check(
-        "aSubtitlePickedWhileTheReceiverLoadsGoesOnceItLeavesLoading",
-        heldBack && bench.commands() == [#"SetSubtitleStreamIndex {"index":0}"#] && subtitle(engine) == 0
+        "aSubtitlePickedWhileTheReceiverLoadsGoesOnceItPlays",
+        heldBack && heldWhileBuffering && bench.commands() == [#"SetSubtitleStreamIndex {"index":0}"#]
+          && subtitle(engine) == 0
       )
     }
 
@@ -586,11 +590,14 @@ enum CastEngineTests {
       bench.media.report(
         snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1]), hasTextTracks: false), position: 0
       )
+      let heldWhileBuffering = bench.port.sent.isEmpty
+      bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": -1]), hasTextTracks: false), position: 0)
       let sent = bench.sentMessages()
       let options = sent.first?["options"] as? [String: Any]
       check(
         "aSubtitlePickedWhileLoadingReloadsWhenTheLoadedItemHasNoTextTrack",
-        sent.map { $0["command"] as? String ?? "?" } == ["PlayNow"] && options?["subtitleStreamIndex"] as? Int == 3
+        heldWhileBuffering && sent.map { $0["command"] as? String ?? "?" } == ["PlayNow"]
+          && options?["subtitleStreamIndex"] as? Int == 3
       )
     }
 
@@ -615,6 +622,60 @@ enum CastEngineTests {
       check(
         "aSubtitlePickedWhileLoadingIsDroppedByAnotherPlaySessionOrAStop",
         bench.commands() == [#"SetSubtitleStreamIndex {"index":5}"#]
+      )
+    }
+
+    // Without autoplay the receiver goes from buffering to paused: that is where its load has completed too.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(0)
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      let heldWhileBuffering = bench.commands().isEmpty
+      bench.media.report(snapshot(playerState: "paused", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      check(
+        "aSubtitlePickedWhileTheReceiverLoadsGoesOnceItIsPaused",
+        heldWhileBuffering && bench.commands() == [#"SetSubtitleStreamIndex {"index":0}"#]
+      )
+    }
+
+    // Buffering after the receiver has played is a stall, not the load: nothing resets the track there.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, ["subtitleStreamIndex": -1])
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1])), position: 42.5)
+      engine.setSubtitleTrack(0)
+      check(
+        "aSubtitlePickedWhileTheReceiverBuffersAfterPlayingGoesAtOnce",
+        bench.commands() == [#"SetSubtitleStreamIndex {"index":0}"#]
+      )
+    }
+
+    // The receiver reports the subtitle its load named while it loads: a quality reload sent then carried that
+    // one and the pick waiting was lost (bench, 18/11). The reload carries the pick, and nothing else sends it.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var capped = server
+      capped.maxBitrate = 4_000_000
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-1")])) { _ in }
+      engine.reloadCurrentItem(server: capped)
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(0)
+      bench.port.deliver(
+        #"{"type":"playbackstart","data":{"PlayState":{"SubtitleStreamIndex":null,"AudioStreamIndex":1,"PlaySessionId":"ps-1"}}}"#
+      )
+      let stillMarked = subtitle(engine) == 0
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      let commands = bench.sentMessages().map { $0["command"] as? String ?? "?" }
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      check(
+        "aReloadSentWhileASubtitlePickWaitsCarriesThePick",
+        stillMarked && commands == ["PlayNow", "PlayNow"] && options?["subtitleStreamIndex"] as? Int == 0
+          && bench.sentMessages().count == 2
       )
     }
 

@@ -81,10 +81,16 @@ class CastEngine(
     private var chosenSubtitle: Int? = null
 
     // A subtitle picked while the receiver loads: sent then, the receiver names it in its reports and turns no
-    // track on (bench, 18/11, 3 times out of 4), so it goes once the receiver has left loading, in this play session.
+    // track on (bench, 18/11, 3 times out of 4); sent at the buffering that follows, the receiver turns it off
+    // again as its load completes, with the track that load named (3 times out of 3). It goes once the receiver
+    // plays, in this play session.
     private class SubtitleOnceLoaded(val index: Int, val previous: Int?)
 
     private var subtitleOnceLoaded: SubtitleOnceLoaded? = null
+
+    // Whether the receiver has played or paused in this play session: until then its load has not completed, and
+    // a buffering status is that load, not a stall.
+    private var sessionPlayed = false
 
     private var playSessionId: String? = null
     private var idleReason: String? = null
@@ -467,7 +473,12 @@ class CastEngine(
 
     private fun reloadCurrent(onResult: (CastLoadResult) -> Unit = {}) {
         val data = loadedItem() ?: return onResult(CastLoadResult.NotSent(NOTHING_LOADED_ERROR))
-        playAgain(data, currentAudio.takeIf { it >= 0 }, currentSubtitle, onResult)
+        // A subtitle waiting for the receiver to play goes with the reload, the new stream loads it.
+        val waiting = subtitleOnceLoaded
+        subtitleOnceLoaded = null
+        playAgain(data, currentAudio.takeIf { it >= 0 }, waiting?.index ?: currentSubtitle, onResult) {
+            if (waiting != null && chosenSubtitle == waiting.index) chosenSubtitle = waiting.previous
+        }
     }
 
     private fun afterStreamSettled() {
@@ -600,7 +611,7 @@ class CastEngine(
         val previous = if (waiting != null) waiting.previous else chosenSubtitle
         chosenSubtitle = index
         updateTracks()
-        if (playerState == LOADING) {
+        if (playerState == LOADING || !sessionPlayed) {
             subtitleOnceLoaded = SubtitleOnceLoaded(index, previous)
             notifyState()
             return
@@ -792,9 +803,11 @@ class CastEngine(
             chosenSubtitle = null
             // That session plays what its own load named.
             subtitleOnceLoaded = null
+            sessionPlayed = false
             // The next item: what ended was not the end.
             if (data?.playSessionId != null) cancelEndWait()
         }
+        if (status.playerState == PLAYING || status.playerState == PAUSED) sessionPlayed = true
         ours = data
         hasMedia = true
         title = status.title
@@ -808,11 +821,6 @@ class CastEngine(
             log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
         }
         reportState(status.playerState, status.idleReason, data)
-        subtitleOnceLoaded?.takeIf { status.playerState != LOADING }?.let { waiting ->
-            subtitleOnceLoaded = null
-            // Stopped, or replaced by a load on its way: nothing takes the command.
-            loadedItem()?.let { item -> sendSubtitle(item, waiting.index, waiting.previous) }
-        }
         // A load on its way carries the envelope of its own server: the reclaim waits for it to settle.
         if (reclaimPending && pendingLoad == null && data?.playSessionId != null && data.playSessionId == ownPlaySession) {
             reclaimPending = false
@@ -825,7 +833,14 @@ class CastEngine(
         seekToComplete = null
         completed?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
+        // A reload that goes now takes the subtitle waiting with it.
         sendQueuedReload()
+        val subtitleGoes = status.playerState != LOADING && (sessionPlayed || status.playerState == IDLE)
+        subtitleOnceLoaded?.takeIf { subtitleGoes }?.let { waiting ->
+            subtitleOnceLoaded = null
+            // Stopped, or replaced by a load on its way: nothing takes the command.
+            loadedItem()?.let { item -> sendSubtitle(item, waiting.index, waiting.previous) }
+        }
         notifyState()
     }
 
@@ -843,7 +858,10 @@ class CastEngine(
     private fun onBusMessage(message: ReceiverMessage) {
         playStateOf(message)?.let { state ->
             if (state.has("AudioStreamIndex")) chosenAudio = intOrNull(state.opt("AudioStreamIndex"))
-            if (state.has("SubtitleStreamIndex")) chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
+            // While a pick waits, the receiver still reports the subtitle its load named.
+            if (state.has("SubtitleStreamIndex") && subtitleOnceLoaded == null) {
+                chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
+            }
             updateTracks()
             notifyState()
         }
@@ -880,6 +898,7 @@ class CastEngine(
         chosenAudio = null
         chosenSubtitle = null
         subtitleOnceLoaded = null
+        sessionPlayed = false
         updateTracks()
         setPause(true)
         setLoading(awaitingReceiver())

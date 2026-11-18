@@ -286,15 +286,19 @@ class CastEngineTest {
     }
 
     // Sent while the receiver loads, a subtitle is named in its reports and no track turns on (bench, 18/11,
-    // 3 times out of 4): the pick shows at once and goes once the receiver has left loading.
+    // 3 times out of 4). Sent at the buffering that follows, it is turned off again: the receiver sets the track
+    // its load named once that load completes, after buffering (bench, 18/11, 3 times out of 3). The pick shows
+    // at once and goes once the receiver plays.
     @Test
-    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItLeavesLoading() {
+    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItPlays() {
         val engine = engine()
         media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
         engine.setSubtitleTrack(0)
         assertEquals(emptyList<Pair<String, String>>(), commands())
         assertEquals(0, engine.getCurrentSubtitleTrack())
         media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
         media.report(snapshot(customData = ours("subtitleStreamIndex" to 0)), 500)
         assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
         assertEquals(0, engine.getCurrentSubtitleTrack())
@@ -317,6 +321,8 @@ class CastEngineTest {
         media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
         engine.setSubtitleTrack(3)
         media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1), hasTextTracks = false), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1), hasTextTracks = false), 0)
         assertEquals(listOf("PlayNow"), commands().map { it.first })
         assertEquals(3, JSONObject(port.sent.single().second).getJSONObject("options").getInt("subtitleStreamIndex"))
     }
@@ -334,6 +340,46 @@ class CastEngineTest {
         engine.setSubtitleTrack(2)
         media.report(snapshot(playerState = "idle", idleReason = "cancelled", customData = ours("playSessionId" to "ps-3")), 0)
         assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":5}"""), commands())
+    }
+
+    // Without autoplay the receiver goes from buffering to paused: that is where its load has completed too.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItIsPaused() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        media.report(snapshot(playerState = "paused", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+    }
+
+    // Buffering after the receiver has played is a stall, not the load: nothing resets the track there.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverBuffersAfterPlayingGoesAtOnce() {
+        val engine = playing(42_500, "subtitleStreamIndex" to -1)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 42_500)
+        engine.setSubtitleTrack(0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+    }
+
+    // The receiver reports the subtitle its load named while it loads: a quality reload sent then carried that
+    // one and the pick waiting was lost (bench, 18/11). The reload carries the pick, and nothing else sends it.
+    @Test
+    fun aReloadSentWhileASubtitlePickWaitsCarriesThePick() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))) {}
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        port.deliver("""{"type":"playbackstart","data":{"PlayState":{"SubtitleStreamIndex":null,"AudioStreamIndex":1,"PlaySessionId":"ps-1"}}}""")
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+        assertEquals(0, JSONObject(port.sent.last().second).getJSONObject("options").getInt("subtitleStreamIndex"))
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
     }
 
     @Test
