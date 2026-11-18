@@ -109,7 +109,8 @@ const describeErrorForLog = (error: unknown): unknown => {
       name: error.name,
       message: error.message,
       code: error.code,
-      status: error.response?.status,
+      // AxiosError.from keeps the original status when no response came.
+      status: error.response?.status ?? error.status,
       url: error.config?.url?.split("?")[0],
     };
   }

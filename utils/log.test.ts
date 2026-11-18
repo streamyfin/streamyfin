@@ -133,6 +133,20 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     });
   });
 
+  // AxiosError.from keeps the original error's status when no response came with it.
+  test("a failed request without a response keeps its status", () => {
+    const error = AxiosError.from(
+      Object.assign(new Error("Service Unavailable"), { status: 503 }),
+      AxiosError.ERR_BAD_RESPONSE,
+    );
+    writeErrorLog("Library play queue failed to start", error);
+
+    expect(readFromLog()[0].data).toMatchObject({
+      code: "ERR_BAD_RESPONSE",
+      status: 503,
+    });
+  });
+
   // A plain Error used to be stored as {}: message and stack are not enumerable.
   test("an error that is not a request keeps its message", () => {
     writeErrorLog("Storage migration 12 failed", new Error("disk full"));
