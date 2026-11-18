@@ -10,7 +10,11 @@ import { clearMmkv } from "@/test-utils/mmkv";
 import { clearSecureStore } from "@/test-utils/secureStore";
 import { writeErrorLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { saveAccountCredential } from "@/utils/secureCredentials";
+import {
+  getAccountCredential,
+  getPreviousServers,
+  saveAccountCredential,
+} from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 import { JellyfinProvider, useJellyfin } from "./JellyfinProvider";
 
@@ -96,10 +100,8 @@ beforeEach(() => {
   clearMmkv();
   clearSecureStore();
   server = new MockAdapter(axios);
-  // The launch check of the restored session. Left unanswered, as when the
-  // server is out of reach at launch: an answer saves the session as an
-  // account, which the saved-account case below sets up on its own.
-  server.onGet(`${SERVER}/Users/Me`).reply(() => new Promise(() => {}));
+  // The launch check of the restored session.
+  server.onGet(`${SERVER}/Users/Me`).reply(200, USER);
   server.onDelete(new RegExp(`${PUSH_DEVICE_PATH}/`)).reply(204);
   server.onPost(`${SERVER}/Sessions/Logout`).reply(204);
 });
@@ -218,5 +220,69 @@ describe("JellyfinProvider sign-out", () => {
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
+  });
+});
+
+describe("JellyfinProvider launch", () => {
+  const launchChecked = async () => {
+    await waitFor(() =>
+      expect(
+        server.history.get.some((request) =>
+          request.url?.endsWith("/Users/Me"),
+        ),
+      ).toBe(true),
+    );
+    // The answer is handled over a few promise turns.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  };
+
+  // A restored session used to be saved as an account at every launch, with
+  // no protection, whether or not the user had asked for it at sign-in.
+  it("does not save a restored session the user did not save", async () => {
+    signedInAtLaunch();
+    await renderProvider();
+
+    await launchChecked();
+
+    expect(await getAccountCredential(SERVER, USER.Id)).toBeNull();
+    expect(getPreviousServers()).toEqual([]);
+  });
+
+  it("ends a restored session at sign-out, the user never having saved it", async () => {
+    signedInAtLaunch();
+    const { logout } = await renderProvider();
+    await launchChecked();
+
+    await act(() => logout());
+
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
+  });
+
+  it("still refreshes the picture of a saved account", async () => {
+    signedInAtLaunch();
+    await saveAccountCredential({
+      serverUrl: SERVER,
+      serverName: "",
+      token: TOKEN,
+      userId: USER.Id,
+      username: USER.Name,
+      savedAt: Date.now(),
+      securityType: "none",
+      primaryImageTag: "old-picture",
+    });
+    server
+      .onGet(`${SERVER}/Users/Me`)
+      .reply(200, { ...USER, PrimaryImageTag: "new-picture" });
+    await renderProvider();
+
+    await launchChecked();
+
+    expect(getPreviousServers()[0]?.accounts).toEqual([
+      expect.objectContaining({
+        userId: USER.Id,
+        primaryImageTag: "new-picture",
+      }),
+    ]);
   });
 });

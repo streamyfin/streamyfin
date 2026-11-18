@@ -969,31 +969,22 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               .then(async (response) => {
                 // The response can resolve long after startup (no axios timeout).
                 // If the session changed meanwhile (logout, account switch), drop
-                // it instead of repopulating a stale user / re-saving credentials.
+                // it instead of repopulating a stale user / its saved account.
                 if (getTokenFromStorage() !== token) return;
                 setUser(response.data);
 
-                // Migrate current session to secure storage if not already saved
-                if (storedUser?.Id && storedUser?.Name) {
+                // A session the user did not save stays unsaved: saving it here
+                // put it on the account list without protection, and kept its
+                // token alive past the sign-out.
+                if (storedUser?.Id) {
                   const existingCredential = await getAccountCredential(
                     serverUrl,
                     storedUser.Id,
                   );
-                  if (!existingCredential) {
-                    await saveAccountCredential({
-                      serverUrl,
-                      serverName: "",
-                      token,
-                      userId: storedUser.Id,
-                      username: storedUser.Name,
-                      savedAt: Date.now(),
-                      securityType: "none",
-                      primaryImageTag:
-                        response.data.PrimaryImageTag ?? undefined,
-                    });
-                  } else if (
+                  if (
+                    existingCredential &&
                     response.data.PrimaryImageTag !==
-                    existingCredential.primaryImageTag
+                      existingCredential.primaryImageTag
                   ) {
                     // Update image tag if it has changed
                     addAccountToServer(
