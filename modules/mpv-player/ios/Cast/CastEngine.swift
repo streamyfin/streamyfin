@@ -621,6 +621,8 @@ final class CastEngine: RemoteEngine {
     let target = itemDuration > 0 ? min(max(seconds, 0), itemDuration) : max(seconds, 0)
     guard let data, data.canClientSeek == false else {
       log("seek \(target) path=media")
+      // The receiver's answer is the place now, not the target a reload started at.
+      reloadStarting = false
       port.seek(to: target) { [weak self] succeeded in
         guard let self, !succeeded else { return }
         self.delegate?.engine(self, didUpdateProgress: self.position, duration: self.itemDuration, cacheSeconds: 0)
@@ -697,7 +699,7 @@ final class CastEngine: RemoteEngine {
     let previous = subtitleOnceLoaded.map { $0.previous } ?? chosenSubtitle
     chosenSubtitle = index
     publishState()
-    if playerState == State.loading || !sessionPlayed {
+    if receiverStarting() {
       subtitleOnceLoaded = SubtitleOnceLoaded(index: index, previous: previous)
       notifyState()
       return
@@ -932,8 +934,7 @@ final class CastEngine: RemoteEngine {
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
     // A reload that goes now takes the subtitle waiting with it.
     sendQueuedReload()
-    if let waiting = subtitleOnceLoaded, status.playerState != State.loading,
-      sessionPlayed || status.playerState == State.idle {
+    if let waiting = subtitleOnceLoaded, !receiverStarting() {
       subtitleOnceLoaded = nil
       // Stopped, or replaced by a load on its way: nothing takes the command.
       if let item = loadedItem() { sendSubtitle(item, index: waiting.index, previous: waiting.previous) }

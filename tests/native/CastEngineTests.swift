@@ -1217,6 +1217,22 @@ enum CastEngineTests {
       )
     }
 
+    // A seek while the reloaded stream starts goes elsewhere than the reload's target: the receiver's answer is the
+    // place, not the target the position was held on (review, 18/11).
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      engine.seekTo(position: 600)
+      bench.media.report(
+        snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"]), streamPosition: 600), position: 600
+      )
+      check("aSeekWhileTheReloadedStreamStartsIsWhereThePositionGoes", close(engine.getCurrentPosition(), 600))
+    }
+
     // A quality picked while the receiver still starts the stream of a settled reload, with nothing on its way,
     // went at once and from 0 (bench, 18/11): it waits for the receiver to play, and goes from there.
     do {

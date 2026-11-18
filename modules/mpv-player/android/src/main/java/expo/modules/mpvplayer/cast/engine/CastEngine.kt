@@ -544,6 +544,8 @@ class CastEngine(
         val target = if (itemDuration > 0) seconds.coerceIn(0.0, itemDuration) else seconds.coerceAtLeast(0.0)
         if (data == null || data.canClientSeek != false) {
             log("seek $target path=media")
+            // The receiver's answer is the place now, not the target a reload started at.
+            reloadStarting = false
             val sentAt = statusCount
             val generation = queueGeneration
             port.seek((target * 1000).roundToLong()) { succeeded ->
@@ -616,7 +618,7 @@ class CastEngine(
         val previous = if (waiting != null) waiting.previous else chosenSubtitle
         chosenSubtitle = index
         updateTracks()
-        if (playerState == LOADING || !sessionPlayed) {
+        if (receiverStarting()) {
             subtitleOnceLoaded = SubtitleOnceLoaded(index, previous)
             notifyState()
             return
@@ -845,8 +847,7 @@ class CastEngine(
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
         // A reload that goes now takes the subtitle waiting with it.
         sendQueuedReload()
-        val subtitleGoes = status.playerState != LOADING && (sessionPlayed || status.playerState == IDLE)
-        subtitleOnceLoaded?.takeIf { subtitleGoes }?.let { waiting ->
+        subtitleOnceLoaded?.takeIf { !receiverStarting() }?.let { waiting ->
             subtitleOnceLoaded = null
             // Stopped, or replaced by a load on its way: nothing takes the command.
             loadedItem()?.let { item -> sendSubtitle(item, waiting.index, waiting.previous) }

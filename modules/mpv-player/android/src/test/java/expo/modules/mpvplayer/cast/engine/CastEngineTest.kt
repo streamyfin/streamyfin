@@ -741,6 +741,20 @@ class CastEngineTest {
         assertEquals(42.7, engine.currentPosition, 1e-9)
     }
 
+    // A seek while the reloaded stream starts goes elsewhere than the reload's target: the receiver's answer is the
+    // place, not the target the position was held on (review, 18/11).
+    @Test
+    fun aSeekWhileTheReloadedStreamStartsIsWhereThePositionGoes() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        engine.seekTo(600.0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 600_000)
+        assertEquals(600.0, engine.currentPosition, 1e-9)
+    }
+
     // A quality picked while the receiver still starts the stream of a settled reload, with nothing on its way,
     // went at once and from 0 (bench, 18/11): it waits for the receiver to play, and goes from there.
     @Test
