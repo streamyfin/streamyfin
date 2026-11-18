@@ -27,15 +27,27 @@ const ending = new Map<string, Promise<void>>();
  * under are the same server; an address not listed stands for itself.
  */
 function serverOf(url: string): string {
-  const address = normalizeHttpBaseUrl(url);
+  const address = keyOf(url);
   const listed = getPreviousServers().find((server) => {
     const local = server.localNetworkConfig?.localUrl;
     return (
-      normalizeHttpBaseUrl(server.address) === address ||
-      (local !== undefined && normalizeHttpBaseUrl(local) === address)
+      keyOf(server.address) === address ||
+      (local !== undefined && keyOf(local) === address)
     );
   });
-  return listed ? normalizeHttpBaseUrl(listed.address) : address;
+  return listed ? keyOf(listed.address) : address;
+}
+
+// One spelling per address: parsing drops a default port and lowercases the
+// host, so `https://media.example:443` is `https://media.example`.
+function keyOf(url: string): string {
+  const address = normalizeHttpBaseUrl(url);
+  try {
+    const parsed = new URL(address);
+    return `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return address;
+  }
 }
 
 /**

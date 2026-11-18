@@ -702,8 +702,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         throw markExpectedError(new Error(t("server.session_expired")));
       }
 
-      // An end still on its way would end this session as well.
-      await sessionEndsSettled(serverUrl);
+      // An end still on its way would end this session as well, under the
+      // address the server was saved on or the one it just moved to.
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -812,8 +816,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
 
-      // An end still on its way would end this session as well.
-      await sessionEndsSettled(serverUrl);
+      // An end still on its way would end this session as well, under the
+      // address the server was saved on or the one it just moved to.
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
