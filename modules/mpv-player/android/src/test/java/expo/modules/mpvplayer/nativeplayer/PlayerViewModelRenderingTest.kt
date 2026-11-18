@@ -59,4 +59,19 @@ class PlayerViewModelRenderingTest {
         local.technicalInfoShown(true)
         assertEquals(2, events.size)
     }
+
+    // Lines JS sent before it heard of the close land on a closed panel: the next opening starts empty.
+    @Test
+    fun aRemotePanelReopensWithoutTheLinesOfALateReply() {
+        val remote = PlayerViewModel().also {
+            it.engine = RemoteOnlyEngine()
+            it.applyCapabilities(pictureInPictureSupported = false)
+            it.emit = { _, _ -> }
+        }
+        remote.technicalInfoShown(true)
+        remote.technicalInfoShown(false)
+        remote.technicalLines = listOf("Play method" to "Transcoding")
+        remote.technicalInfoShown(true)
+        assertEquals(emptyList<Pair<String, String>>(), remote.technicalLines)
+    }
 }

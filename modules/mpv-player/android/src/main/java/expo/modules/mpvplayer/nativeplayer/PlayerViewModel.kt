@@ -969,10 +969,13 @@ class PlayerViewModel : PlayerEngine.Delegate {
     /** The panel's lines when JS writes them (capabilities.technicalInfoFromJs): what the TV plays. */
     var technicalLines by mutableStateOf<List<Pair<String, String>>>(emptyList())
 
-    /** The panel opened or closed: JS writes its lines while it is open, from the first. */
+    /**
+     * The panel opened or closed: JS writes its lines while it is open, from the first. Emptied both ways: lines JS
+     * sent before it heard of a close land on the closed panel.
+     */
     fun technicalInfoShown(shown: Boolean) {
         if (!capabilities.technicalInfoFromJs) return
-        if (!shown) technicalLines = emptyList()
+        technicalLines = emptyList()
         emit?.invoke(if (shown) "onTechnicalInfoRequested" else "onTechnicalInfoClosed", emptyMap())
     }
 
