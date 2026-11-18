@@ -143,6 +143,47 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
 
     expect(readFromLog()[0].data).toEqual({ itemId: "item-1", reason: "none" });
   });
+
+  test("an error a caller wraps in an object is reduced too", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Sync failed", { itemId: "item-1", error });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0].data).toMatchObject({
+      itemId: "item-1",
+      error: { message: "Network Error", code: "ERR_NETWORK" },
+    });
+  });
+
+  test("errors in a list are reduced one by one", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Some syncs failed", [error, "item-2"]);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0].data).toMatchObject([
+      { message: "Network Error" },
+      "item-2",
+    ]);
+  });
+
+  test("logAndCaptureError reduces a wrapped error the same way", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    logAndCaptureError("Sync failed", { itemId: "item-1", error });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+  });
 });
 
 describe("logAndCaptureError — what is kept local", () => {
