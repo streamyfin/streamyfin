@@ -2,8 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import { useIsFocused, useLocalSearchParams } from "expo-router";
+import { useAtomValue } from "jotai";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -39,8 +46,10 @@ import { useSeerrRequestOffer } from "@/hooks/useSeerrRequestOffer";
 import { useTVIssueModal } from "@/hooks/useTVIssueModal";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
 import { useTVSeasonSelectModal } from "@/hooks/useTVSeasonSelectModal";
+import { tvIssueModalAtom } from "@/utils/atoms/tvIssueModal";
+import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
+import { tvSeasonSelectModalAtom } from "@/utils/atoms/tvSeasonSelectModal";
 import { hasPermission, Permission } from "@/utils/seerr/permissions";
-import { seasonsWithStatus } from "@/utils/seerr/seasons";
 import type {
   MediaRequest,
   MediaRequestBody,
@@ -49,11 +58,7 @@ import type {
   TvDetails,
   TvResult,
 } from "@/utils/seerr/types";
-import {
-  MediaRequestStatus,
-  MediaStatus,
-  MediaType,
-} from "@/utils/seerr/types";
+import { MediaRequestStatus, MediaType } from "@/utils/seerr/types";
 
 // Cast card component
 interface TVCastCardProps {
@@ -177,6 +182,7 @@ export const TVSeerrPage: React.FC = () => {
     releaseYear: yearParam,
     posterSrc,
     mediaType,
+    autoRequest,
     ...result
   } = params as unknown as {
     mediaTitle: string;
@@ -184,6 +190,7 @@ export const TVSeerrPage: React.FC = () => {
     canRequest: string;
     posterSrc: string;
     mediaType: MediaType;
+    autoRequest?: string;
   } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const {
@@ -208,7 +215,10 @@ export const TVSeerrPage: React.FC = () => {
 
   const {
     data: details,
+    dataUpdatedAt,
+    isError,
     isFetching,
+    isFetchedAfterMount,
     isLoading,
     refetch,
   } = useQuery({
@@ -242,20 +252,6 @@ export const TVSeerrPage: React.FC = () => {
       (r: MediaRequest) => r.status === MediaRequestStatus.PENDING,
     );
   }, [details]);
-
-  // Get seasons with status for TV shows
-  const seasons = useMemo(
-    () =>
-      details && mediaType === MediaType.TV
-        ? seasonsWithStatus(details as TvDetails)
-        : [],
-    [details, mediaType],
-  );
-
-  const _allSeasonsAvailable = useMemo(
-    () => seasons.every((season) => season.status === MediaStatus.AVAILABLE),
-    [seasons],
-  );
 
   // Get cast
   const cast = useMemo(() => {
@@ -394,6 +390,88 @@ export const TVSeerrPage: React.FC = () => {
       t,
     ],
   );
+
+  // "Request more" from a library series means the request itself, not the
+  // page: open the same season sheet the request button opens, once details
+  // arrive. isFetchedAfterMount because the cache can hold details that
+  // predate Seerr's latest state; the sheet keeps the snapshot it opened
+  // with, so it must never open on stale ones.
+  const autoRequestedRef = useRef(false);
+  // The page stays mounted under a pushed screen, so a cast tap plus a slow
+  // refetch would open the sheet over the person page; the focus gate
+  // defers it until this screen is visible again. The sheet also keeps the
+  // snapshot it opens with, so on focus regain the details are refetched and
+  // the sheet may only open on data fetched since this page became visible.
+  const isFocused = useIsFocused();
+  const focusRegainedAtRef = useRef(Date.now());
+  const wasUnfocusedRef = useRef(false);
+  useEffect(() => {
+    if (!isFocused) {
+      wasUnfocusedRef.current = true;
+      return;
+    }
+    focusRegainedAtRef.current = Date.now();
+    if (
+      wasUnfocusedRef.current &&
+      autoRequest === "true" &&
+      !autoRequestedRef.current
+    ) {
+      wasUnfocusedRef.current = false;
+      refetch();
+    }
+  }, [isFocused, autoRequest, refetch]);
+  useEffect(() => {
+    if (
+      autoRequestedRef.current ||
+      autoRequest !== "true" ||
+      !isFocused ||
+      dataUpdatedAt <= focusRegainedAtRef.current ||
+      // Only series ever carry the flag; on a movie the fallback would send
+      // the request outright for someone without advanced permission.
+      mediaType !== MediaType.TV ||
+      // isFetchedAfterMount also flips on a failed refetch, where details
+      // stay whatever the cache held.
+      !isFetchedAfterMount ||
+      isError ||
+      !offersRequest
+    )
+      return;
+    autoRequestedRef.current = true;
+    handleOpenSeasonSelectModal();
+  }, [
+    autoRequest,
+    isFocused,
+    dataUpdatedAt,
+    isFetchedAfterMount,
+    isError,
+    offersRequest,
+    mediaType,
+    handleOpenSeasonSelectModal,
+  ]);
+
+  // Android TV restores focus to nothing when a modal route closes. The row
+  // remounts once the modal is gone — hasTVPreferredFocus is only reliably
+  // honored at mount, so a remount pulls the focus where a requestTVFocus on
+  // an existing view is refused. The atom is the open→closed signal, but a
+  // modal's close() nulls it before router.back(), while its focus trap is
+  // still mounted — so the remount also waits for the screen's focus, which
+  // only lands once the pop has finished.
+  const seasonModalOpen = useAtomValue(tvSeasonSelectModalAtom) !== null;
+  const requestModalOpen = useAtomValue(tvRequestModalAtom) !== null;
+  const issueModalOpen = useAtomValue(tvIssueModalAtom) !== null;
+  const modalOpen = seasonModalOpen || requestModalOpen || issueModalOpen;
+  const modalWasOpenRef = useRef(false);
+  const [focusEpoch, setFocusEpoch] = useState(0);
+  useEffect(() => {
+    if (modalOpen) {
+      modalWasOpenRef.current = true;
+      return;
+    }
+    if (!modalWasOpenRef.current || !isFocused) return;
+    modalWasOpenRef.current = false;
+    const task = requestIdleCallback(() => setFocusEpoch((epoch) => epoch + 1));
+    return () => cancelIdleCallback(task);
+  }, [isFocused, modalOpen]);
 
   const handlePlay = useCallback(() => {
     const jellyfinMediaId = details?.mediaInfo?.jellyfinMediaId;
@@ -624,8 +702,10 @@ export const TVSeerrPage: React.FC = () => {
               </BlurView>
             )}
 
-            {/* Action buttons */}
+            {/* Action buttons. Keyed by focusEpoch so a closed modal can
+                remount the row and let preferred focus land natively. */}
             <View
+              key={focusEpoch}
               style={{
                 flexDirection: "row",
                 gap: 16,

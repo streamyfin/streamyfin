@@ -8,7 +8,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -68,17 +68,31 @@ const MobilePage: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
-    params as unknown as {
-      mediaTitle: string;
-      releaseYear: number;
-      canRequest: string;
-      posterSrc: string;
-      mediaType: MediaType;
-    } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
+  const {
+    mediaTitle: titleParam,
+    releaseYear: yearParam,
+    posterSrc,
+    mediaType,
+    autoRequest,
+    ...result
+  } = params as unknown as {
+    mediaTitle: string;
+    releaseYear: number;
+    canRequest: string;
+    posterSrc: string;
+    mediaType: MediaType;
+    autoRequest?: string;
+  } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { seerrApi, seerrUser, requestMedia, refreshAfterRequest } = useSeerr();
+  const {
+    seerrApi,
+    seerrUser,
+    requestMedia,
+    refreshAfterRequest,
+    getTitle,
+    getYear,
+  } = useSeerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -89,7 +103,10 @@ const MobilePage: React.FC = () => {
 
   const {
     data: details,
+    dataUpdatedAt,
+    isError,
     isFetching,
+    isFetchedAfterMount,
     isLoading,
     refetch,
   } = useQuery({
@@ -107,6 +124,11 @@ const MobilePage: React.FC = () => {
         : seerrApi?.tvDetails(result.id!);
     },
   });
+
+  // Route params can be blank when the entry point never had them; the TV
+  // page already prefers the fetched title and year for the same reason.
+  const mediaTitle = getTitle(details) || titleParam;
+  const releaseYear = getYear(details) || yearParam;
 
   // Request, or Seerr's Request more on a series it knows with seasons left.
   const { hasAdvancedRequestPermission, requestMore, offersRequest } =
@@ -202,7 +224,7 @@ const MobilePage: React.FC = () => {
       _setRequestBody(body);
       advancedReqModalRef?.current?.present?.();
     },
-    [requestBody, _setRequestBody, advancedReqModalRef],
+    [_setRequestBody, advancedReqModalRef],
   );
 
   const request = useCallback(async () => {
@@ -230,6 +252,65 @@ const MobilePage: React.FC = () => {
     mediaTitle,
     refetch,
     mediaType,
+    setRequestBody,
+  ]);
+
+  // "Request more" from a library series means the request itself, not the
+  // page: present the same season picker the Request button opens, once the
+  // details fetch that fills its tvdbId has landed. isFetchedAfterMount
+  // because the cache can hold details that predate Seerr's latest state;
+  // opening the picker on them would strand it on an unrequestable series.
+  const autoRequestedRef = useRef(false);
+  // The page stays mounted under a pushed screen, so a cast tap plus a slow
+  // refetch would present the picker over the person page; the focus gate
+  // defers it until this screen is visible again. The picker also keeps the
+  // snapshot it opens with, so on focus regain the details are refetched and
+  // the picker may only open on data fetched since this page became visible.
+  const isFocused = useIsFocused();
+  const focusRegainedAtRef = useRef(Date.now());
+  const wasUnfocusedRef = useRef(false);
+  useEffect(() => {
+    if (!isFocused) {
+      wasUnfocusedRef.current = true;
+      return;
+    }
+    focusRegainedAtRef.current = Date.now();
+    if (
+      wasUnfocusedRef.current &&
+      autoRequest === "true" &&
+      !autoRequestedRef.current
+    ) {
+      wasUnfocusedRef.current = false;
+      refetch();
+    }
+  }, [isFocused, autoRequest, refetch]);
+  useEffect(() => {
+    if (
+      autoRequestedRef.current ||
+      autoRequest !== "true" ||
+      !isFocused ||
+      dataUpdatedAt <= focusRegainedAtRef.current ||
+      // Only series ever carry the flag; on a movie it would send the
+      // request outright for someone without advanced permission.
+      mediaType !== MediaType.TV ||
+      // isFetchedAfterMount also flips on a failed refetch, where details
+      // stay whatever the cache held.
+      !isFetchedAfterMount ||
+      isError ||
+      !offersRequest
+    )
+      return;
+    autoRequestedRef.current = true;
+    request();
+  }, [
+    autoRequest,
+    isFocused,
+    dataUpdatedAt,
+    mediaType,
+    isFetchedAfterMount,
+    isError,
+    offersRequest,
+    request,
   ]);
 
   const isAnime = useMemo(
@@ -282,7 +363,7 @@ const MobilePage: React.FC = () => {
         headerHeight={300}
         headerImage={
           <View>
-            {result.backdropPath ? (
+            {result.backdropPath || details?.backdropPath ? (
               <Image
                 cachePolicy={"memory-disk"}
                 transition={BACKGROUND_IMAGE_TRANSITION}
@@ -292,7 +373,7 @@ const MobilePage: React.FC = () => {
                 }}
                 source={{
                   uri: seerrApi?.imageProxy(
-                    result.backdropPath,
+                    (result.backdropPath || details?.backdropPath)!,
                     SEERR_BACKDROP_SIZE,
                   ),
                 }}
@@ -345,7 +426,9 @@ const MobilePage: React.FC = () => {
                   cachePolicy={"memory-disk"}
                   transition={BACKGROUND_IMAGE_TRANSITION}
                   source={{
-                    uri: posterSrc,
+                    uri:
+                      posterSrc ||
+                      seerrApi?.imageProxy(details?.posterPath, "w342"),
                   }}
                 />
               </View>
