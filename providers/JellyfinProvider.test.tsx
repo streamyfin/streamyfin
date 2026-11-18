@@ -572,6 +572,51 @@ describe("JellyfinProvider sign-out", () => {
     }
   });
 
+  // Or while the server checks the password: the session it then opens is
+  // held by no one, so it is ended there.
+  it("drops a sign-in from the form whose server the user left during the password check", async () => {
+    signedInAtLaunch();
+    let answerAuth = () => {};
+    const authAnswered = new Promise<[number, unknown]>((resolve) => {
+      answerAuth = () =>
+        resolve([200, { AccessToken: OTHER_TOKEN, User: OTHER_USER }]);
+    });
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(() => authAnswered);
+    const authentications = () =>
+      server.history.post.filter((request) =>
+        request.url?.endsWith("/Users/AuthenticateByName"),
+      );
+    const provider = await renderProvider();
+    await signOut(provider.logout);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    await act(() => sessionEndsSettled(SERVER));
+
+    try {
+      await provider.selectServer(SERVER);
+      const outcome = provider.signIn(OTHER_USER.Name, "secret").then(
+        () => "signed in",
+        () => "dropped",
+      );
+      await waitFor(() => expect(authentications()).toHaveLength(1));
+      await provider.selectServer(OTHER_SERVER);
+
+      answerAuth();
+      expect(
+        await act(() => within(outcome, "the sign-in did not settle")),
+      ).toBe("dropped");
+      expect(storage.getString("token")).toBeUndefined();
+      expect(storage.getString("serverUrl")).toBe(OTHER_SERVER);
+      await waitFor(() => expect(sessionEnds()).toHaveLength(2));
+      expect(sessionEnds()[1].url).toBe(`${SERVER}/Sessions/Logout`);
+      expect(tokenOf(sessionEnds()[1])).toBe(OTHER_TOKEN);
+    } finally {
+      answerAuth();
+      await act(() => sessionEndsSettled(SERVER));
+    }
+  });
+
   // Moving a saved server off a legacy prefix changes its address between the
   // sign-out and the next sign-in.
   const migratingSignIns = [

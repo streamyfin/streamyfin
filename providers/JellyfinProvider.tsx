@@ -486,6 +486,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
         if (auth.data.AccessToken && auth.data.User) {
+          // Checked again: the user can pick another server while this one
+          // checks the password too. The session it opened is held by no one
+          // then, so it is ended there.
+          if (storage.getString("serverUrl") !== selectedServer) {
+            endSessionOnServerAfter(Promise.resolve(), {
+              jellyfin,
+              serverUrl: api.basePath,
+              token: auth.data.AccessToken,
+              userId: auth.data.User.Id,
+            });
+            throw markExpectedError(new Error(t("login.server_changed")));
+          }
+
           // Held from before the session is set: SeerrAutoLogin starts as soon
           // as the plugin's Seerr address reaches it, and would open a second
           // Seerr session for the same user. Let go once the sign-in to Seerr
