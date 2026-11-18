@@ -72,8 +72,6 @@ struct RemoteArtwork: View {
 struct RemoteSkipBanner: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
-	private static let height: CGFloat = 44
-
 	var body: some View {
 		let segment = viewModel.activeSegment.flatMap { $0.skipMode == "auto" ? nil : $0 }
 		ZStack {
@@ -92,7 +90,7 @@ struct RemoteSkipBanner: View {
 					}
 					.foregroundStyle(.white)
 					.padding(.horizontal, 12)
-					.frame(maxWidth: .infinity, minHeight: Self.height)
+					.frame(maxWidth: .infinity, minHeight: PlayerConstants.remoteSkipBannerHeight)
 					// Smoked glass over the artwork: dark enough for white text on any image.
 					.background(Color.black.opacity(0.35))
 					.background(.ultraThinMaterial)

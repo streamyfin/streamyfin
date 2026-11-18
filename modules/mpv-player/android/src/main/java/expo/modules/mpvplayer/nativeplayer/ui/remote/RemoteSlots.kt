@@ -160,10 +160,12 @@ internal fun RemoteSkipBanner(viewModel: PlayerViewModel, enabled: Boolean, modi
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = RemoteSkipBannerHeight)
-                .background(RemoteSkipBannerBackground)
-                .clickable(role = Role.Button) { viewModel.skipActiveSegment() }
+                .heightIn(min = PlayerConstants.REMOTE_SKIP_BANNER_HEIGHT_DP.dp)
+                // Before the band, so the band dims with its label.
                 .inert(!enabled)
+                .background(RemoteSkipBannerBackground)
+                // TalkBack reaches the button through enabled, not through inert.
+                .clickable(enabled = enabled, role = Role.Button) { viewModel.skipActiveSegment() }
                 .padding(horizontal = 12.dp),
         ) {
             Text(
@@ -180,8 +182,6 @@ internal fun RemoteSkipBanner(viewModel: PlayerViewModel, enabled: Boolean, modi
         }
     }
 }
-
-private val RemoteSkipBannerHeight = 44.dp
 
 // Smoked glass over the artwork: dark enough for white text on any image.
 private val RemoteSkipBannerBackground = Color.Black.copy(alpha = 0.62f)

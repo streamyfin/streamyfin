@@ -54,6 +54,9 @@ object PlayerConstants {
     // A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
     // iOS: PlayerConstants.remoteInertOpacity.
     const val REMOTE_INERT_ALPHA = 0.4f
+    // The segment skip's band across the bottom of the remote artwork, at least this tall.
+    // iOS: PlayerConstants.remoteSkipBannerHeight.
+    const val REMOTE_SKIP_BANNER_HEIGHT_DP = 44
     // The Play here pill under a failed send and the Continue one under the next episode, at least the small
     // button's height: white at this opacity over the tint. iOS: PlayerConstants.remotePlayHereFillOpacity.
     const val REMOTE_PLAY_HERE_FILL_ALPHA = 0.18f
