@@ -2,6 +2,7 @@ import type { BaseItemDto, UserDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { defaultValues } from "@/utils/atoms/settings";
+import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import {
   buildReducedRemotePlayerConfig,
   buildRemotePlayerConfig,
@@ -92,6 +93,23 @@ test("the search is offered only when the server can do it", () => {
       t,
     }).ui.subtitleSearchEnabled,
   ).toBe(false);
+});
+
+// The search sheet offers the local player's languages and starts on the user's subtitle language.
+test("the search offers the languages and starts on the user's subtitle language", () => {
+  const ui = buildRemotePlayerConfig(
+    params({
+      settings: {
+        ...defaultValues,
+        defaultSubtitleLanguage: { ThreeLetterISOLanguageName: "fra" },
+      },
+    }),
+  ).ui;
+
+  expect(ui.subtitleSearchLanguages).toEqual(
+    COMMON_SUBTITLE_LANGUAGES.map(({ code, name }) => ({ code, name })),
+  );
+  expect(ui.subtitleSearchDefaultLanguage).toBe("fre");
 });
 
 // The intro button seeks the TV: the screen gets the item's chapters and segments as the local player does.

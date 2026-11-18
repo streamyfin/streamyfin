@@ -27,6 +27,7 @@ import {
   buildNativePlayerStrings,
   buildTrackMenus,
   buildTrickplayDescriptor,
+  subtitleSearchLanguageOptions,
   trackTagLabels,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
@@ -44,6 +45,7 @@ const remoteUi = (
   hapticsEnabled: !settings.disableHapticFeedback,
   // The phone's own lookup adds a file to a local player, which there is none of here: the server's search only.
   subtitleSearchEnabled: subtitleSearch,
+  ...subtitleSearchLanguageOptions(settings),
   strings,
 });
 

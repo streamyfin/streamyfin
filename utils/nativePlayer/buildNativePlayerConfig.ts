@@ -315,6 +315,20 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
   zho: "chi",
 };
 
+/** The subtitle search's languages, and the one it starts on: the user's subtitle language, else English. */
+export const subtitleSearchLanguageOptions = (settings: Settings) => ({
+  subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
+    code: l.code,
+    name: l.name,
+  })),
+  subtitleSearchDefaultLanguage: (() => {
+    const raw =
+      settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
+    if (!raw) return "eng";
+    return ISO_639_2_T_TO_B[raw] ?? raw;
+  })(),
+});
+
 /**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
@@ -771,16 +785,7 @@ export async function buildNativePlayerConfig(params: {
       // Server search needs connectivity; the OpenSubtitles fallback needs
       // the network either way — offline sessions hide the entry.
       subtitleSearchEnabled: !offline && !!api,
-      subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
-        code: l.code,
-        name: l.name,
-      })),
-      subtitleSearchDefaultLanguage: (() => {
-        const raw =
-          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
-        if (!raw) return "eng";
-        return ISO_639_2_T_TO_B[raw] ?? raw;
-      })(),
+      ...subtitleSearchLanguageOptions(settings),
       strings,
       allowCast: castAllowed,
       outputPickerStrings: castAllowed ? params.outputPickerStrings : undefined,
