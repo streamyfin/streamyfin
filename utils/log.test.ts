@@ -197,6 +197,24 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     ]);
   });
 
+  // Callers log from their catch blocks: the logger itself must never throw.
+  // Storing the value unreduced instead could keep what reduction drops.
+  test("data that throws when read is stored as unrenderable", () => {
+    const data = {
+      itemId: "item-1",
+      get detail(): string {
+        throw new Error("detail is gone");
+      },
+    };
+
+    expect(() => writeErrorLog("Sync failed", data)).not.toThrow();
+    expect(() => logAndCaptureError("Sync failed", data)).not.toThrow();
+    expect(readFromLog()).toMatchObject([
+      { message: "Sync failed", data: "[unrenderable]" },
+      { message: "Sync failed", data: "[unrenderable]" },
+    ]);
+  });
+
   test("logAndCaptureError reduces a wrapped error the same way", async () => {
     const error = await failureOf(
       unreachable.get("https://jellyfin.example.test/Items", {

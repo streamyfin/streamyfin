@@ -1,4 +1,8 @@
-import { LOGS_STORAGE_KEY, MAX_LOG_ENTRIES } from "@/constants/Logs";
+import {
+  LOGS_STORAGE_KEY,
+  MAX_LOG_ENTRIES,
+  UNRENDERABLE_LOG_VALUE,
+} from "@/constants/Logs";
 import { storage } from "./mmkv";
 import { redactCredentials } from "./redactCredentials";
 
@@ -10,9 +14,6 @@ export interface LogEntry {
   message: string;
   data?: any;
 }
-
-// Stored in place of a value that neither JSON nor String() can render.
-const UNRENDERABLE_VALUE = "[unrenderable]";
 
 const redactStrings = (_key: string, value: unknown) =>
   typeof value === "string" ? redactCredentials(value) : value;
@@ -32,7 +33,7 @@ const redactForLog = (value: unknown): unknown => {
     try {
       return redactCredentials(String(value));
     } catch {
-      return UNRENDERABLE_VALUE;
+      return UNRENDERABLE_LOG_VALUE;
     }
   }
 };

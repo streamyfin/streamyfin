@@ -10,6 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { UNRENDERABLE_LOG_VALUE } from "@/constants/Logs";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
@@ -128,16 +129,22 @@ const describeErrorForLog = (error: unknown): unknown => {
 // copy of an AxiosError is a plain object that still carries isAxiosError and
 // its config, so it is reduced as the request it is.
 const reduceErrorsForLog = (data: unknown): unknown => {
-  if (Array.isArray(data)) return data.map(describeErrorForLog);
-  if (isPlainObject(data) && !isAxiosError(data)) {
-    return Object.fromEntries(
-      Object.entries(data).map(([key, value]) => [
-        key,
-        describeErrorForLog(value),
-      ]),
-    );
+  // Reading a value can throw (a getter) and the logger must not. The value
+  // unreduced is no fallback: it would keep what reduction is there to drop.
+  try {
+    if (Array.isArray(data)) return data.map(describeErrorForLog);
+    if (isPlainObject(data) && !isAxiosError(data)) {
+      return Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [
+          key,
+          describeErrorForLog(value),
+        ]),
+      );
+    }
+    return describeErrorForLog(data);
+  } catch {
+    return UNRENDERABLE_LOG_VALUE;
   }
-  return describeErrorForLog(data);
 };
 
 // A heap address in a native message ("ssl=0xb400007329635958") is different
