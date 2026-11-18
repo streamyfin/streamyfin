@@ -924,6 +924,13 @@
       "transcode_progress": "Transcoded: {{percent}}%",
       "transcode_speed": "Transcode speed: {{fps}} fps",
       "transcode_hardware": "Hardware acceleration: {{type}}",
+      "play_method": "Play method",
+      "container": "Container",
+      "video_codec": "Video codec",
+      "audio_codec": "Audio codec",
+      "stream_bitrate": "Bitrate",
+      "resolution": "Resolution",
+      "transcode_reasons": "Transcode reasons",
       "loading": "Loading..."
     },
     "mpv_player_title": "MPV player",

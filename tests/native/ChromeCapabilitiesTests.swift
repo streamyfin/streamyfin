@@ -31,14 +31,23 @@ enum ChromeCapabilitiesTests {
 			ChromeCapabilities.of(isRemote: true, pictureInPictureSupported: true, canChangeSpeed: true),
 			ChromeCapabilities(
 				pictureInPicture: false, zoom: false, brightness: false,
-				decoderSettings: false, technicalInfo: false, speed: true,
+				decoderSettings: false, technicalInfo: true, speed: true,
 				autoHide: false, pausesWhileScrubbing: false, sleepTimer: false,
-				lockControls: false, rotate: false, nextEpisodeCountdown: false
+				lockControls: false, rotate: false, nextEpisodeCountdown: false, technicalInfoFromJs: true
 			),
 			"a remote engine offers nothing that drives this device"
 		)
 
 		let remote = ChromeCapabilities.of(isRemote: true, pictureInPictureSupported: true, canChangeSpeed: true)
+		// What the TV plays is JS's to write, from the receiver and the server: the panel is offered.
+		cases += 1
+		precondition(remote.technicalInfo && remote.technicalInfoFromJs, "a remote chrome offers technical info")
+		// The local chrome reads its own engine.
+		cases += 1
+		precondition(
+			!ChromeCapabilities.of(isRemote: false, pictureInPictureSupported: true, canChangeSpeed: true).technicalInfoFromJs,
+			"a local chrome reads its technical info from its engine"
+		)
 		// A remote screen is a remote control: nothing on it is in the way of a picture, so it never hides.
 		cases += 1
 		precondition(!remote.autoHide, "a remote chrome keeps its controls visible")

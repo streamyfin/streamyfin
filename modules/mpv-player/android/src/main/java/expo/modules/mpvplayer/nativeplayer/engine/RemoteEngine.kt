@@ -29,6 +29,9 @@ interface RemoteEngine : ChromeEngine {
     val mediaTitle: String?
     val mediaImageUrl: String?
 
+    /** How the TV plays what it holds, in the receiver's word ("DirectPlay", "DirectStream", "Transcode"); null unknown. */
+    val playMethod: String?
+
     /** Called on the main thread when anything but the position changed: phase, item, list, index, a track, [reconnecting], the media's title or image. */
     var onStateChanged: (() -> Unit)?
 

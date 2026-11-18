@@ -209,6 +209,12 @@ class RemoteTintRecord : Record {
     @Field var accent: String? = null
 }
 
+/** One line of the remote screen's technical info panel, what the TV plays (JS: RemoteTechnicalLine). */
+class RemoteTechnicalLineRecord : Record {
+    @Field var label: String = ""
+    @Field var value: String = ""
+}
+
 /** A send that failed, as the remote screen says it (JS: RemotePlayerFailure). */
 class RemotePlayerFailureRecord : Record {
     @Field var message: String = ""

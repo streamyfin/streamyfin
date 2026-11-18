@@ -32,6 +32,12 @@ export type RemotePlayerFailure = {
   canPlayHere: boolean;
 };
 
+/** One line of the remote screen's technical info panel, written by JS: what the TV plays. */
+export type RemoteTechnicalLine = {
+  label: string;
+  value: string;
+};
+
 /**
  * What the remote player shows of what the TV plays: the local player's
  * config without a stream or an engine, since the remote engine plays it on

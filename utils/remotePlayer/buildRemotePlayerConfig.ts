@@ -8,6 +8,7 @@ import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import type {
   NativePlayerEpisodeListItem,
   NativePlayerNextEpisode,
+  NativePlayerSegment,
   NativePlayerTrackMenuItem,
   NativePlayerTrackMenus,
 } from "@/modules/mpv-player/src/NativePlayerPresentation.types";
@@ -94,6 +95,8 @@ export const buildRemotePlayerConfig = (params: {
   subtitleIndex?: number;
   episodeList: NativePlayerEpisodeListItem[];
   nextEpisode: NativePlayerNextEpisode | null;
+  /** The item's segments in the user's skip modes: a skip seeks the TV. */
+  segments?: NativePlayerSegment[];
   tint: RemotePlayerTint | null;
   imageHeaders: Record<string, string>;
   settings: Settings;
@@ -112,7 +115,7 @@ export const buildRemotePlayerConfig = (params: {
         name: chapter.Name ?? undefined,
         startSec: ticksToSeconds(chapter.StartPositionTicks ?? 0),
       })) ?? [],
-    segments: [],
+    segments: params.segments ?? [],
     trickplay:
       buildTrickplayDescriptor(item, {
         api,

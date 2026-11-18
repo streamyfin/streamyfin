@@ -80,6 +80,14 @@ const play = {
   subtitleIndex: 2,
 };
 
+const SEGMENTS = /\/MediaSegments\//;
+const anIntro = () =>
+  api.mock.onGet(SEGMENTS).reply(200, {
+    Items: [{ Type: "Intro", StartTicks: 50_000_000, EndTicks: 650_000_000 }],
+  });
+const INTRO = { type: "Intro", startSec: 5, endSec: 65, skipMode: "ask" };
+type Shown = { metadata: { itemId: string }; segments: unknown[] };
+
 let api = makeApi();
 let store = createStore();
 const deps = () => ({ api, userId: "user-1", store, t });
@@ -93,6 +101,8 @@ beforeEach(() => {
   // No remote screen up: the first send presents one.
   mockPlayer.remoteUpdateAnswer = false;
   api = makeApi();
+  // No segments unless a test gives some: they are read for every item shown.
+  api.mock.onGet(SEGMENTS).reply(200, { Items: [] });
   store = createStore();
   stubReactNative({ OS: "android" });
   jest.mocked(extractImageColor).mockResolvedValue(null);
@@ -279,7 +289,10 @@ test("no playback report is sent for a remote play", async () => {
   await playOnRemote(deps(), play, livingRoom, fresh);
 
   expect(api.mock.history.post).toEqual([]);
-  expect(api.mock.history.get).toEqual([]);
+  // The segments are the only read, for the intro button.
+  expect(
+    api.mock.history.get.filter(({ url }) => !SEGMENTS.test(url ?? "")),
+  ).toEqual([]);
 });
 
 test("a stale send presents nothing", async () => {
@@ -464,4 +477,63 @@ test("foreign media opens the reduced player and drops the play shown", async ()
   });
   expect(store.get(remotePlayAtom)).toBeNull();
   expect(store.get(remoteForeignAtom)).toEqual(foreignFilm);
+});
+
+test("the item the TV plays comes with its intro to skip", async () => {
+  anIntro();
+  const film: BaseItemDto = { Id: "film-1", Name: "Film", Type: "Movie" };
+
+  await showRemoteItem(deps(), film, livingRoom, {
+    ...mockCast.remotePlayback,
+    connected: true,
+    phase: "playing",
+    itemId: "film-1",
+  });
+
+  expect((mockPlayer.remotePresented[0] as Shown).segments).toEqual([INTRO]);
+});
+
+test("a send gives the screen the item's segments once read", async () => {
+  anIntro();
+  mockPlayer.remoteUpdateAnswer = true;
+
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  await flush();
+
+  expect((mockPlayer.remoteUpdates.at(-1) as Shown).segments).toEqual([INTRO]);
+});
+
+test("the next item the TV plays brings its own segments", async () => {
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  anIntro();
+  api.mock
+    .onGet(/\/Items\/episode-2/)
+    .reply(200, { Id: "episode-2", Name: "Second", Type: "Episode" });
+  mockPlayer.remoteUpdateAnswer = true;
+
+  await followOnRemote(deps(), "episode-2", livingRoom, {
+    ...mockCast.remotePlayback,
+    itemId: "episode-2",
+    phase: "playing",
+  });
+
+  const shown = mockPlayer.remoteUpdates.at(-1) as Shown;
+  expect(shown.metadata.itemId).toBe("episode-2");
+  expect(shown.segments).toEqual([INTRO]);
+});
+
+// A segment the user set to none is never shown, as in the local player.
+test("the segments follow the user's skip modes", async () => {
+  anIntro();
+  store.set(settingsAtom, { skipIntro: "none" } as never);
+  const film: BaseItemDto = { Id: "film-1", Name: "Film", Type: "Movie" };
+
+  await showRemoteItem(deps(), film, livingRoom, {
+    ...mockCast.remotePlayback,
+    connected: true,
+    phase: "playing",
+    itemId: "film-1",
+  });
+
+  expect((mockPlayer.remotePresented[0] as Shown).segments).toEqual([]);
 });

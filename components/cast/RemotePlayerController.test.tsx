@@ -1,8 +1,12 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { act, render, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { NATIVE_AUTO_QUALITY_INDEX } from "@/constants/Bitrate";
+import { REMOTE_TECHNICAL_INFO_REFRESH_MS } from "@/constants/RemotePlayer";
 import {
   NO_REMOTE_PLAYBACK,
   type RemotePlaybackState,
@@ -1084,5 +1088,104 @@ describe("subtitles while the TV is muted", () => {
     expect(subtitleCalls()).toEqual([3]);
     await mute(false);
     await waitFor(() => expect(subtitleCalls()).toEqual([3, -1]));
+  });
+});
+
+describe("technical info from the remote player", () => {
+  const source: MediaSourceInfo = {
+    Id: "source-1",
+    Container: "mkv",
+    MediaStreams: [{ Type: "Video", Index: 0, Codec: "hevc" }],
+  };
+  const receiverSession = {
+    Client: "Chromecast",
+    UserId: "user-1",
+    DeviceName: "Living Room TV",
+    NowPlayingItem: { Id: "episode-1" },
+    PlayState: { PlayMethod: "Transcode" },
+    TranscodingInfo: {
+      VideoCodec: "h264",
+      TranscodeReasons: ["ContainerBitrateExceedsLimit"],
+    },
+  };
+  const SESSIONS = /\/Sessions/;
+  let api = makeApi();
+  const panel = (event: "onTechnicalInfoRequested" | "onTechnicalInfoClosed") =>
+    act(async () => {
+      emitNativePlayerEvent(mockPlayer, event, { remote: true });
+    });
+
+  beforeEach(() => {
+    api = makeApi();
+    api.mock.onGet(SESSIONS).reply(200, [receiverSession]);
+    store.set(apiAtom, api);
+    store.set(remotePlayAtom, {
+      play: { ...play, item: { ...episode, MediaSources: [source] } },
+      loaded: true,
+    });
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId: "episode-1",
+      playMethod: "Transcode",
+    };
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  test("the panel shows what the TV plays, as the server says", async () => {
+    await render(<RemotePlayerController />);
+    await panel("onTechnicalInfoRequested");
+
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates).toHaveLength(1),
+    );
+    expect(mockPlayer.technicalInfoUpdates[0]).toEqual(
+      expect.arrayContaining([
+        { label: "player.technical_info.play_method", value: "Transcoding" },
+        { label: "player.technical_info.video_codec", value: "H.264" },
+        {
+          label: "player.technical_info.transcode_reasons",
+          value: "Bitrate exceeds limit",
+        },
+      ]),
+    );
+  });
+
+  test("no server session still shows the play method", async () => {
+    api.mock.onGet(SESSIONS).reply(500);
+    await render(<RemotePlayerController />);
+    await panel("onTechnicalInfoRequested");
+
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates).toEqual([
+        [{ label: "player.technical_info.play_method", value: "Transcoding" }],
+      ]),
+    );
+  });
+
+  test("the lines stop refreshing when the panel closes", async () => {
+    jest.useFakeTimers({
+      doNotFake: ["nextTick", "setImmediate", "queueMicrotask"],
+    });
+    await render(<RemotePlayerController />);
+    await panel("onTechnicalInfoRequested");
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates).toHaveLength(1),
+    );
+    await act(async () => {
+      jest.advanceTimersByTime(REMOTE_TECHNICAL_INFO_REFRESH_MS);
+    });
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates).toHaveLength(2),
+    );
+
+    await panel("onTechnicalInfoClosed");
+    await act(async () => {
+      jest.advanceTimersByTime(REMOTE_TECHNICAL_INFO_REFRESH_MS * 3);
+    });
+
+    expect(mockPlayer.technicalInfoUpdates).toHaveLength(2);
   });
 });

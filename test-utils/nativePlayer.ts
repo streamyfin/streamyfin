@@ -34,6 +34,8 @@ export interface NativePlayerDoubleState {
   notices: string[];
   /** Failures handed to `showRemotePlayerFailure`, in order, null for a clear. */
   remoteFailures: unknown[];
+  /** Lines handed to `updateRemoteTechnicalInfo`, in order. */
+  technicalInfoUpdates: unknown[];
   /** Calls to `dismiss`, which closes whichever player is up. */
   dismissals: number;
   listeners: Map<string, Listener[]>;
@@ -49,6 +51,7 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   notices: [],
   remoteUpdateAnswer: true,
   remoteFailures: [],
+  technicalInfoUpdates: [],
   dismissals: 0,
   listeners: new Map(),
 });
@@ -89,6 +92,9 @@ export const nativePlayerDoubleModule = (
   }),
   showRemotePlayerFailure: jest.fn(async (failure: unknown) => {
     state().remoteFailures.push(failure);
+  }),
+  updateRemoteTechnicalInfo: jest.fn(async (lines: unknown) => {
+    state().technicalInfoUpdates.push(lines);
   }),
   dismiss: jest.fn(async () => {
     state().dismissals += 1;

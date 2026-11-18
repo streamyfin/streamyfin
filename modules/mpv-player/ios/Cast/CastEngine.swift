@@ -158,6 +158,7 @@ final class CastEngine: RemoteEngine {
     let foreign: Bool
     let title: String?
     let imageUrl: String?
+    let playMethod: String?
   }
 
   private var heardState: HeardState?
@@ -703,6 +704,7 @@ final class CastEngine: RemoteEngine {
   var foreign: Bool { hasMedia && ours?.itemId == nil }
   var mediaTitle: String? { title }
   var mediaImageUrl: String? { imageUrl }
+  var playMethod: String? { ours?.playMethod }
 
   // The receiver plays at 1x: it takes no playback rate.
   var canChangeSpeed: Bool { false }
@@ -1119,7 +1121,7 @@ final class CastEngine: RemoteEngine {
       phase: phase, reconnecting: suspended, itemId: ours?.itemId, queue: queueItemIds, playingIndex: playingIndex,
       audio: ours == nil ? -1 : chosenAudio ?? ours?.audioStreamIndex ?? -1,
       subtitle: ours == nil ? -1 : chosenSubtitle ?? ours?.subtitleStreamIndex ?? -1,
-      foreign: foreign, title: title, imageUrl: imageUrl
+      foreign: foreign, title: title, imageUrl: imageUrl, playMethod: ours?.playMethod
     )
     guard state != heardState else { return }
     heardState = state

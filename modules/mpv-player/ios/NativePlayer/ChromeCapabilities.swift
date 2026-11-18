@@ -29,6 +29,9 @@ struct ChromeCapabilities: Equatable {
 	/// or the still watching card asks first. A remote target's list moves on by itself, and the remote screen
 	/// decides what its end leads to.
 	var nextEpisodeCountdown = true
+	/// The technical info panel shows the lines JS writes (what the TV plays), asked for as it opens, instead of
+	/// reading the engine.
+	var technicalInfoFromJs = false
 
 	static func of(
 		isRemote: Bool, pictureInPictureSupported: Bool, canChangeSpeed: Bool, allowCast: Bool = false
@@ -38,7 +41,8 @@ struct ChromeCapabilities: Equatable {
 			zoom: !isRemote,
 			brightness: !isRemote,
 			decoderSettings: !isRemote,
-			technicalInfo: !isRemote,
+			// The remote panel's lines come from JS: what the receiver and the server say the TV plays.
+			technicalInfo: true,
 			speed: canChangeSpeed,
 			cast: !isRemote && allowCast,
 			autoHide: !isRemote,
@@ -46,7 +50,8 @@ struct ChromeCapabilities: Equatable {
 			sleepTimer: !isRemote,
 			lockControls: !isRemote,
 			rotate: !isRemote,
-			nextEpisodeCountdown: !isRemote
+			nextEpisodeCountdown: !isRemote,
+			technicalInfoFromJs: isRemote
 		)
 	}
 }

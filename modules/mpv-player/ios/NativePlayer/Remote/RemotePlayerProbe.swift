@@ -197,6 +197,7 @@ private final class LoggingRemoteEngine: RemoteEngine {
 	var foreign: Bool { inner.foreign }
 	var mediaTitle: String? { inner.mediaTitle }
 	var mediaImageUrl: String? { inner.mediaImageUrl }
+	var playMethod: String? { inner.playMethod }
 	var intendedPlayState: Bool { inner.intendedPlayState }
 	var canChangeSpeed: Bool { inner.canChangeSpeed }
 	var currentItemId: String? { inner.currentItemId }

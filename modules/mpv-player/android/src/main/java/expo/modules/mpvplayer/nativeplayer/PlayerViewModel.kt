@@ -966,6 +966,16 @@ class PlayerViewModel : PlayerEngine.Delegate {
     /** What the technical info overlay shows: empty for an engine without a screen. */
     fun technicalInfo(): Map<String, Any> = technicalInfoOf(engine)
 
+    /** The panel's lines when JS writes them (capabilities.technicalInfoFromJs): what the TV plays. */
+    var technicalLines by mutableStateOf<List<Pair<String, String>>>(emptyList())
+
+    /** The panel opened or closed: JS writes its lines while it is open, from the first. */
+    fun technicalInfoShown(shown: Boolean) {
+        if (!capabilities.technicalInfoFromJs) return
+        if (!shown) technicalLines = emptyList()
+        emit?.invoke(if (shown) "onTechnicalInfoRequested" else "onTechnicalInfoClosed", emptyMap())
+    }
+
     fun updateSubtitleGeometry(width: Int, height: Int) {
         subtitleSurfaceWidth = width
         subtitleSurfaceHeight = height

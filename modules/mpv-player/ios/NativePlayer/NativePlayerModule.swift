@@ -92,7 +92,7 @@ public class NativePlayerModule: Module {
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss",
 			"onSubtitleSearchRequested", "onSubtitleDownloadRequested",
 			"onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested",
-			"onPlayHereRequested"
+			"onPlayHereRequested", "onTechnicalInfoRequested", "onTechnicalInfoClosed"
 		)
 
 		// MARK: - Lifecycle
@@ -185,6 +185,13 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		// What JS says of a send that failed, nil to take it away: nothing when no remote screen is up.
+		// What the TV plays, for the remote screen's technical info panel: nothing when no remote screen is up.
+		AsyncFunction("updateRemoteTechnicalInfo") { (lines: [RemoteTechnicalLineRecord]) in
+			#if os(iOS)
+			(self.presented as? RemotePlayerSession)?.viewModel.technicalLines = lines.map { (label: $0.label, value: $0.value) }
+			#endif
+		}.runOnQueue(.main)
+
 		AsyncFunction("showRemotePlayerFailure") { (failure: RemotePlayerFailureRecord?) in
 			#if os(iOS)
 			(self.presented as? RemotePlayerSession)?.showFailure(failure)

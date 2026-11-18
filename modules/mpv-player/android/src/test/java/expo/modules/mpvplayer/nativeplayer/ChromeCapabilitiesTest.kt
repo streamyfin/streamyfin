@@ -37,7 +37,7 @@ class ChromeCapabilitiesTest {
                 zoom = false,
                 brightness = false,
                 decoderSettings = false,
-                technicalInfo = false,
+                technicalInfo = true,
                 speed = true,
                 autoHide = false,
                 pausesWhileScrubbing = false,
@@ -45,12 +45,26 @@ class ChromeCapabilitiesTest {
                 lockControls = false,
                 rotate = false,
                 nextEpisodeCountdown = false,
+                technicalInfoFromJs = true,
             ),
             ChromeCapabilities.of(isRemote = true, pictureInPictureSupported = true, canChangeSpeed = true),
         )
     }
 
     private val remote = ChromeCapabilities.of(isRemote = true, pictureInPictureSupported = true, canChangeSpeed = true)
+
+    // What the TV plays is JS's to write, from the receiver and the server: the panel is offered.
+    @Test fun aRemoteChromeOffersTechnicalInfo() {
+        assertTrue(remote.technicalInfo)
+        assertTrue(remote.technicalInfoFromJs)
+    }
+
+    // The local chrome reads its own engine.
+    @Test fun aLocalChromeReadsItsTechnicalInfoFromItsEngine() {
+        assertFalse(
+            ChromeCapabilities.of(isRemote = false, pictureInPictureSupported = true, canChangeSpeed = true).technicalInfoFromJs,
+        )
+    }
 
     // A remote screen is a remote control: nothing on it is in the way of a picture, so it never hides.
     @Test fun aRemoteChromeKeepsItsControlsVisible() {

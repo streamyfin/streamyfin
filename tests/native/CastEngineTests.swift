@@ -1974,6 +1974,20 @@ enum CastEngineTests {
       check("aForeignMediaPublishesItsTitleAndImage", ok && !engine.foreign && engine.mediaTitle == nil)
     }
 
+    // What the TV really plays is the receiver's word: its customData names the method, and a reload's new
+    // play session (another cap) another one, which the remote screen hears of.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5, ["playSessionId": "ps-1", "playMethod": "DirectPlay"])
+      var ok = engine.playMethod == "DirectPlay"
+      let changes = countStateChanges(engine)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "playMethod": "Transcode"])))
+      ok = ok && engine.playMethod == "Transcode" && changes() == 1
+      // Media another sender loaded names none.
+      bench.media.report(snapshot(customData: nil, title: "Big Buck Bunny"))
+      check("thePlayMethodComesFromTheReceiversCustomData", ok && engine.playMethod == nil)
+    }
+
     // The receiver names its item even when another server sent it: the JS asks the server, and needs the title
     // the TV shows when the server does not know it.
     do {

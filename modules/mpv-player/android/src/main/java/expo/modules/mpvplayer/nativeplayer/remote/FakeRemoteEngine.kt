@@ -82,6 +82,8 @@ class FakeRemoteEngine(
     override val foreign: Boolean get() = foreignMedia != null
     override val mediaTitle: String? get() = foreignMedia?.first
     override val mediaImageUrl: String? get() = foreignMedia?.second
+    override var playMethod: String? = null
+        private set
 
     // MARK: - Lifecycle
 
@@ -186,6 +188,13 @@ class FakeRemoteEngine(
     }
 
     /** Another sender loads media our receiver does not name; the fake's own list is left behind. */
+    /** The receiver names how it plays what it holds (its customData). */
+    fun simulatePlayMethod(method: String?) = runOnMain {
+        if (stopped) return@runOnMain
+        playMethod = method
+        notifyState()
+    }
+
     fun simulateForeignMedia(title: String?, imageUrl: String?) = runOnMain {
         if (stopped) return@runOnMain
         foreignMedia = title to imageUrl
@@ -300,7 +309,7 @@ class FakeRemoteEngine(
 
     private fun notifyState() {
         // The foreign media too, as the iOS fake: a clip after another changes only its title and image.
-        val state = listOf(phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl)
+        val state = listOf(phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl, playMethod)
         if (state == heardState || stopped) return
         heardState = state
         onStateChanged?.invoke()

@@ -64,6 +64,23 @@ test("the config carries no stream and no picture in picture", () => {
   expect(config.ui.strings?.playHere).toBe("player.play_here");
 });
 
+// The intro button seeks the TV: the screen gets the item's chapters and segments as the local player does.
+test("the config carries the item's chapters and segments", () => {
+  const segments = [
+    {
+      type: "Intro" as const,
+      startSec: 5,
+      endSec: 65,
+      skipMode: "ask" as const,
+    },
+  ];
+
+  const config = buildRemotePlayerConfig(params({ segments }));
+
+  expect(config.chapters).toEqual([{ name: "Opening", startSec: 60 }]);
+  expect(config.segments).toEqual(segments);
+});
+
 test("the config names the target and the episode list", () => {
   const episodeList = [
     { itemId: "episode-2", title: "Second", indexNumber: 2 },

@@ -253,6 +253,12 @@ struct RemoteTintRecord: Record {
 	@Field var accent: String?
 }
 
+/// One line of the remote screen's technical info panel, what the TV plays (JS: RemoteTechnicalLine).
+struct RemoteTechnicalLineRecord: Record {
+	@Field var label: String = ""
+	@Field var value: String = ""
+}
+
 /// A send that failed, as the remote screen says it (JS: RemotePlayerFailure).
 struct RemotePlayerFailureRecord: Record {
 	@Field var message: String = ""

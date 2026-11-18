@@ -33,6 +33,11 @@ data class ChromeCapabilities(
      * what its end leads to.
      */
     val nextEpisodeCountdown: Boolean = true,
+    /**
+     * The technical info panel shows the lines JS writes (what the TV plays), asked for as it opens, instead of
+     * reading the engine.
+     */
+    val technicalInfoFromJs: Boolean = false,
 ) {
     companion object {
         fun of(isRemote: Boolean, pictureInPictureSupported: Boolean, canChangeSpeed: Boolean, allowCast: Boolean = false) =
@@ -41,7 +46,8 @@ data class ChromeCapabilities(
                 zoom = !isRemote,
                 brightness = !isRemote,
                 decoderSettings = !isRemote,
-                technicalInfo = !isRemote,
+                // The remote panel's lines come from JS: what the receiver and the server say the TV plays.
+                technicalInfo = true,
                 speed = canChangeSpeed,
                 cast = !isRemote && allowCast,
                 autoHide = !isRemote,
@@ -50,6 +56,7 @@ data class ChromeCapabilities(
                 lockControls = !isRemote,
                 rotate = !isRemote,
                 nextEpisodeCountdown = !isRemote,
+                technicalInfoFromJs = isRemote,
             )
     }
 }

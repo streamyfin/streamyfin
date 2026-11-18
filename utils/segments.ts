@@ -3,7 +3,12 @@ import { MediaSegmentType } from "@jellyfin/sdk/lib/generated-client/models/medi
 import { getMediaSegmentApi } from "@jellyfin/sdk/lib/utils/api/media-segment-api";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import type {
+  NativePlayerSegment,
+  NativePlayerSegmentType,
+} from "@/modules/mpv-player/src/NativePlayerPresentation.types";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
+import type { SegmentSkipMode, Settings } from "@/utils/atoms/settings";
 
 export interface SegmentBuckets {
   introSegments: MediaTimeSegment[];
@@ -215,4 +220,39 @@ export const fetchAndParseSegments = async (
 ): Promise<SegmentBuckets> => {
   const newSegments = await fetchMediaSegments(itemId, api);
   return newSegments ?? fetchLegacySegments(itemId, api);
+};
+
+/**
+ * The native player's segments, each with the skip mode the settings give its type, so the native player never reads
+ * settings. Emitted in the overlap priority the JS players use (Commercial > Recap > Intro > Preview > Outro): the native
+ * side acts on the first segment holding the playhead, so the array order IS the priority. "none" segments are dropped:
+ * nothing to show or skip.
+ */
+export const toNativeSegments = (
+  segments: SegmentBuckets,
+  settings: Settings | null | undefined,
+): NativePlayerSegment[] => {
+  const bucketsByType: Array<
+    [NativePlayerSegmentType, MediaTimeSegment[], SegmentSkipMode]
+  > = [
+    [
+      "Commercial",
+      segments.commercialSegments,
+      settings?.skipCommercial ?? "ask",
+    ],
+    ["Recap", segments.recapSegments, settings?.skipRecap ?? "ask"],
+    ["Intro", segments.introSegments, settings?.skipIntro ?? "ask"],
+    ["Preview", segments.previewSegments, settings?.skipPreview ?? "ask"],
+    ["Outro", segments.creditSegments, settings?.skipOutro ?? "ask"],
+  ];
+  return bucketsByType.flatMap(([type, bucket, skipMode]) =>
+    skipMode === "none"
+      ? []
+      : bucket.map((segment) => ({
+          type,
+          startSec: segment.startTime,
+          endSec: segment.endTime,
+          skipMode,
+        })),
+  );
 };

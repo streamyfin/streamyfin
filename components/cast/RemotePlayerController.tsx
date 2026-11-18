@@ -41,6 +41,7 @@ import {
   episodeAfter,
   episodeBefore,
 } from "@/utils/remotePlayer/remoteEpisodes";
+import { remoteTechnicalInfoPanel } from "@/utils/remotePlayer/remoteTechnicalInfoPanel";
 import {
   changeRemoteQuality,
   chooseRemoteTrack,
@@ -294,7 +295,14 @@ export function RemotePlayerController() {
         "Following what the TV plays failed",
       );
     };
+    const technicalInfo = remoteTechnicalInfoPanel({
+      store,
+      t: () => latest.current.t,
+      target: () => latest.current.castTarget,
+    });
     const subscriptions = [
+      addRemotePlayerListener("onTechnicalInfoRequested", technicalInfo.open),
+      addRemotePlayerListener("onTechnicalInfoClosed", technicalInfo.close),
       addRemotePlayerListener("onNextEpisodeRequested", ({ reason }) =>
         reason === "nextUp" ? continueNextUp() : moveOrLog("next"),
       ),
@@ -361,6 +369,7 @@ export function RemotePlayerController() {
         });
       }),
       addRemotePlayerListener("onDismiss", () => {
+        technicalInfo.close();
         store.set(remotePlayAtom, null);
         store.set(remoteForeignAtom, null);
       }),
@@ -376,6 +385,7 @@ export function RemotePlayerController() {
       onRemotePlaybackChanged(follow),
     ];
     return () => {
+      technicalInfo.close();
       for (const subscription of subscriptions) subscription?.remove();
     };
   }, [routed, store]);

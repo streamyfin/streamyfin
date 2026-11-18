@@ -28,6 +28,7 @@ final class RecordingRemoteEngine: RemoteEngine {
 	var foreign: Bool { inner.foreign }
 	var mediaTitle: String? { inner.mediaTitle }
 	var mediaImageUrl: String? { inner.mediaImageUrl }
+	var playMethod: String? { inner.playMethod }
 	var currentItemId: String? { inner.currentItemId }
 	var targetVolume: Double? { inner.targetVolume }
 	var intendedPlayState: Bool { inner.intendedPlayState }
@@ -281,6 +282,20 @@ enum RemotePlaybackTests {
 				&& bench.screen.positions == [3] && bench.screen.readyToSeek == 1
 			bench.clock.advance(1_000)
 			check("anAttachedScreenIsBroughtUpToDateAtOnce", caughtUp && bench.screen.positions.last == 4)
+		}
+
+		// How the TV plays what it holds goes to JS with the rest: the technical info panel reads it.
+		do {
+			let bench = Bench()
+			bench.connected()
+			let before = bench.published.last?.playMethod == nil
+			bench.made.last?.inner.simulatePlayMethod("Transcode")
+			let state = bench.published.last
+			check(
+				"theSnapshotPublishesHowTheTvPlays",
+				before && state?.playMethod == "Transcode"
+					&& state?.toDictionary()["playMethod"] as? String == "Transcode"
+			)
 		}
 
 		// Media another sender loaded: the snapshot says so, with what its Cast metadata names (PR 6).

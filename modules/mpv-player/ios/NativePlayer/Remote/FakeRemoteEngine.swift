@@ -67,6 +67,7 @@ final class FakeRemoteEngine: RemoteEngine {
 	var foreign: Bool { foreignMedia != nil }
 	var mediaTitle: String? { foreignMedia?.title }
 	var mediaImageUrl: String? { foreignMedia?.imageUrl }
+	private(set) var playMethod: String?
 
 	// MARK: - Lifecycle
 
@@ -191,6 +192,13 @@ final class FakeRemoteEngine: RemoteEngine {
 	}
 
 	/// Another sender loads media our receiver does not name; the fake's own list is left behind.
+	/// The receiver names how it plays what it holds (its customData).
+	func simulatePlayMethod(_ method: String?) {
+		guard !stopped else { return }
+		playMethod = method
+		notifyState()
+	}
+
 	func simulateForeignMedia(title: String?, imageUrl: String?) {
 		guard !stopped else { return }
 		foreignMedia = (title, imageUrl)
@@ -288,7 +296,7 @@ final class FakeRemoteEngine: RemoteEngine {
 	}
 
 	private func notifyState() {
-		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl]
+		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl, playMethod]
 		guard !stopped, state != heardState else { return }
 		heardState = state
 		onStateChanged?()

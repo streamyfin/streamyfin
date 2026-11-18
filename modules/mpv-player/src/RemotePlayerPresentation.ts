@@ -7,6 +7,7 @@ import type {
   RemotePlayerFailure,
   RemotePlayerPresentConfig,
   RemotePlayerTint,
+  RemoteTechnicalLine,
 } from "./RemotePlayerPresentation.types";
 
 /**
@@ -60,6 +61,14 @@ export const showRemotePlayerFailure = async (
 ): Promise<void> => {
   if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return;
   await NativePlayerNativeModule.showRemotePlayerFailure(failure);
+};
+
+/** The lines of the remote screen's technical info panel, what the TV plays; nothing where no remote screen opens. */
+export const updateRemoteTechnicalInfo = async (
+  lines: RemoteTechnicalLine[],
+): Promise<void> => {
+  if (!isRemotePlayerAvailable() || !NativePlayerNativeModule) return;
+  await NativePlayerNativeModule.updateRemoteTechnicalInfo(lines);
 };
 
 /**

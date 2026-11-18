@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,9 +44,15 @@ fun TechnicalInfoOverlay(
     modifier: Modifier = Modifier
 ) {
     var techInfo by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
+    val fromJs = viewModel.capabilities.technicalInfoFromJs
 
-    LaunchedEffect(Unit) {
-        while (true) {
+    // A remote panel asks JS for its lines while it is shown; a local one reads its engine.
+    DisposableEffect(Unit) {
+        viewModel.technicalInfoShown(true)
+        onDispose { viewModel.technicalInfoShown(false) }
+    }
+    LaunchedEffect(fromJs) {
+        while (!fromJs) {
             techInfo = viewModel.technicalInfo()
             delay(1000L)
         }
@@ -80,29 +87,33 @@ fun TechnicalInfoOverlay(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.2f))
 
-            TechInfoRow("Video Codec", techInfo["videoCodec"]?.toString() ?: "N/A")
-            val w = techInfo["videoWidth"]
-            val h = techInfo["videoHeight"]
-            if (w != null && h != null) {
-                TechInfoRow("Resolution", "${w}x${h}")
+            if (fromJs) {
+                viewModel.technicalLines.forEach { (label, value) -> TechInfoRow(label, value) }
+            } else {
+                TechInfoRow("Video Codec", techInfo["videoCodec"]?.toString() ?: "N/A")
+                val w = techInfo["videoWidth"]
+                val h = techInfo["videoHeight"]
+                if (w != null && h != null) {
+                    TechInfoRow("Resolution", "${w}x${h}")
+                }
+                techInfo["fps"]?.let { TechInfoRow("FPS", String.format("%.2f", it)) }
+                techInfo["estimatedVfFps"]?.let { TechInfoRow("Render FPS", String.format("%.2f", it)) }
+                techInfo["videoBitrate"]?.let { TechInfoRow("Video Bitrate", "${(it as Number).toInt() / 1000} kbps") }
+                techInfo["audioCodec"]?.let { TechInfoRow("Audio Codec", it.toString()) }
+                techInfo["audioBitrate"]?.let { TechInfoRow("Audio Bitrate", "${(it as Number).toInt() / 1000} kbps") }
+                // Decoder rows are engine-dependent: mpv reports hwdec, the
+                // Media3 engine reports decoderName/decoderType. Each engine's
+                // page shows its own — the other's keys are simply absent.
+                techInfo["hwdec"]?.let { TechInfoRow("Decoder", it.toString()) }
+                techInfo["decoderName"]?.let { TechInfoRow("Decoder", it.toString()) }
+                techInfo["decoderType"]?.let { TechInfoRow("Decode", it.toString()) }
+                techInfo["hdrFormat"]?.let { TechInfoRow("HDR", it.toString()) }
+                techInfo["voDriver"]?.let { TechInfoRow("VO Driver", it.toString()) }
+                techInfo["cacheSeconds"]?.let { TechInfoRow("Buffer", String.format("%.1f s", it)) }
+                techInfo["droppedFrames"]?.let { TechInfoRow("Dropped Frames", it.toString()) }
+                techInfo["primaries"]?.let { TechInfoRow("Primaries", it.toString()) }
+                techInfo["gamma"]?.let { TechInfoRow("Gamma", it.toString()) }
             }
-            techInfo["fps"]?.let { TechInfoRow("FPS", String.format("%.2f", it)) }
-            techInfo["estimatedVfFps"]?.let { TechInfoRow("Render FPS", String.format("%.2f", it)) }
-            techInfo["videoBitrate"]?.let { TechInfoRow("Video Bitrate", "${(it as Number).toInt() / 1000} kbps") }
-            techInfo["audioCodec"]?.let { TechInfoRow("Audio Codec", it.toString()) }
-            techInfo["audioBitrate"]?.let { TechInfoRow("Audio Bitrate", "${(it as Number).toInt() / 1000} kbps") }
-            // Decoder rows are engine-dependent: mpv reports hwdec, the
-            // Media3 engine reports decoderName/decoderType. Each engine's
-            // page shows its own — the other's keys are simply absent.
-            techInfo["hwdec"]?.let { TechInfoRow("Decoder", it.toString()) }
-            techInfo["decoderName"]?.let { TechInfoRow("Decoder", it.toString()) }
-            techInfo["decoderType"]?.let { TechInfoRow("Decode", it.toString()) }
-            techInfo["hdrFormat"]?.let { TechInfoRow("HDR", it.toString()) }
-            techInfo["voDriver"]?.let { TechInfoRow("VO Driver", it.toString()) }
-            techInfo["cacheSeconds"]?.let { TechInfoRow("Buffer", String.format("%.1f s", it)) }
-            techInfo["droppedFrames"]?.let { TechInfoRow("Dropped Frames", it.toString()) }
-            techInfo["primaries"]?.let { TechInfoRow("Primaries", it.toString()) }
-            techInfo["gamma"]?.let { TechInfoRow("Gamma", it.toString()) }
         }
     }
 }

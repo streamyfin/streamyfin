@@ -183,6 +183,16 @@ class RemotePlaybackTest {
         assertEquals("https://other.example.test/bbb.jpg", map["imageUrl"])
     }
 
+    // How the TV plays what it holds goes to JS with the rest: the technical info panel reads it.
+    @Test
+    fun theSnapshotPublishesHowTheTvPlays() {
+        connected()
+        assertNull(published.last().playMethod)
+        made.last().inner.simulatePlayMethod("Transcode")
+        assertEquals("Transcode", published.last().playMethod)
+        assertEquals("Transcode", published.last().toMap()["playMethod"])
+    }
+
     @Test
     fun theSnapshotFollowsTheEngineState() {
         val engine = connected()

@@ -240,6 +240,8 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	/// The Cast metadata's title and first image of what the TV holds, whoever loaded it; nil without media.
 	var mediaTitle: String? { get }
 	var mediaImageUrl: String? { get }
+	/// How the TV plays what it holds, in the receiver's word ("DirectPlay", "DirectStream", "Transcode"); nil unknown.
+	var playMethod: String? { get }
 	/// Called on the main thread when anything but the position changed: phase, item, list, index, a track,
 	/// `reconnecting`, the media's title or image.
 	var onStateChanged: (() -> Void)? { get set }

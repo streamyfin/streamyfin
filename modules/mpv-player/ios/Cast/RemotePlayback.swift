@@ -198,7 +198,8 @@ final class RemotePlayback: PlayerEngineDelegate {
       reconnecting: suspended || engine?.reconnecting == true, itemId: engine?.currentItemId, positionSec: 0,
       durationSec: 0, audioIndex: audio, subtitleIndex: subtitle, queueItemIds: engine?.queueItemIds ?? [],
       playingIndex: engine?.playingIndex ?? -1, foreign: engine?.foreign == true, title: engine?.mediaTitle,
-      imageUrl: engine?.mediaImageUrl
+      imageUrl: engine?.mediaImageUrl,
+      playMethod: engine?.playMethod
     )
     if next.itemId == nil { readyToSeek = false }
     lock.lock()

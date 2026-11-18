@@ -1387,6 +1387,21 @@ class CastEngineTest {
         assertEquals("https://jellyfin.example.test/Items/item-1/Images/Primary", engine.mediaImageUrl)
     }
 
+    // What the TV really plays is the receiver's word: its customData names the method, and a reload's new
+    // play session (another cap) another one, which the remote screen hears of.
+    @Test
+    fun thePlayMethodComesFromTheReceiversCustomData() {
+        val engine = playing(42_500, "playSessionId" to "ps-1", "playMethod" to "DirectPlay")
+        assertEquals("DirectPlay", engine.playMethod)
+        val changes = engine.countStateChanges()
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "playMethod" to "Transcode")))
+        assertEquals("Transcode", engine.playMethod)
+        assertEquals(1, changes())
+        // Media another sender loaded names none.
+        media.report(snapshot(customData = null, title = "Big Buck Bunny"))
+        assertNull(engine.playMethod)
+    }
+
     private fun CastEngine.countStateChanges(): () -> Int {
         var changes = 0
         onStateChanged = { changes += 1 }

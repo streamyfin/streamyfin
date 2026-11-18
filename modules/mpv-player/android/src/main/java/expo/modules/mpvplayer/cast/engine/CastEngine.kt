@@ -165,6 +165,7 @@ class CastEngine(
         val foreign: Boolean,
         val title: String?,
         val imageUrl: String?,
+        val playMethod: String?,
     )
 
     private val busListener = object : ReceiverBusListener {
@@ -606,6 +607,8 @@ class CastEngine(
         get() = title
     override val mediaImageUrl: String?
         get() = imageUrl
+    override val playMethod: String?
+        get() = ours?.playMethod
 
     // Read on the main thread, where the callbacks that change these run.
     override val phase: RemotePhase
@@ -984,7 +987,10 @@ class CastEngine(
     }
 
     private fun notifyState() {
-        val state = HeardState(phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle, foreign, title, imageUrl)
+        val state = HeardState(
+            phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle, foreign, title, imageUrl,
+            ours?.playMethod,
+        )
         if (state == heardState) return
         heardState = state
         onStateChanged?.invoke()

@@ -49,6 +49,7 @@ const playing: RemotePlaybackState = {
   foreign: false,
   title: "Episode 1",
   imageUrl: null,
+  playMethod: "DirectPlay",
 };
 
 const server: ReceiverServerRecord = {
