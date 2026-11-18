@@ -41,7 +41,10 @@ import {
 import { getDeviceName, getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
-import { endSessionOnServer } from "@/utils/jellyfin/endSession";
+import {
+  endSessionOnServerAfter,
+  sessionEndsSettled,
+} from "@/utils/jellyfin/endSession";
 import {
   hasLegacyRoutePrefix,
   migrateLegacyServerAddress,
@@ -460,6 +463,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!api || !jellyfin) throw new Error("API not initialized");
 
+      // An end still on its way would end this session as well.
+      await sessionEndsSettled();
+
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
         // Authenticating writes the token into the Api that asked (SDK 1.0),
@@ -656,15 +662,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // After the push row, whose delete is sent with the token this ends.
         const { basePath, accessToken } = api;
         if (jellyfin && accessToken) {
-          const userId = user?.Id;
-          void pushRowDeleted.then(() =>
-            endSessionOnServer({
-              jellyfin,
-              serverUrl: basePath,
-              token: accessToken,
-              userId,
-            }),
-          );
+          endSessionOnServerAfter(pushRowDeleted, {
+            jellyfin,
+            serverUrl: basePath,
+            token: accessToken,
+            userId: user?.Id,
+          });
         }
       }
 
@@ -698,6 +701,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // attempt: the user is told to sign in again, as for a rejected token.
         throw markExpectedError(new Error(t("server.session_expired")));
       }
+
+      // An end still on its way would end this session as well.
+      await sessionEndsSettled();
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -805,6 +811,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // As for a saved token: the server moves off a legacy prefix first.
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
+
+      // An end still on its way would end this session as well.
+      await sessionEndsSettled();
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
@@ -1019,9 +1028,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             // An address saved with /emby or /mediabrowser answers nothing
             // once its server is on Jellyfin 12, so the session moves to the
             // root address when that is the same server. Before the
-            // validation, which looks the saved account up by address and
-            // would save it again under the old one. Not awaited either: it
-            // asks the network.
+            // validation, which looks the saved account up by address and,
+            // refreshing its picture, would list it again under the old one.
+            // Not awaited either: it asks the network.
             void migrateLegacyServerAddress(serverUrl, {
               // What proves the root to be this server and not another one
               // behind the same host.
