@@ -9,6 +9,8 @@ import { useNativePlayer } from "@/providers/NativePlayerProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { isNativeChromeActive, useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
+import { liveTvBitrateRequest } from "@/utils/bitrate";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { writeErrorLog } from "@/utils/log";
 import {
@@ -69,9 +71,7 @@ export const usePlayMedia = () => {
         return;
       }
 
-      const isLive =
-        options?.item?.Type === "Program" ||
-        options?.item?.Type === "TvChannel";
+      const isLive = isLiveTvItem(options?.item);
 
       if (syncPlay.enabled) {
         if (req.offline || isLive) {
@@ -138,7 +138,11 @@ export const usePlayMedia = () => {
         return;
       }
 
-      router.push(`/player/direct-player?${toDirectPlayerQuery(req)}`);
+      const routeReq: PlayRequest = {
+        ...req,
+        bitrateValue: liveTvBitrateRequest(options?.item, req.bitrateValue),
+      };
+      router.push(`/player/direct-player?${toDirectPlayerQuery(routeReq)}`);
     },
     [router, settings, setShuffleQueue, presentFromRequest, syncPlay, t],
   );

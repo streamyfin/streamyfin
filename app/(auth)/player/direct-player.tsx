@@ -6,11 +6,7 @@ import {
   PlaybackProgressInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
-import {
-  getLibraryApi,
-  getMediaInfoApi,
-  getSessionApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, usePreventRemove } from "expo-router";
@@ -29,7 +25,6 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { AutoSubtitleNotice } from "@/components/video-player/controls/AutoSubtitleNotice";
@@ -71,6 +66,12 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
+import {
+  type BitrateRequest,
+  liveTvBitrateRequest,
+  parseBitrateParam,
+  withDefaultBitrate,
+} from "@/utils/bitrate";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
@@ -81,11 +82,14 @@ import {
 import { createVolumeStepper } from "@/utils/directPlayer/volumeStepper";
 import { isExpectedError } from "@/utils/errors";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
+import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
+import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import {
@@ -234,11 +238,23 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  const bitrateValue = bitrateValueStr
-    ? Number.parseInt(bitrateValueStr, 10)
-    : BITRATES[0].value;
+  // A route that names no quality (a Play command from another client, a Top
+  // Shelf tile) plays at the default one. Auto stays Auto in the route, so
+  // every stream asked for, the next episode's included, is asked at what the
+  // connection measures then.
+  const bitrateValue = withDefaultBitrate(
+    parseBitrateParam(bitrateValueStr),
+    settings.defaultBitrate,
+  );
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
+  // What this item plays at: live TV whose route names no quality plays
+  // uncapped, whatever the default. A swap of the same item carries it; the
+  // next and previous items carry the route's own.
+  const effectiveBitrateValue = withDefaultBitrate(
+    liveTvBitrateRequest(item, parseBitrateParam(bitrateValueStr)),
+    settings.defaultBitrate,
+  );
   const initialSeekDoneRef = useRef(false);
 
   /** Position MPV is told to start from, see resolveStartTicks. */
@@ -459,10 +475,10 @@ export default function DirectPlayerPage() {
 
   // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
   // never closed, Jellyfin's M3U tuner limit fills up and every channel then
-  // fails with "simultaneous stream limit has been reached". reportPlaybackStopped
-  // handles a clean stop, but a channel switch (the player re-fetches in place)
-  // or an unmount after an error bypass it, so track the open live stream and
-  // release it on those paths too.
+  // fails with "simultaneous stream limit has been reached". The effect below
+  // is the one place that gives it back, once per negotiation: the stop report
+  // no longer names it, since the server shares a channel's stream and a
+  // second release cuts it for others.
   const apiRef = useRef(api);
   useEffect(() => {
     apiRef.current = api;
@@ -507,25 +523,44 @@ export default function DirectPlayerPage() {
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
       if (!liveStreamId || !apiRef.current || offline) return;
-      // Best effort: a failed close must not break teardown, and the slot is
-      // also freed by the server's reap as a backstop.
-      getMediaInfoApi(apiRef.current)
-        .closeLiveStream({ liveStreamId })
-        .catch(() => {});
+      // Best effort: a failed close must not break teardown. Nothing else
+      // gives the reference back, the server only reaps a stream that a
+      // progress report named, and none does: closeLiveStream retries a
+      // close that got no answer.
+      closeLiveStream(apiRef.current, liveStreamId).catch(() => {});
     },
     [offline],
   );
 
-  // The effect cleanup releases the live stream both when it changes (channel
-  // switch, which re-runs the effect) and when the player unmounts, so no
-  // manual previous-id tracking is needed.
-  useEffect(() => {
-    const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
-    return () => releaseLiveStream(liveStreamId);
-  }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
+  // One release per negotiation. Keyed on the stream, not its LiveStreamId: a
+  // shared channel keeps the same id across negotiations, and the server
+  // counts each of them, so a stream negotiated again in place (a subtitle
+  // refresh, a server URL change) still gives its reference back. stop()
+  // releases the stream it ends, the effect cleanup the one a new stream
+  // replaces or the player unmounts with: whichever comes first gives it back.
+  const releasedStreamRef = useRef<Stream | null>(null);
+  const releaseStream = useCallback(
+    (negotiated: Stream | null) => {
+      if (!negotiated || releasedStreamRef.current === negotiated) return;
+      releasedStreamRef.current = negotiated;
+      releaseLiveStream(negotiated.mediaSource?.LiveStreamId ?? null);
+    },
+    [releaseLiveStream],
+  );
 
   useEffect(() => {
+    return () => releaseStream(stream);
+  }, [stream, releaseStream]);
+
+  useEffect(() => {
+    // False once the page is left or the effect runs again (a new api on a
+    // Wi-Fi change, a new quality): this run's answer, which Auto's measure
+    // can hold up for seconds, then neither plays nor fails anything.
+    let current = true;
     const fetchStreamData = async (): Promise<Stream | null> => {
+      // A remote Stop can end playback with the page still up, when there is
+      // no screen to go back to: a stopped page negotiates nothing more.
+      if (isPlaybackStoppedRef.current) return null;
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
@@ -564,13 +599,19 @@ export default function DirectPlayerPage() {
             return null;
           }
 
+          const maxStreamingBitrate = await resolveMaxStreamingBitrate(
+            api,
+            effectiveBitrateValue,
+            autoBitrateOptions(settings),
+          );
+          if (!current || isPlaybackStoppedRef.current) return null;
           const res = await getStreamUrl({
             api,
             item,
             startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
-            maxStreamingBitrate: bitrateValue,
+            maxStreamingBitrate,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
             // Match the device profile to the player that will render the
@@ -581,6 +622,14 @@ export default function DirectPlayerPage() {
               audioMode: settings.audioTranscodeMode,
             }),
           });
+          if (!current || isPlaybackStoppedRef.current) {
+            // The server opened it for a page that is gone, or for playback a
+            // remote Stop ended meanwhile: nothing else closes it. After a
+            // Stop the loader stays up: clearing it mounts the player again,
+            // and it plays.
+            releaseLiveStream(res?.mediaSource?.LiveStreamId ?? null);
+            return null;
+          }
           if (!res) {
             // Without flipping isError this path used to leave the loading
             // spinner up forever.
@@ -615,6 +664,7 @@ export default function DirectPlayerPage() {
         setStreamStatus({ isLoading: false, isError: false });
         return result;
       } catch (error) {
+        if (!current || isPlaybackStoppedRef.current) return null;
         logAndCaptureError("Failed to fetch stream", error, {
           itemType: item?.Type,
           player: getActivePlayerType(settings),
@@ -640,10 +690,13 @@ export default function DirectPlayerPage() {
     // Store the fetch function in ref for use by refresh handler
     refetchStreamRef.current = fetchStreamData;
     fetchStreamData();
+    return () => {
+      current = false;
+    };
   }, [
     itemId,
     mediaSourceId,
-    bitrateValue,
+    effectiveBitrateValue,
     api,
     item,
     user?.Id,
@@ -723,12 +776,10 @@ export default function DirectPlayerPage() {
           MediaSourceId: mediaSourceId,
           PositionTicks: currentTimeInTicks,
           PlaySessionId: stream.sessionId || undefined,
-          // Release the server-side live stream (and its tuner slot) on stop.
-          // Jellyfin only closes a live stream opened via autoOpenLiveStream when
-          // the stop report carries its LiveStreamId; without it the stream leaks
-          // and Live TV eventually fails for everyone with "M3U simultaneous
-          // stream limit has been reached". Undefined for non-live items (no-op).
-          LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
+          // No LiveStreamId: releaseLiveStream gives the stream back when the
+          // player unmounts or the stream changes. Named here, it is released
+          // a second time, and a channel's stream is shared, so that cuts it
+          // from under another device on the channel.
         },
       });
     } catch (error) {
@@ -753,6 +804,9 @@ export default function DirectPlayerPage() {
       playbackPosition: getSessionPositionTicks().toString(),
     });
     reportPlaybackStopped();
+    // A remote Stop leaves the page up when there is no screen to go back
+    // to: the stream would otherwise stay held until the user leaves it.
+    releaseStream(stream);
     markPlaybackStopped();
     // Synchronously destroy the mpv instance + decoder + surface buffers
     // BEFORE the screen unmounts. Otherwise the next screen (or the next
@@ -774,6 +828,8 @@ export default function DirectPlayerPage() {
   }, [
     videoRef,
     reportPlaybackStopped,
+    releaseStream,
+    stream,
     markPlaybackStopped,
     getSessionPositionTicks,
     resumeInactivityTimer,
@@ -1267,7 +1323,7 @@ export default function DirectPlayerPage() {
           // instance — the server must be asked for "none" (-1) instead.
           subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
-          bitrateValue: bitrateValue?.toString() ?? "",
+          bitrateValue: effectiveBitrateValue.toString(),
           playbackPosition: getSessionPositionTicks().toString(),
         }).toString();
         // Destroy the current mpv instance BEFORE navigating, same rationale as
@@ -1285,7 +1341,7 @@ export default function DirectPlayerPage() {
       stream?.mediaSource,
       item?.Id,
       currentSubtitleIndex,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],
@@ -1330,7 +1386,7 @@ export default function DirectPlayerPage() {
           params.subtitleIndex ??
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
-        bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
+        bitrateValue: params.bitrateValue ?? effectiveBitrateValue.toString(),
         playbackPosition: getSessionPositionTicks().toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
@@ -1344,7 +1400,7 @@ export default function DirectPlayerPage() {
       currentAudioIndex,
       currentSubtitleIndex,
       stream?.mediaSource?.Id,
-      bitrateValue,
+      effectiveBitrateValue,
       router,
       getSessionPositionTicks,
     ],
@@ -1354,7 +1410,7 @@ export default function DirectPlayerPage() {
   // re-negotiating the stream with the server, so it goes through the same
   // player-replace path as track changes while transcoding.
   const handleBitrateChange = useCallback(
-    (bitrate: number | undefined) => {
+    (bitrate: BitrateRequest | undefined) => {
       replaceWithTrackSelection({ bitrateValue: bitrate?.toString() ?? "" });
     },
     [replaceWithTrackSelection],

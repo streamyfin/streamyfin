@@ -27,6 +27,12 @@ jest.mock("@/utils/log", () => ({
 }));
 // The custom-header barrel touches MMKV and SecureStore; the shared double
 // keeps the pure helpers real.
+// Auto, the default quality, measures the server through NetInfo, which has
+// no native module here; these specs are not about the quality, so the
+// measure finds nothing and the stream is asked for as under Max.
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: async () => undefined,
+}));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
@@ -82,6 +88,7 @@ const build = (settings: Record<string, unknown>) =>
     getDownloadedItemById: () => undefined,
     strings,
     originalLabel: "Original",
+    qualityLabel: (bitrate: { key: string }) => bitrate.key,
   });
 
 // The native session switches the display mode to match this rate, so the
@@ -120,6 +127,7 @@ describe("contentFrameRate is opt-in wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
     expect(result?.config.stream.contentFrameRate).toBeUndefined();
   });

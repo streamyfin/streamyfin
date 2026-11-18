@@ -258,6 +258,18 @@ describe("localSubtitleFileName", () => {
       ),
     ).toMatch(/^item-1-ms-1-3-[0-9a-f]{8}\.srt$/);
   });
+
+  test("path characters in the server's ids stay inside one file name", () => {
+    const name = localSubtitleFileName(
+      { ...item, Id: "../../../Documents/private" } as BaseItemDto,
+      "../payload",
+      externalSub({ Index: "../x" as unknown as number }),
+      REMOTE_URL,
+    );
+    expect(name).toMatch(
+      /^_________Documents_private-___payload-___x-[0-9a-f]{8}\.srt$/,
+    );
+  });
 });
 
 test("a restarted app never reuses a staging name, even in the same millisecond", () => {

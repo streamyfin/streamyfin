@@ -30,7 +30,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import {
   TVControlButton,
@@ -54,12 +53,18 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import {
+  type BitrateRequest,
+  parseBitrateParam,
+  playerQualityOptions,
+} from "@/utils/bitrate";
 import { resolveStartTicks } from "@/utils/directPlayer/sessionPosition";
 import { episodeSubtitle } from "@/utils/episodeLabel";
 import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { requestTVFocus } from "@/utils/requestTVFocus";
@@ -101,7 +106,7 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
-  onBitrateChange?: (bitrate: number | undefined) => void;
+  onBitrateChange?: (bitrate: BitrateRequest | undefined) => void;
   /** Combined device-volume and player mute state. */
   isMuted?: boolean;
   /** Toggles the player's own mute; omit to hide the control. */
@@ -357,19 +362,17 @@ export const Controls: FC<Props> = ({
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
-  // string, "" meaning Max (no limit) — same encoding as the bitrateValue
-  // route param, so selection matching is a plain string compare.
-  const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
-    return BITRATES.map((bitrate) => ({
-      label: bitrate.key,
-      value: bitrate.value?.toString() ?? "",
-      selected: (bitrateValue ?? "") === (bitrate.value?.toString() ?? ""),
-    }));
-  }, [bitrateValue]);
+  // string, "max" Max (no limit) and "auto" Auto — same encoding as the
+  // bitrateValue route param, so selection matching is a plain string compare.
+  // A route that names none plays at the default quality, marked as such.
+  const bitrateOptions: TVOptionItem<string>[] = useMemo(
+    () => playerQualityOptions(t, bitrateValue, settings.defaultBitrate, item),
+    [bitrateValue, settings.defaultBitrate, t, item],
+  );
 
   const handleBitrateChange = useCallback(
     (value: string) => {
-      onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
+      onBitrateChange?.(parseBitrateParam(value));
     },
     [onBitrateChange],
   );
@@ -578,7 +581,7 @@ export const Controls: FC<Props> = ({
   ]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
-  const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
+  const isLiveTV = isLiveTvItem(item);
 
   // For live TV, determine if we're at the live edge (within 5 seconds of max)
   const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms
