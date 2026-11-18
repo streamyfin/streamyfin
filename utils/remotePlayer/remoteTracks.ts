@@ -10,7 +10,10 @@ import {
   setRemoteSubtitleTrack,
 } from "@/modules/mpv-player/src/cast";
 import type { ReceiverServerRecord } from "@/modules/mpv-player/src/cast/Cast.types";
-import { updateNativePlayerTrackMenus } from "@/modules/mpv-player/src/NativePlayerPresentation";
+import {
+  nativePlayerShowNotice,
+  updateNativePlayerTrackMenus,
+} from "@/modules/mpv-player/src/NativePlayerPresentation";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
 import {
@@ -30,6 +33,11 @@ import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { buildRemoteTrackMenus } from "./buildRemotePlayerConfig";
 import { receiverBitrateFor } from "./playOnRemote";
+import {
+  evaluateRemoteAutoSubtitle,
+  INITIAL_REMOTE_AUTO_SUBTITLE,
+  type RemoteAutoSubtitle,
+} from "./remoteAutoSubtitle";
 
 export interface RemoteTrackDeps {
   store: Pick<ReturnType<typeof createStore>, "get" | "set">;
@@ -162,4 +170,43 @@ export const changeRemoteQuality = async (
   );
   await reloadOnReceiver({ ...deps.server, maxBitrate });
   if (play) await showMenus(deps, play, quality);
+};
+
+/**
+ * Subtitles while the TV is muted, as the local players turn them on: the policy sees the TV's mute and the play the
+ * screen holds, and its choice goes to the TV. Called on a mute change and on each write of the held play, never on
+ * a bare status: a track just asked for is still reported off for a moment. `policy` keeps the state between calls.
+ */
+export const followRemoteMute = async (
+  deps: RemoteTrackDeps,
+  policy: { current: RemoteAutoSubtitle },
+  remote: RemoteTarget | null,
+  muted: boolean,
+): Promise<void> => {
+  const held = deps.store.get(remotePlayAtom);
+  if (!held) {
+    policy.current = INITIAL_REMOTE_AUTO_SUBTITLE;
+    return;
+  }
+  // A send in flight holds the phone's tracks, not the TV's; without a TV there is nothing to send to.
+  if (!held.loaded || !remote) return;
+  const { next, action } = evaluateRemoteAutoSubtitle(policy.current, {
+    muted,
+    play: held.play,
+    settings: deps.store.get(effectiveSettingsAtom),
+  });
+  policy.current = next;
+  // No series memory here: a track turned on for the mute is not the user's choice.
+  if (action.kind === "apply") {
+    await setRemoteSubtitleTrack(action.index);
+    await nativePlayerShowNotice(deps.t("player.auto_subtitles_enabled"));
+  } else if (action.kind === "revert") {
+    await setRemoteSubtitleTrack(SUBTITLES_OFF);
+  } else if (action.kind === "notice") {
+    await nativePlayerShowNotice(
+      action.reason === "restart-required"
+        ? deps.t("player.auto_subtitles_restart_required")
+        : deps.t("player.auto_subtitles_none"),
+    );
+  }
 };

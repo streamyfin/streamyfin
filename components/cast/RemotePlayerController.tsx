@@ -36,6 +36,7 @@ import {
   followOnRemote,
   playOnRemote,
 } from "@/utils/remotePlayer/playOnRemote";
+import { INITIAL_REMOTE_AUTO_SUBTITLE } from "@/utils/remotePlayer/remoteAutoSubtitle";
 import {
   episodeAfter,
   episodeBefore,
@@ -43,6 +44,7 @@ import {
 import {
   changeRemoteQuality,
   chooseRemoteTrack,
+  followRemoteMute,
   followRemoteTracks,
 } from "@/utils/remotePlayer/remoteTracks";
 import { seriesEpisodes } from "@/utils/remotePlayer/seriesEpisodes";
@@ -64,7 +66,7 @@ export function RemotePlayerController() {
   // The receiver names its Jellyfin device from each message: the TV's name goes with the server. It comes from
   // the hub's target, which a suspended session keeps; the JS session goes null there, and a server without the
   // name would make native drop the engine an open remote screen holds.
-  const { target } = useRemoteTarget();
+  const { target, muted } = useRemoteTarget();
   const receiverName = receiverNameFor(
     target?.kind === "cast" ? { friendlyName: target.name } : null,
   );
@@ -95,6 +97,28 @@ export function RemotePlayerController() {
       updateSettings,
     };
   }, [playMedia, syncPlay.enabled, t, castTarget, updateSettings]);
+
+  // Subtitles while the TV is muted: on each mute change, and on each write of the held play (a new item, the TV
+  // reporting another track); subscribed again with the mute it reads.
+  const autoSubtitle = useRef(INITIAL_REMOTE_AUTO_SUBTITLE);
+  useEffect(() => {
+    if (!routed) return;
+    const evaluate = () => {
+      followRemoteMute(
+        { store, t: latest.current.t },
+        autoSubtitle,
+        latest.current.castTarget,
+        muted,
+      ).catch((error) => {
+        logAndCaptureError(
+          "Turning subtitles on for the muted TV failed",
+          error,
+        );
+      });
+    };
+    evaluate();
+    return store.sub(remotePlayAtom, evaluate);
+  }, [routed, store, muted]);
 
   useEffect(() => {
     if (!routed) return;

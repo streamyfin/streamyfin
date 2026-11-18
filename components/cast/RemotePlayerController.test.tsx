@@ -818,3 +818,157 @@ describe("tracks and quality from the remote player", () => {
     expect(checked(lastMenus().quality ?? [])).toEqual([4_000_000]);
   });
 });
+
+describe("subtitles while the TV is muted", () => {
+  const episode = (id: string, streams: object[]): BaseItemDto => ({
+    Id: id,
+    Name: id,
+    Type: "Episode",
+    MediaType: "Video",
+    SeriesId: "series-m",
+    MediaSources: [
+      {
+        Id: `source-${id}`,
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          { Type: "Audio", Index: 1, Language: "eng", IsDefault: true },
+          ...streams,
+        ],
+      },
+    ],
+  });
+  const text = {
+    Type: "Subtitle",
+    Index: 3,
+    Language: "fre",
+    Codec: "subrip",
+    IsTextSubtitleStream: true,
+  };
+  const picture = {
+    Type: "Subtitle",
+    Index: 4,
+    Language: "eng",
+    Codec: "pgssub",
+    IsTextSubtitleStream: false,
+  };
+  const shows = (item: BaseItemDto, subtitleIndex = -1) => {
+    store.set(remotePlayAtom, {
+      play: {
+        item,
+        positionTicks: 0,
+        mediaSourceId: `source-${item.Id}`,
+        audioIndex: 1,
+        subtitleIndex,
+      },
+      loaded: true,
+    });
+  };
+  const tvShows = async (itemId: string, subtitleIndex: number) => {
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId,
+      audioIndex: 1,
+      subtitleIndex,
+    };
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+  };
+  const mute = async (muted: boolean) => {
+    await act(async () => {
+      emitRemoteTarget(mockCast, { ...connected, muted });
+    });
+  };
+  const subtitleCalls = () =>
+    mockCast.trackCalls
+      .filter((call) => call.kind === "subtitle")
+      .map((call) => call.index);
+
+  beforeEach(() => {
+    store.set(settingsAtom, {
+      subtitlesOnMute: true,
+      subtitlesOnMuteAllowRestart: false,
+    } as never);
+    shows(episode("m1", [text, picture]));
+  });
+
+  afterEach(() => store.set(settingsAtom, null as never));
+
+  test("muting the TV turns on the subtitle the policy picks", async () => {
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3]));
+    expect(mockPlayer.notices).toEqual(["player.auto_subtitles_enabled"]);
+  });
+
+  test("the sound coming back turns it off again", async () => {
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3]));
+    await tvShows("m1", 3);
+    await mute(false);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3, -1]));
+  });
+
+  test("a subtitle the user chose is left alone", async () => {
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3]));
+    await tvShows("m1", 3);
+    await act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onTrackSelectionRequested", {
+        kind: "subtitle",
+        jellyfinIndex: 4,
+        positionSec: 30,
+        remote: true,
+      });
+    });
+    await tvShows("m1", 4);
+    await mute(false);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(subtitleCalls()).toEqual([3, 4]);
+  });
+
+  // A picture subtitle is burned into the picture by the server: turning it on plays the item again.
+  test("a subtitle that would reload the stream is not turned on without the setting", async () => {
+    shows(episode("m2", [picture]));
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await waitFor(() =>
+      expect(mockPlayer.notices).toEqual([
+        "player.auto_subtitles_restart_required",
+      ]),
+    );
+    expect(subtitleCalls()).toEqual([]);
+  });
+
+  test("nothing happens with the setting off", async () => {
+    store.set(settingsAtom, { subtitlesOnMute: false } as never);
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(subtitleCalls()).toEqual([]);
+    expect(mockPlayer.notices).toEqual([]);
+  });
+
+  // The TV goes on to the next episode with the subtitle it had: it stays ours, and goes with the sound.
+  test("the next episode keeps the subtitle while the TV stays muted", async () => {
+    await render(<RemotePlayerController />);
+    await mute(true);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3]));
+    await tvShows("m1", 3);
+    await act(async () => {
+      shows(episode("m3", [text, picture]), 3);
+    });
+    await tvShows("m3", 3);
+    expect(subtitleCalls()).toEqual([3]);
+    await mute(false);
+    await waitFor(() => expect(subtitleCalls()).toEqual([3, -1]));
+  });
+});
