@@ -28,8 +28,9 @@ const audioPlayed = (
 
 /**
  * What the TV really plays, as the remote player's technical info lists it. The method is the receiver's word (its
- * customData), else the server's. A direct play is the source itself; anything else is what the server's transcode
- * sends, so without its session only the method is known: the source's codecs would be wrong.
+ * customData), else the server's. A direct play is the source itself, and so is a direct stream: the receiver names
+ * one only for the static file it plays, a remux it calls a transcode. A transcode is what the server sends, so
+ * without its session only the method is known: the source's codecs would be wrong.
  */
 export const remoteTechnicalInfo = (
   state: RemotePlaybackState,
@@ -48,7 +49,7 @@ export const remoteTechnicalInfo = (
     },
   ];
   const transcode = session?.TranscodingInfo;
-  if (method !== "DirectPlay" && !transcode) return lines;
+  if (method === "Transcode" && !transcode) return lines;
 
   const video = source?.MediaStreams?.find(({ Type }) => Type === "Video");
   const container = transcode?.Container ?? source?.Container;

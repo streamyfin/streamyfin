@@ -31,13 +31,14 @@ const playing = (playMethod: string | null): RemotePlaybackState => ({
   playMethod,
 });
 
-test("direct play says so with the source's codecs", () => {
-  const session: SessionInfoDto = { PlayState: { PlayMethod: "DirectPlay" } };
-
-  expect(
-    remoteTechnicalInfo(playing("DirectPlay"), session, source, t),
-  ).toEqual([
-    { label: "player.technical_info.play_method", value: "Direct Play" },
+// The receiver names a direct stream only for the static file it plays (a remux it calls a transcode), so a direct
+// stream is the source, as a direct play is, even before the server answers.
+test.each([
+  ["DirectPlay", "Direct Play", { PlayState: { PlayMethod: "DirectPlay" } }],
+  ["DirectStream", "Direct Stream", null],
+] as const)("%s says so with the source's codecs", (method, label, session) => {
+  expect(remoteTechnicalInfo(playing(method), session, source, t)).toEqual([
+    { label: "player.technical_info.play_method", value: label },
     { label: "player.technical_info.container", value: "MKV" },
     { label: "player.technical_info.video_codec", value: "HEVC" },
     // The audio track the TV plays, not the source's first.
