@@ -464,7 +464,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!api || !jellyfin) throw new Error("API not initialized");
 
       // An end still on its way would end this session as well.
-      await sessionEndsSettled();
+      await sessionEndsSettled(api.basePath);
 
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
@@ -703,7 +703,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       // An end still on its way would end this session as well.
-      await sessionEndsSettled();
+      await sessionEndsSettled(serverUrl);
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -813,7 +813,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
 
       // An end still on its way would end this session as well.
-      await sessionEndsSettled();
+      await sessionEndsSettled(serverUrl);
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);

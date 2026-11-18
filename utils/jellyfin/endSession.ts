@@ -2,6 +2,7 @@ import type { Jellyfin } from "@jellyfin/sdk";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import axios from "axios";
 import { SIGN_OUT_SESSION_END_TIMEOUT_MS } from "@/constants/Jellyfin";
+import { normalizeHttpBaseUrl } from "@/utils/customHeaders";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import {
@@ -17,8 +18,25 @@ interface SessionToEnd {
   userId?: string;
 }
 
-// The last session end queued, which a sign-in waits for.
-let ending: Promise<void> = Promise.resolve();
+// The session ends still on their way, by server: a sign-in waits for those
+// of its own server, the only sessions that server can end with them.
+const ending = new Map<string, Promise<void>>();
+
+/**
+ * The server an address reaches. Its local address and the one it is listed
+ * under are the same server; an address not listed stands for itself.
+ */
+function serverOf(url: string): string {
+  const address = normalizeHttpBaseUrl(url);
+  const listed = getPreviousServers().find((server) => {
+    const local = server.localNetworkConfig?.localUrl;
+    return (
+      normalizeHttpBaseUrl(server.address) === address ||
+      (local !== undefined && normalizeHttpBaseUrl(local) === address)
+    );
+  });
+  return listed ? normalizeHttpBaseUrl(listed.address) : address;
+}
 
 /**
  * Whether a saved account signs in again with this very token. One with no
@@ -97,13 +115,22 @@ export function endSessionOnServerAfter(
   after: Promise<unknown>,
   session: SessionToEnd,
 ): void {
+  const server = serverOf(session.serverUrl);
   const end = () => endSessionOnServer(session);
-  ending = after.then(end, end);
+  const settled = Promise.all([ending.get(server), after.then(end, end)]).then(
+    () => undefined,
+  );
+  ending.set(server, settled);
+  void settled.then(() => {
+    if (ending.get(server) === settled) ending.delete(server);
+  });
 }
 
 /**
- * Settles once the session end last queued has. The server ends every session
- * of the device when it ends one, so a sign-in, Quick Connect included, waits
- * for an end still on its way, which would end the session it opens as well.
+ * Settles once the session ends queued for this server have. The server ends
+ * every session of the device when it ends one, so a sign-in, Quick Connect
+ * included, waits for an end still on its way there, which would end the
+ * session it opens as well.
  */
-export const sessionEndsSettled = (): Promise<void> => ending;
+export const sessionEndsSettled = (serverUrl: string): Promise<void> =>
+  ending.get(serverOf(serverUrl)) ?? Promise.resolve();

@@ -12,9 +12,11 @@ import { sessionEndsSettled } from "@/utils/jellyfin/endSession";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
+  addServerToList,
   getAccountCredential,
   getPreviousServers,
   saveAccountCredential,
+  updateServerLocalConfig,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 import { JellyfinProvider, useJellyfin } from "./JellyfinProvider";
@@ -55,6 +57,7 @@ const USER = { Id: "user-1", Name: "alice", ServerId: "server-1" };
 const LOCAL_SERVER = "http://192.168.1.10:8096";
 const OTHER_TOKEN = "fedcba9876543210fedcba9876543210";
 const OTHER_USER = { Id: "user-2", Name: "bob", ServerId: "server-1" };
+const OTHER_SERVER = "https://other.example.com";
 
 // Every api the provider creates gets an axios instance of its own, made from
 // the global defaults, so the adapter installed there answers all of them.
@@ -108,8 +111,8 @@ const renderProvider = async () => {
       password: string,
     ) => provider().loginWithPassword(serverUrl, username, password),
     // The form signs in on the server picked first, as on the login screen.
-    login: async (username: string, password: string) => {
-      await act(() => provider().setServer({ address: SERVER }));
+    login: async (username: string, password: string, address = SERVER) => {
+      await act(() => provider().setServer({ address }));
       return provider().login(username, password);
     },
     initiateQuickConnect: async () => {
@@ -201,7 +204,7 @@ describe("JellyfinProvider sign-out", () => {
       await waitFor(() => expect(sessionEnds()).toHaveLength(1));
       expect(sessionEnds()[0].timeout).toBe(SIGN_OUT_SESSION_END_TIMEOUT_MS);
       let settled = false;
-      void sessionEndsSettled().then(() => {
+      void sessionEndsSettled(SERVER).then(() => {
         settled = true;
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -210,7 +213,7 @@ describe("JellyfinProvider sign-out", () => {
       giveUp();
     }
 
-    await act(() => sessionEndsSettled());
+    await act(() => sessionEndsSettled(SERVER));
     expect(jest.mocked(writeErrorLog)).toHaveBeenCalledWith(
       "Failed to end the session on the server: ECONNABORTED",
     );
@@ -272,7 +275,7 @@ describe("JellyfinProvider sign-out", () => {
 
     // The push registration goes either way; the token stays with the account.
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
-    await act(() => sessionEndsSettled());
+    await act(() => sessionEndsSettled(SERVER));
     expect(sessionEnds()).toHaveLength(0);
   });
 
@@ -307,7 +310,7 @@ describe("JellyfinProvider sign-out", () => {
 
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
     expect(server.history.delete[0].url).toContain(LOCAL_SERVER);
-    await act(() => sessionEndsSettled());
+    await act(() => sessionEndsSettled(LOCAL_SERVER));
     expect(sessionEnds()).toHaveLength(0);
   });
 
@@ -399,6 +402,80 @@ describe("JellyfinProvider sign-out", () => {
       expect(storage.getString("token")).toBe(OTHER_TOKEN);
     },
   );
+
+  // A server only ends the sessions it holds itself.
+  it("lets a sign-in to another server go while this one's end is on its way", async () => {
+    signedInAtLaunch();
+    server
+      .onPost(`${OTHER_SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: OTHER_USER });
+    server.onGet(`${OTHER_SERVER}/Users/Me`).reply(200, OTHER_USER);
+    let answerEnd = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+    const provider = await renderProvider();
+    await act(() => provider.logout());
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+
+    try {
+      const signedIn = provider.login(OTHER_USER.Name, "secret", OTHER_SERVER);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(storage.getString("token")).toBe(OTHER_TOKEN);
+      await act(async () => {
+        await signedIn;
+      });
+    } finally {
+      answerEnd();
+      await act(() => sessionEndsSettled(SERVER));
+    }
+  });
+
+  it("lets a sign-in wait for an end on the local address of its server", async () => {
+    signedInAtLaunch();
+    addServerToList(SERVER);
+    updateServerLocalConfig(SERVER, {
+      localUrl: LOCAL_SERVER,
+      homeWifiSSIDs: [],
+      enabled: true,
+    });
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: OTHER_USER });
+    let answerEnd = () => {};
+    server.onPost(`${LOCAL_SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+    const authentications = () =>
+      server.history.post.filter((request) =>
+        request.url?.endsWith("/Users/AuthenticateByName"),
+      );
+    const provider = await renderProvider();
+    await act(async () => provider.switchServerUrl(LOCAL_SERVER));
+    await act(() => provider.logout());
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    expect(sessionEnds()[0].url).toContain(LOCAL_SERVER);
+
+    try {
+      const signedIn = provider.login(OTHER_USER.Name, "secret");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(authentications()).toHaveLength(0);
+
+      answerEnd();
+      await act(async () => {
+        await signedIn;
+      });
+      expect(authentications()).toHaveLength(1);
+    } finally {
+      answerEnd();
+    }
+  });
 
   it("lets Quick Connect wait for the session end still on its way", async () => {
     signedInAtLaunch();

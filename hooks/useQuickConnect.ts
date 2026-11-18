@@ -101,7 +101,7 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
 
     try {
       // An end still on its way would end the session this code opens too.
-      await sessionEndsSettled();
+      await sessionEndsSettled(api.basePath);
       if (!isCurrent(attempt)) return;
 
       const response = await api.axiosInstance.post(
