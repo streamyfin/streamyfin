@@ -915,6 +915,7 @@ describe("direct player stop report", () => {
         await openPlayer();
         await tracksReady();
 
+        expect(mockControlsProps).not.toBeNull();
         expect(mockControlsProps?.audioIndex).toBeUndefined();
         expect(mockPlayer.setAudioTrack).not.toHaveBeenCalled();
       } finally {
