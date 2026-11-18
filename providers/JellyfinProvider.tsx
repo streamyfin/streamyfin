@@ -335,6 +335,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     const token = api?.accessToken;
     if (!api || !token) return;
     sessionExpiredRef.current = false; // re-arm for this fresh session
+    // A saved account switched back to signs in with the token it was left
+    // with, which is in use again.
+    leftTokensRef.current.delete(token);
     const interceptorId = api.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {

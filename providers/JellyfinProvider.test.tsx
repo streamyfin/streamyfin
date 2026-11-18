@@ -761,6 +761,26 @@ describe("JellyfinProvider account switch", () => {
     }
   });
 
+  // A saved account keeps its token through the switch, so coming back to it
+  // puts that very token back in use, where a 401 is an expiry again.
+  it("signs out of an account switched back to when its token is refused", async () => {
+    await saveAccount();
+    const provider = await signedInWithAnotherAccountSaved();
+    await act(() => provider.loginWithSavedCredential(SERVER, OTHER_USER.Id));
+    await act(() => provider.loginWithSavedCredential(SERVER, USER.Id));
+    expect(storage.getString("token")).toBe(TOKEN);
+    server.onGet(`${SERVER}/Items`).reply(401);
+
+    await act(async () => {
+      await store
+        .get(apiAtom)
+        ?.axiosInstance.get(`${SERVER}/Items`)
+        .catch(() => {});
+    });
+
+    await waitFor(() => expect(storage.getString("token")).toBeUndefined());
+  });
+
   it("keeps the token of a saved account it switches away from", async () => {
     await saveAccount();
     const provider = await signedInWithAnotherAccountSaved();
