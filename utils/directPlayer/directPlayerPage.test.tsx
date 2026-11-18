@@ -75,6 +75,7 @@ type ControlsProps = {
   onAudioIndexChange?: (index: number) => void;
   onRefreshSubtitleTracks?: () => Promise<unknown>;
   onSubtitleIndexChange?: (index: number) => void;
+  mediaSource?: { MediaStreams?: MediaStream[] | null } | null;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -890,10 +891,16 @@ describe("direct player stop report", () => {
       await waitFor(() =>
         expect(mockPlayer.getAudioTracks).toHaveBeenCalledTimes(2),
       );
+      // The controls are handed the row, so it can be picked from the menu.
+      const english = await waitFor(() => {
+        const row = mockControlsProps?.mediaSource?.MediaStreams?.find(
+          (s) => s.Type === "Audio" && s.Language === "eng",
+        );
+        expect(row?.Index).toBeDefined();
+        return row?.Index as number;
+      });
 
-      await act(async () =>
-        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
-      );
+      await act(async () => mockControlsProps?.onAudioIndexChange?.(english));
 
       expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
       expect(mockRouter.replace).not.toHaveBeenCalled();
