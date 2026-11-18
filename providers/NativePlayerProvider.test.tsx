@@ -154,6 +154,8 @@ const mockNegotiation = {
   bitrate: undefined as number | undefined,
   /** Items whose stream negotiation fails. */
   failing: new Set<string>(),
+  /** Each stream negotiated from now on is a transcode. */
+  transcoding: false,
   /** The streams the server lists for each negotiated source. */
   streams: undefined as object[] | undefined,
   /** The audio index each negotiated session starts on. */
@@ -219,6 +221,9 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
             }),
             ...(mockNegotiation.streams && {
               MediaStreams: mockNegotiation.streams,
+            }),
+            ...(mockNegotiation.transcoding && {
+              TranscodingUrl: `/videos/${req.itemId}/master.m3u8`,
             }),
           },
         },
@@ -553,6 +558,7 @@ beforeEach(() => {
   mockNegotiation.failing.clear();
   mockNegotiation.streams = undefined;
   mockNegotiation.audioIndex = undefined;
+  mockNegotiation.transcoding = false;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -764,6 +770,64 @@ describe("audio tracks only mpv found", () => {
     await settle();
 
     expect(mockNative.audioSwitches).toEqual([2]);
+  });
+
+  // A transcode carries only the track the server encoded into it.
+  test("fall back to the server's default track once a quality change brings a transcode", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    const changeQuality = async (bitrateValue: number) => {
+      await act(async () =>
+        mockNative.emit("onQualitySelected", { bitrateValue, positionSec: 30 }),
+      );
+      await settle();
+      await act(async () =>
+        mockNative.emit("onLoad", {
+          url: mockNative.loaded[mockNative.loaded.length - 1],
+        }),
+      );
+      await act(async () => mockNative.emit("onTracksReady", {}));
+      await settle();
+    };
+    mockNegotiation.transcoding = true;
+    await changeQuality(4_000_000);
+    mockNegotiation.transcoding = false;
+    await changeQuality(8_000_000);
+
+    expect(mockNative.audioSwitches).toEqual([2]);
+  });
+
+  // A tap on the menu of an earlier stream can arrive once a transcode,
+  // whose menu has no such row, has replaced it.
+  test("ignore a selection of one on a transcode instead of asking the server for it", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.transcoding = true;
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(1);
   });
 
   test("leave the next session's menus alone when it takes the player during the switch to the selected track", async () => {

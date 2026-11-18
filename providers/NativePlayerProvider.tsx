@@ -1286,7 +1286,10 @@ const NativePlayerProviderInner: React.FC<{
         // A track only mpv found has no server index, so the new stream was
         // asked for without one (replaceStream); the selection stays and
         // syncPlayerAudioTracks puts mpv back on it once it lists the tracks.
+        // A transcode carries only the server's default, which it falls
+        // back to.
         if (
+          !session.stream.mediaSource.TranscodingUrl &&
           req.audioIndex === undefined &&
           previous.currentAudioIndex !== undefined &&
           serverAudioIndex(
@@ -1775,6 +1778,14 @@ const NativePlayerProviderInner: React.FC<{
       // (mirror of handleAudioIndexChange).
       const target = resolveAudioSwitch(trackSource(session), jellyfinIndex);
       if (target.reload) {
+        // A row of an earlier stream's menu (a track only mpv found, tapped
+        // before a transcode replaced it) is no track the server can encode.
+        if (
+          serverAudioIndex(session.stream.mediaSource, jellyfinIndex) ===
+          undefined
+        ) {
+          return;
+        }
         await replaceStream(session, {
           audioIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
