@@ -125,6 +125,27 @@ const renderProvider = async () => {
 
 type Provider = Awaited<ReturnType<typeof renderProvider>>;
 
+// Bounded: a sign-out that waits for the server fails its own test here,
+// instead of holding an act open that breaks every test after it.
+const signOut = async (logout: () => Promise<void>) => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await act(() =>
+      Promise.race([
+        logout(),
+        new Promise<void>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("the sign-out waited for the server")),
+            1000,
+          );
+        }),
+      ]),
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const saveAccount = (
   overrides: Partial<Parameters<typeof saveAccountCredential>[0]> = {},
 ) =>
@@ -158,7 +179,7 @@ describe("JellyfinProvider sign-out", () => {
     signedInAtLaunch();
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
@@ -175,7 +196,7 @@ describe("JellyfinProvider sign-out", () => {
     );
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
     expect(sessionEnds()).toHaveLength(0);
@@ -198,7 +219,7 @@ describe("JellyfinProvider sign-out", () => {
     const { logout } = await renderProvider();
 
     try {
-      await act(() => logout());
+      await signOut(logout);
 
       expect(storage.getString("token")).toBeUndefined();
       await waitFor(() => expect(sessionEnds()).toHaveLength(1));
@@ -224,7 +245,7 @@ describe("JellyfinProvider sign-out", () => {
     server.onPost(`${SERVER}/Sessions/Logout`).networkError();
     const { logout } = await renderProvider();
 
-    await expect(act(() => logout())).resolves.toBeUndefined();
+    await expect(signOut(logout)).resolves.toBeUndefined();
 
     expect(storage.getString("token")).toBeUndefined();
     await waitFor(() =>
@@ -245,7 +266,7 @@ describe("JellyfinProvider sign-out", () => {
     server.onPost(`${SERVER}/Sessions/Logout`).reply(401);
     const { logout } = await renderProvider();
 
-    await expect(act(() => logout())).resolves.toBeUndefined();
+    await expect(signOut(logout)).resolves.toBeUndefined();
 
     expect(storage.getString("token")).toBeUndefined();
     await waitFor(() =>
@@ -271,7 +292,7 @@ describe("JellyfinProvider sign-out", () => {
     });
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    await signOut(logout);
 
     // The push registration goes either way; the token stays with the account.
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
@@ -292,7 +313,7 @@ describe("JellyfinProvider sign-out", () => {
     });
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
@@ -306,7 +327,7 @@ describe("JellyfinProvider sign-out", () => {
     const { logout, switchServerUrl } = await renderProvider();
     await act(async () => switchServerUrl(LOCAL_SERVER));
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
     expect(server.history.delete[0].url).toContain(LOCAL_SERVER);
@@ -320,7 +341,7 @@ describe("JellyfinProvider sign-out", () => {
     const { logout, switchServerUrl } = await renderProvider();
     await act(async () => switchServerUrl(LOCAL_SERVER));
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(sessionEnds()[0].url).toBe(`${LOCAL_SERVER}/Sessions/Logout`);
@@ -333,7 +354,7 @@ describe("JellyfinProvider sign-out", () => {
     await saveAccount({ securityType: "password" });
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
@@ -389,7 +410,7 @@ describe("JellyfinProvider sign-out", () => {
       const sessionOpenings = () =>
         [...server.history.get, ...server.history.post].filter(opensSession);
       const provider = await renderProvider();
-      await act(() => provider.logout());
+      await signOut(provider.logout);
       await waitFor(() => expect(sessionEnds()).toHaveLength(1));
 
       const signedIn = signIn(provider);
@@ -418,7 +439,7 @@ describe("JellyfinProvider sign-out", () => {
         }),
     );
     const provider = await renderProvider();
-    await act(() => provider.logout());
+    await signOut(provider.logout);
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
 
     try {
@@ -458,7 +479,7 @@ describe("JellyfinProvider sign-out", () => {
       );
     const provider = await renderProvider();
     await act(async () => provider.switchServerUrl(LOCAL_SERVER));
-    await act(() => provider.logout());
+    await signOut(provider.logout);
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(sessionEnds()[0].url).toContain(LOCAL_SERVER);
 
@@ -494,7 +515,7 @@ describe("JellyfinProvider sign-out", () => {
         request.url?.endsWith("/QuickConnect/Initiate"),
       );
     const provider = await renderProvider();
-    await act(() => provider.logout());
+    await signOut(provider.logout);
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
 
     try {
@@ -544,7 +565,7 @@ describe("JellyfinProvider launch", () => {
     const { logout } = await renderProvider();
     await launchChecked();
 
-    await act(() => logout());
+    await signOut(logout);
 
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
     expect(tokenOf(sessionEnds()[0])).toBe(TOKEN);
