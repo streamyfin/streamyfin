@@ -415,10 +415,10 @@ export function useDownloadOperations({
         togglesInFlight.delete(id);
       }
 
-      // The transfer can finish, fail or be cancelled while native pauses it; each of those
-      // removes the record, and its own handler has told the user.
+      // The transfer can finish, fail, be cancelled or lose its connection (native then pauses it
+      // itself) while native pauses it; each of those has its own handler, which told the user.
       if (result === "failed" || !getPendingDownload(id)) {
-        if (getPendingDownload(id)) {
+        if (getPendingDownload(id)?.status === "downloading") {
           toast.error(t("home.downloads.toasts.could_not_pause_download"));
         }
         return;
@@ -470,7 +470,11 @@ export function useDownloadOperations({
         );
         // Cancelled while native was starting it: the started handler has already cancelled
         // the new task, as it does for any task without a record.
-        if (!getPendingDownload(id)) return;
+        const current = getPendingDownload(id);
+        if (!current) return;
+        // Still offline: the new task lost its connection before native answered, and native
+        // paused it again. The paused handler has said so.
+        if (current.interruptedTaskId === taskId) return;
 
         updatePendingDownload(id, { status: "downloading", taskId });
         patchProcess(id, { status: "downloading" });

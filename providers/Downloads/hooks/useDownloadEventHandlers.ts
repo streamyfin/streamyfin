@@ -9,6 +9,7 @@ import {
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
 } from "@/modules";
@@ -94,6 +95,47 @@ export function useDownloadEventHandlers({
 
     return () => startedSub.remove();
   }, [updateProcess]);
+
+  // Native paused a download itself: the connection dropped and it kept the bytes. The card turns
+  // into a paused one with its progress, where the error path used to delete the partial file.
+  useEffect(() => {
+    const pausedSub = BackgroundDownloader.addPausedListener(
+      (event: DownloadPausedEvent) => {
+        const itemId = event.itemId;
+        if (!itemId) return;
+
+        const record = getPendingDownload(itemId);
+        // Another transfer of the item, or one cancelled since.
+        if (
+          !record ||
+          (record.taskId !== undefined && record.taskId !== event.taskId)
+        ) {
+          return;
+        }
+
+        const process = processes.find((p) => p.id === itemId);
+        updatePendingDownload(itemId, {
+          status: "paused",
+          taskId: undefined,
+          interruptedTaskId: event.taskId,
+          progress: process?.progress ?? record.progress,
+          bytesDownloaded: process?.bytesDownloaded ?? record.bytesDownloaded,
+          estimatedTotalSizeBytes:
+            process?.estimatedTotalSizeBytes ?? record.estimatedTotalSizeBytes,
+        });
+        updateProcess(itemId, { status: "paused", speed: undefined });
+        clearSpeedData(itemId);
+        toast.info(
+          t("home.downloads.toasts.download_paused_connection_lost", {
+            item: record.item.Name,
+          }),
+          { id: getDownloadToastId(itemId) },
+        );
+      },
+    );
+
+    return () => pausedSub.remove();
+  }, [processes, updateProcess, t]);
 
   // Track last logged progress per process to avoid spam
   const lastLoggedProgress = useRef<Map<string, number>>(new Map());

@@ -51,6 +51,7 @@ import {
   getPendingDownload,
   removePendingDownload,
   savePendingDownload,
+  updatePendingDownload,
 } from "../pendingDownloads";
 import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
@@ -715,4 +716,31 @@ it("stays quiet when a resume fails because the download was cancelled meanwhile
   });
 
   expect(toast.error).not.toHaveBeenCalled();
+});
+
+// Resumed while still offline: native starts the transfer, loses the connection at once and
+// pauses it again before it has answered the resume. The resume must not then mark it running.
+it("stays paused when the resumed transfer loses its connection before native answers", async () => {
+  mockDownloader.pauseDownload.mockResolvedValue("kept");
+  const { operations } = await renderOperations();
+  await act(() =>
+    operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+  );
+  await act(() => operations.pauseDownload("item-1"));
+  mockDownloader.resumeDownload.mockImplementation(async () => {
+    // What the paused handler writes when native reports the lost connection.
+    updatePendingDownload("item-1", {
+      status: "paused",
+      taskId: undefined,
+      interruptedTaskId: 9,
+    });
+    return 9;
+  });
+
+  await act(() => operations.resumeDownload("item-1"));
+
+  expect(getPendingDownload("item-1")?.status).toBe("paused");
+  expect(toast.info).not.toHaveBeenCalledWith(
+    "home.downloads.toasts.download_resumed",
+  );
 });

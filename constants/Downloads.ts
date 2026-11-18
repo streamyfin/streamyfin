@@ -11,6 +11,9 @@ export const DOWNLOAD_TRICKPLAY_DIR_SUFFIX = "_trickplay";
 // Android stages the transfer in `<destination>.part` and renames it once it is complete
 // (OkHttpDownloadManager.kt). The native side owns the value; this mirrors it.
 export const DOWNLOAD_PART_FILE_SUFFIX = ".part";
+// Next to a paused download's `.part`: the ETag or Last-Modified its bytes came with, sent back
+// as If-Range on resume. Also native-owned (OkHttpDownloadManager.kt validatorFileFor).
+export const DOWNLOAD_PART_VALIDATOR_SUFFIX = ".part.validator";
 
 // A failed download's toast says why and what to do in two or three lines, more than the four
 // seconds the Toaster gives a toast leave time to read.

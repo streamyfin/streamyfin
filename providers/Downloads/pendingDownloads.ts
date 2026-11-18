@@ -56,6 +56,11 @@ export interface PendingDownload {
   bytesDownloaded?: number;
   /** Size the server reported, so a relaunch shows it rather than a bitrate estimate. */
   estimatedTotalSizeBytes?: number;
+  /**
+   * The task native paused itself after losing the connection. A resume that native started
+   * and then lost again before answering finds its own task id here and stays paused.
+   */
+  interruptedTaskId?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
   activityMetadata?: DownloadActivityMetadata;
 }

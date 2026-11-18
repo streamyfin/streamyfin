@@ -3,6 +3,7 @@ export type {
   ActiveDownload,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
   PauseDownloadResult,

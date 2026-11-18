@@ -173,7 +173,8 @@ public class BackgroundDownloaderModule: Module {
       "onDownloadProgress",
       "onDownloadComplete",
       "onDownloadError",
-      "onDownloadStarted"
+      "onDownloadStarted",
+      "onDownloadPaused"
     )
 
     OnCreate {
@@ -756,6 +757,10 @@ public class BackgroundDownloaderModule: Module {
       lastProgressTime.removeValue(forKey: taskId)
       return
     }
+
+    if !isCancelled, pauseAfterConnectionLossLocked(taskId: taskId, error: error as NSError) {
+      return
+    }
     let itemId = downloadTasks[taskId]?.metadata?.itemId
 
     if isCancelled {
@@ -782,6 +787,40 @@ public class BackgroundDownloaderModule: Module {
 
     // Process next item in queue (whether cancelled or errored)
     processNextInQueueSafelyLocked()
+  }
+
+  /// A background session mostly waits out a dropped connection, but when it does give up on one
+  /// it hands over resume data. A download with an item id then becomes a pause, as if the user had
+  /// tapped it, instead of a failure that throws the bytes away. Returns whether it did.
+  private func pauseAfterConnectionLossLocked(taskId: Int, error: NSError) -> Bool {
+    let connectionLossCodes: Set<Int> = [
+      NSURLErrorNetworkConnectionLost, NSURLErrorNotConnectedToInternet, NSURLErrorTimedOut,
+      NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed,
+      NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff
+    ]
+    guard error.domain == NSURLErrorDomain, connectionLossCodes.contains(error.code),
+      let resumeData = error.userInfo[NSURLSessionDownloadTaskResumeData] as? Data,
+      let info = downloadTasks[taskId], let itemId = info.metadata?.itemId
+    else {
+      return false
+    }
+
+    downloadTasks.removeValue(forKey: taskId)
+    lastProgressTime.removeValue(forKey: taskId)
+    persistTasksLocked()
+    pausedDownloads[itemId] = PausedDownloadInfo(
+      url: info.url,
+      destinationPath: info.destinationPath,
+      metadata: info.metadata,
+      resumeDataFileName: taskStore.saveResumeData(resumeData, itemId: itemId)
+    )
+    taskStore.savePaused(pausedDownloads)
+
+    backgroundDownloaderLog.notice("Task \(taskId) lost its connection; paused with resume data")
+    cancelLiveActivity(taskId: taskId)
+    sendEvent("onDownloadPaused", ["taskId": taskId, "itemId": itemId, "reason": "connection"])
+    finishContinuedProcessingIfIdleLocked()
+    return true
   }
 
   /// Moves a task cancelled by `pauseDownload` into `pausedDownloads`. Runs once the resume data is

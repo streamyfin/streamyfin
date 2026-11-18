@@ -45,6 +45,26 @@ class OkHttpDownloadManager {
 
   private val contentRangePattern = Regex("""bytes (\d+)-(\d+)/(\d+|\*)""")
 
+  /**
+   * A failure the network caused (no route, no DNS, reset, timeout, a body cut short), as opposed
+   * to one the server or the disk did. Only these turn a resumable transfer into a pause.
+   */
+  private fun isConnectionLoss(error: Throwable): Boolean {
+    var cause: Throwable? = error
+    while (cause != null) {
+      if (cause is java.net.UnknownHostException ||
+        cause is java.net.SocketException ||
+        cause is java.io.InterruptedIOException ||
+        cause is java.io.EOFException ||
+        cause is java.net.ProtocolException
+      ) {
+        return true
+      }
+      cause = cause.cause
+    }
+    return false
+  }
+
   /** Waits, briefly, for the writer of a paused download to close its .part file. */
   fun awaitWriter(destinationPath: String) {
     writers[destinationPath]?.await(WRITER_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -53,6 +73,8 @@ class OkHttpDownloadManager {
   /**
    * @param resume continue from an existing .part file with a Range request. Without it, a
    * leftover .part is overwritten: only a download the user paused is safe to splice onto.
+   * @param onInterrupted the connection was lost while the bytes so far can be continued: the
+   * .part and its validator are kept, as for a pause. Called instead of onError.
    */
   fun startDownload(
     taskId: Int,
@@ -62,7 +84,8 @@ class OkHttpDownloadManager {
     resume: Boolean = false,
     onProgress: (bytesWritten: Long, totalBytes: Long) -> Unit,
     onComplete: (filePath: String) -> Unit,
-    onError: (error: String) -> Unit
+    onError: (error: String) -> Unit,
+    onInterrupted: (reason: String) -> Unit
   ) {
     Log.d(TAG, "Starting download: taskId=$taskId, resume=$resume, url=${redactCredentials(url)}")
 
@@ -103,6 +126,14 @@ class OkHttpDownloadManager {
           }
           return
         }
+        // No response at all, typically a resume while offline: what an earlier pause kept is
+        // still continuable, so this is a pause again rather than a failure that deletes it.
+        if (isConnectionLoss(e) && partFileFor(destinationPath).exists() &&
+          validatorFileFor(destinationPath).exists()
+        ) {
+          onInterrupted(e.message ?: "Connection lost")
+          return
+        }
         onError(e.message ?: "Download failed")
       }
 
@@ -115,7 +146,9 @@ class OkHttpDownloadManager {
             if (activeDownloads[taskId] !== call || call.isCanceled()) return
             Log.d(TAG, "Starting over: taskId=$taskId, $reason")
             discardPartial(destinationPath)
-            startDownload(taskId, url, destinationPath, headers, false, onProgress, onComplete, onError)
+            startDownload(
+              taskId, url, destinationPath, headers, false, onProgress, onComplete, onError, onInterrupted
+            )
           }
         }
 
@@ -299,6 +332,15 @@ class OkHttpDownloadManager {
             return
           }
           activeDownloads.remove(taskId, call)
+          // The connection dropped mid-body: the .part holds every byte written (the stream is
+          // closed by now) and the validator says which file they are from.
+          if (isConnectionLoss(e) && resumableTasks.remove(taskId) && partFile.exists() &&
+            validatorFile.exists()
+          ) {
+            Log.w(TAG, "Connection lost, keeping the partial file: taskId=$taskId")
+            onInterrupted(e.message ?: "Connection lost")
+            return
+          }
           resumableTasks.remove(taskId)
 
           // Clean up partial file

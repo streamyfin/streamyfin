@@ -88,7 +88,8 @@ class BackgroundDownloaderModule : Module() {
       "onDownloadProgress",
       "onDownloadComplete",
       "onDownloadError",
-      "onDownloadStarted"
+      "onDownloadStarted",
+      "onDownloadPaused"
     )
 
     OnCreate {
@@ -351,6 +352,9 @@ class BackgroundDownloaderModule : Module() {
       },
       onError = { error ->
         handleError(taskId, error)
+      },
+      onInterrupted = { reason ->
+        handleInterrupted(taskId, reason)
       }
     )
 
@@ -465,6 +469,37 @@ class BackgroundDownloaderModule : Module() {
       processNextInQueueLocked()
       syncServiceLocked()
     }
+  }
+
+  /**
+   * The connection dropped and the manager kept the bytes: the download becomes a pause, as if the
+   * user had tapped it, so it holds the queue (nothing else would get through offline either) and
+   * resumes from where it stopped. Downloads with no item id have no pause to come back to, so
+   * they fail as before.
+   */
+  private fun handleInterrupted(taskId: Int, reason: String) {
+    val (info, itemId) = synchronized(stateLock) {
+      val info = downloadTasks[taskId] ?: return
+      val itemId = info.itemId
+      if (itemId != null) {
+        downloadTasks.remove(taskId)
+        pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath)
+        syncServiceLocked()
+      }
+      info to itemId
+    }
+
+    if (itemId == null) {
+      info.destinationPath?.let { downloadManager.discardPartial(it) }
+      handleError(taskId, reason)
+      return
+    }
+
+    Log.w(TAG, "Connection lost, download paused: taskId=$taskId, reason=$reason")
+    sendEvent(
+      "onDownloadPaused",
+      mapOf("taskId" to taskId, "itemId" to itemId, "reason" to "connection")
+    )
   }
 
   /** Assumes `stateLock` is held. */

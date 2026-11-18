@@ -31,6 +31,17 @@ export interface DownloadStartedEvent {
   itemId?: string;
 }
 
+/**
+ * Native paused a download itself: its connection was lost while the bytes so far could be kept.
+ * It is in the paused list and holds the queue, exactly as if the user had paused it.
+ */
+export interface DownloadPausedEvent {
+  taskId: number;
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time. */
+  itemId?: string;
+  reason: "connection";
+}
+
 export interface ActiveDownload {
   /** Native task id; `-1` for queued entries, which have no task yet. */
   taskId: number;

@@ -5,6 +5,7 @@ import type {
   DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
   PauseDownloadResult,
@@ -86,6 +87,11 @@ export interface BackgroundDownloader {
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
+  ): EventSubscription;
+
+  /** Native paused a download because its connection was lost (it kept the bytes). */
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
   ): EventSubscription;
 }
 
@@ -212,6 +218,12 @@ const BackgroundDownloader: BackgroundDownloader = {
       listener,
     );
   },
+
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
+  ): EventSubscription {
+    return BackgroundDownloaderModule.addListener("onDownloadPaused", listener);
+  },
 };
 
 export default BackgroundDownloader;
@@ -221,6 +233,7 @@ export type {
   DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
   PauseDownloadResult,

@@ -182,6 +182,17 @@ Listens for download errors.
   - `taskId`: number
   - `error`: string
 
+#### `addPausedListener(listener: (event: DownloadPausedEvent) => void): Subscription`
+
+Native paused a download itself because its connection was lost while its bytes could be kept
+(`reason: "connection"`). It is in the paused list and holds the queue, as if the user had paused
+it.
+
+- **Android:** a connection failure of a transfer whose `.part` has a validator, mid-body or
+  before any response (a resume while offline). Other failures still raise `onDownloadError`.
+- **iOS:** the background session mostly waits out a lost connection. When it gives up with resume
+  data and a connection error code, that becomes this pause instead of an error.
+
 #### `addStartedListener(listener: (event: DownloadStartedEvent) => void): Subscription`
 
 Listens for download start confirmation.

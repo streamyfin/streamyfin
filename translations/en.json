@@ -705,6 +705,7 @@
         "failed_to_delete_media": "Failed to delete other media",
         "download_cancelled": "Download cancelled",
         "download_paused": "Download paused",
+        "download_paused_connection_lost": "Connection lost, so {{item}} is paused. Resume it when you're back online.",
         "download_paused_will_restart": "Download paused. This one can't keep its progress, so it starts again from the beginning when you resume it.",
         "could_not_pause_download": "Could not pause download",
         "download_resumed": "Download resumed",

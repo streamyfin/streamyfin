@@ -4,6 +4,7 @@ import { toast } from "sonner-native";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadStartedEvent,
 } from "@/modules";
 import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
@@ -15,6 +16,7 @@ const mockListeners: {
   started?: (event: DownloadStartedEvent) => void;
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
   error?: (event: DownloadErrorEvent) => Promise<void>;
+  paused?: (event: DownloadPausedEvent) => void;
 } = {};
 const mockCancelDownload = jest.fn();
 jest.mock("@/modules", () => ({
@@ -31,6 +33,10 @@ jest.mock("@/modules", () => ({
     },
     addCompleteListener: (listener: typeof mockListeners.complete) => {
       mockListeners.complete = listener;
+      return { remove: () => {} };
+    },
+    addPausedListener: (listener: typeof mockListeners.paused) => {
+      mockListeners.paused = listener;
       return { remove: () => {} };
     },
   },
@@ -56,6 +62,7 @@ import {
   type PendingDownload,
   savePendingDownload,
 } from "../pendingDownloads";
+import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
 
@@ -102,11 +109,12 @@ const started: DownloadStartedEvent = {
 const listenerFor = async <K extends keyof typeof mockListeners>(
   name: K,
   removeProcess = jest.fn(),
+  { processes = [] as JobStatus[], updateProcess = jest.fn() } = {},
 ) => {
   await renderHook(() =>
     useDownloadEventHandlers({
-      processes: [],
-      updateProcess: jest.fn(),
+      processes,
+      updateProcess,
       removeProcess,
     }),
   );
@@ -333,5 +341,56 @@ describe("a download that fails", () => {
       description: "The server could not convert Neverland.",
       duration: DOWNLOAD_FAILURE_TOAST_DURATION_MS,
     });
+  });
+});
+
+describe("a download that loses its connection", () => {
+  const paused: DownloadPausedEvent = {
+    taskId: 7,
+    itemId: "item-1",
+    reason: "connection",
+  };
+
+  // The error path deleted the partial file, so leaving Wi-Fi mid-download, or resuming before
+  // the connection was back, threw away what had been downloaded.
+  it("becomes a paused download that keeps its progress and files", async () => {
+    savePendingDownload(record);
+    fakeFiles.add(`${VIDEO}.part`, `${VIDEO}.part.validator`);
+    const updateProcess = jest.fn();
+    const onPaused = await listenerFor("paused", jest.fn(), {
+      processes: [
+        { id: "item-1", progress: 40, bytesDownloaded: 400 } as JobStatus,
+      ],
+      updateProcess,
+    });
+
+    onPaused(paused);
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 40,
+      bytesDownloaded: 400,
+      interruptedTaskId: 7,
+    });
+    expect(getPendingDownload("item-1")?.taskId).toBeUndefined();
+    expect(updateProcess).toHaveBeenCalledWith(
+      "item-1",
+      expect.objectContaining({ status: "paused" }),
+    );
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused_connection_lost",
+      { id: getDownloadToastId("item-1") },
+    );
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  it("is ignored when the record waits on another transfer", async () => {
+    savePendingDownload({ ...record, taskId: 8 });
+    const onPaused = await listenerFor("paused");
+
+    onPaused(paused);
+
+    expect(getPendingDownload("item-1")?.status).toBe("downloading");
+    expect(toast.info).not.toHaveBeenCalled();
   });
 });
