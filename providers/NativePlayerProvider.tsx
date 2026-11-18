@@ -1119,6 +1119,8 @@ const NativePlayerProviderInner: React.FC<{
         adaptive?: AdaptiveAuto;
         /** Asked by Auto, not by the user: not worth holding a SyncPlay group. */
         byAuto?: boolean;
+        /** The audio track was picked for this swap, not carried over. */
+        audioOverride?: boolean;
       },
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
@@ -1286,11 +1288,12 @@ const NativePlayerProviderInner: React.FC<{
         // A track only mpv found has no server index, so the new stream was
         // asked for without one (replaceStream); the selection stays and
         // syncPlayerAudioTracks puts mpv back on it once it lists the tracks.
-        // A transcode carries only the server's default, which it falls
-        // back to.
+        // The same holds for one picked while the swap negotiated, after the
+        // request had taken the earlier selection. A transcode carries only
+        // the server's default, which it falls back to.
         if (
           !session.stream.mediaSource.TranscodingUrl &&
-          req.audioIndex === undefined &&
+          !options.audioOverride &&
           previous.currentAudioIndex !== undefined &&
           serverAudioIndex(
             previous.stream.mediaSource,
@@ -1546,6 +1549,7 @@ const NativePlayerProviderInner: React.FC<{
           adaptive: session.adaptive,
         }),
         byAuto: overrides.cap !== undefined,
+        audioOverride: overrides.audioIndex !== undefined,
       });
     },
     [beginSession],

@@ -820,6 +820,51 @@ describe("audio tracks only mpv found", () => {
     expect(mockNative.audioSwitches).toEqual([2]);
   });
 
+  // The quality change asked for the track selected when it started; a pick
+  // made while it negotiates is the one to keep.
+  test("keep one picked while a quality change negotiates", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    const pick = async (jellyfinIndex: number) => {
+      await act(async () =>
+        mockNative.emit("onTrackSelectionRequested", {
+          kind: "audio",
+          jellyfinIndex,
+          positionSec: 0,
+        }),
+      );
+      await settle();
+    };
+
+    holdNegotiations();
+    const swap = await start(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await pick(PLAYER_AUDIO_INDEX_BASE + 1);
+    await releaseNegotiations();
+    await act(async () => {
+      await swap.done;
+    });
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches.at(-1)).toBe(2);
+  });
+
   // A tap on the menu of an earlier stream can arrive once a transcode,
   // whose menu has no such row, has replaced it.
   test("ignore a selection of one on a transcode instead of asking the server for it", async () => {
