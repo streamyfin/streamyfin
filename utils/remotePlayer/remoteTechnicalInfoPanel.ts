@@ -13,6 +13,7 @@ import {
   toReceiverDeviceName,
 } from "@/utils/cast/jellyfinReceiver";
 import { findPlayingReceiverSession } from "@/utils/cast/reportOrphanedReceiverStop";
+import { describeErrorForLog } from "@/utils/describeErrorForLog";
 import { writeErrorLog } from "@/utils/log";
 import { mediaSourceOf } from "./buildRemotePlayerConfig";
 import { remoteTechnicalInfo } from "./remoteTechnicalInfo";
@@ -44,7 +45,7 @@ const receiverSession = async (deps: PanelDeps, itemId: string | null) => {
   } catch (error) {
     writeErrorLog(
       "The TV's session could not be read for its technical info",
-      error,
+      describeErrorForLog(error),
     );
     return null;
   }
@@ -81,7 +82,10 @@ export const remoteTechnicalInfoPanel = (deps: PanelDeps) => {
     const shown = opened;
     const read = () => {
       refresh(shown).catch((error) =>
-        writeErrorLog("The remote player's technical info failed", error),
+        writeErrorLog(
+          "The remote player's technical info failed",
+          describeErrorForLog(error),
+        ),
       );
     };
     timer = setInterval(read, REMOTE_TECHNICAL_INFO_REFRESH_MS);

@@ -34,6 +34,7 @@ import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { pluginSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { NO_REMOTE_QUALITY } from "@/utils/cast/remoteQuality";
+import { writeErrorLog } from "@/utils/log";
 import {
   getSeriesTrackMemory,
   rememberSeriesTrack,
@@ -1167,6 +1168,11 @@ describe("technical info from the remote player", () => {
         [{ label: "player.technical_info.play_method", value: "Transcoding" }],
       ]),
     );
+    // The local log is exported to public issues: the failed request's headers stay out of it.
+    expect(jest.mocked(writeErrorLog)).toHaveBeenCalled();
+    expect(JSON.stringify(jest.mocked(writeErrorLog).mock.calls)).not.toContain(
+      api.accessToken,
+    );
   });
 
   test("the lines stop refreshing when the panel closes", async () => {
@@ -1373,6 +1379,10 @@ describe("subtitle search from the remote player", () => {
       }),
     );
     expect(mockCast.reloadCalls).toEqual([]);
+    expect(jest.mocked(writeErrorLog)).toHaveBeenCalled();
+    expect(JSON.stringify(jest.mocked(writeErrorLog).mock.calls)).not.toContain(
+      api.accessToken,
+    );
   });
 
   test("a subtitle the server never lists says so and reloads nothing", async () => {

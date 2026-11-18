@@ -20,6 +20,7 @@ import { updateNativePlayerSubtitleSearch } from "@/modules/mpv-player/src/Nativ
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
+import { describeErrorForLog } from "@/utils/describeErrorForLog";
 import {
   SubtitleSearchNotAllowedError,
   subtitleSearchErrorMessage,
@@ -141,7 +142,10 @@ export const remoteSubtitleSearch = (deps: SearchDeps) => {
         subtitleId: result.id,
       });
     } catch (error) {
-      writeErrorLog("The server could not download the subtitle", error);
+      writeErrorLog(
+        "The server could not download the subtitle",
+        describeErrorForLog(error),
+      );
       await failed(deps.t()("player.search_failed"));
       return;
     }
