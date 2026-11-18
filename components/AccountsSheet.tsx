@@ -13,10 +13,10 @@ import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeabl
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
-import {
-  deleteAccountCredential,
-  type SavedServer,
-  type SavedServerAccount,
+import { useJellyfin } from "@/providers/JellyfinProvider";
+import type {
+  SavedServer,
+  SavedServerAccount,
 } from "@/utils/secureCredentials";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -39,6 +39,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
   onAccountDeleted,
 }) => {
   const { t } = useTranslation();
+  const { removeSavedCredential } = useJellyfin();
   const insets = useSafeAreaInsets();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -82,7 +83,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
           text: t("common.remove"),
           style: "destructive",
           onPress: async () => {
-            await deleteAccountCredential(server.address, account.userId);
+            await removeSavedCredential(server.address, account.userId);
             onAccountDeleted?.();
           },
         },
