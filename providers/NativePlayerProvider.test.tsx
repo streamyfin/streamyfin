@@ -1,4 +1,5 @@
 import { act, render, waitFor } from "@testing-library/react-native";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
@@ -38,6 +39,10 @@ const mockNative = {
   pendingAudioSwitches: [] as Array<() => void>,
   /** How many times the track menus were pushed to the player. */
   menuPushes: 0,
+  /** The rows of the last audio menu pushed to the player. */
+  audioMenu: [] as number[],
+  /** The mpv id of every audio switch. */
+  audioSwitches: [] as number[],
   /** load rejects with the player still up, as a native throw mid-swap does. */
   refuseLoad: false,
   emit<K extends keyof NativePlayerEvents>(
@@ -102,7 +107,8 @@ jest.mock("@/modules/mpv-player", () => {
     nativePlayerPlay: done,
     nativePlayerSeekTo: done,
     nativePlayerGetAudioTracks: async () => mockNative.audioTracks,
-    nativePlayerSetAudioTrack: async () => {
+    nativePlayerSetAudioTrack: async (id: number) => {
+      mockNative.audioSwitches.push(id);
       if (mockNative.holdAudioSwitch) {
         await new Promise<void>((resolve) =>
           mockNative.pendingAudioSwitches.push(resolve),
@@ -118,8 +124,11 @@ jest.mock("@/modules/mpv-player", () => {
     updateNativePlayerSegments: done,
     updateNativePlayerSubtitleSearch: done,
     updateNativePlayerSyncPlay: done,
-    updateNativePlayerTrackMenus: async () => {
+    updateNativePlayerTrackMenus: async (menus: {
+      audio: Array<{ jellyfinIndex: number }>;
+    }) => {
       mockNative.menuPushes += 1;
+      mockNative.audioMenu = menus.audio.map((row) => row.jellyfinIndex);
     },
   };
 });
@@ -163,7 +172,10 @@ jest.mock("@/utils/nativePlayer/externalSubtitles", () => ({
 }));
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
-  buildTrackMenus: () => ({}),
+  // The rows the player is handed, as built for the session's track list.
+  buildTrackMenus: jest.requireActual(
+    "@/utils/nativePlayer/buildNativePlayerConfig",
+  ).buildTrackMenus,
   buildNativePlayerConfig: async (params: {
     req: { itemId: string; bitrateValue?: number };
     item?: object;
@@ -527,6 +539,8 @@ beforeEach(() => {
   mockNative.holdAudioSwitch = false;
   mockNative.pendingAudioSwitches = [];
   mockNative.menuPushes = 0;
+  mockNative.audioMenu = [];
+  mockNative.audioSwitches = [];
   mockNative.refuseLoad = false;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
@@ -727,6 +741,31 @@ describe("a swap whose stream ended under it", () => {
 // finds two. Putting mpv back on the selected track waits on mpv's queue, and
 // another play can take the player meanwhile.
 describe("audio tracks only mpv found", () => {
+  test("are offered in the audio menu once mpv lists them, and selecting one switches mpv to it", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    const pushes = mockNative.menuPushes;
+
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.menuPushes).toBeGreaterThan(pushes);
+    expect(mockNative.audioMenu).toEqual([1, PLAYER_AUDIO_INDEX_BASE + 1]);
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    expect(mockNative.audioSwitches).toEqual([2]);
+  });
+
   test("leave the next session's menus alone when it takes the player during the switch to the selected track", async () => {
     mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
     mockNegotiation.audioIndex = 1;
