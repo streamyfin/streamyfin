@@ -1,6 +1,7 @@
 const existing = new Set<string>();
 const deleted: string[] = [];
 const undeletable = new Set<string>();
+const sizes = new Map<string, number>();
 const downloaded: { url: string; destination: string }[] = [];
 
 const withoutTrailingSlash = (uri: string) => uri.replace(/\/+$/, "");
@@ -49,9 +50,13 @@ class FakeFile extends FakeEntry {
     existing.add(to);
   }
 
-  /** Sizes are not modelled: every file reports 0 bytes. */
+  /** 0 bytes unless a spec gave the file a size with `fakeFiles.setSize`. */
+  get size() {
+    return sizes.get(this.location) ?? 0;
+  }
+
   info() {
-    return { exists: this.exists, size: 0 };
+    return { exists: this.exists, size: this.size };
   }
 }
 
@@ -101,7 +106,8 @@ export const DISK_AVAILABLE = 10_000_000_000;
  *
  * Only what the app's delete and download paths call is implemented: the `File` and `Directory`
  * constructors, `uri`, `exists`, `delete()`, `File.downloadFileAsync()`, `File.move()`,
- * `File.info()` for the completion handler, and `create()` and `list()` on a directory.
+ * `File.info()` and `File.size` for the completion and reconciliation paths, and `create()` and
+ * `list()` on a directory.
  */
 export const fileSystemModule = {
   File: FakeFile,
@@ -129,6 +135,9 @@ export const fakeFiles = {
   deleted: () => [...deleted],
   /** Every download so far, in order. */
   downloads: () => [...downloaded],
+  /** Gives a file on the fake disk a size; files report 0 bytes otherwise. */
+  setSize: (path: string, bytes: number) =>
+    void sizes.set(withoutTrailingSlash(path), bytes),
   /** Makes deleting `path` throw, as a locked or protected file would. */
   lock: (path: string) => void undeletable.add(withoutTrailingSlash(path)),
   /** Empties the fake disk. Call it from `beforeEach` so tests stay isolated. */
@@ -137,5 +146,6 @@ export const fakeFiles = {
     deleted.length = 0;
     downloaded.length = 0;
     undeletable.clear();
+    sizes.clear();
   },
 };

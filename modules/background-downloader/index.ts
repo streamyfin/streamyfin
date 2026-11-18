@@ -5,8 +5,10 @@ import type {
   DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  PauseDownloadResult,
 } from "./src/BackgroundDownloader.types";
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
@@ -31,6 +33,34 @@ export interface BackgroundDownloader {
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
+  /**
+   * Stops a running transfer, keeping its bytes where the server allows. A paused download holds
+   * the queue behind it until it is resumed or cancelled.
+   */
+  pauseDownload(taskId: number): Promise<PauseDownloadResult>;
+  /**
+   * Continues a paused download, or starts it again when its bytes could not be kept. Takes what
+   * the download was enqueued with, so it also works when native has forgotten the pause (an
+   * Android process death). Resolves with the new task id.
+   */
+  resumeDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
+  ): Promise<number>;
+  /** Drops a paused download and what it saved, and lets the queue move on. */
+  cancelPausedDownload(itemId: string, destinationPath?: string): void;
+  /**
+   * Tells native of a pause it no longer knows (Android forgets them with the process), so it
+   * holds the queue again. No-op when native already has it.
+   */
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
 
   /** iOS only; no-op elsewhere. Ends any live activity when turned off. */
@@ -57,6 +87,11 @@ export interface BackgroundDownloader {
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
+  ): EventSubscription;
+
+  /** Native paused a download because its connection was lost (it kept the bytes). */
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
   ): EventSubscription;
 }
 
@@ -111,6 +146,42 @@ const BackgroundDownloader: BackgroundDownloader = {
     BackgroundDownloaderModule.cancelAllDownloads();
   },
 
+  async pauseDownload(taskId: number): Promise<PauseDownloadResult> {
+    return await BackgroundDownloaderModule.pauseDownload(taskId);
+  },
+
+  async resumeDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
+  ): Promise<number> {
+    return await BackgroundDownloaderModule.resumeDownload(
+      itemId,
+      url,
+      destinationPath,
+      metadata,
+      headers,
+    );
+  },
+
+  cancelPausedDownload(itemId: string, destinationPath?: string): void {
+    BackgroundDownloaderModule.cancelPausedDownload(itemId, destinationPath);
+  },
+
+  restorePausedDownload(
+    itemId: string,
+    url: string,
+    destinationPath?: string,
+  ): void {
+    BackgroundDownloaderModule.restorePausedDownload(
+      itemId,
+      url,
+      destinationPath,
+    );
+  },
+
   async getActiveDownloads(): Promise<ActiveDownload[]> {
     return await BackgroundDownloaderModule.getActiveDownloads();
   },
@@ -147,6 +218,12 @@ const BackgroundDownloader: BackgroundDownloader = {
       listener,
     );
   },
+
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
+  ): EventSubscription {
+    return BackgroundDownloaderModule.addListener("onDownloadPaused", listener);
+  },
 };
 
 export default BackgroundDownloader;
@@ -156,6 +233,8 @@ export type {
   DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  PauseDownloadResult,
 };

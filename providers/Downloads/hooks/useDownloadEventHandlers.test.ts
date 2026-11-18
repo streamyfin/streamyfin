@@ -4,6 +4,8 @@ import { toast } from "sonner-native";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
+  DownloadProgressEvent,
   DownloadStartedEvent,
 } from "@/modules";
 import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
@@ -15,6 +17,8 @@ const mockListeners: {
   started?: (event: DownloadStartedEvent) => void;
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
   error?: (event: DownloadErrorEvent) => Promise<void>;
+  paused?: (event: DownloadPausedEvent) => void;
+  progress?: (event: DownloadProgressEvent) => void;
 } = {};
 const mockCancelDownload = jest.fn();
 jest.mock("@/modules", () => ({
@@ -24,13 +28,20 @@ jest.mock("@/modules", () => ({
       mockListeners.started = listener;
       return { remove: () => {} };
     },
-    addProgressListener: () => ({ remove: () => {} }),
+    addProgressListener: (listener: typeof mockListeners.progress) => {
+      mockListeners.progress = listener;
+      return { remove: () => {} };
+    },
     addErrorListener: (listener: typeof mockListeners.error) => {
       mockListeners.error = listener;
       return { remove: () => {} };
     },
     addCompleteListener: (listener: typeof mockListeners.complete) => {
       mockListeners.complete = listener;
+      return { remove: () => {} };
+    },
+    addPausedListener: (listener: typeof mockListeners.paused) => {
+      mockListeners.paused = listener;
       return { remove: () => {} };
     },
   },
@@ -56,6 +67,8 @@ import {
   type PendingDownload,
   savePendingDownload,
 } from "../pendingDownloads";
+import { forgetProgress } from "../progressCache";
+import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
 
@@ -102,11 +115,12 @@ const started: DownloadStartedEvent = {
 const listenerFor = async <K extends keyof typeof mockListeners>(
   name: K,
   removeProcess = jest.fn(),
+  { processes = [] as JobStatus[], updateProcess = jest.fn() } = {},
 ) => {
   await renderHook(() =>
     useDownloadEventHandlers({
-      processes: [],
-      updateProcess: jest.fn(),
+      processes,
+      updateProcess,
       removeProcess,
     }),
   );
@@ -122,6 +136,7 @@ const start = async (event: DownloadStartedEvent) =>
   (await listenerFor("started"))(event);
 
 beforeEach(() => {
+  forgetProgress("item-1");
   mockListeners.started = undefined;
   mockListeners.complete = undefined;
   mockCancelDownload.mockClear();
@@ -333,5 +348,104 @@ describe("a download that fails", () => {
       description: "The server could not convert Neverland.",
       duration: DOWNLOAD_FAILURE_TOAST_DURATION_MS,
     });
+  });
+});
+
+describe("a download that loses its connection", () => {
+  const paused: DownloadPausedEvent = {
+    taskId: 7,
+    itemId: "item-1",
+    reason: "connection",
+    kept: true,
+  };
+
+  // The error path deleted the partial file, so leaving Wi-Fi mid-download, or resuming before
+  // the connection was back, threw away what had been downloaded.
+  // The progress comes from the last progress event, which may not have rendered yet.
+  const lastProgress: DownloadProgressEvent = {
+    taskId: 7,
+    itemId: "item-1",
+    bytesWritten: 400,
+    totalBytes: 1000,
+    progress: 0.4,
+  };
+
+  it("becomes a paused download that keeps its progress and files", async () => {
+    savePendingDownload(record);
+    fakeFiles.add(`${VIDEO}.part`, `${VIDEO}.part.validator`);
+    const updateProcess = jest.fn();
+    const onPaused = await listenerFor("paused", jest.fn(), {
+      updateProcess,
+    });
+    mockListeners.progress?.(lastProgress);
+
+    onPaused(paused);
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 40,
+      bytesDownloaded: 400,
+      interruptedTaskId: 7,
+    });
+    expect(getPendingDownload("item-1")?.taskId).toBeUndefined();
+    expect(updateProcess).toHaveBeenCalledWith(
+      "item-1",
+      expect.objectContaining({ status: "paused" }),
+    );
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused_connection_lost",
+      { id: getDownloadToastId("item-1") },
+    );
+    expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  // iOS could not write the resume data: resuming starts over, so the card must not keep 40%.
+  it("says it starts over when its bytes could not be kept", async () => {
+    savePendingDownload(record);
+    const onPaused = await listenerFor("paused");
+    mockListeners.progress?.(lastProgress);
+
+    onPaused({ ...paused, kept: false });
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 0,
+      bytesDownloaded: 0,
+    });
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused_connection_lost_restart",
+      { id: getDownloadToastId("item-1") },
+    );
+  });
+
+  // Task 7's 40% was thrown away (paused without its bytes) and task 9 resumed from zero. Task
+  // 9 lost its connection before its first progress event, and the pause brought 40% back.
+  it("uses only progress from the task that lost its connection", async () => {
+    savePendingDownload({
+      ...record,
+      taskId: 9,
+      progress: 0,
+      bytesDownloaded: 0,
+    });
+    const onPaused = await listenerFor("paused");
+    mockListeners.progress?.(lastProgress);
+
+    onPaused({ ...paused, taskId: 9 });
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 0,
+      bytesDownloaded: 0,
+    });
+  });
+
+  it("is ignored when the record waits on another transfer", async () => {
+    savePendingDownload({ ...record, taskId: 8 });
+    const onPaused = await listenerFor("paused");
+
+    onPaused(paused);
+
+    expect(getPendingDownload("item-1")?.status).toBe("downloading");
+    expect(toast.info).not.toHaveBeenCalled();
   });
 });

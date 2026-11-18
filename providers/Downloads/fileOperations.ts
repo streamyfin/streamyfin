@@ -1,5 +1,8 @@
 import { Directory, File, Paths } from "expo-file-system";
-import { DOWNLOAD_PART_FILE_SUFFIX } from "@/constants/Downloads";
+import {
+  DOWNLOAD_PART_FILE_SUFFIX,
+  DOWNLOAD_PART_VALIDATOR_SUFFIX,
+} from "@/constants/Downloads";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
 import { getPendingDownloads, type PendingDownload } from "./pendingDownloads";
 import type { DownloadedItem } from "./types";
@@ -153,8 +156,9 @@ type AbandonedDownload = Pick<
  * Subtitles and trickplay sheets are written before the video is handed to native, so a download
  * that is cancelled or fails has already put them in Documents. The video itself is staged
  * elsewhere until it is complete: iOS keeps it in a system temp file, Android in
- * `<name>.part`, which native removes on cancel and on error but cannot remove when the process
- * is killed mid-transfer.
+ * `<name>.part` with a `<name>.part.validator` beside it once the server offers ranges. Native
+ * removes both on cancel, but cannot when the process is killed mid-transfer, and a paused
+ * download keeps them on purpose until it is resumed or dropped.
  *
  * Best effort, never throws: this runs on failure paths where a throw would skip the error
  * handling that follows it. Files another download uses are left alone.
@@ -170,6 +174,11 @@ export function deletePendingDownloadFiles(download: AbandonedDownload): void {
         File,
         `${names.video}${DOWNLOAD_PART_FILE_SUFFIX}`,
         "Partial video file",
+      );
+      removeFromDocuments(
+        File,
+        `${names.video}${DOWNLOAD_PART_VALIDATOR_SUFFIX}`,
+        "Partial video validator",
       );
     }
     deleteSidecars(names, usedElsewhere);

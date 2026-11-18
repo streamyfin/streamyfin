@@ -29,12 +29,25 @@ import {
 import { buildDownloadActivityMetadata } from "../liveActivity";
 import {
   getPendingDownload,
+  type PendingDownload,
+  pendingDownloadFileUri,
   removePendingDownload,
   savePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
+import { latestProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { generateFilename, getDownloadToastId, uriToFilePath } from "../utils";
+import { clearSpeedData } from "./useDownloadSpeedCalculator";
+
+/** Where native writes the record's video, or undefined for a record with an unsafe name. */
+function destinationPathOf(record: PendingDownload): string | undefined {
+  try {
+    return uriToFilePath(pendingDownloadFileUri(record));
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Starts that have not finished handing their download to native yet, by item id.
@@ -54,6 +67,13 @@ type StartInFlight = {
   mediaSource: MediaSourceInfo;
 };
 const startsInFlight = new Map<string, StartInFlight>();
+
+/**
+ * Pauses and resumes still waiting on native, by item id. The record only changes once native
+ * answers, so without this a second tap passes the same status check: two resumes start two
+ * transfers to one destination, the first having already taken the paused entry native held.
+ */
+const togglesInFlight = new Set<string>();
 
 interface UseDownloadOperationsProps {
   processes: JobStatus[];
@@ -327,7 +347,15 @@ export function useDownloadOperations({
 
       const record = getPendingDownload(id);
 
-      if (record?.status === "downloading" && record.taskId !== undefined) {
+      if (record?.status === "paused") {
+        BackgroundDownloader.cancelPausedDownload(
+          id,
+          destinationPathOf(record),
+        );
+      } else if (
+        record?.status === "downloading" &&
+        record.taskId !== undefined
+      ) {
         // Cancel active download by taskId
         BackgroundDownloader.cancelDownload(record.taskId);
       } else if (record) {
@@ -353,6 +381,133 @@ export function useDownloadOperations({
       toast.info(t("home.downloads.toasts.download_cancelled"));
     },
     [removeProcess, t],
+  );
+
+  const patchProcess = useCallback(
+    (id: string, patch: Partial<JobStatus>) =>
+      setProcesses((prev) =>
+        prev.map((process) =>
+          process.id === id ? { ...process, ...patch } : process,
+        ),
+      ),
+    [setProcesses],
+  );
+
+  const pauseDownload = useCallback(
+    async (id: string) => {
+      if (togglesInFlight.has(id)) return;
+      const record = getPendingDownload(id);
+      if (record?.status !== "downloading" || record.taskId === undefined) {
+        toast.error(t("home.downloads.toasts.could_not_pause_download"));
+        return;
+      }
+      togglesInFlight.add(id);
+
+      let result: Awaited<
+        ReturnType<typeof BackgroundDownloader.pauseDownload>
+      > = "failed";
+      try {
+        result = await BackgroundDownloader.pauseDownload(record.taskId);
+      } catch (error) {
+        logAndCaptureError("Pausing download failed", error, {
+          itemType: record.item?.Type,
+        });
+      } finally {
+        togglesInFlight.delete(id);
+      }
+
+      // Only an answer about this download, on the task this pause stopped, may change it. The
+      // transfer can finish, fail, be cancelled (and the item started again) or lose its
+      // connection (native then pauses it itself) while native pauses it; each of those has its
+      // own handler, which told the user.
+      const current = getPendingDownload(id);
+      const sameTask =
+        current?.enqueuedAt === record.enqueuedAt &&
+        current.taskId === record.taskId;
+      if (result === "failed" || !sameTask) {
+        if (sameTask && current?.status === "downloading") {
+          toast.error(t("home.downloads.toasts.could_not_pause_download"));
+        }
+        return;
+      }
+
+      // Read now, not before the await: progress kept arriving while native paused.
+      const latest = latestProgress(id, record.taskId);
+      const process = processes.find((p) => p.id === id);
+      const kept = result === "kept";
+      const progress = kept ? (latest?.progress ?? process?.progress ?? 0) : 0;
+      const bytesDownloaded = kept
+        ? (latest?.bytesDownloaded ?? process?.bytesDownloaded ?? 0)
+        : 0;
+      updatePendingDownload(id, {
+        status: "paused",
+        taskId: undefined,
+        progress,
+        bytesDownloaded,
+        estimatedTotalSizeBytes:
+          latest?.estimatedTotalSizeBytes ?? process?.estimatedTotalSizeBytes,
+      });
+      patchProcess(id, {
+        status: "paused",
+        progress,
+        bytesDownloaded,
+        speed: undefined,
+      });
+      clearSpeedData(id);
+      toast.info(
+        t(
+          kept
+            ? "home.downloads.toasts.download_paused"
+            : "home.downloads.toasts.download_paused_will_restart",
+        ),
+      );
+    },
+    [processes, patchProcess, t],
+  );
+
+  const resumeDownload = useCallback(
+    async (id: string) => {
+      if (togglesInFlight.has(id)) return;
+      const record = getPendingDownload(id);
+      if (record?.status !== "paused") return;
+      togglesInFlight.add(id);
+      // A marker an earlier attempt left must not be read as this one's: Android numbers its
+      // tasks from 1 in every process, so an old task id can come back.
+      updatePendingDownload(id, { interruptedTaskId: undefined });
+
+      try {
+        const taskId = await BackgroundDownloader.resumeDownload(
+          id,
+          record.inputUrl,
+          destinationPathOf(record),
+          record.activityMetadata,
+          getJellyfinHeadersForUrl(record.inputUrl, api?.basePath),
+        );
+        // Cancelled while native was starting it: the started handler has already cancelled
+        // the new task, as it does for any task without a record.
+        // Gone, or cancelled and started again: the record is not this resume's any more.
+        const current = getPendingDownload(id);
+        if (!current || current.enqueuedAt !== record.enqueuedAt) return;
+        // Still offline: the new task lost its connection before native answered, and native
+        // paused it again. The paused handler has said so.
+        if (current.interruptedTaskId === taskId) return;
+        if (current.taskId !== undefined && current.taskId !== taskId) return;
+
+        updatePendingDownload(id, { status: "downloading", taskId });
+        patchProcess(id, { status: "downloading" });
+        toast.info(t("home.downloads.toasts.download_resumed"));
+      } catch (error) {
+        // Cancelled while native was resuming it: the cancel has told the user.
+        if (!getPendingDownload(id)) return;
+        logAndCaptureError("Resuming download failed", error, {
+          itemType: record.item?.Type,
+        });
+        toast.error(t("home.downloads.toasts.could_not_resume_download"));
+      } finally {
+        togglesInFlight.delete(id);
+      }
+    },
+    [api, patchProcess, t],
   );
 
   const deleteFile = useCallback(
@@ -492,6 +647,8 @@ export function useDownloadOperations({
   return {
     startBackgroundDownload,
     cancelDownload,
+    pauseDownload,
+    resumeDownload,
     deleteFile,
     deleteItems,
     deleteAllFiles,

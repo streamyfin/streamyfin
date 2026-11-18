@@ -9,6 +9,7 @@ import {
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
 } from "@/modules";
@@ -32,6 +33,7 @@ import {
   removePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
+import { latestProgress, rememberProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { filePathToUri, getDownloadToastId } from "../utils";
 import {
@@ -94,6 +96,59 @@ export function useDownloadEventHandlers({
 
     return () => startedSub.remove();
   }, [updateProcess]);
+
+  // Native paused a download itself: the connection dropped. The card turns into a paused one
+  // with its progress, where the error path used to delete the partial file.
+  useEffect(() => {
+    const pausedSub = BackgroundDownloader.addPausedListener(
+      (event: DownloadPausedEvent) => {
+        const itemId = event.itemId;
+        if (!itemId) return;
+
+        const record = getPendingDownload(itemId);
+        // Another transfer of the item, or one cancelled since.
+        if (
+          !record ||
+          (record.taskId !== undefined && record.taskId !== event.taskId)
+        ) {
+          return;
+        }
+
+        // Not kept: iOS could not save the resume data, so resuming starts from the first byte
+        // and the card must not promise the old percentage.
+        const cached = latestProgress(itemId, event.taskId);
+        const latest = event.kept
+          ? cached
+          : { progress: 0, bytesDownloaded: 0 };
+        updatePendingDownload(itemId, {
+          status: "paused",
+          taskId: undefined,
+          interruptedTaskId: event.taskId,
+          progress: latest?.progress ?? record.progress,
+          bytesDownloaded: latest?.bytesDownloaded ?? record.bytesDownloaded,
+          estimatedTotalSizeBytes:
+            cached?.estimatedTotalSizeBytes ?? record.estimatedTotalSizeBytes,
+        });
+        updateProcess(itemId, {
+          status: "paused",
+          speed: undefined,
+          ...(event.kept ? {} : { progress: 0, bytesDownloaded: 0 }),
+        });
+        clearSpeedData(itemId);
+        toast.info(
+          t(
+            event.kept
+              ? "home.downloads.toasts.download_paused_connection_lost"
+              : "home.downloads.toasts.download_paused_connection_lost_restart",
+            { item: record.item.Name },
+          ),
+          { id: getDownloadToastId(itemId) },
+        );
+      },
+    );
+
+    return () => pausedSub.remove();
+  }, [updateProcess, t]);
 
   // Track last logged progress per process to avoid spam
   const lastLoggedProgress = useRef<Map<string, number>>(new Map());
@@ -184,6 +239,13 @@ export function useDownloadEventHandlers({
           );
           lastLoggedProgress.current.set(processId, progress);
         }
+
+        rememberProgress(processId, {
+          taskId: event.taskId,
+          progress,
+          bytesDownloaded: event.bytesWritten,
+          estimatedTotalSizeBytes: estimatedTotalBytes,
+        });
 
         // Update state (native layer already throttles events to every 500ms)
         updateProcess(processId, {

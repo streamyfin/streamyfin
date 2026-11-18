@@ -118,7 +118,8 @@ export type JobStatus = {
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
-    | "queued"; // The job is queued to start
+    | "queued" // The job is queued to start
+    | "paused"; // The user paused the job; it holds the queue until resumed
   /** Timestamp of when the job was created or last updated */
   timestamp: Date;
   /** The {@link MediaSourceInfo} for the download */
