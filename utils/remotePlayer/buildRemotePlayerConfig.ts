@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
+  UserDto,
 } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
@@ -20,6 +21,7 @@ import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
 import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import { hasHeaders } from "@/utils/customHeaders";
+import { canSearchServerSubtitles } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   buildMetadata,
   buildNativePlayerStrings,
@@ -33,13 +35,15 @@ import { ticksToSeconds } from "@/utils/time";
 const remoteUi = (
   settings: Settings,
   strings: ReturnType<typeof buildNativePlayerStrings>,
+  subtitleSearch = false,
 ): RemotePlayerPresentConfig["ui"] => ({
   allowPip: false,
   orientationLock: "none",
   seekForwardSec: settings.forwardSkipTime,
   seekBackwardSec: settings.rewindSkipTime,
   hapticsEnabled: !settings.disableHapticFeedback,
-  subtitleSearchEnabled: false,
+  // The phone's own lookup adds a file to a local player, which there is none of here: the server's search only.
+  subtitleSearchEnabled: subtitleSearch,
   strings,
 });
 
@@ -101,6 +105,8 @@ export const buildRemotePlayerConfig = (params: {
   imageHeaders: Record<string, string>;
   settings: Settings;
   api: Api;
+  /** The account, whose policy says whether the server searches subtitles for it. */
+  user: UserDto | null | undefined;
   t: TFunction;
   /** The quality the TV plays at, marked in the quality menu: the remote one, Auto unless set. */
   bitrateValue?: BitrateRequest;
@@ -134,7 +140,7 @@ export const buildRemotePlayerConfig = (params: {
           t,
         })
       : null,
-    ui: remoteUi(settings, strings),
+    ui: remoteUi(settings, strings, canSearchServerSubtitles(params.user)),
     tint: params.tint,
     // None at all when the user has none: native would send an empty set with every image.
     ...(hasHeaders(params.imageHeaders)

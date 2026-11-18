@@ -74,9 +74,9 @@ class RemotePlayback(
         engine.load(server, request, onResult)
     }
 
-    /** The TV's item again where it is, under [server]; nothing without an engine. */
-    fun reload(server: ReceiverServer) {
-        engine?.reloadCurrentItem(server)
+    /** The TV's item again where it is, under [server], with [subtitleStreamIndex] when named; nothing without an engine. */
+    fun reload(server: ReceiverServer, subtitleStreamIndex: Int? = null) {
+        engine?.reloadCurrentItem(server, subtitleStreamIndex)
     }
 
     /** The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine. */

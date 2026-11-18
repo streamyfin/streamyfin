@@ -36,6 +36,8 @@ export interface NativePlayerDoubleState {
   remoteFailures: unknown[];
   /** Lines handed to `updateRemoteTechnicalInfo`, in order. */
   technicalInfoUpdates: unknown[];
+  /** States handed to `updateSubtitleSearch`, in order: the search sheet's results, errors and outcome. */
+  subtitleSearchUpdates: unknown[];
   /** Calls to `dismiss`, which closes whichever player is up. */
   dismissals: number;
   listeners: Map<string, Listener[]>;
@@ -52,6 +54,7 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   remoteUpdateAnswer: true,
   remoteFailures: [],
   technicalInfoUpdates: [],
+  subtitleSearchUpdates: [],
   dismissals: 0,
   listeners: new Map(),
 });
@@ -95,6 +98,9 @@ export const nativePlayerDoubleModule = (
   }),
   updateRemoteTechnicalInfo: jest.fn(async (lines: unknown) => {
     state().technicalInfoUpdates.push(lines);
+  }),
+  updateSubtitleSearch: jest.fn(async (search: unknown) => {
+    state().subtitleSearchUpdates.push(search);
   }),
   dismiss: jest.fn(async () => {
     state().dismissals += 1;

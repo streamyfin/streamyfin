@@ -89,10 +89,13 @@ final class RecordingRemoteEngine: RemoteEngine {
 		servers.append(server)
 		inner.load(server: server, request: request, completion: completion)
 	}
-	func reloadCurrentItem(server: ReceiverServer) {
+	/// The subtitle index each reload carried, nil for the one the TV plays.
+	private(set) var reloadSubtitles: [Int?] = []
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {
 		calls.append("reload")
 		servers.append(server)
-		inner.reloadCurrentItem(server: server)
+		reloadSubtitles.append(subtitleStreamIndex)
+		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex)
 	}
 }
 
@@ -444,6 +447,14 @@ enum RemotePlaybackTests {
 			bench.playback.setServer(nil)
 			bench.playback.reload(server: capped)
 			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.playback.reload(server: capped)
+			bench.playback.reload(server: capped, subtitleStreamIndex: 9)
+			check("aReloadCarriesTheSubtitleItWasGiven", bench.made[0].reloadSubtitles == [nil, 9])
 		}
 
 		// The remote player's menus choose by Jellyfin index; -1 turns the subtitles off.

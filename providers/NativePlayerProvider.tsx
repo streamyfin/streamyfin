@@ -62,7 +62,6 @@ import {
   type NativePlayerDismissReason,
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
-  type NativePlayerSubtitleSearchResult,
   nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
   nativePlayerGetSubtitleTracks,
@@ -192,6 +191,7 @@ import {
   localSubtitleIndex,
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
+import { mapSearchResults } from "@/utils/subtitles/subtitleSearchResults";
 import {
   syncPlayQueuePosterUrl,
   syncPlayQueueSubtitle,
@@ -356,22 +356,6 @@ const rememberSeriesSelection = (
   )?.Language;
   if (lang) rememberSeriesTrack(item.SeriesId, { subtitleLang: lang });
 };
-
-const mapSearchResults = (
-  results: SubtitleSearchResult[],
-): NativePlayerSubtitleSearchResult[] =>
-  results.map((r) => ({
-    id: r.id,
-    name: r.name,
-    providerName: r.providerName,
-    format: r.format,
-    language: r.language,
-    communityRating: r.communityRating,
-    downloadCount: r.downloadCount,
-    isHashMatch: r.isHashMatch,
-    hearingImpaired: r.hearingImpaired,
-    aiTranslated: r.aiTranslated,
-  }));
 
 /**
  * Waits, briefly, for a native player that is closing to be gone. On iOS the

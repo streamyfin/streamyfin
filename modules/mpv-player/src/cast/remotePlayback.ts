@@ -52,11 +52,18 @@ export const loadOnReceiver = async (
   return CastNative.loadOnReceiver(server, request);
 };
 
-/** Reloads what the TV plays under this server, from where it is (a new bitrate cap). */
+/**
+ * Reloads what the TV plays under this server, from where it is: a new bitrate cap, or a subtitle the server just
+ * downloaded, which plays checked. A server without a cap keeps the TV's for a subtitle.
+ */
 export const reloadOnReceiver = async (
   server: ReceiverServerRecord,
+  options?: { subtitleStreamIndex?: number },
 ): Promise<void> => {
-  await CastNative?.reloadOnReceiver(server);
+  await CastNative?.reloadOnReceiver(
+    server,
+    options?.subtitleStreamIndex ?? null,
+  );
 };
 
 /** Next or previous inside the receiver's queue: how a list that is not a series moves. */

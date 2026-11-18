@@ -420,10 +420,25 @@ class CastEngine(
     // The item again where it is, with the tracks it plays.
     override fun reloadCurrentItem() = runOnMain { reloadCurrent() }
 
-    /** The item again where it is, under [server]: how a quality change applies the envelope's new cap. */
-    override fun reloadCurrentItem(server: ReceiverServer) = runOnMain {
-        this.server = server
-        reloadCurrent()
+    /**
+     * The item again where it is, under [server]: how a quality change applies the envelope's new cap. A
+     * subtitle the receiver did not load (one the server just downloaded) goes with it, checked at once.
+     */
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) = runOnMain {
+        if (subtitleStreamIndex == null) {
+            this.server = server
+            reloadCurrent()
+            return@runOnMain
+        }
+        // A subtitle reload names no cap: the TV keeps the one the last load or reload named.
+        this.server = server.copy(maxBitrate = server.maxBitrate ?: this.server.maxBitrate)
+        val data = loadedItem() ?: return@runOnMain
+        val previous = chosenSubtitle
+        chosenSubtitle = subtitleStreamIndex
+        updateTracks()
+        playAgain(data, currentAudio.takeIf { it >= 0 }, subtitleStreamIndex) {
+            if (chosenSubtitle == subtitleStreamIndex) chosenSubtitle = previous
+        }
     }
 
     private fun reloadCurrent() {

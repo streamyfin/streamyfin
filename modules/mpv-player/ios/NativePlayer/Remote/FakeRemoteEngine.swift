@@ -102,7 +102,7 @@ final class FakeRemoteEngine: RemoteEngine {
 
 	// The fake has no envelope to carry: its TV plays on as it was.
 	func useServer(_ server: ReceiverServer) {}
-	func reloadCurrentItem(server: ReceiverServer) {}
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {}
 
 	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
 		guard !stopped else { return completion(.notSent(Self.stoppedError)) }

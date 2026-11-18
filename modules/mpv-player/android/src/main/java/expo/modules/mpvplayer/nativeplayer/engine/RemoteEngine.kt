@@ -44,6 +44,10 @@ interface RemoteEngine : ChromeEngine {
     /** Plays [request] on the TV under [server], which the commands that follow carry; a newer load supersedes it. */
     fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit)
 
-    /** The item again where it is, under [server]: how a quality change applies its new cap. */
-    fun reloadCurrentItem(server: ReceiverServer)
+    /**
+     * The item again where it is, under [server]: how a quality change applies its new cap. With
+     * [subtitleStreamIndex], that subtitle instead (one the server just downloaded), and a server that names
+     * no cap keeps the TV's, as [useServer] does.
+     */
+    fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int? = null)
 }

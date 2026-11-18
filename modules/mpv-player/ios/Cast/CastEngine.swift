@@ -442,11 +442,28 @@ final class CastEngine: RemoteEngine {
     reloadCurrent()
   }
 
-  /// The item again where it is, under `server`: how a quality change applies the envelope's new cap.
-  func reloadCurrentItem(server: ReceiverServer) {
+  /// The item again where it is, under `server`: how a quality change applies the envelope's new cap. A subtitle the
+  /// receiver did not load (one the server just downloaded) goes with it, checked at once.
+  func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int? = nil) {
     onMain()
-    self.server = server
-    reloadCurrent()
+    guard let index = subtitleStreamIndex else {
+      self.server = server
+      reloadCurrent()
+      return
+    }
+    // A subtitle reload names no cap: the TV keeps the one the last load or reload named.
+    var next = server
+    next.maxBitrate = server.maxBitrate ?? self.server.maxBitrate
+    self.server = next
+    guard let data = loadedItem() else { return }
+    let previous = chosenSubtitle
+    chosenSubtitle = index
+    publishState()
+    let audio = read { $0.audio }
+    playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index) { [weak self] in
+      guard let self, self.chosenSubtitle == index else { return }
+      self.chosenSubtitle = previous
+    }
   }
 
   private func reloadCurrent() {

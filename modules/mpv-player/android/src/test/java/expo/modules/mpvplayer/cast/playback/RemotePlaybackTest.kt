@@ -60,7 +60,14 @@ private class RecordingRemoteEngine(val inner: FakeRemoteEngine) : RemoteEngine 
         inner.load(server, request, onResult)
     }
 
-    override fun reloadCurrentItem(server: ReceiverServer) { calls += "reload"; servers += server; inner.reloadCurrentItem(server) }
+    /** The subtitle index each reload carried, null for the one the TV plays. */
+    val reloadSubtitles = mutableListOf<Int?>()
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?) {
+        calls += "reload"
+        servers += server
+        reloadSubtitles += subtitleStreamIndex
+        inner.reloadCurrentItem(server, subtitleStreamIndex)
+    }
     override fun setAudioTrack(trackId: Int) { calls += "setAudioTrack $trackId"; inner.setAudioTrack(trackId) }
     override fun setSubtitleTrack(trackId: Int) { calls += "setSubtitleTrack $trackId"; inner.setSubtitleTrack(trackId) }
     override fun disableSubtitles() { calls += "disableSubtitles"; inner.disableSubtitles() }
@@ -313,6 +320,14 @@ class RemotePlaybackTest {
         playback.setServer(null)
         playback.reload(CAPPED)
         assertEquals(1, made.size)
+    }
+
+    @Test
+    fun aReloadCarriesTheSubtitleItWasGiven() {
+        connected()
+        playback.reload(SERVER)
+        playback.reload(SERVER, subtitleStreamIndex = 9)
+        assertEquals(listOf(null, 9), made.single().reloadSubtitles)
     }
 
     // What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a

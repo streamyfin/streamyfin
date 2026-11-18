@@ -612,6 +612,52 @@ class CastEngineTest {
         assertEquals(4_000_000L, message.getLong("maxBitrate"))
     }
 
+    // A subtitle the server just downloaded is not among the receiver's loaded tracks: the item
+    // plays again where it is with that one, and the menu checks it at once.
+    @Test
+    fun aReloadCanCarryASubtitleIndex() {
+        val engine = playing(42_500)
+        port.deliver("""{"type":"playbackprogress","data":{"PlayState":{"AudioStreamIndex":2,"SubtitleStreamIndex":5}}}""")
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9)
+        val expected = ReceiverProtocol.playNow(
+            SERVER,
+            ReceiverPlayRequest(
+                items = listOf(ReceiverItem(id = "item-1")),
+                startPositionTicks = 425_000_000,
+                mediaSourceId = "ms-1",
+                audioStreamIndex = 2,
+                subtitleStreamIndex = 9,
+            ),
+        )
+        assertEquals(listOf(expected.toString()), port.sent.map { it.second })
+        assertEquals(9, engine.getCurrentSubtitleTrack())
+    }
+
+    // Mid-list, that reload carries the list the engine cast, from the item the TV plays, where it is.
+    @Test
+    fun thatReloadKeepsTheRestOfTheListAndThePosition() {
+        val engine = engine()
+        val episodes = ReceiverPlayRequest(items = listOf("e-1", "e-2", "e-3").map { ReceiverItem(id = it) })
+        engine.load(SERVER, episodes) {}
+        media.report(snapshot(customData = ours("itemId" to "e-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "e-2", "playSessionId" to "ps-2")), 5_000)
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9)
+        val options = JSONObject(port.sent.last().second).getJSONObject("options")
+        val items = options.getJSONArray("items")
+        assertEquals(listOf("e-1", "e-2", "e-3"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, options.getInt("startIndex"))
+        assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+        assertEquals(9, options.getInt("subtitleStreamIndex"))
+    }
+
+    // A subtitle reload names no cap, as useServer: the TV keeps the one the last load or reload named.
+    @Test
+    fun aSubtitleReloadKeepsTheCapTheTvHas() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = null), subtitleStreamIndex = 9)
+        assertEquals(8_000_000L, JSONObject(port.sent.single().second).getLong("maxBitrate"))
+    }
+
     // A stop from the TV leaves an idle status that still carries the media, which play() on the
     // media channel cannot resume: Play casts the item again where it stopped. The SDK reports the
     // stream at 0 on that status (Task 14, run 12), so the engine keeps its own position there.

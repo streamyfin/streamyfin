@@ -1017,6 +1017,54 @@ enum CastEngineTests {
       )
     }
 
+    // A subtitle the server just downloaded is not among the receiver's loaded tracks: the item plays again where it
+    // is with that one, and the menu checks it at once.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.port.deliver(#"{"type":"playbackprogress","data":{"PlayState":{"AudioStreamIndex":2,"SubtitleStreamIndex":5}}}"#)
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9)
+      let replay = ReceiverPlayRequest(
+        items: [ReceiverItem(id: "item-1")], startPositionTicks: 425_000_000, mediaSourceId: "ms-1",
+        audioStreamIndex: 2, subtitleStreamIndex: 9
+      )
+      let expected = (try? ReceiverProtocol.playNow(server: server, request: replay)) ?? [:]
+      let sent = bench.sentMessages()
+      check(
+        "aReloadCanCarryASubtitleIndex",
+        sent.count == 1 && NSDictionary(dictionary: sent[0]).isEqual(to: expected) && subtitle(engine) == 9
+      )
+    }
+
+    // Mid-list, that reload carries the list the engine cast, from the item the TV plays, where it is.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["e-1", "e-2", "e-3"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "e-2", "playSessionId": "ps-2"])), position: 5)
+      engine.reloadCurrentItem(server: server, subtitleStreamIndex: 9)
+      let options = bench.sentMessages().last?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "thatReloadKeepsTheRestOfTheListAndThePosition",
+        ids == ["e-1", "e-2", "e-3"] && (options["startIndex"] as? Int) == 1
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 50_000_000
+          && (options["subtitleStreamIndex"] as? Int) == 9
+      )
+    }
+
+    // A subtitle reload names no cap, as useServer: the TV keeps the one the last load or reload named.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var uncapped = server
+      uncapped.maxBitrate = nil
+      engine.reloadCurrentItem(server: uncapped, subtitleStreamIndex: 9)
+      let sent = bench.sentMessages()
+      check("aSubtitleReloadKeepsTheCapTheTvHas", sent.count == 1 && (sent[0]["maxBitrate"] as? NSNumber)?.int64Value == 8_000_000)
+    }
+
     // A window the channel could not send is not on the receiver: a reload leaves it out.
     do {
       let bench = Bench()

@@ -137,6 +137,12 @@ test("reloadOnReceiver hands native the server", async () => {
   expect(mockCast.reloadCalls).toEqual([{ ...server, maxBitrate: 4_000_000 }]);
 });
 
+test("reloadOnReceiver hands native the subtitle it names, null without one", async () => {
+  await reloadOnReceiver(server);
+  await reloadOnReceiver(server, { subtitleStreamIndex: 9 });
+  expect(mockCast.reloadSubtitles).toEqual([null, 9]);
+});
+
 test("a track choice hands native its Jellyfin index", async () => {
   await setRemoteAudioTrack(2);
   await setRemoteSubtitleTrack(-1);

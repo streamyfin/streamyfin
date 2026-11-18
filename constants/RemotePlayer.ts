@@ -36,3 +36,11 @@ export const REMOTE_TINT_FADE_MS = 300;
  * server) while the panel is open.
  */
 export const REMOTE_TECHNICAL_INFO_REFRESH_MS = 2000;
+
+/**
+ * A subtitle the server downloads for the remote player is saved next to the media, and the item lists it a moment
+ * later: the item is read again every REMOTE_SUBTITLE_POLL_MS, REMOTE_SUBTITLE_POLL_ATTEMPTS times at most, as the
+ * local player does, before the screen says it could not be applied.
+ */
+export const REMOTE_SUBTITLE_POLL_MS = 1500;
+export const REMOTE_SUBTITLE_POLL_ATTEMPTS = 8;

@@ -6,7 +6,11 @@ import type {
 import { act, render, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { NATIVE_AUTO_QUALITY_INDEX } from "@/constants/Bitrate";
-import { REMOTE_TECHNICAL_INFO_REFRESH_MS } from "@/constants/RemotePlayer";
+import {
+  REMOTE_SUBTITLE_POLL_ATTEMPTS,
+  REMOTE_SUBTITLE_POLL_MS,
+  REMOTE_TECHNICAL_INFO_REFRESH_MS,
+} from "@/constants/RemotePlayer";
 import {
   NO_REMOTE_PLAYBACK,
   type RemotePlaybackState,
@@ -1187,5 +1191,204 @@ describe("technical info from the remote player", () => {
     });
 
     expect(mockPlayer.technicalInfoUpdates).toHaveLength(2);
+  });
+});
+
+// The server searches and downloads; the TV plays the item again with the new subtitle. The phone has no file to add.
+describe("subtitle search from the remote player", () => {
+  const ITEM = /\/Items\/s1e1(\?|$)/;
+  const SEARCH = /\/Items\/s1e1\/RemoteSearch\/Subtitles\/fre/;
+  const DOWNLOAD = /\/Items\/s1e1\/RemoteSearch\/Subtitles\/r-1/;
+  const streams = [
+    { Type: "Video" as const, Index: 0 },
+    { Type: "Audio" as const, Index: 1, Language: "eng" },
+    { Type: "Subtitle" as const, Index: 2, Language: "eng", Codec: "subrip" },
+  ];
+  const item: BaseItemDto = {
+    Id: "s1e1",
+    Name: "Pilot",
+    Type: "Episode",
+    MediaType: "Video",
+    MediaSources: [{ Id: "source-s1", MediaStreams: streams }],
+  };
+  // The item as the server lists it once the file is saved next to the media.
+  const withFrench: BaseItemDto = {
+    ...item,
+    MediaSources: [
+      {
+        Id: "source-s1",
+        MediaStreams: [
+          ...streams,
+          { Type: "Subtitle", Index: 3, Language: "fre", Codec: "subrip" },
+        ],
+      },
+    ],
+  };
+  const found = [
+    {
+      Id: "r-1",
+      Name: "Pilot.fr.srt",
+      ProviderName: "Open Subtitles",
+      Format: "srt",
+      ThreeLetterISOLanguageName: "fre",
+    },
+  ];
+  const result = expect.objectContaining({ id: "r-1", language: "fre" });
+  let api = makeApi();
+  const search = () =>
+    act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onSubtitleSearchRequested", {
+        language: "fre",
+        remote: true,
+      });
+    });
+  const download = async () => {
+    await search();
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates).toHaveLength(1),
+    );
+    await act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onSubtitleDownloadRequested", {
+        resultId: "r-1",
+        positionSec: 30,
+        remote: true,
+      });
+    });
+  };
+  const poll = async (times: number) => {
+    for (let i = 0; i < times; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(REMOTE_SUBTITLE_POLL_MS);
+      });
+    }
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers({
+      doNotFake: ["nextTick", "setImmediate", "queueMicrotask"],
+    });
+    api = makeApi();
+    api.mock.onGet(SEARCH).reply(200, found);
+    store.set(apiAtom, api);
+    store.set(remotePlayAtom, {
+      play: {
+        item,
+        positionTicks: 0,
+        mediaSourceId: "source-s1",
+        audioIndex: 1,
+        subtitleIndex: 2,
+      },
+      loaded: true,
+    });
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId: "s1e1",
+      audioIndex: 1,
+      subtitleIndex: 2,
+    };
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  test("a search answers with the server's results", async () => {
+    await render(<RemotePlayerController />);
+    await search();
+
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates).toEqual([
+        { status: "results", results: [result] },
+      ]),
+    );
+  });
+
+  test("a search the account may not make says so", async () => {
+    api.mock.onGet(SEARCH).reply(403);
+    await render(<RemotePlayerController />);
+    await search();
+
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates).toEqual([
+        {
+          status: "error",
+          results: [],
+          errorMessage: "player.subtitle_search_not_allowed",
+        },
+      ]),
+    );
+  });
+
+  test("a downloaded subtitle reloads the TV with it selected", async () => {
+    api.mock.onPost(DOWNLOAD).reply(204);
+    api.mock.onGet(ITEM).reply(200, withFrench);
+    await render(<RemotePlayerController />);
+    await download();
+    await poll(1);
+
+    await waitFor(() => expect(mockCast.reloadSubtitles).toEqual([3]));
+    // No cap named: the TV keeps the quality it plays at.
+    expect(mockCast.reloadCalls).toEqual([
+      {
+        serverAddress: api.basePath,
+        accessToken: api.accessToken,
+        userId: "user-1",
+        receiverName: "Living Room TV",
+      },
+    ]);
+    expect(mockPlayer.subtitleSearchUpdates.at(-1)).toEqual({
+      status: "applied",
+      results: [],
+    });
+
+    // The TV takes it: the menu lists the new subtitle, checked.
+    mockCast.remotePlayback = { ...mockCast.remotePlayback, subtitleIndex: 3 };
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+    const subtitles = (
+      mockPlayer.trackMenuUpdates.at(-1) as {
+        subtitles: { jellyfinIndex: number; selected?: boolean }[];
+      }
+    ).subtitles;
+    expect(subtitles.filter((row) => row.selected)).toEqual([
+      expect.objectContaining({ jellyfinIndex: 3 }),
+    ]);
+  });
+
+  test("a failed download says so and reloads nothing", async () => {
+    api.mock.onPost(DOWNLOAD).reply(500);
+    await render(<RemotePlayerController />);
+    await download();
+
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates.at(-1)).toEqual({
+        status: "results",
+        results: [result],
+        errorMessage: "player.search_failed",
+      }),
+    );
+    expect(mockCast.reloadCalls).toEqual([]);
+  });
+
+  test("a subtitle the server never lists says so and reloads nothing", async () => {
+    api.mock.onPost(DOWNLOAD).reply(204);
+    api.mock.onGet(ITEM).reply(200, item);
+    await render(<RemotePlayerController />);
+    await download();
+    await poll(REMOTE_SUBTITLE_POLL_ATTEMPTS);
+
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates.at(-1)).toEqual({
+        status: "results",
+        results: [result],
+        errorMessage: "player.subtitle_apply_failed",
+      }),
+    );
+    expect(mockCast.reloadCalls).toEqual([]);
   });
 });

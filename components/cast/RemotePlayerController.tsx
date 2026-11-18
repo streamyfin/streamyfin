@@ -41,6 +41,7 @@ import {
   episodeAfter,
   episodeBefore,
 } from "@/utils/remotePlayer/remoteEpisodes";
+import { remoteSubtitleSearch } from "@/utils/remotePlayer/remoteSubtitleSearch";
 import { remoteTechnicalInfoPanel } from "@/utils/remotePlayer/remoteTechnicalInfoPanel";
 import {
   changeRemoteQuality,
@@ -300,7 +301,22 @@ export function RemotePlayerController() {
       t: () => latest.current.t,
       target: () => latest.current.castTarget,
     });
+    const subtitleSearch = remoteSubtitleSearch({
+      store,
+      t: () => latest.current.t,
+      target: () => latest.current.castTarget,
+    });
     const subscriptions = [
+      addRemotePlayerListener("onSubtitleSearchRequested", ({ language }) => {
+        subtitleSearch.search(language).catch((error) => {
+          logAndCaptureError("Searching subtitles for the TV failed", error);
+        });
+      }),
+      addRemotePlayerListener("onSubtitleDownloadRequested", ({ resultId }) => {
+        subtitleSearch.download(resultId).catch((error) => {
+          logAndCaptureError("Downloading a subtitle for the TV failed", error);
+        });
+      }),
       addRemotePlayerListener("onTechnicalInfoRequested", technicalInfo.open),
       addRemotePlayerListener("onTechnicalInfoClosed", technicalInfo.close),
       addRemotePlayerListener("onNextEpisodeRequested", ({ reason }) =>

@@ -43,7 +43,10 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
     request: ReceiverPlayRequest,
   ): Promise<RemoteLoadResult>;
   /** Reloads what the TV plays under this server, from where it is. */
-  reloadOnReceiver(server: ReceiverServerRecord): Promise<void>;
+  reloadOnReceiver(
+    server: ReceiverServerRecord,
+    subtitleStreamIndex: number | null,
+  ): Promise<void>;
   /** Next or previous inside the receiver's queue, through the session's engine. */
   skipOnReceiver(direction: "next" | "previous"): Promise<void>;
   /** The audio track the TV plays, by Jellyfin index, through the session's engine. */

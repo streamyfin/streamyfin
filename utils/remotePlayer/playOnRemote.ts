@@ -24,6 +24,7 @@ import type {
   RemotePlayerPresentConfig,
   RemotePlayerTint,
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
+import { userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, liveTvBitrateRequest } from "@/utils/bitrate";
@@ -145,6 +146,7 @@ const configFor = (
     imageHeaders: getJellyfinHeaders(deps.api.basePath),
     settings,
     api: deps.api,
+    user: deps.store.get(userAtom),
     t: deps.t,
     bitrateValue: liveTvBitrateRequest(
       play.item,
