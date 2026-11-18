@@ -28,6 +28,8 @@ export interface NativePlayerDoubleState {
   remoteUpdates: unknown[];
   /** What `updateRemotePlayer` answers: false is no remote screen up. */
   remoteUpdateAnswer: boolean;
+  /** Menus handed to `updateTrackMenus`, in order: the screen's track and quality rows. */
+  trackMenuUpdates: unknown[];
   /** Failures handed to `showRemotePlayerFailure`, in order, null for a clear. */
   remoteFailures: unknown[];
   /** Calls to `dismiss`, which closes whichever player is up. */
@@ -41,6 +43,7 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   remoteRefusal: null,
   remoteTints: [],
   remoteUpdates: [],
+  trackMenuUpdates: [],
   remoteUpdateAnswer: true,
   remoteFailures: [],
   dismissals: 0,
@@ -74,6 +77,9 @@ export const nativePlayerDoubleModule = (
   updateRemotePlayer: jest.fn(async (config: unknown) => {
     state().remoteUpdates.push(config);
     return state().remoteUpdateAnswer;
+  }),
+  updateTrackMenus: jest.fn(async (menus: unknown) => {
+    state().trackMenuUpdates.push(menus);
   }),
   showRemotePlayerFailure: jest.fn(async (failure: unknown) => {
     state().remoteFailures.push(failure);

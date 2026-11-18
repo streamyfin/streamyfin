@@ -46,6 +46,10 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   reloadOnReceiver(server: ReceiverServerRecord): Promise<void>;
   /** Next or previous inside the receiver's queue, through the session's engine. */
   skipOnReceiver(direction: "next" | "previous"): Promise<void>;
+  /** The audio track the TV plays, by Jellyfin index, through the session's engine. */
+  setRemoteAudioTrack(index: number): Promise<void>;
+  /** The subtitle the TV shows, by Jellyfin index, -1 for none, through the session's engine. */
+  setRemoteSubtitleTrack(index: number): Promise<void>;
   showExpandedControls(): Promise<boolean>;
   /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
   presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;

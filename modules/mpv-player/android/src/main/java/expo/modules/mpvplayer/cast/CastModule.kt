@@ -287,6 +287,17 @@ class CastModule : Module() {
             RemotePlayback.shared.reload(server.toServer())
         }.runOnQueue(Queues.MAIN)
 
+        // The remote player's menus: a track by Jellyfin index, -1 for no subtitles.
+        AsyncFunction("setRemoteAudioTrack") { index: Int ->
+            ensureContext()
+            RemotePlayback.shared.setAudioTrack(index)
+        }.runOnQueue(Queues.MAIN)
+
+        AsyncFunction("setRemoteSubtitleTrack") { index: Int ->
+            ensureContext()
+            RemotePlayback.shared.setSubtitleTrack(index)
+        }.runOnQueue(Queues.MAIN)
+
         // Next or previous inside the receiver's queue: a list that is not a series moves there.
         AsyncFunction("skipOnReceiver") { direction: String ->
             ensureContext()

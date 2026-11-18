@@ -24,7 +24,10 @@ import { stubReactNative } from "@/test-utils/reactNative";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { settingsAtom } from "@/utils/atoms/settings";
-import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
+import {
+  getSeriesTrackMemory,
+  rememberSeriesTrack,
+} from "@/utils/seriesTrackMemory";
 import { RemotePlayerController } from "./RemotePlayerController";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -56,7 +59,11 @@ jest.mock("@/hooks/usePlayMedia", () => ({
 }));
 // Auto measures the link with a download: here it measures 30 Mb/s.
 jest.mock("@/utils/jellyfin/maxStreamingBitrate", () => ({
-  resolveMaxStreamingBitrate: jest.fn(async () => 30_000_000),
+  // A quality picked by hand is its own cap, as the real one answers.
+  resolveMaxStreamingBitrate: jest.fn(
+    async (_api: unknown, request: unknown) =>
+      typeof request === "number" ? request : 30_000_000,
+  ),
 }));
 jest.mock("@/utils/imageColors", () => ({
   extractImageColor: jest.fn(async () => null),
@@ -675,5 +682,139 @@ describe("moving between episodes from the remote player", () => {
       expect(store.get(remotePlayAtom)).toBeNull();
       expect(mockPlayer.remoteUpdates).toEqual([]);
     });
+  });
+});
+
+describe("tracks and quality from the remote player", () => {
+  const item: BaseItemDto = {
+    Id: "t1e1",
+    Name: "Pilot",
+    Type: "Episode",
+    MediaType: "Video",
+    SeriesId: "series-9",
+    MediaSources: [
+      {
+        Id: "source-t1",
+        MediaStreams: [
+          { Type: "Video", Index: 0 },
+          { Type: "Audio", Index: 1, Language: "eng" },
+          { Type: "Audio", Index: 2, Language: "fra" },
+          { Type: "Subtitle", Index: 3, Language: "fra", Codec: "subrip" },
+        ],
+      },
+    ],
+  };
+  const tvReports = (audioIndex: number, subtitleIndex: number) => {
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      itemId: "t1e1",
+      audioIndex,
+      subtitleIndex,
+    };
+  };
+  const choose = (kind: "audio" | "subtitle", jellyfinIndex: number) =>
+    act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onTrackSelectionRequested", {
+        kind,
+        jellyfinIndex,
+        positionSec: 30,
+        remote: true,
+      });
+    });
+  type Menus = {
+    audio: { jellyfinIndex: number; selected?: boolean }[];
+    subtitles: { jellyfinIndex: number; selected?: boolean }[];
+    quality?: { jellyfinIndex: number; selected?: boolean }[];
+  };
+  const lastMenus = () => mockPlayer.trackMenuUpdates.at(-1) as Menus;
+  const checked = (rows: { jellyfinIndex: number; selected?: boolean }[]) =>
+    rows.filter((row) => row.selected).map((row) => row.jellyfinIndex);
+
+  beforeEach(() => {
+    store.set(remotePlayAtom, {
+      play: {
+        item,
+        positionTicks: 0,
+        mediaSourceId: "source-t1",
+        audioIndex: 1,
+        subtitleIndex: 3,
+      },
+      loaded: true,
+    });
+    tvReports(1, 3);
+    store.set(settingsAtom, {
+      rememberAudioSelections: true,
+      rememberSubtitleSelections: true,
+    } as never);
+  });
+
+  afterEach(() => store.set(settingsAtom, null as never));
+
+  test("choosing an audio track sends its Jellyfin index to the TV", async () => {
+    await render(<RemotePlayerController />);
+    await choose("audio", 2);
+    await waitFor(() =>
+      expect(mockCast.trackCalls).toEqual([{ kind: "audio", index: 2 }]),
+    );
+  });
+
+  test("the choice is remembered for the series", async () => {
+    await render(<RemotePlayerController />);
+    await choose("audio", 2);
+    await waitFor(() =>
+      expect(getSeriesTrackMemory("series-9")?.audioLang).toBe("fra"),
+    );
+  });
+
+  // The rows wait for the TV: a choice it refused never shows checked.
+  test("the menu follows what the TV reports", async () => {
+    await render(<RemotePlayerController />);
+    await choose("audio", 2);
+    await waitFor(() => expect(mockCast.trackCalls).toHaveLength(1));
+    expect(mockPlayer.trackMenuUpdates).toEqual([]);
+
+    tvReports(2, 3);
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+
+    await waitFor(() => expect(checked(lastMenus().audio)).toEqual([2]));
+    expect(checked(lastMenus().subtitles)).toEqual([3]);
+    expect(store.get(remotePlayAtom)?.play.audioIndex).toBe(2);
+  });
+
+  test("turning subtitles off sends minus one", async () => {
+    await render(<RemotePlayerController />);
+    await choose("subtitle", -1);
+    await waitFor(() =>
+      expect(mockCast.trackCalls).toEqual([{ kind: "subtitle", index: -1 }]),
+    );
+    expect(getSeriesTrackMemory("series-9")?.subtitleLang).toBe("off");
+  });
+
+  test("a quality change reloads the item under the new cap", async () => {
+    await render(<RemotePlayerController />);
+    await act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+        remote: true,
+      });
+    });
+    await waitFor(() =>
+      expect(mockCast.reloadCalls).toEqual([
+        { ...envelope, maxBitrate: 4_000_000 },
+      ]),
+    );
+    expect(
+      store.get(settingsAtom)?.remotePlaybackQuality?.byTarget[livingRoom.id],
+    ).toBe("4 Mb/s");
+    expect(checked(lastMenus().quality ?? [])).toEqual([4_000_000]);
   });
 });

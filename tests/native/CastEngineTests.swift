@@ -995,6 +995,28 @@ enum CastEngineTests {
       check("reloadCurrentItemWithAServerSendsItsCap", sent.count == 1 && (sent[0]["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000)
     }
 
+    // A quality change mid-list: the receiver's PlayNow replaces its queue, so the reload under the new cap carries
+    // the list the engine cast, from the item the TV plays, where it is.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["e-1", "e-2", "e-3"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "e-2", "playSessionId": "ps-2"])), position: 5)
+      var capped = server
+      capped.maxBitrate = 4_000_000
+      engine.reloadCurrentItem(server: capped)
+      let message = bench.sentMessages().last ?? [:]
+      let options = message["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "aQualityReloadKeepsTheRestOfTheListAndThePosition",
+        ids == ["e-1", "e-2", "e-3"] && (options["startIndex"] as? Int) == 1
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 50_000_000
+          && (message["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000
+      )
+    }
+
     // A window the channel could not send is not on the receiver: a reload leaves it out.
     do {
       let bench = Bench()

@@ -26,7 +26,7 @@ import type {
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
-import { liveTvBitrateRequest } from "@/utils/bitrate";
+import { type BitrateRequest, liveTvBitrateRequest } from "@/utils/bitrate";
 import {
   receiverNameFor,
   toReceiverRequest,
@@ -167,6 +167,29 @@ const episodeListing = async (
 };
 
 /**
+ * The cap a receiver gets for `quality`: it knows no Auto, so it gets the bitrate measured here, held under a stick's
+ * ceiling, and its own ceiling for no cap, as `sendToReceiver` hands it.
+ */
+export const receiverBitrateFor = async (
+  api: RemotePlayDeps["api"],
+  quality: BitrateRequest,
+  settings: Settings | null | undefined,
+  model: string | null | undefined,
+): Promise<number> => {
+  const measured = await resolveMaxStreamingBitrate(
+    api,
+    quality,
+    autoBitrateOptions(settings),
+  );
+  const bitrate =
+    quality === AUTO_BITRATE_VALUE ? autoBitrateOn(measured, model) : measured;
+  return Math.min(
+    bitrate || RECEIVER_UNCAPPED_BITRATE,
+    RECEIVER_UNCAPPED_BITRATE,
+  );
+};
+
+/**
  * Plays on the TV through the remote player: the screen opens at once on the neutral (or takes the new play in place
  * when it is up), then the Cast session's engine loads on the receiver under the account's envelope, at the remote
  * quality's cap. The receiver reports the playback to the server itself: nothing is reported from here. A load the TV
@@ -212,17 +235,12 @@ export const playOnRemote = async (
     return { status: "notStarted", message };
   };
   try {
-    // The receiver knows no Auto: it gets the bitrate measured here, held under a stick's ceiling, and its own
-    // ceiling for no cap, as `sendToReceiver` hands it.
-    const measured = await resolveMaxStreamingBitrate(
+    const bitrate = await receiverBitrateFor(
       deps.api,
       quality,
-      autoBitrateOptions(settings),
+      settings,
+      session?.device?.modelName,
     );
-    const bitrate =
-      quality === AUTO_BITRATE_VALUE
-        ? autoBitrateOn(measured, session?.device?.modelName)
-        : measured;
     // A press made while Auto measured owns the screen now, or another TV took the session: this one sends nothing.
     if (
       isStale() ||
@@ -279,10 +297,7 @@ export const playOnRemote = async (
         accessToken: deps.api.accessToken,
         userId: deps.userId,
         ...(receiverName ? { receiverName } : {}),
-        maxBitrate: Math.min(
-          bitrate || RECEIVER_UNCAPPED_BITRATE,
-          RECEIVER_UNCAPPED_BITRATE,
-        ),
+        maxBitrate: bitrate,
       },
       request,
     );

@@ -59,12 +59,12 @@ final class RecordingRemoteEngine: RemoteEngine {
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
 	func setSkipIntervals(forward: Double, backward: Double) {}
 	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
-	func setSubtitleTrack(_ trackId: Int) { calls.append("setSubtitleTrack") }
+	func setSubtitleTrack(_ trackId: Int) { calls.append("setSubtitleTrack \(trackId)") }
 	func disableSubtitles() { calls.append("disableSubtitles") }
 	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) { completion(-1) }
 	func addSubtitleFile(url: String, select: Bool) {}
 	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
-	func setAudioTrack(_ trackId: Int) { calls.append("setAudioTrack") }
+	func setAudioTrack(_ trackId: Int) { calls.append("setAudioTrack \(trackId)") }
 	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) { completion(-1) }
 	func setAudioDelay(_ seconds: Double) {}
 	func setVolumeBoost(_ percent: Int) {}
@@ -429,6 +429,25 @@ enum RemotePlaybackTests {
 			bench.playback.setServer(nil)
 			bench.playback.reload(server: capped)
 			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1)
+		}
+
+		// The remote player's menus choose by Jellyfin index; -1 turns the subtitles off.
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.playback.setAudioTrack(2)
+			bench.playback.setSubtitleTrack(5)
+			bench.playback.setSubtitleTrack(-1)
+			check(
+				"aTrackChoiceGoesToTheEngine",
+				bench.made[0].calls == ["start", "setAudioTrack 2", "setSubtitleTrack 5", "disableSubtitles"]
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.playback.setAudioTrack(2)
+			check("aTrackChoiceWithoutAnEngineSendsNothing", bench.made.isEmpty)
 		}
 
 		// What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a

@@ -92,6 +92,21 @@ final class RemotePlayback: PlayerEngineDelegate {
     engine?.reloadCurrentItem(server: server)
   }
 
+  /// The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine.
+  func setAudioTrack(_ index: Int) {
+    engine?.setAudioTrack(index)
+  }
+
+  /// The subtitle the remote player's menu chose, by Jellyfin index; -1 turns them off.
+  func setSubtitleTrack(_ index: Int) {
+    guard let engine else { return }
+    if index < 0 {
+      engine.disableSubtitles()
+    } else {
+      engine.setSubtitleTrack(index)
+    }
+  }
+
   /// What the target hub says of the session: connected, or suspended while the SDK tries to resume it.
   func targetChanged(connected: Bool, suspended: Bool) {
     sessionHolds = connected

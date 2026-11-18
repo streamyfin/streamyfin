@@ -593,6 +593,25 @@ class CastEngineTest {
         assertEquals(50_000_000L, options.getLong("startPositionTicks"))
     }
 
+    // A quality change mid-list: the receiver's PlayNow replaces its queue, so the reload under the new cap
+    // carries the list the engine cast, from the item the TV plays, where it is.
+    @Test
+    fun aQualityReloadKeepsTheRestOfTheListAndThePosition() {
+        val engine = engine()
+        val episodes = ReceiverPlayRequest(items = listOf("e-1", "e-2", "e-3").map { ReceiverItem(id = it) })
+        engine.load(SERVER, episodes) {}
+        media.report(snapshot(customData = ours("itemId" to "e-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "e-2", "playSessionId" to "ps-2")), 5_000)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        val message = JSONObject(port.sent.last().second)
+        val options = message.getJSONObject("options")
+        val items = options.getJSONArray("items")
+        assertEquals(listOf("e-1", "e-2", "e-3"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, options.getInt("startIndex"))
+        assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+        assertEquals(4_000_000L, message.getLong("maxBitrate"))
+    }
+
     // A stop from the TV leaves an idle status that still carries the media, which play() on the
     // media channel cannot resume: Play casts the item again where it stopped. The SDK reports the
     // stream at 0 on that status (Task 14, run 12), so the engine keeps its own position there.

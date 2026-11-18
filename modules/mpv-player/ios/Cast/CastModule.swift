@@ -140,6 +140,17 @@ public class CastModule: Module {
       RemotePlayback.shared.reload(server: server.server)
     }.runOnQueue(.main)
 
+    // The remote player's menus: a track by Jellyfin index, -1 for no subtitles.
+    AsyncFunction("setRemoteAudioTrack") { (index: Int) in
+      self.ensureListening()
+      RemotePlayback.shared.setAudioTrack(index)
+    }.runOnQueue(.main)
+
+    AsyncFunction("setRemoteSubtitleTrack") { (index: Int) in
+      self.ensureListening()
+      RemotePlayback.shared.setSubtitleTrack(index)
+    }.runOnQueue(.main)
+
     // Next or previous inside the receiver's queue: a list that is not a series moves there.
     AsyncFunction("skipOnReceiver") { (direction: String) in
       self.ensureListening()
@@ -548,6 +559,8 @@ public class CastModule: Module {
     }
     AsyncFunction("reloadOnReceiver") { (_: [String: Any]) in }
     AsyncFunction("skipOnReceiver") { (_: String) in }
+    AsyncFunction("setRemoteAudioTrack") { (_: Int) in }
+    AsyncFunction("setRemoteSubtitleTrack") { (_: Int) in }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
     AsyncFunction("setTargetVolume") { (_: Double) in }

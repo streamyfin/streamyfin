@@ -8,6 +8,8 @@ import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import type {
   NativePlayerEpisodeListItem,
   NativePlayerNextEpisode,
+  NativePlayerTrackMenuItem,
+  NativePlayerTrackMenus,
 } from "@/modules/mpv-player/src/NativePlayerPresentation.types";
 import type {
   RemotePlayerPresentConfig,
@@ -38,6 +40,39 @@ const remoteUi = (
   subtitleSearchEnabled: false,
   strings,
 });
+
+/**
+ * The remote player's track and quality rows. Every one waits for the TV: native checks none on a tap, the menus follow
+ * what the TV then reports, so a choice it refused never shows checked.
+ */
+export const buildRemoteTrackMenus = (params: {
+  mediaSource: MediaSourceInfo;
+  audioIndex?: number;
+  subtitleIndex?: number;
+  bitrateValue?: BitrateRequest;
+  t: TFunction;
+}): NativePlayerTrackMenus => {
+  const { t } = params;
+  const menus = buildTrackMenus({
+    mediaSource: params.mediaSource,
+    audioIndex: params.audioIndex,
+    subtitleIndex: params.subtitleIndex ?? SUBTITLES_OFF,
+    offline: false,
+    downloadedItem: null,
+    offLabel: buildNativePlayerStrings(t).off ?? "None",
+    originalLabel: t("common.original_audio"),
+    qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
+    bitrateValue: params.bitrateValue ?? AUTO_BITRATE_VALUE,
+    trackTags: trackTagLabels(t),
+  });
+  const awaitingTheTv = (rows: NativePlayerTrackMenuItem[] = []) =>
+    rows.map((row) => ({ ...row, requiresReload: true }));
+  return {
+    subtitles: awaitingTheTv(menus.subtitles),
+    audio: awaitingTheTv(menus.audio),
+    quality: awaitingTheTv(menus.quality),
+  };
+};
 
 /**
  * What the remote player shows of a play on the TV: the local player's metadata, chapters, thumbnails and track
@@ -81,17 +116,12 @@ export const buildRemotePlayerConfig = (params: {
     nextEpisode: params.nextEpisode,
     episodeList: params.episodeList,
     tracks: mediaSource
-      ? buildTrackMenus({
+      ? buildRemoteTrackMenus({
           mediaSource,
           audioIndex: params.audioIndex,
-          subtitleIndex: params.subtitleIndex ?? SUBTITLES_OFF,
-          offline: false,
-          downloadedItem: null,
-          offLabel: strings.off ?? "None",
-          originalLabel: t("common.original_audio"),
-          qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
-          bitrateValue: params.bitrateValue ?? AUTO_BITRATE_VALUE,
-          trackTags: trackTagLabels(t),
+          subtitleIndex: params.subtitleIndex,
+          bitrateValue: params.bitrateValue,
+          t,
         })
       : null,
     ui: remoteUi(settings, strings),

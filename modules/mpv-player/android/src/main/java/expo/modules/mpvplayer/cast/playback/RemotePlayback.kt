@@ -79,6 +79,17 @@ class RemotePlayback(
         engine?.reloadCurrentItem(server)
     }
 
+    /** The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine. */
+    fun setAudioTrack(index: Int) {
+        engine?.setAudioTrack(index)
+    }
+
+    /** The subtitle the remote player's menu chose, by Jellyfin index; -1 turns them off. */
+    fun setSubtitleTrack(index: Int) {
+        val engine = engine ?: return
+        if (index < 0) engine.disableSubtitles() else engine.setSubtitleTrack(index)
+    }
+
     /** What the target hub says of the session: connected, or suspended while the SDK tries to resume it. */
     fun targetChanged(connected: Boolean, suspended: Boolean) {
         sessionHolds = connected

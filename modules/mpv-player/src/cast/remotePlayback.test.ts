@@ -15,7 +15,9 @@ import {
   onRemotePlaybackChanged,
   reloadOnReceiver,
   remotePlayback,
+  setRemoteAudioTrack,
   setRemoteServer,
+  setRemoteSubtitleTrack,
   skipOnReceiver,
   useRemotePlayback,
 } from "./remotePlayback";
@@ -132,6 +134,15 @@ test("loadOnReceiver answers the native outcome", async () => {
 test("reloadOnReceiver hands native the server", async () => {
   await reloadOnReceiver({ ...server, maxBitrate: 4_000_000 });
   expect(mockCast.reloadCalls).toEqual([{ ...server, maxBitrate: 4_000_000 }]);
+});
+
+test("a track choice hands native its Jellyfin index", async () => {
+  await setRemoteAudioTrack(2);
+  await setRemoteSubtitleTrack(-1);
+  expect(mockCast.trackCalls).toEqual([
+    { kind: "audio", index: 2 },
+    { kind: "subtitle", index: -1 },
+  ]);
 });
 
 test("skipOnReceiver hands native the direction", async () => {

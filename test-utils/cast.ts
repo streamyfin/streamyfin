@@ -93,6 +93,8 @@ export interface CastDoubleState {
   reloadCalls: ReceiverServerRecord[];
   /** Directions handed to `skipOnReceiver`, in order. */
   skipCalls: ("next" | "previous")[];
+  /** Tracks handed to `setRemoteAudioTrack` and `setRemoteSubtitleTrack`, in order. */
+  trackCalls: { kind: "audio" | "subtitle"; index: number }[];
   /** Options handed to `presentOutputPicker`, in order. */
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
@@ -140,6 +142,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   loadCalls: [],
   reloadCalls: [],
   skipCalls: [],
+  trackCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
   listeners: {
@@ -328,6 +331,12 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   }),
   skipOnReceiver: jest.fn(async (direction: "next" | "previous") => {
     state().skipCalls.push(direction);
+  }),
+  setRemoteAudioTrack: jest.fn(async (index: number) => {
+    state().trackCalls.push({ kind: "audio", index });
+  }),
+  setRemoteSubtitleTrack: jest.fn(async (index: number) => {
+    state().trackCalls.push({ kind: "subtitle", index });
   }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");

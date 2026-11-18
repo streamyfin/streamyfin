@@ -66,6 +66,16 @@ export const skipOnReceiver = async (
   await CastNative?.skipOnReceiver(direction);
 };
 
+/** The audio track the TV plays, by Jellyfin index: the receiver plays the item again with it. */
+export const setRemoteAudioTrack = async (index: number): Promise<void> => {
+  await CastNative?.setRemoteAudioTrack(index);
+};
+
+/** The subtitle the TV shows, by Jellyfin index, -1 for none. */
+export const setRemoteSubtitleTrack = async (index: number): Promise<void> => {
+  await CastNative?.setRemoteSubtitleTrack(index);
+};
+
 /** What the TV plays, followed. */
 export const useRemotePlayback = (): RemotePlaybackState => {
   const [state, setState] = useState<RemotePlaybackState>(() =>
