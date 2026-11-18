@@ -96,8 +96,22 @@ export function useDownloadEventHandlers({
     return () => startedSub.remove();
   }, [updateProcess]);
 
-  // Native paused a download itself: the connection dropped and it kept the bytes. The card turns
-  // into a paused one with its progress, where the error path used to delete the partial file.
+  // The newest progress of each download, written by the progress handler as each event lands.
+  // The paused handler reads it here: `processes` is only as new as the last render, and a pause
+  // that lands before the latest progress has rendered would save an older percentage.
+  const latestProgress = useRef(
+    new Map<
+      string,
+      {
+        progress: number;
+        bytesDownloaded: number;
+        estimatedTotalSizeBytes?: number;
+      }
+    >(),
+  );
+
+  // Native paused a download itself: the connection dropped. The card turns into a paused one
+  // with its progress, where the error path used to delete the partial file.
   useEffect(() => {
     const pausedSub = BackgroundDownloader.addPausedListener(
       (event: DownloadPausedEvent) => {
@@ -113,29 +127,41 @@ export function useDownloadEventHandlers({
           return;
         }
 
-        const process = processes.find((p) => p.id === itemId);
+        // Not kept: iOS could not save the resume data, so resuming starts from the first byte
+        // and the card must not promise the old percentage.
+        const latest = event.kept
+          ? latestProgress.current.get(itemId)
+          : { progress: 0, bytesDownloaded: 0 };
         updatePendingDownload(itemId, {
           status: "paused",
           taskId: undefined,
           interruptedTaskId: event.taskId,
-          progress: process?.progress ?? record.progress,
-          bytesDownloaded: process?.bytesDownloaded ?? record.bytesDownloaded,
+          progress: latest?.progress ?? record.progress,
+          bytesDownloaded: latest?.bytesDownloaded ?? record.bytesDownloaded,
           estimatedTotalSizeBytes:
-            process?.estimatedTotalSizeBytes ?? record.estimatedTotalSizeBytes,
+            latestProgress.current.get(itemId)?.estimatedTotalSizeBytes ??
+            record.estimatedTotalSizeBytes,
         });
-        updateProcess(itemId, { status: "paused", speed: undefined });
+        updateProcess(itemId, {
+          status: "paused",
+          speed: undefined,
+          ...(event.kept ? {} : { progress: 0, bytesDownloaded: 0 }),
+        });
         clearSpeedData(itemId);
         toast.info(
-          t("home.downloads.toasts.download_paused_connection_lost", {
-            item: record.item.Name,
-          }),
+          t(
+            event.kept
+              ? "home.downloads.toasts.download_paused_connection_lost"
+              : "home.downloads.toasts.download_paused_connection_lost_restart",
+            { item: record.item.Name },
+          ),
           { id: getDownloadToastId(itemId) },
         );
       },
     );
 
     return () => pausedSub.remove();
-  }, [processes, updateProcess, t]);
+  }, [updateProcess, t]);
 
   // Track last logged progress per process to avoid spam
   const lastLoggedProgress = useRef<Map<string, number>>(new Map());
@@ -226,6 +252,12 @@ export function useDownloadEventHandlers({
           );
           lastLoggedProgress.current.set(processId, progress);
         }
+
+        latestProgress.current.set(processId, {
+          progress,
+          bytesDownloaded: event.bytesWritten,
+          estimatedTotalSizeBytes: estimatedTotalBytes,
+        });
 
         // Update state (native layer already throttles events to every 500ms)
         updateProcess(processId, {

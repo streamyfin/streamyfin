@@ -739,8 +739,36 @@ it("stays paused when the resumed transfer loses its connection before native an
 
   await act(() => operations.resumeDownload("item-1"));
 
-  expect(getPendingDownload("item-1")?.status).toBe("paused");
+  expect(mockDownloader.resumeDownload).toHaveBeenCalledTimes(1);
+  expect(getPendingDownload("item-1")).toMatchObject({
+    status: "paused",
+    interruptedTaskId: 9,
+  });
   expect(toast.info).not.toHaveBeenCalledWith(
+    "home.downloads.toasts.download_resumed",
+  );
+});
+
+// Android numbers its tasks from 1 in every process, so the task an earlier attempt lost its
+// connection on can share its id with this attempt's. That old marker silenced a resume that
+// worked.
+it("confirms a resume whose task id matches an earlier attempt's interruption", async () => {
+  mockDownloader.pauseDownload.mockResolvedValue("kept");
+  const { operations } = await renderOperations();
+  await act(() =>
+    operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+  );
+  await act(() => operations.pauseDownload("item-1"));
+  updatePendingDownload("item-1", { interruptedTaskId: 9 });
+  mockDownloader.resumeDownload.mockResolvedValue(9);
+
+  await act(() => operations.resumeDownload("item-1"));
+
+  expect(getPendingDownload("item-1")).toMatchObject({
+    status: "downloading",
+    taskId: 9,
+  });
+  expect(toast.info).toHaveBeenCalledWith(
     "home.downloads.toasts.download_resumed",
   );
 });

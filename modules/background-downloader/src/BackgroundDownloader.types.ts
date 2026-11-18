@@ -40,6 +40,8 @@ export interface DownloadPausedEvent {
   /** Jellyfin item id, echoed from the metadata passed at enqueue time. */
   itemId?: string;
   reason: "connection";
+  /** Whether the bytes so far were saved. When false, resuming starts from the first byte. */
+  kept: boolean;
 }
 
 export interface ActiveDownload {

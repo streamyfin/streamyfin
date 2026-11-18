@@ -126,9 +126,10 @@ class OkHttpDownloadManager {
           }
           return
         }
-        // No response at all, typically a resume while offline: what an earlier pause kept is
-        // still continuable, so this is a pause again rather than a failure that deletes it.
-        if (isConnectionLoss(e) && partFileFor(destinationPath).exists() &&
+        // No response at all to a resume, typically one tapped while offline: what the earlier
+        // pause kept is still continuable, so this is a pause again rather than a failure that
+        // deletes it. A fresh start never splices onto a leftover .part, so it fails as before.
+        if (resumeOffset > 0 && isConnectionLoss(e) && partFileFor(destinationPath).exists() &&
           validatorFileFor(destinationPath).exists()
         ) {
           onInterrupted(e.message ?: "Connection lost")

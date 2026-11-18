@@ -54,6 +54,9 @@ struct PausedDownloadInfo: Codable {
   var metadata: DownloadActivityMetadata?
   var resumeDataFileName: String?
   var pausedAt: Date = Date()
+  /// The task that was paused. JS may still cancel by it before it hears of a pause native made
+  /// itself (connection lost). Absent in records saved before it existed.
+  var taskId: Int?
 }
 
 /// Persists in-flight task info so it survives the app being terminated mid-download.

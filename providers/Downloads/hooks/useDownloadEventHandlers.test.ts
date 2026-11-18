@@ -5,6 +5,7 @@ import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadPausedEvent,
+  DownloadProgressEvent,
   DownloadStartedEvent,
 } from "@/modules";
 import { DOCUMENTS, fakeFiles } from "@/test-utils/fileSystem";
@@ -17,6 +18,7 @@ const mockListeners: {
   complete?: (event: DownloadCompleteEvent) => Promise<void>;
   error?: (event: DownloadErrorEvent) => Promise<void>;
   paused?: (event: DownloadPausedEvent) => void;
+  progress?: (event: DownloadProgressEvent) => void;
 } = {};
 const mockCancelDownload = jest.fn();
 jest.mock("@/modules", () => ({
@@ -26,7 +28,10 @@ jest.mock("@/modules", () => ({
       mockListeners.started = listener;
       return { remove: () => {} };
     },
-    addProgressListener: () => ({ remove: () => {} }),
+    addProgressListener: (listener: typeof mockListeners.progress) => {
+      mockListeners.progress = listener;
+      return { remove: () => {} };
+    },
     addErrorListener: (listener: typeof mockListeners.error) => {
       mockListeners.error = listener;
       return { remove: () => {} };
@@ -349,20 +354,28 @@ describe("a download that loses its connection", () => {
     taskId: 7,
     itemId: "item-1",
     reason: "connection",
+    kept: true,
   };
 
   // The error path deleted the partial file, so leaving Wi-Fi mid-download, or resuming before
   // the connection was back, threw away what had been downloaded.
+  // The progress comes from the last progress event, which may not have rendered yet.
+  const lastProgress: DownloadProgressEvent = {
+    taskId: 7,
+    itemId: "item-1",
+    bytesWritten: 400,
+    totalBytes: 1000,
+    progress: 0.4,
+  };
+
   it("becomes a paused download that keeps its progress and files", async () => {
     savePendingDownload(record);
     fakeFiles.add(`${VIDEO}.part`, `${VIDEO}.part.validator`);
     const updateProcess = jest.fn();
     const onPaused = await listenerFor("paused", jest.fn(), {
-      processes: [
-        { id: "item-1", progress: 40, bytesDownloaded: 400 } as JobStatus,
-      ],
       updateProcess,
     });
+    mockListeners.progress?.(lastProgress);
 
     onPaused(paused);
 
@@ -382,6 +395,25 @@ describe("a download that loses its connection", () => {
       { id: getDownloadToastId("item-1") },
     );
     expect(fakeFiles.deleted()).toEqual([]);
+  });
+
+  // iOS could not write the resume data: resuming starts over, so the card must not keep 40%.
+  it("says it starts over when its bytes could not be kept", async () => {
+    savePendingDownload(record);
+    const onPaused = await listenerFor("paused");
+    mockListeners.progress?.(lastProgress);
+
+    onPaused({ ...paused, kept: false });
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 0,
+      bytesDownloaded: 0,
+    });
+    expect(toast.info).toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused_connection_lost_restart",
+      { id: getDownloadToastId("item-1") },
+    );
   });
 
   it("is ignored when the record waits on another transfer", async () => {

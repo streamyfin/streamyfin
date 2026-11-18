@@ -184,9 +184,12 @@ Listens for download errors.
 
 #### `addPausedListener(listener: (event: DownloadPausedEvent) => void): Subscription`
 
-Native paused a download itself because its connection was lost while its bytes could be kept
-(`reason: "connection"`). It is in the paused list and holds the queue, as if the user had paused
-it.
+Native paused a download itself because its connection was lost (`reason: "connection"`). It is
+in the paused list and holds the queue, as if the user had paused it. `kept` says whether the bytes
+so far were saved; when false (iOS could not write the resume data), resuming starts over.
+
+Only downloads enqueued with metadata carrying an `itemId` are paused this way: without one there
+is nothing to resume from later, and a lost connection raises `onDownloadError` as before.
 
 - **Android:** a connection failure of a transfer whose `.part` has a validator, mid-body or
   before any response (a resume while offline). Other failures still raise `onDownloadError`.

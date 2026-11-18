@@ -28,7 +28,9 @@ private data class QueuedDownload(
 
 private data class PausedDownload(
   val url: String,
-  val destinationPath: String?
+  val destinationPath: String?,
+  /** The task that was paused, if any. JS may still cancel by it before it hears of the pause. */
+  val taskId: Int? = null
 )
 
 class BackgroundDownloaderModule : Module() {
@@ -159,6 +161,14 @@ class BackgroundDownloaderModule : Module() {
       synchronized(stateLock) {
         downloadManager.cancelDownload(taskId)
         downloadTasks.remove(taskId)
+        // Native may have paused the task itself (connection lost) before JS heard of it, and JS
+        // cancels by the task id it still has. The pause must go too, or it holds the queue with
+        // no card left to resume or cancel it from.
+        pausedDownloads.entries.firstOrNull { it.value.taskId == taskId }?.let { (itemId, paused) ->
+          pausedDownloads.remove(itemId)
+          pauseCancels[itemId] = (pauseCancels[itemId] ?: 0) + 1
+          paused.destinationPath?.let { downloadManager.discardPartial(it) }
+        }
         // Process next item in queue after cancellation
         processNextInQueueLocked()
         syncServiceLocked()
@@ -177,7 +187,7 @@ class BackgroundDownloaderModule : Module() {
             null -> "failed"
             else -> {
               downloadTasks.remove(taskId)
-              pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath)
+              pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath, taskId)
               syncServiceLocked()
               if (kept) "kept" else "discarded"
             }
@@ -483,7 +493,7 @@ class BackgroundDownloaderModule : Module() {
       val itemId = info.itemId
       if (itemId != null) {
         downloadTasks.remove(taskId)
-        pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath)
+        pausedDownloads[itemId] = PausedDownload(info.url, info.destinationPath, taskId)
         syncServiceLocked()
       }
       info to itemId
@@ -498,7 +508,7 @@ class BackgroundDownloaderModule : Module() {
     Log.w(TAG, "Connection lost, download paused: taskId=$taskId, reason=$reason")
     sendEvent(
       "onDownloadPaused",
-      mapOf("taskId" to taskId, "itemId" to itemId, "reason" to "connection")
+      mapOf("taskId" to taskId, "itemId" to itemId, "reason" to "connection", "kept" to true)
     )
   }
 

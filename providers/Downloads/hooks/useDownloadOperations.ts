@@ -459,6 +459,9 @@ export function useDownloadOperations({
       const record = getPendingDownload(id);
       if (record?.status !== "paused") return;
       togglesInFlight.add(id);
+      // A marker an earlier attempt left must not be read as this one's: Android numbers its
+      // tasks from 1 in every process, so an old task id can come back.
+      updatePendingDownload(id, { interruptedTaskId: undefined });
 
       try {
         const taskId = await BackgroundDownloader.resumeDownload(

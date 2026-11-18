@@ -272,6 +272,19 @@ public class BackgroundDownloaderModule: Module {
 
     Function("cancelDownload") { (taskId: Int) in
       self.cancelLiveActivity(taskId: taskId)
+      // Native may have paused the task itself (connection lost) before JS heard of it, and JS
+      // cancels by the task id it still has. The pause must go too, or it holds the queue with no
+      // card left to resume or cancel it from.
+      self.stateQueue.sync {
+        guard let paused = self.pausedDownloads.first(where: { $0.value.taskId == taskId })
+        else { return }
+        self.pausedDownloads.removeValue(forKey: paused.key)
+        if let fileName = paused.value.resumeDataFileName {
+          self.taskStore.deleteResumeData(fileName: fileName)
+        }
+        self.taskStore.savePaused(self.pausedDownloads)
+        self.processNextInQueueSafelyLocked()
+      }
       let session = self.stateQueue.sync { self.session }
       session?.getAllTasks { tasks in
         for task in tasks where task.taskIdentifier == taskId {
@@ -395,6 +408,10 @@ public class BackgroundDownloaderModule: Module {
         self.pausedDownloads.removeAll()
         self.taskStore.savePaused(self.pausedDownloads)
         self.pauseGeneration += 1
+        // Forgotten now, not once the session has listed its tasks: a connection-loss error in
+        // between would otherwise find its task and save a pause that outlives the cancel.
+        self.downloadTasks.removeAll()
+        self.persistTasksLocked()
         return self.session
       }
       session?.getAllTasks { tasks in
@@ -808,17 +825,23 @@ public class BackgroundDownloaderModule: Module {
     downloadTasks.removeValue(forKey: taskId)
     lastProgressTime.removeValue(forKey: taskId)
     persistTasksLocked()
+    let resumeDataFileName = taskStore.saveResumeData(resumeData, itemId: itemId)
     pausedDownloads[itemId] = PausedDownloadInfo(
       url: info.url,
       destinationPath: info.destinationPath,
       metadata: info.metadata,
-      resumeDataFileName: taskStore.saveResumeData(resumeData, itemId: itemId)
+      resumeDataFileName: resumeDataFileName,
+      taskId: taskId
     )
     taskStore.savePaused(pausedDownloads)
 
-    backgroundDownloaderLog.notice("Task \(taskId) lost its connection; paused with resume data")
+    backgroundDownloaderLog.notice("Task \(taskId) lost its connection; paused")
     cancelLiveActivity(taskId: taskId)
-    sendEvent("onDownloadPaused", ["taskId": taskId, "itemId": itemId, "reason": "connection"])
+    // `kept` is false when the resume data could not be written: resuming then starts over.
+    sendEvent("onDownloadPaused", [
+      "taskId": taskId, "itemId": itemId, "reason": "connection",
+      "kept": resumeDataFileName != nil
+    ])
     finishContinuedProcessingIfIdleLocked()
     return true
   }
@@ -848,7 +871,8 @@ public class BackgroundDownloaderModule: Module {
       url: info.url,
       destinationPath: info.destinationPath,
       metadata: info.metadata,
-      resumeDataFileName: resumeDataFileName
+      resumeDataFileName: resumeDataFileName,
+      taskId: taskId
     )
     taskStore.savePaused(pausedDownloads)
 
