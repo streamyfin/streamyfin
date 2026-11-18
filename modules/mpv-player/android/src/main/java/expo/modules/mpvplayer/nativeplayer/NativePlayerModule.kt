@@ -122,9 +122,12 @@ class NativePlayerModule : Module() {
             this@NativePlayerModule.session?.viewModel?.updateSegments(segments)
         }
 
+        // Main queue, as on iOS: it publishes the playback state, which syncs
+        // the window's keep-screen-on flag. On the default queue Android
+        // refused that and the call rejected at every playback.
         AsyncFunction("updateNextEpisode") { next: NextEpisodeRecord? ->
             this@NativePlayerModule.session?.viewModel?.updateNextEpisode(next)
-        }
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("updateChapters") { chapters: List<ChapterRecord> ->
             this@NativePlayerModule.session?.viewModel?.updateChapters(chapters)
