@@ -126,6 +126,11 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     writeErrorLog("Login failed", error);
 
     expect(JSON.stringify(readFromLog())).not.toContain("password-in-body");
+    // An empty log keeps the password out too: the entry has to be there.
+    expect(readFromLog()[0]).toMatchObject({
+      message: "Login failed",
+      data: { message: "Network Error", code: "ERR_NETWORK" },
+    });
   });
 
   // A plain Error used to be stored as {}: message and stack are not enumerable.
@@ -183,6 +188,13 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     logAndCaptureError("Sync failed", { itemId: "item-1", error });
 
     expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0]).toMatchObject({
+      message: "Sync failed",
+      data: {
+        itemId: "item-1",
+        error: { message: "Network Error", code: "ERR_NETWORK" },
+      },
+    });
   });
 });
 
