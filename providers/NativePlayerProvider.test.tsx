@@ -140,6 +140,7 @@ const mockNegotiation = {
   count: 0,
   /** What each build was asked for, in order. */
   params: [] as Array<{
+    req: { audioIndex?: number };
     maxStreamingBitrate?: { value?: number };
     linkInUse?: boolean;
   }>,
@@ -179,7 +180,7 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
     "@/utils/nativePlayer/buildNativePlayerConfig",
   ).buildTrackMenus,
   buildNativePlayerConfig: async (params: {
-    req: { itemId: string; bitrateValue?: number };
+    req: { itemId: string; bitrateValue?: number; audioIndex?: number };
     item?: object;
     maxStreamingBitrate?: { value?: number };
   }) => {
@@ -807,6 +808,15 @@ describe("audio tracks only mpv found", () => {
     mockNegotiation.transcoding = false;
     await changeQuality(8_000_000);
 
+    // Both qualities were negotiated and loaded, each without an audio index,
+    // so the server encoded and sent its default track.
+    expect(mockNative.loaded).toHaveLength(2);
+    expect(mockNegotiation.params.map((p) => p.req.audioIndex)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    // Back on a direct stream, mpv is not put back on the dropped track.
     expect(mockNative.audioSwitches).toEqual([2]);
   });
 
