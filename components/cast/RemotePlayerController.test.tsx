@@ -1220,6 +1220,40 @@ describe("technical info from the remote player", () => {
 
     expect(mockPlayer.technicalInfoUpdates).toHaveLength(2);
   });
+
+  test("a slow server is asked again only once it has answered", async () => {
+    jest.useFakeTimers({
+      doNotFake: ["nextTick", "setImmediate", "queueMicrotask"],
+    });
+    let answer: (reply: [number, unknown]) => void = () => {};
+    api.mock.onGet(SESSIONS).reply(
+      () =>
+        new Promise<[number, unknown]>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const asked = () =>
+      api.mock.history.get.filter(({ url }) => SESSIONS.test(url ?? "")).length;
+    await render(<RemotePlayerController />);
+    await panel("onTechnicalInfoRequested");
+    await waitFor(() => expect(asked()).toBe(1));
+
+    await act(async () => {
+      jest.advanceTimersByTime(REMOTE_TECHNICAL_INFO_REFRESH_MS * 3);
+    });
+    expect(asked()).toBe(1);
+
+    await act(async () => {
+      answer([200, [receiverSession]]);
+    });
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates).toHaveLength(1),
+    );
+    await act(async () => {
+      jest.advanceTimersByTime(REMOTE_TECHNICAL_INFO_REFRESH_MS);
+    });
+    await waitFor(() => expect(asked()).toBe(2));
+  });
 });
 
 // The server searches and downloads; the TV plays the item again with the new subtitle. The phone has no file to add.

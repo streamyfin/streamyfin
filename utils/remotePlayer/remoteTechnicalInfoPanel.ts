@@ -50,16 +50,17 @@ const receiverSession = async (deps: PanelDeps, itemId: string | null) => {
 };
 
 /**
- * The remote player's technical info panel: written once it opens, then every REMOTE_TECHNICAL_INFO_REFRESH_MS
- * until it closes. A reply that lands after the close, or after a reopen, writes nothing.
+ * The remote player's technical info panel: written once it opens, then REMOTE_TECHNICAL_INFO_REFRESH_MS after each
+ * reply until it closes. A reply that lands after the close, or after a reopen, writes nothing.
  */
 export const remoteTechnicalInfoPanel = (deps: PanelDeps) => {
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  // Bumped by every open and close: a reply for an older one writes nothing.
   let opened = 0;
   const refresh = async (shown: number) => {
     const state = remotePlayback();
     const session = await receiverSession(deps, state.itemId);
-    if (shown !== opened || !timer) return;
+    if (shown !== opened) return;
     const held = deps.store.get(remotePlayAtom);
     // The source is the play shown only while the TV still plays its item.
     const source =
@@ -72,21 +73,27 @@ export const remoteTechnicalInfoPanel = (deps: PanelDeps) => {
   };
   const close = () => {
     opened += 1;
-    if (timer) clearInterval(timer);
+    if (timer) clearTimeout(timer);
     timer = null;
   };
   const open = () => {
     close();
     const shown = opened;
+    // The next read waits for this one's reply: a slow server is never asked twice at once, nor answers out of order.
     const read = () => {
-      refresh(shown).catch((error) =>
-        writeErrorLog(
-          "The remote player's technical info failed",
-          describeErrorForLog(error),
-        ),
-      );
+      timer = null;
+      refresh(shown)
+        .catch((error) =>
+          writeErrorLog(
+            "The remote player's technical info failed",
+            describeErrorForLog(error),
+          ),
+        )
+        .finally(() => {
+          if (shown === opened)
+            timer = setTimeout(read, REMOTE_TECHNICAL_INFO_REFRESH_MS);
+        });
     };
-    timer = setInterval(read, REMOTE_TECHNICAL_INFO_REFRESH_MS);
     read();
   };
   return { open, close };

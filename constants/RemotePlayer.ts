@@ -32,8 +32,8 @@ export const REMOTE_TINT_NEUTRAL = {
 export const REMOTE_TINT_FADE_MS = 300;
 
 /**
- * How often the remote player's technical info reads again what the TV plays (the receiver's session on the
- * server) while the panel is open.
+ * How long the remote player's technical info waits after each reply before it reads again what the TV plays (the
+ * receiver's session on the server), while the panel is open.
  */
 export const REMOTE_TECHNICAL_INFO_REFRESH_MS = 2000;
 
