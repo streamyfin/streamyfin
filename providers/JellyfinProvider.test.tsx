@@ -74,7 +74,9 @@ const requests = (match: (request: Sent) => boolean) =>
   [...server.history.get, ...server.history.post].filter(match);
 const sentTo = (path: string) => (request: Sent) =>
   request.url?.endsWith(path) === true;
-const sessionEnds = () => requests(sentTo("/Sessions/Logout"));
+// The server ends a session on a POST only.
+const sessionEnds = () =>
+  server.history.post.filter(sentTo("/Sessions/Logout"));
 // The two ways a sign-in opens the session of OTHER_USER.
 const withSavedToken = (request: Sent) => tokenOf(request) === OTHER_TOKEN;
 const byPassword = sentTo("/Users/AuthenticateByName");
@@ -187,18 +189,21 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await act(async () => {
-    for (const release of releases.splice(0)) release();
-    // So the next test holds only its own ends.
-    await within(
-      Promise.all(
-        [SERVER, LOCAL_SERVER, LEGACY_SERVER].map(sessionEndsSettled),
-      ),
-      "an end was still on its way after the test",
-    );
-  });
-  jest.restoreAllMocks();
-  server.restore();
+  try {
+    await act(async () => {
+      for (const release of releases.splice(0)) release();
+      // So the next test holds only its own ends.
+      await within(
+        Promise.all(
+          [SERVER, LOCAL_SERVER, LEGACY_SERVER].map(sessionEndsSettled),
+        ),
+        "an end was still on its way after the test",
+      );
+    });
+  } finally {
+    jest.restoreAllMocks();
+    server.restore();
+  }
 });
 
 describe("JellyfinProvider sign-out", () => {
@@ -492,6 +497,9 @@ describe("JellyfinProvider sign-out", () => {
         "the sign-in waited for another server's end",
       ),
     );
+    expect(requests(byPassword).map((request) => request.url)).toEqual([
+      `${OTHER_SERVER}/Users/AuthenticateByName`,
+    ]);
     expect(storage.getString("token")).toBe(OTHER_TOKEN);
   });
 
