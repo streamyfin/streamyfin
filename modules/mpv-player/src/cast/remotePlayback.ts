@@ -55,7 +55,9 @@ export const loadOnReceiver = async (
 /**
  * Reloads what the TV plays under this server, from where it is: a new bitrate cap, or a subtitle the server just
  * downloaded, which plays checked. A server without a cap keeps the TV's for a subtitle. Resolves once the reload
- * settles, as a load does: not sent when the TV has nothing of ours loaded.
+ * settles, as a load does: not sent when the TV has nothing of ours loaded. A cap asked for while a load or a reload
+ * is on its way goes once that one has settled and the TV has left loading; a later cap replaces it, which then
+ * settles as superseded.
  */
 export const reloadOnReceiver = async (
   server: ReceiverServerRecord,

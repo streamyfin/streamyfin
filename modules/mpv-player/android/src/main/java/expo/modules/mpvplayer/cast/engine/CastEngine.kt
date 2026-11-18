@@ -117,6 +117,13 @@ class CastEngine(
 
     private var pendingLoad: PendingLoad? = null
 
+    // A quality asked for while a load or a reload is on its way. Between the two streams of a reload the receiver
+    // plays nothing, so a pick then was refused while the menu marked it (bench, 18/11, 2 times out of 2): the last
+    // one asked for goes once the one on its way has settled and the receiver has left loading, from where it plays.
+    private class QueuedReload(val server: ReceiverServer, val onResult: (CastLoadResult) -> Unit)
+
+    private var queuedReload: QueuedReload? = null
+
     // What this engine cast, the load's items then the enqueued ones: the receiver's PlayNow replaces
     // its whole queue, so a reload sends it again.
     private var queue: List<ReceiverItem> = emptyList()
@@ -266,6 +273,7 @@ class CastEngine(
         reload?.cancelTimer?.invoke()
         reload = null
         subtitleOnceLoaded = null
+        dropQueuedReload()
         cancelEndWait()
         suspended = false
         reclaimPending = false
@@ -372,6 +380,8 @@ class CastEngine(
         playingIndex = receiverRequest.startIndex ?: 0
         reload?.cancelTimer?.invoke()
         reload = null
+        // Another send carries the cap of its own envelope.
+        dropQueuedReload()
         // A seek of the old item: the new item's first status does not answer it.
         seekToComplete = null
         cancelEndWait()
@@ -412,6 +422,7 @@ class CastEngine(
             setLoading(isBuffering())
             notifyState()
             onResult(CastLoadResult.NotSent(error))
+            afterStreamSettled()
         }
     }
 
@@ -434,6 +445,11 @@ class CastEngine(
      */
     override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) = runOnMain {
         if (subtitleStreamIndex == null) {
+            if (reload != null || pendingLoad != null) {
+                queuedReload?.onResult?.invoke(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
+                queuedReload = QueuedReload(server, onResult)
+                return@runOnMain
+            }
             this.server = server
             reloadCurrent(onResult)
             return@runOnMain
@@ -452,6 +468,25 @@ class CastEngine(
     private fun reloadCurrent(onResult: (CastLoadResult) -> Unit = {}) {
         val data = loadedItem() ?: return onResult(CastLoadResult.NotSent(NOTHING_LOADED_ERROR))
         playAgain(data, currentAudio.takeIf { it >= 0 }, currentSubtitle, onResult)
+    }
+
+    private fun afterStreamSettled() {
+        if (queuedReload != null) schedule(0L) { sendQueuedReload() }
+    }
+
+    private fun sendQueuedReload() {
+        val queued = queuedReload ?: return
+        // Another one on its way since, or a stream still loading: the pick waits for a status past it.
+        if (reload != null || pendingLoad != null || playerState == LOADING) return
+        queuedReload = null
+        server = queued.server
+        reloadCurrent(queued.onResult)
+    }
+
+    private fun dropQueuedReload() {
+        val queued = queuedReload ?: return
+        queuedReload = null
+        queued.onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
     }
 
     // Transport
@@ -790,6 +825,7 @@ class CastEngine(
         seekToComplete = null
         completed?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
+        sendQueuedReload()
         notifyState()
     }
 
@@ -910,6 +946,7 @@ class CastEngine(
         setLoading(isBuffering())
         notifyState()
         load.onResult(CastLoadResult.Settled(outcome))
+        afterStreamSettled()
     }
 
     private fun setPause(paused: Boolean) {
@@ -960,6 +997,7 @@ class CastEngine(
                 delegate?.onError(error)
                 pending.onResult(CastLoadResult.NotSent(error))
                 recomputePosition()
+                afterStreamSettled()
             }
         }
     }
@@ -981,6 +1019,7 @@ class CastEngine(
         if (recompute) recomputePosition()
         notifyState()
         pending.onResult(CastLoadResult.Settled(outcome))
+        afterStreamSettled()
     }
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.

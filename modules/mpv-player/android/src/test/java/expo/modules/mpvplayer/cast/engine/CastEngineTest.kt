@@ -626,6 +626,78 @@ class CastEngineTest {
         assertEquals(4_000_000L, JSONObject(port.sent.single().second).getLong("maxBitrate"))
     }
 
+    // Between the two streams of a reload the receiver plays nothing: a quality picked then was refused while the
+    // menu marked it (bench, 18/11, 2 times out of 2). The last pick goes once the reload on its way has settled and
+    // the receiver has left loading, from where it plays then.
+    @Test
+    fun aQualityPickedWhileAReloadIsOnItsWayGoesOnceItSettles() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        assertEquals(1, port.sent.size)
+        assertEquals(emptyList<CastLoadResult>(), results)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(1, port.sent.size)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(listOf(8_000_000L, 4_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(425_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-3")), 0)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+    }
+
+    @Test
+    fun onlyTheLastQualityPickedWhileAReloadIsOnItsWayGoes() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 2_000_000)) { results += it }
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(listOf(8_000_000L, 2_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+    }
+
+    // The item a send puts on the TV plays under the cap the menu marks once it has loaded.
+    @Test
+    fun aQualityPickedWhileALoadIsOnItsWayGoesOnceItSettles() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))) {}
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(playerState = "loading"), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(playerState = "buffering"), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+        assertEquals(4_000_000L, JSONObject(port.sent.last().second).getLong("maxBitrate"))
+    }
+
+    // Another send carries the cap of its own envelope, and nothing loaded takes the pick.
+    @Test
+    fun aQualityPickedWhileAReloadIsOnItsWayIsDroppedByANewLoadOrAFailure() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-2")))) {}
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
+
+        media.report(snapshot(playerState = "loading", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        media.report(snapshot(playerState = "idle", idleReason = "error", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(listOf("PlayNow", "PlayNow", "PlayNow"), commands().map { it.first })
+        assertTrue(results.last() is CastLoadResult.NotSent)
+    }
+
     // The receiver's PlayNow replaces its queue: a reload sends the queue the engine cast, from the
     // item the receiver plays.
     @Test

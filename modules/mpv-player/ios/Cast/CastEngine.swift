@@ -111,6 +111,16 @@ final class CastEngine: RemoteEngine {
 
   private var pendingLoad: PendingLoad?
 
+  // A quality asked for while a load or a reload is on its way. Between the two streams of a reload the receiver
+  // plays nothing, so a pick then was refused while the menu marked it (bench, 18/11, 2 times out of 2): the last
+  // one asked for goes once the one on its way has settled and the receiver has left loading, from where it plays.
+  private struct QueuedReload {
+    let server: ReceiverServer
+    let completion: (CastLoadResult) -> Void
+  }
+
+  private var queuedReload: QueuedReload?
+
   // What this engine cast, the load's items then the enqueued ones: the receiver's PlayNow replaces
   // its whole queue, so a reload sends it again.
   private var queue: [ReceiverItem] = []
@@ -208,6 +218,7 @@ final class CastEngine: RemoteEngine {
     if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     reload?.cancelTimer()
     reload = nil
+    dropQueuedReload()
     setLoading(isBuffering())
     // What ended is forgotten with the item: its end would come fifteen seconds later.
     endWait(false)
@@ -280,6 +291,7 @@ final class CastEngine: RemoteEngine {
     reload?.cancelTimer()
     reload = nil
     subtitleOnceLoaded = nil
+    dropQueuedReload()
     reclaimPending = false
     // What was reported was reported to this host: the next one starts from nothing.
     reportedPause = nil
@@ -395,6 +407,8 @@ final class CastEngine: RemoteEngine {
     playingIndex = receiverRequest.startIndex ?? 0
     reload?.cancelTimer()
     reload = nil
+    // Another send carries the cap of its own envelope.
+    dropQueuedReload()
     endWait(false)
     noCompatibleStreamFollows = false
     // The media on the TV now, read at the send: a status of its play session is never this load.
@@ -429,6 +443,7 @@ final class CastEngine: RemoteEngine {
       self.setLoading(self.isBuffering())
       self.notifyState()
       load.completion(.notSent(error))
+      self.afterStreamSettled()
     }
   }
 
@@ -463,6 +478,11 @@ final class CastEngine: RemoteEngine {
   ) {
     onMain()
     guard let index = subtitleStreamIndex else {
+      if reload != nil || pendingLoad != nil {
+        queuedReload?.completion(.settled(.superseded))
+        queuedReload = QueuedReload(server: server, completion: completion)
+        return
+      }
       self.server = server
       reloadCurrent(completion: completion)
       return
@@ -488,6 +508,25 @@ final class CastEngine: RemoteEngine {
     playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle, completion: completion)
   }
 
+  private func afterStreamSettled() {
+    guard queuedReload != nil else { return }
+    _ = deliver(0) { [weak self] in self?.sendQueuedReload() }
+  }
+
+  private func sendQueuedReload() {
+    // Another one on its way since, or a stream still loading: the pick waits for a status past it.
+    guard let queued = queuedReload, reload == nil, pendingLoad == nil, playerState != State.loading else { return }
+    queuedReload = nil
+    server = queued.server
+    reloadCurrent(completion: queued.completion)
+  }
+
+  private func dropQueuedReload() {
+    guard let queued = queuedReload else { return }
+    queuedReload = nil
+    queued.completion(.settled(.superseded))
+  }
+
   private func settleLoad(_ load: PendingLoad, _ outcome: ReceiverLoadOutcome) {
     log("load settled \(outcome.wireName)")
     load.cancelTimer()
@@ -495,6 +534,7 @@ final class CastEngine: RemoteEngine {
     setLoading(isBuffering())
     notifyState()
     load.completion(.settled(outcome))
+    afterStreamSettled()
   }
 
   // MARK: - Transport
@@ -868,6 +908,7 @@ final class CastEngine: RemoteEngine {
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
+    sendQueuedReload()
     notifyState()
   }
 
@@ -1072,6 +1113,7 @@ final class CastEngine: RemoteEngine {
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
       pending.completion(.notSent(error))
+      self.afterStreamSettled()
     }
   }
 
@@ -1094,6 +1136,7 @@ final class CastEngine: RemoteEngine {
     if recompute { recomputePosition() }
     notifyState()
     pending.completion(.settled(outcome))
+    afterStreamSettled()
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.

@@ -1065,6 +1065,97 @@ enum CastEngineTests {
       check("reloadCurrentItemWithAServerSendsItsCap", sent.count == 1 && (sent[0]["maxBitrate"] as? NSNumber)?.int64Value == 4_000_000)
     }
 
+    func cappedAt(_ bitrate: Int64) -> ReceiverServer {
+      var capped = server
+      capped.maxBitrate = bitrate
+      return capped
+    }
+    func caps(_ bench: Bench) -> [Int64] {
+      bench.sentMessages().map { ($0["maxBitrate"] as? NSNumber)?.int64Value ?? -1 }
+    }
+
+    // Between the two streams of a reload the receiver plays nothing: a quality picked then was refused while the
+    // menu marked it (bench, 18/11, 2 times out of 2). The last pick goes once the reload on its way has settled and
+    // the receiver has left loading, from where it plays then.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var results: [String] = []
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000)) { results.append(describe($0)) }
+      let held = bench.port.sent.count == 1 && results.isEmpty
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      bench.clock.advance(0)
+      let heldWhileLoading = bench.port.sent.count == 1
+      bench.media.report(
+        snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"]), streamPosition: 42.5), position: 42.5
+      )
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      let sent = caps(bench) == [8_000_000, 4_000_000] && (options?["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-3"])), position: 0)
+      check(
+        "aQualityPickedWhileAReloadIsOnItsWayGoesOnceItSettles",
+        held && heldWhileLoading && sent && results == ["settled loaded"]
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var results: [String] = []
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000)) { results.append(describe($0)) }
+      engine.reloadCurrentItem(server: cappedAt(2_000_000)) { results.append(describe($0)) }
+      let superseded = results == ["settled superseded"]
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2"])), position: 42.5)
+      check("onlyTheLastQualityPickedWhileAReloadIsOnItsWayGoes", superseded && caps(bench) == [8_000_000, 2_000_000])
+    }
+
+    // The item a send puts on the TV plays under the cap the menu marks once it has loaded.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-1")])) { _ in }
+      engine.reloadCurrentItem(server: cappedAt(4_000_000))
+      let held = bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow"]
+      bench.media.report(snapshot(playerState: "loading"), position: 0)
+      let heldWhileLoading = bench.port.sent.count == 1
+      bench.media.report(snapshot(playerState: "buffering"), position: 0)
+      check(
+        "aQualityPickedWhileALoadIsOnItsWayGoesOnceItSettles",
+        held && heldWhileLoading && bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow", "PlayNow"]
+          && caps(bench).last == 4_000_000
+      )
+    }
+
+    // Another send carries the cap of its own envelope, and nothing loaded takes the pick.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      var results: [String] = []
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000)) { results.append(describe($0)) }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "item-2")])) { _ in }
+      let dropped = results == ["settled superseded"]
+      let second = ours(["itemId": "item-2", "playSessionId": "ps-2"])
+      bench.media.report(snapshot(playerState: "loading", customData: second), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted", customData: second), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000)) { results.append(describe($0)) }
+      bench.port.deliver(#"{"type":"connectionerror","message":"Request failed"}"#)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "error", customData: second), position: 0)
+      bench.clock.advance(0)
+      check(
+        "aQualityPickedWhileAReloadIsOnItsWayIsDroppedByANewLoadOrAFailure",
+        dropped && bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow", "PlayNow", "PlayNow"]
+          && results.last?.hasPrefix("notSent") == true
+      )
+    }
+
     // A quality change mid-list: the receiver's PlayNow replaces its queue, so the reload under the new cap carries
     // the list the engine cast, from the item the TV plays, where it is.
     do {
