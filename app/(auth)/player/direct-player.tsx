@@ -511,6 +511,16 @@ export default function DirectPlayerPage() {
     const target = resolveAudioSwitch(trackMediaSource, currentAudioIndex);
     if (!target.reload) void videoRef.current?.setAudioTrack?.(target.mpvId);
   }, [trackMediaSource]);
+  // A transcode carries only the track the server encoded into it, so a
+  // track only mpv found falls back to the server's default.
+  useEffect(() => {
+    if (
+      stream?.mediaSource?.TranscodingUrl &&
+      serverAudioIndex(stream.mediaSource, currentAudioIndex) === undefined
+    ) {
+      setCurrentAudioIndex(undefined);
+    }
+  }, [stream, currentAudioIndex]);
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,

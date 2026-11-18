@@ -76,6 +76,7 @@ type ControlsProps = {
   onRefreshSubtitleTracks?: () => Promise<unknown>;
   onSubtitleIndexChange?: (index: number) => void;
   mediaSource?: { MediaStreams?: MediaStream[] | null } | null;
+  audioIndex?: number;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -904,6 +905,21 @@ describe("direct player stop report", () => {
 
       expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
       expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    // A transcode carries only the track the server encoded into it.
+    test("falls back to the server's default audio when a transcode cannot carry a track only mpv found", async () => {
+      mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+      mockTranscodingUrl = "/videos/item-1/master.m3u8";
+      try {
+        await openPlayer();
+        await tracksReady();
+
+        expect(mockControlsProps?.audioIndex).toBeUndefined();
+        expect(mockPlayer.setAudioTrack).not.toHaveBeenCalled();
+      } finally {
+        mockParams.audioIndex = "";
+      }
     });
 
     // A subtitle or bitrate change re-opens the route with the selection; the
