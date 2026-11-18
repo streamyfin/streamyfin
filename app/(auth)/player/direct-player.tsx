@@ -512,13 +512,16 @@ export default function DirectPlayerPage() {
     if (!target.reload) void videoRef.current?.setAudioTrack?.(target.mpvId);
   }, [trackMediaSource]);
   // A transcode carries only the track the server encoded into it, so a
-  // track only mpv found falls back to the server's default.
+  // track only mpv found falls back to the server's default, in the route
+  // too: the phone's controls re-negotiate from it.
   useEffect(() => {
     if (
+      currentAudioIndex !== undefined &&
       stream?.mediaSource?.TranscodingUrl &&
       serverAudioIndex(stream.mediaSource, currentAudioIndex) === undefined
     ) {
       setCurrentAudioIndex(undefined);
+      router.setParams({ audioIndex: "" });
     }
   }, [stream, currentAudioIndex]);
   const [streamStatus, setStreamStatus] = useState({

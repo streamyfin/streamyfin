@@ -965,6 +965,27 @@ describe("direct player stop report", () => {
     });
   });
 
+  // The phone's controls re-negotiate from the route (VideoContext), so the
+  // route has to drop a track a transcode cannot carry, or a later direct
+  // stream would put mpv back on it.
+  test("clears an mpv-only audio index from the route when a transcode plays the server's default", async () => {
+    mockServerStreams = [
+      { Type: "Video", Index: 0 },
+      { Type: "Audio", Index: 1, Language: "fre" },
+    ] as MediaStream[];
+    mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+    mockTranscodingUrl = "/videos/item-1/master.m3u8";
+    try {
+      await openPlayer();
+
+      await waitFor(() =>
+        expect(mockRouter.setParams).toHaveBeenCalledWith({ audioIndex: "" }),
+      );
+    } finally {
+      mockParams.audioIndex = "";
+    }
+  });
+
   // What a top shelf play link or a remote Play command opens the route with.
   test("resumes at the item's stored position when the route carries none", async () => {
     mockParams.playbackPosition = "";
