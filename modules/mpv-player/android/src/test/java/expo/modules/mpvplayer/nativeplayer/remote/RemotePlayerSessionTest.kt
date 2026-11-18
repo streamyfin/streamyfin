@@ -2,7 +2,10 @@ package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.content.pm.ActivityInfo
 import android.os.Looper.getMainLooper
+import android.os.SystemClock
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
@@ -688,6 +691,37 @@ class RemotePlayerSessionTest {
         assertTrue("no panel on the screen", panelShown())
         val labels = semanticsNodes().mapNotNull { it.label() }
         assertEquals(emptyList<String>(), labels.filter { it == "Close" })
+    }
+
+    // The panel takes the touches on it: a double tap on its text seeks nothing, where one on the artwork above it
+    // still seeks, which also says the taps reached the screen. The TV is mid-film so a seek either way shows.
+    @Test
+    fun aDoubleTapOnThePanelStaysOnIt() {
+        engine.seekTo(30.0)
+        val session = presentedWithPanel()
+        val title = semanticsNodes().first { "Technical Info" in texts(it) }.boundsInWindow
+        val dp = activity.resources.displayMetrics.density
+
+        // Above the panel's top padding, on the artwork it covers.
+        doubleTap(title.center.x, title.top - 32 * dp)
+        val afterArtwork = session.viewModel.authoritativePosition
+        assertTrue("the artwork's double tap did not seek", afterArtwork != 30.0)
+
+        doubleTap(title.center.x, title.center.y)
+        assertEquals("the panel's double tap seeked", afterArtwork, session.viewModel.authoritativePosition, 0.0)
+    }
+
+    /** Two taps through the window, as a finger makes them: 50 ms apart, inside the double tap timeout. */
+    private fun doubleTap(x: Float, y: Float) {
+        val start = SystemClock.uptimeMillis()
+        listOf(0L to MotionEvent.ACTION_DOWN, 50L to MotionEvent.ACTION_UP, 100L to MotionEvent.ACTION_DOWN, 150L to MotionEvent.ACTION_UP)
+            .forEach { (at, action) ->
+                val event = MotionEvent.obtain(start + at - at % 100, start + at, action, x, y, 0)
+                event.source = InputDevice.SOURCE_TOUCHSCREEN
+                activity.window.decorView.dispatchTouchEvent(event)
+                event.recycle()
+                shadowOf(getMainLooper()).idle()
+            }
     }
 
     /** The real screen with the panel up from its first composition, the TV paused. */

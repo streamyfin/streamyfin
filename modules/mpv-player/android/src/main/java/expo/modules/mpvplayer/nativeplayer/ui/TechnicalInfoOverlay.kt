@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,7 +53,14 @@ fun TechnicalInfoLayer(viewModel: PlayerViewModel) {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        TechnicalInfoOverlay(viewModel = viewModel, onDismiss = { viewModel.showTechnicalInfo = false })
+        // The layers under the card no longer get the touches on it (a double tap on its text seeked): Compose gives
+        // a touch to the topmost node that takes one. The remote screen's drag down watches from above and still
+        // closes it.
+        TechnicalInfoOverlay(
+            viewModel = viewModel,
+            onDismiss = { viewModel.showTechnicalInfo = false },
+            modifier = Modifier.pointerInput(Unit) {},
+        )
     }
 }
 
