@@ -878,6 +878,27 @@ describe("direct player stop report", () => {
       await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("eng"));
     });
 
+    // A ready event names no stream: one left over from the previous stream
+    // can come in before the new file is open, when mpv lists no track yet.
+    test("reads mpv's audio tracks again on each ready event", async () => {
+      const found = mockAudioTracks;
+      mockAudioTracks = [];
+      await openPlayer();
+      await tracksReady();
+      mockAudioTracks = found;
+      await tracksReady();
+      await waitFor(() =>
+        expect(mockPlayer.getAudioTracks).toHaveBeenCalledTimes(2),
+      );
+
+      await act(async () =>
+        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+      );
+
+      expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
     // A subtitle or bitrate change re-opens the route with the selection; the
     // server was asked without it, so mpv starts on its first track.
     test("puts mpv back on a track only it found when the route carries it", async () => {

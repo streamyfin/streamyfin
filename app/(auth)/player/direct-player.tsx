@@ -172,6 +172,10 @@ export default function DirectPlayerPage() {
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
+  // A ready event names no stream, so one left over from the previous stream
+  // can set tracksReady before the new file is open: the count makes each
+  // event read mpv's audio tracks again.
+  const [readyEvents, setReadyEvents] = useState(0);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
@@ -476,8 +480,10 @@ export default function DirectPlayerPage() {
     PlayerAudioTrack[]
   >([]);
   useEffect(() => {
-    setPlayerAudioTracks([]);
-    if (!tracksReady || offline || !videoRef.current) return;
+    if (!tracksReady || offline || !videoRef.current) {
+      setPlayerAudioTracks([]);
+      return;
+    }
     let cancelled = false;
     videoRef.current
       .getAudioTracks()
@@ -488,7 +494,7 @@ export default function DirectPlayerPage() {
     return () => {
       cancelled = true;
     };
-  }, [tracksReady, offline]);
+  }, [tracksReady, readyEvents, offline]);
   // What the menus and the audio switch read; the player source stays as is.
   const trackMediaSource = useMemo(
     () =>
@@ -1902,6 +1908,7 @@ export default function DirectPlayerPage() {
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
+                  setReadyEvents((count) => count + 1);
                   // A mute asked for while the player was still mounting never
                   // reached a native handle; this is the first moment one
                   // exists.
