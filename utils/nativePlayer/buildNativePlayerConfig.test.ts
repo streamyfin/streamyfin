@@ -437,8 +437,8 @@ describe("the native player's quality, when the request names none", () => {
   });
 });
 
-describe("the native player's swipe gestures", () => {
-  const swipeOptions = async (swipeSettings: Partial<Settings>) => {
+describe("the native player's gestures", () => {
+  const gestureOptions = async (gestureSettings: Partial<Settings>) => {
     jest.mocked(getStreamUrl).mockResolvedValue({
       url: `${SERVER}/Videos/1/stream.mkv`,
       sessionId: "session-1",
@@ -454,7 +454,10 @@ describe("the native player's swipe gestures", () => {
         enableHorizontalSwipeSkip: true,
         enableLeftSideBrightnessSwipe: true,
         enableRightSideVolumeSwipe: true,
-        ...swipeSettings,
+        enableHoldToSpeed: true,
+        enablePinchToZoom: true,
+        enableDoubleTapToSeek: true,
+        ...gestureSettings,
       } as Settings,
       req: { itemId: "item-1", offline: false },
       getDownloadedItemById: () => undefined,
@@ -469,7 +472,19 @@ describe("the native player's swipe gestures", () => {
       horizontalSwipeSeekEnabled: ui?.horizontalSwipeSeekEnabled,
       brightnessSwipeEnabled: ui?.brightnessSwipeEnabled,
       volumeSwipeEnabled: ui?.volumeSwipeEnabled,
+      holdToSpeedEnabled: ui?.holdToSpeedEnabled,
+      pinchToZoomEnabled: ui?.pinchToZoomEnabled,
+      doubleTapToSeekEnabled: ui?.doubleTapToSeekEnabled,
     };
+  };
+
+  const allOn = {
+    horizontalSwipeSeekEnabled: true,
+    brightnessSwipeEnabled: true,
+    volumeSwipeEnabled: true,
+    holdToSpeedEnabled: true,
+    pinchToZoomEnabled: true,
+    doubleTapToSeekEnabled: true,
   };
 
   // #2217: the native players scrubbed and changed brightness and volume
@@ -479,25 +494,30 @@ describe("the native player's swipe gestures", () => {
     ["enableLeftSideBrightnessSwipe", "brightnessSwipeEnabled"],
     ["enableRightSideVolumeSwipe", "volumeSwipeEnabled"],
   ] as const)("turning off %s turns off only %s", async (setting, option) => {
-    expect(await swipeOptions({ [setting]: false })).toEqual({
-      horizontalSwipeSeekEnabled: true,
-      brightnessSwipeEnabled: true,
-      volumeSwipeEnabled: true,
+    expect(await gestureOptions({ [setting]: false })).toEqual({
+      ...allOn,
       [option]: false,
     });
   });
 
   test("keeps every swipe on when the settings are unset", async () => {
     expect(
-      await swipeOptions({
+      await gestureOptions({
         enableHorizontalSwipeSkip: undefined,
         enableLeftSideBrightnessSwipe: undefined,
         enableRightSideVolumeSwipe: undefined,
       }),
-    ).toEqual({
-      horizontalSwipeSeekEnabled: true,
-      brightnessSwipeEnabled: true,
-      volumeSwipeEnabled: true,
+    ).toEqual(allOn);
+  });
+
+  test("turns every gesture off with the master switch", async () => {
+    expect(await gestureOptions({ enablePlayerGestures: false })).toEqual({
+      horizontalSwipeSeekEnabled: false,
+      brightnessSwipeEnabled: false,
+      volumeSwipeEnabled: false,
+      holdToSpeedEnabled: false,
+      pinchToZoomEnabled: false,
+      doubleTapToSeekEnabled: false,
     });
   });
 });
