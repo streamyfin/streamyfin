@@ -894,19 +894,30 @@ describe("direct player stop report", () => {
       }
     });
 
-    test("reports no audio index to the server for a track only mpv found", async () => {
-      await openPlayer();
-      await tracksReady();
-      await act(async () =>
-        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
-      );
-      await announcePlaying();
+    test("stops reporting the listed audio index once mpv plays a track only it found", async () => {
+      mockParams.audioIndex = "1";
+      try {
+        await openPlayer();
+        await tracksReady();
+        await announcePlaying();
+        expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
+          "AudioStreamIndex",
+          1,
+        );
 
-      expect(mockReportProgress).toHaveBeenCalled();
-      expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
-        "AudioStreamIndex",
-        undefined,
-      );
+        await act(async () =>
+          mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+        );
+        expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+        await announcePlaying();
+
+        expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
+          "AudioStreamIndex",
+          undefined,
+        );
+      } finally {
+        mockParams.audioIndex = "";
+      }
     });
   });
 
