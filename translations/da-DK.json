@@ -7,7 +7,6 @@
     "invalid_url": "Indtast en gyldig adresse"
   },
   "login": {
-    "username_required": "Brugernavn er påkrævet",
     "error_title": "Fejl",
     "login_title": "Log ind",
     "login_to_title": "Log ind på",
@@ -252,7 +251,9 @@
         "mpv_note": "MPV på TV videresender i øjeblikket ikke HDR-metadata til skærmen, så HDR10/HDR10+-indhold tonemappes til SDR. Skift til ExoPlayer for HDR-output.",
         "native_tv": "Native afspiller (eksperimentel)",
         "native_tv_note": "Brug den nye, fuldt native Apple TV-afspiller. Slå den fra for at falde tilbage til den tidligere afspiller, hvis du oplever afspilningsproblemer.",
-        "native_android_tv_note": "Brug den nye, fuldt native Android TV-afspiller med den samme MPV- eller ExoPlayer-motor, som du har valgt ovenfor. Slå den fra for at falde tilbage til den tidligere afspiller, hvis du oplever afspilningsproblemer."
+        "native_android_tv_note": "Brug den nye, fuldt native Android TV-afspiller med den samme MPV- eller ExoPlayer-motor, som du har valgt ovenfor. Slå den fra for at falde tilbage til den tidligere afspiller, hvis du oplever afspilningsproblemer.",
+        "match_refresh_rate": "Match display refresh rate",
+        "match_refresh_rate_note": "Switch the TV to a refresh rate matching the video's frame rate, for example 50 Hz for 25 fps, so motion plays smoothly instead of juddering. The screen flashes briefly when the rate changes. Android TV only."
       },
       "buffer": {
         "title": "Bufferindstillinger",
@@ -437,6 +438,9 @@
         "caching_description": "Gem kommende sange fra køen på forhånd. De ældste fjernes, når størrelsesgrænsen nås.",
         "lookahead_enabled": "Aktivér forudindlæsning",
         "lookahead_count": "Sange der skal forudindlæses",
+        "lookahead_songs_one": "{{count}} song",
+        "lookahead_songs_other": "{{count}} songs",
+        "lookahead_songs": "{{count}} songs",
         "max_cache_size": "Maks. cachestørrelse"
       },
       "plugins": {
@@ -557,6 +561,21 @@
       },
       "toasts": {
         "error_deleting_files": "Fejl ved sletning af filer"
+      },
+      "quality": {
+        "title": "Quality",
+        "description": "Auto measures the connection to the server before a stream and asks for one that fits in it. During playback it steps down when the stream stalls, and back up once the connection allows. The rows under the default quality set how it measures.",
+        "share": "Share of the measured speed",
+        "remeasure_after": "Measure again after",
+        "in_network_min": "Minimum in the server's network",
+        "in_network_min_none": "None",
+        "adapt": "Adapt during playback",
+        "last_measure": "Auto streams at",
+        "last_measure_none": "Not measured yet",
+        "last_measure_failed": "Could not measure: {{cause}}",
+        "last_measure_kept": "{{bitrate}}, the last measure failed: {{cause}}",
+        "measure_now": "Measure now",
+        "measuring": "Measuring…"
       },
       "security": {
         "title": "Sikkerhed",
@@ -699,7 +718,6 @@
         "could_not_delete_download": "Kunne Ikke Slette Download",
         "download_completed": "Download fuldført",
         "download_failed": "Download mislykkedes",
-        "download_failed_for_item": "Download mislykkedes for {{item}} - {{error}}",
         "download_completed_for_item": "Download fuldført for {{item}}",
         "download_started_for_item": "Download startet til {{item}}",
         "failed_to_start_download": "Kunne ikke starte download",
@@ -709,6 +727,13 @@
         "could_not_get_download_url_for_item": "Kunne ikke hente download URL til {{itemName}}",
         "no_media_source_to_download": "Dette element kan ikke downloades",
         "file_deleted": "{{item}} slettet"
+      },
+      "failure": {
+        "conversion": "The server could not convert {{item}} for download. Try again, or download it at Max quality.",
+        "refused": "The server refused to send {{item}} (HTTP {{status}}).",
+        "no_space": "There is not enough free space on this device for {{item}}.",
+        "connection": "The connection to the server dropped while downloading {{item}}.",
+        "other": "Something went wrong while downloading {{item}}. The app logs have the details."
       }
     }
   },
@@ -779,7 +804,14 @@
     "tmdb_studio": "TMDB-studie",
     "tmdb_network": "TMDB-netværk",
     "tmdb_movie_streaming_services": "TMDB film streamingtjenester",
-    "tmdb_tv_streaming_services": "TMDB TV-streamingtjenester"
+    "tmdb_tv_streaming_services": "TMDB TV-streamingtjenester",
+    "library_sort": {
+      "Relevance": "Relevance",
+      "Name": "Name",
+      "CommunityRating": "Rating",
+      "ProductionYear": "Year",
+      "DateCreated": "Date added"
+    }
   },
   "library": {
     "no_results": "Ingen resultater",
@@ -848,8 +880,8 @@
     "noData": "Elementer, du markerer som favoritter, vises her."
   },
   "custom_links": {
-    "no_links": "Ingen links",
-    "could_not_open_link": "Linket kunne ikke åbnes"
+    "could_not_open_link": "Linket kunne ikke åbnes",
+    "load_failed": "Couldn't load the custom links"
   },
   "player": {
     "live": "LIVE",
@@ -906,6 +938,8 @@
     "downloaded_file_message": "Vil du afspille den downloadede fil?",
     "downloaded_file_yes": "Ja",
     "downloaded_file_no": "Nej",
+    "play_downloaded_file": "Play downloaded file",
+    "stream_file": "Stream file",
     "downloaded_file_cancel": "Annuller",
     "swipe_down_settings": "Stryg ned for indstillinger",
     "ends_at": "Slutter kl. {{time}}",
@@ -964,13 +998,14 @@
     "cast_and_crew": "Medvirkende & besætning",
     "series": "Serier",
     "seasons": "Sæsoner",
-    "season": "Sæson",
+    "episode_number": "Episode {{episode_number}}",
     "from_this_series": "Fra denne serie",
     "more_from_this_season": "Mere fra denne sæson",
     "view_series": "Vis serie",
     "view_season": "Vis sæson",
     "select_season": "Vælg sæson",
     "no_episodes_for_this_season": "Ingen episoder for denne sæson",
+    "episodes_load_failed": "Couldn't load the episodes.",
     "missing": "Mangler",
     "not_yet_aired": "Endnu ikke sendt",
     "overview": "Oversigt",
@@ -982,6 +1017,7 @@
     "more_details": "Flere detaljer",
     "media_options": "Medieindstillinger",
     "quality": "Kvalitet",
+    "quality_auto": "Auto",
     "audio": "Lyd",
     "subtitles": {
       "label": "Undertekst",
@@ -1128,6 +1164,7 @@
     "advanced": "Avanceret",
     "request_as": "Anmod som",
     "tags": "Mærker",
+    "no_tags": "No tags",
     "quality_profile": "Kvalitetsprofil",
     "root_folder": "Rodmappe",
     "season_all": "Sæson (alle)",
@@ -1220,7 +1257,11 @@
     "library": "Bibliotek",
     "custom_links": "Tilpassede links",
     "favorites": "Favoritter",
-    "settings": "Indstillinger"
+    "settings": "Indstillinger",
+    "more": "More"
+  },
+  "more": {
+    "your_media": "Your media"
   },
   "music": {
     "title": "Musik",
@@ -1311,7 +1352,15 @@
     "is_public_label": "Offentlig ønskeliste",
     "is_public_description": "Tillad andre at se denne ønskeliste",
     "allowed_type_label": "Indholdstype",
+    "all_types": "All types",
+    "movies_only": "Movies only",
+    "series_only": "Series only",
+    "episodes_only": "Episodes only",
     "sort_order_label": "Standardsortering",
+    "sort_custom": "Custom order",
+    "sort_name": "Name",
+    "sort_date_added": "Date added",
+    "sort_release_date": "Release date",
     "empty_title": "Ingen ønskelister",
     "empty_description": "Opret en ønskeliste for at samle det du vil se",
     "empty_watchlist": "Denne ønskeliste er tom",
@@ -1319,12 +1368,15 @@
     "not_configured_title": "Streamystats er ikke konfigureret",
     "not_configured_description": "Konfigurer Streamystats i indstillingerne for at bruge ønskelister",
     "go_to_settings": "Gå til indstillinger",
+    "load_failed_title": "Couldn't load your watchlists",
+    "load_failed_description": "The Streamystats server couldn't be reached or answered with an error. Try again.",
     "add_to_watchlist": "Føj til ønskeliste",
     "remove_from_watchlist": "Fjern fra ønskeliste",
     "select_watchlist": "Vælg ønskeliste",
     "create_new": "Opret ny ønskeliste",
-    "item": "titel",
-    "items": "titler",
+    "item_count_one": "{{count}} item",
+    "item_count_other": "{{count}} items",
+    "item_count": "{{count}} items",
     "public": "Offentlig",
     "private": "Privat",
     "you": "Dig",
@@ -1336,7 +1388,21 @@
     "remove_item_message": "Fjern “{{name}}” fra denne ønskeliste?",
     "loading": "Indlæser ønskelister...",
     "no_compatible_watchlists": "Ingen kompatible ønskelister",
-    "create_one_first": "Opret en ønskeliste, der accepterer denne indholdstype"
+    "create_one_first": "Opret en ønskeliste, der accepterer denne indholdstype",
+    "toasts": {
+      "created": "Watchlist created",
+      "updated": "Watchlist updated",
+      "deleted": "Watchlist deleted",
+      "added_to": "Added to {{name}}",
+      "added": "Added to the watchlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from the watchlist",
+      "create_failed": "Could not create the watchlist",
+      "update_failed": "Could not save the watchlist",
+      "delete_failed": "Could not delete the watchlist",
+      "add_failed": "Could not add it to the watchlist",
+      "remove_failed": "Could not remove it from the watchlist"
+    }
   },
   "playback_speed": {
     "title": "Afspilningshastighed",
