@@ -8,6 +8,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import {
+  CHROMECAST_STICK_AUTO_MAX_BITRATE,
+  CHROMECAST_STICK_MODEL,
+} from "@/constants/Cast";
 import type { Bitrate } from "./BitrateSelector";
 import { PlayButton } from "./PlayButton";
 
@@ -17,6 +21,10 @@ const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
 const mockClient = { getMediaStatus: async () => null };
 /** The entry picked in the Chromecast / Device / Cancel sheet. */
 let mockChoice = 0;
+/** The receiver the phone is connected to. */
+let mockDevice: { friendlyName: string; modelName?: string } = {
+  friendlyName: "Living Room TV",
+};
 
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({
@@ -45,7 +53,7 @@ jest.mock("react-native-google-cast", () => ({
   },
   CastButton: () => null,
   PlayServicesState: { SUCCESS: "success" },
-  useCastDevice: () => ({ friendlyName: "Living Room TV" }),
+  useCastDevice: () => mockDevice,
   useMediaStatus: () => null,
   useRemoteMediaClient: () => mockClient,
 }));
@@ -141,6 +149,7 @@ beforeEach(() => {
   mockCast.mockClear();
   mockPlayMedia.mockClear();
   mockDetectBitrate.mockClear();
+  mockDevice = { friendlyName: "Living Room TV" };
 });
 
 describe("casting from the item page", () => {
@@ -205,6 +214,49 @@ describe("casting from the item page", () => {
     await play(EIGHT_MBPS, "Chromecast", CHANNEL);
 
     expect(await castBitrate()).toBe(8_000_000);
+  });
+});
+
+// The link Auto measures is the phone's: handed 58 Mb/s, a Chromecast stick
+// froze on the segments the server copied for it, then errored (17/11/2026).
+describe("casting to a Chromecast stick", () => {
+  beforeEach(() => {
+    mockDevice = {
+      friendlyName: "Living Room TV",
+      modelName: CHROMECAST_STICK_MODEL,
+    };
+  });
+
+  test("holds Auto at the stick's ceiling", async () => {
+    mockDetectBitrate.mockResolvedValueOnce(58_139_017);
+
+    await play(AUTO, "Chromecast");
+
+    expect(await castBitrate()).toBe(CHROMECAST_STICK_AUTO_MAX_BITRATE);
+  });
+
+  test("hands the stick a quality picked by hand above it as it is", async () => {
+    await play(EIGHT_MBPS, "Chromecast");
+
+    expect(await castBitrate()).toBe(8_000_000);
+  });
+
+  test("hands the stick its own ceiling for live television under Auto", async () => {
+    await play(AUTO, "Chromecast", CHANNEL);
+
+    expect(await castBitrate()).toBe(120_000_000);
+  });
+
+  test("hands another model the bitrate Auto measures", async () => {
+    mockDevice = {
+      friendlyName: "Living Room TV",
+      modelName: "Google TV Streamer",
+    };
+    mockDetectBitrate.mockResolvedValueOnce(58_139_017);
+
+    await play(AUTO, "Chromecast");
+
+    expect(await castBitrate()).toBe(58_139_017);
   });
 });
 
