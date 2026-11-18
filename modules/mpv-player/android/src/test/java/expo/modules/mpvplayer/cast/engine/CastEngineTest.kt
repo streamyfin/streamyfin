@@ -674,7 +674,7 @@ class CastEngineTest {
 
     // Between the two streams of a reload the receiver plays nothing: a quality picked then was refused while the
     // menu marked it (bench, 18/11, 2 times out of 2). The last pick goes once the reload on its way has settled and
-    // the receiver has left loading, from where it plays then.
+    // the receiver plays, from where it plays then.
     @Test
     fun aQualityPickedWhileAReloadIsOnItsWayGoesOnceItSettles() {
         val results = mutableListOf<CastLoadResult>()
@@ -688,6 +688,8 @@ class CastEngineTest {
         scheduler.advance(0)
         assertEquals(1, port.sent.size)
         media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(1, port.sent.size)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_500)
         assertEquals(listOf(8_000_000L, 4_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
         assertEquals(425_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
         media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-3")), 0)
@@ -718,8 +720,53 @@ class CastEngineTest {
         media.report(snapshot(playerState = "loading"), 0)
         assertEquals(listOf("PlayNow"), commands().map { it.first })
         media.report(snapshot(playerState = "buffering"), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(), 0)
         assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
         assertEquals(4_000_000L, JSONObject(port.sent.last().second).getLong("maxBitrate"))
+    }
+
+    // Settled, a reload's new stream reports 0 until the receiver plays it: a second quality picked then went
+    // from the start (bench, 18/11, 3 times out of 3). The position stays where the reload asked for until then.
+    @Test
+    fun aSettledReloadKeepsItsPositionUntilTheReceiverPlays() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        media.tick(0)
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_700)
+        assertEquals(42.7, engine.currentPosition, 1e-9)
+    }
+
+    // A quality picked while the receiver still starts the stream of a settled reload, with nothing on its way,
+    // went at once and from 0 (bench, 18/11): it waits for the receiver to play, and goes from there.
+    @Test
+    fun aQualityPickedBeforeTheReloadedStreamPlaysGoesOnceItPlays() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 2_000_000))
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(listOf(8_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_600)
+        assertEquals(listOf(8_000_000L, 2_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(426_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
+    }
+
+    // A stall after the receiver has played is not a start: the pick goes at once, from where it plays.
+    @Test
+    fun aQualityPickedWhileTheReceiverStallsGoesAtOnce() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "buffering"), 42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        assertEquals(listOf(4_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(425_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
     }
 
     // Another send carries the cap of its own envelope, and nothing loaded takes the pick.
@@ -734,6 +781,7 @@ class CastEngineTest {
         assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
 
         media.report(snapshot(playerState = "loading", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        media.report(snapshot(customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
         engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
         media.report(snapshot(playerState = "idle", idleReason = "interrupted", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
         engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }

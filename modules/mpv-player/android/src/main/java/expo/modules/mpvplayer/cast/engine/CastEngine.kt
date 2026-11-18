@@ -92,6 +92,10 @@ class CastEngine(
     // a buffering status is that load, not a stall.
     private var sessionPlayed = false
 
+    // The play session a reload of ours started, until the receiver plays it: its stream reports 0 until then
+    // (bench, 18/11, 3 times out of 3), and the reload's target is where it starts.
+    private var reloadStarting = false
+
     private var playSessionId: String? = null
     private var idleReason: String? = null
     private var reportedPause: Boolean? = null
@@ -123,9 +127,10 @@ class CastEngine(
 
     private var pendingLoad: PendingLoad? = null
 
-    // A quality asked for while a load or a reload is on its way. Between the two streams of a reload the receiver
-    // plays nothing, so a pick then was refused while the menu marked it (bench, 18/11, 2 times out of 2): the last
-    // one asked for goes once the one on its way has settled and the receiver has left loading, from where it plays.
+    // A quality asked for while a load or a reload is on its way, or before the receiver plays the stream one
+    // started. Between the two streams of a reload the receiver plays nothing, so a pick then was refused while the
+    // menu marked it (bench, 18/11, 2 times out of 2): the last one asked for goes once the one on its way has
+    // settled and the receiver plays, from where it plays.
     private class QueuedReload(val server: ReceiverServer, val onResult: (CastLoadResult) -> Unit)
 
     private var queuedReload: QueuedReload? = null
@@ -451,7 +456,7 @@ class CastEngine(
      */
     override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) = runOnMain {
         if (subtitleStreamIndex == null) {
-            if (reload != null || pendingLoad != null) {
+            if (reload != null || pendingLoad != null || receiverStarting()) {
                 queuedReload?.onResult?.invoke(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
                 queuedReload = QueuedReload(server, onResult)
                 return@runOnMain
@@ -487,8 +492,8 @@ class CastEngine(
 
     private fun sendQueuedReload() {
         val queued = queuedReload ?: return
-        // Another one on its way since, or a stream still loading: the pick waits for a status past it.
-        if (reload != null || pendingLoad != null || playerState == LOADING) return
+        // Another one on its way since, or a stream not playing yet: the pick waits for a status past it.
+        if (reload != null || pendingLoad != null || playerState == LOADING || receiverStarting()) return
         queuedReload = null
         server = queued.server
         reloadCurrent(queued.onResult)
@@ -804,10 +809,15 @@ class CastEngine(
             // That session plays what its own load named.
             subtitleOnceLoaded = null
             sessionPlayed = false
+            reloadStarting = false
             // The next item: what ended was not the end.
             if (data?.playSessionId != null) cancelEndWait()
         }
-        if (status.playerState == PLAYING || status.playerState == PAUSED) sessionPlayed = true
+        if (settled?.second == ReceiverLoadOutcome.Loaded) reloadStarting = true
+        if (status.playerState == PLAYING || status.playerState == PAUSED) {
+            sessionPlayed = true
+            reloadStarting = false
+        }
         ours = data
         hasMedia = true
         title = status.title
@@ -844,10 +854,13 @@ class CastEngine(
         notifyState()
     }
 
-    // The position stays on its target through a reload, and where it was on an idle status: the SDK
-    // reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that interrupts
-    // a stream for another of the same item carries the old customData with the new stream's time.
-    private fun holdsPosition(state: String) = reload != null || state == IDLE
+    // The position stays on its target through a reload until the receiver plays its stream, and where it was on
+    // an idle status: the SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status
+    // that interrupts a stream for another of the same item carries the old customData with the new stream's time.
+    private fun holdsPosition(state: String) = reload != null || reloadStarting || state == IDLE
+
+    // The receiver starts the stream of its play session: loading, or buffering before it has played.
+    private fun receiverStarting() = hasMedia && playerState != IDLE && (playerState == LOADING || !sessionPlayed)
 
     private fun onTick(positionMs: Long) {
         if (!hasMedia) return
@@ -899,6 +912,7 @@ class CastEngine(
         chosenSubtitle = null
         subtitleOnceLoaded = null
         sessionPlayed = false
+        reloadStarting = false
         updateTracks()
         setPause(true)
         setLoading(awaitingReceiver())

@@ -1137,7 +1137,7 @@ enum CastEngineTests {
 
     // Between the two streams of a reload the receiver plays nothing: a quality picked then was refused while the
     // menu marked it (bench, 18/11, 2 times out of 2). The last pick goes once the reload on its way has settled and
-    // the receiver has left loading, from where it plays then.
+    // the receiver plays, from where it plays then.
     do {
       let bench = Bench()
       let engine = bench.playing(42.5)
@@ -1152,8 +1152,13 @@ enum CastEngineTests {
       bench.media.report(
         snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"]), streamPosition: 42.5), position: 42.5
       )
+      let heldWhileBuffering = bench.port.sent.count == 1
+      bench.media.report(
+        snapshot(customData: ours(["playSessionId": "ps-2"]), streamPosition: 42.5), position: 42.5
+      )
       let options = bench.sentMessages().last?["options"] as? [String: Any]
-      let sent = caps(bench) == [8_000_000, 4_000_000] && (options?["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000
+      let sent = heldWhileBuffering && caps(bench) == [8_000_000, 4_000_000]
+        && (options?["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000
       bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-3"])), position: 0)
       check(
         "aQualityPickedWhileAReloadIsOnItsWayGoesOnceItSettles",
@@ -1185,10 +1190,65 @@ enum CastEngineTests {
       bench.media.report(snapshot(playerState: "loading"), position: 0)
       let heldWhileLoading = bench.port.sent.count == 1
       bench.media.report(snapshot(playerState: "buffering"), position: 0)
+      let heldWhileBuffering = bench.port.sent.count == 1
+      bench.media.report(snapshot(), position: 0)
       check(
         "aQualityPickedWhileALoadIsOnItsWayGoesOnceItSettles",
-        held && heldWhileLoading && bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow", "PlayNow"]
+        held && heldWhileLoading && heldWhileBuffering
+          && bench.sentMessages().map { $0["command"] as? String ?? "?" } == ["PlayNow", "PlayNow"]
           && caps(bench).last == 4_000_000
+      )
+    }
+
+    // Settled, a reload's new stream reports 0 until the receiver plays it: a second quality picked then went
+    // from the start (bench, 18/11, 3 times out of 3). The position stays where the reload asked for until then.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      let held = close(engine.getCurrentPosition(), 42.5)
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2"]), streamPosition: 42.7), position: 42.7)
+      check(
+        "aSettledReloadKeepsItsPositionUntilTheReceiverPlays",
+        held && close(engine.getCurrentPosition(), 42.7)
+      )
+    }
+
+    // A quality picked while the receiver still starts the stream of a settled reload, with nothing on its way,
+    // went at once and from 0 (bench, 18/11): it waits for the receiver to play, and goes from there.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      engine.reloadCurrentItem(server: cappedAt(8_000_000))
+      bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted"), position: 0)
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000))
+      engine.reloadCurrentItem(server: cappedAt(2_000_000))
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["playSessionId": "ps-2"])), position: 0)
+      bench.clock.advance(0)
+      let held = caps(bench) == [8_000_000]
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2"]), streamPosition: 42.6), position: 42.6)
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check(
+        "aQualityPickedBeforeTheReloadedStreamPlaysGoesOnceItPlays",
+        held && caps(bench) == [8_000_000, 2_000_000]
+          && (options?["startPositionTicks"] as? NSNumber)?.int64Value == 426_000_000
+      )
+    }
+
+    // A stall after the receiver has played is not a start: the pick goes at once, from where it plays.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "buffering", streamPosition: 42.5), position: 42.5)
+      engine.reloadCurrentItem(server: cappedAt(4_000_000))
+      let options = bench.sentMessages().last?["options"] as? [String: Any]
+      check(
+        "aQualityPickedWhileTheReceiverStallsGoesAtOnce",
+        caps(bench) == [4_000_000] && (options?["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000
       )
     }
 
@@ -1204,6 +1264,7 @@ enum CastEngineTests {
       let dropped = results == ["settled superseded"]
       let second = ours(["itemId": "item-2", "playSessionId": "ps-2"])
       bench.media.report(snapshot(playerState: "loading", customData: second), position: 0)
+      bench.media.report(snapshot(customData: second), position: 0)
       engine.reloadCurrentItem(server: cappedAt(8_000_000))
       bench.media.report(snapshot(playerState: "idle", idleReason: "interrupted", customData: second), position: 0)
       engine.reloadCurrentItem(server: cappedAt(4_000_000)) { results.append(describe($0)) }

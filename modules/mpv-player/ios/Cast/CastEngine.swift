@@ -85,6 +85,10 @@ final class CastEngine: RemoteEngine {
   // buffering status is that load, not a stall.
   private var sessionPlayed = false
 
+  // The play session a reload of ours started, until the receiver plays it: its stream reports 0 until then (bench,
+  // 18/11, 3 times out of 3), and the reload's target is where it starts.
+  private var reloadStarting = false
+
   private var reportedPause: Bool?
   private var reportedLoading: Bool?
   private var readyToSeekFor: String?
@@ -117,9 +121,10 @@ final class CastEngine: RemoteEngine {
 
   private var pendingLoad: PendingLoad?
 
-  // A quality asked for while a load or a reload is on its way. Between the two streams of a reload the receiver
-  // plays nothing, so a pick then was refused while the menu marked it (bench, 18/11, 2 times out of 2): the last
-  // one asked for goes once the one on its way has settled and the receiver has left loading, from where it plays.
+  // A quality asked for while a load or a reload is on its way, or before the receiver plays the stream one started.
+  // Between the two streams of a reload the receiver plays nothing, so a pick then was refused while the menu marked
+  // it (bench, 18/11, 2 times out of 2): the last one asked for goes once the one on its way has settled and the
+  // receiver plays, from where it plays.
   private struct QueuedReload {
     let server: ReceiverServer
     let completion: (CastLoadResult) -> Void
@@ -484,7 +489,7 @@ final class CastEngine: RemoteEngine {
   ) {
     onMain()
     guard let index = subtitleStreamIndex else {
-      if reload != nil || pendingLoad != nil {
+      if reload != nil || pendingLoad != nil || receiverStarting() {
         queuedReload?.completion(.settled(.superseded))
         queuedReload = QueuedReload(server: server, completion: completion)
         return
@@ -527,8 +532,10 @@ final class CastEngine: RemoteEngine {
   }
 
   private func sendQueuedReload() {
-    // Another one on its way since, or a stream still loading: the pick waits for a status past it.
-    guard let queued = queuedReload, reload == nil, pendingLoad == nil, playerState != State.loading else { return }
+    // Another one on its way since, or a stream not playing yet: the pick waits for a status past it.
+    guard let queued = queuedReload, reload == nil, pendingLoad == nil, playerState != State.loading,
+      !receiverStarting()
+    else { return }
     queuedReload = nil
     server = queued.server
     reloadCurrent(completion: queued.completion)
@@ -889,10 +896,15 @@ final class CastEngine: RemoteEngine {
       // That session plays what its own load named.
       subtitleOnceLoaded = nil
       sessionPlayed = false
+      reloadStarting = false
       // The next item: what ended was not the end.
       if data?.playSessionId != nil { endWait(false) }
     }
-    if status.playerState == State.playing || status.playerState == State.paused { sessionPlayed = true }
+    if case .loaded? = reloadOutcome { reloadStarting = true }
+    if status.playerState == State.playing || status.playerState == State.paused {
+      sessionPlayed = true
+      reloadStarting = false
+    }
     ours = data
     hasMedia = true
     title = status.title
@@ -929,10 +941,15 @@ final class CastEngine: RemoteEngine {
     notifyState()
   }
 
-  // The position stays on its target through a reload, and where it was on an idle status: Android's
-  // SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that
-  // interrupts a stream for another of the same item carries the old customData with the new stream's time.
-  private func holdsPosition(_ state: String) -> Bool { reload != nil || state == State.idle }
+  // The position stays on its target through a reload until the receiver plays its stream, and where it was on an
+  // idle status: Android's SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status
+  // that interrupts a stream for another of the same item carries the old customData with the new stream's time.
+  private func holdsPosition(_ state: String) -> Bool { reload != nil || reloadStarting || state == State.idle }
+
+  // The receiver starts the stream of its play session: loading, or buffering before it has played.
+  private func receiverStarting() -> Bool {
+    hasMedia && playerState != State.idle && (playerState == State.loading || !sessionPlayed)
+  }
 
   private func scheduleTick() {
     cancelTick = deliver(CastEngineConstants.progressIntervalMs) { [weak self] in
@@ -1006,6 +1023,7 @@ final class CastEngine: RemoteEngine {
     chosenSubtitle = nil
     subtitleOnceLoaded = nil
     sessionPlayed = false
+    reloadStarting = false
     stopTicking()
     setPause(true)
     setLoading(awaitingReceiver())
