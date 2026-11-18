@@ -64,7 +64,7 @@ import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
-import expo.modules.mpvplayer.nativeplayer.ui.TechnicalInfoOverlay
+import expo.modules.mpvplayer.nativeplayer.ui.TechnicalInfoLayer
 import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
 
 private val SlotGap = 16.dp
@@ -148,11 +148,7 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
             RemoteVolumeIndicator(screen.volumeIndicator, Modifier.align(Alignment.TopCenter))
 
             // The local player's layer; shown, it asks JS for the lines of what the TV plays.
-            if (viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo) {
-                Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    TechnicalInfoOverlay(viewModel = viewModel, onDismiss = { viewModel.showTechnicalInfo = false })
-                }
-            }
+            TechnicalInfoLayer(viewModel = viewModel)
 
             if (viewModel.showEpisodeList) {
                 EpisodeListSheet(viewModel = viewModel, onDismiss = { viewModel.showEpisodeList = false })

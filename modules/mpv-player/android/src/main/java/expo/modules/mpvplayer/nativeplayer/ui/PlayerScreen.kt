@@ -257,20 +257,7 @@ fun PlayerScreen(
         }
 
         // Layer 10: Technical Info Overlay
-        if (viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                TechnicalInfoOverlay(
-                    viewModel = viewModel,
-                    onDismiss = { viewModel.showTechnicalInfo = false }
-                )
-            }
-        }
+        TechnicalInfoLayer(viewModel = viewModel)
 
         // Layer 11: Still Watching Overlay
         if (viewModel.showStillWatching) {

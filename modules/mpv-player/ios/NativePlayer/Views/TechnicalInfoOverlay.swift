@@ -1,5 +1,24 @@
 import SwiftUI
 
+/// The panel where the touch players draw it, the local one and the remote screen: top left, under the bar.
+struct TechnicalInfoLayer: View {
+	@ObservedObject var viewModel: PlayerViewModel
+
+	var body: some View {
+		if viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo {
+			VStack {
+				HStack {
+					TechnicalInfoOverlay(viewModel: viewModel)
+					Spacer()
+				}
+				Spacer()
+			}
+			.padding(.top, 56)
+			.padding(.leading, 24)
+		}
+	}
+}
+
 /// Stats-for-nerds overlay: play method + transcode reasons from the config,
 /// live values polled from the engine once per second. Shared by the iOS
 /// touch chrome and the tvOS panel (which scales it up for viewing distance).

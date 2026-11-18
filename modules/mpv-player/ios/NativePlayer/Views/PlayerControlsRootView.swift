@@ -157,17 +157,7 @@ struct PlayerControlsRootView: View {
 				.transition(.opacity)
 			}
 
-			if viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo {
-				VStack {
-					HStack {
-						TechnicalInfoOverlay(viewModel: viewModel)
-						Spacer()
-					}
-					Spacer()
-				}
-				.padding(.top, 56)
-				.padding(.leading, 24)
-			}
+			TechnicalInfoLayer(viewModel: viewModel)
 
 			if viewModel.showStillWatching {
 				// Above the bars layer (zIndex 1); shown even in lock mode —

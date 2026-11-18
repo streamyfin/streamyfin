@@ -73,13 +73,7 @@ struct RemotePlayerRootView: View {
 		// Over the top bar, not in the stack: showing it moves nothing.
 		.overlay(alignment: .top) { RemoteVolumeIndicatorView(indicator: screen.volumeIndicator) }
 		// The local player's layer; shown, it asks JS for the lines of what the TV plays.
-		.overlay(alignment: .topLeading) {
-			if viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo {
-				TechnicalInfoOverlay(viewModel: viewModel)
-					.padding(.top, 56)
-					.padding(.leading, 24)
-			}
-		}
+		.overlay { TechnicalInfoLayer(viewModel: viewModel) }
 		// Tone 20 at the top to tone 10 at remoteTintGradientEnd, flat below; a new tint fades in.
 		.background(
 			LinearGradient(

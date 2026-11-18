@@ -7,11 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -36,6 +40,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import kotlinx.coroutines.delay
+
+/** The panel where the touch players draw it, the local one and the remote screen: centered, clear of the bars. */
+@Composable
+fun TechnicalInfoLayer(viewModel: PlayerViewModel) {
+    if (!viewModel.showTechnicalInfo || !viewModel.capabilities.technicalInfo) return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        TechnicalInfoOverlay(viewModel = viewModel, onDismiss = { viewModel.showTechnicalInfo = false })
+    }
+}
 
 @Composable
 fun TechnicalInfoOverlay(
