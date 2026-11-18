@@ -30,10 +30,15 @@ jest.mock("@sentry/react-native", () => ({
   },
 }));
 
-import { AxiosError, type AxiosResponse } from "axios";
+import axios, { AxiosError, type AxiosResponse } from "axios";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { isErrorReported, markExpectedError } from "./errors";
-import { logAndCaptureError, normalizeNativeDetail, readFromLog } from "./log";
+import {
+  logAndCaptureError,
+  normalizeNativeDetail,
+  readFromLog,
+  writeErrorLog,
+} from "./log";
 
 // The session's memory outlives a test, so each one fails in its own place.
 let serverCount = 0;
@@ -57,6 +62,87 @@ const httpError = (
 beforeEach(() => {
   mockCaptured.length = 0;
   clearMmkv();
+});
+
+// Settings, Logs shares this log as logs.txt, which users attach to public
+// issues. Callers pass what they caught as is (hooks/useLibraryPlayQueue.ts),
+// and a raw AxiosError serializes its request config, headers and body included.
+describe("writeErrorLog: a failed request is stored without its credentials", () => {
+  // Rejects the way the XHR adapter does when the server cannot be reached.
+  const unreachable = axios.create({
+    adapter: (config) =>
+      Promise.reject(
+        new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, {}),
+      ),
+  });
+  const failureOf = (request: Promise<unknown>) =>
+    request.then(
+      () => {
+        throw new Error("the request was expected to fail");
+      },
+      (error: unknown) => error,
+    );
+
+  test("a library request keeps its token, API key and proxy header out", async () => {
+    const error = await failureOf(
+      unreachable.get(
+        "https://jellyfin.example.test/Users/user-1/Items?api_key=key-in-url&Limit=50",
+        {
+          headers: {
+            Authorization:
+              'MediaBrowser Client="Streamyfin", Token="token-in-header"',
+            "X-Emby-Token": "token-in-emby-header",
+            // One the user added for their reverse proxy (custom headers).
+            "CF-Access-Client-Secret": "proxy-secret",
+          },
+        },
+      ),
+    );
+    writeErrorLog("Library play queue failed to start", error);
+
+    const stored = JSON.stringify(readFromLog());
+    for (const secret of [
+      "token-in-header",
+      "token-in-emby-header",
+      "proxy-secret",
+      "key-in-url",
+    ]) {
+      expect(stored).not.toContain(secret);
+    }
+    expect(readFromLog()[0].data).toMatchObject({
+      message: "Network Error",
+      code: "ERR_NETWORK",
+      url: "https://jellyfin.example.test/Users/user-1/Items",
+    });
+  });
+
+  test("a failed sign-in keeps the password out", async () => {
+    const error = await failureOf(
+      unreachable.post(
+        "https://jellyfin.example.test/Users/AuthenticateByName",
+        { Username: "mobile", Pw: "password-in-body" },
+      ),
+    );
+    writeErrorLog("Login failed", error);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("password-in-body");
+  });
+
+  // A plain Error used to be stored as {}: message and stack are not enumerable.
+  test("an error that is not a request keeps its message", () => {
+    writeErrorLog("Storage migration 12 failed", new Error("disk full"));
+
+    expect(readFromLog()[0].data).toMatchObject({
+      name: "Error",
+      message: "disk full",
+    });
+  });
+
+  test("data that is not an error is stored as it came", () => {
+    writeErrorLog("Download turned down", { itemId: "item-1", reason: "none" });
+
+    expect(readFromLog()[0].data).toEqual({ itemId: "item-1", reason: "none" });
+  });
 });
 
 describe("logAndCaptureError — what is kept local", () => {

@@ -82,7 +82,8 @@ const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
 // the plugin), and a level-triggered capture would silently opt in every
 // present and future one of them.
 export const writeToLog = (level: LogLevel, message: string, data?: any) => {
-  appendLogEntry(level, message, data);
+  // Callers pass what they caught: an error is reduced before it is stored, whoever logs it.
+  appendLogEntry(level, message, describeErrorForLog(data));
 };
 
 const stringifyErrorValue = (value: unknown): string | undefined => {
