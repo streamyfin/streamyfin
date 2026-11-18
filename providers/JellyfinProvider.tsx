@@ -41,6 +41,7 @@ import {
 import { getDeviceName, getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
+import { endSessionOnServer } from "@/utils/jellyfin/endSession";
 import {
   hasLegacyRoutePrefix,
   migrateLegacyServerAddress,
@@ -642,7 +643,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // Not awaited, so sign out does not wait on the server, but in line behind
       // a registration still on its way, which would otherwise bring the row back.
       if (api) {
-        inRegistrationOrder(() =>
+        const pushRowDeleted = inRegistrationOrder(() =>
           api.pluginDelete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
             timeout: PUSH_REGISTRATION_TIMEOUT_MS,
           }),
@@ -651,6 +652,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           .catch((_e) =>
             writeErrorLog("Failed to delete expo push token for device"),
           );
+
+        // After the push row, whose delete is sent with the token this ends.
+        const { basePath, accessToken } = api;
+        if (jellyfin && accessToken) {
+          const userId = user?.Id;
+          void pushRowDeleted.then(() =>
+            endSessionOnServer({
+              jellyfin,
+              serverUrl: basePath,
+              token: accessToken,
+              userId,
+            }),
+          );
+        }
       }
 
       await clearSessionState();
