@@ -92,6 +92,10 @@ struct RemotePlayerRootView: View {
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
+		// The subtitle menu's search, presented as the local player presents it.
+		.sheet(isPresented: $viewModel.showSubtitleSearch) {
+			SubtitleSearchView(viewModel: viewModel)
+		}
 	}
 
 	/// One slot, alone in its place: the column, the side or the bottom band. The top bar draws its own three.

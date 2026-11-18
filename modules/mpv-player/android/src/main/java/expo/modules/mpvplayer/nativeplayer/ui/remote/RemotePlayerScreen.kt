@@ -64,6 +64,7 @@ import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
+import expo.modules.mpvplayer.nativeplayer.ui.SubtitleSearchSheet
 import expo.modules.mpvplayer.nativeplayer.ui.TechnicalInfoLayer
 import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
 
@@ -152,6 +153,11 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
 
             if (viewModel.showEpisodeList) {
                 EpisodeListSheet(viewModel = viewModel, onDismiss = { viewModel.showEpisodeList = false })
+            }
+
+            // The subtitle menu's search, drawn as the local player draws it.
+            if (viewModel.showSubtitleSearch) {
+                SubtitleSearchSheet(viewModel = viewModel, onDismiss = { viewModel.showSubtitleSearch = false })
             }
         }
     }
