@@ -67,7 +67,7 @@ import {
   deleteAccountCredential,
   getAccountCredential,
   getCredentialOrForgetAccount,
-  getPreviousServers,
+  getServerAccounts,
   hashPIN,
   makeServerHeadersReadableWhileLocked,
   migrateToMultiAccount,
@@ -279,6 +279,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // session on the first 401 so the app drops cleanly to the login screen,
   // except Quick Connect's own 401 (see endsSession).
   const sessionExpiredRef = useRef(false);
+  // Tokens a switch of account ends on purpose: once the end lands, the
+  // requests they still had out answer 401, which expires nothing.
+  const leftTokensRef = useRef(new Set<string>());
 
   // Shared teardown for manual logout AND forced session expiry — keeping it
   // in one place prevents the two paths from drifting (a 401 expiry must wipe
@@ -329,12 +332,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     // Only guard an authenticated session. A pre-auth api (login screen) keeps
     // its own handling — a wrong-password 401 is not a session expiry.
-    if (!api?.accessToken) return;
+    const token = api?.accessToken;
+    if (!api || !token) return;
     sessionExpiredRef.current = false; // re-arm for this fresh session
     const interceptorId = api.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (endsSession(error)) {
+        // A request sent before the session was left can come back after the
+        // next one is in, through this interceptor still.
+        if (endsSession(error) && !leftTokensRef.current.has(token)) {
           handleSessionExpired();
         }
         return Promise.reject(error);
@@ -712,9 +718,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   /**
    * Ends on the server the session a switch of account leaves, as a sign-out
-   * does, once the next account is known to sign in. Waited for: the server
-   * ends every session of the device with it, the next account's included if
-   * it were live already.
+   * does, once the next account is known to sign in. Waited for before the
+   * next account goes live: the server ends every session of the device with
+   * it, and would cut the next account's connection once it is open.
    */
   const endSessionLeftFor = useCallback(
     async (serverUrl: string, nextToken: string) => {
@@ -722,6 +728,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const token = current?.accessToken;
       if (!jellyfin || !current || !token || token === nextToken) return;
 
+      leftTokensRef.current.add(token);
       endSessionOnServerAfter(Promise.resolve(), {
         jellyfin,
         serverUrl: current.basePath,
@@ -1005,14 +1012,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeSavedServerMutation = useMutation({
     mutationFn: async (serverUrl: string) => {
-      const accounts =
-        getPreviousServers().find((server) => server.address === serverUrl)
-          ?.accounts ?? [];
-      const credentials = await Promise.all(
-        accounts.map((account) =>
-          savedCredentialOrNone(serverUrl, account.userId),
-        ),
-      );
+      // A keychain that will not hand the tokens over leaves their sessions
+      // running, but must not keep the server.
+      const credentials = await getServerAccounts(serverUrl).catch(() => []);
       // Read now: they go with the server, and a gateway in front of it
       // refuses the end without them.
       const headers = getJellyfinHeaders(serverUrl);

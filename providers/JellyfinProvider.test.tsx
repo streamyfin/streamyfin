@@ -708,6 +708,59 @@ describe("JellyfinProvider account switch", () => {
     }
   });
 
+  // Once its end lands, the session left answers 401 to the requests it still
+  // had out, which is not the session the user is in expiring.
+  it("keeps the next account signed in when the session it left answers 401", async () => {
+    const provider = await signedInWithAnotherAccountSaved();
+    const leftApi = store.get(apiAtom);
+    if (!leftApi) throw new Error("no session at launch");
+    const answers: Array<() => void> = [];
+    server.onGet(`${SERVER}/Items`).reply(
+      () =>
+        new Promise((resolve) => {
+          answers.push(() => resolve([401]));
+        }),
+    );
+    let answerEnd = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+    const users: Array<string | undefined> = [];
+    const unsubscribe = store.sub(userAtom, () =>
+      users.push(store.get(userAtom)?.Id),
+    );
+
+    try {
+      // Out before the switch, answered while the end is on its way and after
+      // the next account is in.
+      const requests = [
+        leftApi.axiosInstance.get(`${SERVER}/Items`).catch(() => {}),
+        leftApi.axiosInstance.get(`${SERVER}/Items`).catch(() => {}),
+      ];
+      await waitFor(() => expect(answers).toHaveLength(2));
+      const switched = provider.loginWithSavedCredential(SERVER, OTHER_USER.Id);
+      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      answers[0]();
+      await act(() => requests[0]);
+
+      answerEnd();
+      await act(() => switched);
+      answers[1]();
+      await act(() => requests[1]);
+
+      expect(storage.getString("token")).toBe(OTHER_TOKEN);
+      expect(store.get(userAtom)?.Id).toBe(OTHER_USER.Id);
+      expect(users).not.toContain(undefined);
+    } finally {
+      unsubscribe();
+      answerEnd();
+      for (const answer of answers) answer();
+    }
+  });
+
   it("keeps the token of a saved account it switches away from", async () => {
     await saveAccount();
     const provider = await signedInWithAnotherAccountSaved();
