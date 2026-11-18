@@ -81,7 +81,7 @@ fun TechnicalInfoOverlay(
                     onClick = onDismiss,
                     modifier = Modifier.size(28.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = viewModel.strings.get("close", "Close"), tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             }
 

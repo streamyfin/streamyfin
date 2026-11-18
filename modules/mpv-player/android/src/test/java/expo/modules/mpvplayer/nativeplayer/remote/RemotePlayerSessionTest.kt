@@ -33,6 +33,7 @@ import expo.modules.mpvplayer.nativeplayer.RemotePlayerFailureRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
+import expo.modules.mpvplayer.nativeplayer.UIOptionsRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
 import java.time.Duration
@@ -668,6 +669,29 @@ class RemotePlayerSessionTest {
     // so the test reads the first composition and the disposal, which need none.
     @Test
     fun theTechnicalInfoFlagShowsThePanelAndAsksJsForItsLinesWhileItIsUp() {
+        val session = presentedWithPanel()
+        val panelEvents = { events.filter { it.first.startsWith("onTechnicalInfo") } }
+
+        assertTrue("no panel on the screen", panelShown())
+        assertEquals(listOf("onTechnicalInfoRequested" to mapOf<String, Any?>("remote" to true)), panelEvents())
+
+        session.teardownImmediately()
+        shadowOf(getMainLooper()).idle()
+        assertEquals(listOf("onTechnicalInfoRequested", "onTechnicalInfoClosed"), panelEvents().map { it.first })
+    }
+
+    // The panel's close button speaks the user's language, as the screen's chevron does.
+    @Test
+    fun thePanelsCloseButtonSaysCloseInTheUsersLanguage() {
+        presentedWithPanel { it.ui = UIOptionsRecord().also { ui -> ui.strings = mapOf("close" to "Fermer") } }
+
+        assertTrue("no panel on the screen", panelShown())
+        val labels = semanticsNodes().mapNotNull { it.label() }
+        assertEquals(emptyList<String>(), labels.filter { it == "Close" })
+    }
+
+    /** The real screen with the panel up from its first composition, the TV paused. */
+    private fun presentedWithPanel(configure: (RemotePlayerConfigRecord) -> Unit = {}): RemotePlayerSession {
         val session = RemotePlayerSession(
             hub = RemoteTargetHub(),
             playback = playback,
@@ -679,16 +703,10 @@ class RemotePlayerSessionTest {
         session.present(activity, RemotePlayerConfigRecord().also {
             it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
             it.targetName = "Bench TV"
+            configure(it)
         })
         shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
-        val panelEvents = { events.filter { it.first.startsWith("onTechnicalInfo") } }
-
-        assertTrue("no panel on the screen", panelShown())
-        assertEquals(listOf("onTechnicalInfoRequested" to mapOf<String, Any?>("remote" to true)), panelEvents())
-
-        session.teardownImmediately()
-        shadowOf(getMainLooper()).idle()
-        assertEquals(listOf("onTechnicalInfoRequested", "onTechnicalInfoClosed"), panelEvents().map { it.first })
+        return session
     }
 
     private fun panelShown(): Boolean =
