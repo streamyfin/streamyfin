@@ -1091,6 +1091,23 @@ describe("withPlayerAudioTracks", () => {
     expect(audio.map((s) => s.Language)).toEqual(["fre", "eng"]);
   });
 
+  it("treats a blank language tag as no tag, for placement and labels", () => {
+    const listed = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Language: "fre", DisplayTitle: "French" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(listed, [
+      { lang: "eng" },
+      { lang: " " },
+    ]);
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.map((s) => [s.Index, s.Language, s.DisplayTitle])).toEqual([
+      [PLAYER_AUDIO_INDEX_BASE, "eng", "eng"],
+      [1, "fre", "French"],
+    ]);
+  });
+
   it("lists every track the player found, in the player's order", () => {
     const merged = withPlayerAudioTracks(named, played);
     const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];

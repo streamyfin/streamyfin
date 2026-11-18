@@ -929,8 +929,13 @@ const mergedAudioStream = (
  */
 export const withPlayerAudioTracks = (
   mediaSource: MediaSourceInfo,
-  playerTracks: PlayerAudioTrack[],
+  found: PlayerAudioTrack[],
 ): MediaSourceInfo => {
+  // A blank tag (ExoPlayer reports "" for an untagged track) is no tag.
+  const playerTracks = found.map((t) => ({
+    ...t,
+    lang: t.lang?.trim() || undefined,
+  }));
   const streams = mediaSource.MediaStreams ?? [];
   const isFileAudio = (s: MediaStream) => s.Type === "Audio" && !s.IsExternal;
   const listed = streams.filter(isFileAudio);
