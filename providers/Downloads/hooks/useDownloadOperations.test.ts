@@ -53,6 +53,7 @@ import {
   savePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
+import { forgetProgress, rememberProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
 import { useDownloadOperations } from "./useDownloadOperations";
@@ -117,6 +118,7 @@ const writeSidecars = () => {
 };
 
 beforeEach(() => {
+  forgetProgress("item-1");
   clearMmkv();
   fakeFiles.clear();
   jest.clearAllMocks();
@@ -771,4 +773,66 @@ it("confirms a resume whose task id matches an earlier attempt's interruption", 
   expect(toast.info).toHaveBeenCalledWith(
     "home.downloads.toasts.download_resumed",
   );
+});
+
+describe("an answer from native that lands late", () => {
+  // Progress kept arriving while native paused: the pause saved the percentage the card showed
+  // when it was tapped, behind what had been downloaded.
+  it("saves the progress from the moment native paused", async () => {
+    const { operations } = await renderOperations();
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+    rememberProgress("item-1", {
+      taskId: 7,
+      progress: 42,
+      bytesDownloaded: 420,
+    });
+    mockDownloader.pauseDownload.mockImplementation(async () => {
+      rememberProgress("item-1", {
+        taskId: 7,
+        progress: 45,
+        bytesDownloaded: 450,
+      });
+      return "kept";
+    });
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 45,
+      bytesDownloaded: 450,
+    });
+  });
+
+  // Cancelled and started again while native paused the first transfer: the late answer marked
+  // the new download paused, with its task id gone, so nothing could stop its transfer.
+  it("leaves a download started again meanwhile alone", async () => {
+    const { operations } = await renderOperations();
+    await act(() =>
+      operations.startBackgroundDownload(url, item, mediaSource, maxBitrate),
+    );
+    const first = getPendingDownload("item-1");
+    mockDownloader.pauseDownload.mockImplementation(async () => {
+      removePendingDownload("item-1");
+      savePendingDownload({
+        ...(first as NonNullable<typeof first>),
+        enqueuedAt: "2026-11-18T12:00:00.000Z",
+        status: "downloading",
+        taskId: 11,
+      });
+      return "kept";
+    });
+
+    await act(() => operations.pauseDownload("item-1"));
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "downloading",
+      taskId: 11,
+    });
+    expect(toast.info).not.toHaveBeenCalledWith(
+      "home.downloads.toasts.download_paused",
+    );
+  });
 });

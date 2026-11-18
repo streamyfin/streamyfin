@@ -98,6 +98,10 @@ class OkHttpDownloadManager {
     }
     val resumeOffset =
       if (resume && savedValidator.isNotEmpty() && partFileAtStart.exists()) partFileAtStart.length() else 0L
+    // A resume is continuable before its response arrives: a pause in that wait keeps the .part
+    // (onFailure does) and must say so. The response settles it either way. A fresh request is
+    // not, until its response offers ranges.
+    if (resumeOffset > 0) resumableTasks.add(taskId) else resumableTasks.remove(taskId)
 
     val requestBuilder = Request.Builder().url(url)
     headers?.forEach { (key, value) ->
@@ -118,6 +122,7 @@ class OkHttpDownloadManager {
       override fun onFailure(call: Call, e: IOException) {
         Log.e(TAG, "Download failed: taskId=$taskId, error=${e.message}")
         activeDownloads.remove(taskId, call)
+        resumableTasks.remove(taskId)
         if (call.isCanceled()) {
           // Don't report cancellation as error. A pause before the response keeps what an
           // earlier pause left in the .part file; a cancel removes it.

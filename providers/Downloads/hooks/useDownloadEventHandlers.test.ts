@@ -67,6 +67,7 @@ import {
   type PendingDownload,
   savePendingDownload,
 } from "../pendingDownloads";
+import { forgetProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { getDownloadToastId } from "../utils";
 import { useDownloadEventHandlers } from "./useDownloadEventHandlers";
@@ -135,6 +136,7 @@ const start = async (event: DownloadStartedEvent) =>
   (await listenerFor("started"))(event);
 
 beforeEach(() => {
+  forgetProgress("item-1");
   mockListeners.started = undefined;
   mockListeners.complete = undefined;
   mockCancelDownload.mockClear();
@@ -414,6 +416,27 @@ describe("a download that loses its connection", () => {
       "home.downloads.toasts.download_paused_connection_lost_restart",
       { id: getDownloadToastId("item-1") },
     );
+  });
+
+  // Task 7's 40% was thrown away (paused without its bytes) and task 9 resumed from zero. Task
+  // 9 lost its connection before its first progress event, and the pause brought 40% back.
+  it("uses only progress from the task that lost its connection", async () => {
+    savePendingDownload({
+      ...record,
+      taskId: 9,
+      progress: 0,
+      bytesDownloaded: 0,
+    });
+    const onPaused = await listenerFor("paused");
+    mockListeners.progress?.(lastProgress);
+
+    onPaused({ ...paused, taskId: 9 });
+
+    expect(getPendingDownload("item-1")).toMatchObject({
+      status: "paused",
+      progress: 0,
+      bytesDownloaded: 0,
+    });
   });
 
   it("is ignored when the record waits on another transfer", async () => {

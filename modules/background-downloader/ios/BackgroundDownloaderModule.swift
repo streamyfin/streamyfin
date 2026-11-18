@@ -397,7 +397,7 @@ public class BackgroundDownloaderModule: Module {
       self.cancelAllLiveActivities()
       // Clear the queue as well (Android already does) — otherwise the cancellation callbacks
       // would immediately start the next queued item, resurrecting what was just cancelled.
-      let session = self.stateQueue.sync { () -> URLSession? in
+      let (session, cancelledTaskIds) = self.stateQueue.sync { () -> (URLSession?, Set<Int>) in
         self.downloadQueue.removeAll()
         self.queueDidChangeLocked()
         for paused in self.pausedDownloads.values {
@@ -410,17 +410,22 @@ public class BackgroundDownloaderModule: Module {
         self.pauseGeneration += 1
         // Forgotten now, not once the session has listed its tasks: a connection-loss error in
         // between would otherwise find its task and save a pause that outlives the cancel.
+        let cancelledTaskIds = Set(self.downloadTasks.keys)
         self.downloadTasks.removeAll()
         self.persistTasksLocked()
-        return self.session
+        return (self.session, cancelledTaskIds)
       }
       session?.getAllTasks { tasks in
-        for task in tasks {
+        // A download started after this cancel (its task is tracked again) is not the user's to
+        // lose here. Tasks nothing tracks are leftovers and go too.
+        let tracked = self.stateQueue.sync { Set(self.downloadTasks.keys) }
+        for task in tasks
+        where cancelledTaskIds.contains(task.taskIdentifier)
+          || !tracked.contains(task.taskIdentifier)
+        {
           task.cancel()
         }
         self.stateQueue.async {
-          self.downloadTasks.removeAll()
-          self.persistTasksLocked()
           self.finishContinuedProcessingIfIdleLocked()
         }
       }

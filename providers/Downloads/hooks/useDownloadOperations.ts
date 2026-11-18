@@ -35,6 +35,7 @@ import {
   savePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
+import { latestProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { generateFilename, getDownloadToastId, uriToFilePath } from "../utils";
 import { clearSpeedData } from "./useDownloadSpeedCalculator";
@@ -415,25 +416,36 @@ export function useDownloadOperations({
         togglesInFlight.delete(id);
       }
 
-      // The transfer can finish, fail, be cancelled or lose its connection (native then pauses it
-      // itself) while native pauses it; each of those has its own handler, which told the user.
-      if (result === "failed" || !getPendingDownload(id)) {
-        if (getPendingDownload(id)?.status === "downloading") {
+      // Only an answer about this download, on the task this pause stopped, may change it. The
+      // transfer can finish, fail, be cancelled (and the item started again) or lose its
+      // connection (native then pauses it itself) while native pauses it; each of those has its
+      // own handler, which told the user.
+      const current = getPendingDownload(id);
+      const sameTask =
+        current?.enqueuedAt === record.enqueuedAt &&
+        current.taskId === record.taskId;
+      if (result === "failed" || !sameTask) {
+        if (sameTask && current?.status === "downloading") {
           toast.error(t("home.downloads.toasts.could_not_pause_download"));
         }
         return;
       }
 
+      // Read now, not before the await: progress kept arriving while native paused.
+      const latest = latestProgress(id, record.taskId);
       const process = processes.find((p) => p.id === id);
       const kept = result === "kept";
-      const progress = kept ? (process?.progress ?? 0) : 0;
-      const bytesDownloaded = kept ? (process?.bytesDownloaded ?? 0) : 0;
+      const progress = kept ? (latest?.progress ?? process?.progress ?? 0) : 0;
+      const bytesDownloaded = kept
+        ? (latest?.bytesDownloaded ?? process?.bytesDownloaded ?? 0)
+        : 0;
       updatePendingDownload(id, {
         status: "paused",
         taskId: undefined,
         progress,
         bytesDownloaded,
-        estimatedTotalSizeBytes: process?.estimatedTotalSizeBytes,
+        estimatedTotalSizeBytes:
+          latest?.estimatedTotalSizeBytes ?? process?.estimatedTotalSizeBytes,
       });
       patchProcess(id, {
         status: "paused",
@@ -473,11 +485,13 @@ export function useDownloadOperations({
         );
         // Cancelled while native was starting it: the started handler has already cancelled
         // the new task, as it does for any task without a record.
+        // Gone, or cancelled and started again: the record is not this resume's any more.
         const current = getPendingDownload(id);
-        if (!current) return;
+        if (!current || current.enqueuedAt !== record.enqueuedAt) return;
         // Still offline: the new task lost its connection before native answered, and native
         // paused it again. The paused handler has said so.
         if (current.interruptedTaskId === taskId) return;
+        if (current.taskId !== undefined && current.taskId !== taskId) return;
 
         updatePendingDownload(id, { status: "downloading", taskId });
         patchProcess(id, { status: "downloading" });

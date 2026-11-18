@@ -33,6 +33,7 @@ import {
   removePendingDownload,
   updatePendingDownload,
 } from "../pendingDownloads";
+import { latestProgress, rememberProgress } from "../progressCache";
 import type { JobStatus } from "../types";
 import { filePathToUri, getDownloadToastId } from "../utils";
 import {
@@ -96,20 +97,6 @@ export function useDownloadEventHandlers({
     return () => startedSub.remove();
   }, [updateProcess]);
 
-  // The newest progress of each download, written by the progress handler as each event lands.
-  // The paused handler reads it here: `processes` is only as new as the last render, and a pause
-  // that lands before the latest progress has rendered would save an older percentage.
-  const latestProgress = useRef(
-    new Map<
-      string,
-      {
-        progress: number;
-        bytesDownloaded: number;
-        estimatedTotalSizeBytes?: number;
-      }
-    >(),
-  );
-
   // Native paused a download itself: the connection dropped. The card turns into a paused one
   // with its progress, where the error path used to delete the partial file.
   useEffect(() => {
@@ -129,8 +116,9 @@ export function useDownloadEventHandlers({
 
         // Not kept: iOS could not save the resume data, so resuming starts from the first byte
         // and the card must not promise the old percentage.
+        const cached = latestProgress(itemId, event.taskId);
         const latest = event.kept
-          ? latestProgress.current.get(itemId)
+          ? cached
           : { progress: 0, bytesDownloaded: 0 };
         updatePendingDownload(itemId, {
           status: "paused",
@@ -139,8 +127,7 @@ export function useDownloadEventHandlers({
           progress: latest?.progress ?? record.progress,
           bytesDownloaded: latest?.bytesDownloaded ?? record.bytesDownloaded,
           estimatedTotalSizeBytes:
-            latestProgress.current.get(itemId)?.estimatedTotalSizeBytes ??
-            record.estimatedTotalSizeBytes,
+            cached?.estimatedTotalSizeBytes ?? record.estimatedTotalSizeBytes,
         });
         updateProcess(itemId, {
           status: "paused",
@@ -253,7 +240,8 @@ export function useDownloadEventHandlers({
           lastLoggedProgress.current.set(processId, progress);
         }
 
-        latestProgress.current.set(processId, {
+        rememberProgress(processId, {
+          taskId: event.taskId,
           progress,
           bytesDownloaded: event.bytesWritten,
           estimatedTotalSizeBytes: estimatedTotalBytes,
