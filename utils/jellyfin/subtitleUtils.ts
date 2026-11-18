@@ -881,7 +881,7 @@ const describeTrack = (
   const untagged = !track.lang && !track.title;
   return {
     Title: untagged ? stream?.Title : track.title,
-    Language: track.lang ?? stream?.Language,
+    Language: track.lang || stream?.Language,
     DisplayTitle: untagged ? stream?.DisplayTitle : track.title || track.lang,
   };
 };

@@ -1076,6 +1076,21 @@ describe("withPlayerAudioTracks", () => {
     },
   ];
 
+  // ExoPlayer reports an untagged track with an empty language tag.
+  it("keeps the server's language for a track whose tag is empty", () => {
+    const listed = {
+      MediaStreams: [
+        { Type: "Audio", Index: 1, Language: "fre", DisplayTitle: "French" },
+      ] as MediaStream[],
+    };
+    const merged = withPlayerAudioTracks(listed, [
+      { lang: "" },
+      { lang: "eng" },
+    ]);
+    const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+    expect(audio.map((s) => s.Language)).toEqual(["fre", "eng"]);
+  });
+
   it("lists every track the player found, in the player's order", () => {
     const merged = withPlayerAudioTracks(named, played);
     const audio = merged.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
