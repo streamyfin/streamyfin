@@ -48,6 +48,7 @@ import { type BoundedQueue, boundedEpisodeQueue } from "./boundedEpisodeQueue";
 import {
   buildReducedRemotePlayerConfig,
   buildRemotePlayerConfig,
+  mediaSourceOf,
 } from "./buildRemotePlayerConfig";
 import {
   episodeAfter,
@@ -114,12 +115,7 @@ const configFor = (
   const settings = deps.store.get(effectiveSettingsAtom);
   return buildRemotePlayerConfig({
     item: play.item,
-    mediaSource:
-      play.item.MediaSources?.find(
-        (source) => source.Id === play.mediaSourceId,
-      ) ??
-      play.item.MediaSources?.[0] ??
-      null,
+    mediaSource: mediaSourceOf(play),
     targetName: remote.name,
     audioIndex: play.audioIndex,
     subtitleIndex: play.subtitleIndex,

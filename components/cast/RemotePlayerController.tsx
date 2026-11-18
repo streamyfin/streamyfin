@@ -98,12 +98,20 @@ export function RemotePlayerController() {
     };
   }, [playMedia, syncPlay.enabled, t, castTarget, updateSettings]);
 
-  // Subtitles while the TV is muted: on each mute change, and on each write of the held play (a new item, the TV
-  // reporting another track); subscribed again with the mute it reads.
+  // On each write of the held play (a send the TV took, a new item, the TV reporting another track) and each mute
+  // change: the TV's tracks, then subtitles while it is muted. Subscribed again with the mute it reads.
   const autoSubtitle = useRef(INITIAL_REMOTE_AUTO_SUBTITLE);
   useEffect(() => {
     if (!routed) return;
     const evaluate = () => {
+      // The tracks the TV reported while the play was on its way are read once it took it: no report follows.
+      followRemoteTracks(
+        { store, t: latest.current.t },
+        remotePlayback(),
+        latest.current.castTarget,
+      ).catch((error) => {
+        logAndCaptureError("Following the TV's tracks failed", error);
+      });
       followRemoteMute(
         { store, t: latest.current.t },
         autoSubtitle,

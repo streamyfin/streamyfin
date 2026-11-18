@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { act, render, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
+import { NATIVE_AUTO_QUALITY_INDEX } from "@/constants/Bitrate";
 import {
   NO_REMOTE_PLAYBACK,
   type RemotePlaybackState,
@@ -23,7 +24,8 @@ import {
 import { stubReactNative } from "@/test-utils/reactNative";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { pluginSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
+import { NO_REMOTE_QUALITY } from "@/utils/cast/remoteQuality";
 import {
   getSeriesTrackMemory,
   rememberSeriesTrack,
@@ -816,6 +818,118 @@ describe("tracks and quality from the remote player", () => {
       store.get(settingsAtom)?.remotePlaybackQuality?.byTarget[livingRoom.id],
     ).toBe("4 Mb/s");
     expect(checked(lastMenus().quality ?? [])).toEqual([4_000_000]);
+  });
+
+  const pickQuality = (bitrateValue: number) =>
+    act(async () => {
+      emitNativePlayerEvent(mockPlayer, "onQualitySelected", {
+        bitrateValue,
+        positionSec: 30,
+        remote: true,
+      });
+    });
+  // Auto measures the link first: the answer comes when the test says.
+  const measureLater = () => {
+    let finish: (bitrate: number) => void = () => {};
+    (
+      jest.requireMock("@/utils/jellyfin/maxStreamingBitrate")
+        .resolveMaxStreamingBitrate as jest.Mock
+    ).mockImplementationOnce(
+      () =>
+        new Promise<number>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    return (bitrate: number) => act(async () => finish(bitrate));
+  };
+
+  test("a quality picked while Auto measures is the one the TV gets", async () => {
+    const finish = measureLater();
+    await render(<RemotePlayerController />);
+    await pickQuality(NATIVE_AUTO_QUALITY_INDEX);
+    await pickQuality(4_000_000);
+    await waitFor(() =>
+      expect(mockCast.reloadCalls).toEqual([
+        { ...envelope, maxBitrate: 4_000_000 },
+      ]),
+    );
+    await finish(30_000_000);
+    expect(mockCast.reloadCalls).toEqual([
+      { ...envelope, maxBitrate: 4_000_000 },
+    ]);
+    expect(checked(lastMenus().quality ?? [])).toEqual([4_000_000]);
+  });
+
+  test("closing the remote player while Auto measures sends nothing", async () => {
+    const finish = measureLater();
+    await render(<RemotePlayerController />);
+    await pickQuality(NATIVE_AUTO_QUALITY_INDEX);
+    const menus = mockPlayer.trackMenuUpdates.length;
+    await act(async () => store.set(remotePlayAtom, null));
+    await finish(30_000_000);
+    expect(mockCast.reloadCalls).toEqual([]);
+    expect(mockPlayer.trackMenuUpdates).toHaveLength(menus);
+  });
+
+  test("a quality the admin locked is not changed from the remote player", async () => {
+    store.set(pluginSettingsAtom, {
+      remotePlaybackQuality: { locked: true, value: NO_REMOTE_QUALITY },
+    } as never);
+    try {
+      await render(<RemotePlayerController />);
+      await pickQuality(4_000_000);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(mockCast.reloadCalls).toEqual([]);
+      expect(
+        store.get(settingsAtom)?.remotePlaybackQuality?.byTarget[livingRoom.id],
+      ).toBeUndefined();
+    } finally {
+      store.set(pluginSettingsAtom, undefined);
+    }
+  });
+
+  test("a play without a media source id still remembers the series language", async () => {
+    store.set(remotePlayAtom, {
+      play: {
+        item: { ...item, SeriesId: "series-no-source" },
+        positionTicks: 0,
+        audioIndex: 1,
+        subtitleIndex: 3,
+      },
+      loaded: true,
+    });
+    await render(<RemotePlayerController />);
+    await choose("audio", 2);
+    await waitFor(() =>
+      expect(getSeriesTrackMemory("series-no-source")?.audioLang).toBe("fra"),
+    );
+  });
+
+  // The TV reports what it turned on while the play is on its way; nothing reports it again once it took it.
+  test("the tracks the TV reported during the send show once it took the play", async () => {
+    const sent = {
+      item,
+      positionTicks: 0,
+      mediaSourceId: "source-t1",
+      audioIndex: 1,
+      subtitleIndex: -1,
+    };
+    store.set(remotePlayAtom, { play: sent, loaded: false });
+    await render(<RemotePlayerController />);
+    await act(async () => {
+      emitCastEvent(
+        mockCast,
+        "onRemotePlaybackChanged",
+        mockCast.remotePlayback,
+      );
+    });
+    await act(async () =>
+      store.set(remotePlayAtom, { play: sent, loaded: true }),
+    );
+    await waitFor(() =>
+      expect(store.get(remotePlayAtom)?.play.subtitleIndex).toBe(3),
+    );
+    expect(checked(lastMenus().subtitles)).toEqual([3]);
   });
 });
 

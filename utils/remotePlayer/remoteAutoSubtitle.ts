@@ -12,6 +12,7 @@ import {
   pickAutoSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import { mediaSourceOf } from "./buildRemotePlayerConfig";
 
 /** The mute-subtitle policy's state for the play the remote player shows. */
 export interface RemoteAutoSubtitle {
@@ -72,11 +73,7 @@ export const evaluateRemoteAutoSubtitle = (
     return { next: base, action: { kind: "none" } };
   }
 
-  const streams =
-    play.item.MediaSources?.find(({ Id }) => Id === play.mediaSourceId)
-      ?.MediaStreams ??
-    play.item.MediaSources?.[0]?.MediaStreams ??
-    [];
+  const streams = mediaSourceOf(play)?.MediaStreams ?? [];
   const subtitleStreams = streams.filter((s) => s.Type === "Subtitle");
   const audioLanguage = streams.find(
     (s) => s.Type === "Audio" && s.Index === play.audioIndex,

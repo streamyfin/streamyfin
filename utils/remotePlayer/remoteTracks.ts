@@ -15,7 +15,11 @@ import {
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player/src/NativePlayerPresentation";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
-import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
+import {
+  effectiveSettingsAtom,
+  pluginSettingsAtom,
+  type Settings,
+} from "@/utils/atoms/settings";
 import {
   type BitrateRequest,
   fromNativeQualityIndex,
@@ -31,7 +35,10 @@ import {
 import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
-import { buildRemoteTrackMenus } from "./buildRemotePlayerConfig";
+import {
+  buildRemoteTrackMenus,
+  mediaSourceOf,
+} from "./buildRemotePlayerConfig";
 import { receiverBitrateFor } from "./playOnRemote";
 import {
   evaluateRemoteAutoSubtitle,
@@ -63,9 +70,7 @@ const showMenus = async (
   play: ReceiverPlay,
   quality: BitrateRequest | undefined,
 ): Promise<void> => {
-  const mediaSource =
-    play.item.MediaSources?.find(({ Id }) => Id === play.mediaSourceId) ??
-    play.item.MediaSources?.[0];
+  const mediaSource = mediaSourceOf(play);
   if (!mediaSource) return;
   await updateNativePlayerTrackMenus(
     buildRemoteTrackMenus({
@@ -92,9 +97,9 @@ export const chooseRemoteTrack = async (
 
   const play = deps.store.get(remotePlayAtom)?.play;
   if (!play) return;
-  const stream = play.item.MediaSources?.find(
-    ({ Id }) => Id === play.mediaSourceId,
-  )?.MediaStreams?.find((s) => s.Index === index);
+  const stream = mediaSourceOf(play)?.MediaStreams?.find(
+    (s) => s.Index === index,
+  );
   rememberSeriesTrackFromRow({
     item: play.item,
     kind,
@@ -135,6 +140,9 @@ export const followRemoteTracks = async (
   );
 };
 
+/** Counts quality changes, so a pick made while Auto measured wins over Auto's late answer. */
+let qualityChanges = 0;
+
 /**
  * A quality chosen in the remote player: kept as this TV's own, then the TV plays the item again where it is under the
  * new cap; the engine sends the rest of its list with it. The menu marks the new quality at once.
@@ -148,6 +156,9 @@ export const changeRemoteQuality = async (
   remote: RemoteTarget,
   nativeIndex: number,
 ): Promise<void> => {
+  // The admin's lock holds on the TV too, as the settings screen keeps it.
+  if (deps.store.get(pluginSettingsAtom)?.remotePlaybackQuality?.locked) return;
+  const change = ++qualityChanges;
   const requested = fromNativeQualityIndex(nativeIndex);
   const key = PLAYBACK_BITRATES.find(
     (bitrate) => toBitrateRequest(bitrate) === requested,
@@ -162,14 +173,23 @@ export const changeRemoteQuality = async (
 
   const play = deps.store.get(remotePlayAtom)?.play;
   const quality = play ? liveTvBitrateRequest(play.item, requested) : requested;
+  const session = currentCastSession();
   const maxBitrate = await receiverBitrateFor(
     deps.api,
     quality,
     settings,
-    currentCastSession()?.device?.modelName,
+    session?.device?.modelName,
   );
+  // Auto measures for seconds: a later pick, a closed screen, another item or another TV by then sends nothing.
+  const shown = deps.store.get(remotePlayAtom)?.play;
+  if (
+    change !== qualityChanges ||
+    shown?.item.Id !== play?.item.Id ||
+    currentCastSession()?.id !== session?.id
+  )
+    return;
   await reloadOnReceiver({ ...deps.server, maxBitrate });
-  if (play) await showMenus(deps, play, quality);
+  if (shown) await showMenus(deps, shown, quality);
 };
 
 /**

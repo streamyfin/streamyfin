@@ -17,6 +17,7 @@ import type {
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
 import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
+import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import { hasHeaders } from "@/utils/customHeaders";
 import {
   buildMetadata,
@@ -40,6 +41,12 @@ const remoteUi = (
   subtitleSearchEnabled: false,
   strings,
 });
+
+/** The media source a play names, else the item's first: the one the TV plays. */
+export const mediaSourceOf = (play: ReceiverPlay): MediaSourceInfo | null =>
+  play.item.MediaSources?.find(({ Id }) => Id === play.mediaSourceId) ??
+  play.item.MediaSources?.[0] ??
+  null;
 
 /**
  * The remote player's track and quality rows. Every one waits for the TV: native checks none on a tap, the menus follow
