@@ -285,6 +285,57 @@ class CastEngineTest {
         assertEquals(listOf(expected.toString()), port.sent.map { it.second })
     }
 
+    // Sent while the receiver loads, a subtitle is named in its reports and no track turns on (bench, 18/11,
+    // 3 times out of 4): the pick shows at once and goes once the receiver has left loading.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItLeavesLoading() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to 0)), 500)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+    }
+
+    @Test
+    fun theLastSubtitlePickedWhileTheReceiverLoadsIsTheOneSent() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        engine.setSubtitleTrack(2)
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":2}"""), commands())
+    }
+
+    // Whether the receiver has text tracks is known once it has loaded: decided then, not while it loads.
+    @Test
+    fun aSubtitlePickedWhileLoadingReloadsWhenTheLoadedItemHasNoTextTrack() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(3)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1), hasTextTracks = false), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        assertEquals(3, JSONObject(port.sent.single().second).getJSONObject("options").getInt("subtitleStreamIndex"))
+    }
+
+    // Another play session plays what its own load named, and a stopped item takes no command.
+    @Test
+    fun aSubtitlePickedWhileLoadingIsDroppedByAnotherPlaySessionOrAStop() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to -1)), 0)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(5)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-3", "subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(2)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled", customData = ours("playSessionId" to "ps-3")), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":5}"""), commands())
+    }
+
     @Test
     fun anAudioChangeSendsSetAudioStreamIndexAndWaitsForTheReload() {
         val engine = playing()

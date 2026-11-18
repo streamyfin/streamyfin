@@ -548,6 +548,76 @@ enum CastEngineTests {
       )
     }
 
+    // Sent while the receiver loads, a subtitle is named in its reports and no track turns on (bench, 18/11,
+    // 3 times out of 4): the pick shows at once and goes once the receiver has left loading.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(0)
+      let heldBack = bench.commands().isEmpty && subtitle(engine) == 0
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": 0])), position: 0.5)
+      check(
+        "aSubtitlePickedWhileTheReceiverLoadsGoesOnceItLeavesLoading",
+        heldBack && bench.commands() == [#"SetSubtitleStreamIndex {"index":0}"#] && subtitle(engine) == 0
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(0)
+      engine.setSubtitleTrack(2)
+      bench.media.report(snapshot(customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      check(
+        "theLastSubtitlePickedWhileTheReceiverLoadsIsTheOneSent",
+        bench.commands() == [#"SetSubtitleStreamIndex {"index":2}"#]
+      )
+    }
+
+    // Whether the receiver has text tracks is known once it has loaded: decided then, not while it loads.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(3)
+      bench.media.report(
+        snapshot(playerState: "buffering", customData: ours(["subtitleStreamIndex": -1]), hasTextTracks: false), position: 0
+      )
+      let sent = bench.sentMessages()
+      let options = sent.first?["options"] as? [String: Any]
+      check(
+        "aSubtitlePickedWhileLoadingReloadsWhenTheLoadedItemHasNoTextTrack",
+        sent.map { $0["command"] as? String ?? "?" } == ["PlayNow"] && options?["subtitleStreamIndex"] as? Int == 3
+      )
+    }
+
+    // Another play session plays what its own load named, and a stopped item takes no command.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      bench.media.report(snapshot(playerState: "loading", customData: ours(["subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(0)
+      bench.media.report(
+        snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-2", "subtitleStreamIndex": -1])), position: 0
+      )
+      bench.media.report(snapshot(customData: ours(["playSessionId": "ps-2", "subtitleStreamIndex": -1])), position: 0)
+      engine.setSubtitleTrack(5)
+      bench.media.report(
+        snapshot(playerState: "loading", customData: ours(["playSessionId": "ps-3", "subtitleStreamIndex": -1])), position: 0
+      )
+      engine.setSubtitleTrack(2)
+      bench.media.report(
+        snapshot(playerState: "idle", idleReason: "cancelled", customData: ours(["playSessionId": "ps-3"])), position: 0
+      )
+      check(
+        "aSubtitlePickedWhileLoadingIsDroppedByAnotherPlaySessionOrAStop",
+        bench.commands() == [#"SetSubtitleStreamIndex {"index":5}"#]
+      )
+    }
+
     do {
       let bench = Bench()
       let engine = bench.playing()

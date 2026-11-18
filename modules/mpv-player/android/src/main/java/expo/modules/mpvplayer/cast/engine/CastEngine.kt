@@ -80,6 +80,12 @@ class CastEngine(
     private var chosenAudio: Int? = null
     private var chosenSubtitle: Int? = null
 
+    // A subtitle picked while the receiver loads: sent then, the receiver names it in its reports and turns no
+    // track on (bench, 18/11, 3 times out of 4), so it goes once the receiver has left loading, in this play session.
+    private class SubtitleOnceLoaded(val index: Int, val previous: Int?)
+
+    private var subtitleOnceLoaded: SubtitleOnceLoaded? = null
+
     private var playSessionId: String? = null
     private var idleReason: String? = null
     private var reportedPause: Boolean? = null
@@ -259,6 +265,7 @@ class CastEngine(
         sessions.setListener(null)
         reload?.cancelTimer?.invoke()
         reload = null
+        subtitleOnceLoaded = null
         cancelEndWait()
         suspended = false
         reclaimPending = false
@@ -553,9 +560,21 @@ class CastEngine(
 
     private fun selectSubtitle(index: Int) {
         val data = loadedItem() ?: return
-        val previous = chosenSubtitle
+        // A later pick while the receiver still loads replaces the one waiting; a failure goes back to before both.
+        val waiting = subtitleOnceLoaded
+        val previous = if (waiting != null) waiting.previous else chosenSubtitle
         chosenSubtitle = index
         updateTracks()
+        if (playerState == LOADING) {
+            subtitleOnceLoaded = SubtitleOnceLoaded(index, previous)
+            notifyState()
+            return
+        }
+        subtitleOnceLoaded = null
+        sendSubtitle(data, index, previous)
+    }
+
+    private fun sendSubtitle(data: ReceiverCustomData, index: Int, previous: Int?) {
         val undo = { if (chosenSubtitle == index) chosenSubtitle = previous }
         if (index >= 0 && media?.status?.hasTextTracks == false) {
             // No text track loaded: the receiver would name the index in its reports and show
@@ -736,6 +755,8 @@ class CastEngine(
             playSessionId = data?.playSessionId
             chosenAudio = null
             chosenSubtitle = null
+            // That session plays what its own load named.
+            subtitleOnceLoaded = null
             // The next item: what ended was not the end.
             if (data?.playSessionId != null) cancelEndWait()
         }
@@ -752,6 +773,11 @@ class CastEngine(
             log("status ${status.playerState} playSession=${data?.playSessionId} playMethod=${data?.playMethod} canClientSeek=${data?.canClientSeek}")
         }
         reportState(status.playerState, status.idleReason, data)
+        subtitleOnceLoaded?.takeIf { status.playerState != LOADING }?.let { waiting ->
+            subtitleOnceLoaded = null
+            // Stopped, or replaced by a load on its way: nothing takes the command.
+            loadedItem()?.let { item -> sendSubtitle(item, waiting.index, waiting.previous) }
+        }
         // A load on its way carries the envelope of its own server: the reclaim waits for it to settle.
         if (reclaimPending && pendingLoad == null && data?.playSessionId != null && data.playSessionId == ownPlaySession) {
             reclaimPending = false
@@ -817,6 +843,7 @@ class CastEngine(
         playSessionId = null
         chosenAudio = null
         chosenSubtitle = null
+        subtitleOnceLoaded = null
         updateTracks()
         setPause(true)
         setLoading(awaitingReceiver())
