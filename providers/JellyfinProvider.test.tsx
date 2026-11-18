@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react-native";
-import axios, { type AxiosRequestConfig } from "axios";
+import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { Provider as JotaiProvider } from "jotai";
 import type { ReactNode } from "react";
@@ -8,6 +8,7 @@ import { SIGN_OUT_SESSION_END_TIMEOUT_MS } from "@/constants/Jellyfin";
 import { PUSH_DEVICE_PATH } from "@/constants/Notifications";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { clearSecureStore } from "@/test-utils/secureStore";
+import { sessionEndsSettled } from "@/utils/jellyfin/endSession";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
@@ -111,6 +112,11 @@ const renderProvider = async () => {
       await act(() => provider().setServer({ address: SERVER }));
       return provider().login(username, password);
     },
+    initiateQuickConnect: async () => {
+      await act(() => provider().setServer({ address: SERVER }));
+      return provider().initiateQuickConnect();
+    },
+    stopQuickConnectPolling: () => provider().stopQuickConnectPolling(),
   };
 };
 
@@ -176,16 +182,38 @@ describe("JellyfinProvider sign-out", () => {
 
   it("signs out at once while the server does not answer, and gives up on it", async () => {
     signedInAtLaunch();
-    server
-      .onPost(`${SERVER}/Sessions/Logout`)
-      .reply(() => new Promise(() => {}));
+    // The mock adapter does not enforce the timeout: the reply gives up as
+    // axios would once it runs out.
+    let giveUp = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((_resolve, reject) => {
+          giveUp = () =>
+            reject(new AxiosError("timeout exceeded", "ECONNABORTED"));
+        }),
+    );
     const { logout } = await renderProvider();
 
-    await act(() => logout());
+    try {
+      await act(() => logout());
 
-    expect(storage.getString("token")).toBeUndefined();
-    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-    expect(sessionEnds()[0].timeout).toBe(SIGN_OUT_SESSION_END_TIMEOUT_MS);
+      expect(storage.getString("token")).toBeUndefined();
+      await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      expect(sessionEnds()[0].timeout).toBe(SIGN_OUT_SESSION_END_TIMEOUT_MS);
+      let settled = false;
+      void sessionEndsSettled().then(() => {
+        settled = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(settled).toBe(false);
+    } finally {
+      giveUp();
+    }
+
+    await act(() => sessionEndsSettled());
+    expect(jest.mocked(writeErrorLog)).toHaveBeenCalledWith(
+      "Failed to end the session on the server: ECONNABORTED",
+    );
   });
 
   it("signs out cleanly when the server is unreachable", async () => {
@@ -244,7 +272,7 @@ describe("JellyfinProvider sign-out", () => {
 
     // The push registration goes either way; the token stays with the account.
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => sessionEndsSettled());
     expect(sessionEnds()).toHaveLength(0);
   });
 
@@ -279,7 +307,7 @@ describe("JellyfinProvider sign-out", () => {
 
     await waitFor(() => expect(server.history.delete).toHaveLength(1));
     expect(server.history.delete[0].url).toContain(LOCAL_SERVER);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => sessionEndsSettled());
     expect(sessionEnds()).toHaveLength(0);
   });
 
@@ -371,6 +399,42 @@ describe("JellyfinProvider sign-out", () => {
       expect(storage.getString("token")).toBe(OTHER_TOKEN);
     },
   );
+
+  it("lets Quick Connect wait for the session end still on its way", async () => {
+    signedInAtLaunch();
+    server
+      .onPost(`${SERVER}/QuickConnect/Initiate`)
+      .reply(200, { Code: "123456", Secret: "secret" });
+    let answerEnd = () => {};
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(
+      () =>
+        new Promise((resolve) => {
+          answerEnd = () => resolve([204]);
+        }),
+    );
+    const initiations = () =>
+      server.history.post.filter((request) =>
+        request.url?.endsWith("/QuickConnect/Initiate"),
+      );
+    const provider = await renderProvider();
+    await act(() => provider.logout());
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+
+    try {
+      const started = provider.initiateQuickConnect();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(initiations()).toHaveLength(0);
+
+      answerEnd();
+      await act(async () => {
+        await started;
+      });
+      expect(initiations()).toHaveLength(1);
+    } finally {
+      answerEnd();
+      await act(async () => provider.stopQuickConnectPolling());
+    }
+  });
 });
 
 describe("JellyfinProvider launch", () => {

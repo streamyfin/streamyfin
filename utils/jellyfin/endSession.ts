@@ -103,8 +103,7 @@ export function endSessionOnServerAfter(
 
 /**
  * Settles once the session end last queued has. The server ends every session
- * of the device when it ends one, so a sign-in waits for an end still on its
- * way, which would end the session it opens as well. A Quick Connect sign-in
- * needs an approval from another device first, which takes longer than that.
+ * of the device when it ends one, so a sign-in, Quick Connect included, waits
+ * for an end still on its way, which would end the session it opens as well.
  */
 export const sessionEndsSettled = (): Promise<void> => ending;
