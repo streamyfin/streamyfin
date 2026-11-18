@@ -1,8 +1,13 @@
 import type { Jellyfin } from "@jellyfin/sdk";
+import { clearMmkv } from "@/test-utils/mmkv";
 import {
   endSessionOnServerAfter,
   sessionEndsSettled,
 } from "@/utils/jellyfin/endSession";
+import {
+  addServerToList,
+  updateServerLocalConfig,
+} from "@/utils/secureCredentials";
 
 // An end that never gets to run: only the wait for it is under test.
 const endPendingOn = (serverUrl: string) =>
@@ -17,6 +22,10 @@ const stateOf = (promise: Promise<void>) =>
     promise.then(() => "settled"),
     new Promise((resolve) => setTimeout(() => resolve("pending"), 10)),
   ]);
+
+beforeEach(() => {
+  clearMmkv();
+});
 
 describe("sessionEndsSettled", () => {
   it("counts an address spelled with its default port or in capitals as the same server", async () => {
@@ -37,4 +46,31 @@ describe("sessionEndsSettled", () => {
       await stateOf(sessionEndsSettled("http://media.example:8096/other")),
     ).toBe("settled");
   });
+
+  // The user can pick the local address as a server of its own while an end
+  // through it is on its way: it is then listed before the server it is the
+  // local address of.
+  it.each([
+    ["the local address", "http://10.0.0.5:8096"],
+    ["the address it is saved under", "https://home.example"],
+  ])(
+    "finds an end through %s once that one is saved on its own",
+    async (_case, endedOn) => {
+      addServerToList("https://home.example");
+      updateServerLocalConfig("https://home.example", {
+        localUrl: "http://10.0.0.5:8096",
+        homeWifiSSIDs: [],
+        enabled: true,
+      });
+      endPendingOn(endedOn);
+      addServerToList("http://10.0.0.5:8096");
+
+      expect(await stateOf(sessionEndsSettled("http://10.0.0.5:8096"))).toBe(
+        "pending",
+      );
+      expect(await stateOf(sessionEndsSettled("https://home.example"))).toBe(
+        "pending",
+      );
+    },
+  );
 });

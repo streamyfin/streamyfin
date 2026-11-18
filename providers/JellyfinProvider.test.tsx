@@ -193,20 +193,26 @@ describe("JellyfinProvider sign-out", () => {
 
   it("waits for the push registration to go, as its delete is sent with the token", async () => {
     signedInAtLaunch();
+    // Made before the sign-out, so the finally below lets the delete go even
+    // when the sign-out fails first: one left pending holds the push writes of
+    // every later test behind it.
     let answerDelete = () => {};
-    server.onDelete(new RegExp(`${PUSH_DEVICE_PATH}/`)).reply(
-      () =>
-        new Promise((resolve) => {
-          answerDelete = () => resolve([204]);
-        }),
-    );
+    const deleteAnswered = new Promise<[number]>((resolve) => {
+      answerDelete = () => resolve([204]);
+    });
+    server
+      .onDelete(new RegExp(`${PUSH_DEVICE_PATH}/`))
+      .reply(() => deleteAnswered);
     const { logout } = await renderProvider();
 
-    await signOut(logout);
+    try {
+      await signOut(logout);
 
-    await waitFor(() => expect(server.history.delete).toHaveLength(1));
-    expect(sessionEnds()).toHaveLength(0);
-    answerDelete();
+      await waitFor(() => expect(server.history.delete).toHaveLength(1));
+      expect(sessionEnds()).toHaveLength(0);
+    } finally {
+      answerDelete();
+    }
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
   });
 
@@ -385,7 +391,7 @@ describe("JellyfinProvider sign-out", () => {
     ],
     [
       "the sign-in form",
-      (p: Provider) => p.login(OTHER_USER.Name, "secret"),
+      (p: Provider) => p.signIn(OTHER_USER.Name, "secret"),
       opensWithPassword,
     ],
   ])(
@@ -418,17 +424,73 @@ describe("JellyfinProvider sign-out", () => {
       const provider = await renderProvider();
       await signOut(provider.logout);
       await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+      const waitsAt = jest.spyOn(endSession, "sessionEndsSettled");
 
-      const signedIn = signIn(provider);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(sessionOpenings()).toHaveLength(0);
+      try {
+        // Picked apart from the sign-in, as on the login screen: an act
+        // opened while another one runs breaks every test after this one.
+        await provider.selectServer(SERVER);
+        const signedIn = signIn(provider);
+        // Seen waiting, so a slow step before the wait cannot pass for it.
+        await waitFor(() => expect(waitsAt).toHaveBeenCalledWith(SERVER));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(sessionOpenings()).toHaveLength(0);
 
-      answerEnd();
-      await act(() => signedIn);
-      expect(sessionOpenings().length).toBeGreaterThan(0);
-      expect(storage.getString("token")).toBe(OTHER_TOKEN);
+        answerEnd();
+        await act(() =>
+          within(signedIn, "the sign-in did not go on once the end settled"),
+        );
+        expect(sessionOpenings().length).toBeGreaterThan(0);
+        expect(storage.getString("token")).toBe(OTHER_TOKEN);
+      } finally {
+        waitsAt.mockRestore();
+        answerEnd();
+      }
     },
   );
+
+  // The user can pick another server while a sign-in waits. Signed in anyway,
+  // its token would be saved beside that other server's address.
+  it("drops a sign-in from the form once the user picked another server", async () => {
+    signedInAtLaunch();
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: OTHER_USER });
+    let answerEnd = () => {};
+    const endAnswered = new Promise<[number]>((resolve) => {
+      answerEnd = () => resolve([204]);
+    });
+    server.onPost(`${SERVER}/Sessions/Logout`).reply(() => endAnswered);
+    const authentications = () =>
+      server.history.post.filter((request) =>
+        request.url?.endsWith("/Users/AuthenticateByName"),
+      );
+    const provider = await renderProvider();
+    await signOut(provider.logout);
+    await waitFor(() => expect(sessionEnds()).toHaveLength(1));
+    const waitsAt = jest.spyOn(endSession, "sessionEndsSettled");
+
+    try {
+      await provider.selectServer(SERVER);
+      const outcome = provider.signIn(OTHER_USER.Name, "secret").then(
+        () => "signed in",
+        () => "dropped",
+      );
+      await waitFor(() => expect(waitsAt).toHaveBeenCalledWith(SERVER));
+      await provider.selectServer(OTHER_SERVER);
+
+      answerEnd();
+      expect(
+        await act(() => within(outcome, "the sign-in did not settle")),
+      ).toBe("dropped");
+      expect(authentications()).toHaveLength(0);
+      expect(storage.getString("token")).toBeUndefined();
+      expect(storage.getString("serverUrl")).toBe(OTHER_SERVER);
+    } finally {
+      waitsAt.mockRestore();
+      answerEnd();
+    }
+  });
 
   // A server only ends the sessions it holds itself.
   it("lets a sign-in to another server go while this one's end is on its way", async () => {
@@ -512,9 +574,22 @@ describe("JellyfinProvider sign-out", () => {
 
   // Moving a saved server off a legacy prefix changes its address between the
   // sign-out and the next sign-in.
-  it("lets a sign-in wait for an end on the address it migrated from", async () => {
+  const migratingSignIns = [
+    [
+      "a saved account",
+      (p: Provider) => p.loginWithSavedCredential(LEGACY_SERVER, OTHER_USER.Id),
+      opensWithSavedToken,
+    ],
+    [
+      "a password asked from the account list",
+      (p: Provider) =>
+        p.loginWithPassword(LEGACY_SERVER, OTHER_USER.Name, "secret"),
+      opensWithPassword,
+    ],
+  ] as const;
+  const signInThatMigrates = async (endedOn: string) => {
     signedInAtLaunch();
-    storage.set("serverUrl", LEGACY_SERVER);
+    storage.set("serverUrl", endedOn);
     server.onGet(`${LEGACY_SERVER}/Users/Me`).reply(200, USER);
     await saveAccount({
       token: OTHER_TOKEN,
@@ -527,42 +602,87 @@ describe("JellyfinProvider sign-out", () => {
         200,
         tokenOf(config) === OTHER_TOKEN ? OTHER_USER : USER,
       ]);
+    server
+      .onPost(`${SERVER}/Users/AuthenticateByName`)
+      .reply(200, { AccessToken: OTHER_TOKEN, User: OTHER_USER });
     let answerEnd = () => {};
-    server.onPost(`${LEGACY_SERVER}/Sessions/Logout`).reply(
-      () =>
-        new Promise((resolve) => {
-          answerEnd = () => resolve([204]);
-        }),
-    );
-    const sessionOpenings = () =>
-      server.history.get.filter((request) => tokenOf(request) === OTHER_TOKEN);
+    const endAnswered = new Promise<[number]>((resolve) => {
+      answerEnd = () => resolve([204]);
+    });
+    server.onPost(`${endedOn}/Sessions/Logout`).reply(() => endAnswered);
     const provider = await renderProvider();
     await signOut(provider.logout);
     await waitFor(() => expect(sessionEnds()).toHaveLength(1));
-    expect(sessionEnds()[0].url).toContain(LEGACY_SERVER);
-    const migrated = jest
-      .spyOn(legacyServerAddress, "migrateLegacyServerAddress")
-      .mockResolvedValue(SERVER);
+    expect(sessionEnds()[0].url).toBe(`${endedOn}/Sessions/Logout`);
+    return { provider, answerEnd };
+  };
 
-    try {
-      const signedIn = provider.loginWithSavedCredential(
-        LEGACY_SERVER,
-        OTHER_USER.Id,
-      );
-      await waitFor(() => expect(migrated).toHaveBeenCalled());
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      expect(sessionOpenings()).toHaveLength(0);
+  it.each(migratingSignIns)(
+    "lets a sign-in by %s wait for an end on the address it was saved on, before moving it",
+    async (_case, signIn, opensSession) => {
+      const { provider, answerEnd } = await signInThatMigrates(LEGACY_SERVER);
+      const sessionOpenings = () =>
+        [...server.history.get, ...server.history.post].filter(opensSession);
+      const migrated = jest
+        .spyOn(legacyServerAddress, "migrateLegacyServerAddress")
+        .mockResolvedValue(SERVER);
+      const waitsAt = jest.spyOn(endSession, "sessionEndsSettled");
 
-      answerEnd();
-      await act(() =>
-        within(signedIn, "the sign-in did not go on once the end settled"),
-      );
-      expect(sessionOpenings().length).toBeGreaterThan(0);
-    } finally {
-      migrated.mockRestore();
-      answerEnd();
-    }
-  });
+      try {
+        const signedIn = signIn(provider);
+        await waitFor(() =>
+          expect(waitsAt).toHaveBeenCalledWith(LEGACY_SERVER),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        // Moving takes the custom headers the end goes out with to the new
+        // address: a gateway would turn the end away without them.
+        expect(migrated).not.toHaveBeenCalled();
+        expect(sessionOpenings()).toHaveLength(0);
+
+        answerEnd();
+        await act(() =>
+          within(signedIn, "the sign-in did not go on once the end settled"),
+        );
+        expect(migrated).toHaveBeenCalled();
+        expect(sessionOpenings().length).toBeGreaterThan(0);
+      } finally {
+        migrated.mockRestore();
+        waitsAt.mockRestore();
+        answerEnd();
+      }
+    },
+  );
+
+  it.each(migratingSignIns)(
+    "lets a sign-in by %s wait for an end on the address it moves to",
+    async (_case, signIn, opensSession) => {
+      const { provider, answerEnd } = await signInThatMigrates(SERVER);
+      const sessionOpenings = () =>
+        [...server.history.get, ...server.history.post].filter(opensSession);
+      const migrated = jest
+        .spyOn(legacyServerAddress, "migrateLegacyServerAddress")
+        .mockResolvedValue(SERVER);
+      const waitsAt = jest.spyOn(endSession, "sessionEndsSettled");
+
+      try {
+        const signedIn = signIn(provider);
+        await waitFor(() => expect(migrated).toHaveBeenCalled());
+        await waitFor(() => expect(waitsAt).toHaveBeenCalledWith(SERVER));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(sessionOpenings()).toHaveLength(0);
+
+        answerEnd();
+        await act(() =>
+          within(signedIn, "the sign-in did not go on once the end settled"),
+        );
+        expect(sessionOpenings().length).toBeGreaterThan(0);
+      } finally {
+        migrated.mockRestore();
+        waitsAt.mockRestore();
+        answerEnd();
+      }
+    },
+  );
 
   it("lets Quick Connect wait for the session end still on its way", async () => {
     signedInAtLaunch();

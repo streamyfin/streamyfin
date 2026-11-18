@@ -463,8 +463,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!api || !jellyfin) throw new Error("API not initialized");
 
-      // An end still on its way would end this session as well.
+      // An end still on its way would end this session as well. The user can
+      // pick another server meanwhile: signed in anyway, this token would be
+      // saved beside that server's address, and the next launch would send it
+      // there.
+      const selectedServer = storage.getString("serverUrl");
       await sessionEndsSettled(api.basePath);
+      if (storage.getString("serverUrl") !== selectedServer) {
+        throw markExpectedError(new Error(t("login.server_changed")));
+      }
 
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
@@ -688,6 +695,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
+      // An end still on its way would end this session as well. Waited for
+      // before the move below, which takes the custom headers the end goes
+      // out with to the new address.
+      await sessionEndsSettled(savedServerUrl);
+
       // A server saved under /emby or /mediabrowser moves to its root address
       // first, while the saved one still answers and can vouch for it: once
       // the server is on Jellyfin 12 it answers nothing, and the sign-in
@@ -702,12 +714,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         throw markExpectedError(new Error(t("server.session_expired")));
       }
 
-      // An end still on its way would end this session as well, under the
-      // address the server was saved on or the one it just moved to.
-      await Promise.all([
-        sessionEndsSettled(savedServerUrl),
-        sessionEndsSettled(serverUrl),
-      ]);
+      // And one on the address the server just moved to.
+      await sessionEndsSettled(serverUrl);
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -812,16 +820,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
-      // As for a saved token: the server moves off a legacy prefix first.
+      // As for a saved token: an end still on its way is waited for before
+      // the server moves off a legacy prefix, and after on the new address.
+      await sessionEndsSettled(savedServerUrl);
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
-
-      // An end still on its way would end this session as well, under the
-      // address the server was saved on or the one it just moved to.
-      await Promise.all([
-        sessionEndsSettled(savedServerUrl),
-        sessionEndsSettled(serverUrl),
-      ]);
+      await sessionEndsSettled(serverUrl);
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);

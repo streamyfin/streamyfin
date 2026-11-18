@@ -18,24 +18,27 @@ interface SessionToEnd {
   userId?: string;
 }
 
-// The session ends still on their way, by server: a sign-in waits for those
+// The session ends still on their way, by address: a sign-in waits for those
 // of its own server, the only sessions that server can end with them.
 const ending = new Map<string, Promise<void>>();
 
 /**
- * The server an address reaches. Its local address and the one it is listed
- * under are the same server; an address not listed stands for itself.
+ * Every address of the server an address reaches: itself, and the address
+ * and local address of each saved server it is one of. An end is filed under
+ * all of them, so a sign-in finds it under any, even once the local address
+ * is saved as a server of its own and listed first.
  */
-function serverOf(url: string): string {
+function addressesOf(url: string): string[] {
   const address = keyOf(url);
-  const listed = getPreviousServers().find((server) => {
+  const addresses = new Set([address]);
+  for (const server of getPreviousServers()) {
     const local = server.localNetworkConfig?.localUrl;
-    return (
-      keyOf(server.address) === address ||
-      (local !== undefined && keyOf(local) === address)
-    );
-  });
-  return listed ? keyOf(listed.address) : address;
+    const own = local
+      ? [keyOf(server.address), keyOf(local)]
+      : [keyOf(server.address)];
+    if (own.includes(address)) for (const key of own) addresses.add(key);
+  }
+  return [...addresses];
 }
 
 // One spelling per address: parsing drops a default port and lowercases the
@@ -127,14 +130,17 @@ export function endSessionOnServerAfter(
   after: Promise<unknown>,
   session: SessionToEnd,
 ): void {
-  const server = serverOf(session.serverUrl);
+  const addresses = addressesOf(session.serverUrl);
   const end = () => endSessionOnServer(session);
-  const settled = Promise.all([ending.get(server), after.then(end, end)]).then(
-    () => undefined,
-  );
-  ending.set(server, settled);
+  const settled = Promise.all([
+    ...addresses.map((address) => ending.get(address)),
+    after.then(end, end),
+  ]).then(() => undefined);
+  for (const address of addresses) ending.set(address, settled);
   void settled.then(() => {
-    if (ending.get(server) === settled) ending.delete(server);
+    for (const address of addresses) {
+      if (ending.get(address) === settled) ending.delete(address);
+    }
   });
 }
 
@@ -145,4 +151,6 @@ export function endSessionOnServerAfter(
  * session it opens as well.
  */
 export const sessionEndsSettled = (serverUrl: string): Promise<void> =>
-  ending.get(serverOf(serverUrl)) ?? Promise.resolve();
+  Promise.all(
+    addressesOf(serverUrl).map((address) => ending.get(address)),
+  ).then(() => undefined);
