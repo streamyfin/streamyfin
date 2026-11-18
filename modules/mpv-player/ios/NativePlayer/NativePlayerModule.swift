@@ -184,7 +184,6 @@ public class NativePlayerModule: Module {
 			#endif
 		}.runOnQueue(.main)
 
-		// What JS says of a send that failed, nil to take it away: nothing when no remote screen is up.
 		// What the TV plays, for the remote screen's technical info panel: nothing when no remote screen is up.
 		AsyncFunction("updateRemoteTechnicalInfo") { (lines: [RemoteTechnicalLineRecord]) in
 			#if os(iOS)
@@ -192,6 +191,7 @@ public class NativePlayerModule: Module {
 			#endif
 		}.runOnQueue(.main)
 
+		// What JS says of a send that failed, nil to take it away: nothing when no remote screen is up.
 		AsyncFunction("showRemotePlayerFailure") { (failure: RemotePlayerFailureRecord?) in
 			#if os(iOS)
 			(self.presented as? RemotePlayerSession)?.showFailure(failure)

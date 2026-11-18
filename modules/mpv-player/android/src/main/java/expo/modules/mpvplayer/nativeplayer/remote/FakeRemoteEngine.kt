@@ -187,7 +187,6 @@ class FakeRemoteEngine(
         notifyState()
     }
 
-    /** Another sender loads media our receiver does not name; the fake's own list is left behind. */
     /** The receiver names how it plays what it holds (its customData). */
     fun simulatePlayMethod(method: String?) = runOnMain {
         if (stopped) return@runOnMain
@@ -195,6 +194,7 @@ class FakeRemoteEngine(
         notifyState()
     }
 
+    /** Another sender loads media our receiver does not name; the fake's own list is left behind. */
     fun simulateForeignMedia(title: String?, imageUrl: String?) = runOnMain {
         if (stopped) return@runOnMain
         foreignMedia = title to imageUrl

@@ -1158,6 +1158,28 @@ describe("technical info from the remote player", () => {
     );
   });
 
+  // A name with no Latin letter reaches the receiver as the fallback alone, the senders naming no id: the
+  // session is looked for under that same name.
+  test("a TV whose name is not Latin still finds its session", async () => {
+    mockCast.remoteTarget = {
+      ...connected,
+      target: { ...livingRoom, name: "Гостиная" },
+    };
+    api.mock
+      .onGet(SESSIONS)
+      .reply(200, [{ ...receiverSession, DeviceName: "Chromecast" }]);
+    await render(<RemotePlayerController />);
+    await panel("onTechnicalInfoRequested");
+
+    await waitFor(() =>
+      expect(mockPlayer.technicalInfoUpdates.at(-1)).toEqual(
+        expect.arrayContaining([
+          { label: "player.technical_info.video_codec", value: "H.264" },
+        ]),
+      ),
+    );
+  });
+
   test("no server session still shows the play method", async () => {
     api.mock.onGet(SESSIONS).reply(500);
     await render(<RemotePlayerController />);
@@ -1383,6 +1405,25 @@ describe("subtitle search from the remote player", () => {
     expect(JSON.stringify(jest.mocked(writeErrorLog).mock.calls)).not.toContain(
       api.accessToken,
     );
+  });
+
+  // The sheet shows the download in progress from the tap: an outcome always answers it.
+  test("a download whose item the TV left says so and reloads nothing", async () => {
+    api.mock.onPost(DOWNLOAD).reply(204);
+    api.mock.onGet(ITEM).reply(200, withFrench);
+    await render(<RemotePlayerController />);
+    await download();
+    mockCast.remotePlayback = { ...mockCast.remotePlayback, itemId: "s1e2" };
+    await poll(1);
+
+    await waitFor(() =>
+      expect(mockPlayer.subtitleSearchUpdates.at(-1)).toEqual({
+        status: "results",
+        results: [result],
+        errorMessage: "player.subtitle_apply_failed",
+      }),
+    );
+    expect(mockCast.reloadCalls).toEqual([]);
   });
 
   test("a subtitle the server never lists says so and reloads nothing", async () => {

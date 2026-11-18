@@ -160,14 +160,19 @@ export const remoteSubtitleSearch = (deps: SearchDeps) => {
       await failed(deps.t()("player.subtitle_apply_failed"));
       return;
     }
-    // The TV moved on, or the screen closed, while the server saved the file.
+    // The TV moved on, or the screen closed, while the server saved the file. The sheet shows the download in
+    // progress since the tap: every way out answers it.
     const now = deps.store.get(remotePlayAtom);
-    if (now?.play.item.Id !== itemId || remotePlayback().itemId !== itemId)
-      return;
     const userId = deps.store.get(userAtom)?.Id;
     const remote = deps.target();
     const current = deps.store.get(apiAtom);
-    if (!current?.accessToken || !userId || !remote) {
+    if (
+      now?.play.item.Id !== itemId ||
+      remotePlayback().itemId !== itemId ||
+      !current?.accessToken ||
+      !userId ||
+      !remote
+    ) {
       await failed(deps.t()("player.subtitle_apply_failed"));
       return;
     }
@@ -177,16 +182,22 @@ export const remoteSubtitleSearch = (deps: SearchDeps) => {
       play: { ...now.play, item: found.item },
     });
     const receiverName = receiverNameFor({ friendlyName: remote.name });
-    // No cap named: the TV keeps the quality it plays at.
-    await reloadOnReceiver(
-      {
-        serverAddress: current.basePath,
-        accessToken: current.accessToken,
-        userId,
-        ...(receiverName ? { receiverName } : {}),
-      },
-      { subtitleStreamIndex: found.index },
-    );
+    try {
+      // No cap named: the TV keeps the quality it plays at.
+      await reloadOnReceiver(
+        {
+          serverAddress: current.basePath,
+          accessToken: current.accessToken,
+          userId,
+          ...(receiverName ? { receiverName } : {}),
+        },
+        { subtitleStreamIndex: found.index },
+      );
+    } catch (error) {
+      writeErrorLog("The TV could not play the downloaded subtitle", error);
+      await failed(deps.t()("player.subtitle_apply_failed"));
+      return;
+    }
     await updateNativePlayerSubtitleSearch({ status: "applied", results: [] });
   };
 

@@ -30,10 +30,8 @@ const receiverSession = async (deps: PanelDeps, itemId: string | null) => {
   const userId = deps.store.get(userAtom)?.Id;
   const remote = deps.target();
   if (!api || !userId || !remote || !itemId) return null;
-  const receiverName = receiverNameFor({
-    friendlyName: remote.name,
-    deviceId: remote.id,
-  });
+  // The name the senders gave the receiver, which names no id: the session is listed under it.
+  const receiverName = receiverNameFor({ friendlyName: remote.name });
   try {
     const session = await findPlayingReceiverSession({
       api,

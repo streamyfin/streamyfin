@@ -89,7 +89,7 @@ export const buildRemoteTrackMenus = (params: {
 /**
  * What the remote player shows of a play on the TV: the local player's metadata, chapters, thumbnails and track
  * menus, with no stream, since the TV plays it. None of the phone's own playback either: no picture in picture, no
- * forced rotation, no subtitle search until the remote engine can load one.
+ * forced rotation, and the server's subtitle search only (the phone's own lookup adds a file to a local player).
  */
 export const buildRemotePlayerConfig = (params: {
   item: BaseItemDto;

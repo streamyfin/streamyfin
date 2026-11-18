@@ -245,24 +245,35 @@ export const playOnRemote = async (
   void followTint(config, send);
   // The list and the segments come to the screen in place, in either order: each update carries what came before.
   let shown = config;
+  // Native clears a failure shown and applies the menus again on every update.
+  let failureShown = false;
   const showMore = async (more: Partial<RemotePlayerPresentConfig>) => {
-    if (isStale() || send !== sends) return;
+    if (isStale() || send !== sends || failureShown) return;
+    // The tracks the TV took since the screen opened, not the ones it was sent.
+    const held = deps.store.get(remotePlayAtom)?.play;
+    const current = held && held.item.Id === play.item.Id ? held : play;
     shown = {
       ...shown,
       ...more,
+      tracks: configFor(deps, current, remote, [], null).tracks,
       tint: shownTint?.send === send ? shownTint.tint : config.tint,
     };
     await updateRemotePlayer(shown);
   };
   // Never waited for: the load leaves without them.
-  void segmentsOf(deps, play.item).then((segments) =>
-    segments.length > 0 ? showMore({ segments }) : undefined,
-  );
+  segmentsOf(deps, play.item)
+    .then((segments) =>
+      segments.length > 0 ? showMore({ segments }) : undefined,
+    )
+    .catch((error) =>
+      writeErrorLog("The remote player's segments could not be shown", error),
+    );
   // Read while Auto measures: the screen is up already, the list comes to it in place.
   const listing = episodeListing(deps, play, settings);
 
   const failed = async (message: string): Promise<SendResult> => {
     if (send === sends) {
+      failureShown = true;
       await showRemotePlayerFailure({ message, canPlayHere: true });
     }
     return { status: "notStarted", message };

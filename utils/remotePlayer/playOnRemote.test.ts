@@ -503,6 +503,82 @@ test("a send gives the screen the item's segments once read", async () => {
   expect((mockPlayer.remoteUpdates.at(-1) as Shown).segments).toEqual([INTRO]);
 });
 
+// The segments are never waited for: a reply that lands after the load must not undo what the screen shows then.
+const lateSegments = () => {
+  let answer: (reply: [number, unknown]) => void = () => {};
+  api.mock.onGet(SEGMENTS).reply(
+    () =>
+      new Promise<[number, unknown]>((resolve) => {
+        answer = resolve;
+      }),
+  );
+  return () =>
+    answer([
+      200,
+      {
+        Items: [
+          { Type: "Intro", StartTicks: 50_000_000, EndTicks: 650_000_000 },
+        ],
+      },
+    ]);
+};
+
+test("segments read after a failed load leave the failure on screen", async () => {
+  const land = lateSegments();
+  mockCast.loadAnswer = { outcome: "timedOut" };
+  mockPlayer.remoteUpdateAnswer = true;
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  const updates = mockPlayer.remoteUpdates.length;
+
+  land();
+  await flush();
+  await flush();
+
+  expect(mockPlayer.remoteUpdates).toHaveLength(updates);
+});
+
+test("segments read after a track change keep the track the TV took", async () => {
+  const land = lateSegments();
+  mockPlayer.remoteUpdateAnswer = true;
+  const withTracks = {
+    ...play,
+    item: {
+      ...episode,
+      MediaSources: [
+        {
+          Id: "source-1",
+          MediaStreams: [
+            { Type: "Subtitle" as const, Index: 2 },
+            { Type: "Subtitle" as const, Index: 3 },
+          ],
+        },
+      ],
+    },
+  };
+  await playOnRemote(deps(), withTracks, livingRoom, fresh);
+  const held = store.get(remotePlayAtom);
+  if (!held) throw new Error("no play held");
+  store.set(remotePlayAtom, {
+    ...held,
+    play: { ...held.play, subtitleIndex: 3 },
+  });
+
+  land();
+  await flush();
+  await flush();
+
+  const shown = mockPlayer.remoteUpdates.at(-1) as {
+    segments: unknown[];
+    tracks: { subtitles: { jellyfinIndex: number; selected?: boolean }[] };
+  };
+  expect(shown.segments).toEqual([INTRO]);
+  expect(
+    shown.tracks.subtitles
+      .filter((row) => row.selected)
+      .map((row) => row.jellyfinIndex),
+  ).toEqual([3]);
+});
+
 test("the next item the TV plays brings its own segments", async () => {
   await playOnRemote(deps(), play, livingRoom, fresh);
   anIntro();
