@@ -124,25 +124,29 @@ const describeErrorForLog = (error: unknown): unknown => {
   return error;
 };
 
+// A spread copy of an AxiosError is a plain object that still carries
+// isAxiosError and its config, so it counts as the request it is.
+const isErrorForLog = (value: unknown): boolean =>
+  isAxiosError(value) || value instanceof Error;
+
 // A caller can wrap what it caught ({ itemId, error }) or list several, so
 // the values one level down are reduced too. Only a plain object or an array
-// is opened: a Date or another class keeps the JSON it already had. A spread
-// copy of an AxiosError is a plain object that still carries isAxiosError and
-// its config, so it is reduced as the request it is.
+// that holds an error is rebuilt: anything else keeps the JSON it already
+// had, a toJSON of its own included.
 const reduceErrorsForLog = (data: unknown): unknown => {
   // Reading a value can throw (a getter) and the logger must not. The value
   // unreduced is no fallback: it would keep what reduction is there to drop.
   try {
+    if (isErrorForLog(data)) return describeErrorForLog(data);
+    if (!Array.isArray(data) && !isPlainObject(data)) return data;
+    if (!Object.values(data).some(isErrorForLog)) return data;
     if (Array.isArray(data)) return data.map(describeErrorForLog);
-    if (isPlainObject(data) && !isAxiosError(data)) {
-      return Object.fromEntries(
-        Object.entries(data).map(([key, value]) => [
-          key,
-          describeErrorForLog(value),
-        ]),
-      );
-    }
-    return describeErrorForLog(data);
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        describeErrorForLog(value),
+      ]),
+    );
   } catch {
     return UNRENDERABLE_LOG_VALUE;
   }

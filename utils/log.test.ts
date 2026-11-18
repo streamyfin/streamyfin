@@ -178,6 +178,22 @@ describe("writeErrorLog: a failed request is stored without its credentials", ()
     });
   });
 
+  // Rebuilding an object drops a toJSON that is not enumerable, and with it
+  // what that toJSON leaves out, so one that holds no error is left whole.
+  test("data that holds no error keeps its own JSON", () => {
+    const summary = {
+      itemId: "item-1",
+      Authorization: 'MediaBrowser Token="token-in-field"',
+    };
+    Object.defineProperty(summary, "toJSON", {
+      value: () => ({ itemId: "item-1" }),
+    });
+    writeErrorLog("Sync failed", summary);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-field");
+    expect(readFromLog()[0].data).toEqual({ itemId: "item-1" });
+  });
+
   // axios sets isAxiosError on the error itself, so a spread copy still is one,
   // config and headers included, while being a plain object.
   test("a copy of a failed request is reduced like the request", async () => {
