@@ -14,6 +14,9 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.w3c.dom.Element
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 // The remote player replaces the SDK's expanded controls: every native entry that opened them asks JS for it.
 @RunWith(RobolectricTestRunner::class)
@@ -39,6 +42,24 @@ class RemotePlayerLaunchTest {
         assertTrue(started.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertTrue(activity.isFinishing)
         assertTrue(RemotePlayerRequests.consume())
+    }
+
+    // The SDK opens it through TaskStackBuilder, which adds NEW_TASK | CLEAR_TASK | TASK_ON_HOME: in the app's own task
+    // that clear destroys MainActivity and restarts the app from its first screen. A task of its own is emptied instead,
+    // and the launch intent brings the app's task to the front as it was.
+    @Test
+    fun theNotificationsTargetRunsInATaskOfItsOwn() {
+        // Robolectric does not read the module's manifest (no includeAndroidResources): the source is parsed.
+        val android = "http://schemas.android.com/apk/res/android"
+        val manifest = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            .newDocumentBuilder().parse(File("src/main/AndroidManifest.xml"))
+        val activities = manifest.getElementsByTagName("activity")
+        val trampoline = (0 until activities.length).map { activities.item(it) as Element }
+            .single { it.getAttributeNS(android, "name") == RemotePlayerLaunchActivity::class.java.name }
+
+        assertTrue(trampoline.hasAttributeNS(android, "taskAffinity"))
+        assertEquals("", trampoline.getAttributeNS(android, "taskAffinity"))
+        assertEquals("true", trampoline.getAttributeNS(android, "excludeFromRecents"))
     }
 
     // The app started from the notification: JS listens only once it has loaded, the request waits for its mount.
