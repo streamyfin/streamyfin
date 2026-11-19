@@ -38,6 +38,8 @@ struct MetadataRecord: Record {
 	@Field var artworkUri: String?
 	/// Custom proxy auth headers for `artworkUri`, when it needs them.
 	@Field var artworkHeaders: [String: String]?
+	/// The artwork's width over its height, known before it loads; couched, the remote screen's image takes it.
+	@Field var artworkAspectRatio: Double?
 	@Field var isEpisode: Bool = false
 }
 

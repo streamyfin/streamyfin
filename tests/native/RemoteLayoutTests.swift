@@ -46,14 +46,6 @@ enum RemoteLayoutTests {
 			let rest = RemoteMetrics.chromeHeight(layout: .portrait, fontScale: scale)
 			check(artwork + rest <= 640, "theArtworkShrinksBeforeAnythingIsCut: \(artwork) + \(rest) overflows at \(scale)")
 		}
-		// The same holds couched, where the bar and the top bar share the height with the artwork.
-		let couched = RemoteMetrics.artworkHeight(layout: .landscape, width: 640, height: 360, fontScale: 1)
-		let couchedLarge = RemoteMetrics.artworkHeight(layout: .landscape, width: 640, height: 360, fontScale: 1.5)
-		check(couchedLarge < couched, "theArtworkShrinksBeforeAnythingIsCut: couched")
-		check(
-			couched + RemoteMetrics.chromeHeight(layout: .landscape, fontScale: 1) <= 360,
-			"theArtworkShrinksBeforeAnythingIsCut: couched fits"
-		)
 	}
 
 	// Measured at the probe on an iPhone 17, default text size, every slot filled: header 44, five gaps of 16, titles
@@ -69,7 +61,6 @@ enum RemoteLayoutTests {
 	static func theArtworkNeverGoesUnderItsMinimum() {
 		let min = PlayerConstants.remoteArtworkMin
 		check(RemoteMetrics.artworkHeight(layout: .portrait, width: 320, height: 480, fontScale: 3) == min, "minimum: portrait")
-		check(RemoteMetrics.artworkHeight(layout: .landscape, width: 568, height: 200, fontScale: 2) == min, "minimum: landscape")
 		check(RemoteMetrics.artworkHeight(layout: .wide, width: 600, height: 120, fontScale: 1) == min, "minimum: wide")
 		// Nor over its maximum, on the largest tablet.
 		let max = PlayerConstants.remoteArtworkMax
@@ -92,8 +83,7 @@ enum RemoteLayoutTests {
 			let artwork = RemoteMetrics.artworkHeight(layout: .wide, width: width, height: 800, fontScale: 1)
 			check(artwork <= (box ?? 0), "theWideArtworkGetsItsShareOfTheWholeWidth: \(artwork) does not fit at \(width)")
 		}
-		// Couched, the artwork's box wraps it; upright, nothing stands beside the column.
-		check(RemoteMetrics.besideWidth(layout: .landscape, width: 844) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: couched")
+		// Upright, nothing stands beside the column.
 		check(RemoteMetrics.besideWidth(layout: .portrait, width: 390) == nil, "theWideArtworkGetsItsShareOfTheWholeWidth: upright")
 	}
 
@@ -150,6 +140,69 @@ enum RemoteLayoutTests {
 		check(RemoteImageHeaders.of(own: nil, server: [:]) == nil, "theArtworkRequestCarriesTheCustomHeaders: none")
 	}
 
+	static func near(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-9 }
+
+	// Couched (validated by Gauvain on the 19/11 captures): two equal halves between the side margins and the
+	// gutter, the image in its own shape, as large as its half and the band under the top bar leave it (an inset
+	// above and below). Android's numbers, measured on the Medium_Phone emulator lying down, 914 x 363 within the
+	// system bars.
+	static func couchedTheImageTakesItsShapeInTheLeftHalf() {
+		let name = "couchedTheImageTakesItsShapeInTheLeftHalf"
+		check(RemoteMetrics.besideWidth(layout: .landscape, width: 914) == 421, "\(name): half")
+		let cases: [(Double?, RemoteBox)] = [
+			// An episode's wide image is as wide as its half.
+			(16.0 / 9.0, RemoteBox(width: 421, height: 421.0 * 9 / 16)),
+			// A poster is as tall as the band leaves: 363 - 44 - 2 x 16.
+			(2.0 / 3.0, RemoteBox(width: 287.0 * 2 / 3, height: 287)),
+			// No shape known, another server's media: the square the artwork always had.
+			(nil, RemoteBox(width: 287, height: 287)),
+		]
+		for (ratio, expected) in cases {
+			let box = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 1, aspectRatio: ratio)
+			check(near(box.width, expected.width), "\(name): width \(box.width) at \(String(describing: ratio))")
+			check(near(box.height, expected.height), "\(name): height \(box.height) at \(String(describing: ratio))")
+		}
+		// A small phone, 640 x 360: halves of 284.
+		let small = RemoteMetrics.artworkBox(layout: .landscape, width: 640, height: 360, fontScale: 1, aspectRatio: 16.0 / 9.0)
+		check(near(small.width, 284), "\(name): small phone \(small.width)")
+	}
+
+	// Couched, the text stands beside the image, not above or below it: a larger font leaves the image as it is (the
+	// column scrolls instead). A shape that cannot be one is the square too.
+	static func couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone() {
+		let name = "couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone"
+		let one = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 1, aspectRatio: 2.0 / 3.0)
+		let two = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 2, aspectRatio: 2.0 / 3.0)
+		check(one == two, "\(name): \(two) at 2.0 is not \(one)")
+		let square = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 1, aspectRatio: nil)
+		for bad in [0.0, -1, .nan, .infinity] {
+			let box = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 1, aspectRatio: bad)
+			check(box == square, "\(name): shape \(bad) gives \(box)")
+		}
+	}
+
+	// Upright and wide, the artwork keeps its square, whatever the image's shape: those layouts are unchanged.
+	static func uprightAndWideTheArtworkStaysASquare() {
+		for (layout, w, h) in [(RemoteLayout.portrait, 390.0, 844.0), (.wide, 1180, 820)] {
+			let side = RemoteMetrics.artworkHeight(layout: layout, width: w, height: h, fontScale: 1)
+			let box = RemoteMetrics.artworkBox(layout: layout, width: w, height: h, fontScale: 1, aspectRatio: 16.0 / 9.0)
+			check(box == RemoteBox(width: side, height: side), "uprightAndWideTheArtworkStaysASquare: \(layout) \(box)")
+		}
+	}
+
+	// The top bar's ink meets the margins: the chevron's 44 box has 14 of air on its left, the dots of "more" 20 on
+	// their right, a track button's 22 icon 11; the TV button's pill ends at its box.
+	static func couchedTheTopBarsInkMeetsTheMargins() {
+		let name = "couchedTheTopBarsInkMeetsTheMargins"
+		check(RemoteMetrics.topBarInkInsets(end: .more) == (14, 20), "\(name): more")
+		check(RemoteMetrics.topBarInkInsets(end: .trackButton) == (14, 11), "\(name): track button")
+		check(RemoteMetrics.topBarInkInsets(end: .target) == (14, 0), "\(name): TV")
+		// What ends the bar: "more" when it has a menu, else the last track button, else the TV.
+		check(RemoteTopBarEnd.of(showsMore: true, trackButtons: 3) == .more, "\(name): ends on more")
+		check(RemoteTopBarEnd.of(showsMore: false, trackButtons: 1) == .trackButton, "\(name): ends on a track button")
+		check(RemoteTopBarEnd.of(showsMore: false, trackButtons: 0) == .target, "\(name): ends on the TV")
+	}
+
 	static func main() {
 		theArtworkRequestCarriesTheCustomHeaders()
 		aTallNarrowScreenTakesThePortraitLayout()
@@ -164,6 +217,10 @@ enum RemoteLayoutTests {
 		theWideArtworkGetsItsShareOfTheWholeWidth()
 		theWideArtworkKeepsAMarginBesideTheColumn()
 		theTransportGapGivesWayOnANarrowColumn()
+		couchedTheImageTakesItsShapeInTheLeftHalf()
+		couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone()
+		uprightAndWideTheArtworkStaysASquare()
+		couchedTheTopBarsInkMeetsTheMargins()
 		aTintFromJsGivesTheScreenItsColors()
 		aMissingOrUnreadableTintFallsBackToTheNeutral()
 		print("PASS: remote layout (\(cases) cases)")

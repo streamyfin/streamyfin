@@ -17,12 +17,14 @@ enum RemoteArrangementTests {
 		check(a.topBar.isEmpty && a.beside == nil && a.bottom.isEmpty, "uprightStacksTheSixSlotsTopToBottom: nothing else")
 	}
 
-	static func couchedPutsTheTitlesAndMenusInTheTopBar() {
+	// The large image on the left, the titles, the bar and the transport on the right (Gauvain, 19/11).
+	static func couchedPutsTheMenusInTheTopBarAndTheRestBesideTheArtwork() {
 		let a = RemoteArrangement.of(.landscape)
-		check(a.topBar == [.header, .titles, .bottomRow], "couchedPutsTheTitlesAndMenusInTheTopBar: top bar")
-		check(a.beside == .artwork, "couchedPutsTheTitlesAndMenusInTheTopBar: artwork")
-		check(a.column == [.transport], "couchedPutsTheTitlesAndMenusInTheTopBar: column")
-		check(a.bottom == [.bar], "couchedPutsTheTitlesAndMenusInTheTopBar: bottom")
+		let name = "couchedPutsTheMenusInTheTopBarAndTheRestBesideTheArtwork"
+		check(a.topBar == [.header, .bottomRow], "\(name): top bar")
+		check(a.beside == .artwork, "\(name): artwork")
+		check(a.column == [.titles, .bar, .transport], "\(name): column")
+		check(a.bottom.isEmpty, "\(name): bottom")
 	}
 
 	static func wideKeepsTheUprightColumnBesideTheArtwork() {
@@ -42,8 +44,8 @@ enum RemoteArrangementTests {
 
 	// The column's free height, when the screen is taller than its slots: upright it splits above and below the
 	// artwork, which floats in the middle of its zone while the titles, the bar, the transport and the TV's row stay
-	// together at the bottom (as Spotify's player does); couched and wide it splits around the middle, so the
-	// transport sits level with the artwork.
+	// together at the bottom (as Spotify's player does); wide it splits around the middle, so the transport sits
+	// level with the artwork.
 	static func uprightLeavesTheFreeHeightAroundTheArtwork() {
 		let a = RemoteArrangement.of(.portrait)
 		check(
@@ -52,9 +54,13 @@ enum RemoteArrangementTests {
 		)
 	}
 
-	static func couchedCentersTheTransportBesideTheArtwork() {
+	// As tall as the image: the titles level with its top, the transport with its bottom, the bar between.
+	static func couchedSharesTheFreeHeightAroundTheBar() {
 		let a = RemoteArrangement.of(.landscape)
-		check(a.spaces == [0, a.column.count], "couchedCentersTheTransportBesideTheArtwork")
+		check(
+			a.spaces == [a.column.firstIndex(of: .bar)!, a.column.firstIndex(of: .transport)!],
+			"couchedSharesTheFreeHeightAroundTheBar: \(a.spaces)"
+		)
 	}
 
 	static func wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow() {
@@ -95,11 +101,11 @@ enum RemoteArrangementTests {
 
 	static func main() {
 		uprightStacksTheSixSlotsTopToBottom()
-		couchedPutsTheTitlesAndMenusInTheTopBar()
+		couchedPutsTheMenusInTheTopBarAndTheRestBesideTheArtwork()
 		wideKeepsTheUprightColumnBesideTheArtwork()
 		everyLayoutPlacesEachSlotOnce()
 		uprightLeavesTheFreeHeightAroundTheArtwork()
-		couchedCentersTheTransportBesideTheArtwork()
+		couchedSharesTheFreeHeightAroundTheBar()
 		wideCentersTheMiddleBetweenTheHeaderAndTheBottomRow()
 		theTransportKeepsTheChromeSizes()
 		theTransportGapNarrowsOnlyUpright()

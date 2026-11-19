@@ -42,10 +42,10 @@ struct RemoteHeader: View {
 	}
 }
 
-/// The artwork, whole, in a square of the size RemoteMetrics gives.
+/// The artwork, whole, in the box RemoteMetrics gives: a square, or couched the image's own shape.
 struct RemoteArtwork: View {
 	@ObservedObject var viewModel: PlayerViewModel
-	let size: CGFloat
+	let size: CGSize
 
 	var body: some View {
 		ZStack {
@@ -59,7 +59,7 @@ struct RemoteArtwork: View {
 				.scaledToFit()
 			}
 		}
-		.frame(width: size, height: size)
+		.frame(width: size.width, height: size.height)
 		.clipShape(RoundedRectangle(cornerRadius: 8))
 		.accessibilityHidden(true)
 	}
@@ -105,29 +105,35 @@ struct RemoteSkipBanner: View {
 	}
 }
 
-/// Title and subtitle, left-aligned; compact keeps each to one smaller line, for the couched top bar.
+/// Title and subtitle, left-aligned, two lines each at most; capsAtTop lifts them by the air above the title's
+/// capitals, so the capitals start where the slot does.
 struct RemoteTitles: View {
 	@ObservedObject var viewModel: PlayerViewModel
-	let compact: Bool
+	let capsAtTop: Bool
 	// Dynamic Type: each size grows with the text style it stands for, as Android's sp do.
 	@ScaledMetric(relativeTo: .title2) private var titleSize: CGFloat = 22
-	@ScaledMetric(relativeTo: .subheadline) private var compactTitleSize: CGFloat = 15
 	@ScaledMetric(relativeTo: .subheadline) private var subtitleSize: CGFloat = 15
-	@ScaledMetric(relativeTo: .caption) private var compactSubtitleSize: CGFloat = 12
 
 	var body: some View {
-		VStack(alignment: .leading, spacing: compact ? 1 : 4) {
+		VStack(alignment: .leading, spacing: 4) {
 			Text(viewModel.metadata?.title ?? "")
-				.font(.system(size: compact ? compactTitleSize : titleSize, weight: .bold))
+				.font(.system(size: titleSize, weight: .bold))
 				.foregroundStyle(.white)
-				.lineLimit(compact ? 1 : 2)
+				.lineLimit(2)
 			if let subtitle = viewModel.metadata?.subtitle {
 				Text(subtitle)
-					.font(.system(size: compact ? compactSubtitleSize : subtitleSize))
+					.font(.system(size: subtitleSize))
 					.foregroundStyle(.white.opacity(0.7))
-					.lineLimit(compact ? 1 : 2)
+					.lineLimit(2)
 			}
 		}
+		.padding(.top, capsAtTop ? -capsLift : 0)
+	}
+
+	/// The first line's box starts the font's ascender above its baseline, its capitals capHeight above it.
+	private var capsLift: CGFloat {
+		let font = UIFont.systemFont(ofSize: titleSize, weight: .bold)
+		return max(font.ascender - font.capHeight, 0)
 	}
 }
 
@@ -182,22 +188,29 @@ struct RemoteBottomRow: View {
 	}
 }
 
-/// Couched: the chevron, the titles, the TV, the track buttons and "more", in one bar across the top.
+/// Couched: the chevron on the left; the TV, the track buttons and "more" on the right, in one bar across the top.
+/// The bar reaches past the side margins by the air its end buttons have, so their ink meets the margins.
 struct RemoteTopBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
 	let model: RemoteScreenModel
 
 	var body: some View {
+		let showsMore = model.showsMoreMenu
+			&& RemoteMore.shows(chapters: viewModel.chapters.count, qualities: viewModel.qualityMenu.count)
+		let trackButtons = RemoteTrackButtons.shown(viewModel: viewModel, model: model).count
+		let ink = RemoteMetrics.topBarInkInsets(end: RemoteTopBarEnd.of(showsMore: showsMore, trackButtons: trackButtons))
 		HStack(spacing: 0) {
 			RemoteChevron(viewModel: viewModel)
-			RemoteTitles(viewModel: viewModel, compact: true)
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.horizontal, 8)
+			Spacer(minLength: 0)
+			// A long TV name ends in an ellipsis; the buttons keep their boxes.
 			RemoteTargetButton(viewModel: viewModel, targetName: targetName)
 			RemoteTrackButtons(viewModel: viewModel, model: model)
-			if model.showsMoreMenu { RemoteMoreButton(viewModel: viewModel) }
+			if showsMore { RemoteMoreButton(viewModel: viewModel) }
 		}
+		// Negative padding lays the row out wider than its place, drawn past both margins by as much.
+		.padding(.leading, -CGFloat(ink.start))
+		.padding(.trailing, -CGFloat(ink.end))
 	}
 }
 
@@ -280,18 +293,34 @@ private struct RemoteTargetButton: View {
 	}
 }
 
-/// Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on.
-/// Episodes, audio and subtitles, each when it has something to offer. Audio and subtitles rest while nothing is
-/// loaded on the TV: a track change would have nothing to act on.
-/// Episodes, audio and subtitles, each when it has something to offer and the player is not reduced.
+/// Episodes, audio and subtitles, each when it has something to offer and the player is not reduced; subtitles light
+/// up while on. Audio and subtitles rest while nothing is loaded on the TV: a track change would have nothing to act on.
 private struct RemoteTrackButtons: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let model: RemoteScreenModel
 
 	private var tracksEnabled: Bool { model.trackMenusEnabled }
 
+	/// Which buttons the screen shows: the body draws them, the couched top bar ends with the last.
+	/// Twin: trackButtons in RemoteSlots.kt.
+	struct Shown {
+		let episodes: Bool
+		let audio: Bool
+		let subtitles: Bool
+		var count: Int { [episodes, audio, subtitles].filter { $0 }.count }
+	}
+
+	static func shown(viewModel: PlayerViewModel, model: RemoteScreenModel) -> Shown {
+		Shown(
+			episodes: model.showsEpisodes && !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty,
+			audio: model.showsTrackMenus && !viewModel.audioMenu.isEmpty,
+			subtitles: model.showsTrackMenus && !viewModel.subtitleMenu.isEmpty
+		)
+	}
+
 	var body: some View {
-		if model.showsEpisodes && !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
+		let shown = Self.shown(viewModel: viewModel, model: model)
+		if shown.episodes {
 			Button {
 				viewModel.showEpisodeList = true
 			} label: {
@@ -299,12 +328,12 @@ private struct RemoteTrackButtons: View {
 			}
 			.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 		}
-		if model.showsTrackMenus && !viewModel.audioMenu.isEmpty {
+		if shown.audio {
 			AudioMenu(viewModel: viewModel) { ActiveIcon(systemName: "waveform", active: false) }
 				.accessibilityLabel(viewModel.str("audio", "Audio"))
 				.remoteInert(!tracksEnabled)
 		}
-		if model.showsTrackMenus && !viewModel.subtitleMenu.isEmpty {
+		if shown.subtitles {
 			let on = RemoteActive.subtitlesOn(selectedIndex: viewModel.subtitleMenu.first(where: { $0.selected })?.jellyfinIndex)
 			SubtitleMenu(viewModel: viewModel) { ActiveIcon(systemName: "captions.bubble", active: on) }
 				.accessibilityLabel(viewModel.str("subtitles", "Subtitles"))

@@ -15,17 +15,38 @@ enum RemoteLayout: Equatable {
 	}
 }
 
-/// How big the artwork is: what the rest of the screen leaves once its text is counted at the font scale asked
-/// for, between remoteArtworkMin and remoteArtworkMax. The artwork gives up its height first; when nothing fits
-/// even at its minimum, the column scrolls.
+/// A box's size, in points. Twin: RemoteBox in RemoteLayout.kt.
+struct RemoteBox: Equatable {
+	let width: Double
+	let height: Double
+}
+
+/// What ends the couched top bar on the right: "more" when it has a menu, else the last track button, else the TV.
+/// Its ink, not its box, meets the margin (RemoteMetrics.topBarInkInsets). Twin: RemoteTopBarEnd in RemoteLayout.kt.
+enum RemoteTopBarEnd: Equatable {
+	case more
+	case trackButton
+	case target
+
+	static func of(showsMore: Bool, trackButtons: Int) -> RemoteTopBarEnd {
+		if showsMore { return .more }
+		return trackButtons > 0 ? .trackButton : .target
+	}
+}
+
+/// How big the artwork is. Upright and wide, a square: what the rest of the screen leaves once its text is counted
+/// at the font scale asked for, between remoteArtworkMin and remoteArtworkMax; the artwork gives up its height
+/// first, and when nothing fits even at its minimum, the column scrolls. Couched, the image in its own shape, as
+/// large as the left half and the band under the top bar leave it: the text stands beside it, and scrolls there.
 enum RemoteMetrics {
-	/// The height the rest of the screen takes beside the artwork's, in the same column.
+	/// The height the rest of the screen takes above and below the artwork.
 	static func chromeHeight(layout: RemoteLayout, fontScale: Double) -> Double {
 		switch layout {
 		case .portrait:
 			return PlayerConstants.remotePortraitFixed + PlayerConstants.remotePortraitText * fontScale
 		case .landscape:
-			return PlayerConstants.remoteLandscapeFixed + PlayerConstants.remoteLandscapeText * fontScale
+			// The top bar, and the image's inset above and below in the band under it.
+			return PlayerConstants.remoteButtonSmall + 2 * PlayerConstants.remoteLandscapeArtworkInset
 		case .wide:
 			// Beside the column, the artwork only keeps a margin above and below.
 			return 2 * PlayerConstants.remoteHorizontalPadding
@@ -33,21 +54,59 @@ enum RemoteMetrics {
 	}
 
 	/// The width of the box beside the column. Wide, the artwork's share of the whole width, the one its size is
-	/// reckoned against; couched the box wraps the artwork, and upright nothing stands beside the column: nil.
+	/// reckoned against; couched, one of the two equal halves the side margins and the gutter leave; upright nothing
+	/// stands beside the column: nil.
 	static func besideWidth(layout: RemoteLayout, width: Double) -> Double? {
-		layout == .wide ? width * PlayerConstants.remoteWideArtworkFraction : nil
+		switch layout {
+		case .wide:
+			return width * PlayerConstants.remoteWideArtworkFraction
+		case .landscape:
+			let halves = width - 2 * PlayerConstants.remoteHorizontalPadding - PlayerConstants.remoteLandscapeGutter
+			return max(halves / 2, 0)
+		case .portrait:
+			return nil
+		}
 	}
 
+	/// The artwork's box. `aspectRatio` is the image's width over its height, as JS sends it (artworkAspectRatio);
+	/// couched, an unknown or impossible one gives the square the artwork had before the screen knew shapes.
+	static func artworkBox(layout: RemoteLayout, width: Double, height: Double, fontScale: Double, aspectRatio: Double?) -> RemoteBox {
+		guard layout == .landscape else {
+			let side = artworkHeight(layout: layout, width: width, height: height, fontScale: fontScale)
+			return RemoteBox(width: side, height: side)
+		}
+		let ratio = aspectRatio.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? 1
+		let maxWidth = besideWidth(layout: layout, width: width) ?? 0
+		let maxHeight = max(height - chromeHeight(layout: layout, fontScale: fontScale), 0)
+		// Wider than the room's shape, the width binds; otherwise the height does.
+		if maxHeight * ratio > maxWidth { return RemoteBox(width: maxWidth, height: maxWidth / ratio) }
+		return RemoteBox(width: maxHeight * ratio, height: maxHeight)
+	}
+
+	/// The square artwork's side, upright and wide; couched, the height of the box artworkBox gives a square.
 	static func artworkHeight(layout: RemoteLayout, width: Double, height: Double, fontScale: Double) -> Double {
 		let byWidth: Double
 		switch layout {
 		case .portrait: byWidth = width - 2 * PlayerConstants.remoteHorizontalPadding
-		case .landscape: byWidth = width * PlayerConstants.remoteLandscapeArtworkFraction
+		case .landscape:
+			return artworkBox(layout: layout, width: width, height: height, fontScale: fontScale, aspectRatio: nil).height
 		// Centered in its share, with the side margin on each side: the whole share put it against the titles.
 		case .wide: byWidth = width * PlayerConstants.remoteWideArtworkFraction - 2 * PlayerConstants.remoteHorizontalPadding
 		}
 		let byHeight = height - chromeHeight(layout: layout, fontScale: fontScale)
 		return min(max(min(byWidth, byHeight), PlayerConstants.remoteArtworkMin), PlayerConstants.remoteArtworkMax)
+	}
+
+	/// How far the couched top bar reaches past the side margins, start and end, so the ink of its first and last
+	/// buttons meets them rather than their boxes' air.
+	static func topBarInkInsets(end: RemoteTopBarEnd) -> (start: Double, end: Double) {
+		let trailing: Double
+		switch end {
+		case .more: trailing = PlayerConstants.remoteMoreInkInset
+		case .trackButton: trailing = PlayerConstants.remoteTrackButtonInkInset
+		case .target: trailing = 0
+		}
+		return (PlayerConstants.remoteChevronInkInset, trailing)
 	}
 }
 
@@ -57,11 +116,12 @@ enum RemoteSlot: String, CaseIterable {
 }
 
 /// Where a layout puts the slots: a bar across the top, the slot beside the rest (the artwork, on the left), the
-/// column, top to bottom, and a band across the bottom. Couched, the header, the titles and the bottom row's
-/// buttons share the top bar and the bar runs along the bottom; wide, the upright column stands beside the artwork.
-/// `spaces` are the column's indices where the free height goes, shared equally when the screen is taller than the
-/// slots (`column.count`: after the last): upright above and below the artwork, the rest kept together at the bottom
-/// as Spotify's player does; couched and wide around the middle, so the transport sits level with the artwork.
+/// column, top to bottom, and a band across the bottom. Couched, the header and the bottom row's buttons share the
+/// top bar, and the titles, the bar and the transport stand beside the image; wide, the upright column stands
+/// beside the artwork. `spaces` are the column's indices where the free height goes, shared equally when the column
+/// is taller than its slots (`column.count`: after the last): upright above and below the artwork, the rest kept
+/// together at the bottom as Spotify's player does; couched before the bar and the transport, so the column as tall
+/// as the image has the titles level with its top and the transport with its bottom; wide around the middle.
 struct RemoteArrangement: Equatable {
 	let topBar: [RemoteSlot]
 	let beside: RemoteSlot?
@@ -80,7 +140,7 @@ struct RemoteArrangement: Equatable {
 			)
 		case .landscape:
 			return RemoteArrangement(
-				topBar: [.header, .titles, .bottomRow], beside: .artwork, column: [.transport], bottom: [.bar], spaces: [0, 1]
+				topBar: [.header, .bottomRow], beside: .artwork, column: [.titles, .bar, .transport], bottom: [], spaces: [1, 2]
 			)
 		case .wide:
 			let column = upright.filter { $0 != .artwork }

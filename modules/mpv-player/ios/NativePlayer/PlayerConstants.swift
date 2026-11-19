@@ -21,6 +21,9 @@ enum PlayerConstants {
 	static let remoteArtworkMin: Double = 96
 	static let remoteArtworkMax: Double = 420
 	static let remoteHorizontalPadding: Double = 24
+	/// The remote screen draws the technical info panel within the artwork, this far from its edges.
+	/// Android: REMOTE_TECHNICAL_INFO_INSET_DP.
+	static let remoteTechnicalInfoInset: Double = 8
 	/// A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
 	/// Android: REMOTE_INERT_ALPHA.
 	static let remoteInertOpacity: Double = 0.4
@@ -33,16 +36,24 @@ enum PlayerConstants {
 	/// The next episode's card at the end of the list the TV got: its 16:9 image is this wide.
 	/// Android: REMOTE_NEXT_UP_IMAGE_WIDTH_DP.
 	static let remoteNextUpImageWidth: Double = 112
-	/// Couched, the artwork is at most this share of the width; wide, beside the column, this one.
-	static let remoteLandscapeArtworkFraction: Double = 0.4
+	/// Wide, the artwork's share of the width, beside the column.
 	static let remoteWideArtworkFraction: Double = 0.45
-	/// What the rest of the screen takes, upright and couched: the part that keeps its size (buttons, the
-	/// bar's track, gaps) and the text, counted one line each at the font scale asked for. Upright, measured at the
-	/// probe on an iPhone 17 with every slot filled (RemoteLayoutTests.theUprightChromeMatchesTheMeasuredScreen).
+	/// Couched, the image and the column are two equal halves between the side margins, this far apart; the image
+	/// keeps this inset above and below in the band under the top bar. Android: REMOTE_LANDSCAPE_GUTTER_DP,
+	/// REMOTE_LANDSCAPE_ARTWORK_INSET_DP.
+	static let remoteLandscapeGutter: Double = 24
+	static let remoteLandscapeArtworkInset: Double = 16
+	/// The air the couched top bar's end buttons have in their boxes, on the margin's side: the chevron's 32 icon in
+	/// its 44 box with the drawing's own 8; the dots of "more"; a track button's 22 icon. The bar reaches past the
+	/// margins by as much, so the ink meets them. Android: REMOTE_CHEVRON_INK_INSET_DP and the two others.
+	static let remoteChevronInkInset: Double = 14
+	static let remoteMoreInkInset: Double = 20
+	static let remoteTrackButtonInkInset: Double = 11
+	/// What the rest of the screen takes upright: the part that keeps its size (buttons, the bar's track, gaps) and
+	/// the text, counted one line each at the font scale asked for. Measured at the probe on an iPhone 17 with every
+	/// slot filled (RemoteLayoutTests.theUprightChromeMatchesTheMeasuredScreen).
 	static let remotePortraitFixed: Double = 305
 	static let remotePortraitText: Double = 73
-	static let remoteLandscapeFixed: Double = 108
-	static let remoteLandscapeText: Double = 34
 	/// The remote transport (RemoteTransport): the chrome's three button sizes, and the gap between them,
 	/// narrower upright so five buttons fit a phone's width. Android: REMOTE_BUTTON_*_DP, REMOTE_TRANSPORT_GAP_*_DP.
 	static let remoteButtonSmall: Double = 44
