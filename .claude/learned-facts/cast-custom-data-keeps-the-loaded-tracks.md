@@ -10,7 +10,7 @@
 
 The Jellyfin receiver (1.3.2) writes `audioStreamIndex` and `subtitleStreamIndex` into the media's
 custom data when it loads an item, and leaves them there. Subtitles picked on the TV side, from the
-captions button of the Cast SDK's expanded controls (both SDKs), switch the media's active text
+captions button of the Cast SDK's expanded controls (both SDKs; the app showed them until its remote player), switch the media's active text
 track without a reload: on the bench the active track went from 3 to 4 while the custom data still
 said 3, and "Continue here" brought the English subtitles back over the French ones the TV showed.
 

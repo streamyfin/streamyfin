@@ -14,11 +14,13 @@ it straight away, which is why `fetch` (whose polyfill resolves through
 `setTimeout(fn, 0)`) and native events keep working in the background.
 
 "Background" includes more than the home screen: a native activity opened on
-top of ours, such as the Cast SDK's expanded controls, pauses it too.
+top of ours pauses it too. The Cast SDK's expanded controls did, until the
+app's remote player, a view inside `MainActivity`, replaced them; a system
+dialog still does.
 
 So work triggered by a native event that may arrive while the app is paused
-(a Cast session ending from the notification, the Cast dialog closing the
-expanded controls just before the user leaves) must not await a delayed timer.
+(a Cast session ending from the notification, a cast stopped just before the
+user leaves) must not await a delayed timer.
 The cast stop report did, and sat frozen until the app was reopened.
 
 ## Symptom pattern

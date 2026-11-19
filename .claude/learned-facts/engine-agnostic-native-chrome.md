@@ -1,4 +1,4 @@
-`engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine and reaches rendering through a cast; engine comes from config.engine, an unknown one is refused; its controls follow ChromeCapabilities
+`engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine and reaches rendering through a cast; engine comes from config.engine, an unknown one is refused; its controls follow ChromeCapabilities; a remote engine is driven by the remote player, which every Cast entry opens
 
 The native player chrome on Android (NativePlayerSession + PlayerViewModel +
 Compose UI in modules/mpv-player; Android TV, and phones with the Native
@@ -66,3 +66,22 @@ that picks the Jellyfin device profile. Consequences:
   entry point is covered, JS calls included; the pinch and the brightness reveal
   are guarded in the iOS view model, and in the gesture plane on Android. The TV
   menus do not read them: remote mode is meant to be refused on TV.
+- A remote engine is driven by the remote player (2026-11-19), the chrome's
+  remote screen with an entry of its own: `presentRemotePlayer` (JS
+  `playOnRemote`, `openRemotePlayer`), refused when a player is already up,
+  on a TV, or with no remote engine (`remotePresentRefusal` on Android,
+  `PresentRefusal` on iOS). The engine is not built from the config: the
+  `RemotePlayback` holder keeps one per connected Cast session once JS gave
+  it a server (the Cast engine, or the fake TV of a tier 1 build,
+  `fake-cast-receivers-have-no-sdk-media`), and `RemotePlayerSession` drives
+  the screen over it. Every Cast entry opens it, in every build: Play with a
+  TV connected (`playOnRemote`; Play on the item the TV plays shows it as
+  Remote does), Remote in the app's output sheet, the hand-off from the local
+  player (`handOffToRemote` closes it first), Remote in the local player's
+  sheet (the player closes as by its cross, then asks through
+  `RemotePlayerRequests`), and the Cast SDK's media notification on Android
+  (`RemotePlayerLaunchActivity`, which opens the app and asks the same way).
+  `RemotePlayerController` takes a request once a Cast target and an account
+  are there; a request made before JS listens is kept and given once. The
+  SDK's expanded controls are gone from both platforms, and nothing sends a
+  video to the receiver outside the remote player any more.
