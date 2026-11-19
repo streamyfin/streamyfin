@@ -54,10 +54,6 @@ jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
       () => mockPlayer,
     ),
 }));
-let mockRouted = true;
-jest.mock("@/utils/cast/remotePlayerGate", () => ({
-  remotePlayerRouted: () => mockRouted,
-}));
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -135,22 +131,16 @@ beforeEach(() => {
   mockCast.remoteTarget = connected;
   setCastSession(mockCast, "session-1");
   mockPlayer = createNativePlayerDoubleState();
-  mockRouted = true;
   mockPlayMedia.mockClear();
   stubReactNative({ OS: "android" });
   store.set(remotePlayAtom, null);
   signIn();
 });
 
-test("the controller gives native the server when the gate is open", async () => {
+// A release build too: the remote engine is made for every Cast session.
+test("the controller gives native the server in every build", async () => {
   await render(<RemotePlayerController />);
   expect(mockCast.remoteServerCalls).toEqual([envelope]);
-});
-
-test("it gives nothing in a release build", async () => {
-  mockRouted = false;
-  await render(<RemotePlayerController />);
-  expect(mockCast.remoteServerCalls).toEqual([]);
 });
 
 test("it clears the server on sign out", async () => {

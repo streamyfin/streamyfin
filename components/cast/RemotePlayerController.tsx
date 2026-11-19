@@ -24,7 +24,6 @@ import { effectiveSettingsAtom, useSettings } from "@/utils/atoms/settings";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
-import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import {
@@ -60,7 +59,7 @@ import { stopAndPlayHere } from "./OutputPickerActions";
  * receiver after the load is said on the screen, previous, next and a pick in the episode list send that episode
  * from its start with its own bounded list, the TV going on in the list it got is shown in place, Continue at the end
  * of that list sends what comes after it, and closing it only forgets the play, sending nothing.
- * Only behind the development gate for now. Mounted once, at the root, off TV; renders nothing.
+ * Mounted once, at the root, off TV; renders nothing.
  */
 export function RemotePlayerController() {
   const api = useAtomValue(apiAtom);
@@ -72,7 +71,6 @@ export function RemotePlayerController() {
   const receiverName = receiverNameFor(
     target?.kind === "cast" ? { friendlyName: target.name } : null,
   );
-  const routed = remotePlayerRouted();
   const serverAddress = api?.basePath;
   const accessToken = api?.accessToken;
   const userId = user?.Id;
@@ -104,7 +102,6 @@ export function RemotePlayerController() {
   // change: the TV's tracks, then subtitles while it is muted. Subscribed again with the mute it reads.
   const autoSubtitle = useRef(INITIAL_REMOTE_AUTO_SUBTITLE);
   useEffect(() => {
-    if (!routed) return;
     const evaluate = () => {
       // The tracks the TV reported while the play was on its way are read once it took it: no report follows.
       followRemoteTracks(
@@ -128,10 +125,9 @@ export function RemotePlayerController() {
     };
     evaluate();
     return store.sub(remotePlayAtom, evaluate);
-  }, [routed, store, muted]);
+  }, [store, muted]);
 
   useEffect(() => {
-    if (!routed) return;
     if (!serverAddress || !accessToken || !userId) {
       void setRemoteServer(null);
       return;
@@ -142,10 +138,9 @@ export function RemotePlayerController() {
       userId,
       ...(receiverName ? { receiverName } : {}),
     });
-  }, [routed, serverAddress, accessToken, userId, receiverName]);
+  }, [serverAddress, accessToken, userId, receiverName]);
 
   useEffect(() => {
-    if (!routed) return;
     const playHere = async (positionSec: number) => {
       const held = store.get(remotePlayAtom);
       if (!held) return;
@@ -404,7 +399,7 @@ export function RemotePlayerController() {
       technicalInfo.close();
       for (const subscription of subscriptions) subscription?.remove();
     };
-  }, [routed, store]);
+  }, [store]);
 
   return null;
 }

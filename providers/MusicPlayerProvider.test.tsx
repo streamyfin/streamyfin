@@ -21,6 +21,7 @@ import {
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { appRouter } from "@/test-utils/stubModules";
 import { holdForTarget } from "@/utils/cast/playTarget";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError } from "@/utils/log";
@@ -65,6 +66,10 @@ const mockNative = {
   notInitialized: () => new Error("The player is not initialized"),
 };
 
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => require("@/test-utils/stubModules").appRouterModule,
+);
 // The package is installed from git with `main` pointing at a build output it
 // does not ship, so only Metro (through the `react-native` field) resolves it.
 jest.mock(
@@ -992,9 +997,11 @@ describe("MusicPlayerProvider and a Cast session", () => {
   });
 
   test("a track picked in the queue starts there on the receiver", async () => {
+    appRouter.push.mockClear();
     await castAlbum();
-    // The album's Play opens the receiver's controls.
-    expect(mockCast.dialogs).toEqual(["expandedControls"]);
+    // The album's Play opens the app's music player on the receiver's queue.
+    expect(appRouter.push).toHaveBeenCalledWith("/(auth)/now-playing");
+    expect(appRouter.push).toHaveBeenCalledTimes(1);
 
     await run((p) => p.jumpToIndex(3));
     await receiverStatus("t3", "buffering", 0, "ps-2");
@@ -1003,8 +1010,9 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(playNows()[1].options.startIndex).toBe(3);
     expect(player.currentTrack?.Id).toBe("t3");
     expect(nativeIds()).toEqual([]);
-    // Picked in Now Playing, the player that drives the receiver already.
-    expect(mockCast.dialogs).toEqual(["expandedControls"]);
+    // Picked in Now Playing, the player that drives the receiver already: it does not open again.
+    expect(appRouter.push).toHaveBeenCalledTimes(1);
+    expect(mockCast.dialogs).toEqual([]);
   });
 
   // As on Spotify: the queue comes back to the phone, paused where the TV was.

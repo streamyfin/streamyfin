@@ -1417,8 +1417,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       startIndex: number,
       {
         startSeconds = 0,
-        openExpandedControls = true,
-      }: { startSeconds?: number; openExpandedControls?: boolean } = {},
+        openMusicPlayer = true,
+      }: { startSeconds?: number; openMusicPlayer?: boolean } = {},
     ) => {
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
@@ -1444,7 +1444,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         startIndex,
         startPositionTicks: Math.round(startSeconds * 10000000),
         isStale,
-        openExpandedControls,
+        openMusicPlayer,
       });
       if (!started) endOnReceiver(sent);
     },
@@ -1487,7 +1487,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // No press asked for the receiver's controls: the user stays on the sheet or the player.
       void castOnReceiver(carry.queue, carry.queueIndex, {
         startSeconds: carry.progress,
-        openExpandedControls: false,
+        openMusicPlayer: false,
       });
       return;
     }
@@ -2584,7 +2584,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     retriedStartId.current = failedStartId;
     // No press behind it: the controls stay as the user left them.
     void castOnReceiver(remoteQueue, remoteIndex, {
-      openExpandedControls: false,
+      openMusicPlayer: false,
     });
   }, [failedStartId, remoteQueue, remoteIndex, castOnReceiver]);
   const togglePlayPauseRemote = useCallback(
@@ -2632,7 +2632,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!remoteQueue || index === remoteIndex) return;
       if (index < 0 || index >= remoteQueue.length) return;
       // Picked in Now Playing, which drives the receiver already.
-      void castOnReceiver(remoteQueue, index, { openExpandedControls: false });
+      void castOnReceiver(remoteQueue, index, { openMusicPlayer: false });
     },
     [remoteQueue, remoteIndex, castOnReceiver],
   );

@@ -22,7 +22,6 @@ import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { effectiveSettingsAtom } from "@/utils/atoms/settings";
 import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
-import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
@@ -190,7 +189,7 @@ export function OutputPickerActions() {
         const target = remoteTarget().target;
         const api = store.get(apiAtom);
         const userId = store.get(userAtom)?.Id;
-        if (remotePlayerRouted() && target?.kind === "cast" && api && userId) {
+        if (target?.kind === "cast" && api && userId) {
           if (opening.current) return;
           opening.current = true;
           openRemotePlayer(

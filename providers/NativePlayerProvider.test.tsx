@@ -105,6 +105,11 @@ jest.mock("@/modules/mpv-player", () => {
   };
 });
 
+// The hand-off opens the remote player, whose tint reads the artwork natively.
+jest.mock("@/utils/imageColors", () => ({
+  extractImageColor: jest.fn(async () => null),
+}));
+
 /** PlaybackInfo round trips the spec holds back, and how many have run. */
 const mockNegotiation = {
   held: false,
