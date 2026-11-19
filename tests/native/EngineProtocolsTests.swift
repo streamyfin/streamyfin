@@ -28,6 +28,7 @@ final class RemoteOnlyEngine: TransportEngine, QueueEngine {
 	func getCurrentPosition() -> Double { 0 }
 	func getDuration() -> Double { 0 }
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
+	func setSkipIntervals(forward: Double, backward: Double) {}
 	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
 	func setSubtitleTrack(_ trackId: Int) {}
 	func disableSubtitles() {}
@@ -90,7 +91,11 @@ enum EngineProtocolsTests {
 		// for a clip: the switch is on the rendering face, or this check does not compile.
 		let turnBackgroundPlayback: (PlayerEngine, Bool) -> Void = { $0.backgroundPlayback = $1 }
 		_ = turnBackgroundPlayback
+		// The native player's session sets the lock screen skip buttons on the engine it holds by
+		// the faces: they are on the transport face, or this check does not compile.
+		let setSkipIntervals: (PlayerEngine) -> Void = { $0.setSkipIntervals(forward: 30, backward: 10) }
+		_ = setSkipIntervals
 
-		print("PASS: transport, rendering and queue faces, the background playback switch, queue defaults, delegate play and seek defaults")
+		print("PASS: transport, rendering and queue faces, the background playback switch, the lock screen skip intervals, queue defaults, delegate play and seek defaults")
 	}
 }
