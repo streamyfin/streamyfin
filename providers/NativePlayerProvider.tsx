@@ -1285,12 +1285,17 @@ const NativePlayerProviderInner: React.FC<{
         if (previous.localSubtitle?.active) {
           session.localSubtitle = previous.localSubtitle;
         }
-        // A track only mpv found has no server index, so the new stream was
-        // asked for without one (replaceStream); the selection stays and
-        // syncPlayerAudioTracks puts mpv back on it once it lists the tracks.
-        // The same holds for one picked while the swap negotiated, after the
-        // request had taken the earlier selection. A transcode carries only
-        // the server's default, which it falls back to.
+      }
+      // A track only mpv found has no server index, so the new stream was
+      // asked for without one (replaceStream); the selection stays and
+      // syncPlayerAudioTracks puts mpv back on it once it lists the tracks.
+      // The same holds for one picked while the swap negotiated or its stop
+      // report was pending, after the request had taken the earlier
+      // selection. A transcode carries only the server's default, which it
+      // falls back to.
+      const carryPlayerAudio = () => {
+        if (!options.replace || !previous) return;
+        if (previous.item.Id !== session.item.Id) return;
         if (
           !session.stream.mediaSource.TranscodingUrl &&
           !options.audioOverride &&
@@ -1302,7 +1307,8 @@ const NativePlayerProviderInner: React.FC<{
         ) {
           session.currentAudioIndex = previous.currentAudioIndex;
         }
-      }
+      };
+      carryPlayerAudio();
 
       if (previous) {
         // Mute belongs to the device and the engine, not to the item: it does
@@ -1333,6 +1339,8 @@ const NativePlayerProviderInner: React.FC<{
           // old session playing and reportable.
           await reportPlaybackStopped(previous);
           releaseLiveStream(previous);
+          // The old session took picks during that round trip.
+          carryPlayerAudio();
           // A newer request started during that round trip: yield to it, as
           // the token check above does, so the newest request still wins.
           if (
@@ -1497,6 +1505,7 @@ const NativePlayerProviderInner: React.FC<{
       return beginSession(req, {
         replace: sessionRef.current !== null,
         isCurrent: options?.isCurrent,
+        audioOverride: req.audioIndex !== undefined,
       });
     },
     [beginSession],
