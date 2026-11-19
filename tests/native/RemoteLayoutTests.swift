@@ -182,6 +182,13 @@ enum RemoteLayoutTests {
 		check(unmeasured.height == 287, "\(name): \(unmeasured.height) before the first measure")
 	}
 
+	// The compact technical info card is Android's: as wide at most, the label taking the same share of a line.
+	// Twin: theCardKeepsTheSizesTheIphoneMirrors in TechInfoRowTest.kt asserts the same two numbers.
+	static func theTechnicalInfoCardIsAndroids() {
+		check(PlayerConstants.remoteTechnicalInfoMaxWidth == 320, "theTechnicalInfoCardIsAndroids: width")
+		check(PlayerConstants.remoteTechnicalInfoLabelShare == 0.4, "theTechnicalInfoCardIsAndroids: label share")
+	}
+
 	// Couched, the text stands beside the image, not above or below it: a larger font leaves the image as it is (the
 	// column scrolls instead). A shape that cannot be one is the square too.
 	static func couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone() {
@@ -235,6 +242,7 @@ enum RemoteLayoutTests {
 		couchedTheImageTakesItsShapeInTheLeftHalf()
 		couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone()
 		couchedTheBandIsWhatTheMeasuredTopBarLeaves()
+		theTechnicalInfoCardIsAndroids()
 		uprightAndWideTheArtworkStaysASquare()
 		couchedTheTopBarsInkMeetsTheMargins()
 		aTintFromJsGivesTheScreenItsColors()

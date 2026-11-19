@@ -30,8 +30,8 @@ struct TechnicalInfoOverlay: View {
 	/// False when the caller asks for the lines itself: a card that moves between slots disappears and appears again.
 	var reportsShown = true
 
-	/// The compact card at most this wide: Android's (TechnicalInfoOverlay.kt), the same number.
-	static let compactMaxWidth: CGFloat = 320
+	/// The compact card at most this wide: Android's, pinned on both sides (PlayerConstants).
+	static let compactMaxWidth = CGFloat(PlayerConstants.remoteTechnicalInfoMaxWidth)
 	// The compact card's sizes, Android's dp: padding, title, close button, the rule's air, the lines' text and
 	// line height, their air, the gap between label and value, the label's share of a line.
 	private static let compactPadding: CGFloat = 10
@@ -42,7 +42,7 @@ struct TechnicalInfoOverlay: View {
 	private static let compactLineHeight: CGFloat = 15
 	private static let compactLineInset: CGFloat = 1
 	private static let compactGap: CGFloat = 8
-	private static let compactLabelShare: CGFloat = 0.4
+	private static let compactLabelShare = CGFloat(PlayerConstants.remoteTechnicalInfoLabelShare)
 	private static let compactCornerRadius: CGFloat = 16
 
 	@State private var info: [String: Any] = [:]

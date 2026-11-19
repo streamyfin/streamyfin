@@ -24,6 +24,12 @@ enum PlayerConstants {
 	/// The remote screen draws the technical info panel within the artwork, this far from its edges.
 	/// Android: REMOTE_TECHNICAL_INFO_INSET_DP.
 	static let remoteTechnicalInfoInset: Double = 8
+	/// The remote screen's technical info card is at most this wide, Android's panel; the local panel has its own.
+	/// Android: TECHNICAL_INFO_WIDTH_DP.
+	static let remoteTechnicalInfoMaxWidth: Double = 320
+	/// On the remote card, the label's share of a line; the value takes the rest.
+	/// Android: REMOTE_TECHNICAL_INFO_LABEL_SHARE.
+	static let remoteTechnicalInfoLabelShare: Double = 0.4
 	/// A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
 	/// Android: REMOTE_INERT_ALPHA.
 	static let remoteInertOpacity: Double = 0.4

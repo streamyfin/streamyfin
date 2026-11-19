@@ -54,6 +54,12 @@ object PlayerConstants {
     // The remote screen draws the technical info panel within the artwork, this far from its edges.
     // iOS: PlayerConstants.remoteTechnicalInfoInset.
     const val REMOTE_TECHNICAL_INFO_INSET_DP = 8.0
+    // The technical info panel's width, the local player's and, at most, the remote screen's card over its artwork.
+    // iOS: PlayerConstants.remoteTechnicalInfoMaxWidth (its local panel has its own).
+    const val TECHNICAL_INFO_WIDTH_DP = 320.0
+    // On the remote card, the label's share of a line; the value takes the rest.
+    // iOS: PlayerConstants.remoteTechnicalInfoLabelShare.
+    const val REMOTE_TECHNICAL_INFO_LABEL_SHARE = 0.4
     // A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
     // iOS: PlayerConstants.remoteInertOpacity.
     const val REMOTE_INERT_ALPHA = 0.4f

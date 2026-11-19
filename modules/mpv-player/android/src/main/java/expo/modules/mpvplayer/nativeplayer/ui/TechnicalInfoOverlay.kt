@@ -43,10 +43,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import kotlinx.coroutines.delay
 
-/** The panel where the touch players draw it, the local one and the remote screen: centered, clear of the bars. */
+/**
+ * The panel where the local touch player draws it: centered, clear of the bars. The remote screen draws its compact
+ * card over the artwork instead (RemotePlayerScreen).
+ */
 @Composable
 fun TechnicalInfoLayer(viewModel: PlayerViewModel) {
     if (!viewModel.showTechnicalInfo || !viewModel.capabilities.technicalInfo) return
@@ -98,7 +102,7 @@ fun TechnicalInfoOverlay(
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black.copy(alpha = 0.85f))
             .padding(if (compact) 10.dp else 16.dp)
-            .width(320.dp)
+            .width(PlayerConstants.TECHNICAL_INFO_WIDTH_DP.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -160,7 +164,8 @@ fun TechnicalInfoOverlay(
  * wraps rather than leave its value a word per line. Otherwise null: the local player's panel and the TV's keep the
  * line they always had.
  */
-internal fun techInfoRowWeights(compact: Boolean): Pair<Float, Float>? = if (compact) 0.4f to 0.6f else null
+internal fun techInfoRowWeights(compact: Boolean): Pair<Float, Float>? =
+    if (compact) PlayerConstants.REMOTE_TECHNICAL_INFO_LABEL_SHARE.let { it.toFloat() to (1 - it).toFloat() } else null
 
 @Composable
 private fun TechInfoRow(label: String, value: String, compact: Boolean = false) {
