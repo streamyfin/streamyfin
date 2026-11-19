@@ -22,7 +22,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SheetScrollView } from "@/components/common/SheetContent";
-import { RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
+import { AUTO_BITRATE_VALUE, RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
 import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
 import { useActionSheet } from "@/hooks/useActionSheet";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -42,6 +42,7 @@ import {
   receiverNameFor,
 } from "@/utils/cast/jellyfinReceiver";
 import { castNotStartedMessage } from "@/utils/cast/receiverLoadErrorMessage";
+import { autoBitrateOn } from "@/utils/cast/remoteQuality";
 import { shouldUseExternalPlayer } from "@/utils/externalPlayer";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
@@ -181,6 +182,10 @@ export const PlayButton: React.FC<Props> = ({
                   if (!client) return;
                   try {
                     const userId = user.Id;
+                    const quality = liveTvBitrateRequest(
+                      item,
+                      toBitrateRequest(selectedOptions.bitrate),
+                    );
                     // Handed over unbuilt: the cast takes its turn now, and a
                     // cast picked while Auto measures replaces this one.
                     const session = (async () => ({
@@ -196,11 +201,14 @@ export const PlayButton: React.FC<Props> = ({
                       maxBitrate:
                         (await resolveMaxStreamingBitrate(
                           api,
-                          liveTvBitrateRequest(
-                            item,
-                            toBitrateRequest(selectedOptions.bitrate),
-                          ),
+                          quality,
                           autoBitrateOptions(settings),
+                        ).then((bitrate) =>
+                          // The link measured is the phone's: a Chromecast
+                          // stick freezes on what it would let the server copy.
+                          quality === AUTO_BITRATE_VALUE
+                            ? autoBitrateOn(bitrate, castDevice?.modelName)
+                            : bitrate,
                         )) ?? RECEIVER_MAX_BITRATE,
                     }))();
                     const outcome = await castToJellyfinReceiver(
