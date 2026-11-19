@@ -86,6 +86,11 @@ enum EngineProtocolsTests {
 		precondition(engine.seeksTo.count == 1 && engine.seeksTo[0].position == 12 && engine.seeksTo[0].exact == false)
 		precondition(engine.seeksBy == [-10])
 
-		print("PASS: transport, rendering and queue faces, queue defaults, delegate play and seek defaults")
+		// The RN-embedded view holds its engine by the faces and turns background playback off
+		// for a clip: the switch is on the rendering face, or this check does not compile.
+		let turnBackgroundPlayback: (PlayerEngine, Bool) -> Void = { $0.backgroundPlayback = $1 }
+		_ = turnBackgroundPlayback
+
+		print("PASS: transport, rendering and queue faces, the background playback switch, queue defaults, delegate play and seek defaults")
 	}
 }
