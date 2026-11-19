@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useStore } from "jotai";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +23,7 @@ import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
 import { isNotFound } from "@/utils/pluginReads";
 
 type Store = ReturnType<typeof useStore>;
@@ -45,6 +47,29 @@ const within = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
     );
     promise.then(resolve, reject).finally(() => clearTimeout(timer));
   });
+
+/**
+ * Stops the receiver, then plays its video here from `from`, unless the tap went stale while the stop took its
+ * moment (a later choice, another account, a group joined). Continue here's last step, and the remote player's Play
+ * here.
+ */
+export const stopAndPlayHere = async (
+  { store, playMedia }: { store: Pick<Store, "get">; playMedia: PlayMedia },
+  from: Omit<PlayRequest, "offline">,
+  item: BaseItemDto,
+  goneStale: () => boolean,
+): Promise<void> => {
+  await disconnectRemoteTarget({ stopPlayback: true });
+  if (goneStale()) return;
+  await playMedia(
+    {
+      ...from,
+      bitrateValue: store.get(effectiveSettingsAtom).defaultBitrate?.value,
+      offline: false,
+    },
+    { item, itemIsComplete: true },
+  );
+};
 
 /**
  * This device chosen while the receiver plays (Continue here). The receiver forgets its item once stopped, so it is
@@ -122,16 +147,11 @@ const continueReceiverHere = async (
   if (inGroup() || !item || item.MediaType === "Audio") return stopReceiver();
   const now = playRequestFromReceiver(latest);
   const from = now?.itemId === request.itemId ? now : request;
-  await stopReceiver();
-  // The stop takes a moment: a later choice, another account or a group joined by then gets nothing played here.
-  if (tapGoneStale() || inGroup()) return;
-  await playMedia(
-    {
-      ...from,
-      bitrateValue: store.get(effectiveSettingsAtom).defaultBitrate?.value,
-      offline: false,
-    },
-    { item, itemIsComplete: true },
+  await stopAndPlayHere(
+    { store, playMedia },
+    from,
+    item,
+    () => tapGoneStale() || inGroup(),
   );
 };
 

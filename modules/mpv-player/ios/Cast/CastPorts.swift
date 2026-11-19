@@ -51,12 +51,6 @@ protocol CastSessionSource: AnyObject {
   var listener: CastSessionListener? { get set }
 }
 
-/// How a load ended: settled by what the receiver reported, or never sent.
-enum CastLoadResult {
-  case settled(ReceiverLoadOutcome)
-  case notSent(String)
-}
-
 /// Told when the engine loses its session; the error is nil for an end the user asked for.
 protocol CastBindingListener: AnyObject {
   func castEngineDidLoseBinding(sessionId: String?, error: String?)

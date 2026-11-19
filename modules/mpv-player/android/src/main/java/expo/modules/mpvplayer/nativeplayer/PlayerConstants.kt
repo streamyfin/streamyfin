@@ -35,10 +35,12 @@ object PlayerConstants {
     // composables were authored too large for a 10-foot layout.
     const val TV_CHROME_SCALE = 0.7f
 
-    // The fake remote engine (tests, debug probe): how long its "TV" takes to load, and how long each of its
-    // default items lasts. iOS: PlayerConstants.fakeRemoteLoadMs and fakeRemoteItemSec.
+    // The fake remote engine (tests, debug probe): how long its "TV" takes to load, how long each of its items
+    // lasts, and the item id whose load it fails, as a receiver the account cannot play on. iOS:
+    // PlayerConstants.fakeRemoteLoadMs, fakeRemoteItemSec and fakeRemoteFailId.
     const val FAKE_REMOTE_LOAD_MS = 600L
     const val FAKE_REMOTE_ITEM_SEC = 120.0
+    const val FAKE_REMOTE_FAIL_ID = "fake-fail"
 
     // The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model. A
     // window shorter than REMOTE_COMPACT_HEIGHT_DP is couched; otherwise one at least REMOTE_WIDE_MIN_WIDTH_DP
@@ -52,6 +54,9 @@ object PlayerConstants {
     // A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
     // iOS: PlayerConstants.remoteInertOpacity.
     const val REMOTE_INERT_ALPHA = 0.4f
+    // The Play here pill under a failed send, at least the small button's height: white at this opacity over the
+    // tint. iOS: PlayerConstants.remotePlayHereFillOpacity.
+    const val REMOTE_PLAY_HERE_FILL_ALPHA = 0.18f
     // Couched, the artwork is at most this share of the width; wide, beside the column, this one.
     const val REMOTE_LANDSCAPE_ARTWORK_FRACTION = 0.4
     const val REMOTE_WIDE_ARTWORK_FRACTION = 0.45

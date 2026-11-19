@@ -1,5 +1,8 @@
 package expo.modules.mpvplayer.cast.playback
 
+import expo.modules.mpvplayer.cast.engine.CastLoadResult
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
 import expo.modules.mpvplayer.cast.target.TargetPhase
@@ -48,12 +51,32 @@ class RemotePlayback(
         reconcile()
     }
 
-    /** The account's server; none, and no engine is made. Another server makes another engine. */
+    /**
+     * The account's server; none, and no engine is made. Another one while an engine lives goes to it, whose next
+     * commands carry it: an open screen keeps its engine through an address switched on another network or a TV
+     * renamed.
+     */
     fun setServer(server: ReceiverServer?) {
         if (server == this.server) return
         this.server = server
+        val engine = engine
+        if (server != null && engine != null) {
+            engine.useServer(server)
+            return
+        }
         drop()
         reconcile()
+    }
+
+    /** Plays [request] on the TV through the session's engine, under [server]; never sent without one. */
+    fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) {
+        val engine = engine ?: return onResult(CastLoadResult.NotSent(NO_ENGINE_ERROR))
+        engine.load(server, request, onResult)
+    }
+
+    /** The TV's item again where it is, under [server]; nothing without an engine. */
+    fun reload(server: ReceiverServer) {
+        engine?.reloadCurrentItem(server)
     }
 
     /** What the target hub says of the session: connected, or suspended while the SDK tries to resume it. */
@@ -190,6 +213,19 @@ class RemotePlayback(
     companion object {
         /** The one the module, the remote screen and the debug probe share; installDefault gives it its factory. */
         val shared = RemotePlayback()
+
+        const val NO_ENGINE_ERROR = "No remote engine: no Cast session, or no server from JS"
+
+        /** A load's answer as JS reads it (RemoteLoadResult in Cast.types.ts): a failure names its code. */
+        fun resultForJs(result: CastLoadResult): Map<String, Any> = when (result) {
+            is CastLoadResult.NotSent -> mapOf("outcome" to "notSent", "error" to result.error)
+            is CastLoadResult.Settled -> when (val outcome = result.outcome) {
+                ReceiverLoadOutcome.Loaded -> mapOf("outcome" to "loaded")
+                ReceiverLoadOutcome.Superseded -> mapOf("outcome" to "superseded")
+                ReceiverLoadOutcome.TimedOut -> mapOf("outcome" to "timedOut")
+                is ReceiverLoadOutcome.Failed -> mapOf("outcome" to "failed", "error" to outcome.error.wireName)
+            }
+        }
 
         /** The engine a session gets: the fake one for a tier 1 build's fake receivers, which have no TV behind them. */
         fun factoryFor(

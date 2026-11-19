@@ -16,6 +16,8 @@ import androidx.compose.ui.semantics.getOrNull
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.playback.RemotePlayback
+import expo.modules.mpvplayer.cast.receiver.ReceiverItem
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.cast.target.FakeCastDevices
 import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
@@ -27,6 +29,7 @@ import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
 import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.RemotePlayerFailureRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
@@ -348,6 +351,19 @@ class RemotePlayerSessionTest {
         assertFalse(hasScreen())
     }
 
+    // The SDK keeps a TV's finished status: Play on the next item opens the screen before its load leaves, and the
+    // end of the item before must not close it.
+    @Test
+    fun aScreenOpenedOnAFinishedTvStaysForTheNextLoad() {
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        presented()
+
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" || it.first == "onPlaybackEnded" })
+    }
+
     // The next episode is known: the screen stays for the card that offers it, no countdown and no question.
     @Test
     fun anEndWithANextEpisodeKeepsTheScreen() {
@@ -398,6 +414,99 @@ class RemotePlayerSessionTest {
         playback.onError("Could not play there")
 
         assertEquals("Could not play there", session.screenState!!.model.failure)
+    }
+
+    private fun failure(message: String, canPlayHere: Boolean = true) = RemotePlayerFailureRecord().also {
+        it.message = message
+        it.canPlayHere = canPlayHere
+    }
+
+    private val server = ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1", "Bench TV")
+
+    // A send JS says failed shows under the title with Play here, through a progress tick and a pause, until the TV
+    // loads something else; null takes it away.
+    @Test
+    fun aFailureIsShownUntilTheNextLoad() {
+        val session = presented()
+
+        session.showFailure(failure("The TV could not play this"))
+        engine.delegate?.onPositionChanged(4.0, 60.0, 0.0)
+        assertEquals("The TV could not play this", session.screenState!!.model.failure)
+        assertTrue(session.screenState!!.model.canPlayHere)
+
+        playback.load(server, ReceiverPlayRequest(listOf(ReceiverItem("episode-2")))) {}
+        assertNull(session.screenState!!.model.failure)
+        assertFalse(session.screenState!!.model.canPlayHere)
+
+        session.showFailure(failure("Again", canPlayHere = false))
+        assertEquals("Again", session.screenState!!.model.failure)
+        assertFalse(session.screenState!!.model.canPlayHere)
+        session.showFailure(null)
+        assertNull(session.screenState!!.model.failure)
+    }
+
+    // The TV playing again takes the failure away too, the engine's own error with it (it used to stay for good).
+    @Test
+    fun aFailureClearsWhenTheTvPlaysAgain() {
+        val session = presented()
+        playback.onError("Could not play there")
+        assertEquals("Could not play there", session.screenState!!.model.failure)
+
+        engine.play()
+
+        assertNull(session.screenState!!.model.failure)
+    }
+
+    @Test
+    fun playHereAsksJsWithThePosition() {
+        engine.seekTo(42.0)
+        val session = presented()
+        session.showFailure(failure("The TV could not play this"))
+        events.clear()
+
+        session.screenState!!.playHere()
+
+        assertEquals(listOf("onPlayHereRequested" to mapOf<String, Any?>("positionSec" to 42.0, "remote" to true)), events)
+        assertTrue(hasScreen())
+    }
+
+    // A new send while the screen is up replaces its whole config in place: metadata, the TV's name, the tracks,
+    // the tint, and drops the failure. Nothing closes, and the screen stays on where the TV is.
+    @Test
+    fun anUpdateReplacesTheWholeConfigWithoutClosing() {
+        engine.seekTo(20.0)
+        val session = presented(configure = {
+            it.tracks = TrackMenusRecord().also { tracks -> tracks.audio = listOf(track("English", 1, selected = true)) }
+            it.tint = RemoteTintRecord().also { tint -> tint.top = "#1F3340"; tint.bottom = "#0E1A21"; tint.accent = "#C9A7FB" }
+        })
+        session.showFailure(failure("The TV could not play this"))
+        events.clear()
+
+        val updated = session.update(RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Next episode" }
+            it.targetName = "Kitchen TV"
+        })
+        shadowOf(getMainLooper()).idle()
+
+        assertTrue(updated)
+        assertTrue(hasScreen())
+        assertEquals(0, tornDown)
+        assertFalse(events.any { it.first == "onDismiss" })
+        assertEquals("Next episode", session.viewModel.metadata?.title)
+        assertEquals(TargetLabel.Name("Kitchen TV"), session.screenState!!.model.targetLabel)
+        assertEquals(emptyList<TrackMenuItemRecord>(), session.viewModel.audioMenu)
+        assertEquals(RemoteColors.of(null, null, null), session.screenState!!.colors)
+        assertNull(session.screenState!!.model.failure)
+        assertEquals(20.0, session.viewModel.authoritativePosition, 0.0)
+    }
+
+    @Test
+    fun anUpdateWithNoScreenUpAnswersFalse() {
+        val session = presented()
+        session.dismiss("closeButton")
+        shadowOf(getMainLooper()).idle()
+
+        assertFalse(session.update(RemotePlayerConfigRecord()))
     }
 
     // A control the TV's state leaves inactive is said disabled to TalkBack, which then runs none of its actions.

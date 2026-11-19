@@ -109,6 +109,12 @@ object ReceiverProtocol {
     const val UNCAPPED_BITRATE = 120_000_000L
     const val TICKS_PER_SECOND = 10_000_000L
 
+    /**
+     * A whole count JS sent as a number (a cap, ticks): none for no number, an infinity or one below zero, which a
+     * cap of zero would not say. Past Long the largest Long.
+     */
+    fun wholeFromJs(value: Double?): Long? = value?.takeIf { it.isFinite() && it >= 0 }?.toLong()
+
     /** A playlist, an artist or a genre plays through children the receiver picks, as any folder does. */
     private val CONTAINER_TYPES = setOf("Playlist", "MusicArtist", "MusicGenre")
 

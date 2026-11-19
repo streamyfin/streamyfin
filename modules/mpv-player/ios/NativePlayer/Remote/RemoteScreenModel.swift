@@ -36,17 +36,33 @@ struct RemoteScreenModel: Equatable {
 	var nextUpVisible: Bool
 	/// A failure, shown whatever the rest says.
 	var failure: String?
+	/// The failure offers to play on the phone instead.
+	var canPlayHere: Bool
 	var closes: RemoteClose?
 
+	/// Whether a failure shown while the TV was at `from` goes as it moves to `to`: the TV loads again or plays
+	/// again. A TV already loading when the failure came (a timed out load) keeps it until it plays.
+	static func failureClears(from: RemotePhase, to: RemotePhase) -> Bool {
+		from != to && (to == .loading || to == .playing)
+	}
+
+	/// Whether the screen has seen the TV hold an item since it opened or took a new config, once the TV is at
+	/// `phase`. Until then an end is the item before's (the SDK keeps a finished status), not this screen's.
+	static func sawPlayback(before: Bool, phase: RemotePhase) -> Bool {
+		before || phase == .playing || phase == .paused
+	}
+
 	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not
-	/// know, so there are no track menus.
+	/// know, so there are no track menus. `canPlayHere` only counts with a `failure`. `sawPlayback`: see
+	/// `sawPlayback(before:phase:)`; an end the screen never saw play neither closes it nor offers the next episode.
 	static func of(
-		_ snapshot: RemotePlaybackSnapshot, targetName: String?, hasNext: Bool, reduced: Bool, failure: String?
+		_ snapshot: RemotePlaybackSnapshot, targetName: String?, hasNext: Bool, reduced: Bool, failure: String?,
+		canPlayHere: Bool = false, sawPlayback: Bool = true
 	) -> RemoteScreenModel {
 		let reconnecting = snapshot.reconnecting
 		// Something is loaded on the TV, so a seek or a track change has something to act on.
 		let itemLoaded = [.loading, .playing, .paused].contains(snapshot.phase)
-		let ended = snapshot.phase == .ended
+		let ended = snapshot.phase == .ended && sawPlayback
 		let closes: RemoteClose?
 		if !snapshot.connected {
 			closes = .remoteEnded
@@ -64,6 +80,7 @@ struct RemoteScreenModel: Equatable {
 			playShowsSpinner: !reconnecting && (snapshot.phase == .loading || snapshot.phase == .between),
 			nextUpVisible: snapshot.connected && ended && hasNext,
 			failure: failure,
+			canPlayHere: failure != nil && canPlayHere,
 			closes: closes
 		)
 	}

@@ -25,6 +25,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -169,9 +173,10 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
         }
         RemoteSlot.TITLES -> RemoteTitles(viewModel, compact = false, modifier = Modifier.fillMaxWidth())
         RemoteSlot.BAR -> Column(Modifier.fillMaxWidth()) {
-            // A failure is said above the bar, whatever the TV does.
+            // A failure is said above the bar, whatever the TV does, with Play here when it offers it.
             model.failure?.let { message ->
                 Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                if (model.canPlayHere) PlayHereButton(viewModel.strings.get("playHere", "Play here"), screen::playHere)
             }
             RemoteBar(viewModel, enabled = model.seekEnabled, modifier = Modifier.inert(!model.seekEnabled))
         }
@@ -228,3 +233,21 @@ private fun Modifier.closeOnDragDown(viewModel: PlayerViewModel, columnScroll: S
             if (close) viewModel.close()
         }
     }
+
+/** The failure's way out: plays on the phone from where the TV is. */
+@Composable
+private fun PlayHereButton(label: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White.copy(alpha = PlayerConstants.REMOTE_PLAY_HERE_FILL_ALPHA),
+            contentColor = Color.White,
+        ),
+        shape = RoundedCornerShape(percent = 50),
+        modifier = Modifier
+            .padding(bottom = 8.dp)
+            .heightIn(min = PlayerConstants.REMOTE_BUTTON_SMALL_DP.dp),
+    ) {
+        Text(text = label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    }
+}

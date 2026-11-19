@@ -211,4 +211,18 @@ class ReceiverProtocolVectorsTest {
             if (expected.has("error")) assertEquals(expected.getString("error"), (outcome as ReceiverLoadOutcome.Failed).error.wireName)
         }
     }
+
+    // JS numbers are doubles: a cap or a tick count that is no number, an infinity or below zero is none, not a
+    // crash (Swift's Int64(Double) traps on them) and not a zero cap.
+    @Test
+    fun aNumberFromJsIsWholeOrNone() {
+        assertEquals(8_000_000L, ReceiverProtocol.wholeFromJs(8_000_000.0))
+        assertEquals(12L, ReceiverProtocol.wholeFromJs(12.9))
+        assertEquals(0L, ReceiverProtocol.wholeFromJs(0.0))
+        assertEquals(null, ReceiverProtocol.wholeFromJs(null))
+        assertEquals(null, ReceiverProtocol.wholeFromJs(Double.NaN))
+        assertEquals(null, ReceiverProtocol.wholeFromJs(Double.POSITIVE_INFINITY))
+        assertEquals(null, ReceiverProtocol.wholeFromJs(-1.0))
+        assertEquals(Long.MAX_VALUE, ReceiverProtocol.wholeFromJs(1e30))
+    }
 }

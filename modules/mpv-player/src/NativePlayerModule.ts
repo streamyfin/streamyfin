@@ -20,6 +20,7 @@ import type {
 } from "./NativePlayerPresentation.types";
 
 import type {
+  RemotePlayerFailure,
   RemotePlayerPresentConfig,
   RemotePlayerTint,
 } from "./RemotePlayerPresentation.types";
@@ -28,6 +29,10 @@ export declare class NativePlayerModuleType extends NativeModule<NativePlayerEve
   presentPlayer(config: NativePlayerConfig): Promise<void>;
   presentRemotePlayer(config: RemotePlayerPresentConfig): Promise<void>;
   updateRemotePlayerTint(tint: RemotePlayerTint): Promise<void>;
+  /** The whole config of the remote screen up, in place; false when none is up. */
+  updateRemotePlayer(config: RemotePlayerPresentConfig): Promise<boolean>;
+  /** A failed send on the remote screen; null takes it away. */
+  showRemotePlayerFailure(failure: RemotePlayerFailure | null): Promise<void>;
   load(config: NativePlayerConfig): Promise<void>;
   dismiss(): Promise<void>;
   isPresented(): boolean;

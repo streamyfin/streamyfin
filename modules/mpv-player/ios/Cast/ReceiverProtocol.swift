@@ -91,6 +91,13 @@ enum ReceiverProtocol {
   static let uncappedBitrate: Int64 = 120_000_000
   static let ticksPerSecond = 10_000_000.0
 
+  /// A whole count JS sent as a number (a cap, ticks): none for no number, an infinity or one below zero, which a
+  /// cap of zero would not say. Int64(Double) traps on those and past Int64, which gives the largest Int64 here.
+  static func whole(fromJs value: Double?) -> Int64? {
+    guard let value, value.isFinite, value >= 0 else { return nil }
+    return value >= Double(Int64.max) ? Int64.max : Int64(value)
+  }
+
   /// A playlist, an artist or a genre sent first plays through its children, as any folder does.
   private static let containerTypes: Set<String> = ["Playlist", "MusicArtist", "MusicGenre"]
 
@@ -330,6 +337,12 @@ enum ReceiverLoadOutcome {
     case .superseded: return "superseded"
     }
   }
+}
+
+/// How a load ended: settled by what the receiver reported, or never sent.
+enum CastLoadResult {
+  case settled(ReceiverLoadOutcome)
+  case notSent(String)
 }
 
 /// Settles one PlayNow from what the receiver reports, the first event winning. Sending only means

@@ -238,6 +238,13 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	/// Called on the main thread when anything but the position changed: phase, item, list, index, a track,
 	/// `reconnecting`.
 	var onStateChanged: (() -> Void)? { get set }
+	/// The account's server for the commands that follow, sending nothing now. It names no cap (Auto is measured
+	/// at a send): the cap stays the one the last load or reload named.
+	func useServer(_ server: ReceiverServer)
+	/// Plays `request` on the TV under `server`, which the commands that follow carry; a newer load supersedes it.
+	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void)
+	/// The item again where it is, under `server`: how a quality change applies its new cap.
+	func reloadCurrentItem(server: ReceiverServer)
 }
 
 /// Whether the chrome offers picture in picture: only an engine with a screen that can float.

@@ -24,6 +24,14 @@ export interface NativePlayerDoubleState {
   remoteRefusal: Error | null;
   /** Tints handed to `updateRemotePlayerTint`, in order. */
   remoteTints: unknown[];
+  /** Configs handed to `updateRemotePlayer`, in order. */
+  remoteUpdates: unknown[];
+  /** What `updateRemotePlayer` answers: false is no remote screen up. */
+  remoteUpdateAnswer: boolean;
+  /** Failures handed to `showRemotePlayerFailure`, in order, null for a clear. */
+  remoteFailures: unknown[];
+  /** Calls to `dismiss`, which closes whichever player is up. */
+  dismissals: number;
   listeners: Map<string, Listener[]>;
 }
 
@@ -32,6 +40,10 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   remotePresented: [],
   remoteRefusal: null,
   remoteTints: [],
+  remoteUpdates: [],
+  remoteUpdateAnswer: true,
+  remoteFailures: [],
+  dismissals: 0,
   listeners: new Map(),
 });
 
@@ -58,6 +70,16 @@ export const nativePlayerDoubleModule = (
   }),
   updateRemotePlayerTint: jest.fn(async (tint: unknown) => {
     state().remoteTints.push(tint);
+  }),
+  updateRemotePlayer: jest.fn(async (config: unknown) => {
+    state().remoteUpdates.push(config);
+    return state().remoteUpdateAnswer;
+  }),
+  showRemotePlayerFailure: jest.fn(async (failure: unknown) => {
+    state().remoteFailures.push(failure);
+  }),
+  dismiss: jest.fn(async () => {
+    state().dismissals += 1;
   }),
   isPresented: jest.fn(() => false),
   addListener: jest.fn((event: string, listener: Listener) => {

@@ -218,6 +218,16 @@ enum ReceiverProtocolTests {
 		let textSeek = ReceiverProtocol.message(command: "Seek", server: refusalServer, options: ["position": "125.6"])
 		check("swift", "a Seek position that is not a number is sent as it is", (textSeek["options"] as? [String: Any])?["position"] as? String == "125.6")
 
+		// JS numbers are doubles: a cap or a tick count that is no number, an infinity or below zero is none, not a
+		// crash (Int64(Double) traps on them) and not a zero cap. Same cases as aNumberFromJsIsWholeOrNone.
+		check(
+			"swift", "aNumberFromJsIsWholeOrNone",
+			ReceiverProtocol.whole(fromJs: 8_000_000) == 8_000_000 && ReceiverProtocol.whole(fromJs: 12.9) == 12
+				&& ReceiverProtocol.whole(fromJs: 0) == 0 && ReceiverProtocol.whole(fromJs: nil) == nil
+				&& ReceiverProtocol.whole(fromJs: .nan) == nil && ReceiverProtocol.whole(fromJs: .infinity) == nil
+				&& ReceiverProtocol.whole(fromJs: -1) == nil && ReceiverProtocol.whole(fromJs: 1e30) == Int64.max
+		)
+
 		if failures.isEmpty {
 			print("PASS: receiver protocol vectors (\(cases) cases)")
 		} else {

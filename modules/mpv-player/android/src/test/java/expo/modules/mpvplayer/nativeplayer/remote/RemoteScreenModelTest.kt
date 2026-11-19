@@ -19,7 +19,17 @@ class RemoteScreenModelTest {
         hasNext: Boolean = false,
         reduced: Boolean = false,
         failure: String? = null,
-    ) = RemoteScreenModel.of(snapshot, targetName = "Bench TV", hasNext = hasNext, reduced = reduced, failure = failure)
+        canPlayHere: Boolean = false,
+        sawPlayback: Boolean = true,
+    ) = RemoteScreenModel.of(
+        snapshot,
+        targetName = "Bench TV",
+        hasNext = hasNext,
+        reduced = reduced,
+        failure = failure,
+        canPlayHere = canPlayHere,
+        sawPlayback = sawPlayback,
+    )
 
     @Test
     fun aPlayingTvLeavesEveryControlOn() {
@@ -85,6 +95,28 @@ class RemoteScreenModelTest {
         assertEquals(RemoteClose.PLAYBACK_ENDED, screen.closes)
     }
 
+    // A screen opened on a TV still on the end of the item before: that end is not this screen's.
+    @Test
+    fun anEndTheScreenNeverSawPlayKeepsItOpen() {
+        val alone = model(tv(RemotePhase.ENDED), sawPlayback = false)
+        val withNext = model(tv(RemotePhase.ENDED), hasNext = true, sawPlayback = false)
+
+        assertNull(alone.closes)
+        assertNull(withNext.closes)
+        assertFalse(withNext.nextUpVisible)
+    }
+
+    @Test
+    fun theScreenSeesPlaybackOnceTheTvHoldsTheItem() {
+        assertTrue(RemoteScreenModel.sawPlayback(false, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.sawPlayback(false, RemotePhase.PAUSED))
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.ENDED))
+        // A load that fails falls back to the end before: still not this screen's.
+        assertFalse(RemoteScreenModel.sawPlayback(false, RemotePhase.NONE))
+        assertTrue(RemoteScreenModel.sawPlayback(true, RemotePhase.ENDED))
+    }
+
     @Test
     fun aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
         val screen = model(tv(RemotePhase.STOPPED))
@@ -118,6 +150,29 @@ class RemoteScreenModelTest {
         assertFalse(screen.trackMenusEnabled)
         assertTrue(screen.seekEnabled)
         assertTrue(screen.transportEnabled)
+    }
+
+    // Play here goes with a failure that offers it, never alone.
+    @Test
+    fun aFailureOffersPlayHereOnlyWhenItSaysSo() {
+        assertTrue(model(tv(RemotePhase.STOPPED), failure = "Could not play there", canPlayHere = true).canPlayHere)
+        assertFalse(model(tv(RemotePhase.STOPPED), failure = "Could not play there").canPlayHere)
+        assertFalse(model(tv(RemotePhase.STOPPED), canPlayHere = true).canPlayHere)
+    }
+
+    // A failure stays until the TV loads again or plays again: a change into loading or playing, not a TV that was
+    // already there when the failure came (a timed out load still loading).
+    @Test
+    fun aFailureClearsWhenTheTvLoadsOrPlaysAgain() {
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.STOPPED, RemotePhase.LOADING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.PAUSED, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.PLAYING))
+        assertTrue(RemoteScreenModel.failureClears(RemotePhase.NONE, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.LOADING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.PLAYING))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.PAUSED))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.LOADING, RemotePhase.STOPPED))
+        assertFalse(RemoteScreenModel.failureClears(RemotePhase.PLAYING, RemotePhase.BETWEEN))
     }
 
     @Test

@@ -1,8 +1,14 @@
 package expo.modules.mpvplayer.nativeplayer.remote
 
 import expo.modules.mpvplayer.cast.engine.CastEngineConstants
+import expo.modules.mpvplayer.cast.engine.CastLoadResult
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.engine.RecordingDelegate
+import expo.modules.mpvplayer.cast.receiver.ReceiverItem
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadError
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RemotePhase
@@ -187,5 +193,64 @@ class FakeRemoteEngineTest {
         engine.play()
         assertEquals(RemotePhase.PLAYING, engine.phase)
         assertEquals(2.0, engine.currentPosition, 0.0)
+    }
+
+    // What JS asks for is what the fake plays: loading for the fake's load time, then the items asked, each as
+    // long as a default one, from the start asked.
+    @Test
+    fun theFakeEnginePlaysWhatItIsAskedToLoad() {
+        started()
+        val results = mutableListOf<CastLoadResult>()
+        val request = ReceiverPlayRequest(
+            items = listOf(ReceiverItem(id = "ep-1"), ReceiverItem(id = "ep-2")),
+            startIndex = 1,
+            startPositionTicks = 300_000_000L,
+        )
+        engine.load(SERVER, request) { results += it }
+        assertEquals(RemotePhase.LOADING, engine.phase)
+        assertEquals(true, delegate.loadings.last())
+        assertTrue(results.isEmpty())
+
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+        assertEquals(RemotePhase.PLAYING, engine.phase)
+        assertEquals(listOf("ep-1", "ep-2"), engine.queueItemIds)
+        assertEquals(1, engine.playingIndex)
+        assertEquals("ep-2", engine.currentItemId)
+        assertEquals(30.0, engine.currentPosition, 0.0)
+        assertEquals(PlayerConstants.FAKE_REMOTE_ITEM_SEC, engine.duration, 0.0)
+        assertEquals(false, delegate.loadings.last())
+    }
+
+    @Test
+    fun theFakeEngineFailsOnDemand() {
+        started()
+        val results = mutableListOf<CastLoadResult>()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = PlayerConstants.FAKE_REMOTE_FAIL_ID)))) { results += it }
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+
+        val failed = results.single() as CastLoadResult.Settled
+        assertEquals(ReceiverLoadError.PLAYBACK_FAILED, (failed.outcome as ReceiverLoadOutcome.Failed).error)
+        assertEquals(RemotePhase.NONE, engine.phase)
+        assertEquals(null, engine.currentItemId)
+        assertEquals(false, delegate.loadings.last())
+    }
+
+    // Two loads that cross: the first answers superseded, the TV plays the second.
+    @Test
+    fun theFakeEngineSupersedesALoadWithTheNextOne() {
+        started()
+        val first = mutableListOf<CastLoadResult>()
+        val second = mutableListOf<CastLoadResult>()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "ep-1")))) { first += it }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "ep-2")))) { second += it }
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), first)
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), second)
+        assertEquals("ep-2", engine.currentItemId)
+    }
+
+    private companion object {
+        val SERVER = ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1")
     }
 }

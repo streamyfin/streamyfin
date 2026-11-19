@@ -233,6 +233,7 @@ export type NativePlayerStrings = Partial<
     | "unlock"
     | "stillWatching"
     | "continueWatching"
+    | "playHere"
     | "goBack"
     | "endsAt"
     | "zoomToFill"
@@ -516,4 +517,6 @@ export type NativePlayerEvents = {
     itemId?: string;
     wasPlaying?: boolean;
   }) => void;
+  /** The remote player only: Play here under a failed send, from the TV's position. */
+  onPlayHereRequested: (payload: { positionSec: number }) => void;
 };

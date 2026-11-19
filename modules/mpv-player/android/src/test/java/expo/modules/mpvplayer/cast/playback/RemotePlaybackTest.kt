@@ -1,8 +1,14 @@
 package expo.modules.mpvplayer.cast.playback
 
 import expo.modules.mpvplayer.cast.engine.CastEngineConstants
+import expo.modules.mpvplayer.cast.engine.CastLoadResult
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.engine.RecordingDelegate
+import expo.modules.mpvplayer.cast.receiver.ReceiverItem
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadError
+import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
+import expo.modules.mpvplayer.cast.receiver.ReceiverMessage
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.cast.target.RemoteTarget
 import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
@@ -42,6 +48,19 @@ private class RecordingRemoteEngine(private val inner: FakeRemoteEngine) : Remot
     override fun skipToNext() { calls += "skipToNext"; inner.skipToNext() }
     override fun skipToPrevious() { calls += "skipToPrevious"; inner.skipToPrevious() }
     override fun setTargetVolume(level: Double) { calls += "setTargetVolume"; inner.setTargetVolume(level) }
+
+    /** The servers the engine was handed, the load's and the reload's included. */
+    val servers = mutableListOf<ReceiverServer>()
+
+    override fun useServer(server: ReceiverServer) { calls += "useServer"; servers += server; inner.useServer(server) }
+
+    override fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) {
+        calls += "load"
+        servers += server
+        inner.load(server, request, onResult)
+    }
+
+    override fun reloadCurrentItem(server: ReceiverServer) { calls += "reload"; servers += server; inner.reloadCurrentItem(server) }
 
     /** What reached the TV: everything but binding to it and letting go of it. */
     val sent get() = calls - setOf("start", "stop")
@@ -201,7 +220,89 @@ class RemotePlaybackTest {
         assertSame(real, RemotePlayback.factoryFor(fake = false, real = { real }, fakeEngine = { fake })(SERVER))
     }
 
+    // JS loads through the holder, on the engine of the session: the answer is the engine's.
+    @Test
+    fun aLoadGoesThroughTheEngineAndAnswersItsOutcome() {
+        val engine = connected()
+        val results = mutableListOf<CastLoadResult>()
+        playback.load(CAPPED, REQUEST) { results += it }
+        assertEquals(RemotePhase.LOADING, published.last().phase)
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+        assertSame(engine, playback.engine)
+        assertEquals(listOf(CAPPED), made.single().servers)
+        assertEquals("ep-1", published.last().itemId)
+        assertEquals(listOf("ep-1", "ep-2"), published.last().queueItemIds)
+    }
+
+    @Test
+    fun aLoadWithNoEngineIsNotSent() {
+        playback.setServer(SERVER)
+        val results = mutableListOf<CastLoadResult>()
+        playback.load(CAPPED, REQUEST) { results += it }
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.NotSent(RemotePlayback.NO_ENGINE_ERROR)), results)
+        assertTrue(made.isEmpty())
+    }
+
+    // Two presses on Play that cross: the first is replaced without a word, the TV plays the second.
+    @Test
+    fun aSecondLoadSupersedesTheFirst() {
+        connected()
+        val first = mutableListOf<CastLoadResult>()
+        val second = mutableListOf<CastLoadResult>()
+        playback.load(CAPPED, REQUEST) { first += it }
+        playback.load(CAPPED, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "film-1")))) { second += it }
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), first)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), second)
+        assertEquals("film-1", published.last().itemId)
+    }
+
+    // Another server while the engine lives (an address switched on another network, the TV renamed): the open
+    // screen keeps the engine, which carries the new envelope from its next command, and nothing reaches the TV.
+    @Test
+    fun anotherServerGoesToTheEngineItHas() {
+        val engine = connected()
+        playback.attachScreen(screen)
+        val renamed = SERVER.copy(receiverName = "Den TV")
+        playback.setServer(renamed)
+        assertSame(engine, playback.engine)
+        assertEquals(1, made.size)
+        assertEquals(listOf("start", "useServer"), made.single().calls)
+        assertEquals(listOf(renamed), made.single().servers)
+        assertTrue(playback.snapshot.connected)
+    }
+
+    @Test
+    fun aReloadGoesToTheEngineUnderTheServerGiven() {
+        connected()
+        playback.reload(CAPPED)
+        assertEquals(listOf("start", "reload"), made.single().calls)
+        assertEquals(listOf(CAPPED), made.single().servers)
+        // Without an engine, nothing to reload and nothing made.
+        playback.setServer(null)
+        playback.reload(CAPPED)
+        assertEquals(1, made.size)
+    }
+
+    // What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a
+    // load that never left.
+    @Test
+    fun aLoadResultReachesJsByItsOutcomeName() {
+        fun js(result: CastLoadResult) = RemotePlayback.resultForJs(result)
+        assertEquals(mapOf("outcome" to "loaded"), js(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)))
+        assertEquals(mapOf("outcome" to "superseded"), js(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)))
+        assertEquals(mapOf("outcome" to "timedOut"), js(CastLoadResult.Settled(ReceiverLoadOutcome.TimedOut)))
+        assertEquals(
+            mapOf("outcome" to "failed", "error" to "playback_info_failed"),
+            js(CastLoadResult.Settled(ReceiverLoadOutcome.Failed(ReceiverLoadError.PLAYBACK_INFO_FAILED, ReceiverMessage.Unparsed("x")))),
+        )
+        assertEquals(mapOf("outcome" to "notSent", "error" to "receiver busy"), js(CastLoadResult.NotSent("receiver busy")))
+    }
+
     private companion object {
         val SERVER = ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1", "Living Room TV")
+        val CAPPED = SERVER.copy(maxBitrate = 8_000_000L)
+        val REQUEST = ReceiverPlayRequest(items = listOf(ReceiverItem(id = "ep-1"), ReceiverItem(id = "ep-2")))
     }
 }

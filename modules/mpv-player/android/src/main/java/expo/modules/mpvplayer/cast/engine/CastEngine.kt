@@ -326,11 +326,15 @@ class CastEngine(
         delegate?.onError(URL_LOAD_ERROR)
     }
 
+    override fun useServer(server: ReceiverServer) = runOnMain {
+        this.server = server.copy(maxBitrate = server.maxBitrate ?: this.server.maxBitrate)
+    }
+
     /**
      * Plays [request] on the receiver, the way JS does (spec §5.2): one PlayNow, settled by what the
      * receiver reports, the first event winning, or never sent. A newer load supersedes this one.
      */
-    fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
+    override fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
         if (session?.isConnected != true) {
             onResult(CastLoadResult.NotSent(NO_SESSION_ERROR))
             return@runOnMain
@@ -392,7 +396,7 @@ class CastEngine(
     override fun reloadCurrentItem() = runOnMain { reloadCurrent() }
 
     /** The item again where it is, under [server]: how a quality change applies the envelope's new cap. */
-    fun reloadCurrentItem(server: ReceiverServer) = runOnMain {
+    override fun reloadCurrentItem(server: ReceiverServer) = runOnMain {
         this.server = server
         reloadCurrent()
     }

@@ -9,6 +9,8 @@ import {
   addRemotePlayerListener,
   isRemotePlayerAvailable,
   presentRemotePlayer,
+  showRemotePlayerFailure,
+  updateRemotePlayer,
   updateRemotePlayerTint,
 } from "./RemotePlayerPresentation";
 import type { RemotePlayerPresentConfig } from "./RemotePlayerPresentation.types";
@@ -79,6 +81,47 @@ describe("updateRemotePlayerTint", () => {
   });
 });
 
+describe("updateRemotePlayer", () => {
+  it("updateRemotePlayer passes the config to native", async () => {
+    const next = { ...config, targetName: "Kitchen TV" };
+
+    await expect(updateRemotePlayer(next)).resolves.toBe(true);
+    mockPlayer.remoteUpdateAnswer = false;
+    await expect(updateRemotePlayer(config)).resolves.toBe(false);
+
+    expect(mockPlayer.remoteUpdates).toEqual([next, config]);
+    expect(mockPlayer.remotePresented).toEqual([]);
+  });
+
+  it("answers false on TV and sends nothing", async () => {
+    stubReactNative({ OS: "android", isTV: true });
+
+    await expect(updateRemotePlayer(config)).resolves.toBe(false);
+    expect(mockPlayer.remoteUpdates).toEqual([]);
+  });
+});
+
+describe("showRemotePlayerFailure", () => {
+  it("showRemotePlayerFailure passes the failure and clears it with null", async () => {
+    const failure = {
+      message: "The TV could not play this",
+      canPlayHere: true,
+    };
+
+    await showRemotePlayerFailure(failure);
+    await showRemotePlayerFailure(null);
+
+    expect(mockPlayer.remoteFailures).toEqual([failure, null]);
+  });
+
+  it("sends nothing on TV", async () => {
+    stubReactNative({ OS: "android", isTV: true });
+
+    await showRemotePlayerFailure({ message: "x", canPlayHere: false });
+    expect(mockPlayer.remoteFailures).toEqual([]);
+  });
+});
+
 describe("remote events", () => {
   it("a remote event never reaches a local player listener", () => {
     const local = jest.fn();
@@ -118,5 +161,17 @@ describe("remote events", () => {
       reason: "programmatic",
       remote: true,
     });
+  });
+
+  it("Play here reaches a remote listener with the TV's position", () => {
+    const playHere = jest.fn();
+    addRemotePlayerListener("onPlayHereRequested", playHere);
+
+    emitNativePlayerEvent(mockPlayer, "onPlayHereRequested", {
+      positionSec: 42,
+      remote: true,
+    });
+
+    expect(playHere).toHaveBeenCalledWith({ positionSec: 42, remote: true });
   });
 });

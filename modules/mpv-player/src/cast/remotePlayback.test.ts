@@ -6,11 +6,14 @@ import {
 } from "@/test-utils/cast";
 import {
   NO_REMOTE_PLAYBACK,
+  type ReceiverPlayRequest,
   type ReceiverServerRecord,
   type RemotePlaybackState,
 } from "./Cast.types";
 import {
+  loadOnReceiver,
   onRemotePlaybackChanged,
+  reloadOnReceiver,
   remotePlayback,
   setRemoteServer,
   useRemotePlayback,
@@ -47,6 +50,12 @@ const server: ReceiverServerRecord = {
   accessToken: "tok-123",
   userId: "user-1",
   receiverName: "Living Room TV",
+};
+
+const request: ReceiverPlayRequest = {
+  items: [{ id: "episode-1", name: "Pilot", type: "Episode", isFolder: false }],
+  startPositionTicks: 600_000_000,
+  audioStreamIndex: 1,
 };
 
 beforeEach(() => {
@@ -97,4 +106,36 @@ test("nothing happens without the module", async () => {
   subscription.remove();
   expect(mockCast.remoteServerCalls).toEqual([]);
   expect(mockCast.listeners.onRemotePlaybackChanged).toHaveLength(0);
+});
+
+test("loadOnReceiver answers the native outcome", async () => {
+  const capped = { ...server, maxBitrate: 8_000_000 };
+  mockCast.loadAnswer = { outcome: "failed", error: "playback_failed" };
+  await expect(loadOnReceiver(capped, request)).resolves.toEqual({
+    outcome: "failed",
+    error: "playback_failed",
+  });
+  mockCast.loadAnswer = { outcome: "loaded" };
+  await expect(loadOnReceiver(capped, request)).resolves.toEqual({
+    outcome: "loaded",
+  });
+  expect(mockCast.loadCalls).toEqual([
+    { server: capped, request },
+    { server: capped, request },
+  ]);
+});
+
+test("reloadOnReceiver hands native the server", async () => {
+  await reloadOnReceiver({ ...server, maxBitrate: 4_000_000 });
+  expect(mockCast.reloadCalls).toEqual([{ ...server, maxBitrate: 4_000_000 }]);
+});
+
+test("it answers notSent without the module", async () => {
+  mockMissing = true;
+  const result = await loadOnReceiver(server, request);
+  expect(result.outcome).toBe("notSent");
+  expect(result.error).toEqual(expect.any(String));
+  await expect(reloadOnReceiver(server)).resolves.toBeUndefined();
+  expect(mockCast.loadCalls).toEqual([]);
+  expect(mockCast.reloadCalls).toEqual([]);
 });

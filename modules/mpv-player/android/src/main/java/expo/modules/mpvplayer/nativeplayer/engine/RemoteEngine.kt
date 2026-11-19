@@ -1,5 +1,9 @@
 package expo.modules.mpvplayer.nativeplayer.engine
 
+import expo.modules.mpvplayer.cast.engine.CastLoadResult
+import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
+
 /**
  * Where the TV is in what it plays, as the remote screen shows it. [BETWEEN]: an item just finished
  * and the TV fetches the next one of its list. [STOPPED]: stopped before the end, the session holds,
@@ -20,4 +24,16 @@ interface RemoteEngine : ChromeEngine {
 
     /** Called on the main thread when anything but the position changed: phase, item, list, index, a track, [reconnecting]. */
     var onStateChanged: (() -> Unit)?
+
+    /**
+     * The account's server for the commands that follow, sending nothing now. It names no cap (Auto is measured
+     * at a send): the cap stays the one the last load or reload named.
+     */
+    fun useServer(server: ReceiverServer)
+
+    /** Plays [request] on the TV under [server], which the commands that follow carry; a newer load supersedes it. */
+    fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit)
+
+    /** The item again where it is, under [server]: how a quality change applies its new cap. */
+    fun reloadCurrentItem(server: ReceiverServer)
 }

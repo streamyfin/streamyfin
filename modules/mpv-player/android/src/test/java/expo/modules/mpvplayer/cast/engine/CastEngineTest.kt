@@ -488,6 +488,48 @@ class CastEngineTest {
         assertEquals(listOf(30_000L), media.seeks)
     }
 
+    // Two presses on Play that cross: the first answers superseded and loading never blinks off between them.
+    @Test
+    fun aSecondLoadSupersedesTheFirst() {
+        val engine = engine()
+        val first = engine.loadRecorded()
+        val second = mutableListOf<CastLoadResult>()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-2")))) { second += it }
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), first)
+        assertEquals(listOf(true), delegate.loadings)
+        media.report(snapshot(customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")))
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), second)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+    }
+
+    // The account's server changed under a live engine: nothing is sent then, the next command carries it.
+    @Test
+    fun aNewServerIsUsedByTheNextCommand() {
+        val engine = playing()
+        val sent = port.sent.size
+        engine.useServer(SERVER.copy(accessToken = "tok-other", maxBitrate = 4_000_000))
+        assertEquals(sent, port.sent.size)
+        engine.skipToNext()
+        val last = JSONObject(port.sent.last().second)
+        assertEquals("NextTrack", last.getString("command"))
+        assertEquals("tok-other", last.getString("accessToken"))
+        assertEquals(4_000_000L, last.getLong("maxBitrate"))
+    }
+
+    // The account's server names no cap, which only a load knows (Auto measures at the send): the cap stays the
+    // last load's, so a command from the remote screen does not lift it.
+    @Test
+    fun aServerWithoutACapKeepsTheCapOfTheLastLoad() {
+        val engine = engine()
+        engine.load(SERVER.copy(maxBitrate = 3_000_000), request) {}
+        media.report(snapshot())
+        engine.useServer(SERVER.copy(accessToken = "tok-other", maxBitrate = null))
+        engine.skipToNext()
+        val last = JSONObject(port.sent.last().second)
+        assertEquals("tok-other", last.getString("accessToken"))
+        assertEquals(3_000_000L, last.getLong("maxBitrate"))
+    }
+
     @Test
     fun aBusErrorOutsideALoadReportsItsWireName() {
         playing()

@@ -22,6 +22,17 @@ export type RemotePlayerTint = {
 };
 
 /**
+ * A send that failed, as the remote screen says it under the title; with
+ * `canPlayHere`, its Play here button plays on the phone from where the TV
+ * is (`onPlayHereRequested`). Mirrored by RemotePlayerFailureRecord
+ * (PlayerConfig.kt, .swift).
+ */
+export type RemotePlayerFailure = {
+  message: string;
+  canPlayHere: boolean;
+};
+
+/**
  * What the remote player shows of what the TV plays: the local player's
  * config without a stream or an engine, since the remote engine plays it on
  * the TV. Mirrored by RemotePlayerConfigRecord (PlayerConfig.kt, .swift).

@@ -77,7 +77,8 @@ class NativePlayerModule : Module() {
             "onNextEpisodeRequested", "onPreviousEpisodeRequested",
             "onEpisodeSelected", "onPlaybackEnded", "onDismiss",
             "onSubtitleSearchRequested", "onSubtitleDownloadRequested",
-            "onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested"
+            "onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested",
+            "onPlayHereRequested"
         )
 
         // MARK: - Lifecycle
@@ -145,6 +146,16 @@ class NativePlayerModule : Module() {
         // The remote screen's colors, once JS knows the artwork's: nothing when no remote screen is up.
         AsyncFunction("updateRemotePlayerTint") { tint: RemoteTintRecord ->
             (this@NativePlayerModule.presented as? RemotePlayerSession)?.updateTint(tint)
+        }.runOnQueue(Queues.MAIN)
+
+        // A new send while the remote screen is up: its whole config, in place. False when none is up.
+        AsyncFunction("updateRemotePlayer") { config: RemotePlayerConfigRecord ->
+            (this@NativePlayerModule.presented as? RemotePlayerSession)?.update(config) ?: false
+        }.runOnQueue(Queues.MAIN)
+
+        // What JS says of a send that failed, null to take it away: nothing when no remote screen is up.
+        AsyncFunction("showRemotePlayerFailure") { failure: RemotePlayerFailureRecord? ->
+            (this@NativePlayerModule.presented as? RemotePlayerSession)?.showFailure(failure)
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("load") { config: PlayerPresentConfigRecord, promise: Promise ->

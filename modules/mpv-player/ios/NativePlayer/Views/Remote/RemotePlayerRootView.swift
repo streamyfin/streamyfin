@@ -106,11 +106,14 @@ struct RemotePlayerRootView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 		case .bar:
 			VStack(alignment: .leading, spacing: 8) {
-				// A failure is said above the bar, whatever the TV does.
+				// A failure is said above the bar, whatever the TV does, with Play here when it offers it.
 				if let failure = model.failure {
 					Text(failure)
 						.font(.subheadline)
 						.foregroundStyle(.white)
+					if model.canPlayHere {
+						RemotePlayHereButton(label: viewModel.str("playHere", "Play here"), action: screen.playHere)
+					}
 				}
 				RemoteBar(viewModel: viewModel)
 					.remoteInert(!model.seekEnabled)
@@ -171,6 +174,25 @@ struct RemotePlayerRootView: View {
 	private var fontScale: Double {
 		let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
 		return Double(UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traits) / 100)
+	}
+}
+/// The failure's way out: plays on the phone from where the TV is.
+private struct RemotePlayHereButton: View {
+	let label: String
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: action) {
+			Text(label)
+				.font(.subheadline.weight(.semibold))
+				.foregroundStyle(.white)
+				.padding(.horizontal, 16)
+				.frame(minHeight: PlayerConstants.remoteButtonSmall)
+				.background(
+					Capsule().fill(Color.white.opacity(PlayerConstants.remotePlayHereFillOpacity))
+				)
+		}
+		.buttonStyle(.plain)
 	}
 }
 #endif

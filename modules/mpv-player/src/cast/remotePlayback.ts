@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import type {
   CastSubscription,
+  ReceiverPlayRequest,
   ReceiverServerRecord,
+  RemoteLoadResult,
   RemotePlaybackState,
 } from "./Cast.types";
 import { NO_REMOTE_PLAYBACK } from "./Cast.types";
@@ -29,6 +31,32 @@ export const setRemoteServer = async (
   server: ReceiverServerRecord | null,
 ): Promise<void> => {
   await CastNative?.setRemoteServer(server);
+};
+
+/** What a load answers where the module is absent, as a native one with no engine does. */
+const NO_MODULE_LOAD: RemoteLoadResult = Object.freeze({
+  outcome: "notSent",
+  error: "No Cast module in this build",
+});
+
+/**
+ * Loads on the TV through the remote engine of the Cast session, under this server;
+ * resolves when the load settles: loaded, replaced by a later one, timed out, failed,
+ * or not sent at all.
+ */
+export const loadOnReceiver = async (
+  server: ReceiverServerRecord,
+  request: ReceiverPlayRequest,
+): Promise<RemoteLoadResult> => {
+  if (!CastNative) return { ...NO_MODULE_LOAD };
+  return CastNative.loadOnReceiver(server, request);
+};
+
+/** Reloads what the TV plays under this server, from where it is (a new bitrate cap). */
+export const reloadOnReceiver = async (
+  server: ReceiverServerRecord,
+): Promise<void> => {
+  await CastNative?.reloadOnReceiver(server);
 };
 
 /** What the TV plays, followed. */

@@ -71,6 +71,25 @@ final class RecordingRemoteEngine: RemoteEngine {
 	func skipToPrevious() { calls.append("skipToPrevious"); inner.skipToPrevious() }
 	func enqueue(itemIds: [String]) { calls.append("enqueue") }
 	func setTargetVolume(_ level: Double) { calls.append("setTargetVolume") }
+
+	/// The servers the engine was handed, the load's and the reload's included.
+	private(set) var servers: [ReceiverServer] = []
+
+	func useServer(_ server: ReceiverServer) {
+		calls.append("useServer")
+		servers.append(server)
+		inner.useServer(server)
+	}
+	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
+		calls.append("load")
+		servers.append(server)
+		inner.load(server: server, request: request, completion: completion)
+	}
+	func reloadCurrentItem(server: ReceiverServer) {
+		calls.append("reload")
+		servers.append(server)
+		inner.reloadCurrentItem(server: server)
+	}
 }
 
 final class ScreenDelegate: PlayerEngineDelegate {
@@ -126,6 +145,23 @@ final class PlaybackClock {
 let server = ReceiverServer(
 	serverAddress: "https://jellyfin.example.test", accessToken: "tok-123", userId: "user-1", receiverName: "Living Room TV"
 )
+let capped = ReceiverServer(
+	serverAddress: "https://jellyfin.example.test", accessToken: "tok-123", userId: "user-1", receiverName: "Living Room TV",
+	maxBitrate: 8_000_000
+)
+let episodes = ReceiverPlayRequest(items: [ReceiverItem(id: "ep-1"), ReceiverItem(id: "ep-2")])
+
+func describe(_ result: CastLoadResult) -> String {
+	switch result {
+	case .settled(let outcome): return outcome.wireName
+	case .notSent(let error): return "notSent \(error)"
+	}
+}
+
+/// A JS record as text, its keys sorted, to compare two of them.
+func js(_ record: [String: Any]) -> String {
+	record.keys.sorted().map { "\($0)=\(record[$0] ?? "nil")" }.joined(separator: " ")
+}
 
 /// One case's world: the holder, the engines its factory made and what it published.
 final class Bench {
@@ -303,6 +339,89 @@ enum RemotePlaybackTests {
 				"theFakeReceiversPlayOnTheFakeEngine",
 				RemotePlayback.factory(fake: true, real: { _ in real }, fakeEngine: { fake })(server) === fake
 					&& RemotePlayback.factory(fake: false, real: { _ in real }, fakeEngine: { fake })(server) === real
+			)
+		}
+
+		// JS loads through the holder, on the engine of the session: the answer is the engine's.
+		do {
+			let bench = Bench()
+			let engine = bench.connected()
+			var results: [String] = []
+			bench.playback.load(server: capped, request: episodes) { results.append(describe($0)) }
+			let loading = bench.published.last?.phase == .loading
+			bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+			check(
+				"aLoadGoesThroughTheEngineAndAnswersItsOutcome",
+				loading && results == ["loaded"] && bench.playback.engine === engine && bench.made[0].servers == [capped]
+					&& bench.published.last?.itemId == "ep-1" && bench.published.last?.queueItemIds == ["ep-1", "ep-2"]
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.playback.setServer(server)
+			var results: [String] = []
+			bench.playback.load(server: capped, request: episodes) { results.append(describe($0)) }
+			check(
+				"aLoadWithNoEngineIsNotSent", results == ["notSent \(RemotePlayback.noEngineError)"] && bench.made.isEmpty
+			)
+		}
+
+		// Two presses on Play that cross: the first is replaced without a word, the TV plays the second.
+		do {
+			let bench = Bench()
+			bench.connected()
+			var first: [String] = []
+			var second: [String] = []
+			bench.playback.load(server: capped, request: episodes) { first.append(describe($0)) }
+			bench.playback.load(server: capped, request: ReceiverPlayRequest(items: [ReceiverItem(id: "film-1")])) {
+				second.append(describe($0))
+			}
+			bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+			check(
+				"aSecondLoadSupersedesTheFirst",
+				first == ["superseded"] && second == ["loaded"] && bench.published.last?.itemId == "film-1"
+			)
+		}
+
+		// Another server while the engine lives (an address switched on another network, the TV renamed): the open
+		// screen keeps the engine, which carries the new envelope from its next command, and nothing reaches the TV.
+		do {
+			let bench = Bench()
+			let engine = bench.connected()
+			_ = bench.playback.attachScreen(bench.screen)
+			var renamed = server
+			renamed.receiverName = "Den TV"
+			bench.playback.setServer(renamed)
+			check(
+				"anotherServerGoesToTheEngineItHas",
+				bench.playback.engine === engine && bench.made.count == 1 && bench.made[0].calls == ["start", "useServer"]
+					&& bench.made[0].servers == [renamed] && bench.playback.snapshot.connected
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.playback.reload(server: capped)
+			let reloaded = bench.made[0].calls == ["start", "reload"] && bench.made[0].servers == [capped]
+			// Without an engine, nothing to reload and nothing made.
+			bench.playback.setServer(nil)
+			bench.playback.reload(server: capped)
+			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1)
+		}
+
+		// What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a
+		// load that never left.
+		do {
+			let result = RemotePlayback.resultForJs
+			check(
+				"aLoadResultReachesJsByItsOutcomeName",
+				js(result(.settled(.loaded))) == "outcome=loaded" && js(result(.settled(.superseded))) == "outcome=superseded"
+					&& js(result(.settled(.timedOut))) == "outcome=timedOut"
+					&& js(result(.settled(.failed(.playbackInfoFailed, .unparsed("x")))))
+						== "error=playback_info_failed outcome=failed"
+					&& js(result(.notSent("receiver busy"))) == "error=receiver busy outcome=notSent"
 			)
 		}
 

@@ -31,6 +31,7 @@ import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.PresentedPlayer
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.RemotePlayerFailureRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerTheme
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
@@ -85,7 +86,7 @@ class RemotePlayerSession(
         // The TV button says the session's state to TalkBack; willTeardown stops following it.
         viewModel.followCast(hub)
 
-        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel)
+        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere)
         // The screen composes as it is attached: it starts from the TV's state rather than from nothing, which a
         // later frame would have to correct (the controls of a reconnecting TV said enabled until then).
         model.snapshot = playback.snapshot
@@ -126,12 +127,16 @@ class RemotePlayerSession(
         follow(playback.snapshot)
     }
 
-    // The holder publishes on the main thread. The film over with nothing after it, or the connection over: the
-    // screen closes, an end of playback reported first as the local player does.
+    // The holder publishes on the main thread. A failure goes once the TV loads or plays again. The film over with
+    // nothing after it, or the connection over: the screen closes, an end of playback reported first as the local
+    // player does.
     private fun follow(snapshot: RemotePlaybackSnapshot) {
         val state = screenState ?: return
         if (closed) return
+        val clears = RemoteScreenModel.failureClears(state.snapshot.phase, snapshot.phase)
+        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, snapshot.phase)
         state.snapshot = snapshot
+        if (clears) clearFailure()
         val close = state.model.closes ?: return
         if (close == RemoteClose.PLAYBACK_ENDED) {
             emit("onPlaybackEnded", markRemote(mapOf("positionSec" to viewModel.authoritativePosition)))
@@ -141,6 +146,42 @@ class RemotePlayerSession(
 
     /** The tint JS sends once it knows the artwork's color; the screen fades to it. */
     fun updateTint(tint: RemoteTintRecord?) = onMain { screenState?.updateTint(tint) }
+
+    /**
+     * A new config for the open screen, in place: another item sent, the TV's name, the tracks, the tint. The whole
+     * config is replaced and the failure goes; the screen stays on where the TV is. False when none is open. On the
+     * main thread, as the module calls it.
+     */
+    fun update(config: RemotePlayerConfigRecord): Boolean {
+        val state = screenState ?: return false
+        if (closed) return false
+        viewModel.apply(config.toPresentConfig())
+        state.replace(config.targetName, config.imageHeaders, config.tint)
+        // Another item: an end the TV reports before it holds it is the item before's.
+        state.sawPlayback = false
+        clearFailure()
+        // apply() starts the view model at the config's position: the TV's state again, as present() does.
+        playback.attachScreen(viewModel)
+        return true
+    }
+
+    /** What JS says of a send that failed, shown with Play here when it offers it; null takes it away. */
+    fun showFailure(failure: RemotePlayerFailureRecord?) = onMain {
+        val state = screenState ?: return@onMain
+        if (failure == null) clearFailure() else state.failure = RemoteFailure(failure.message, failure.canPlayHere)
+    }
+
+    // Play here: JS plays on the phone from the TV's position, and closes this screen first.
+    private fun playHere() {
+        if (closed) return
+        emit("onPlayHereRequested", markRemote(mapOf("positionSec" to viewModel.authoritativePosition)))
+    }
+
+    // Both failures go: the one JS said, and the engine's own error.
+    private fun clearFailure() {
+        screenState?.failure = null
+        viewModel.errorMessage = null
+    }
 
     override fun dismiss(reason: String, completion: (() -> Unit)?) {
         if (closed) {
@@ -214,16 +255,31 @@ private class BackKeyFrame(context: Context, private val onBack: () -> Unit) : F
  * colors, which start from the config's tint and follow each one JS sends, and what the TV does.
  */
 class RemoteScreenState(
-    val targetName: String?,
-    val imageHeaders: Map<String, String>?,
+    targetName: String?,
+    imageHeaders: Map<String, String>?,
     tint: RemoteTintRecord?,
     private val viewModel: PlayerViewModel,
+    private val onPlayHere: () -> Unit = {},
 ) {
+    var targetName by mutableStateOf(targetName)
+        private set
+
+    var imageHeaders by mutableStateOf(imageHeaders)
+        private set
+
     var colors by mutableStateOf(colorsOf(tint))
         private set
 
+    /** What JS said of a send that failed; the engine's own error shows when there is none. */
+    var failure by mutableStateOf<RemoteFailure?>(null)
+        internal set
+
     /** What the TV does, as the holder last published it. */
     var snapshot by mutableStateOf(RemotePlaybackSnapshot.NONE)
+        internal set
+
+    /** The TV held this screen's item at some point (RemoteScreenModel.sawPlayback). */
+    var sawPlayback by mutableStateOf(false)
         internal set
 
     /**
@@ -236,12 +292,27 @@ class RemoteScreenState(
             targetName,
             hasNext = viewModel.nextEpisode != null,
             reduced = false,
-            failure = viewModel.errorMessage,
+            failure = failure?.message ?: viewModel.errorMessage,
+            canPlayHere = failure?.canPlayHere == true,
+            sawPlayback = sawPlayback,
         )
 
     fun updateTint(tint: RemoteTintRecord?) {
         colors = colorsOf(tint)
     }
 
+    /** The parts of a new config the screen draws itself. */
+    fun replace(targetName: String?, imageHeaders: Map<String, String>?, tint: RemoteTintRecord?) {
+        this.targetName = targetName
+        this.imageHeaders = imageHeaders
+        colors = colorsOf(tint)
+    }
+
+    /** The screen's Play here button. */
+    fun playHere() = onPlayHere()
+
     private fun colorsOf(tint: RemoteTintRecord?) = RemoteColors.of(tint?.top, tint?.bottom, tint?.accent)
 }
+
+/** A failed send as the remote screen says it. */
+data class RemoteFailure(val message: String, val canPlayHere: Boolean)
