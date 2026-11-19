@@ -1,4 +1,5 @@
 import { MAX_BITRATE_KEY } from "@/constants/Bitrate";
+import type { AudioTranscodeModeType } from "@/utils/profiles/native";
 
 /**
  * Heartbeat cadence, in ms, for the periodic playback progress report. The
@@ -107,6 +108,24 @@ export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
 
 /** How often, in ms, that wait checks whether the closing player is gone. */
 export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
+
+/** The audio transcoding choices, as `AudioTranscodeMode` names them. */
+export const AUDIO_TRANSCODE_MODES: readonly AudioTranscodeModeType[] = [
+  "auto",
+  "stereo",
+  "5.1",
+  "passthrough",
+];
+
+export const AUDIO_TRANSCODE_MODE_LABEL_KEYS: Record<
+  AudioTranscodeModeType,
+  string
+> = {
+  auto: "home.settings.audio.transcode_mode.auto",
+  stereo: "home.settings.audio.transcode_mode.stereo",
+  "5.1": "home.settings.audio.transcode_mode.5_1",
+  passthrough: "home.settings.audio.transcode_mode.passthrough",
+};
 
 /**
  * How long the native player may spend fetching an item's sidecar subtitles
