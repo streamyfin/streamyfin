@@ -18,7 +18,6 @@ import {
   getSystemApi,
   getUserApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import axios from "axios";
 import { SyncPlayController } from "../../../utils/syncplay/controller";
 import { createSyncPlayTransport } from "../../../utils/syncplay/transport";
 import type {
@@ -35,8 +34,10 @@ import {
 import {
   assertDistinctMovies,
   cleanUp,
+  harnessAxios,
   interruptHandler,
   type SignedInClient,
+  serverWork,
   signIn,
   syncPlayEndpoint,
 } from "./harness";
@@ -95,9 +96,13 @@ let admin: Api | undefined;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Sign-ins and the restricted account's creation, which the cleanup waits for before it reads
+// the tokens and the account to remove.
+const work = serverWork();
 let cleaning: Promise<string[]> | undefined;
 const cleanUpOnce = () =>
   (cleaning ??= (async () => {
+    await work.settle();
     for (const client of clients) client.dispose();
     await sleep(150);
     return cleanUp(signedIn, admin, temporaryUserId);
@@ -262,7 +267,7 @@ async function client(account: SyncPlayAccount, label: string) {
     clientInfo: { name: "Streamyfin SyncPlay protocol tests", version: "1.0" },
     deviceInfo: { name: label, id: `streamyfin-protocol-${run}-${label}` },
   });
-  const api = jellyfin.createApi(credentials.url, undefined, axios.create());
+  const api = jellyfin.createApi(credentials.url, undefined, harnessAxios());
   api.axiosInstance.interceptors.response.use((response) => {
     const path = syncPlayEndpoint(response.config.url!, credentials.url);
     if (path) {
@@ -276,7 +281,7 @@ async function client(account: SyncPlayAccount, label: string) {
     }
     return response;
   });
-  await signIn(label, api, account, signedIn);
+  await work.track(() => signIn(label, api, account, signedIn));
   const instance = new Client(label, api);
   clients.push(instance);
   await instance.connect();
@@ -983,15 +988,18 @@ try {
   });
   await step("restricted account cannot create or join group", async () => {
     const name = `syncplay-restricted-${run}`;
-    const response = await getUserApi(host.api).createUserByName({
-      createUserByName: { Name: name, Password: temporaryPassword },
+    const response = await work.track(async () => {
+      const created = await getUserApi(host.api).createUserByName({
+        createUserByName: { Name: name, Password: temporaryPassword },
+      });
+      temporaryUserId = created.data.Id!;
+      return created;
     });
-    temporaryUserId = response.data.Id!;
     // The whole policy goes back: the update replaces it, provider ids included.
     const policy = response.data.Policy;
     if (!policy) throw new Error(`the server returned no policy for ${name}`);
     await getUserApi(host.api).updateUserPolicy({
-      userId: temporaryUserId,
+      userId: response.data.Id!,
       userPolicy: { ...policy, SyncPlayAccess: "None" },
     });
     const restricted = await client(

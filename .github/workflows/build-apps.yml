@@ -176,7 +176,7 @@ jobs:
 
       - name: ☕ Set up JDK 17
         # The repack needs Java for the apktool that repack-app runs.
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "17"
@@ -267,7 +267,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+            uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
             with:
               distribution: temurin
               java-version: "17"
@@ -361,7 +361,7 @@ jobs:
 
       - name: ☕ Set up JDK 17
         # The repack needs Java for the apktool that repack-app runs.
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "17"
@@ -449,7 +449,7 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+            uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
             with:
               distribution: temurin
               java-version: "17"
@@ -615,7 +615,7 @@ jobs:
               bun-version: "1.4.4"
 
           - name: 🏗️ Setup EAS
-            uses: expo/expo-github-action@9da89d3617bb88139671bad31b09c65714c2ee06 # main
+            uses: expo/expo-github-action@5273c2136bd09c2a341fe3340d3e767ce5a13015 # main
             with:
               eas-version: latest
               token: ${{ secrets.EXPO_TOKEN }}

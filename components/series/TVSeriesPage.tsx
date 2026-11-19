@@ -14,10 +14,10 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Dimensions,
   ScrollView,
   type ScrollViewInstance,
   TVFocusGuideView,
+  useWindowDimensions,
   View,
   type ViewInstance,
 } from "react-native";
@@ -33,6 +33,10 @@ import { TVSimilarItems } from "@/components/TVSimilarItems";
 import { TVButton } from "@/components/tv/TVButton";
 import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import {
+  TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
+  TV_DETAIL_POSTER_WIDTH_RATIO,
+} from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useShuffleQueue } from "@/hooks/useShuffleQueue";
@@ -47,6 +51,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import {
   buildOfflineSeasons,
+  downloadsKeyPart,
   getDownloadedEpisodesForSeason,
 } from "@/utils/downloads/offline-series";
 import { scaleSize } from "@/utils/scaleSize";
@@ -54,11 +59,8 @@ import { seasonHeading, seasonLabel } from "@/utils/seasonLabel";
 import { replacementSeason } from "@/utils/seasonSelection";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 const HORIZONTAL_PADDING = scaleSize(80);
 const TOP_PADDING = scaleSize(140);
-const POSTER_WIDTH_PERCENT = 0.22;
 const SCALE_PADDING = scaleSize(20);
 
 interface TVSeriesPageProps {
@@ -78,13 +80,14 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
   const isOffline = useOfflineMode();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems, downloadedItems } = useDownload();
+  const { getDownloadedItems, refreshKey } = useDownload();
   const { showSeasonModal } = useTVSeriesSeasonModal();
   const { showItemActions } = useTVItemActionModal();
   const { startShuffle } = useShuffleQueue();
@@ -126,7 +129,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
 
   // Fetch seasons
   const seasonsQuery = useQuery({
-    queryKey: ["seasons", item.Id, isOffline, downloadedItems.length],
+    queryKey: [
+      "seasons",
+      item.Id,
+      isOffline,
+      downloadsKeyPart(isOffline, refreshKey),
+    ],
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeasons(getDownloadedItems(), item.Id!);
@@ -200,7 +208,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       item.Id,
       isOffline ? selectedSeasonNumber : selectedSeasonId,
       isOffline,
-      downloadedItems.length,
+      downloadsKeyPart(isOffline, refreshKey),
     ],
     queryFn: async () => {
       if (isOffline) {
@@ -437,7 +445,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View
           style={{
             flexDirection: "row",
-            minHeight: SCREEN_HEIGHT * 0.45,
+            minHeight: windowHeight * TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
           }}
         >
           {/* Left side - Content */}
@@ -531,7 +539,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           {/* Right side - Poster */}
           <View
             style={{
-              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
+              width: windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
               marginLeft: scaleSize(50),
             }}
           >

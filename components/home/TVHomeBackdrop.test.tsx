@@ -10,10 +10,6 @@ import {
 import { TVHomeBackdrop, type TVHomeBackdropRef } from "./TVHomeBackdrop";
 
 jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
-jest.mock(
   "@/providers/JellyfinProvider",
   () =>
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
@@ -21,15 +17,6 @@ jest.mock(
 jest.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 // TVSizes reads the typography scale from the settings, which pull in the
 // whole settings UI; the backdrop only needs its timings.
-jest.mock("@/utils/atoms/settings", () => ({
-  TVTypographyScale: {
-    Small: "small",
-    Default: "default",
-    Large: "large",
-    ExtraLarge: "extraLarge",
-  },
-  useSettings: () => ({ settings: {} }),
-}));
 
 const item = (id: string): BaseItemDto => ({
   Id: id,

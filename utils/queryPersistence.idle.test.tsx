@@ -12,7 +12,8 @@ import {
   withoutRedundantSaves,
 } from "./queryPersistence";
 
-jest.mock("@sentry/react-native", () => ({ addBreadcrumb: () => {} }));
+// The real log is under test, not the silent double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/log");
 jest.mock("./logStorage", () => ({
   readFromLog: jest.fn(() => []),
   storeLogEntry: jest.fn(),
@@ -82,7 +83,9 @@ describe("persisted query cache at rest", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     writes = 0;
-    client = new QueryClient();
+    client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
     const persister: Persister = {
       persistClient: () => {
         writes += 1;
@@ -155,7 +158,9 @@ describe("saves of the persisted cache", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     writes = 0;
-    client = new QueryClient();
+    client = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY } },
+    });
     unsubscribe = persistQueryClientSubscribe({
       queryClient: client,
       persister: withoutRedundantSaves({
@@ -228,6 +233,7 @@ test("a second write in the same millisecond is still saved", async () => {
   client.setQueryData(["home", "row"], "first");
   client.setQueryData(["home", "row"], "second");
   unsubscribe();
+  client.clear();
   now.mockRestore();
 
   expect(saved.at(-1)).toBe("second");

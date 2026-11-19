@@ -17,12 +17,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: mockSettings }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 // The links have their own spec, utils/customLinks.test.tsx: here only
 // whether the menu shows them.
 jest.mock("@/components/more/CustomLinksGroup", () => {

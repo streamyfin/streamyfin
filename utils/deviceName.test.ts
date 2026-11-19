@@ -1,5 +1,7 @@
 import { getDeviceName } from "@/utils/device";
 
+// This spec is about the real device module, not the double `test-utils/unitSetup.ts` installs.
+jest.unmock("@/utils/device");
 const mockDevice: { deviceName: string | null; modelName: string | null } = {
   deviceName: null,
   modelName: null,
@@ -12,10 +14,6 @@ jest.mock("expo-device", () => ({
     return mockDevice.modelName;
   },
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 
 describe("getDeviceName", () => {
   beforeEach(() => {

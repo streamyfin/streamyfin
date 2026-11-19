@@ -1,3 +1,5 @@
+import { requireOnPlatform } from "@/test-utils/reactNative";
+
 // `probe` is what the native hardware check answers (undefined when the module
 // is missing). `directPlay` and `transcode` are what the profiles should then
 // advertise: AV1 direct play, and AV1 over MP4 segments for transcodes.
@@ -90,23 +92,13 @@ for (const scenario of [
     const probe = jest.fn(() => scenario.probe);
     // codecSupport caches the probe and the profiles read Platform when they
     // load, so each scenario gets a module registry of its own.
-    jest.isolateModules(() => {
+    requireOnPlatform({ OS: scenario.os, isTV: scenario.isTV }, () => {
       jest.doMock("expo", () => ({
         requireOptionalNativeModule: () =>
           scenario.probe === undefined
             ? null
             : { supportsAv1HardwareDecode: probe },
       }));
-      const { Platform } =
-        require("react-native") as typeof import("react-native");
-      Object.defineProperty(Platform, "OS", {
-        value: scenario.os,
-        configurable: true,
-      });
-      Object.defineProperty(Platform, "isTV", {
-        value: scenario.isTV,
-        configurable: true,
-      });
       const { generateDeviceProfile } =
         require("./native") as typeof import("./native");
       const { generateDownloadProfile } =

@@ -36,6 +36,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posterGridColumns } from "@/components/cards/posterGridColumns";
 import { useCardGrid } from "@/components/cards/useCardGrid";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { Image } from "@/components/common/ServerImage";
@@ -138,7 +139,6 @@ import { store } from "@/utils/store";
 const PAGE_SIZE = 36;
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
-const _TV_SCALE_PADDING = 20;
 const TV_PLAYLIST_SQUARE_SIZE = 180;
 const OUTGOING_LIST_OPACITY = 0.4;
 /**
@@ -179,7 +179,7 @@ const LibraryPage = () => {
   const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
@@ -497,13 +497,8 @@ const LibraryPage = () => {
       // TV uses flexWrap, so nrOfCols is just for mobile
       return 1;
     }
-    if (screenWidth < 300) return 2;
-    if (screenWidth < 500) return 3;
-    if (screenWidth < 800) return 5;
-    if (screenWidth < 1000) return 6;
-    if (screenWidth < 1500) return 7;
-    return 6;
-  }, [screenWidth, orientation]);
+    return posterGridColumns(windowWidth);
+  }, [windowWidth]);
 
   const { data: library, isLoading: isLibraryLoading } = useQuery({
     queryKey: ["library", libraryId],
@@ -1669,8 +1664,17 @@ const LibraryPage = () => {
       ) : (
         // A focus guide as wide as the page: tvOS only moves the focus to what
         // lies straight ahead, and a short grid is narrower than the toolbar.
+        //
+        // trapFocusLeft/trapFocusRight: the tab bar (TVNavBar) centres its
+        // tabs and makes each one focusable, so from the end of a grid
+        // narrower than the tab bar (a single short row) Android's focus
+        // search finds the outermost tab, and a left or right press left the
+        // grid for it. Trapped, horizontal presses stay inside the grid; up
+        // and down stay free for the toolbar and the tab bar.
         <TVFocusGuideView
           autoFocus
+          trapFocusLeft
+          trapFocusRight
           style={{
             flexDirection: "row",
             flexWrap: "wrap",

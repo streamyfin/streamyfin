@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import uuid
@@ -11,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MASK = "[masqué]"
+PRIVATE_FILE_MODE = 0o600
+PRIVATE_DIR_MODE = 0o700
 # Anchored on the bench, not on the working directory: a run started from e2e/ would otherwise
 # write to e2e/e2e/reports, which neither git nor Biome ignores.
 REPORTS_DIR = Path(__file__).resolve().parents[1] / "reports"
@@ -67,9 +70,12 @@ class Report:
     def save(self, reports_dir: Path | None = None) -> ReportPaths:
         if self.paths is None:
             folder = Path(reports_dir or REPORTS_DIR) / self.created_at.strftime("%Y-%m-%d")
-            folder.mkdir(parents=True, exist_ok=True)
+            folder.mkdir(mode=PRIVATE_DIR_MODE, parents=True, exist_ok=True)
             self.paths = _new_paths(folder, f"{self.name}-{self.created_at.strftime('%H%M%S')}")
-        self.paths.json.write_text(json.dumps({"name": self.name, "createdAt": self.created_at.isoformat(), "steps": self.steps}, indent=2, default=str) + "\n")
+        # The raw copy keeps live tokens: owner only from its first byte, whatever the umask.
+        descriptor = os.open(self.paths.json, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, PRIVATE_FILE_MODE)
+        with os.fdopen(descriptor, "w") as file:
+            file.write(json.dumps({"name": self.name, "createdAt": self.created_at.isoformat(), "steps": self.steps}, indent=2, default=str) + "\n")
         self.paths.markdown.write_text(self.to_markdown())
         return self.paths
 

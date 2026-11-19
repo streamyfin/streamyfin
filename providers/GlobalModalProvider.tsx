@@ -13,7 +13,6 @@ import { BackHandler, Platform } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
-  snapPoints?: (string | number)[];
   enablePanDownToClose?: boolean;
   /**
    * Off for content that has drags of its own (a reorderable list): the sheet

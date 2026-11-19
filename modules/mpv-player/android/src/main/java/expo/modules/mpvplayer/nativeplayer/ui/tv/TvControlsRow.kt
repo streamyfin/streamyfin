@@ -251,11 +251,7 @@ fun TvControlsRow(
         )
 
         if (activeSegment != null) {
-            val segmentLabel = if (activeSegment.type == "Intro") {
-                viewModel.str("skipIntro", "Skip Intro")
-            } else {
-                viewModel.str("skipCredits", "Skip Credits")
-            }
+            val segmentLabel = viewModel.skipLabel(activeSegment.type)
             Button(
                 onClick = { viewModel.skipActiveSegment() },
                 modifier = Modifier

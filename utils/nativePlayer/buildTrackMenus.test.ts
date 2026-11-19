@@ -7,15 +7,13 @@ import { buildTrackMenus } from "./buildNativePlayerConfig";
 jest.mock("@/components/BitrateSelector", () => ({ BITRATES: [] }));
 
 // Settings pull in the auth provider and the router; no menu label reads them.
-jest.mock("@/utils/atoms/settings", () => ({}));
-
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
 
 // Track resolution belongs to the config build, not to the menus, and loading
 // it starts the logger (MMKV, and a Sentry timer that keeps Jest alive).
 jest.mock("./resolveTrackIndexes", () => ({}));
+
+// The subtitle prefetch logs its outcome; the log module reaches MMKV.
+jest.mock("@/utils/log", () => ({ writeInfoLog: () => undefined }));
 
 const menus = (streams: Jellyfin12MediaStream[]) =>
   buildTrackMenus({

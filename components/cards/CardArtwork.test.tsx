@@ -2,9 +2,6 @@ import { render, screen } from "@testing-library/react-native";
 import { CardArtwork } from "./CardArtwork";
 import type { CardData } from "./CardData";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The real image resolves auth headers through the provider tree; the double
 // keeps the props each render hands it.
 const mockImageProps: Record<string, unknown>[] = [];

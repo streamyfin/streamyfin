@@ -2,8 +2,6 @@ import { render, screen } from "@testing-library/react-native";
 import { Text } from "react-native";
 import { Button } from "./Button";
 
-jest.mock("@/hooks/useHaptic", () => ({ useHaptic: () => () => {} }));
-
 // The row a button lays its icon and label out in: the label's parent.
 const rowOf = (label: string) => screen.getByText(label).parent!;
 

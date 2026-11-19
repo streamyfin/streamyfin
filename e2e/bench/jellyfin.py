@@ -7,8 +7,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from bench.config import Account
 
@@ -16,6 +16,24 @@ CLIENT_NAME = "Streamyfin E2E bench"
 DEVICE_ID_PREFIX = "streamyfin-e2e-bench"
 CLIENT_VERSION = "1.0"
 USER_AGENT = "Streamyfin-E2E-bench/1.0"
+
+
+def _origin(url: str) -> tuple[str, str | None, int | None]:
+    parts = urlsplit(url)
+    return parts.scheme, parts.hostname, parts.port
+
+
+class _SameOriginRedirects(HTTPRedirectHandler):
+    """urllib copies every header into the request a redirect asks for, the token among them, wherever
+    it points. A redirect to another origin is left unanswered, so it surfaces as its own status."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _origin(newurl) != _origin(req.full_url):
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+urlopen = build_opener(_SameOriginRedirects).open
 
 
 class JellyfinHttpError(Exception):

@@ -29,6 +29,19 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 	private(set) var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 	private var isShutDown = false
+	/// Off for a view that only shows a clip (the subtitle preview): it takes
+	/// no audio session, so the user's music keeps playing, and offers no lock
+	/// screen controls and no automatic picture in picture. The presented
+	/// player keeps it on.
+	var backgroundPlayback = true {
+		didSet {
+			guard backgroundPlayback != oldValue else { return }
+			applyBackgroundPlayback()
+		}
+	}
+	/// Set once this engine took the shared audio session or the remote
+	/// commands: an engine that never did leaves them alone when it closes.
+	private var tookMediaSession = false
 	// Outside the iOS block below: the PiP delegate that sets these compiles
 	// on tvOS too, where it is never called.
 	/// True while the delegate hears that PiP stopped, when the user asked to
@@ -120,7 +133,24 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 	/// would take the session back with no player left to give it up.
 	private func activateAudioSession(completion: (() -> Void)? = nil) {
 		guard !isShutDown else { return }
+		guard backgroundPlayback else {
+			completion?()
+			return
+		}
+		tookMediaSession = true
 		audioSession.activate(completion: completion)
+	}
+
+	private func applyBackgroundPlayback() {
+		setPictureInPictureAutoStartEnabled(backgroundPlayback)
+		if backgroundPlayback {
+			guard currentURL != nil else { return }
+			if intendedPlayState { activateAudioSession() }
+			setupRemoteCommands()
+			syncNowPlaying(isPlaying: intendedPlayState)
+		} else if tookMediaSession {
+			clearNowPlayingInfo()
+		}
 	}
 
 	@objc private func handleAudioSessionInterruption(_ notification: Notification) {
@@ -154,6 +184,8 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 	}
 
 	private func setupRemoteCommands() {
+		guard backgroundPlayback else { return }
+		tookMediaSession = true
 		nowPlayingManager.setupRemoteCommands(
 			playHandler: { [weak self] in self?.requestPlaying(true) },
 			pauseHandler: { [weak self] in self?.requestPlaying(false) },
@@ -170,6 +202,7 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 	// MARK: - Now Playing Info
 
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]? = nil) {
+		guard backgroundPlayback else { return }
 		print("[MPV] setNowPlayingMetadata: \(metadata["title"] ?? "nil")")
 		nowPlayingManager.setMetadata(
 			title: metadata["title"],
@@ -187,6 +220,7 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 
 	/// Single location for Now Playing updates
 	private func syncNowPlaying(isPlaying: Bool) {
+		guard backgroundPlayback else { return }
 		print("[MPV] syncNowPlaying: pos=\(Int(cachedPosition))s, dur=\(Int(cachedDuration))s, playing=\(isPlaying)")
 		nowPlayingManager.updatePlayback(position: cachedPosition, duration: cachedDuration, isPlaying: isPlaying)
 	}
@@ -208,7 +242,7 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 		#if os(iOS)
 		hasRenderedFirstFrame = false
 		#endif
-		setPictureInPictureAutoStartEnabled(true)
+		setPictureInPictureAutoStartEnabled(backgroundPlayback)
 
 		let preset = PlayerPreset(
 			id: .sdrRec709,
@@ -346,8 +380,10 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 		pipController = nil
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
-		clearNowPlayingInfo()
-		audioSession.tearDown()
+		if tookMediaSession {
+			clearNowPlayingInfo()
+			audioSession.tearDown()
+		}
 		NotificationCenter.default.removeObserver(self)
 	}
 
@@ -424,6 +460,12 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 
 	func getDuration() -> Double {
 		return cachedDuration
+	}
+
+	/// The skip buttons of the lock screen and Control Center: the player's own
+	/// skip times rather than a fixed 15 seconds.
+	func setSkipIntervals(forward: Double, backward: Double) {
+		nowPlayingManager.setSkipIntervals(forward: forward, backward: backward)
 	}
 
 	// MARK: - Picture in Picture

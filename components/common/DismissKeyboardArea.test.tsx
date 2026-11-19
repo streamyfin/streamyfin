@@ -4,7 +4,6 @@ import { DismissKeyboardArea } from "@/components/common/DismissKeyboardArea";
 
 describe("DismissKeyboardArea", () => {
   const dismiss = jest.spyOn(Keyboard, "dismiss");
-  beforeEach(() => dismiss.mockClear());
 
   // A number pad has no return key: a tap beside the field is how it goes.
   test("closes the keyboard on a tap beside the field", async () => {

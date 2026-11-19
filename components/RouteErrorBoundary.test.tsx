@@ -3,17 +3,10 @@ import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { useState } from "react";
 import { Text } from "react-native";
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 const mockCaptureException = jest.fn();
 jest.mock("@sentry/react-native", () => ({
   captureException: (error: unknown) => mockCaptureException(error),
 }));
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Only the layout's stand-in renders here; these would load the providers.
 jest.mock("@/components/tv/TVNavBar", () => ({ TVNavBar: () => null }));
 // The unit config maps expo-router to a stub with no navigators, and this

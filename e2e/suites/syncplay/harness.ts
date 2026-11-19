@@ -9,6 +9,16 @@ import {
   getSessionApi,
   getUserApi,
 } from "@jellyfin/sdk/lib/utils/api";
+import axios from "axios";
+
+/**
+ * How long one request to the server may take. Axios waits for ever by default, so a server
+ * that took the connection and never answered held the run, and its cleanup, for good.
+ */
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+/** The axios instance every harness client talks to the server through. */
+export const harnessAxios = () => axios.create({ timeout: REQUEST_TIMEOUT_MS });
 
 /** A harness client, signed in under its own device id. */
 export interface SignedInClient {
@@ -63,6 +73,33 @@ export function assertDistinctMovies(
 }
 
 /**
+ * The requests that leave something on the server, a token or an account, while they run. The
+ * cleanup reads which tokens and which account to remove, so it settles them first: a Ctrl-C
+ * while the restricted account was being created read no id, and the account outlived the run.
+ * Once the cleanup has started, no new work begins.
+ */
+export const serverWork = () => {
+  const pending = new Set<Promise<unknown>>();
+  let closed = false;
+  return {
+    track<T>(work: () => Promise<T>): Promise<T> {
+      if (closed) {
+        return Promise.reject(new Error("the run is cleaning up"));
+      }
+      const running = work();
+      pending.add(running);
+      const forget = () => pending.delete(running);
+      running.then(forget, forget);
+      return running;
+    },
+    async settle(): Promise<void> {
+      closed = true;
+      await Promise.allSettled([...pending]);
+    },
+  };
+};
+
+/**
  * Ends what a run leaves on the server: a token stays valid until it is signed out, so every run
  * used to leave its clients' tokens behind, an administrator's among them, and a failed delete of
  * the restricted account went unnoticed. The administrator signs out last, since the delete needs
@@ -72,13 +109,25 @@ export async function cleanUp(
   clients: readonly SignedInClient[],
   admin: Api | undefined,
   temporaryUserId: string | undefined,
+  stepTimeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<string[]> {
   const failures: string[] = [];
+  // Each step has its own deadline, whatever client it goes through: one request left
+  // unanswered must not keep the steps after it from running.
   const attempt = async (what: string, work: () => Promise<unknown>) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`no answer after ${stepTimeoutMs} ms`)),
+        stepTimeoutMs,
+      );
+    });
     try {
-      await work();
+      await Promise.race([work(), deadline]);
     } catch (error) {
       failures.push(`${what}: ${reason(error)}`);
+    } finally {
+      clearTimeout(timer);
     }
   };
   for (const client of clients.filter((client) => client.api !== admin)) {

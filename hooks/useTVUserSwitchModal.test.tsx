@@ -31,9 +31,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => mockRouter,
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 /** How many times one press fires onPress, to stand for a remote that fires twice. */
 let mockSelectFires = 1;
 // The real card pulls the TV focus animation and, through it, the whole

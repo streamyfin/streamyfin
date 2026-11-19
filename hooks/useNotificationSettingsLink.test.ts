@@ -24,7 +24,6 @@ jest.mock("@/modules/notification-settings-link", () => ({
 
 describe("the link from the iOS Settings", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     stubReactNative();
     mockPending = false;
     mockListener = null;

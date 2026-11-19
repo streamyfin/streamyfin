@@ -16,9 +16,6 @@ jest.mock("@/providers/WebSocketProvider", () => ({
     clearLastMessage: mockClear,
   }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const props = {
   isPlaying: true,
@@ -29,7 +26,6 @@ const props = {
 };
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockMessage = null;
   stubReactNative({ isTV: false });
 });

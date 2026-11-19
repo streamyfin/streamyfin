@@ -10,7 +10,6 @@ export interface TVSettingsRowProps {
   label: string;
   value: string;
   onPress?: () => void;
-  isFirst?: boolean;
   showChevron?: boolean;
   disabled?: boolean;
 }
@@ -19,7 +18,6 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
   label,
   value,
   onPress,
-  isFirst,
   showChevron = true,
   disabled,
 }) => {
@@ -32,7 +30,6 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirst && !disabled}
       disabled={disabled}
       focusable={!disabled}
     >

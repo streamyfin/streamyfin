@@ -16,10 +16,6 @@ beforeAll(() => {
   require("@/i18n");
 });
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // Loading the real module logs an Expo Go push warning on import.
 jest.mock("expo-notifications", () => ({
   scheduleNotificationAsync: jest.fn(),
@@ -30,6 +26,12 @@ jest.mock("sonner-native", () => ({
 jest.mock(
   "react-native-safe-area-context",
   () => jest.requireActual("react-native-safe-area-context/jest/mock").default,
+);
+// MMKV is native. `jest.perf.config.js` maps none of the unit doubles, so this
+// is the scenarios' only one, on the PR and on the baseline alike.
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
 );
 jest.mock(
   "react-native-reanimated",

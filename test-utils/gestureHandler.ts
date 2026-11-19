@@ -13,4 +13,6 @@ export const gestureHandlerModule = {
     Pan: () => pan,
   },
   Pressable: View,
+  // RoundButton presses through the legacy component since gesture handler 3.
+  LegacyPressable: View,
 };

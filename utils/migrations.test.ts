@@ -1,9 +1,3 @@
-// Only so importing the module (which pulls in @/utils/mmkv) doesn't reach for
-// the native store — the tests below drive an injected store, not this one.
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
 // The log module reaches Sentry and MMKV, so it is stubbed with the surface
 // this spec's module under test actually calls.
 const errors: string[] = [];
@@ -16,6 +10,8 @@ jest.mock("@/utils/log", () => ({
   readFromLog: () => [],
 }));
 
+// Importing the module pulls in @/utils/mmkv, which lands on the in-memory
+// double — the tests below drive an injected store, not this one.
 import { LATEST_SCHEMA_VERSION, runStorageMigrations } from "./migrations";
 
 const data = new Map<string, boolean | number | string>();

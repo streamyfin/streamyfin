@@ -55,7 +55,6 @@ const offeredOnPress = () => {
 };
 
 beforeEach(() => {
-  mockShowModal.mockClear();
   mockFetchOfficialRatings.mockReset();
   mockFetchOfficialRatings.mockResolvedValue(["TV-14", "TV-MA"]);
 });

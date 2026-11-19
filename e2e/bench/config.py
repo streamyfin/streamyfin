@@ -154,7 +154,7 @@ def resolve_path(path: Path | None = None) -> Path:
 def committable(file: Path, root: Path = REPO_ROOT) -> bool:
     """Whether a `git add` in the checkout would take this file: it lies inside and git does not
     ignore it, tracked files included. Only a missing git means no commit to fear: one that does not
-    start or answer cannot vouch for the file."""
+    start, answer or succeed cannot vouch for the file."""
     try:
         file.resolve().relative_to(root.resolve())
     except ValueError:
@@ -165,8 +165,9 @@ def committable(file: Path, root: Path = REPO_ROOT) -> bool:
         return False
     except (OSError, subprocess.SubprocessError):
         return True
-    # 0: ignored, 1: not ignored, 128: not a git checkout.
-    return result.returncode == 1
+    # 0: ignored. 1 is not ignored, and 128 a fatal error (no checkout, a dubious owner), which
+    # leaves the file unchecked: both refuse it.
+    return result.returncode != 0
 
 
 def load_config(path: Path | None = None) -> BenchConfig:

@@ -11,10 +11,6 @@ jest.mock("@/hooks/useAppRouter", () => ({
 }));
 
 describe("useLeaveWhenGone", () => {
-  beforeEach(() => {
-    mockBack.mockClear();
-  });
-
   test("stays while there is something to show", async () => {
     const { rerender } = await renderHook(
       (gone: boolean) => useLeaveWhenGone(gone),

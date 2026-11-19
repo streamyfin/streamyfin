@@ -42,6 +42,19 @@ class ReportTests(unittest.TestCase):
         self.assertNotIn("abc123", markdown)
         self.assertNotIn("beta.example.test", markdown)
 
+    @unittest.skipIf(os.name != "posix", "file modes are POSIX")
+    def test_the_raw_json_is_for_its_owner_only(self):
+        # The raw copy keeps live tokens: under the usual 022 umask it was readable by every local user.
+        report = Report("sender-play-now")
+        report.add("sent", accessToken="abc123")
+        previous = os.umask(0o022)
+        self.addCleanup(os.umask, previous)
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = report.save(Path(tmp))
+            report.save(Path(tmp))
+            self.assertEqual(paths.json.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(paths.json.parent.stat().st_mode & 0o777, 0o700)
+
     def test_paths_follow_date_layout(self):
         report = Report("sessions-x")
         with tempfile.TemporaryDirectory() as tmp:

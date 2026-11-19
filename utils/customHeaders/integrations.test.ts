@@ -12,25 +12,6 @@ import {
 } from "./integrations";
 import { secureCustomHeaderMetadata } from "./secureValues";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-jest.mock(
-  "expo-secure-store",
-  () => jest.requireActual("@/test-utils/secureStore").secureStoreModule,
-);
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// the modules under test call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  logAndCaptureError: () => undefined,
-  writeInfoLog: () => undefined,
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  readFromLog: () => [],
-}));
-
 const header = (key: string, value: string) => ({ key, value, enabled: true });
 
 /** What a build from before the rename left on the device for Seerr. */

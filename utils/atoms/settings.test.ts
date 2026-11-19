@@ -4,6 +4,7 @@ import { getDefaultStore } from "jotai";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { markExpectedError } from "@/utils/errors";
+import { logAndCaptureError, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
   type PluginSettingsReader,
@@ -16,36 +17,15 @@ import {
   SETTINGS_KEY,
 } from "@/utils/storedSettings";
 
-jest.mock(
-  "react-native-mmkv",
-  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
-);
-// BitrateSelector is a React component module; only the BITRATES table matters.
-jest.mock("@/components/BitrateSelector", () => ({
-  BITRATES: [{ key: "Max", value: undefined }],
-}));
 // The api atoms read expo-device (native at test time);
 // settings.ts only reads the atoms.
 jest.mock("@/utils/atoms/api", () => ({
   apiAtom: jest.requireActual("jotai").atom(null),
   userAtom: jest.requireActual("jotai").atom(null),
 }));
-// The log module reaches Sentry and MMKV, so it is stubbed with the surface
-// settings.ts and what it imports actually call.
-jest.mock("@/utils/log", () => ({
-  writeToLog: () => undefined,
-  logAndCaptureError: (...args: unknown[]) => mockLogAndCaptureError(...args),
-  writeInfoLog: (...args: unknown[]) => mockWriteInfoLog(...args),
-  writeErrorLog: () => undefined,
-  writeDebugLog: () => undefined,
-  readFromLog: () => [],
-  useLog: () => ({ logs: [], clearLogs: () => undefined }),
-  LogProvider: ({ children }: { children: unknown }) => children,
-  default: jest.requireActual("jotai").atom([]),
-}));
 
-const mockLogAndCaptureError = jest.fn();
-const mockWriteInfoLog = jest.fn();
+const mockLogAndCaptureError = jest.mocked(logAndCaptureError);
+const mockWriteInfoLog = jest.mocked(writeInfoLog);
 
 // Android TV: the only platform where ExoPlayer ships alongside a
 // native-player toggle, so the only place the engine/controls split is

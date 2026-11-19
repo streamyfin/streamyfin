@@ -13,6 +13,10 @@ import { writeErrorLog } from "@/utils/log";
 import { inRegistrationOrder } from "@/utils/pushRegistration";
 import { usePushRegistration } from "./usePushRegistration";
 
+jest.mock("@/utils/customHeaders", () =>
+  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
+);
+
 let mockPrimaryUrl: string | null = null;
 
 jest.mock("@/providers/JellyfinProvider", () => {
@@ -23,11 +27,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
     getServerUrlFromStorage: () => mockPrimaryUrl,
   };
 });
-jest.mock("@/utils/customHeaders", () =>
-  jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
-);
-jest.mock("@/utils/device", () => ({ getOrSetDeviceId: () => "device-1" }));
-jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
 
 const REMOTE_URL = "https://jellyfin.example.com";
 const LAN_URL = "http://192.168.1.10:8096";

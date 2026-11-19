@@ -29,7 +29,6 @@ const { useNowPlayingVolume } =
   require("./useNowPlayingVolume") as typeof import("./useNowPlayingVolume");
 
 beforeEach(() => {
-  jest.clearAllMocks();
   mockHolds = 0;
 });
 

@@ -28,7 +28,6 @@ const PEOPLE: BaseItemPerson[] = [
 
 describe("ItemCredits", () => {
   beforeEach(() => {
-    mockPush.mockClear();
     mockOffline = false;
   });
 

@@ -409,6 +409,11 @@ class MPVLayerRenderer(
 
     override fun stop() {
         invalidateSeekReports()
+        // Released by the teardown below, once mpv no longer renders into it.
+        val sink = offscreenSink
+        offscreenSink = null
+        // A failed sink is retried by the next session, not by every detach.
+        offscreenSinkUnavailable = false
         val pendingToken = pendingOwnershipToken
         val activeToken = activeOwnershipToken
         if (!isRunning && pendingToken == null && activeToken == null) return
@@ -436,6 +441,7 @@ class MPVLayerRenderer(
         loadGenerations.reset()
 
         if (m == null) {
+            sink?.release()
             activeToken?.let(MpvOwnership::release)
             return
         }
@@ -481,6 +487,7 @@ class MPVLayerRenderer(
             } catch (e: Exception) {
                 Log.e(TAG, "Error detaching mpv surface: ${e.message}")
             } finally {
+                sink?.release()
                 activeToken?.let(MpvOwnership::release)
             }
         }.also { it.isDaemon = true }.start()
@@ -510,6 +517,15 @@ class MPVLayerRenderer(
         }
     }
 
+    // Stands in for the surface while there is none; see OffscreenSurfaceSink.
+    // Kept, not released, when the real surface comes back: mpv switches
+    // surfaces on its core thread, and a sink closed under a frame in flight
+    // would fail the VO this exists to keep alive. Three 64x36 buffers; the
+    // next lock reuses it and stop() releases it.
+    private var offscreenSink: OffscreenSurfaceSink? = null
+    // A device that cannot make one is not asked again on every detach.
+    private var offscreenSinkUnavailable = false
+
     /**
      * Detach surface without killing the VO pipeline.
      *
@@ -525,6 +541,21 @@ class MPVLayerRenderer(
         this.surface = null
         Log.i(TAG, "[PiP] detachSurface — isRunning=$isRunning, vo=$voDriver")
         if (isRunning) {
+            // Hand mpv a surface nobody sees instead of none: without one the
+            // VO fails, the video track is dropped and the refresh seek that
+            // follows can take tens of seconds (OffscreenSurfaceSink).
+            val sink = offscreenSink ?: if (offscreenSinkUnavailable) null else {
+                OffscreenSurfaceSink.create().also {
+                    offscreenSink = it
+                    offscreenSinkUnavailable = it == null
+                }
+            }
+            if (sink != null) {
+                mpv?.attachSurface(sink.surface)
+                updateSurfaceSize(OffscreenSurfaceSink.WIDTH, OffscreenSurfaceSink.HEIGHT)
+                Log.i(TAG, "[PiP] detachSurface — rendering into the offscreen sink")
+                return
+            }
             mpv?.detachSurface()
             val activeVo = try { mpv?.getPropertyString("vo") } catch (e: Exception) { null }
             Log.i(TAG, "[PiP] detachSurface — detached, activeVo=$activeVo (should still be $voDriver)")

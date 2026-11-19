@@ -72,6 +72,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
+import { resolveRouteTrackIndexes } from "@/utils/directPlayer/routeTrackIndexes";
 import {
   isPlaceholderTick,
   resolveSessionPositionTicks,
@@ -133,7 +134,7 @@ export default function DirectPlayerPage() {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   // Mirror of isPlaybackStopped that is already set when a report is built.
@@ -233,14 +234,6 @@ export default function DirectPlayerPage() {
 
   const offline = offlineStr === "true";
 
-  // Audio index: use URL param if provided, otherwise use stored index for offline playback
-  // This is computed after downloadedItem is available, see audioIndexResolved below
-  const audioIndexFromUrl = audioIndexStr
-    ? Number.parseInt(audioIndexStr, 10)
-    : undefined;
-  const subtitleIndex = subtitleIndexStr
-    ? Number.parseInt(subtitleIndexStr, 10)
-    : -1;
   const bitrateValue = bitrateValueStr
     ? Number.parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
@@ -296,16 +289,12 @@ export default function DirectPlayerPage() {
     reportProgressRef.current = playbackManager.reportPlaybackProgress;
   });
 
-  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
-  const audioIndex = useMemo(() => {
-    if (audioIndexFromUrl !== undefined) {
-      return audioIndexFromUrl;
-    }
-    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
-      return downloadedItem.userData.audioStreamIndex;
-    }
-    return undefined;
-  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+  const { audioIndex, subtitleIndex } = resolveRouteTrackIndexes({
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+    offline,
+    downloaded: downloadedItem?.userData,
+  });
 
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to
@@ -997,6 +986,16 @@ export default function DirectPlayerPage() {
   );
 
   /** Prepare metadata for iOS native media controls (Control Center, Lock Screen) */
+  // Fast forward and rewind from a headset, a car or the notification skip
+  // what the on-screen buttons do.
+  const sessionSkipSeconds = useMemo(
+    () => ({
+      forward: settings.forwardSkipTime,
+      backward: settings.rewindSkipTime,
+    }),
+    [settings.forwardSkipTime, settings.rewindSkipTime],
+  );
+
   const nowPlayingMetadata = useMemo(() => {
     if (!item || !api) return undefined;
 
@@ -1647,8 +1646,8 @@ export default function DirectPlayerPage() {
       settings.subtitleSize,
       videoStream?.Width,
       videoStream?.Height,
-      screenWidth * PixelRatio.get(),
-      screenHeight * PixelRatio.get(),
+      windowWidth * PixelRatio.get(),
+      windowHeight * PixelRatio.get(),
       getActivePlayerType(settings),
     );
     void applySubtitleStyle(
@@ -1660,7 +1659,7 @@ export default function DirectPlayerPage() {
     ).catch((error: unknown) => {
       console.error("Failed to apply subtitle settings:", error);
     });
-  }, [tracksReady, settings, stream?.mediaSource, screenWidth, screenHeight]);
+  }, [tracksReady, settings, stream?.mediaSource, windowWidth, windowHeight]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
@@ -1758,6 +1757,13 @@ export default function DirectPlayerPage() {
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
                 nowPlayingMetadata={nowPlayingMetadata}
+                // Not on TV: the remote's keys go to JS there, and an active
+                // session took Play/Pause again and undid the toggle.
+                backgroundPlayback={!Platform.isTV}
+                sessionSkipSeconds={sessionSkipSeconds}
+                liveStream={
+                  item?.Type === "Program" || item?.Type === "TvChannel"
+                }
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}

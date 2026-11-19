@@ -27,7 +27,7 @@ never through a public issue.
 3. Xcode and/or Android Studio, following the
    [Expo guides](https://docs.expo.dev/workflow/android-studio-emulator/).
 4. The [Biome](https://biomejs.dev) extension in your editor.
-5. Python 3: `bun run test` runs the end-to-end bench's own tests with it.
+5. Python 3.11 or later: `bun run test` runs the end-to-end bench's own tests with it.
 
 ```bash
 bun i
