@@ -291,12 +291,15 @@ internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, model
     }
 }
 
-/** Lays the content out wider than its place by [start] and [end], drawn past both edges by as much. */
+/**
+ * Lays the content out wider than its place by [start] and [end], drawn past both edges by as much. Placed relative:
+ * right to left, the start is the right edge, where the chevron stands.
+ */
 private fun Modifier.bleed(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
     val before = start.roundToPx()
     val wide = constraints.maxWidth + before + end.roundToPx()
     val placeable = measurable.measure(constraints.copy(minWidth = wide, maxWidth = wide))
-    layout(constraints.maxWidth, placeable.height) { placeable.place(-before, 0) }
+    layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(-before, 0) }
 }
 
 @Composable
