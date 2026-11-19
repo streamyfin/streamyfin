@@ -5,8 +5,11 @@ import type {
   UserDto,
 } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
+import { Dimensions } from "react-native";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import {
+  REMOTE_ARTWORK_MAX,
+  REMOTE_PORTRAIT_ARTWORK_MAX_SHARE,
   REMOTE_POSTER_RATIO,
   REMOTE_WIDE_IMAGE_RATIO,
   REMOTE_WIDE_IMAGE_WIDTH,
@@ -26,6 +29,7 @@ import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
 import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import { getJellyfinHeadersForUrl, hasHeaders } from "@/utils/customHeaders";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { canSearchServerSubtitles } from "@/utils/jellyfin/subtitleSearchAccess";
@@ -102,20 +106,38 @@ export const buildRemoteTrackMenus = (params: {
  */
 const remoteMetadata = (item: BaseItemDto, api: Api, settings: Settings) => {
   const metadata = buildMetadata(item, api);
+  // The native layout's largest box upright, on the screen's short side: its width upright, however it is held now.
+  const screen = Dimensions.get("screen");
+  const artworkMax = Math.max(
+    REMOTE_ARTWORK_MAX,
+    Math.min(screen.width, screen.height) * REMOTE_PORTRAIT_ARTWORK_MAX_SHARE,
+  );
   if (item.Type !== "Episode") {
+    const artworkAspectRatio =
+      item.PrimaryImageAspectRatio || REMOTE_POSTER_RATIO;
+    // Under the maximum, every phone, the poster keeps the local player's request; a tablet's is asked at its width.
+    if (artworkMax <= REMOTE_ARTWORK_MAX)
+      return { ...metadata, artworkAspectRatio };
+    const artworkUri = getPrimaryImageUrl({
+      api,
+      item,
+      quality: 90,
+      width: toImagePixels(artworkMax * Math.min(1, artworkAspectRatio)),
+    });
     return {
       ...metadata,
-      artworkAspectRatio: item.PrimaryImageAspectRatio || REMOTE_POSTER_RATIO,
+      artworkUri: artworkUri ?? undefined,
+      artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api.basePath),
+      artworkAspectRatio,
     };
   }
+  const wideWidth = Math.max(REMOTE_WIDE_IMAGE_WIDTH, artworkMax);
   const artworkUri = getWideImageUrl({
     api,
     item,
     useEpisodePoster: settings.useEpisodeImagesForNextUp,
-    fillWidth: toImagePixels(REMOTE_WIDE_IMAGE_WIDTH),
-    fillHeight: toImagePixels(
-      REMOTE_WIDE_IMAGE_WIDTH / REMOTE_WIDE_IMAGE_RATIO,
-    ),
+    fillWidth: toImagePixels(wideWidth),
+    fillHeight: toImagePixels(wideWidth / REMOTE_WIDE_IMAGE_RATIO),
     quality: 90,
   });
   return {

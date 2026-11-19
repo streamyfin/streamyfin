@@ -1,7 +1,9 @@
 import type { BaseItemDto, UserDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
+import { Dimensions, PixelRatio } from "react-native";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { defaultValues } from "@/utils/atoms/settings";
+import { buildMetadata } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import {
   buildReducedRemotePlayerConfig,
@@ -202,6 +204,50 @@ describe("the image", () => {
     const { uri, ratio } = image(movie, true);
     expect(uri).toContain("/Items/movie-1/Images/Primary");
     expect(ratio).toBeCloseTo(expected);
+  });
+});
+
+// Upright, a tablet's image grows with its screen, to the native share of its width: it is asked at the pixels drawn
+// there. Every phone stays under the native maximum and keeps the request it had, and the local player's never moves.
+describe("the image's size", () => {
+  const screen = (width: number, height: number, scale: number) => {
+    jest
+      .spyOn(Dimensions, "get")
+      .mockReturnValue({ width, height, scale, fontScale: 1 });
+    jest.spyOn(PixelRatio, "get").mockReturnValue(scale);
+  };
+  afterEach(() => jest.restoreAllMocks());
+  // A movie as the server sends it, the tags the local player's request needs.
+  const movie: BaseItemDto = {
+    Id: "movie-1",
+    Type: "Movie",
+    ImageTags: { Primary: "poster" },
+    BackdropImageTags: [],
+  };
+  const fillWidth = (uri: string | undefined) =>
+    new URL(uri ?? "").searchParams.get("fillWidth");
+  const asked = (item: BaseItemDto) =>
+    fillWidth(buildRemotePlayerConfig(params({ item })).metadata.artworkUri);
+
+  test.each([
+    ["an iPhone", 402, 874, 3, "500", "1440"],
+    ["a large iPhone", 440, 956, 3, "500", "1440"],
+    ["an Android phone", 412, 915, 2.625, "500", "1260"],
+    ["an iPad", 820, 1180, 2, "984", "1476"],
+    ["an Android tablet", 800, 1280, 2, "960", "1440"],
+  ])(
+    "%s asks the poster and the episode image at the pixels it draws",
+    (_device, width, height, scale, poster, wide) => {
+      screen(width, height, scale);
+      expect(asked(movie)).toBe(poster);
+      expect(asked(episode)).toBe(wide);
+    },
+  );
+
+  test("an upright iPad asks a wide poster at the box's width, and the local player keeps its request", () => {
+    screen(1180, 820, 2);
+    expect(asked({ ...movie, PrimaryImageAspectRatio: 1.5 })).toBe("1476");
+    expect(fillWidth(buildMetadata(movie, makeApi()).artworkUri)).toBe("500");
   });
 });
 
