@@ -1549,6 +1549,37 @@ describe("the remote player asked from outside the app's screens", () => {
     await shownOnce();
   });
 
+  // The hub names the TV while the session resumes (phase connecting), before what the TV plays is known: a request
+  // taken then found nothing to show, and was gone once the TV reported its media.
+  test("a kept request waits for what the TV plays", async () => {
+    const tvPlays = mockCast.remotePlayback;
+    mockCast.remoteTarget = {
+      ...connected,
+      state: "connecting",
+      reconnecting: true,
+    };
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      reconnecting: true,
+    };
+    mockCast.pendingRemotePlayerRequest = true;
+    await render(<RemotePlayerController />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(mockPlayer.remotePresented).toEqual([]);
+
+    mockCast.remoteTarget = connected;
+    mockCast.remotePlayback = tvPlays;
+    await act(async () => {
+      emitRemoteTarget(mockCast, connected);
+      emitCastEvent(mockCast, "onRemotePlaybackChanged", tvPlays);
+    });
+
+    await shownOnce();
+  });
+
   // The Cast notification while the local player is up: native refuses a remote player over it, every tap went to
   // Sentry. The local player stays, and the request is dropped rather than kept for its close.
   test("a request while the local player is up leaves it and reports nothing", async () => {

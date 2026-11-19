@@ -155,18 +155,29 @@ export function RemotePlayerController() {
 
   // Asked from native (the Cast notification, the local player's Remote, that player gone): the screen on what the
   // TV plays, as Remote does. The app started from the notification resumes the TV's session after mounting: the
-  // request waits natively until the session and the account are there, then the mount or the event takes it.
+  // request waits natively until the TV and the account are there, then here until the TV says what it plays (the
+  // hub names the TV while the session resumes). It goes with the TV: one gone, a request never shown goes too.
   const castTargetId = castTarget?.id;
   const openingRequested = useRef(false);
   useEffect(() => {
     if (!castTargetId || !userId) return;
+    let wanted = false;
     const take = () => {
       const remote = latest.current.castTarget;
       const api = store.get(apiAtom);
       const user = store.get(userAtom)?.Id;
       // Taken even while one opens: a second tap on the notification opens nothing later.
-      if (!consumePendingRemotePlayerRequest() || openingRequested.current)
+      if (consumePendingRemotePlayerRequest() && !openingRequested.current)
+        wanted = true;
+      if (!wanted || openingRequested.current) return;
+      const playing = remotePlayback();
+      if (
+        !playing.connected ||
+        playing.reconnecting ||
+        playing.phase === "none"
+      )
         return;
+      wanted = false;
       // A player is up: native refuses another over it. The local one stays (the notification tapped over it, its
       // own Remote closes it first), the remote one shows the TV already; the request is dropped.
       if (isNativePlayerPresented()) return;
@@ -192,8 +203,13 @@ export function RemotePlayerController() {
         });
     };
     take();
-    const subscription = onRemotePlayerRequested(take);
-    return () => subscription.remove();
+    const subscriptions = [
+      onRemotePlayerRequested(take),
+      onRemotePlaybackChanged(take),
+    ];
+    return () => {
+      for (const subscription of subscriptions) subscription.remove();
+    };
   }, [store, castTargetId, userId]);
 
   useEffect(() => {
