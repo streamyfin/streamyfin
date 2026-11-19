@@ -16,6 +16,7 @@ import * as BackgroundTask from "expo-background-task";
 import { Image } from "expo-image";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { nowPlayingScreen } from "@/components/music/nowPlayingScreen";
 import { OfflineProgressSync } from "@/components/OfflineProgressSync";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { SeerrAutoLogin } from "@/components/seerr/SeerrAutoLogin";
@@ -383,14 +384,7 @@ function Layout() {
                                             header: () => null,
                                           }}
                                         />
-                                        <Stack.Screen
-                                          name='(auth)/now-playing'
-                                          options={{
-                                            headerShown: false,
-                                            presentation: "modal",
-                                            gestureEnabled: true,
-                                          }}
-                                        />
+                                        <Stack.Screen {...nowPlayingScreen} />
                                         <Stack.Screen
                                           name='login'
                                           options={{
