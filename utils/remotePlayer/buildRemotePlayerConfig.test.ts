@@ -153,6 +153,58 @@ test("the config names the target and the episode list", () => {
   ).toBe(2);
 });
 
+// The image follows the app's own setting, as the Continue Watching cards do, and goes with its shape: lying down,
+// the screen sizes the image's box before the image loads.
+describe("the image", () => {
+  const seriesEpisode: BaseItemDto = {
+    ...episode,
+    ParentThumbItemId: "series-1",
+    ParentThumbImageTag: "series-thumb",
+  };
+  const image = (item: BaseItemDto, useEpisodeImagesForNextUp: boolean) => {
+    const { metadata } = buildRemotePlayerConfig(
+      params({
+        item,
+        settings: { ...defaultValues, useEpisodeImagesForNextUp },
+      }),
+    );
+    return { uri: metadata.artworkUri, ratio: metadata.artworkAspectRatio };
+  };
+
+  test("an episode shows the series image by default", () => {
+    const { uri, ratio } = image(seriesEpisode, false);
+    expect(uri).toContain("/Items/series-1/Images/Thumb");
+    expect(ratio).toBeCloseTo(16 / 9);
+  });
+
+  test("an episode shows its own image when the setting asks for it", () => {
+    const { uri, ratio } = image(seriesEpisode, true);
+    expect(uri).toContain("/Items/episode-1/Images/Primary");
+    expect(ratio).toBeCloseTo(16 / 9);
+  });
+
+  test("an episode whose series has no wide image shows its own", () => {
+    expect(image(episode, false).uri).toContain(
+      "/Items/episode-1/Images/Primary",
+    );
+  });
+
+  test.each([
+    ["a poster's shape when the item gives none", undefined, 2 / 3],
+    ["the shape the item gives", 1.5, 1.5],
+  ])("a movie shows its poster, %s", (_case, given, expected) => {
+    const movie: BaseItemDto = {
+      Id: "movie-1",
+      Name: "Feature",
+      Type: "Movie",
+      PrimaryImageAspectRatio: given,
+    };
+    const { uri, ratio } = image(movie, true);
+    expect(uri).toContain("/Items/movie-1/Images/Primary");
+    expect(ratio).toBeCloseTo(expected);
+  });
+});
+
 // No headers is none at all: the native side would otherwise send an empty set with every image.
 test("the config leaves the image headers out when the user has none", () => {
   expect(buildRemotePlayerConfig(params())).not.toHaveProperty("imageHeaders");

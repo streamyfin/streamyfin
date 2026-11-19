@@ -44,3 +44,16 @@ export const REMOTE_TECHNICAL_INFO_REFRESH_MS = 2000;
  */
 export const REMOTE_SUBTITLE_POLL_MS = 1500;
 export const REMOTE_SUBTITLE_POLL_ATTEMPTS = 8;
+
+/**
+ * The shapes, width over height, the remote screen sizes its image to before it loads: an episode's wide image
+ * (its own, or its series', as the Continue Watching cards pick it), and a poster when the item gives none.
+ */
+export const REMOTE_WIDE_IMAGE_RATIO = 16 / 9;
+export const REMOTE_POSTER_RATIO = 2 / 3;
+
+/**
+ * The widest the remote screen draws an episode's wide image, in points: half of a large phone lying down. What
+ * is asked of the server covers it on this screen's pixels.
+ */
+export const REMOTE_WIDE_IMAGE_WIDTH = 480;

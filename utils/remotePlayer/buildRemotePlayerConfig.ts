@@ -6,6 +6,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
+import {
+  REMOTE_POSTER_RATIO,
+  REMOTE_WIDE_IMAGE_RATIO,
+  REMOTE_WIDE_IMAGE_WIDTH,
+} from "@/constants/RemotePlayer";
 import type {
   NativePlayerEpisodeListItem,
   NativePlayerNextEpisode,
@@ -20,7 +25,9 @@ import type {
 import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
 import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
-import { hasHeaders } from "@/utils/customHeaders";
+import { getJellyfinHeadersForUrl, hasHeaders } from "@/utils/customHeaders";
+import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { canSearchServerSubtitles } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
   buildMetadata,
@@ -89,6 +96,37 @@ export const buildRemoteTrackMenus = (params: {
 };
 
 /**
+ * The remote screen's image and its shape. An episode shows the wide image the Continue Watching cards show, which
+ * the user's `useEpisodeImagesForNextUp` setting picks: its own, or its series' (the default); anything else shows
+ * its poster, the local player's artwork. The one place the remote screen's image is chosen.
+ */
+const remoteMetadata = (item: BaseItemDto, api: Api, settings: Settings) => {
+  const metadata = buildMetadata(item, api);
+  if (item.Type !== "Episode") {
+    return {
+      ...metadata,
+      artworkAspectRatio: item.PrimaryImageAspectRatio || REMOTE_POSTER_RATIO,
+    };
+  }
+  const artworkUri = getWideImageUrl({
+    api,
+    item,
+    useEpisodePoster: settings.useEpisodeImagesForNextUp,
+    fillWidth: toImagePixels(REMOTE_WIDE_IMAGE_WIDTH),
+    fillHeight: toImagePixels(
+      REMOTE_WIDE_IMAGE_WIDTH / REMOTE_WIDE_IMAGE_RATIO,
+    ),
+    quality: 90,
+  });
+  return {
+    ...metadata,
+    artworkUri,
+    artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api.basePath),
+    artworkAspectRatio: REMOTE_WIDE_IMAGE_RATIO,
+  };
+};
+
+/**
  * What the remote player shows of a play on the TV: the local player's metadata, chapters, thumbnails and track
  * menus, with no stream, since the TV plays it. None of the phone's own playback either: no picture in picture, no
  * forced rotation, and the server's subtitle search only (the phone's own lookup adds a file to a local player).
@@ -116,7 +154,7 @@ export const buildRemotePlayerConfig = (params: {
   const { item, mediaSource, settings, api, t } = params;
   const strings = buildNativePlayerStrings(t);
   return {
-    metadata: buildMetadata(item, api),
+    metadata: remoteMetadata(item, api, settings),
     targetName: params.targetName,
     chapters:
       item.Chapters?.map((chapter) => ({
