@@ -75,6 +75,7 @@ receivers: the screen opened again by Remote (the sheet offers Remote, and Play 
 the TV plays opens the screen, only on the Cast SDK's media status, which a fake TV never
 has), and a load the TV refuses, with Play here (the fake TV refuses only an item whose id is
 `fake-fail`). The unit tests cover both (`openRemotePlayer.test.ts`, `FakeRemoteEngineTest`).
+On iOS, start Maestro's runner by hand and run Maestro itself (`e2e/README.md`, "Tiers").
 
 ```sh
 python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/remote-player-fake-receiver.yml --device emulator-5554 \

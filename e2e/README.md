@@ -32,6 +32,15 @@ server log, the session the server records, the receiver on the TV.
   flows find by test id, and on demand (`.github/workflows/e2e-tier1-android.yml`): the smoke
   flow, then the output sheet on the fake receivers, signed in to a throwaway server
   (`e2e/suites/cast/README.md`).
+  On iOS under Xcode 27.2, Maestro 2.8.0's driver takes over 30 minutes to come up: the runner
+  plays six internal tests before the one that serves Maestro, and each waits 300 s for the
+  crash reporter, past the startup timeout. Start the runner yourself, from the driver packed in
+  `~/.maestro/lib/maestro-ios-driver.jar` under `driver-iPhoneSimulator/` (the two apps are
+  zipped there) with `SwipeRouteHandlerV2ClassificationTests` added to the `SkipTestIdentifiers`
+  of its `.xctestrun`:
+  `TEST_RUNNER_PORT=22087 xcodebuild test-without-building -xctestrun <file> -destination id=<udid>`.
+  Then run Maestro itself, as the bench runner does not pass the port:
+  `USE_XCODE_TEST_RUNNER=1 maestro --device <udid> test --driver-host-port 22087 <flow>`.
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
