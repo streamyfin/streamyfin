@@ -1293,20 +1293,19 @@ const NativePlayerProviderInner: React.FC<{
       // report was pending, after the request had taken the earlier
       // selection. A transcode carries only the server's default, which it
       // falls back to.
+      // Once it has carried one, a later pick of a listed track replaces it:
+      // mpv is put on that one instead.
+      let carriedPlayerAudio = false;
       const carryPlayerAudio = () => {
         if (!options.replace || !previous) return;
         if (previous.item.Id !== session.item.Id) return;
-        if (
-          !session.stream.mediaSource.TranscodingUrl &&
-          !options.audioOverride &&
-          previous.currentAudioIndex !== undefined &&
-          serverAudioIndex(
-            previous.stream.mediaSource,
-            previous.currentAudioIndex,
-          ) === undefined
-        ) {
-          session.currentAudioIndex = previous.currentAudioIndex;
-        }
+        if (session.stream.mediaSource.TranscodingUrl) return;
+        if (options.audioOverride) return;
+        const latest = previous.currentAudioIndex;
+        if (latest === undefined) return;
+        carriedPlayerAudio ||=
+          serverAudioIndex(previous.stream.mediaSource, latest) === undefined;
+        if (carriedPlayerAudio) session.currentAudioIndex = latest;
       };
       carryPlayerAudio();
 

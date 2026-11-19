@@ -921,6 +921,68 @@ describe("audio tracks only mpv found", () => {
     );
   });
 
+  test("give way to a listed track picked while the replaced stream's stop report is pending", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    const stops: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            stops.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+    expect(stops).toHaveLength(1);
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+    await act(async () => {
+      for (const release of stops.splice(0)) release();
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches[mockNative.audioSwitches.length - 1]).toBe(
+      1,
+    );
+  });
+
   // A remote Play command for the item on screen names its own track.
   test("give way to the audio track a new play of the same item asks for", async () => {
     mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
