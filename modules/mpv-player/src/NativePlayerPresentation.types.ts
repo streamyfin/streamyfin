@@ -52,6 +52,11 @@ export type NativePlayerMetadata = {
   artworkUri?: string;
   /** Custom proxy auth headers for `artworkUri`, when it needs them. */
   artworkHeaders?: Record<string, string>;
+  /**
+   * The artwork's width over its height, when known before it loads: the
+   * remote screen sizes its image's box to it lying down.
+   */
+  artworkAspectRatio?: number;
   isEpisode?: boolean;
 };
 

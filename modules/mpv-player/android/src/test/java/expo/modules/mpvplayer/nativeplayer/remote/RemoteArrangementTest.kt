@@ -23,12 +23,13 @@ class RemoteArrangementTest {
     }
 
     @Test
-    fun couchedPutsTheTitlesAndMenusInTheTopBar() {
+    fun couchedPutsTheMenusInTheTopBarAndTheRestBesideTheArtwork() {
+        // The large image on the left, the titles, the bar and the transport on the right (Gauvain, 19/11).
         val a = RemoteArrangement.of(RemoteLayout.LANDSCAPE)
-        assertEquals(listOf(HEADER, TITLES, BOTTOM_ROW), a.topBar)
+        assertEquals(listOf(HEADER, BOTTOM_ROW), a.topBar)
         assertEquals(ARTWORK, a.beside)
-        assertEquals(listOf(TRANSPORT), a.column)
-        assertEquals(listOf(BAR), a.bottom)
+        assertEquals(listOf(TITLES, BAR, TRANSPORT), a.column)
+        assertEquals(emptyList<RemoteSlot>(), a.bottom)
     }
 
     @Test
@@ -60,9 +61,10 @@ class RemoteArrangementTest {
     }
 
     @Test
-    fun couchedCentersTheTransportBesideTheArtwork() {
+    fun couchedSharesTheFreeHeightAroundTheBar() {
+        // As tall as the image: the titles level with its top, the transport with its bottom, the bar between.
         val a = RemoteArrangement.of(RemoteLayout.LANDSCAPE)
-        assertEquals(listOf(0, a.column.size), a.spaces)
+        assertEquals(listOf(a.column.indexOf(BAR), a.column.indexOf(TRANSPORT)), a.spaces)
     }
 
     @Test

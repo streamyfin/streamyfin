@@ -2,16 +2,20 @@
 import SwiftUI
 
 /// The remote player's screen. Its layout follows the window's size class (RemoteLayout): upright, the six slots
-/// stand top to bottom; couched, the titles and menus share a bar across the top, the artwork sits left of the
-/// transport and the bar runs along the bottom; wide, the upright column stands beside the artwork. Where each slot
-/// goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
+/// stand top to bottom; couched, the menus share a bar across the top, and the image fills the left half with the
+/// titles, the bar and the transport in the right one; wide, the upright column stands beside the artwork. Where each
+/// slot goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
 struct RemotePlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var screen: RemoteScreenState
 	@Environment(\.dynamicTypeSize) private var dynamicTypeSize
+	/// Measured: the couched image takes the band under it, and its TV button grows with the text size.
+	@State private var topBarHeight: Double?
 
 	private static let slotGap: CGFloat = 16
 	private static let padding = CGFloat(PlayerConstants.remoteHorizontalPadding)
+	private static let gutter = CGFloat(PlayerConstants.remoteLandscapeGutter)
+	private static let infoInset = CGFloat(PlayerConstants.remoteTechnicalInfoInset)
 
 	/// What the TV does; read in the body, the screen follows each snapshot, the next episode and the engine's error.
 	private var model: RemoteScreenModel { screen.model }
@@ -29,36 +33,49 @@ struct RemotePlayerRootView: View {
 			let width = Double(proxy.size.width)
 			let height = Double(proxy.size.height)
 			let layout = RemoteLayout.of(width: width, height: height)
-			let artwork = CGFloat(RemoteMetrics.artworkHeight(layout: layout, width: width, height: height, fontScale: fontScale))
+			let box = RemoteMetrics.artworkBox(
+				layout: layout, width: width, height: height, fontScale: fontScale,
+				aspectRatio: viewModel.metadata?.artworkAspectRatio, topBarHeight: topBarHeight
+			)
+			let artwork = CGSize(width: box.width, height: box.height)
+			let beside = RemoteMetrics.besideWidth(layout: layout, width: width).map { CGFloat($0) }
 			let arrangement = RemoteArrangement.of(layout)
+			// The panel's room: couched the whole half, it centers on the image there; else the image.
+			let infoWidth = (layout == .landscape ? beside ?? 0 : artwork.width) - 2 * Self.infoInset
+			let slots = Slots(layout: layout, artwork: artwork, infoWidth: max(min(TechnicalInfoOverlay.compactMaxWidth, infoWidth), 0))
 
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
 					RemoteTopBar(viewModel: viewModel, targetName: targetName, model: model)
+						.background {
+							GeometryReader { bar in
+								Color.clear.preference(key: RemoteTopBarHeightKey.self, value: bar.size.height)
+							}
+						}
 				}
 
 				HStack(spacing: 0) {
-					if let beside = arrangement.beside {
-						Group {
-							if let besideWidth = RemoteMetrics.besideWidth(layout: layout, width: width) {
-								slot(beside, layout: layout, artwork: artwork)
-									.frame(width: CGFloat(besideWidth))
-							} else {
-								slot(beside, layout: layout, artwork: artwork)
-									.padding(.trailing, Self.padding)
-							}
-						}
+					if let slot = arrangement.beside {
+						self.slot(slot, slots)
+							.frame(width: beside)
+							.frame(maxHeight: .infinity)
+							.padding(.trailing, layout == .landscape ? Self.gutter : 0)
 					}
 					// The column fills the height it is given, so its free height lands where `spaces` says; taller
-					// than the screen, the spacers shrink to nothing and the column scrolls.
+					// than the screen, the spacers shrink to nothing and the column scrolls. Couched, its slots are as
+					// tall as the image and centered on it: the titles level with its top, the transport with its bottom.
 					GeometryReader { viewport in
+						let slotsHeight = layout == .landscape ? min(artwork.height, viewport.size.height) : viewport.size.height
 						ScrollView {
 							VStack(alignment: .leading, spacing: Self.slotGap) {
 								ForEach(Array(arrangement.column.enumerated()), id: \.element) { index, item in
-									spaced(index, of: arrangement) { slot(item, layout: layout, artwork: artwork) }
+									spaced(index, of: arrangement) { slot(item, slots) }
 								}
 							}
-							.frame(maxWidth: .infinity, minHeight: viewport.size.height, alignment: .top)
+							.frame(maxWidth: .infinity, minHeight: slotsHeight, alignment: .top)
+							// Sized by its slots and slotsHeight alone, so the spacers share slotsHeight, never the viewport.
+							.fixedSize(horizontal: false, vertical: true)
+							.frame(maxWidth: .infinity, minHeight: viewport.size.height)
 						}
 						.scrollBounceBehavior(.basedOnSize)
 					}
@@ -66,14 +83,18 @@ struct RemotePlayerRootView: View {
 				}
 				.frame(maxHeight: .infinity)
 
-				ForEach(arrangement.bottom, id: \.self) { slot($0, layout: layout, artwork: artwork) }
+				ForEach(arrangement.bottom, id: \.self) { slot($0, slots) }
 			}
 			.padding(.horizontal, Self.padding)
 		}
+		.onPreferenceChange(RemoteTopBarHeightKey.self) { topBarHeight = $0 > 0 ? Double($0) : nil }
 		// Over the top bar, not in the stack: showing it moves nothing.
 		.overlay(alignment: .top) { RemoteVolumeIndicatorView(indicator: screen.volumeIndicator) }
-		// The local player's layer; shown, it asks JS for the lines of what the TV plays.
-		.overlay { TechnicalInfoLayer(viewModel: viewModel) }
+		// The technical info panel is drawn in the artwork's slot, which a rotation moves: asked for here, the lines JS
+		// writes of what the TV plays survive it.
+		.onAppear { if technicalInfoVisible { viewModel.technicalInfoShown(true) } }
+		.onChange(of: technicalInfoVisible) { viewModel.technicalInfoShown($0) }
+		.onDisappear { if technicalInfoVisible { viewModel.technicalInfoShown(false) } }
 		// Tone 20 at the top to tone 10 at remoteTintGradientEnd, flat below; a new tint fades in.
 		.background(
 			LinearGradient(
@@ -98,22 +119,48 @@ struct RemotePlayerRootView: View {
 		}
 	}
 
+	private var technicalInfoVisible: Bool { viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo }
+
+	/// What the slots are drawn at: the layout, the artwork's box, and the technical info card's width.
+	private struct Slots {
+		let layout: RemoteLayout
+		let artwork: CGSize
+		let infoWidth: CGFloat
+	}
+
 	/// One slot, alone in its place: the column, the side or the bottom band. The top bar draws its own three.
 	@ViewBuilder
-	private func slot(_ slot: RemoteSlot, layout: RemoteLayout, artwork: CGFloat) -> some View {
+	private func slot(_ slot: RemoteSlot, _ slots: Slots) -> some View {
+		let layout = slots.layout
+		let artwork = slots.artwork
+		let couched = layout == .landscape
 		switch slot {
 		case .header:
 			RemoteHeader(viewModel: viewModel, model: model)
 		case .artwork:
-			// The artwork's double tap seeks like the bar, so it rests when the bar does.
-			RemoteArtwork(viewModel: viewModel, size: artwork)
-				.overlay { if model.seekEnabled { artworkTaps } }
-				// The segment skip rests with the bar too, as it did above it.
-				.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
-				.clipShape(RoundedRectangle(cornerRadius: 8))
-				.frame(maxWidth: layout == .portrait ? .infinity : nil)
+			ZStack {
+				// The artwork's double tap seeks like the bar, so it rests when the bar does.
+				RemoteArtwork(viewModel: viewModel, size: artwork)
+					.overlay { if model.seekEnabled { artworkTaps } }
+				// Over the image and never over the titles or the controls; the skip band and the seek pill are drawn
+				// over it.
+				if technicalInfoVisible {
+					TechnicalInfoOverlay(viewModel: viewModel, compactWidth: slots.infoWidth, reportsShown: false)
+						.padding(Self.infoInset)
+						.frame(width: couched ? nil : artwork.width, height: couched ? nil : artwork.height)
+				}
+				Color.clear
+					.overlay { if model.seekEnabled { seekPill } }
+					// The segment skip rests with the bar too, as it did above it.
+					.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
+					.frame(width: artwork.width, height: artwork.height)
+					.clipShape(RoundedRectangle(cornerRadius: 8))
+			}
+			// Couched, the whole half: the panel centers on the image within it, wider than a poster.
+			.frame(maxWidth: layout == .portrait || couched ? .infinity : nil, maxHeight: couched ? .infinity : nil)
 		case .titles:
-			RemoteTitles(viewModel: viewModel, compact: false)
+			// Couched, the title's capitals start level with the image's top.
+			RemoteTitles(viewModel: viewModel, capsAtTop: couched)
 				.frame(maxWidth: .infinity, alignment: .leading)
 		case .bar:
 			VStack(alignment: .leading, spacing: 8) {
@@ -144,33 +191,38 @@ struct RemotePlayerRootView: View {
 		}
 	}
 
-	/// A double tap on a half of the artwork seeks back or forward, with the chrome's pill on that half. The layer runs
-	/// left to right in every language, so the tap's x is from the physical left edge (RemoteGestures.artworkTapSeek).
+	/// A double tap on a half of the artwork seeks back or forward; seekPill shows it on that half. The layer runs left
+	/// to right in every language, so the tap's x is from the physical left edge (RemoteGestures.artworkTapSeek).
 	private var artworkTaps: some View {
 		GeometryReader { box in
-			ZStack {
-				Color.clear
-					.contentShape(Rectangle())
-					.gesture(SpatialTapGesture(count: 2).onEnded { tap in
-						let fraction = Double(tap.location.x / max(box.size.width, 1))
-						viewModel.seekWithPill(forward: RemoteGestures.artworkTapSeek(xFraction: fraction) > 0)
-					})
-				if let forward = viewModel.doubleTapSeekForward {
-					HStack {
-						if forward { Spacer() }
-						DoubleTapSeekPill(
-							forward: forward,
-							seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
-						)
-						if !forward { Spacer() }
-					}
-					.id(forward)
-					.transition(.opacity)
-					.allowsHitTesting(false)
-				}
-			}
-			.environment(\.layoutDirection, .leftToRight)
+			Color.clear
+				.contentShape(Rectangle())
+				.gesture(SpatialTapGesture(count: 2).onEnded { tap in
+					let fraction = Double(tap.location.x / max(box.size.width, 1))
+					viewModel.seekWithPill(forward: RemoteGestures.artworkTapSeek(xFraction: fraction) > 0)
+				})
 		}
+		.environment(\.layoutDirection, .leftToRight)
+	}
+
+	/// The chrome's pill on the half that was tapped, over the technical info panel; touches go through it.
+	private var seekPill: some View {
+		ZStack {
+			if let forward = viewModel.doubleTapSeekForward {
+				HStack {
+					if forward { Spacer() }
+					DoubleTapSeekPill(
+						forward: forward,
+						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
+					)
+					if !forward { Spacer() }
+				}
+				.id(forward)
+				.transition(.opacity)
+			}
+		}
+		.allowsHitTesting(false)
+		.environment(\.layoutDirection, .leftToRight)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
 	}
 
@@ -193,6 +245,16 @@ struct RemotePlayerRootView: View {
 		return Double(UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traits) / 100)
 	}
 }
+
+/// The couched top bar's height, as laid out; 0 when there is none.
+private struct RemoteTopBarHeightKey: PreferenceKey {
+	static let defaultValue: CGFloat = 0
+
+	static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+		value = max(value, nextValue())
+	}
+}
+
 /// The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the
 /// label, its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
 private struct RemoteNextUpCard: View {
