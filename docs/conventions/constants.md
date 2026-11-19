@@ -44,12 +44,13 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
 | `constants/Streamystats.ts` | Streamystats server: how long a watchlists request waits for an answer, and how many times a refresh behind lists already shown is retried |
+| `constants/ExternalPlayer.ts` | When video opens in another app instead of Streamyfin's player, and the default |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/Inactivity.ts` | The TV inactivity sign-out's storage key for the last activity |
 | `constants/StillWatching.ts` | The "Still watching?" presets, jellyfin-web 12's episode counts and session minutes |
 | `constants/Sentry.ts` | Error reporting policy: which builds report, the per session dedupe cap, the failure storm window |
 | `constants/Query.ts` | The app's query client: how many times a failed query is tried again |
-| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, how long that info is trusted, the two ways it writes an item id, and the bracketed forms it also reads one in |
+| `constants/Jellyfin.ts` | The Jellyfin server itself: the product name that identifies one in its public system info, how long that info is trusted, the two ways it writes an item id, the bracketed forms it also reads one in, and its default play state thresholds (when a position resumes, when it counts as played) |
 | `constants/Upcoming.ts` | Upcoming episodes: how many are asked per request, on the screen and in the home row |
 | `constants/Hero.ts` | The home hero cards: the largest font scale they follow on a phone, and the window width from which they follow the system's |
 | `constants/TVDiscovery.ts` | TV home screen tiles: Top Shelf and Android TV recommendations (play link lookup timeout) |

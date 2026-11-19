@@ -255,6 +255,17 @@
         "match_refresh_rate": "Match display refresh rate",
         "match_refresh_rate_note": "Switch the TV to a refresh rate matching the video's frame rate, for example 50 Hz for 25 fps, so motion plays smoothly instead of juddering. The screen flashes briefly when the rate changes. Android TV only."
       },
+      "external_player": {
+        "title": "External player",
+        "mode": "Play in another app",
+        "mode_off": "Off",
+        "mode_ask_on_long_press": "Ask on long press",
+        "mode_ask": "Ask every time",
+        "mode_external": "External player",
+        "note": "Watch progress is only saved if the other app reports it. Live TV and SyncPlay stay in Streamyfin. Streamed videos open with your sign-in, so pick apps you trust.",
+        "open_failed": "Couldn't open another app to play this. Playing it in Streamyfin instead.",
+        "chooser_title": "Play with"
+      },
       "buffer": {
         "title": "Buffer settings",
         "cache_mode": "Cache mode",
@@ -941,6 +952,8 @@
     "play_downloaded_file": "Play downloaded file",
     "stream_file": "Stream file",
     "downloaded_file_cancel": "Cancel",
+    "play_in_other_app": "Play in another app",
+    "choose_app": "Choose app…",
     "swipe_down_settings": "Swipe down for settings",
     "ends_at": "Ends at {{time}}",
     "zoom_to_fill": "Zoom to fill",

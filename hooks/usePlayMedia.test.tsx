@@ -13,6 +13,21 @@ let mockSyncPlayEnabled = false;
 const mockSyncPlayItems = jest.fn();
 const mockSyncPlaylistItem = jest.fn();
 let mockSyncPlaylist: { ItemId: string; PlaylistItemId: string }[] = [];
+let mockExternalPlayerSupported = true;
+let mockExternalPlayerMode = "off";
+const mockPlayExternally = jest.fn();
+const mockGetUserItemData = jest.fn();
+
+jest.mock("@/hooks/useExternalPlayer", () => ({
+  useExternalPlayer: () => mockPlayExternally,
+}));
+jest.mock("@/utils/atoms/api", () => {
+  const { atom } = jest.requireActual("jotai");
+  return { apiAtom: atom({}), userAtom: atom({ Id: "user-1" }) };
+});
+jest.mock("@/utils/jellyfin/user-library/getUserItemData", () => ({
+  getUserItemData: (...args: unknown[]) => mockGetUserItemData(...args),
+}));
 
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({
@@ -34,21 +49,41 @@ jest.mock("@/providers/NativePlayerProvider", () => ({
   useNativePlayer: () => ({ presentFromRequest: mockPresentFromRequest }),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
+  get isExternalPlayerSupported() {
+    return mockExternalPlayerSupported;
+  },
   isNativeChromeActive: () => mockNativeChromeActive,
   useSettings: () => ({
-    settings: {},
+    settings: { externalPlayerMode: mockExternalPlayerMode },
   }),
 }));
 jest.mock("@/utils/stillWatching", () => ({
   resetStillWatchingSession: () => mockResetStillWatchingSession(),
 }));
+jest.mock("@/utils/log", () => ({ writeErrorLog: jest.fn() }));
+jest.mock(
+  "react-native-mmkv",
+  () => jest.requireActual("@/test-utils/mmkv").mmkvModule,
+);
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 
-const play = async (item: BaseItemDto, bitrateValue?: BitrateRequest) => {
+const play = async (
+  item: BaseItemDto,
+  offline = false,
+  options?: {
+    chooseApp?: boolean;
+    externalPlayer?: boolean;
+    bitrateValue?: BitrateRequest;
+  },
+) => {
   const { result } = await renderHook(() => usePlayMedia());
   await act(async () => {
+    const { bitrateValue, ...playOptions } = options ?? {};
     await result.current(
-      { itemId: item.Id!, offline: false, bitrateValue },
-      { item },
+      { itemId: item.Id!, offline, bitrateValue },
+      { item, ...playOptions },
     );
   });
 };
@@ -65,6 +100,10 @@ describe("usePlayMedia", () => {
     mockSyncPlayItems.mockReset().mockResolvedValue(undefined);
     mockSyncPlaylistItem.mockReset().mockResolvedValue(undefined);
     mockSyncPlaylist = [];
+    mockExternalPlayerSupported = true;
+    mockExternalPlayerMode = "off";
+    mockPlayExternally.mockReset().mockResolvedValue(true);
+    mockGetUserItemData.mockReset();
     alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
@@ -285,10 +324,216 @@ describe("usePlayMedia", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  describe("external player", () => {
+    const movie: BaseItemDto = { Id: "movie-1", Type: "Movie" };
+
+    test("plays every tap in the other app, downloaded or streamed", async () => {
+      mockExternalPlayerMode = "external";
+      mockNativeChromeActive = true;
+
+      await play(movie, true);
+      await play(movie, false);
+
+      expect(mockPlayExternally).toHaveBeenNthCalledWith(
+        1,
+        { itemId: "movie-1", offline: true },
+        movie,
+        expect.not.objectContaining({ chooseApp: true }),
+      );
+      expect(mockPlayExternally).toHaveBeenNthCalledWith(
+        2,
+        { itemId: "movie-1", offline: false },
+        movie,
+        expect.anything(),
+      );
+      expect(mockPresentFromRequest).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockGetUserItemData).not.toHaveBeenCalled();
+    });
+
+    describe("a request with only an id", () => {
+      // A top shelf or Android TV home screen tile whose item lookup timed out.
+      const playId = async () => {
+        const { result } = await renderHook(() => usePlayMedia());
+        await act(async () => {
+          await result.current(
+            { itemId: "movie-1", offline: false },
+            { item: null },
+          );
+        });
+      };
+
+      // The other app got no title and started a half watched movie at 0.
+      test("fetches the item, so the other app gets its title and position", async () => {
+        mockExternalPlayerMode = "external";
+        const fetched: BaseItemDto = {
+          Id: "movie-1",
+          Type: "Movie",
+          Name: "Movie",
+          UserData: { Key: "", PlaybackPositionTicks: 600_000_000 },
+        };
+        mockGetUserItemData.mockResolvedValue(fetched);
+
+        await playId();
+
+        expect(mockGetUserItemData).toHaveBeenCalledWith(
+          expect.objectContaining({ itemId: "movie-1", userId: "user-1" }),
+        );
+        expect(mockPlayExternally).toHaveBeenCalledWith(
+          { itemId: "movie-1", offline: false },
+          fetched,
+          expect.anything(),
+        );
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+
+      // Live TV stays in the app, and opens only while its screen is still up.
+      test("plays Live TV in the app once the fetch shows it", async () => {
+        mockExternalPlayerMode = "external";
+        mockNativeChromeActive = true;
+        mockGetUserItemData.mockResolvedValue({
+          Id: "movie-1",
+          Type: "TvChannel",
+        });
+
+        await playId();
+
+        expect(mockPlayExternally).not.toHaveBeenCalled();
+        expect(mockPresentFromRequest).toHaveBeenCalledWith(expect.anything(), {
+          isCurrent: expect.any(Function),
+        });
+      });
+
+      test("says so, and plays nowhere, when the fetch fails", async () => {
+        mockExternalPlayerMode = "external";
+        mockNativeChromeActive = true;
+        mockGetUserItemData.mockRejectedValue(new Error("timeout"));
+
+        await playId();
+
+        expect(alert).toHaveBeenCalledWith(
+          "player.error",
+          "player.an_error_occurred_while_playing_the_video",
+        );
+        expect(mockPlayExternally).not.toHaveBeenCalled();
+        expect(mockPresentFromRequest).not.toHaveBeenCalled();
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+
+      test("fetches nothing when it plays in the app anyway", async () => {
+        await playId();
+
+        expect(mockGetUserItemData).not.toHaveBeenCalled();
+        expect(mockPush).toHaveBeenCalled();
+      });
+    });
+
+    // Asking is the play button's sheet; a play without a pick stays in the app.
+    test("plays in the app when the ask mode gets no pick", async () => {
+      mockExternalPlayerMode = "ask";
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("plays in the other app when the user picked it", async () => {
+      mockExternalPlayerMode = "ask";
+
+      await play(movie, false, { externalPlayer: true, chooseApp: true });
+
+      expect(mockPlayExternally).toHaveBeenCalledWith(
+        { itemId: "movie-1", offline: false },
+        movie,
+        expect.objectContaining({ chooseApp: true }),
+      );
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    test("plays in the app when the user picked this device", async () => {
+      mockExternalPlayerMode = "external";
+
+      await play(movie, false, { externalPlayer: false });
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("plays in the app, and says so, when no other app could be opened", async () => {
+      mockExternalPlayerMode = "external";
+      mockPlayExternally.mockResolvedValue(false);
+
+      await play(movie);
+
+      expect(alert).toHaveBeenCalledWith(
+        "player.error",
+        "home.settings.external_player.open_failed",
+      );
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    // A failed handoff that settled after a newer play opened the in-app
+    // player over that play.
+    test("a failed handoff replaced by a newer play opens nothing", async () => {
+      mockExternalPlayerMode = "external";
+      let failFirst: () => void = () => {};
+      mockPlayExternally
+        .mockImplementationOnce(
+          () =>
+            new Promise<boolean>((resolve) => {
+              failFirst = () => resolve(false);
+            }),
+        )
+        .mockResolvedValueOnce(true);
+      const { result } = await renderHook(() => usePlayMedia());
+
+      await act(async () => {
+        const first = result.current(
+          { itemId: "movie-1", offline: false },
+          { item: movie },
+        );
+        await result.current(
+          { itemId: "movie-2", offline: false },
+          { item: { Id: "movie-2", Type: "Movie" } },
+        );
+        failFirst();
+        await first;
+      });
+
+      expect(mockPlayExternally).toHaveBeenCalledTimes(2);
+      expect(alert).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    // The plugin can push the setting to a platform that has no handoff.
+    test("ignores the setting where media cannot be handed to another app", async () => {
+      mockExternalPlayerSupported = false;
+      mockExternalPlayerMode = "external";
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalled();
+    });
+
+    test("leaves a SyncPlay group's playback to the group", async () => {
+      mockExternalPlayerMode = "external";
+      mockSyncPlayEnabled = true;
+
+      await play(movie);
+
+      expect(mockPlayExternally).not.toHaveBeenCalled();
+      expect(mockSyncPlayItems).toHaveBeenCalled();
+    });
+  });
+
   // Live TV plays without a cap whatever the default quality, as the guide and
   // the channel grid do: Auto never measures for it.
   test("plays live television without a cap under Auto", async () => {
-    await play({ Id: "channel-1", Type: "TvChannel" }, AUTO_BITRATE_VALUE);
+    await play({ Id: "channel-1", Type: "TvChannel" }, false, {
+      bitrateValue: AUTO_BITRATE_VALUE,
+    });
 
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining("bitrateValue=max"),
@@ -304,7 +549,9 @@ describe("usePlayMedia", () => {
   });
 
   test("keeps a bitrate picked by hand for live television", async () => {
-    await play({ Id: "channel-1", Type: "TvChannel" }, 4_000_000);
+    await play({ Id: "channel-1", Type: "TvChannel" }, false, {
+      bitrateValue: 4_000_000,
+    });
 
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining("bitrateValue=4000000"),
@@ -312,7 +559,9 @@ describe("usePlayMedia", () => {
   });
 
   test("keeps Auto for anything but live television", async () => {
-    await play({ Id: "movie-1", Type: "Movie" }, AUTO_BITRATE_VALUE);
+    await play({ Id: "movie-1", Type: "Movie" }, false, {
+      bitrateValue: AUTO_BITRATE_VALUE,
+    });
 
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining("bitrateValue=auto"),

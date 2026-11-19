@@ -20,6 +20,7 @@ import { bitrateOptions } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
+import { EXTERNAL_PLAYER_MODE_LABEL_KEYS } from "@/components/settings/externalPlayerModeLabel";
 import { stillWatchingPresetLabel } from "@/components/settings/stillWatchingPresetLabel";
 import { TVAutoQualitySettings } from "@/components/settings/TVAutoQualitySettings";
 import type { TVOptionItem } from "@/components/tv";
@@ -35,6 +36,7 @@ import {
   TVSettingsToggle,
   useTVBelowTabBarContentTop,
 } from "@/components/tv";
+import type { ExternalPlayerMode } from "@/constants/ExternalPlayer";
 import { PERMISSION_ASKED_KEY } from "@/constants/Notifications";
 import { SUBTITLE_PREFETCH_CACHE_DIR } from "@/constants/Playback";
 import {
@@ -59,6 +61,7 @@ import {
   defaultValues,
   getActiveVideoPlayerEngine,
   InactivityTimeout,
+  isExternalPlayerSupported,
   isNativeChromeActive,
   isNativePlayerSupportedTV,
   type MpvCacheMode,
@@ -803,6 +806,22 @@ export default function SettingsTV() {
     return option?.label || "MPV";
   }, [videoPlayerOptions]);
 
+  // The TV item page has no sheet to ask with, and a remote no long press, so
+  // neither asking mode is offered and both play as off.
+  const externalPlayerOptions: TVOptionItem<ExternalPlayerMode>[] = useMemo(
+    () =>
+      (["off", "external"] as const).map((mode) => ({
+        label: t(EXTERNAL_PLAYER_MODE_LABEL_KEYS[mode]),
+        value: mode,
+        selected: mode === settings.externalPlayerMode,
+      })),
+    [t, settings.externalPlayerMode],
+  );
+
+  const externalPlayerLabel =
+    externalPlayerOptions.find((o) => o.selected)?.label ??
+    t(EXTERNAL_PLAYER_MODE_LABEL_KEYS.off);
+
   const languageLabel = useMemo(() => {
     if (!currentLanguage) return t("home.settings.languages.system");
     const option = APP_LANGUAGES.find((l) => l.value === currentLanguage);
@@ -1004,6 +1023,28 @@ export default function SettingsTV() {
               />
               <Text style={playerNoteStyle}>
                 {t("home.settings.video_player.match_refresh_rate_note")}
+              </Text>
+            </>
+          )}
+
+          {/* External player — where the platform can hand media over, default off */}
+          {isExternalPlayerSupported && (
+            <>
+              <TVSettingsOptionButton
+                disabledByAdmin={pluginSettings?.externalPlayerMode?.locked}
+                label={t("home.settings.external_player.mode")}
+                value={externalPlayerLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t("home.settings.external_player.mode"),
+                    options: externalPlayerOptions,
+                    onSelect: (value) =>
+                      updateSettings({ externalPlayerMode: value }),
+                  })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.external_player.note")}
               </Text>
             </>
           )}
