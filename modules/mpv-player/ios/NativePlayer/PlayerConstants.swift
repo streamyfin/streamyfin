@@ -14,7 +14,7 @@ enum PlayerConstants {
 
 	/// The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model, in
 	/// points: Android's REMOTE_*_DP, the same numbers. A window shorter than remoteCompactHeight is couched;
-	/// otherwise one at least remoteWideMinWidth wide puts the artwork beside the controls.
+	/// otherwise one at least remoteWideMinWidth wide, and wider than tall, puts the artwork beside the controls.
 	static let remoteCompactHeight: Double = 480
 	static let remoteWideMinWidth: Double = 600
 	/// The artwork takes what the rest leaves, between these two; it gives up its height before anything else.

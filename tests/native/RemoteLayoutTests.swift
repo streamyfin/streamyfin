@@ -21,14 +21,17 @@ enum RemoteLayoutTests {
 		check(RemoteLayout.of(width: 1180, height: 400) == .landscape, "aShortScreenTakesTheLandscapeLayout: wide and short")
 	}
 
+	// Wide only when wider than tall: a tablet held upright takes the phone's layout, the artwork above the controls.
 	static func aWideScreenPutsTheArtworkBesideTheControls() {
-		check(RemoteLayout.of(width: 820, height: 1180) == .wide, "aWideScreenPutsTheArtworkBesideTheControls: upright")
 		check(RemoteLayout.of(width: 1180, height: 820) == .wide, "aWideScreenPutsTheArtworkBesideTheControls: couched")
+		check(RemoteLayout.of(width: 820, height: 1180) == .portrait, "aWideScreenPutsTheArtworkBesideTheControls: upright")
 	}
 
+	// Unfolded, a phone held upright keeps the phone's layout; on its side, it is wide.
 	static func aFoldedThenUnfoldedPhoneChangesLayout() {
 		check(RemoteLayout.of(width: 360, height: 800) == .portrait, "aFoldedThenUnfoldedPhoneChangesLayout: folded")
-		check(RemoteLayout.of(width: 673, height: 841) == .wide, "aFoldedThenUnfoldedPhoneChangesLayout: unfolded")
+		check(RemoteLayout.of(width: 673, height: 841) == .portrait, "aFoldedThenUnfoldedPhoneChangesLayout: unfolded upright")
+		check(RemoteLayout.of(width: 841, height: 673) == .wide, "aFoldedThenUnfoldedPhoneChangesLayout: unfolded on its side")
 		check(RemoteLayout.of(width: 360, height: 800) == .portrait, "aFoldedThenUnfoldedPhoneChangesLayout: folded again")
 	}
 
