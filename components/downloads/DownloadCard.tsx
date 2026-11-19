@@ -14,6 +14,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
+import { useDownloadStalled } from "@/providers/Downloads/hooks/useDownloadStalled";
 import { JobStatus } from "@/providers/Downloads/types";
 import { estimateTranscodeSize } from "@/utils/downloadSize";
 import { storage } from "@/utils/mmkv";
@@ -39,6 +40,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { cancelDownload } = useDownload();
   const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();
+  const isStalled = useDownloadStalled(process);
 
   const handleDelete = async (id: string) => {
     try {
@@ -198,15 +200,23 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
             {/* Row 2: Speed + ETA */}
             <View className='flex flex-row items-center gap-x-2 mt-0.5'>
-              {process.speed && process.speed > 0 && (
-                <Text className='text-xs text-purple-400'>
-                  {bytesToMB(process.speed).toFixed(2)} MB/s
+              {isStalled ? (
+                <Text className='text-xs text-yellow-400'>
+                  {t("home.downloads.stalled")}
                 </Text>
-              )}
-              {eta && (
-                <Text className='text-xs text-green-400'>
-                  {t("home.downloads.eta", { eta: eta })}
-                </Text>
+              ) : (
+                <>
+                  {(process.speed ?? 0) > 0 && (
+                    <Text className='text-xs text-purple-400'>
+                      {bytesToMB(process.speed ?? 0).toFixed(2)} MB/s
+                    </Text>
+                  )}
+                  {eta && (
+                    <Text className='text-xs text-green-400'>
+                      {t("home.downloads.eta", { eta: eta })}
+                    </Text>
+                  )}
+                </>
               )}
             </View>
           </View>

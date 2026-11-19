@@ -1,16 +1,16 @@
+import { DOWNLOAD_SPEED_WINDOW_MS } from "@/constants/Downloads";
+
 interface SpeedDataPoint {
   timestamp: number;
   bytesDownloaded: number;
 }
 
-const WINDOW_DURATION = 60000; // 1 minute in ms
 const MIN_DATA_POINTS = 5; // Need at least 5 points for accurate speed
 const MAX_REASONABLE_SPEED = 1024 * 1024 * 1024; // 1 GB/s sanity check
 const EMA_ALPHA = 0.2; // Smoothing factor for EMA (lower = smoother, 0-1 range)
 
 // Private state
 const dataPoints = new Map<string, SpeedDataPoint[]>();
-const emaSpeed = new Map<string, number>(); // Store EMA speed for each process
 
 function isValidBytes(bytes: number): boolean {
   return typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0;
@@ -65,13 +65,15 @@ export function addSpeedDataPoint(
     bytesDownloaded,
   });
 
-  // Remove data points older than 1 minute
-  const cutoffTime = now - WINDOW_DURATION;
+  // Remove data points older than the window
+  const cutoffTime = now - DOWNLOAD_SPEED_WINDOW_MS;
   while (points.length > 0 && points[0].timestamp < cutoffTime) {
     points.shift();
   }
 }
 
+// Bytes over elapsed time, and not an average of the gaps between events: progress arrives in
+// bursts, and a weighted average of the gaps let the last few events of a lull decide the number.
 export function calculateSpeed(processId: string): number | undefined {
   const points = dataPoints.get(processId);
 
@@ -120,76 +122,13 @@ export function calculateSpeed(processId: string): number | undefined {
   return speed;
 }
 
-// Calculate weighted average speed (more recent data has higher weight)
-export function calculateWeightedSpeed(processId: string): number | undefined {
-  const points = dataPoints.get(processId);
-
-  if (!points || points.length < MIN_DATA_POINTS) {
-    return undefined;
-  }
-
-  let totalWeightedSpeed = 0;
-  let totalWeight = 0;
-
-  // Calculate speed between consecutive points with exponential weighting
-  for (let i = 1; i < points.length; i++) {
-    const prevPoint = points[i - 1];
-    const currPoint = points[i];
-
-    // Validate both points
-    if (
-      !isValidBytes(prevPoint.bytesDownloaded) ||
-      !isValidBytes(currPoint.bytesDownloaded) ||
-      !isValidTimestamp(prevPoint.timestamp) ||
-      !isValidTimestamp(currPoint.timestamp)
-    ) {
-      continue;
-    }
-
-    const timeDelta = (currPoint.timestamp - prevPoint.timestamp) / 1000;
-    const bytesDelta = currPoint.bytesDownloaded - prevPoint.bytesDownloaded;
-
-    // Skip invalid deltas
-    if (timeDelta < 0.1 || bytesDelta < 0) {
-      continue;
-    }
-
-    const speed = bytesDelta / timeDelta;
-
-    // Sanity check
-    if (!Number.isFinite(speed) || speed < 0 || speed > MAX_REASONABLE_SPEED) {
-      console.warn(`[SpeedCalc] Skipping unrealistic speed point: ${speed}`);
-      continue;
-    }
-
-    // More recent points get exponentially higher weight
-    // Using 1.3 instead of 2 for gentler weighting (less sensitive to recent changes)
-    const weight = 1.3 ** i;
-    totalWeightedSpeed += speed * weight;
-    totalWeight += weight;
-  }
-
-  if (totalWeight === 0) {
-    return undefined;
-  }
-
-  const weightedSpeed = totalWeightedSpeed / totalWeight;
-
-  // Final sanity check
-  if (!Number.isFinite(weightedSpeed) || weightedSpeed < 0) {
-    return undefined;
-  }
-
-  return weightedSpeed;
-}
-
 // Calculate ETA in seconds
 export function calculateETA(
   processId: string,
   bytesDownloaded: number,
   totalBytes: number,
 ): number | undefined {
-  const speed = calculateWeightedSpeed(processId);
+  const speed = calculateSpeed(processId);
 
   if (!speed || speed <= 0 || !totalBytes || totalBytes <= 0) {
     return undefined;
@@ -243,13 +182,11 @@ export function calculateSmoothedETA(
 
 export function clearSpeedData(processId: string): void {
   dataPoints.delete(processId);
-  emaSpeed.delete(processId);
   emaETA.delete(processId);
 }
 
 export function resetAllSpeedData(): void {
   dataPoints.clear();
-  emaSpeed.clear();
   emaETA.clear();
 }
 

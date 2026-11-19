@@ -700,6 +700,7 @@
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
+      "stalled": "Waiting for data",
       "live_activity": {
         "downloading": "Downloading",
         "completed": "Downloaded",
