@@ -82,7 +82,7 @@ Native modules:
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
-- `engine-agnostic-native-chrome` | The native chrome consumes PlayerEngine (transport, rendering and queue faces, both platforms); on Android the engine rides config.engine, resolvers split engine vs renderer
+- `engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine (transport and queue faces, both platforms) and reaches rendering through a cast; the engine rides config.engine, an unknown one is refused at presentPlayer; resolvers split engine vs renderer; the phone chrome's controls follow ChromeCapabilities
 - `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
 - `native-player-ignores-js-controls` | the iPhone/iPad default player is a presented native view controller; Controls.tsx and its hooks never mount there, so input (keyboard) needs a native counterpart
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
@@ -98,6 +98,9 @@ Native modules:
 - `mpv-surface-loss-drops-video-track-and-seeks` | a detached surface fails mpv's VO, the video track is dropped and the refresh seek can restart at byte 0 of an unindexed MKV (20 s+ stall at 2h in); detachSurface attaches an offscreen ImageReader sink instead, on Android 10 and later only
 - `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the module with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, paused in the background; no hidden MediaRouteButton, which the library needed
 - `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
+- `cast-resume-rebuilds-the-client` | a Cast resume hands a new media client and drops channel callbacks; register again on resume, never keep either across one
+- `cast-session-id-goes-null-when-ended` | an ended Android CastSession answers null for its id, so an end matched against the live id matches nothing; keep the id the binding was made with
+- `cast-stop-from-tv-leaves-an-idle-status` | stopped from the TV, the session stays connected and the SDK keeps an idle status with its media, at position 0; play() does nothing there, send the item or queue again from your own position
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -189,7 +192,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

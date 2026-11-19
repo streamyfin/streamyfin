@@ -8,7 +8,10 @@ import GoogleCast
 /// on the main thread; the synchronous getters answer from caches the listeners keep current.
 public class CastModule: Module {
   private var listener: CastListener?
-  private var channels: [String: GCKGenericChannel] = [:]
+  // The hub holds the SDK channel of each namespace and its listeners weakly: the module keeps the
+  // relay of what JS asked to hear, so that a session end lets go of exactly that.
+  private let hub = ReceiverChannelHub.shared
+  private var jsChannels: [String: (relay: ReceiverRelay, subscription: ReceiverSubscription)] = [:]
   // The caches are written on the main thread and read by the synchronous getters from
   // the JS thread; Swift collections are not safe to read while they are replaced.
   private let cacheLock = NSLock()
@@ -72,36 +75,33 @@ public class CastModule: Module {
       return true
     }.runOnQueue(.main)
 
+    // The hub adds the namespace's channel to every session it is given, a resume included, so
+    // the relay hears the receiver from the next session on as well.
     AsyncFunction("addChannel") { (namespace: String) -> [String: Any] in
-      guard let session = self.currentSession() else {
-        return ["namespace": namespace, "connected": false]
+      self.ensureListening()
+      if self.jsChannels[namespace] == nil {
+        let relay = ReceiverRelay { [weak self] raw in self?.emitReceiverMessage(namespace, raw) }
+        self.jsChannels[namespace] = (relay, self.hub.subscribe(namespace: namespace, listener: relay))
       }
-      let channel = self.channels[namespace] ?? {
-        let created = GCKGenericChannel(namespace: namespace)
-        created.delegate = self.listener
-        session.add(created)
-        self.channels[namespace] = created
-        return created
-      }()
-      return ["namespace": namespace, "connected": channel.isConnected]
+      return ["namespace": namespace, "connected": self.hub.isReady(namespace: namespace)]
     }.runOnQueue(.main)
 
     AsyncFunction("removeChannel") { (namespace: String) in
-      guard let channel = self.channels.removeValue(forKey: namespace) else { return }
-      // The session may be gone already; the channel went with it.
-      self.currentSession()?.remove(channel)
+      // Only JS stops hearing: the engine may still listen on the same channel.
+      self.jsChannels.removeValue(forKey: namespace)?.subscription.remove()
     }.runOnQueue(.main)
 
     AsyncFunction("sendMessage") { (namespace: String, message: String, promise: Promise) in
-      guard let channel = self.channels[namespace] else {
+      guard self.jsChannels[namespace] != nil else {
         promise.reject("ERR_CAST_NO_CHANNEL", "No channel open for \(namespace)")
         return
       }
-      var error: GCKError?
-      if channel.sendTextMessage(message, error: &error) {
-        promise.resolve(nil)
-      } else {
-        promise.reject("ERR_CAST_SEND", error?.localizedDescription ?? "The receiver did not take the message")
+      self.hub.send(namespace: namespace, text: message) { error in
+        if let error {
+          promise.reject("ERR_CAST_SEND", error)
+        } else {
+          promise.resolve(nil)
+        }
       }
     }.runOnQueue(.main)
 
@@ -132,6 +132,9 @@ public class CastModule: Module {
     CastContextBootstrap.initializeIfNeeded()
     guard listener == nil else { return }
     let context = GCKCastContext.sharedInstance()
+    // Before the module's own listener and before a present session is announced: whatever JS
+    // sends on hearing of a session finds the hub attached to it.
+    GoogleCastChannelBinding.install()
     let listener = CastListener(module: self)
     self.listener = listener
     context.sessionManager.add(listener)
@@ -201,8 +204,9 @@ public class CastModule: Module {
 
   fileprivate func sessionEnded() {
     stopObserving()
-    // The channels died with the session; the JS side opens new ones on the next command.
-    channels.removeAll()
+    // The JS side opens its channels again on the next session's first command.
+    jsChannels.values.forEach { $0.subscription.remove() }
+    jsChannels.removeAll()
     updateSession(nil)
   }
 
@@ -215,9 +219,26 @@ public class CastModule: Module {
   }
 }
 
+/// What JS hears of the receiver, held by the module: the hub holds its listeners weakly.
+private final class ReceiverRelay: ReceiverBusListener {
+  private let onMessage: (String) -> Void
+
+  init(onMessage: @escaping (String) -> Void) {
+    self.onMessage = onMessage
+  }
+
+  func receiverBusDidReceive(_ raw: String) {
+    onMessage(raw)
+  }
+
+  func receiverBusDidBecomeReady(sessionId: String) {}
+
+  func receiverBusDidLose(sessionId: String?, ended: Bool) {}
+}
+
 /// The SDK delegates, in one object the module owns; every callback lands on the main thread.
 private class CastListener: NSObject, GCKSessionManagerListener, GCKDiscoveryManagerListener,
-  GCKRemoteMediaClientListener, GCKGenericChannelDelegate
+  GCKRemoteMediaClientListener
 {
   private weak var module: CastModule?
 
@@ -277,10 +298,6 @@ private class CastListener: NSObject, GCKSessionManagerListener, GCKDiscoveryMan
 
   func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
     module?.emitMediaStatus(mediaStatus)
-  }
-
-  func cast(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
-    module?.emitReceiverMessage(protocolNamespace, message)
   }
 }
 #else

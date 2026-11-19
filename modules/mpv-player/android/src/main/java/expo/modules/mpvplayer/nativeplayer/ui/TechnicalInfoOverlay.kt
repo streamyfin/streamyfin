@@ -46,7 +46,7 @@ fun TechnicalInfoOverlay(
 
     LaunchedEffect(Unit) {
         while (true) {
-            techInfo = viewModel.engine?.getTechnicalInfo() ?: emptyMap()
+            techInfo = viewModel.technicalInfo()
             delay(1000L)
         }
     }
