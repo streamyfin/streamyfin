@@ -67,3 +67,11 @@ export const REMOTE_WIDE_IMAGE_WIDTH = 480;
  */
 export const REMOTE_ARTWORK_MAX = 420;
 export const REMOTE_PORTRAIT_ARTWORK_MAX_SHARE = 0.9;
+
+/**
+ * A remote player asked from outside the app's screens (the Cast notification, the app started from it) waits for the
+ * TV to say what it plays, a session that resumes reports its media a moment later. It waits
+ * REMOTE_PLAYER_REQUEST_HOLD_MS at most: past that the TV had nothing, and media started there later, by another
+ * sender or the TV itself, would open the remote player over whatever screen is up.
+ */
+export const REMOTE_PLAYER_REQUEST_HOLD_MS = 30_000;

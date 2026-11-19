@@ -7,6 +7,7 @@ import { act, render, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { NATIVE_AUTO_QUALITY_INDEX } from "@/constants/Bitrate";
 import {
+  REMOTE_PLAYER_REQUEST_HOLD_MS,
   REMOTE_SUBTITLE_POLL_ATTEMPTS,
   REMOTE_SUBTITLE_POLL_MS,
   REMOTE_TECHNICAL_INFO_REFRESH_MS,
@@ -1578,6 +1579,33 @@ describe("the remote player asked from outside the app's screens", () => {
     });
 
     await shownOnce();
+  });
+
+  // A TV that resumed with nothing to show kept the request for as long as its session lasted: media started there
+  // later, by another sender, opened the remote player over whatever screen was up.
+  test("a kept request lapses when the TV shows nothing in time", async () => {
+    const tvPlays = mockCast.remotePlayback;
+    mockCast.remotePlayback = { ...NO_REMOTE_PLAYBACK, connected: true };
+    mockCast.pendingRemotePlayerRequest = true;
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      await render(<RemotePlayerController />);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(mockCast.pendingRemotePlayerRequest).toBe(false);
+
+      now.mockReturnValue(1_000 + REMOTE_PLAYER_REQUEST_HOLD_MS + 1);
+      mockCast.remotePlayback = tvPlays;
+      await act(async () => {
+        emitCastEvent(mockCast, "onRemotePlaybackChanged", tvPlays);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(mockPlayer.remotePresented).toEqual([]);
+    } finally {
+      now.mockRestore();
+    }
   });
 
   // The Cast notification while the local player is up: native refuses a remote player over it, every tap went to

@@ -2,6 +2,7 @@ import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { REMOTE_PLAYER_REQUEST_HOLD_MS } from "@/constants/RemotePlayer";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
@@ -161,15 +162,20 @@ export function RemotePlayerController() {
   const openingRequested = useRef(false);
   useEffect(() => {
     if (!castTargetId || !userId) return;
-    let wanted = false;
+    let wantedSince: number | undefined;
     const take = () => {
       const remote = latest.current.castTarget;
       const api = store.get(apiAtom);
       const user = store.get(userAtom)?.Id;
       // Taken even while one opens: a second tap on the notification opens nothing later.
       if (consumePendingRemotePlayerRequest() && !openingRequested.current)
-        wanted = true;
-      if (!wanted || openingRequested.current) return;
+        wantedSince = Date.now();
+      if (wantedSince === undefined || openingRequested.current) return;
+      // Read on each report, not timed: JS timers do not run while Android has the app in the background.
+      if (Date.now() - wantedSince > REMOTE_PLAYER_REQUEST_HOLD_MS) {
+        wantedSince = undefined;
+        return;
+      }
       const playing = remotePlayback();
       if (
         !playing.connected ||
@@ -177,7 +183,7 @@ export function RemotePlayerController() {
         playing.phase === "none"
       )
         return;
-      wanted = false;
+      wantedSince = undefined;
       // A player is up: native refuses another over it. The local one stays (the notification tapped over it, its
       // own Remote closes it first), the remote one shows the TV already; the request is dropped.
       if (isNativePlayerPresented()) return;
