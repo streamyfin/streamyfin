@@ -4,8 +4,9 @@ import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 
 /**
  * The remote screen's three layouts (design §3.1, §3.2), chosen from the window's size class, never from the
- * device model: a short window is couched, a wide one puts the artwork beside the controls, the rest stands
- * upright. iOS points and Android dp are worth the same here. Twin: RemoteLayout.swift.
+ * device model: a short window is couched, a wide one that is wider than tall puts the artwork beside the
+ * controls, the rest stands upright, a tablet held upright as a phone does. iOS points and Android dp are worth the
+ * same here. Twin: RemoteLayout.swift.
  */
 enum class RemoteLayout {
     PORTRAIT,
@@ -15,7 +16,7 @@ enum class RemoteLayout {
     companion object {
         fun of(widthDp: Double, heightDp: Double): RemoteLayout = when {
             heightDp < PlayerConstants.REMOTE_COMPACT_HEIGHT_DP -> LANDSCAPE
-            widthDp >= PlayerConstants.REMOTE_WIDE_MIN_WIDTH_DP -> WIDE
+            widthDp >= PlayerConstants.REMOTE_WIDE_MIN_WIDTH_DP && widthDp > heightDp -> WIDE
             else -> PORTRAIT
         }
     }

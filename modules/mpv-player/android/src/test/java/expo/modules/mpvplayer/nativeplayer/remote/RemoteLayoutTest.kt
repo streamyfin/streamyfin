@@ -20,16 +20,19 @@ class RemoteLayoutTest {
         assertEquals(RemoteLayout.LANDSCAPE, RemoteLayout.of(1180.0, 400.0))
     }
 
+    // Wide only when wider than tall: a tablet held upright takes the phone's layout, the artwork above the controls.
     @Test
     fun aWideScreenPutsTheArtworkBesideTheControls() {
-        assertEquals(RemoteLayout.WIDE, RemoteLayout.of(820.0, 1180.0))
         assertEquals(RemoteLayout.WIDE, RemoteLayout.of(1180.0, 820.0))
+        assertEquals(RemoteLayout.PORTRAIT, RemoteLayout.of(820.0, 1180.0))
     }
 
+    // Unfolded, a phone held upright keeps the phone's layout; on its side, it is wide.
     @Test
     fun aFoldedThenUnfoldedPhoneChangesLayout() {
         assertEquals(RemoteLayout.PORTRAIT, RemoteLayout.of(360.0, 800.0))
-        assertEquals(RemoteLayout.WIDE, RemoteLayout.of(673.0, 841.0))
+        assertEquals(RemoteLayout.PORTRAIT, RemoteLayout.of(673.0, 841.0))
+        assertEquals(RemoteLayout.WIDE, RemoteLayout.of(841.0, 673.0))
         assertEquals(RemoteLayout.PORTRAIT, RemoteLayout.of(360.0, 800.0))
     }
 

@@ -44,7 +44,8 @@ object PlayerConstants {
 
     // The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model. A
     // window shorter than REMOTE_COMPACT_HEIGHT_DP is couched; otherwise one at least REMOTE_WIDE_MIN_WIDTH_DP
-    // wide puts the artwork beside the controls. iOS: the same numbers in points, PlayerConstants.remote*.
+    // wide, and wider than tall, puts the artwork beside the controls. iOS: the same numbers in points,
+    // PlayerConstants.remote*.
     const val REMOTE_COMPACT_HEIGHT_DP = 480.0
     const val REMOTE_WIDE_MIN_WIDTH_DP = 600.0
     // The artwork takes what the rest leaves, between these two; it gives up its height before anything else.
