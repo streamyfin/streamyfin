@@ -61,6 +61,19 @@ describe("useAppRouter push guard", () => {
     expect(router.getPathname()).toBe("/album");
   });
 
+  // The intro sheet is mounted at the root: two taps on its settings button
+  // in one press stacked two settings screens.
+  it("drops a second push from the root layout in the same press", async () => {
+    const router = await renderApp();
+
+    await act(async () => {
+      mockRootRouter.push("/now-playing");
+      mockRootRouter.push("/album");
+    });
+
+    expect(stackRouteNames(router)).toEqual(["index", "now-playing"]);
+  });
+
   it("pushes again from the root layout once the pushed screen is gone", async () => {
     const router = await renderApp();
 
