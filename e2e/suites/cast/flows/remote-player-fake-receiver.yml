@@ -1,0 +1,87 @@
+appId: com.fredrikburmester.streamyfin
+# Tier 1: the remote player on the fake receivers of a tier 1 build (e2e/README.md, "Fake Cast receivers"). From a
+# signed-in app, an item's page connects "Bench TV" from the header Cast button; Play opens our remote player on the
+# fake TV, with the item's title and the TV's name; pause holds it, a tap in the middle of the bar moves it to the
+# middle of the fake item; the cross closes the screen and leaves the session up, and Disconnect ends it.
+# Needs ITEM_ID and ITEM_NAME for an item the account has never started: the fake TV plays each item for 2 minutes
+# from the position the server saved, so an item resumed past them ends at the first second, which closes the screen.
+# And an English device, as the native screens are found by their text.
+# Not here, as no gesture reaches them on the fake receivers: the screen opened again by Remote on the position the
+# TV kept (the sheet offers Remote, and Play on the item the TV plays opens it, only on the Cast SDK's media status,
+# which the fake engine does not feed), and a load the TV refuses, with Play here (the fake engine fails only an item
+# whose id is "fake-fail"). Unit tests cover both: openRemotePlayer.test.ts, FakeRemoteEngineTest
+# theFakeEngineFailsOnDemand and its Swift twin in tests/native/.
+---
+- launchApp
+- openLink: streamyfin://items/page?id=${ITEM_ID}
+# The intro opens over Home a second after the first sign in.
+- tapOn:
+    id: "intro-done"
+    optional: true
+- extendedWaitUntil:
+    visible: "Play button.*"
+    timeout: 30000
+- tapOn:
+    id: "output-button"
+- extendedWaitUntil:
+    visible: "Bench TV"
+    timeout: 15000
+- tapOn: "Bench TV"
+# A fake receiver connects 600 ms after the request; the panel replaces the list.
+- extendedWaitUntil:
+    visible: "Chromecast, connected"
+    timeout: 15000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "Close sheet"
+- extendedWaitUntil:
+    visible:
+      id: "play-button-cast"
+    timeout: 15000
+- assertVisible: "Play on Bench TV"
+- tapOn: "Play button.*"
+# Our remote player: its TV button names the TV with the session's state, and only this screen has the cross.
+- extendedWaitUntil:
+    visible: "Bench TV, Connected"
+    timeout: 15000
+- assertVisible: "Close"
+- assertVisible: ${ITEM_NAME}
+- takeScreenshot: remote-player-open
+- tapOn: "Pause"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 10000
+# The middle of the bar is 1:00 of the fake item's 2:00; paused, it stays there. The elapsed time is the one under
+# the bar, the status bar's clock being above it.
+- tapOn: "Playback position"
+- extendedWaitUntil:
+    visible:
+      text: "0:5\\d|1:0\\d"
+      below: "Playback position"
+    timeout: 10000
+- takeScreenshot: remote-player-moved
+# The cross closes the screen; the session stays, so the play pill keeps its cast glyph.
+- tapOn: "Close"
+- extendedWaitUntil:
+    notVisible: "Bench TV, Connected"
+    timeout: 15000
+- assertVisible:
+    id: "play-button-cast"
+- tapOn:
+    id: "output-button"
+# Nothing plays on the fake TV for the Cast SDK, so the sheet's end action reads Disconnect.
+- extendedWaitUntil:
+    visible: "Disconnect"
+    timeout: 15000
+- tapOn: "Disconnect"
+- extendedWaitUntil:
+    visible: "Cast button.*, Not connected"
+    timeout: 15000
+- takeScreenshot: remote-player-disconnected

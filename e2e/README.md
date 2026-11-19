@@ -42,9 +42,15 @@ server log, the session the server records, the receiver on the TV.
 Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of the Cast SDK's:
 "Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
 300 ms after a disconnection (`RemoteTargetConstants`), and a switch ends one session before
-the next starts. Only the target the module publishes (`getRemoteTarget`, `connectToDevice`,
-`onRemoteTargetChanged`) and the output sheet, which reads it, go through them: no media
-plays, so the sheet's end action reads Disconnect.
+the next starts. The target the module publishes (`getRemoteTarget`, `connectToDevice`,
+`onRemoteTargetChanged`) and the output sheet, which reads it, go through them, and a connected
+one drives a fake TV (`FakeRemoteEngine`) in place of the Cast engine, on which Play opens our
+remote player. The fake TV plays each item for 2 minutes from the position the server saved,
+so a flow plays an item its account has never started, and it refuses an item whose id is
+`fake-fail`. The Cast SDK sees no media: the sheet's end action reads Disconnect and offers no
+Remote, and Play on the item the fake TV plays loads it again rather than opening the screen
+on it. `e2e/suites/cast/flows/remote-player-fake-receiver.yml` drives it
+(`e2e/suites/cast/README.md`).
 
 - **Android**: `./gradlew … -PstreamyfinFakeCastDevices=true`, or the variable as a prefix of
   one command, for example
