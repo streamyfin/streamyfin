@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -63,6 +64,8 @@ import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
+import expo.modules.mpvplayer.nativeplayer.ui.SubtitleSearchSheet
+import expo.modules.mpvplayer.nativeplayer.ui.TechnicalInfoLayer
 import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
 
 private val SlotGap = 16.dp
@@ -145,8 +148,16 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
             // Over the top bar, not in the column: showing it moves nothing.
             RemoteVolumeIndicator(screen.volumeIndicator, Modifier.align(Alignment.TopCenter))
 
+            // The local player's layer; shown, it asks JS for the lines of what the TV plays.
+            TechnicalInfoLayer(viewModel = viewModel)
+
             if (viewModel.showEpisodeList) {
                 EpisodeListSheet(viewModel = viewModel, onDismiss = { viewModel.showEpisodeList = false })
+            }
+
+            // The subtitle menu's search, drawn as the local player draws it.
+            if (viewModel.showSubtitleSearch) {
+                SubtitleSearchSheet(viewModel = viewModel, onDismiss = { viewModel.showSubtitleSearch = false })
             }
         }
     }
@@ -167,9 +178,11 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
     when (slot) {
         RemoteSlot.HEADER -> RemoteHeader(viewModel, model)
         RemoteSlot.ARTWORK -> Box(contentAlignment = Alignment.Center, modifier = if (layout == RemoteLayout.PORTRAIT) Modifier.fillMaxWidth() else Modifier) {
-            Box {
+            Box(Modifier.size(artwork).clip(RoundedCornerShape(8.dp))) {
                 // The artwork's double tap seeks like the bar, so it rests when the bar does.
                 RemoteArtwork(viewModel, artwork, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
+                // The segment skip rests with the bar too, as it did above it.
+                RemoteSkipBanner(viewModel, enabled = model.seekEnabled, modifier = Modifier.align(Alignment.BottomCenter))
                 // The chrome's pill, on the half that was tapped.
                 viewModel.doubleTapSeekForward?.let { forward ->
                     Box(Modifier.matchParentSize(), contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart) {

@@ -202,6 +202,8 @@ describe("with the gate open", () => {
             resolve([200, { Id: "film-1", Type: "Movie", MediaType: "Video" }]);
         }),
     );
+    // Read with the item for the intro button, once the screen opens.
+    api.mock.onGet(/\/MediaSegments\//).reply(200, { Items: [] });
     getDefaultStore().set(apiAtom, api as never);
     mockCast.remotePlayback = {
       ...NO_REMOTE_PLAYBACK,
@@ -215,7 +217,9 @@ describe("with the gate open", () => {
     await sheetAnswers("remote");
     await act(async () => answer());
 
-    expect(api.mock.history.get).toHaveLength(1);
+    expect(
+      api.mock.history.get.filter(({ url }) => url?.includes("/Items/film-1")),
+    ).toHaveLength(1);
     expect(mockPlayer.remotePresented).toHaveLength(1);
   });
 });

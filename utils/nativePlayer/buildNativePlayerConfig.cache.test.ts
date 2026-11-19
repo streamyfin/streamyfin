@@ -102,6 +102,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -123,6 +124,7 @@ describe("cacheConfig is mpv-only wire data", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -147,6 +149,7 @@ describe("the video output driver", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -169,6 +172,7 @@ describe("the video output driver", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -199,6 +203,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -228,6 +233,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
@@ -248,6 +254,7 @@ describe("the sidecar subtitle prefetch", () => {
       getDownloadedItemById: () => undefined,
       strings,
       originalLabel: "Original",
+      trackTags: { forced: "Forced", default: "Default", external: "External" },
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 

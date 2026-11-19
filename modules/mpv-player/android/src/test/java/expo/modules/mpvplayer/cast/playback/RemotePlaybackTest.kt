@@ -60,7 +60,17 @@ private class RecordingRemoteEngine(val inner: FakeRemoteEngine) : RemoteEngine 
         inner.load(server, request, onResult)
     }
 
-    override fun reloadCurrentItem(server: ReceiverServer) { calls += "reload"; servers += server; inner.reloadCurrentItem(server) }
+    /** The subtitle index each reload carried, null for the one the TV plays. */
+    val reloadSubtitles = mutableListOf<Int?>()
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) {
+        calls += "reload"
+        servers += server
+        reloadSubtitles += subtitleStreamIndex
+        inner.reloadCurrentItem(server, subtitleStreamIndex, onResult)
+    }
+    override fun setAudioTrack(trackId: Int) { calls += "setAudioTrack $trackId"; inner.setAudioTrack(trackId) }
+    override fun setSubtitleTrack(trackId: Int) { calls += "setSubtitleTrack $trackId"; inner.setSubtitleTrack(trackId) }
+    override fun disableSubtitles() { calls += "disableSubtitles"; inner.disableSubtitles() }
 
     /** What reached the TV: everything but binding to it and letting go of it. */
     val sent get() = calls - setOf("start", "stop")
@@ -180,6 +190,16 @@ class RemotePlaybackTest {
         assertEquals("https://other.example.test/bbb.jpg", map["imageUrl"])
     }
 
+    // How the TV plays what it holds goes to JS with the rest: the technical info panel reads it.
+    @Test
+    fun theSnapshotPublishesHowTheTvPlays() {
+        connected()
+        assertNull(published.last().playMethod)
+        made.last().inner.simulatePlayMethod("Transcode")
+        assertEquals("Transcode", published.last().playMethod)
+        assertEquals("Transcode", published.last().toMap()["playMethod"])
+    }
+
     @Test
     fun theSnapshotFollowsTheEngineState() {
         val engine = connected()
@@ -296,10 +316,20 @@ class RemotePlaybackTest {
         playback.reload(CAPPED)
         assertEquals(listOf("start", "reload"), made.single().calls)
         assertEquals(listOf(CAPPED), made.single().servers)
-        // Without an engine, nothing to reload and nothing made.
+        // Without an engine, nothing to reload and nothing made: the caller hears it.
         playback.setServer(null)
-        playback.reload(CAPPED)
+        val results = mutableListOf<CastLoadResult>()
+        playback.reload(CAPPED) { results += it }
         assertEquals(1, made.size)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.NotSent(RemotePlayback.NO_ENGINE_ERROR)), results)
+    }
+
+    @Test
+    fun aReloadCarriesTheSubtitleItWasGiven() {
+        connected()
+        playback.reload(SERVER)
+        playback.reload(SERVER, subtitleStreamIndex = 9)
+        assertEquals(listOf(null, 9), made.single().reloadSubtitles)
     }
 
     // What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a
@@ -321,5 +351,21 @@ class RemotePlaybackTest {
         val SERVER = ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1", "Living Room TV")
         val CAPPED = SERVER.copy(maxBitrate = 8_000_000L)
         val REQUEST = ReceiverPlayRequest(items = listOf(ReceiverItem(id = "ep-1"), ReceiverItem(id = "ep-2")))
+    }
+
+    // The remote player's menus choose by Jellyfin index; -1 turns the subtitles off.
+    @Test
+    fun aTrackChoiceGoesToTheEngine() {
+        connected()
+        playback.setAudioTrack(2)
+        playback.setSubtitleTrack(5)
+        playback.setSubtitleTrack(-1)
+        assertEquals(listOf("setAudioTrack 2", "setSubtitleTrack 5", "disableSubtitles"), made.single().sent)
+    }
+
+    @Test
+    fun aTrackChoiceWithoutAnEngineSendsNothing() {
+        playback.setAudioTrack(2)
+        assertTrue(made.isEmpty())
     }
 }

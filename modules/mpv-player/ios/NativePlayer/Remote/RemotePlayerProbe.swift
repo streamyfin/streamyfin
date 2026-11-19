@@ -197,6 +197,7 @@ private final class LoggingRemoteEngine: RemoteEngine {
 	var foreign: Bool { inner.foreign }
 	var mediaTitle: String? { inner.mediaTitle }
 	var mediaImageUrl: String? { inner.mediaImageUrl }
+	var playMethod: String? { inner.playMethod }
 	var intendedPlayState: Bool { inner.intendedPlayState }
 	var canChangeSpeed: Bool { inner.canChangeSpeed }
 	var currentItemId: String? { inner.currentItemId }
@@ -252,9 +253,9 @@ private final class LoggingRemoteEngine: RemoteEngine {
 			completion(result)
 		}
 	}
-	func reloadCurrentItem(server: ReceiverServer) {
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void) {
 		log("reload")
-		inner.reloadCurrentItem(server: server)
+		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
 	}
 
 	func loadVideo(config: VideoLoadConfig, force: Bool) { inner.loadVideo(config: config, force: force) }

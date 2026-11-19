@@ -2,7 +2,10 @@ package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.content.pm.ActivityInfo
 import android.os.Looper.getMainLooper
+import android.os.SystemClock
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
@@ -33,6 +36,7 @@ import expo.modules.mpvplayer.nativeplayer.RemotePlayerFailureRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
+import expo.modules.mpvplayer.nativeplayer.UIOptionsRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
 import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
 import java.time.Duration
@@ -661,6 +665,89 @@ class RemotePlayerSessionTest {
         val saidEnabled = nodes.filterNot { it.config.contains(SemanticsProperties.Disabled) }.mapNotNull { it.label() }
         assertEquals(emptyList<String>(), saidEnabled.sorted())
     }
+
+    // "Technical info" in the More menu shows the panel on the remote screen, and JS writes its lines (what the TV
+    // plays) only while it is up: shown, it asks for them; closed, here with the screen, it stops. The flag is up
+    // before the screen composes: under Robolectric, after other suites, Compose does not always run a later frame,
+    // so the test reads the first composition and the disposal, which need none.
+    @Test
+    fun theTechnicalInfoFlagShowsThePanelAndAsksJsForItsLinesWhileItIsUp() {
+        val session = presentedWithPanel()
+        val panelEvents = { events.filter { it.first.startsWith("onTechnicalInfo") } }
+
+        assertTrue("no panel on the screen", panelShown())
+        assertEquals(listOf("onTechnicalInfoRequested" to mapOf<String, Any?>("remote" to true)), panelEvents())
+
+        session.teardownImmediately()
+        shadowOf(getMainLooper()).idle()
+        assertEquals(listOf("onTechnicalInfoRequested", "onTechnicalInfoClosed"), panelEvents().map { it.first })
+    }
+
+    // The panel's close button speaks the user's language, as the screen's chevron does.
+    @Test
+    fun thePanelsCloseButtonSaysCloseInTheUsersLanguage() {
+        presentedWithPanel { it.ui = UIOptionsRecord().also { ui -> ui.strings = mapOf("close" to "Fermer") } }
+
+        assertTrue("no panel on the screen", panelShown())
+        val labels = semanticsNodes().mapNotNull { it.label() }
+        assertEquals(emptyList<String>(), labels.filter { it == "Close" })
+    }
+
+    // The panel takes the touches on it: a double tap on its text seeks nothing, where one on the artwork above it
+    // still seeks, which also says the taps reached the screen. The TV is mid-film so a seek either way shows.
+    @Test
+    fun aDoubleTapOnThePanelStaysOnIt() {
+        engine.seekTo(30.0)
+        val session = presentedWithPanel()
+        val title = semanticsNodes().first { "Technical Info" in texts(it) }.boundsInWindow
+        val dp = activity.resources.displayMetrics.density
+
+        // Above the panel's top padding, on the artwork it covers.
+        doubleTap(title.center.x, title.top - 32 * dp)
+        val afterArtwork = session.viewModel.authoritativePosition
+        assertTrue("the artwork's double tap did not seek", afterArtwork != 30.0)
+
+        doubleTap(title.center.x, title.center.y)
+        assertEquals("the panel's double tap seeked", afterArtwork, session.viewModel.authoritativePosition, 0.0)
+    }
+
+    /** Two taps through the window, as a finger makes them: 50 ms apart, inside the double tap timeout. */
+    private fun doubleTap(x: Float, y: Float) {
+        val start = SystemClock.uptimeMillis()
+        listOf(0L to MotionEvent.ACTION_DOWN, 50L to MotionEvent.ACTION_UP, 100L to MotionEvent.ACTION_DOWN, 150L to MotionEvent.ACTION_UP)
+            .forEach { (at, action) ->
+                val event = MotionEvent.obtain(start + at - at % 100, start + at, action, x, y, 0)
+                event.source = InputDevice.SOURCE_TOUCHSCREEN
+                activity.window.decorView.dispatchTouchEvent(event)
+                event.recycle()
+                shadowOf(getMainLooper()).idle()
+            }
+    }
+
+    /** The real screen with the panel up from its first composition, the TV paused. */
+    private fun presentedWithPanel(configure: (RemotePlayerConfigRecord) -> Unit = {}): RemotePlayerSession {
+        val session = RemotePlayerSession(
+            hub = RemoteTargetHub(),
+            playback = playback,
+            emit = { name, body -> events += name to body },
+            onTornDown = { tornDown += 1 },
+        )
+        this.session = session
+        session.viewModel.showTechnicalInfo = true
+        session.present(activity, RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
+            it.targetName = "Bench TV"
+            configure(it)
+        })
+        shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
+        return session
+    }
+
+    private fun panelShown(): Boolean =
+        semanticsNodes().any { "Technical Info" in texts(it) }
+
+    private fun texts(node: SemanticsNode): List<String> =
+        node.config.getOrNull(SemanticsProperties.Text)?.map { it.text }.orEmpty()
 
     private fun track(label: String, index: Int, selected: Boolean) = TrackMenuItemRecord().also {
         it.label = label

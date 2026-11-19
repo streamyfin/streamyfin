@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.nativeplayer.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -108,7 +109,7 @@ fun AudioMenu(
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(item.label)
+                            TrackRowLabel(item.label, item.detail)
                             if (item.selected) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 ChosenCheck()
@@ -252,7 +253,7 @@ fun SubtitleMenu(
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(item.label)
+                            TrackRowLabel(item.label, item.detail)
                             if (item.selected) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 ChosenCheck()
@@ -449,6 +450,11 @@ fun MoreMenu(
                             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(viewModel.strings.get("technicalInfo", "Technical Info"))
+                            // Checked while the panel is up, as the menu's other rows.
+                            if (viewModel.showTechnicalInfo) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                ChosenCheck()
+                            }
                         }
                     },
                     onClick = {
@@ -526,4 +532,13 @@ private fun ChosenCheck() {
         modifier = Modifier.size(16.dp),
         tint = LocalPlayerActiveColor.current ?: LocalContentColor.current,
     )
+}
+
+/** A track's label, with its format and flags on a second line when JS gave some. */
+@Composable
+private fun TrackRowLabel(label: String, detail: String?) {
+    Column {
+        Text(label)
+        TrackRowText.detailLine(detail)?.let { Text(it, fontSize = 12.sp, color = Color.Gray) }
+    }
 }

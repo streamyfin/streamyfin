@@ -136,6 +136,7 @@ jest.mock("@/utils/nativePlayer/externalSubtitles", () => ({
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
   buildTrackMenus: () => ({}),
+  trackTagLabels: () => ({}),
   buildNativePlayerConfig: async (params: {
     req: { itemId: string; bitrateValue?: number };
     item?: object;

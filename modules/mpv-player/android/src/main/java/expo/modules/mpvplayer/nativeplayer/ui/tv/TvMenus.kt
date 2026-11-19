@@ -46,6 +46,7 @@ import androidx.tv.material3.darkColorScheme
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import expo.modules.mpvplayer.nativeplayer.ui.TrackRowText
 import expo.modules.mpvplayer.nativeplayer.TvMenuScreen
 import expo.modules.mpvplayer.nativeplayer.ui.formatTimeSec
 import expo.modules.mpvplayer.nativeplayer.ui.speedLabel
@@ -213,7 +214,7 @@ private fun AudioRootMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(items) { index, item ->
             TvMenuRow(
-                label = item.label,
+                label = TrackRowText.oneLine(item.label, item.detail),
                 selected = item.selected,
                 onClick = { viewModel.selectAudio(item) },
                 modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier
@@ -325,7 +326,7 @@ private fun SubtitlesRootMenu(viewModel: PlayerViewModel) {
     ) {
         itemsIndexed(items) { index, item ->
             TvMenuRow(
-                label = item.label,
+                label = TrackRowText.oneLine(item.label, item.detail),
                 selected = item.selected,
                 onClick = { viewModel.selectSubtitle(item) },
                 modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier

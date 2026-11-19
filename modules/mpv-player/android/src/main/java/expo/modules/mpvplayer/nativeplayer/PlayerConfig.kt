@@ -92,6 +92,8 @@ class NextEpisodeRecord : Record {
 
 class TrackMenuItemRecord : Record {
     @Field var label: String = ""
+    /** Format, codec and flags, drawn under the label; null when the label says it all. */
+    @Field var detail: String? = null
     @Field var jellyfinIndex: Int = -1
     @Field var selected: Boolean = false
     @Field var requiresReload: Boolean = false
@@ -205,6 +207,12 @@ class RemoteTintRecord : Record {
     @Field var top: String? = null
     @Field var bottom: String? = null
     @Field var accent: String? = null
+}
+
+/** One line of the remote screen's technical info panel, what the TV plays (JS: RemoteTechnicalLine). */
+class RemoteTechnicalLineRecord : Record {
+    @Field var label: String = ""
+    @Field var value: String = ""
 }
 
 /** A send that failed, as the remote screen says it (JS: RemotePlayerFailure). */

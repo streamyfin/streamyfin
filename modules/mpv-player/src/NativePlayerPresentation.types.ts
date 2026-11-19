@@ -117,6 +117,8 @@ export type NativePlayerNextEpisode = {
 
 export type NativePlayerTrackMenuItem = {
   label: string;
+  /** A second line under the label: format, codec and flags. Absent when the label says it all. */
+  detail?: string;
   jellyfinIndex: number;
   selected?: boolean;
   /**
@@ -520,4 +522,8 @@ export type NativePlayerEvents = {
   }) => void;
   /** The remote player only: Play here under a failed send, from the TV's position. */
   onPlayHereRequested: (payload: { positionSec: number }) => void;
+  /** The remote player only: its technical info panel opened, and JS writes it (`updateRemoteTechnicalInfo`). */
+  onTechnicalInfoRequested: (payload: Record<string, unknown>) => void;
+  /** The remote player only: the panel closed, the screen with it included. */
+  onTechnicalInfoClosed: (payload: Record<string, unknown>) => void;
 };

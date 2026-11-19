@@ -24,6 +24,9 @@ enum PlayerConstants {
 	/// A remote control the TV's state leaves inactive (reconnecting, nothing loaded) is drawn at this opacity.
 	/// Android: REMOTE_INERT_ALPHA.
 	static let remoteInertOpacity: Double = 0.4
+	/// The segment skip's band across the bottom of the remote artwork, at least this tall.
+	/// Android: REMOTE_SKIP_BANNER_HEIGHT_DP.
+	static let remoteSkipBannerHeight: Double = 44
 	/// The Play here pill under a failed send and the Continue one under the next episode, at least the small
 	/// button's height: white at this opacity over the tint. Android: REMOTE_PLAY_HERE_FILL_ALPHA.
 	static let remotePlayHereFillOpacity: Double = 0.18

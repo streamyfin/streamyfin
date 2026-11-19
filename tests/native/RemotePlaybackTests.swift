@@ -28,6 +28,7 @@ final class RecordingRemoteEngine: RemoteEngine {
 	var foreign: Bool { inner.foreign }
 	var mediaTitle: String? { inner.mediaTitle }
 	var mediaImageUrl: String? { inner.mediaImageUrl }
+	var playMethod: String? { inner.playMethod }
 	var currentItemId: String? { inner.currentItemId }
 	var targetVolume: Double? { inner.targetVolume }
 	var intendedPlayState: Bool { inner.intendedPlayState }
@@ -59,12 +60,12 @@ final class RecordingRemoteEngine: RemoteEngine {
 	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
 	func setSkipIntervals(forward: Double, backward: Double) {}
 	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
-	func setSubtitleTrack(_ trackId: Int) { calls.append("setSubtitleTrack") }
+	func setSubtitleTrack(_ trackId: Int) { calls.append("setSubtitleTrack \(trackId)") }
 	func disableSubtitles() { calls.append("disableSubtitles") }
 	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) { completion(-1) }
 	func addSubtitleFile(url: String, select: Bool) {}
 	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
-	func setAudioTrack(_ trackId: Int) { calls.append("setAudioTrack") }
+	func setAudioTrack(_ trackId: Int) { calls.append("setAudioTrack \(trackId)") }
 	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) { completion(-1) }
 	func setAudioDelay(_ seconds: Double) {}
 	func setVolumeBoost(_ percent: Int) {}
@@ -88,10 +89,13 @@ final class RecordingRemoteEngine: RemoteEngine {
 		servers.append(server)
 		inner.load(server: server, request: request, completion: completion)
 	}
-	func reloadCurrentItem(server: ReceiverServer) {
+	/// The subtitle index each reload carried, nil for the one the TV plays.
+	private(set) var reloadSubtitles: [Int?] = []
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void) {
 		calls.append("reload")
 		servers.append(server)
-		inner.reloadCurrentItem(server: server)
+		reloadSubtitles.append(subtitleStreamIndex)
+		inner.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
 	}
 }
 
@@ -283,6 +287,20 @@ enum RemotePlaybackTests {
 			check("anAttachedScreenIsBroughtUpToDateAtOnce", caughtUp && bench.screen.positions.last == 4)
 		}
 
+		// How the TV plays what it holds goes to JS with the rest: the technical info panel reads it.
+		do {
+			let bench = Bench()
+			bench.connected()
+			let before = bench.published.last?.playMethod == nil
+			bench.made.last?.inner.simulatePlayMethod("Transcode")
+			let state = bench.published.last
+			check(
+				"theSnapshotPublishesHowTheTvPlays",
+				before && state?.playMethod == "Transcode"
+					&& state?.toDictionary()["playMethod"] as? String == "Transcode"
+			)
+		}
+
 		// Media another sender loaded: the snapshot says so, with what its Cast metadata names (PR 6).
 		do {
 			let bench = Bench()
@@ -425,10 +443,40 @@ enum RemotePlaybackTests {
 			bench.connected()
 			bench.playback.reload(server: capped)
 			let reloaded = bench.made[0].calls == ["start", "reload"] && bench.made[0].servers == [capped]
-			// Without an engine, nothing to reload and nothing made.
+			// Without an engine, nothing to reload and nothing made: the caller hears it.
 			bench.playback.setServer(nil)
+			var unsent = false
+			bench.playback.reload(server: capped) { result in
+				if case .notSent(RemotePlayback.noEngineError) = result { unsent = true }
+			}
+			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1 && unsent)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
 			bench.playback.reload(server: capped)
-			check("aReloadGoesToTheEngineUnderTheServerGiven", reloaded && bench.made.count == 1)
+			bench.playback.reload(server: capped, subtitleStreamIndex: 9)
+			check("aReloadCarriesTheSubtitleItWasGiven", bench.made[0].reloadSubtitles == [nil, 9])
+		}
+
+		// The remote player's menus choose by Jellyfin index; -1 turns the subtitles off.
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.playback.setAudioTrack(2)
+			bench.playback.setSubtitleTrack(5)
+			bench.playback.setSubtitleTrack(-1)
+			check(
+				"aTrackChoiceGoesToTheEngine",
+				bench.made[0].calls == ["start", "setAudioTrack 2", "setSubtitleTrack 5", "disableSubtitles"]
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.playback.setAudioTrack(2)
+			check("aTrackChoiceWithoutAnEngineSendsNothing", bench.made.isEmpty)
 		}
 
 		// What JS reads of a load: the outcome under the names of RemoteLoadResult, the failure's code, the text of a

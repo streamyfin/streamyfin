@@ -62,9 +62,6 @@ import {
   type NativePlayerDismissReason,
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
-  type NativePlayerSegment,
-  type NativePlayerSegmentType,
-  type NativePlayerSubtitleSearchResult,
   nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
   nativePlayerGetSubtitleTracks,
@@ -94,7 +91,6 @@ import {
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
-import type { MediaTimeSegment } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
@@ -109,7 +105,6 @@ import {
   isNativePlayerSupported,
   isNativePlayerSupportedAndroidTV,
   isNativePlayerSupportedTV,
-  type SegmentSkipMode,
   type Settings,
   useSettings,
 } from "@/utils/atoms/settings";
@@ -153,6 +148,7 @@ import {
   buildNativePlayerStrings,
   buildTrackMenus,
   type NativePlayerSessionSeed,
+  trackTagLabels,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
@@ -180,6 +176,7 @@ import {
   fetchAndParseSegments,
   getSegmentsForItem,
   type SegmentBuckets,
+  toNativeSegments,
 } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import {
@@ -194,6 +191,7 @@ import {
   localSubtitleIndex,
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
+import { mapSearchResults } from "@/utils/subtitles/subtitleSearchResults";
 import {
   syncPlayQueuePosterUrl,
   syncPlayQueueSubtitle,
@@ -358,22 +356,6 @@ const rememberSeriesSelection = (
   )?.Language;
   if (lang) rememberSeriesTrack(item.SeriesId, { subtitleLang: lang });
 };
-
-const mapSearchResults = (
-  results: SubtitleSearchResult[],
-): NativePlayerSubtitleSearchResult[] =>
-  results.map((r) => ({
-    id: r.id,
-    name: r.name,
-    providerName: r.providerName,
-    format: r.format,
-    language: r.language,
-    communityRating: r.communityRating,
-    downloadCount: r.downloadCount,
-    isHashMatch: r.isHashMatch,
-    hearingImpaired: r.hearingImpaired,
-    aiTranslated: r.aiTranslated,
-  }));
 
 /**
  * Waits, briefly, for a native player that is closing to be gone. On iOS the
@@ -870,45 +852,9 @@ const NativePlayerProviderInner: React.FC<{
       }
       if (sessionRef.current !== session) return;
 
-      // The skip mode is resolved here rather than natively, so the native
+      // The skip modes are resolved here rather than natively, so the native
       // player never reads settings and stays in step with the JS players.
-      const currentSettings = settingsRef.current;
-      // Emitted in the same overlap priority the JS players use
-      // (Commercial > Recap > Intro > Preview > Outro). The native side picks
-      // the first segment containing the playhead, so array order IS the
-      // priority: a flat by-bucket order would resolve overlaps differently
-      // from the JS players.
-      const bucketsByType: Array<
-        [NativePlayerSegmentType, MediaTimeSegment[], SegmentSkipMode]
-      > = [
-        [
-          "Commercial",
-          segments.commercialSegments,
-          currentSettings?.skipCommercial ?? "ask",
-        ],
-        ["Recap", segments.recapSegments, currentSettings?.skipRecap ?? "ask"],
-        ["Intro", segments.introSegments, currentSettings?.skipIntro ?? "ask"],
-        [
-          "Preview",
-          segments.previewSegments,
-          currentSettings?.skipPreview ?? "ask",
-        ],
-        ["Outro", segments.creditSegments, currentSettings?.skipOutro ?? "ask"],
-      ];
-
-      const mapped: NativePlayerSegment[] = bucketsByType.flatMap(
-        ([type, bucket, skipMode]) =>
-          // "none" segments are dropped outright: nothing to show, nothing to
-          // skip, and it keeps the native payload small.
-          skipMode === "none"
-            ? []
-            : bucket.map((s) => ({
-                type,
-                startSec: s.startTime,
-                endSec: s.endTime,
-                skipMode,
-              })),
-      );
+      const mapped = toNativeSegments(segments, settingsRef.current);
       await updateNativePlayerSegments(mapped);
     } catch {
       // Segments are progressive enhancement — never fail playback for them.
@@ -1139,6 +1085,7 @@ const NativePlayerProviderInner: React.FC<{
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
+        trackTags: trackTagLabels(t),
         item: options.item,
         outputPickerStrings: buildOutputPickerStrings(t),
         maxStreamingBitrate: options.maxStreamingBitrate,
@@ -1650,6 +1597,7 @@ const NativePlayerProviderInner: React.FC<{
           originalLabel: t("common.original_audio"),
           qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
           bitrateValue: session.bitrateValue,
+          trackTags: trackTagLabels(t),
           localSubtitle: session.localSubtitle
             ? {
                 label: session.localSubtitle.label,

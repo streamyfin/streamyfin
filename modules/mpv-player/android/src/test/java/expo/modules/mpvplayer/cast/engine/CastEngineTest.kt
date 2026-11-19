@@ -285,6 +285,103 @@ class CastEngineTest {
         assertEquals(listOf(expected.toString()), port.sent.map { it.second })
     }
 
+    // Sent while the receiver loads, a subtitle is named in its reports and no track turns on (bench, 18/11,
+    // 3 times out of 4). Sent at the buffering that follows, it is turned off again: the receiver sets the track
+    // its load named once that load completes, after buffering (bench, 18/11, 3 times out of 3). The pick shows
+    // at once and goes once the receiver plays.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItPlays() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to 0)), 500)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+    }
+
+    @Test
+    fun theLastSubtitlePickedWhileTheReceiverLoadsIsTheOneSent() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        engine.setSubtitleTrack(2)
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":2}"""), commands())
+    }
+
+    // Whether the receiver has text tracks is known once it has loaded: decided then, not while it loads.
+    @Test
+    fun aSubtitlePickedWhileLoadingReloadsWhenTheLoadedItemHasNoTextTrack() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(3)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1), hasTextTracks = false), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1), hasTextTracks = false), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        assertEquals(3, JSONObject(port.sent.single().second).getJSONObject("options").getInt("subtitleStreamIndex"))
+    }
+
+    // Another play session plays what its own load named, and a stopped item takes no command.
+    @Test
+    fun aSubtitlePickedWhileLoadingIsDroppedByAnotherPlaySessionOrAStop() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to -1)), 0)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(5)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-3", "subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(2)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled", customData = ours("playSessionId" to "ps-3")), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":5}"""), commands())
+    }
+
+    // Without autoplay the receiver goes from buffering to paused: that is where its load has completed too.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverLoadsGoesOnceItIsPaused() {
+        val engine = engine()
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(emptyList<Pair<String, String>>(), commands())
+        media.report(snapshot(playerState = "paused", customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+    }
+
+    // Buffering after the receiver has played is a stall, not the load: nothing resets the track there.
+    @Test
+    fun aSubtitlePickedWhileTheReceiverBuffersAfterPlayingGoesAtOnce() {
+        val engine = playing(42_500, "subtitleStreamIndex" to -1)
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 42_500)
+        engine.setSubtitleTrack(0)
+        assertEquals(listOf("SetSubtitleStreamIndex" to """{"index":0}"""), commands())
+    }
+
+    // The receiver reports the subtitle its load named while it loads: a quality reload sent then carried that
+    // one and the pick waiting was lost (bench, 18/11). The reload carries the pick, and nothing else sends it.
+    @Test
+    fun aReloadSentWhileASubtitlePickWaitsCarriesThePick() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))) {}
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        media.report(snapshot(playerState = "loading", customData = ours("subtitleStreamIndex" to -1)), 0)
+        engine.setSubtitleTrack(0)
+        port.deliver("""{"type":"playbackstart","data":{"PlayState":{"SubtitleStreamIndex":null,"AudioStreamIndex":1,"PlaySessionId":"ps-1"}}}""")
+        assertEquals(0, engine.getCurrentSubtitleTrack())
+        media.report(snapshot(playerState = "buffering", customData = ours("subtitleStreamIndex" to -1)), 0)
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+        assertEquals(0, JSONObject(port.sent.last().second).getJSONObject("options").getInt("subtitleStreamIndex"))
+        media.report(snapshot(customData = ours("subtitleStreamIndex" to -1)), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+    }
+
     @Test
     fun anAudioChangeSendsSetAudioStreamIndexAndWaitsForTheReload() {
         val engine = playing()
@@ -575,6 +672,140 @@ class CastEngineTest {
         assertEquals(4_000_000L, JSONObject(port.sent.single().second).getLong("maxBitrate"))
     }
 
+    // Between the two streams of a reload the receiver plays nothing: a quality picked then was refused while the
+    // menu marked it (bench, 18/11, 2 times out of 2). The last pick goes once the reload on its way has settled and
+    // the receiver plays, from where it plays then.
+    @Test
+    fun aQualityPickedWhileAReloadIsOnItsWayGoesOnceItSettles() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        assertEquals(1, port.sent.size)
+        assertEquals(emptyList<CastLoadResult>(), results)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(1, port.sent.size)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(1, port.sent.size)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(listOf(8_000_000L, 4_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(425_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-3")), 0)
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+    }
+
+    @Test
+    fun onlyTheLastQualityPickedWhileAReloadIsOnItsWayGoes() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 2_000_000)) { results += it }
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_500)
+        assertEquals(listOf(8_000_000L, 2_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+    }
+
+    // The item a send puts on the TV plays under the cap the menu marks once it has loaded.
+    @Test
+    fun aQualityPickedWhileALoadIsOnItsWayGoesOnceItSettles() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-1")))) {}
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(playerState = "loading"), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(playerState = "buffering"), 0)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+        media.report(snapshot(), 0)
+        assertEquals(listOf("PlayNow", "PlayNow"), commands().map { it.first })
+        assertEquals(4_000_000L, JSONObject(port.sent.last().second).getLong("maxBitrate"))
+    }
+
+    // Settled, a reload's new stream reports 0 until the receiver plays it: a second quality picked then went
+    // from the start (bench, 18/11, 3 times out of 3). The position stays where the reload asked for until then.
+    @Test
+    fun aSettledReloadKeepsItsPositionUntilTheReceiverPlays() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        media.tick(0)
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_700)
+        assertEquals(42.7, engine.currentPosition, 1e-9)
+    }
+
+    // A seek while the reloaded stream starts goes elsewhere than the reload's target: the receiver's answer is the
+    // place, not the target the position was held on (review, 18/11).
+    @Test
+    fun aSeekWhileTheReloadedStreamStartsIsWhereThePositionGoes() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        engine.seekTo(600.0)
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 600_000)
+        assertEquals(600.0, engine.currentPosition, 1e-9)
+    }
+
+    // A quality picked while the receiver still starts the stream of a settled reload, with nothing on its way,
+    // went at once and from 0 (bench, 18/11): it waits for the receiver to play, and goes from there.
+    @Test
+    fun aQualityPickedBeforeTheReloadedStreamPlaysGoesOnceItPlays() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        media.report(snapshot(playerState = "loading", customData = ours("playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 2_000_000))
+        media.report(snapshot(playerState = "buffering", customData = ours("playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(listOf(8_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2")), 42_600)
+        assertEquals(listOf(8_000_000L, 2_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(426_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
+    }
+
+    // A stall after the receiver has played is not a start: the pick goes at once, from where it plays.
+    @Test
+    fun aQualityPickedWhileTheReceiverStallsGoesAtOnce() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "buffering"), 42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        assertEquals(listOf(4_000_000L), port.sent.map { JSONObject(it.second).getLong("maxBitrate") })
+        assertEquals(425_000_000L, JSONObject(port.sent.last().second).getJSONObject("options").getLong("startPositionTicks"))
+    }
+
+    // Another send carries the cap of its own envelope, and nothing loaded takes the pick.
+    @Test
+    fun aQualityPickedWhileAReloadIsOnItsWayIsDroppedByANewLoadOrAFailure() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted"), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "item-2")))) {}
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded)), results)
+
+        media.report(snapshot(playerState = "loading", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        media.report(snapshot(customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 8_000_000))
+        media.report(snapshot(playerState = "idle", idleReason = "interrupted", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000)) { results += it }
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        media.report(snapshot(playerState = "idle", idleReason = "error", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 0)
+        scheduler.advance(0)
+        assertEquals(listOf("PlayNow", "PlayNow", "PlayNow"), commands().map { it.first })
+        assertTrue(results.last() is CastLoadResult.NotSent)
+    }
+
     // The receiver's PlayNow replaces its queue: a reload sends the queue the engine cast, from the
     // item the receiver plays.
     @Test
@@ -591,6 +822,101 @@ class CastEngineTest {
         assertEquals(listOf("t-1", "t-2", "t-3", "t-4"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
         assertEquals(1, options.getInt("startIndex"))
         assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+    }
+
+    // A quality change mid-list: the receiver's PlayNow replaces its queue, so the reload under the new cap
+    // carries the list the engine cast, from the item the TV plays, where it is.
+    @Test
+    fun aQualityReloadKeepsTheRestOfTheListAndThePosition() {
+        val engine = engine()
+        val episodes = ReceiverPlayRequest(items = listOf("e-1", "e-2", "e-3").map { ReceiverItem(id = it) })
+        engine.load(SERVER, episodes) {}
+        media.report(snapshot(customData = ours("itemId" to "e-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "e-2", "playSessionId" to "ps-2")), 5_000)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = 4_000_000))
+        val message = JSONObject(port.sent.last().second)
+        val options = message.getJSONObject("options")
+        val items = options.getJSONArray("items")
+        assertEquals(listOf("e-1", "e-2", "e-3"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, options.getInt("startIndex"))
+        assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+        assertEquals(4_000_000L, message.getLong("maxBitrate"))
+    }
+
+    // A subtitle the server just downloaded is not among the receiver's loaded tracks: the item
+    // plays again where it is with that one, and the menu checks it at once.
+    @Test
+    fun aReloadCanCarryASubtitleIndex() {
+        val engine = playing(42_500)
+        port.deliver("""{"type":"playbackprogress","data":{"PlayState":{"AudioStreamIndex":2,"SubtitleStreamIndex":5}}}""")
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9)
+        val expected = ReceiverProtocol.playNow(
+            SERVER,
+            ReceiverPlayRequest(
+                items = listOf(ReceiverItem(id = "item-1")),
+                startPositionTicks = 425_000_000,
+                mediaSourceId = "ms-1",
+                audioStreamIndex = 2,
+                subtitleStreamIndex = 9,
+            ),
+        )
+        assertEquals(listOf(expected.toString()), port.sent.map { it.second })
+        assertEquals(9, engine.getCurrentSubtitleTrack())
+    }
+
+    // Mid-list, that reload carries the list the engine cast, from the item the TV plays, where it is.
+    @Test
+    fun thatReloadKeepsTheRestOfTheListAndThePosition() {
+        val engine = engine()
+        val episodes = ReceiverPlayRequest(items = listOf("e-1", "e-2", "e-3").map { ReceiverItem(id = it) })
+        engine.load(SERVER, episodes) {}
+        media.report(snapshot(customData = ours("itemId" to "e-1")), 0)
+        media.report(snapshot(customData = ours("itemId" to "e-2", "playSessionId" to "ps-2")), 5_000)
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9)
+        val options = JSONObject(port.sent.last().second).getJSONObject("options")
+        val items = options.getJSONArray("items")
+        assertEquals(listOf("e-1", "e-2", "e-3"), (0 until items.length()).map { items.getJSONObject(it).getString("Id") })
+        assertEquals(1, options.getInt("startIndex"))
+        assertEquals(50_000_000L, options.getLong("startPositionTicks"))
+        assertEquals(9, options.getInt("subtitleStreamIndex"))
+    }
+
+    // The sheet that asked for that subtitle hears whether the TV played it: a refusal and a message the channel
+    // could not send are no success.
+    @Test
+    fun aSubtitleReloadSaysWhetherTheTvPlayedIt() {
+        val results = mutableListOf<CastLoadResult>()
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "subtitleStreamIndex" to 9)))
+        assertEquals(listOf<CastLoadResult>(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded)), results)
+
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        assertTrue((results.last() as CastLoadResult.Settled).outcome is ReceiverLoadOutcome.Failed)
+
+        port.sendError = "No Cast session to send on"
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        assertEquals(CastLoadResult.NotSent("No Cast session to send on"), results.last())
+    }
+
+    // Stopped from the TV, nothing is loaded to play again: no PlayNow, and the sheet hears it.
+    @Test
+    fun aSubtitleReloadWithNothingLoadedSaysSo() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        val results = mutableListOf<CastLoadResult>()
+        engine.reloadCurrentItem(SERVER, subtitleStreamIndex = 9) { results += it }
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+        assertTrue(results.single() is CastLoadResult.NotSent)
+    }
+
+    // A subtitle reload names no cap, as useServer: the TV keeps the one the last load or reload named.
+    @Test
+    fun aSubtitleReloadKeepsTheCapTheTvHas() {
+        val engine = playing(42_500)
+        engine.reloadCurrentItem(SERVER.copy(maxBitrate = null), subtitleStreamIndex = 9)
+        assertEquals(8_000_000L, JSONObject(port.sent.single().second).getLong("maxBitrate"))
     }
 
     // A stop from the TV leaves an idle status that still carries the media, which play() on the
@@ -1366,6 +1692,21 @@ class CastEngineTest {
         assertEquals("item-1", engine.currentItemId)
         assertEquals("Episode 2", engine.mediaTitle)
         assertEquals("https://jellyfin.example.test/Items/item-1/Images/Primary", engine.mediaImageUrl)
+    }
+
+    // What the TV really plays is the receiver's word: its customData names the method, and a reload's new
+    // play session (another cap) another one, which the remote screen hears of.
+    @Test
+    fun thePlayMethodComesFromTheReceiversCustomData() {
+        val engine = playing(42_500, "playSessionId" to "ps-1", "playMethod" to "DirectPlay")
+        assertEquals("DirectPlay", engine.playMethod)
+        val changes = engine.countStateChanges()
+        media.report(snapshot(customData = ours("playSessionId" to "ps-2", "playMethod" to "Transcode")))
+        assertEquals("Transcode", engine.playMethod)
+        assertEquals(1, changes())
+        // Media another sender loaded names none.
+        media.report(snapshot(customData = null, title = "Big Buck Bunny"))
+        assertNull(engine.playMethod)
     }
 
     private fun CastEngine.countStateChanges(): () -> Int {

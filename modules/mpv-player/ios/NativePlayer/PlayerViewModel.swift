@@ -98,6 +98,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func technicalInfo(completion: @escaping ([String: Any]) -> Void) {
 		readTechnicalInfo(from: engine, completion: completion)
 	}
+
+	/// The panel's lines when JS writes them (capabilities.technicalInfoFromJs): what the TV plays.
+	@Published var technicalLines: [(label: String, value: String)] = []
+
+	/// The panel opened or closed: JS writes its lines while it is open, from the first. Emptied both ways: lines JS
+	/// sent before it heard of a close land on the closed panel.
+	func technicalInfoShown(_ shown: Bool) {
+		guard capabilities.technicalInfoFromJs else { return }
+		technicalLines = []
+		emit?(shown ? "onTechnicalInfoRequested" : "onTechnicalInfoClosed", [:])
+	}
 	var emit: ((String, [String: Any]) -> Void)?
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
 	/// Set by the view controller — it owns the orientation mask.

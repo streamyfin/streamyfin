@@ -240,6 +240,8 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	/// The Cast metadata's title and first image of what the TV holds, whoever loaded it; nil without media.
 	var mediaTitle: String? { get }
 	var mediaImageUrl: String? { get }
+	/// How the TV plays what it holds, in the receiver's word ("DirectPlay", "DirectStream", "Transcode"); nil unknown.
+	var playMethod: String? { get }
 	/// Called on the main thread when anything but the position changed: phase, item, list, index, a track,
 	/// `reconnecting`, the media's title or image.
 	var onStateChanged: (() -> Void)? { get set }
@@ -248,8 +250,10 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	func useServer(_ server: ReceiverServer)
 	/// Plays `request` on the TV under `server`, which the commands that follow carry; a newer load supersedes it.
 	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void)
-	/// The item again where it is, under `server`: how a quality change applies its new cap.
-	func reloadCurrentItem(server: ReceiverServer)
+	/// The item again where it is, under `server`: how a quality change applies its new cap. With
+	/// `subtitleStreamIndex`, that subtitle instead (one the server just downloaded), and a server that names no cap
+	/// keeps the TV's, as `useServer` does. `completion` hears how the receiver answered, or why nothing left.
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void)
 }
 
 /// Whether the chrome offers picture in picture: only an engine with a screen that can float.

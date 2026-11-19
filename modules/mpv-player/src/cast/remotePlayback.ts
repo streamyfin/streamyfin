@@ -52,11 +52,22 @@ export const loadOnReceiver = async (
   return CastNative.loadOnReceiver(server, request);
 };
 
-/** Reloads what the TV plays under this server, from where it is (a new bitrate cap). */
+/**
+ * Reloads what the TV plays under this server, from where it is: a new bitrate cap, or a subtitle the server just
+ * downloaded, which plays checked. A server without a cap keeps the TV's for a subtitle. Resolves once the reload
+ * settles, as a load does: not sent when the TV has nothing of ours loaded. A cap asked for while a load or a reload
+ * is on its way, or before the TV plays the stream one started, goes once that one has settled and the TV plays; a
+ * later cap replaces it, which then settles as superseded.
+ */
 export const reloadOnReceiver = async (
   server: ReceiverServerRecord,
-): Promise<void> => {
-  await CastNative?.reloadOnReceiver(server);
+  options?: { subtitleStreamIndex?: number },
+): Promise<RemoteLoadResult> => {
+  if (!CastNative) return { ...NO_MODULE_LOAD };
+  return CastNative.reloadOnReceiver(
+    server,
+    options?.subtitleStreamIndex ?? null,
+  );
 };
 
 /** Next or previous inside the receiver's queue: how a list that is not a series moves. */
@@ -64,6 +75,16 @@ export const skipOnReceiver = async (
   direction: "next" | "previous",
 ): Promise<void> => {
   await CastNative?.skipOnReceiver(direction);
+};
+
+/** The audio track the TV plays, by Jellyfin index: the receiver plays the item again with it. */
+export const setRemoteAudioTrack = async (index: number): Promise<void> => {
+  await CastNative?.setRemoteAudioTrack(index);
+};
+
+/** The subtitle the TV shows, by Jellyfin index, -1 for none. */
+export const setRemoteSubtitleTrack = async (index: number): Promise<void> => {
+  await CastNative?.setRemoteSubtitleTrack(index);
 };
 
 /** What the TV plays, followed. */

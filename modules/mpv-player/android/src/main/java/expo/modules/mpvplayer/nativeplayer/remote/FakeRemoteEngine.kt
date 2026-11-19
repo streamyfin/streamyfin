@@ -82,6 +82,8 @@ class FakeRemoteEngine(
     override val foreign: Boolean get() = foreignMedia != null
     override val mediaTitle: String? get() = foreignMedia?.first
     override val mediaImageUrl: String? get() = foreignMedia?.second
+    override var playMethod: String? = null
+        private set
 
     // MARK: - Lifecycle
 
@@ -115,7 +117,8 @@ class FakeRemoteEngine(
 
     // The fake has no envelope to carry: its TV plays on as it was.
     override fun useServer(server: ReceiverServer) {}
-    override fun reloadCurrentItem(server: ReceiverServer) {}
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) =
+        onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Loaded))
 
     override fun load(server: ReceiverServer, request: ReceiverPlayRequest, onResult: (CastLoadResult) -> Unit) = runOnMain {
         if (stopped) {
@@ -182,6 +185,13 @@ class FakeRemoteEngine(
         suspended = false
         delegate?.onLoadingChanged(false)
         report()
+        notifyState()
+    }
+
+    /** The receiver names how it plays what it holds (its customData). */
+    fun simulatePlayMethod(method: String?) = runOnMain {
+        if (stopped) return@runOnMain
+        playMethod = method
         notifyState()
     }
 
@@ -300,7 +310,7 @@ class FakeRemoteEngine(
 
     private fun notifyState() {
         // The foreign media too, as the iOS fake: a clip after another changes only its title and image.
-        val state = listOf(phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl)
+        val state = listOf(phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl, playMethod)
         if (state == heardState || stopped) return
         heardState = state
         onStateChanged?.invoke()

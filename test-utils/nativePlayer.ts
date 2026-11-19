@@ -28,8 +28,16 @@ export interface NativePlayerDoubleState {
   remoteUpdates: unknown[];
   /** What `updateRemotePlayer` answers: false is no remote screen up. */
   remoteUpdateAnswer: boolean;
+  /** Menus handed to `updateTrackMenus`, in order: the screen's track and quality rows. */
+  trackMenuUpdates: unknown[];
+  /** Texts handed to `showNotice`, in order. */
+  notices: string[];
   /** Failures handed to `showRemotePlayerFailure`, in order, null for a clear. */
   remoteFailures: unknown[];
+  /** Lines handed to `updateRemoteTechnicalInfo`, in order. */
+  technicalInfoUpdates: unknown[];
+  /** States handed to `updateSubtitleSearch`, in order: the search sheet's results, errors and outcome. */
+  subtitleSearchUpdates: unknown[];
   /** Calls to `dismiss`, which closes whichever player is up. */
   dismissals: number;
   listeners: Map<string, Listener[]>;
@@ -41,8 +49,12 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   remoteRefusal: null,
   remoteTints: [],
   remoteUpdates: [],
+  trackMenuUpdates: [],
+  notices: [],
   remoteUpdateAnswer: true,
   remoteFailures: [],
+  technicalInfoUpdates: [],
+  subtitleSearchUpdates: [],
   dismissals: 0,
   listeners: new Map(),
 });
@@ -75,8 +87,20 @@ export const nativePlayerDoubleModule = (
     state().remoteUpdates.push(config);
     return state().remoteUpdateAnswer;
   }),
+  showNotice: jest.fn(async (text: string) => {
+    state().notices.push(text);
+  }),
+  updateTrackMenus: jest.fn(async (menus: unknown) => {
+    state().trackMenuUpdates.push(menus);
+  }),
   showRemotePlayerFailure: jest.fn(async (failure: unknown) => {
     state().remoteFailures.push(failure);
+  }),
+  updateRemoteTechnicalInfo: jest.fn(async (lines: unknown) => {
+    state().technicalInfoUpdates.push(lines);
+  }),
+  updateSubtitleSearch: jest.fn(async (search: unknown) => {
+    state().subtitleSearchUpdates.push(search);
   }),
   dismiss: jest.fn(async () => {
     state().dismissals += 1;

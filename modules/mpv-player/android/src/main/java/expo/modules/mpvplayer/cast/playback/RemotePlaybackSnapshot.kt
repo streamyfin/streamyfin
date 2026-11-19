@@ -19,6 +19,8 @@ data class RemotePlaybackSnapshot(
     val foreign: Boolean,
     val title: String?,
     val imageUrl: String?,
+    /** How the TV plays it, in the receiver's word; null unknown. */
+    val playMethod: String? = null,
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "connected" to connected,
@@ -34,6 +36,7 @@ data class RemotePlaybackSnapshot(
         "foreign" to foreign,
         "title" to title,
         "imageUrl" to imageUrl,
+        "playMethod" to playMethod,
     )
 
     companion object {

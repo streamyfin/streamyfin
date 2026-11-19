@@ -72,6 +72,8 @@ struct RemotePlayerRootView: View {
 		}
 		// Over the top bar, not in the stack: showing it moves nothing.
 		.overlay(alignment: .top) { RemoteVolumeIndicatorView(indicator: screen.volumeIndicator) }
+		// The local player's layer; shown, it asks JS for the lines of what the TV plays.
+		.overlay { TechnicalInfoLayer(viewModel: viewModel) }
 		// Tone 20 at the top to tone 10 at remoteTintGradientEnd, flat below; a new tint fades in.
 		.background(
 			LinearGradient(
@@ -90,6 +92,10 @@ struct RemotePlayerRootView: View {
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
+		// The subtitle menu's search, presented as the local player presents it.
+		.sheet(isPresented: $viewModel.showSubtitleSearch) {
+			SubtitleSearchView(viewModel: viewModel)
+		}
 	}
 
 	/// One slot, alone in its place: the column, the side or the bottom band. The top bar draws its own three.
@@ -102,6 +108,9 @@ struct RemotePlayerRootView: View {
 			// The artwork's double tap seeks like the bar, so it rests when the bar does.
 			RemoteArtwork(viewModel: viewModel, size: artwork)
 				.overlay { if model.seekEnabled { artworkTaps } }
+				// The segment skip rests with the bar too, as it did above it.
+				.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
+				.clipShape(RoundedRectangle(cornerRadius: 8))
 				.frame(maxWidth: layout == .portrait ? .infinity : nil)
 		case .titles:
 			RemoteTitles(viewModel: viewModel, compact: false)

@@ -80,6 +80,22 @@ class CastEngine(
     private var chosenAudio: Int? = null
     private var chosenSubtitle: Int? = null
 
+    // A subtitle picked while the receiver loads: sent then, the receiver names it in its reports and turns no
+    // track on (bench, 18/11, 3 times out of 4); sent at the buffering that follows, the receiver turns it off
+    // again as its load completes, with the track that load named (3 times out of 3). It goes once the receiver
+    // plays, in this play session.
+    private class SubtitleOnceLoaded(val index: Int, val previous: Int?)
+
+    private var subtitleOnceLoaded: SubtitleOnceLoaded? = null
+
+    // Whether the receiver has played or paused in this play session: until then its load has not completed, and
+    // a buffering status is that load, not a stall.
+    private var sessionPlayed = false
+
+    // The play session a reload of ours started, until the receiver plays it: its stream reports 0 until then
+    // (bench, 18/11, 3 times out of 3), and the reload's target is where it starts.
+    private var reloadStarting = false
+
     private var playSessionId: String? = null
     private var idleReason: String? = null
     private var reportedPause: Boolean? = null
@@ -100,6 +116,7 @@ class CastEngine(
         // What the request changed that the receiver has to confirm: the chosen track.
         val undo: () -> Unit,
         val itemId: String?,
+        val onResult: (CastLoadResult) -> Unit = {},
     )
 
     private var reload: Reload? = null
@@ -109,6 +126,14 @@ class CastEngine(
     }
 
     private var pendingLoad: PendingLoad? = null
+
+    // A quality asked for while a load or a reload is on its way, or before the receiver plays the stream one
+    // started. Between the two streams of a reload the receiver plays nothing, so a pick then was refused while the
+    // menu marked it (bench, 18/11, 2 times out of 2): the last one asked for goes once the one on its way has
+    // settled and the receiver plays, from where it plays.
+    private class QueuedReload(val server: ReceiverServer, val onResult: (CastLoadResult) -> Unit)
+
+    private var queuedReload: QueuedReload? = null
 
     // What this engine cast, the load's items then the enqueued ones: the receiver's PlayNow replaces
     // its whole queue, so a reload sends it again.
@@ -165,6 +190,7 @@ class CastEngine(
         val foreign: Boolean,
         val title: String?,
         val imageUrl: String?,
+        val playMethod: String?,
     )
 
     private val busListener = object : ReceiverBusListener {
@@ -257,6 +283,8 @@ class CastEngine(
         sessions.setListener(null)
         reload?.cancelTimer?.invoke()
         reload = null
+        subtitleOnceLoaded = null
+        dropQueuedReload()
         cancelEndWait()
         suspended = false
         reclaimPending = false
@@ -363,6 +391,8 @@ class CastEngine(
         playingIndex = receiverRequest.startIndex ?: 0
         reload?.cancelTimer?.invoke()
         reload = null
+        // Another send carries the cap of its own envelope.
+        dropQueuedReload()
         // A seek of the old item: the new item's first status does not answer it.
         seekToComplete = null
         cancelEndWait()
@@ -403,6 +433,7 @@ class CastEngine(
             setLoading(isBuffering())
             notifyState()
             onResult(CastLoadResult.NotSent(error))
+            afterStreamSettled()
         }
     }
 
@@ -419,15 +450,59 @@ class CastEngine(
     // The item again where it is, with the tracks it plays.
     override fun reloadCurrentItem() = runOnMain { reloadCurrent() }
 
-    /** The item again where it is, under [server]: how a quality change applies the envelope's new cap. */
-    override fun reloadCurrentItem(server: ReceiverServer) = runOnMain {
-        this.server = server
-        reloadCurrent()
+    /**
+     * The item again where it is, under [server]: how a quality change applies the envelope's new cap. A
+     * subtitle the receiver did not load (one the server just downloaded) goes with it, checked at once.
+     */
+    override fun reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, onResult: (CastLoadResult) -> Unit) = runOnMain {
+        if (subtitleStreamIndex == null) {
+            if (reload != null || pendingLoad != null || receiverStarting()) {
+                queuedReload?.onResult?.invoke(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
+                queuedReload = QueuedReload(server, onResult)
+                return@runOnMain
+            }
+            this.server = server
+            reloadCurrent(onResult)
+            return@runOnMain
+        }
+        // A subtitle reload names no cap: the TV keeps the one the last load or reload named.
+        this.server = server.copy(maxBitrate = server.maxBitrate ?: this.server.maxBitrate)
+        val data = loadedItem() ?: return@runOnMain onResult(CastLoadResult.NotSent(NOTHING_LOADED_ERROR))
+        val previous = chosenSubtitle
+        chosenSubtitle = subtitleStreamIndex
+        updateTracks()
+        playAgain(data, currentAudio.takeIf { it >= 0 }, subtitleStreamIndex, onResult) {
+            if (chosenSubtitle == subtitleStreamIndex) chosenSubtitle = previous
+        }
     }
 
-    private fun reloadCurrent() {
-        val data = loadedItem() ?: return
-        playAgain(data, currentAudio.takeIf { it >= 0 }, currentSubtitle)
+    private fun reloadCurrent(onResult: (CastLoadResult) -> Unit = {}) {
+        val data = loadedItem() ?: return onResult(CastLoadResult.NotSent(NOTHING_LOADED_ERROR))
+        // A subtitle waiting for the receiver to play goes with the reload, the new stream loads it.
+        val waiting = subtitleOnceLoaded
+        subtitleOnceLoaded = null
+        playAgain(data, currentAudio.takeIf { it >= 0 }, waiting?.index ?: currentSubtitle, onResult) {
+            if (waiting != null && chosenSubtitle == waiting.index) chosenSubtitle = waiting.previous
+        }
+    }
+
+    private fun afterStreamSettled() {
+        if (queuedReload != null) schedule(0L) { sendQueuedReload() }
+    }
+
+    private fun sendQueuedReload() {
+        val queued = queuedReload ?: return
+        // Another one on its way since, or a stream not playing yet: the pick waits for a status past it.
+        if (reload != null || pendingLoad != null || playerState == LOADING || receiverStarting()) return
+        queuedReload = null
+        server = queued.server
+        reloadCurrent(queued.onResult)
+    }
+
+    private fun dropQueuedReload() {
+        val queued = queuedReload ?: return
+        queuedReload = null
+        queued.onResult(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
     }
 
     // Transport
@@ -469,6 +544,8 @@ class CastEngine(
         val target = if (itemDuration > 0) seconds.coerceIn(0.0, itemDuration) else seconds.coerceAtLeast(0.0)
         if (data == null || data.canClientSeek != false) {
             log("seek $target path=media")
+            // The receiver's answer is the place now, not the target a reload started at.
+            reloadStarting = false
             val sentAt = statusCount
             val generation = queueGeneration
             port.seek((target * 1000).roundToLong()) { succeeded ->
@@ -536,14 +613,26 @@ class CastEngine(
 
     private fun selectSubtitle(index: Int) {
         val data = loadedItem() ?: return
-        val previous = chosenSubtitle
+        // A later pick while the receiver still loads replaces the one waiting; a failure goes back to before both.
+        val waiting = subtitleOnceLoaded
+        val previous = if (waiting != null) waiting.previous else chosenSubtitle
         chosenSubtitle = index
         updateTracks()
+        if (receiverStarting()) {
+            subtitleOnceLoaded = SubtitleOnceLoaded(index, previous)
+            notifyState()
+            return
+        }
+        subtitleOnceLoaded = null
+        sendSubtitle(data, index, previous)
+    }
+
+    private fun sendSubtitle(data: ReceiverCustomData, index: Int, previous: Int?) {
         val undo = { if (chosenSubtitle == index) chosenSubtitle = previous }
         if (index >= 0 && media?.status?.hasTextTracks == false) {
             // No text track loaded: the receiver would name the index in its reports and show
             // nothing, so the item plays again where it is with that subtitle.
-            playAgain(data, currentAudio.takeIf { it >= 0 }, index, undo)
+            playAgain(data, currentAudio.takeIf { it >= 0 }, index, undo = undo)
             return
         }
         notifyState()
@@ -558,7 +647,13 @@ class CastEngine(
     // PlayNow replaces the receiver's queue: the one this engine cast goes again from the item the
     // receiver plays, in the window that fits one message, or that item alone when the queue is
     // someone else's.
-    private fun playAgain(data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: () -> Unit = {}) {
+    private fun playAgain(
+        data: ReceiverCustomData,
+        audio: Int?,
+        subtitle: Int?,
+        onResult: (CastLoadResult) -> Unit = {},
+        undo: () -> Unit = {},
+    ) {
         val index = if (queue.getOrNull(playingIndex)?.id == data.itemId) playingIndex else queue.indexOfFirst { it.id == data.itemId }
         val items = if (index >= 0) queue else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
@@ -571,7 +666,7 @@ class CastEngine(
             subtitleStreamIndex = subtitle,
             liveStreamId = data.liveStreamId,
         )
-        startReload(position, null, data, undo) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
+        startReload(position, null, data, undo, onResult) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
     }
 
     // Local-only processing: the receiver has no such controls.
@@ -606,6 +701,8 @@ class CastEngine(
         get() = title
     override val mediaImageUrl: String?
         get() = imageUrl
+    override val playMethod: String?
+        get() = ours?.playMethod
 
     // Read on the main thread, where the callbacks that change these run.
     override val phase: RemotePhase
@@ -711,8 +808,17 @@ class CastEngine(
             playSessionId = data?.playSessionId
             chosenAudio = null
             chosenSubtitle = null
+            // That session plays what its own load named.
+            subtitleOnceLoaded = null
+            sessionPlayed = false
+            reloadStarting = false
             // The next item: what ended was not the end.
             if (data?.playSessionId != null) cancelEndWait()
+        }
+        if (settled?.second == ReceiverLoadOutcome.Loaded) reloadStarting = true
+        if (status.playerState == PLAYING || status.playerState == PAUSED) {
+            sessionPlayed = true
+            reloadStarting = false
         }
         ours = data
         hasMedia = true
@@ -739,13 +845,23 @@ class CastEngine(
         seekToComplete = null
         completed?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
+        // A reload that goes now takes the subtitle waiting with it.
+        sendQueuedReload()
+        subtitleOnceLoaded?.takeIf { !receiverStarting() }?.let { waiting ->
+            subtitleOnceLoaded = null
+            // Stopped, or replaced by a load on its way: nothing takes the command.
+            loadedItem()?.let { item -> sendSubtitle(item, waiting.index, waiting.previous) }
+        }
         notifyState()
     }
 
-    // The position stays on its target through a reload, and where it was on an idle status: the SDK
-    // reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that interrupts
-    // a stream for another of the same item carries the old customData with the new stream's time.
-    private fun holdsPosition(state: String) = reload != null || state == IDLE
+    // The position stays on its target through a reload until the receiver plays its stream, and where it was on
+    // an idle status: the SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status
+    // that interrupts a stream for another of the same item carries the old customData with the new stream's time.
+    private fun holdsPosition(state: String) = reload != null || reloadStarting || state == IDLE
+
+    // The receiver starts the stream of its play session: loading, or buffering before it has played.
+    private fun receiverStarting() = hasMedia && playerState != IDLE && (playerState == LOADING || !sessionPlayed)
 
     private fun onTick(positionMs: Long) {
         if (!hasMedia) return
@@ -756,7 +872,10 @@ class CastEngine(
     private fun onBusMessage(message: ReceiverMessage) {
         playStateOf(message)?.let { state ->
             if (state.has("AudioStreamIndex")) chosenAudio = intOrNull(state.opt("AudioStreamIndex"))
-            if (state.has("SubtitleStreamIndex")) chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
+            // While a pick waits, the receiver still reports the subtitle its load named.
+            if (state.has("SubtitleStreamIndex") && subtitleOnceLoaded == null) {
+                chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
+            }
             updateTracks()
             notifyState()
         }
@@ -792,6 +911,9 @@ class CastEngine(
         playSessionId = null
         chosenAudio = null
         chosenSubtitle = null
+        subtitleOnceLoaded = null
+        sessionPlayed = false
+        reloadStarting = false
         updateTracks()
         setPause(true)
         setLoading(awaitingReceiver())
@@ -858,6 +980,7 @@ class CastEngine(
         setLoading(isBuffering())
         notifyState()
         load.onResult(CastLoadResult.Settled(outcome))
+        afterStreamSettled()
     }
 
     private fun setPause(paused: Boolean) {
@@ -879,17 +1002,20 @@ class CastEngine(
         requestId: Long?,
         data: ReceiverCustomData,
         undo: () -> Unit = {},
+        onResult: (CastLoadResult) -> Unit = {},
         send: (failed: (String) -> Unit) -> Unit,
     ) {
         val previous = reload
         previous?.cancelTimer?.invoke()
+        // Replaced before the receiver answered: that request did not settle on its own.
+        previous?.onResult?.invoke(CastLoadResult.Settled(ReceiverLoadOutcome.Superseded))
         // A reload the receiver has not answered: when this one fails, what that one chose goes too.
         val undoAll = if (previous == null) undo else ({ undo(); previous.undo() })
         val tracker = ReceiverLoadTracker(ReceiverPlayRequest(items = listOf(ReceiverItem(id = data.itemId))), data.playSessionId)
         val cancelTimer = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
             reload?.takeIf { it.tracker === tracker }?.let { pending -> pending.tracker.timeOut()?.let { settleReload(pending, it, recompute = true) } }
         }
-        reload = Reload(tracker, target, requestId, cancelTimer, undoAll, data.itemId)
+        reload = Reload(tracker, target, requestId, cancelTimer, undoAll, data.itemId, onResult)
         position = target
         setLoading(true)
         notifyState()
@@ -903,7 +1029,9 @@ class CastEngine(
                 updateTracks()
                 notifyState()
                 delegate?.onError(error)
+                pending.onResult(CastLoadResult.NotSent(error))
                 recomputePosition()
+                afterStreamSettled()
             }
         }
     }
@@ -924,6 +1052,8 @@ class CastEngine(
         }
         if (recompute) recomputePosition()
         notifyState()
+        pending.onResult(CastLoadResult.Settled(outcome))
+        afterStreamSettled()
     }
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
@@ -984,7 +1114,10 @@ class CastEngine(
     }
 
     private fun notifyState() {
-        val state = HeardState(phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle, foreign, title, imageUrl)
+        val state = HeardState(
+            phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle, foreign, title, imageUrl,
+            ours?.playMethod,
+        )
         if (state == heardState) return
         heardState = state
         onStateChanged?.invoke()
@@ -1020,6 +1153,7 @@ class CastEngine(
 
     companion object {
         const val NO_SESSION_ERROR = "No connected Cast session"
+        const val NOTHING_LOADED_ERROR = "The receiver has no item of ours loaded to play again"
         const val URL_LOAD_ERROR = "The Cast engine plays Jellyfin items, not URLs"
         const val PLAYBACK_ERROR = "The receiver stopped on a playback error"
         const val SESSION_REPLACED_ERROR = "The Cast session was replaced"

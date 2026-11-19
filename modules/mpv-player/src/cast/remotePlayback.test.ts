@@ -15,7 +15,9 @@ import {
   onRemotePlaybackChanged,
   reloadOnReceiver,
   remotePlayback,
+  setRemoteAudioTrack,
   setRemoteServer,
+  setRemoteSubtitleTrack,
   skipOnReceiver,
   useRemotePlayback,
 } from "./remotePlayback";
@@ -47,6 +49,7 @@ const playing: RemotePlaybackState = {
   foreign: false,
   title: "Episode 1",
   imageUrl: null,
+  playMethod: "DirectPlay",
 };
 
 const server: ReceiverServerRecord = {
@@ -134,6 +137,21 @@ test("reloadOnReceiver hands native the server", async () => {
   expect(mockCast.reloadCalls).toEqual([{ ...server, maxBitrate: 4_000_000 }]);
 });
 
+test("reloadOnReceiver hands native the subtitle it names, null without one", async () => {
+  await reloadOnReceiver(server);
+  await reloadOnReceiver(server, { subtitleStreamIndex: 9 });
+  expect(mockCast.reloadSubtitles).toEqual([null, 9]);
+});
+
+test("a track choice hands native its Jellyfin index", async () => {
+  await setRemoteAudioTrack(2);
+  await setRemoteSubtitleTrack(-1);
+  expect(mockCast.trackCalls).toEqual([
+    { kind: "audio", index: 2 },
+    { kind: "subtitle", index: -1 },
+  ]);
+});
+
 test("skipOnReceiver hands native the direction", async () => {
   await skipOnReceiver("next");
   await skipOnReceiver("previous");
@@ -145,7 +163,9 @@ test("it answers notSent without the module", async () => {
   const result = await loadOnReceiver(server, request);
   expect(result.outcome).toBe("notSent");
   expect(result.error).toEqual(expect.any(String));
-  await expect(reloadOnReceiver(server)).resolves.toBeUndefined();
+  await expect(reloadOnReceiver(server)).resolves.toEqual(
+    expect.objectContaining({ outcome: "notSent" }),
+  );
   await expect(skipOnReceiver("next")).resolves.toBeUndefined();
   expect(mockCast.loadCalls).toEqual([]);
   expect(mockCast.reloadCalls).toEqual([]);

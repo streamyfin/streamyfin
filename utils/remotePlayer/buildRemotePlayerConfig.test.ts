@@ -1,7 +1,8 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto, UserDto } from "@jellyfin/sdk/lib/generated-client";
 import type { TFunction } from "i18next";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { defaultValues } from "@/utils/atoms/settings";
+import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import {
   buildReducedRemotePlayerConfig,
   buildRemotePlayerConfig,
@@ -42,6 +43,10 @@ const params = (
   imageHeaders: {},
   settings: defaultValues,
   api: makeApi(),
+  user: {
+    Id: "user-1",
+    Policy: { IsAdministrator: false, EnableSubtitleManagement: false },
+  } as UserDto,
   t,
   ...overrides,
 });
@@ -53,7 +58,6 @@ test("the config carries no stream and no picture in picture", () => {
   expect(config).not.toHaveProperty("stream");
   expect(config.ui.allowPip).toBe(false);
   expect(config.ui.orientationLock).toBe("none");
-  expect(config.ui.subtitleSearchEnabled).toBe(false);
   expect(config.tint).toBeNull();
   expect(config.metadata).toMatchObject({
     itemId: "episode-1",
@@ -62,6 +66,67 @@ test("the config carries no stream and no picture in picture", () => {
   });
   expect(config.chapters).toEqual([{ name: "Opening", startSec: 60 }]);
   expect(config.ui.strings?.playHere).toBe("player.play_here");
+});
+
+// The phone has no player to add a file to here: only the server's own search, which its policy gates, is offered.
+test("the search is offered only when the server can do it", () => {
+  const user = (policy: {
+    IsAdministrator?: boolean;
+    EnableSubtitleManagement?: boolean;
+  }) => ({ Id: "user-1", Policy: policy }) as UserDto;
+  const offered = (u: UserDto) =>
+    buildRemotePlayerConfig(params({ user: u })).ui.subtitleSearchEnabled;
+
+  expect(
+    offered(user({ IsAdministrator: false, EnableSubtitleManagement: false })),
+  ).toBe(false);
+  expect(
+    offered(user({ IsAdministrator: false, EnableSubtitleManagement: true })),
+  ).toBe(true);
+  expect(offered(user({ IsAdministrator: true }))).toBe(true);
+  expect(
+    buildReducedRemotePlayerConfig({
+      title: "Live",
+      imageUrl: null,
+      targetName: "Living Room TV",
+      settings: defaultValues,
+      t,
+    }).ui.subtitleSearchEnabled,
+  ).toBe(false);
+});
+
+// The search sheet offers the local player's languages and starts on the user's subtitle language.
+test("the search offers the languages and starts on the user's subtitle language", () => {
+  const ui = buildRemotePlayerConfig(
+    params({
+      settings: {
+        ...defaultValues,
+        defaultSubtitleLanguage: { ThreeLetterISOLanguageName: "fra" },
+      },
+    }),
+  ).ui;
+
+  expect(ui.subtitleSearchLanguages).toEqual(
+    COMMON_SUBTITLE_LANGUAGES.map(({ code, name }) => ({ code, name })),
+  );
+  expect(ui.subtitleSearchDefaultLanguage).toBe("fre");
+});
+
+// The intro button seeks the TV: the screen gets the item's chapters and segments as the local player does.
+test("the config carries the item's chapters and segments", () => {
+  const segments = [
+    {
+      type: "Intro" as const,
+      startSec: 5,
+      endSec: 65,
+      skipMode: "ask" as const,
+    },
+  ];
+
+  const config = buildRemotePlayerConfig(params({ segments }));
+
+  expect(config.chapters).toEqual([{ name: "Opening", startSec: 60 }]);
+  expect(config.segments).toEqual(segments);
 });
 
 test("the config names the target and the episode list", () => {

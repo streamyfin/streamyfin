@@ -74,9 +74,21 @@ class RemotePlayback(
         engine.load(server, request, onResult)
     }
 
-    /** The TV's item again where it is, under [server]; nothing without an engine. */
-    fun reload(server: ReceiverServer) {
-        engine?.reloadCurrentItem(server)
+    /** The TV's item again where it is, under [server], with [subtitleStreamIndex] when named; nothing without an engine. */
+    fun reload(server: ReceiverServer, subtitleStreamIndex: Int? = null, onResult: (CastLoadResult) -> Unit = {}) {
+        val engine = engine ?: return onResult(CastLoadResult.NotSent(NO_ENGINE_ERROR))
+        engine.reloadCurrentItem(server, subtitleStreamIndex, onResult)
+    }
+
+    /** The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine. */
+    fun setAudioTrack(index: Int) {
+        engine?.setAudioTrack(index)
+    }
+
+    /** The subtitle the remote player's menu chose, by Jellyfin index; -1 turns them off. */
+    fun setSubtitleTrack(index: Int) {
+        val engine = engine ?: return
+        if (index < 0) engine.disableSubtitles() else engine.setSubtitleTrack(index)
     }
 
     /** What the target hub says of the session: connected, or suspended while the SDK tries to resume it. */
@@ -156,6 +168,7 @@ class RemotePlayback(
             foreign = engine?.foreign == true,
             title = engine?.mediaTitle,
             imageUrl = engine?.mediaImageUrl,
+            playMethod = engine?.playMethod,
         )
         if (next.itemId == null) readyToSeek = false
         if (next == state) return

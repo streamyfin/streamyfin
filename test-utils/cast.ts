@@ -89,10 +89,16 @@ export interface CastDoubleState {
   loadAnswer: RemoteLoadResult;
   /** Loads handed to `loadOnReceiver`, in order. */
   loadCalls: { server: ReceiverServerRecord; request: ReceiverPlayRequest }[];
+  /** What `reloadOnReceiver` answers. */
+  reloadAnswer: RemoteLoadResult;
   /** Servers handed to `reloadOnReceiver`, in order. */
   reloadCalls: ReceiverServerRecord[];
+  /** The subtitle index each `reloadOnReceiver` carried, null for the one the TV plays. */
+  reloadSubtitles: (number | null)[];
   /** Directions handed to `skipOnReceiver`, in order. */
   skipCalls: ("next" | "previous")[];
+  /** Tracks handed to `setRemoteAudioTrack` and `setRemoteSubtitleTrack`, in order. */
+  trackCalls: { kind: "audio" | "subtitle"; index: number }[];
   /** Options handed to `presentOutputPicker`, in order. */
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
@@ -138,8 +144,11 @@ export const createCastDoubleState = (): CastDoubleState => ({
   remoteServerCalls: [],
   loadAnswer: { outcome: "loaded" },
   loadCalls: [],
+  reloadAnswer: { outcome: "loaded" },
   reloadCalls: [],
+  reloadSubtitles: [],
   skipCalls: [],
+  trackCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
   listeners: {
@@ -323,11 +332,24 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
       return { ...state().loadAnswer };
     },
   ),
-  reloadOnReceiver: jest.fn(async (server: ReceiverServerRecord) => {
-    state().reloadCalls.push(server);
-  }),
+  reloadOnReceiver: jest.fn(
+    async (
+      server: ReceiverServerRecord,
+      subtitleStreamIndex: number | null,
+    ) => {
+      state().reloadCalls.push(server);
+      state().reloadSubtitles.push(subtitleStreamIndex);
+      return { ...state().reloadAnswer };
+    },
+  ),
   skipOnReceiver: jest.fn(async (direction: "next" | "previous") => {
     state().skipCalls.push(direction);
+  }),
+  setRemoteAudioTrack: jest.fn(async (index: number) => {
+    state().trackCalls.push({ kind: "audio", index });
+  }),
+  setRemoteSubtitleTrack: jest.fn(async (index: number) => {
+    state().trackCalls.push({ kind: "subtitle", index });
   }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");

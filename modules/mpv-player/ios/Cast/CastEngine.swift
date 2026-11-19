@@ -19,6 +19,8 @@ final class CastEngine: RemoteEngine {
   typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
 
   static let noSessionError = "No connected Cast session"
+  static let nothingLoadedError = "The receiver has no item of ours loaded to play again"
+  static let unencodableError = "The PlayNow message could not be built"
   static let urlLoadError = "The Cast engine plays Jellyfin items, not URLs"
   static let playbackError = "The receiver stopped on a playback error"
   static let sessionReplacedError = "The Cast session was replaced"
@@ -68,6 +70,25 @@ final class CastEngine: RemoteEngine {
   private var chosenAudio: Int?
   private var chosenSubtitle: Int?
 
+  // A subtitle picked while the receiver loads: sent then, the receiver names it in its reports and turns no track
+  // on (bench, 18/11, 3 times out of 4); sent at the buffering that follows, the receiver turns it off again as its
+  // load completes, with the track that load named (3 times out of 3). It goes once the receiver plays, in this play
+  // session.
+  private struct SubtitleOnceLoaded {
+    let index: Int
+    let previous: Int?
+  }
+
+  private var subtitleOnceLoaded: SubtitleOnceLoaded?
+
+  // Whether the receiver has played or paused in this play session: until then its load has not completed, and a
+  // buffering status is that load, not a stall.
+  private var sessionPlayed = false
+
+  // The play session a reload of ours started, until the receiver plays it: its stream reports 0 until then (bench,
+  // 18/11, 3 times out of 3), and the reload's target is where it starts.
+  private var reloadStarting = false
+
   private var reportedPause: Bool?
   private var reportedLoading: Bool?
   private var readyToSeekFor: String?
@@ -82,6 +103,7 @@ final class CastEngine: RemoteEngine {
     // What the request changed that the receiver has to confirm: the chosen track.
     let undo: () -> Void
     let itemId: String?
+    var completion: (CastLoadResult) -> Void = { _ in }
   }
 
   private var reload: Reload?
@@ -98,6 +120,17 @@ final class CastEngine: RemoteEngine {
   }
 
   private var pendingLoad: PendingLoad?
+
+  // A quality asked for while a load or a reload is on its way, or before the receiver plays the stream one started.
+  // Between the two streams of a reload the receiver plays nothing, so a pick then was refused while the menu marked
+  // it (bench, 18/11, 2 times out of 2): the last one asked for goes once the one on its way has settled and the
+  // receiver plays, from where it plays.
+  private struct QueuedReload {
+    let server: ReceiverServer
+    let completion: (CastLoadResult) -> Void
+  }
+
+  private var queuedReload: QueuedReload?
 
   // What this engine cast, the load's items then the enqueued ones: the receiver's PlayNow replaces
   // its whole queue, so a reload sends it again.
@@ -158,6 +191,7 @@ final class CastEngine: RemoteEngine {
     let foreign: Bool
     let title: String?
     let imageUrl: String?
+    let playMethod: String?
   }
 
   private var heardState: HeardState?
@@ -195,6 +229,7 @@ final class CastEngine: RemoteEngine {
     if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     reload?.cancelTimer()
     reload = nil
+    dropQueuedReload()
     setLoading(isBuffering())
     // What ended is forgotten with the item: its end would come fifteen seconds later.
     endWait(false)
@@ -206,6 +241,7 @@ final class CastEngine: RemoteEngine {
     playSessionId = nil
     chosenAudio = nil
     chosenSubtitle = nil
+    subtitleOnceLoaded = nil
     position = 0
     itemDuration = 0
     readyToSeekFor = nil
@@ -265,6 +301,8 @@ final class CastEngine: RemoteEngine {
     stopTicking()
     reload?.cancelTimer()
     reload = nil
+    subtitleOnceLoaded = nil
+    dropQueuedReload()
     reclaimPending = false
     // What was reported was reported to this host: the next one starts from nothing.
     reportedPause = nil
@@ -380,6 +418,8 @@ final class CastEngine: RemoteEngine {
     playingIndex = receiverRequest.startIndex ?? 0
     reload?.cancelTimer()
     reload = nil
+    // Another send carries the cap of its own envelope.
+    dropQueuedReload()
     endWait(false)
     noCompatibleStreamFollows = false
     // The media on the TV now, read at the send: a status of its play session is never this load.
@@ -414,6 +454,7 @@ final class CastEngine: RemoteEngine {
       self.setLoading(self.isBuffering())
       self.notifyState()
       load.completion(.notSent(error))
+      self.afterStreamSettled()
     }
   }
 
@@ -441,17 +482,69 @@ final class CastEngine: RemoteEngine {
     reloadCurrent()
   }
 
-  /// The item again where it is, under `server`: how a quality change applies the envelope's new cap.
-  func reloadCurrentItem(server: ReceiverServer) {
+  /// The item again where it is, under `server`: how a quality change applies the envelope's new cap. A subtitle the
+  /// receiver did not load (one the server just downloaded) goes with it, checked at once.
+  func reloadCurrentItem(
+    server: ReceiverServer, subtitleStreamIndex: Int? = nil, completion: @escaping (CastLoadResult) -> Void = { _ in }
+  ) {
     onMain()
-    self.server = server
-    reloadCurrent()
+    guard let index = subtitleStreamIndex else {
+      if reload != nil || pendingLoad != nil || receiverStarting() {
+        queuedReload?.completion(.settled(.superseded))
+        queuedReload = QueuedReload(server: server, completion: completion)
+        return
+      }
+      self.server = server
+      reloadCurrent(completion: completion)
+      return
+    }
+    // A subtitle reload names no cap: the TV keeps the one the last load or reload named.
+    var next = server
+    next.maxBitrate = server.maxBitrate ?? self.server.maxBitrate
+    self.server = next
+    guard let data = loadedItem() else { return completion(.notSent(Self.nothingLoadedError)) }
+    let previous = chosenSubtitle
+    chosenSubtitle = index
+    publishState()
+    let audio = read { $0.audio }
+    playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, completion: completion) { [weak self] in
+      guard let self, self.chosenSubtitle == index else { return }
+      self.chosenSubtitle = previous
+    }
   }
 
-  private func reloadCurrent() {
-    guard let data = loadedItem() else { return }
+  private func reloadCurrent(completion: @escaping (CastLoadResult) -> Void = { _ in }) {
+    guard let data = loadedItem() else { return completion(.notSent(Self.nothingLoadedError)) }
     let state = read { $0 }
-    playAgain(data, audio: state.audio >= 0 ? state.audio : nil, subtitle: state.subtitle)
+    // A subtitle waiting for the receiver to play goes with the reload, the new stream loads it.
+    let waiting = subtitleOnceLoaded
+    subtitleOnceLoaded = nil
+    let audio = state.audio >= 0 ? state.audio : nil
+    playAgain(data, audio: audio, subtitle: waiting?.index ?? state.subtitle, completion: completion) { [weak self] in
+      guard let self, let waiting, self.chosenSubtitle == waiting.index else { return }
+      self.chosenSubtitle = waiting.previous
+    }
+  }
+
+  private func afterStreamSettled() {
+    guard queuedReload != nil else { return }
+    _ = deliver(0) { [weak self] in self?.sendQueuedReload() }
+  }
+
+  private func sendQueuedReload() {
+    // Another one on its way since, or a stream not playing yet: the pick waits for a status past it.
+    guard let queued = queuedReload, reload == nil, pendingLoad == nil, playerState != State.loading,
+      !receiverStarting()
+    else { return }
+    queuedReload = nil
+    server = queued.server
+    reloadCurrent(completion: queued.completion)
+  }
+
+  private func dropQueuedReload() {
+    guard let queued = queuedReload else { return }
+    queuedReload = nil
+    queued.completion(.settled(.superseded))
   }
 
   private func settleLoad(_ load: PendingLoad, _ outcome: ReceiverLoadOutcome) {
@@ -461,6 +554,7 @@ final class CastEngine: RemoteEngine {
     setLoading(isBuffering())
     notifyState()
     load.completion(.settled(outcome))
+    afterStreamSettled()
   }
 
   // MARK: - Transport
@@ -527,6 +621,8 @@ final class CastEngine: RemoteEngine {
     let target = itemDuration > 0 ? min(max(seconds, 0), itemDuration) : max(seconds, 0)
     guard let data, data.canClientSeek == false else {
       log("seek \(target) path=media")
+      // The receiver's answer is the place now, not the target a reload started at.
+      reloadStarting = false
       port.seek(to: target) { [weak self] succeeded in
         guard let self, !succeeded else { return }
         self.delegate?.engine(self, didUpdateProgress: self.position, duration: self.itemDuration, cacheSeconds: 0)
@@ -599,9 +695,20 @@ final class CastEngine: RemoteEngine {
 
   private func selectSubtitle(_ index: Int) {
     guard let data = loadedItem() else { return }
-    let previous = chosenSubtitle
+    // A later pick while the receiver still loads replaces the one waiting; a failure goes back to before both.
+    let previous = subtitleOnceLoaded.map { $0.previous } ?? chosenSubtitle
     chosenSubtitle = index
     publishState()
+    if receiverStarting() {
+      subtitleOnceLoaded = SubtitleOnceLoaded(index: index, previous: previous)
+      notifyState()
+      return
+    }
+    subtitleOnceLoaded = nil
+    sendSubtitle(data, index: index, previous: previous)
+  }
+
+  private func sendSubtitle(_ data: ReceiverCustomData, index: Int, previous: Int?) {
     let undo = { [weak self] in
       guard let self, self.chosenSubtitle == index else { return }
       self.chosenSubtitle = previous
@@ -626,7 +733,10 @@ final class CastEngine: RemoteEngine {
   // PlayNow replaces the receiver's queue: the one this engine cast goes again from the item the
   // receiver plays, in the window that fits one message, or that item alone when the queue is
   // someone else's.
-  private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: @escaping () -> Void = {}) {
+  private func playAgain(
+    _ data: ReceiverCustomData, audio: Int?, subtitle: Int?,
+    completion: @escaping (CastLoadResult) -> Void = { _ in }, undo: @escaping () -> Void = {}
+  ) {
     let index = queue.indices.contains(playingIndex) && queue[playingIndex].id == data.itemId
       ? playingIndex : queue.firstIndex { $0.id == data.itemId }
     let window = ReceiverProtocol.queueWindow(
@@ -641,8 +751,12 @@ final class CastEngine: RemoteEngine {
       subtitleStreamIndex: subtitle,
       liveStreamId: data.liveStreamId
     )
-    guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else { return }
-    startReload(target: position, data: data, undo: undo) { failed in self.sendMessage("PlayNow", message, failed: failed) }
+    guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else {
+      return completion(.notSent(Self.unencodableError))
+    }
+    startReload(target: position, data: data, undo: undo, completion: completion) { failed in
+      self.sendMessage("PlayNow", message, failed: failed)
+    }
   }
 
   // Local-only processing: the receiver has no such controls.
@@ -703,6 +817,7 @@ final class CastEngine: RemoteEngine {
   var foreign: Bool { hasMedia && ours?.itemId == nil }
   var mediaTitle: String? { title }
   var mediaImageUrl: String? { imageUrl }
+  var playMethod: String? { ours?.playMethod }
 
   // The receiver plays at 1x: it takes no playback rate.
   var canChangeSpeed: Bool { false }
@@ -780,8 +895,17 @@ final class CastEngine: RemoteEngine {
       playSessionId = data?.playSessionId
       chosenAudio = nil
       chosenSubtitle = nil
+      // That session plays what its own load named.
+      subtitleOnceLoaded = nil
+      sessionPlayed = false
+      reloadStarting = false
       // The next item: what ended was not the end.
       if data?.playSessionId != nil { endWait(false) }
+    }
+    if case .loaded? = reloadOutcome { reloadStarting = true }
+    if status.playerState == State.playing || status.playerState == State.paused {
+      sessionPlayed = true
+      reloadStarting = false
     }
     ours = data
     hasMedia = true
@@ -808,13 +932,25 @@ final class CastEngine: RemoteEngine {
     delegate?.engine(self, didUpdateProgress: position, duration: itemDuration, cacheSeconds: 0)
     if cancelTick == nil { scheduleTick() }
     if let load, let loadOutcome { settleLoad(load, loadOutcome) }
+    // A reload that goes now takes the subtitle waiting with it.
+    sendQueuedReload()
+    if let waiting = subtitleOnceLoaded, !receiverStarting() {
+      subtitleOnceLoaded = nil
+      // Stopped, or replaced by a load on its way: nothing takes the command.
+      if let item = loadedItem() { sendSubtitle(item, index: waiting.index, previous: waiting.previous) }
+    }
     notifyState()
   }
 
-  // The position stays on its target through a reload, and where it was on an idle status: Android's
-  // SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status that
-  // interrupts a stream for another of the same item carries the old customData with the new stream's time.
-  private func holdsPosition(_ state: String) -> Bool { reload != nil || state == State.idle }
+  // The position stays on its target through a reload until the receiver plays its stream, and where it was on an
+  // idle status: Android's SDK reports the stream at 0 once the receiver stopped (Task 14, run 12), and the status
+  // that interrupts a stream for another of the same item carries the old customData with the new stream's time.
+  private func holdsPosition(_ state: String) -> Bool { reload != nil || reloadStarting || state == State.idle }
+
+  // The receiver starts the stream of its play session: loading, or buffering before it has played.
+  private func receiverStarting() -> Bool {
+    hasMedia && playerState != State.idle && (playerState == State.loading || !sessionPlayed)
+  }
 
   private func scheduleTick() {
     cancelTick = deliver(CastEngineConstants.progressIntervalMs) { [weak self] in
@@ -846,7 +982,10 @@ final class CastEngine: RemoteEngine {
   fileprivate func onBusMessage(_ message: ReceiverMessage) {
     if let state = Self.playState(of: message) {
       if let value = state["AudioStreamIndex"] { chosenAudio = (value as? NSNumber)?.intValue }
-      if let value = state["SubtitleStreamIndex"] { chosenSubtitle = (value as? NSNumber)?.intValue }
+      // While a pick waits, the receiver still reports the subtitle its load named.
+      if let value = state["SubtitleStreamIndex"], subtitleOnceLoaded == nil {
+        chosenSubtitle = (value as? NSNumber)?.intValue
+      }
       publishState()
       notifyState()
     }
@@ -883,6 +1022,9 @@ final class CastEngine: RemoteEngine {
     playSessionId = nil
     chosenAudio = nil
     chosenSubtitle = nil
+    subtitleOnceLoaded = nil
+    sessionPlayed = false
+    reloadStarting = false
     stopTicking()
     setPause(true)
     setLoading(awaitingReceiver())
@@ -980,10 +1122,13 @@ final class CastEngine: RemoteEngine {
   // MARK: - Reloads
 
   private func startReload(
-    target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {}, send: (@escaping (String) -> Void) -> Void
+    target: Double, data: ReceiverCustomData, undo: @escaping () -> Void = {},
+    completion: @escaping (CastLoadResult) -> Void = { _ in }, send: (@escaping (String) -> Void) -> Void
   ) {
     let previous = reload
     previous?.cancelTimer()
+    // Replaced before the receiver answered: that request did not settle on its own.
+    previous?.completion(.settled(.superseded))
     // A reload the receiver has not answered: when this one fails, what that one chose goes too.
     let undoAll: () -> Void = previous.map { previous in { undo(); previous.undo() } } ?? undo
     let tracker = ReceiverLoadTracker(request: ReceiverPlayRequest(items: [ReceiverItem(id: data.itemId)]), previousPlaySessionId: data.playSessionId)
@@ -991,7 +1136,7 @@ final class CastEngine: RemoteEngine {
       guard let self, let pending = self.reload, pending.tracker === tracker, let outcome = tracker.timeOut() else { return }
       self.settleReload(pending, outcome, recompute: true)
     }
-    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undoAll, itemId: data.itemId)
+    reload = Reload(tracker: tracker, cancelTimer: cancelTimer, undo: undoAll, itemId: data.itemId, completion: completion)
     position = target
     setLoading(true)
     publishState()
@@ -1007,6 +1152,8 @@ final class CastEngine: RemoteEngine {
       self.notifyState()
       self.delegate?.engine(self, didFailWithError: error)
       self.recomputePosition()
+      pending.completion(.notSent(error))
+      self.afterStreamSettled()
     }
   }
 
@@ -1028,6 +1175,8 @@ final class CastEngine: RemoteEngine {
     }
     if recompute { recomputePosition() }
     notifyState()
+    pending.completion(.settled(outcome))
+    afterStreamSettled()
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.
@@ -1119,7 +1268,7 @@ final class CastEngine: RemoteEngine {
       phase: phase, reconnecting: suspended, itemId: ours?.itemId, queue: queueItemIds, playingIndex: playingIndex,
       audio: ours == nil ? -1 : chosenAudio ?? ours?.audioStreamIndex ?? -1,
       subtitle: ours == nil ? -1 : chosenSubtitle ?? ours?.subtitleStreamIndex ?? -1,
-      foreign: foreign, title: title, imageUrl: imageUrl
+      foreign: foreign, title: title, imageUrl: imageUrl, playMethod: ours?.playMethod
     )
     guard state != heardState else { return }
     heardState = state

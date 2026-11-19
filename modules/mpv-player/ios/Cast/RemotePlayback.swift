@@ -87,9 +87,25 @@ final class RemotePlayback: PlayerEngineDelegate {
     engine.load(server: server, request: request, completion: completion)
   }
 
-  /// The TV's item again where it is, under `server`; nothing without an engine.
-  func reload(server: ReceiverServer) {
-    engine?.reloadCurrentItem(server: server)
+  /// The TV's item again where it is, under `server`, with `subtitleStreamIndex` when named; nothing without an engine.
+  func reload(server: ReceiverServer, subtitleStreamIndex: Int? = nil, completion: @escaping (CastLoadResult) -> Void = { _ in }) {
+    guard let engine else { return completion(.notSent(Self.noEngineError)) }
+    engine.reloadCurrentItem(server: server, subtitleStreamIndex: subtitleStreamIndex, completion: completion)
+  }
+
+  /// The audio track the remote player's menu chose, by Jellyfin index; nothing without an engine.
+  func setAudioTrack(_ index: Int) {
+    engine?.setAudioTrack(index)
+  }
+
+  /// The subtitle the remote player's menu chose, by Jellyfin index; -1 turns them off.
+  func setSubtitleTrack(_ index: Int) {
+    guard let engine else { return }
+    if index < 0 {
+      engine.disableSubtitles()
+    } else {
+      engine.setSubtitleTrack(index)
+    }
   }
 
   /// What the target hub says of the session: connected, or suspended while the SDK tries to resume it.
@@ -183,7 +199,8 @@ final class RemotePlayback: PlayerEngineDelegate {
       reconnecting: suspended || engine?.reconnecting == true, itemId: engine?.currentItemId, positionSec: 0,
       durationSec: 0, audioIndex: audio, subtitleIndex: subtitle, queueItemIds: engine?.queueItemIds ?? [],
       playingIndex: engine?.playingIndex ?? -1, foreign: engine?.foreign == true, title: engine?.mediaTitle,
-      imageUrl: engine?.mediaImageUrl
+      imageUrl: engine?.mediaImageUrl,
+      playMethod: engine?.playMethod
     )
     if next.itemId == nil { readyToSeek = false }
     lock.lock()

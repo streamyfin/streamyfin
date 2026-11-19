@@ -1,7 +1,4 @@
-import type {
-  BaseItemDto,
-  RemoteSubtitleInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getSubtitleApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
@@ -25,6 +22,7 @@ import {
   OpenSubtitlesApi,
   type OpenSubtitlesResult,
 } from "@/utils/opensubtitles/api";
+import { jellyfinToResult } from "@/utils/subtitles/subtitleSearchResults";
 
 export interface SubtitleSearchResult {
   id: string;
@@ -48,26 +46,6 @@ interface UseRemoteSubtitlesOptions {
   itemId: string;
   item: BaseItemDto;
   mediaSourceId?: string | null;
-}
-
-/**
- * Convert Jellyfin RemoteSubtitleInfo to unified SubtitleSearchResult
- */
-function jellyfinToResult(sub: RemoteSubtitleInfo): SubtitleSearchResult {
-  return {
-    id: sub.Id ?? "",
-    name: sub.Name ?? "Unknown",
-    providerName: sub.ProviderName ?? "Unknown",
-    format: sub.Format ?? "srt",
-    language: sub.ThreeLetterISOLanguageName ?? "",
-    communityRating: sub.CommunityRating ?? undefined,
-    downloadCount: sub.DownloadCount ?? undefined,
-    isHashMatch: sub.IsHashMatch ?? undefined,
-    hearingImpaired: sub.HearingImpaired ?? undefined,
-    aiTranslated: sub.AiTranslated ?? undefined,
-    machineTranslated: sub.MachineTranslated ?? undefined,
-    source: "jellyfin",
-  };
 }
 
 /**

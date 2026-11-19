@@ -58,13 +58,17 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     );
   });
 
-const findPlayingReceiverSession = async ({
+/** The receiver's session on the server while it plays `itemId`: also what the remote player's technical info reads. */
+export const findPlayingReceiverSession = async ({
   api,
   userId,
   deviceName,
   itemId,
   signal,
-}: EndedReceiverSession): Promise<SessionInfoDto | undefined> => {
+}: Pick<
+  EndedReceiverSession,
+  "api" | "userId" | "deviceName" | "itemId" | "signal"
+>): Promise<SessionInfoDto | undefined> => {
   const { data } = await getSessionApi(api).getSessions(
     { activeWithinSeconds: RECEIVER_SESSION_WINDOW_SECONDS },
     { signal },

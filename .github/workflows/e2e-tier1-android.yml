@@ -57,6 +57,12 @@ jobs:
               - 'utils/remotePlayer/openRemotePlayer.ts'
               - 'utils/remotePlayer/playOnRemote.ts'
               - 'utils/remotePlayer/resolveRemoteItem.ts'
+              - 'utils/remotePlayer/remoteTracks.ts'
+              - 'utils/remotePlayer/remoteAutoSubtitle.ts'
+              - 'utils/remotePlayer/remoteTechnicalInfo.ts'
+              - 'utils/remotePlayer/remoteTechnicalInfoPanel.ts'
+              - 'utils/remotePlayer/remoteSubtitleSearch.ts'
+              - 'utils/subtitles/subtitleSearchResults.ts'
               - 'app/(auth)/now-playing.tsx'
               - 'components/settings/RemotePlaybackQualitySettings.tsx'
               # The screens the flows find by their test ids.

@@ -24,9 +24,10 @@ import type {
   RemotePlayerPresentConfig,
   RemotePlayerTint,
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
+import { userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
-import { liveTvBitrateRequest } from "@/utils/bitrate";
+import { type BitrateRequest, liveTvBitrateRequest } from "@/utils/bitrate";
 import {
   receiverNameFor,
   toReceiverRequest,
@@ -43,11 +44,13 @@ import { extractImageColor } from "@/utils/imageColors";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import { fetchAndParseSegments, toNativeSegments } from "@/utils/segments";
 import { secondsToTicks } from "@/utils/time";
 import { type BoundedQueue, boundedEpisodeQueue } from "./boundedEpisodeQueue";
 import {
   buildReducedRemotePlayerConfig,
   buildRemotePlayerConfig,
+  mediaSourceOf,
 } from "./buildRemotePlayerConfig";
 import {
   episodeAfter,
@@ -103,6 +106,51 @@ const followTint = async (
   }
 };
 
+/** The item's segments in the user's skip modes; none when the server cannot say, as they never fail a play. */
+const segmentsOf = async (
+  deps: RemotePlayDeps,
+  item: BaseItemDto,
+): Promise<RemotePlayerPresentConfig["segments"]> => {
+  if (!item.Id) return [];
+  try {
+    return toNativeSegments(
+      await fetchAndParseSegments(item.Id, deps.api),
+      deps.store.get(effectiveSettingsAtom),
+    );
+  } catch (error) {
+    writeErrorLog("The segments of what the TV plays could not be read", error);
+    return [];
+  }
+};
+
+/**
+ * The segments of an item a follow showed, in place once read: never waited for, as a send does not (before 10.11
+ * they are two reads). The update keeps the tracks the TV took and the tint read since.
+ */
+const showSegmentsLater = (
+  deps: RemotePlayDeps,
+  config: RemotePlayerPresentConfig,
+  play: ReceiverPlay,
+  remote: RemoteTarget,
+  send: number,
+): void => {
+  segmentsOf(deps, play.item)
+    .then(async (segments) => {
+      if (segments.length === 0 || send !== sends) return;
+      const held = deps.store.get(remotePlayAtom)?.play;
+      const current = held && held.item.Id === play.item.Id ? held : play;
+      await updateRemotePlayer({
+        ...config,
+        segments,
+        tracks: configFor(deps, current, remote, [], null).tracks,
+        tint: shownTint?.send === send ? shownTint.tint : config.tint,
+      });
+    })
+    .catch((error) =>
+      writeErrorLog("The remote player's segments could not be shown", error),
+    );
+};
+
 /** What the screen shows of `play` on `remote`; the tint fades in once read. */
 const configFor = (
   deps: RemotePlayDeps,
@@ -110,25 +158,23 @@ const configFor = (
   remote: RemoteTarget,
   episodeList: RemotePlayerPresentConfig["episodeList"],
   nextEpisode: RemotePlayerPresentConfig["nextEpisode"],
+  segments: RemotePlayerPresentConfig["segments"] = [],
 ): RemotePlayerPresentConfig => {
   const settings = deps.store.get(effectiveSettingsAtom);
   return buildRemotePlayerConfig({
     item: play.item,
-    mediaSource:
-      play.item.MediaSources?.find(
-        (source) => source.Id === play.mediaSourceId,
-      ) ??
-      play.item.MediaSources?.[0] ??
-      null,
+    mediaSource: mediaSourceOf(play),
     targetName: remote.name,
     audioIndex: play.audioIndex,
     subtitleIndex: play.subtitleIndex,
     episodeList,
     nextEpisode,
+    segments,
     tint: null,
     imageHeaders: getJellyfinHeaders(deps.api.basePath),
     settings,
     api: deps.api,
+    user: deps.store.get(userAtom),
     t: deps.t,
     bitrateValue: liveTvBitrateRequest(
       play.item,
@@ -167,6 +213,29 @@ const episodeListing = async (
 };
 
 /**
+ * The cap a receiver gets for `quality`: it knows no Auto, so it gets the bitrate measured here, held under a stick's
+ * ceiling, and its own ceiling for no cap, as `sendToReceiver` hands it.
+ */
+export const receiverBitrateFor = async (
+  api: RemotePlayDeps["api"],
+  quality: BitrateRequest,
+  settings: Settings | null | undefined,
+  model: string | null | undefined,
+): Promise<number> => {
+  const measured = await resolveMaxStreamingBitrate(
+    api,
+    quality,
+    autoBitrateOptions(settings),
+  );
+  const bitrate =
+    quality === AUTO_BITRATE_VALUE ? autoBitrateOn(measured, model) : measured;
+  return Math.min(
+    bitrate || RECEIVER_UNCAPPED_BITRATE,
+    RECEIVER_UNCAPPED_BITRATE,
+  );
+};
+
+/**
  * Plays on the TV through the remote player: the screen opens at once on the neutral (or takes the new play in place
  * when it is up), then the Cast session's engine loads on the receiver under the account's envelope, at the remote
  * quality's cap. The receiver reports the playback to the server itself: nothing is reported from here. A load the TV
@@ -202,27 +271,48 @@ export const playOnRemote = async (
     return { status: "failed", message: deps.t("cast.output.failed") };
   }
   void followTint(config, send);
+  // The list and the segments come to the screen in place, in either order: each update carries what came before.
+  let shown = config;
+  // Native clears a failure shown and applies the menus again on every update.
+  let failureShown = false;
+  const showMore = async (more: Partial<RemotePlayerPresentConfig>) => {
+    if (isStale() || send !== sends || failureShown) return;
+    // The tracks the TV took since the screen opened, not the ones it was sent.
+    const held = deps.store.get(remotePlayAtom)?.play;
+    const current = held && held.item.Id === play.item.Id ? held : play;
+    shown = {
+      ...shown,
+      ...more,
+      tracks: configFor(deps, current, remote, [], null).tracks,
+      tint: shownTint?.send === send ? shownTint.tint : config.tint,
+    };
+    await updateRemotePlayer(shown);
+  };
+  // Never waited for: the load leaves without them.
+  segmentsOf(deps, play.item)
+    .then((segments) =>
+      segments.length > 0 ? showMore({ segments }) : undefined,
+    )
+    .catch((error) =>
+      writeErrorLog("The remote player's segments could not be shown", error),
+    );
   // Read while Auto measures: the screen is up already, the list comes to it in place.
   const listing = episodeListing(deps, play, settings);
 
   const failed = async (message: string): Promise<SendResult> => {
     if (send === sends) {
+      failureShown = true;
       await showRemotePlayerFailure({ message, canPlayHere: true });
     }
     return { status: "notStarted", message };
   };
   try {
-    // The receiver knows no Auto: it gets the bitrate measured here, held under a stick's ceiling, and its own
-    // ceiling for no cap, as `sendToReceiver` hands it.
-    const measured = await resolveMaxStreamingBitrate(
+    const bitrate = await receiverBitrateFor(
       deps.api,
       quality,
-      autoBitrateOptions(settings),
+      settings,
+      session?.device?.modelName,
     );
-    const bitrate =
-      quality === AUTO_BITRATE_VALUE
-        ? autoBitrateOn(measured, session?.device?.modelName)
-        : measured;
     // A press made while Auto measured owns the screen now, or another TV took the session: this one sends nothing.
     if (
       isStale() ||
@@ -237,15 +327,13 @@ export const playOnRemote = async (
       const nextUp = listed.episodes.find(
         ({ id }) => id === listed.queue.nextUpId,
       );
-      await updateRemotePlayer({
-        ...config,
+      await showMore({
         episodeList: remoteEpisodeList(
           deps.api,
           listed.episodes,
           play.item.Id ?? "",
         ),
         nextEpisode: remoteNextUp(deps.api, nextUp),
-        tint: shownTint?.send === send ? shownTint.tint : config.tint,
       });
     }
     const receiverName = receiverNameFor({ friendlyName: remote.name });
@@ -279,10 +367,7 @@ export const playOnRemote = async (
         accessToken: deps.api.accessToken,
         userId: deps.userId,
         ...(receiverName ? { receiverName } : {}),
-        maxBitrate: Math.min(
-          bitrate || RECEIVER_UNCAPPED_BITRATE,
-          RECEIVER_UNCAPPED_BITRATE,
-        ),
+        maxBitrate: bitrate,
       },
       request,
     );
@@ -359,6 +444,7 @@ export const followOnRemote = async (
   deps.store.set(remotePlayAtom, { play, loaded: true, list });
   await updateRemotePlayer({ ...config, tint: shown ?? config.tint });
   void followTint(config, send);
+  showSegmentsLater(deps, config, play, remote, send);
 };
 
 /**
@@ -417,6 +503,7 @@ export const showRemoteItem = async (
     list: { itemIds, nextUpId: nextUp?.id ?? null },
   });
   void followTint(config, send);
+  showSegmentsLater(deps, config, play, remote, send);
 };
 
 /**

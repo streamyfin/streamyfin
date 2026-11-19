@@ -7,11 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -20,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,12 +34,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import kotlinx.coroutines.delay
+
+/** The panel where the touch players draw it, the local one and the remote screen: centered, clear of the bars. */
+@Composable
+fun TechnicalInfoLayer(viewModel: PlayerViewModel) {
+    if (!viewModel.showTechnicalInfo || !viewModel.capabilities.technicalInfo) return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // The layers under the card no longer get the touches on it (a double tap on its text seeked): Compose gives
+        // a touch to the topmost node that takes one. The remote screen's drag down watches from above and still
+        // closes it.
+        TechnicalInfoOverlay(
+            viewModel = viewModel,
+            onDismiss = { viewModel.showTechnicalInfo = false },
+            modifier = Modifier.pointerInput(Unit) {},
+        )
+    }
+}
 
 @Composable
 fun TechnicalInfoOverlay(
@@ -43,9 +71,15 @@ fun TechnicalInfoOverlay(
     modifier: Modifier = Modifier
 ) {
     var techInfo by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
+    val fromJs = viewModel.capabilities.technicalInfoFromJs
 
-    LaunchedEffect(Unit) {
-        while (true) {
+    // A remote panel asks JS for its lines while it is shown; a local one reads its engine.
+    DisposableEffect(Unit) {
+        viewModel.technicalInfoShown(true)
+        onDispose { viewModel.technicalInfoShown(false) }
+    }
+    LaunchedEffect(fromJs) {
+        while (!fromJs) {
             techInfo = viewModel.technicalInfo()
             delay(1000L)
         }
@@ -74,35 +108,39 @@ fun TechnicalInfoOverlay(
                     onClick = onDismiss,
                     modifier = Modifier.size(28.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = viewModel.strings.get("close", "Close"), tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.2f))
 
-            TechInfoRow("Video Codec", techInfo["videoCodec"]?.toString() ?: "N/A")
-            val w = techInfo["videoWidth"]
-            val h = techInfo["videoHeight"]
-            if (w != null && h != null) {
-                TechInfoRow("Resolution", "${w}x${h}")
+            if (fromJs) {
+                viewModel.technicalLines.forEach { (label, value) -> TechInfoRow(label, value) }
+            } else {
+                TechInfoRow("Video Codec", techInfo["videoCodec"]?.toString() ?: "N/A")
+                val w = techInfo["videoWidth"]
+                val h = techInfo["videoHeight"]
+                if (w != null && h != null) {
+                    TechInfoRow("Resolution", "${w}x${h}")
+                }
+                techInfo["fps"]?.let { TechInfoRow("FPS", String.format("%.2f", it)) }
+                techInfo["estimatedVfFps"]?.let { TechInfoRow("Render FPS", String.format("%.2f", it)) }
+                techInfo["videoBitrate"]?.let { TechInfoRow("Video Bitrate", "${(it as Number).toInt() / 1000} kbps") }
+                techInfo["audioCodec"]?.let { TechInfoRow("Audio Codec", it.toString()) }
+                techInfo["audioBitrate"]?.let { TechInfoRow("Audio Bitrate", "${(it as Number).toInt() / 1000} kbps") }
+                // Decoder rows are engine-dependent: mpv reports hwdec, the
+                // Media3 engine reports decoderName/decoderType. Each engine's
+                // page shows its own — the other's keys are simply absent.
+                techInfo["hwdec"]?.let { TechInfoRow("Decoder", it.toString()) }
+                techInfo["decoderName"]?.let { TechInfoRow("Decoder", it.toString()) }
+                techInfo["decoderType"]?.let { TechInfoRow("Decode", it.toString()) }
+                techInfo["hdrFormat"]?.let { TechInfoRow("HDR", it.toString()) }
+                techInfo["voDriver"]?.let { TechInfoRow("VO Driver", it.toString()) }
+                techInfo["cacheSeconds"]?.let { TechInfoRow("Buffer", String.format("%.1f s", it)) }
+                techInfo["droppedFrames"]?.let { TechInfoRow("Dropped Frames", it.toString()) }
+                techInfo["primaries"]?.let { TechInfoRow("Primaries", it.toString()) }
+                techInfo["gamma"]?.let { TechInfoRow("Gamma", it.toString()) }
             }
-            techInfo["fps"]?.let { TechInfoRow("FPS", String.format("%.2f", it)) }
-            techInfo["estimatedVfFps"]?.let { TechInfoRow("Render FPS", String.format("%.2f", it)) }
-            techInfo["videoBitrate"]?.let { TechInfoRow("Video Bitrate", "${(it as Number).toInt() / 1000} kbps") }
-            techInfo["audioCodec"]?.let { TechInfoRow("Audio Codec", it.toString()) }
-            techInfo["audioBitrate"]?.let { TechInfoRow("Audio Bitrate", "${(it as Number).toInt() / 1000} kbps") }
-            // Decoder rows are engine-dependent: mpv reports hwdec, the
-            // Media3 engine reports decoderName/decoderType. Each engine's
-            // page shows its own — the other's keys are simply absent.
-            techInfo["hwdec"]?.let { TechInfoRow("Decoder", it.toString()) }
-            techInfo["decoderName"]?.let { TechInfoRow("Decoder", it.toString()) }
-            techInfo["decoderType"]?.let { TechInfoRow("Decode", it.toString()) }
-            techInfo["hdrFormat"]?.let { TechInfoRow("HDR", it.toString()) }
-            techInfo["voDriver"]?.let { TechInfoRow("VO Driver", it.toString()) }
-            techInfo["cacheSeconds"]?.let { TechInfoRow("Buffer", String.format("%.1f s", it)) }
-            techInfo["droppedFrames"]?.let { TechInfoRow("Dropped Frames", it.toString()) }
-            techInfo["primaries"]?.let { TechInfoRow("Primaries", it.toString()) }
-            techInfo["gamma"]?.let { TechInfoRow("Gamma", it.toString()) }
         }
     }
 }

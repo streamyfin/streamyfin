@@ -966,6 +966,19 @@ class PlayerViewModel : PlayerEngine.Delegate {
     /** What the technical info overlay shows: empty for an engine without a screen. */
     fun technicalInfo(): Map<String, Any> = technicalInfoOf(engine)
 
+    /** The panel's lines when JS writes them (capabilities.technicalInfoFromJs): what the TV plays. */
+    var technicalLines by mutableStateOf<List<Pair<String, String>>>(emptyList())
+
+    /**
+     * The panel opened or closed: JS writes its lines while it is open, from the first. Emptied both ways: lines JS
+     * sent before it heard of a close land on the closed panel.
+     */
+    fun technicalInfoShown(shown: Boolean) {
+        if (!capabilities.technicalInfoFromJs) return
+        technicalLines = emptyList()
+        emit?.invoke(if (shown) "onTechnicalInfoRequested" else "onTechnicalInfoClosed", emptyMap())
+    }
+
     fun updateSubtitleGeometry(width: Int, height: Int) {
         subtitleSurfaceWidth = width
         subtitleSurfaceHeight = height
@@ -1604,6 +1617,7 @@ class PlayerViewModel : PlayerEngine.Delegate {
         val orig = this
         return TrackMenuItemRecord().apply {
             label = orig.label
+            detail = orig.detail
             jellyfinIndex = orig.jellyfinIndex
             this.selected = selected
             requiresReload = orig.requiresReload

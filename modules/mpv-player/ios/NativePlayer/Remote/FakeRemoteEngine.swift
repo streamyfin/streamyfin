@@ -67,6 +67,7 @@ final class FakeRemoteEngine: RemoteEngine {
 	var foreign: Bool { foreignMedia != nil }
 	var mediaTitle: String? { foreignMedia?.title }
 	var mediaImageUrl: String? { foreignMedia?.imageUrl }
+	private(set) var playMethod: String?
 
 	// MARK: - Lifecycle
 
@@ -101,7 +102,9 @@ final class FakeRemoteEngine: RemoteEngine {
 
 	// The fake has no envelope to carry: its TV plays on as it was.
 	func useServer(_ server: ReceiverServer) {}
-	func reloadCurrentItem(server: ReceiverServer) {}
+	func reloadCurrentItem(server: ReceiverServer, subtitleStreamIndex: Int?, completion: @escaping (CastLoadResult) -> Void) {
+		completion(.settled(.loaded))
+	}
 
 	func load(server: ReceiverServer, request: ReceiverPlayRequest, completion: @escaping (CastLoadResult) -> Void) {
 		guard !stopped else { return completion(.notSent(Self.stoppedError)) }
@@ -187,6 +190,13 @@ final class FakeRemoteEngine: RemoteEngine {
 		suspended = false
 		delegate?.engine(self, didChangeLoading: false)
 		report()
+		notifyState()
+	}
+
+	/// The receiver names how it plays what it holds (its customData).
+	func simulatePlayMethod(_ method: String?) {
+		guard !stopped else { return }
+		playMethod = method
 		notifyState()
 	}
 
@@ -288,7 +298,7 @@ final class FakeRemoteEngine: RemoteEngine {
 	}
 
 	private func notifyState() {
-		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl]
+		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex, foreign, mediaTitle, mediaImageUrl, playMethod]
 		guard !stopped, state != heardState else { return }
 		heardState = state
 		onStateChanged?()

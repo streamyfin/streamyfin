@@ -84,6 +84,8 @@ struct NextEpisodeRecord: Record {
 
 struct TrackMenuItemRecord: Record {
 	@Field var label: String = ""
+	/// Format, codec and flags, drawn under the label; nil when the label says it all.
+	@Field var detail: String? = nil
 	@Field var jellyfinIndex: Int = -1
 	@Field var selected: Bool = false
 	/// Burned-in subtitle / audio-change-under-transcode: selecting this item
@@ -249,6 +251,12 @@ struct RemoteTintRecord: Record {
 	@Field var top: String?
 	@Field var bottom: String?
 	@Field var accent: String?
+}
+
+/// One line of the remote screen's technical info panel, what the TV plays (JS: RemoteTechnicalLine).
+struct RemoteTechnicalLineRecord: Record {
+	@Field var label: String = ""
+	@Field var value: String = ""
 }
 
 /// A send that failed, as the remote screen says it (JS: RemotePlayerFailure).

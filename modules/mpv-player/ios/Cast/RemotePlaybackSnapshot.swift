@@ -23,13 +23,15 @@ struct RemotePlaybackSnapshot: Equatable {
   var foreign: Bool
   var title: String?
   var imageUrl: String?
+  /// How the TV plays it, in the receiver's word; nil unknown.
+  var playMethod: String? = nil
 
   func toDictionary() -> [String: Any?] {
     [
       "connected": connected, "phase": phase.rawValue, "reconnecting": reconnecting, "itemId": itemId,
       "positionSec": positionSec, "durationSec": durationSec, "audioIndex": audioIndex, "subtitleIndex": subtitleIndex,
       "queueItemIds": queueItemIds, "playingIndex": playingIndex, "foreign": foreign, "title": title,
-      "imageUrl": imageUrl,
+      "imageUrl": imageUrl, "playMethod": playMethod,
     ]
   }
 }

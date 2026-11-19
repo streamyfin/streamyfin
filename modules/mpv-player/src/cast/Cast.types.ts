@@ -254,6 +254,8 @@ export interface RemotePlaybackState {
   /** The Cast metadata's title and first image of what the TV holds, whoever loaded it. */
   title: string | null;
   imageUrl: string | null;
+  /** How the receiver plays the item, from its customData: "DirectPlay", "DirectStream", "Transcode"; null unknown. */
+  playMethod: string | null;
 }
 
 export const NO_REMOTE_PLAYBACK: RemotePlaybackState = Object.freeze({
@@ -270,6 +272,7 @@ export const NO_REMOTE_PLAYBACK: RemotePlaybackState = Object.freeze({
   foreign: false,
   title: null,
   imageUrl: null,
+  playMethod: null,
 }) as RemotePlaybackState;
 
 /** The envelope every receiver message carries, which native needs to play from the account's server. */

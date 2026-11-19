@@ -20,7 +20,7 @@ import {
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
-import { effectiveSettingsAtom } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom, useSettings } from "@/utils/atoms/settings";
 import { receiverNameFor } from "@/utils/cast/jellyfinReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
 import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
@@ -36,10 +36,19 @@ import {
   followOnRemote,
   playOnRemote,
 } from "@/utils/remotePlayer/playOnRemote";
+import { INITIAL_REMOTE_AUTO_SUBTITLE } from "@/utils/remotePlayer/remoteAutoSubtitle";
 import {
   episodeAfter,
   episodeBefore,
 } from "@/utils/remotePlayer/remoteEpisodes";
+import { remoteSubtitleSearch } from "@/utils/remotePlayer/remoteSubtitleSearch";
+import { remoteTechnicalInfoPanel } from "@/utils/remotePlayer/remoteTechnicalInfoPanel";
+import {
+  changeRemoteQuality,
+  chooseRemoteTrack,
+  followRemoteMute,
+  followRemoteTracks,
+} from "@/utils/remotePlayer/remoteTracks";
 import { seriesEpisodes } from "@/utils/remotePlayer/seriesEpisodes";
 import { secondsToTicks } from "@/utils/time";
 import { stopAndPlayHere } from "./OutputPickerActions";
@@ -59,7 +68,7 @@ export function RemotePlayerController() {
   // The receiver names its Jellyfin device from each message: the TV's name goes with the server. It comes from
   // the hub's target, which a suspended session keeps; the JS session goes null there, and a server without the
   // name would make native drop the engine an open remote screen holds.
-  const { target } = useRemoteTarget();
+  const { target, muted } = useRemoteTarget();
   const receiverName = receiverNameFor(
     target?.kind === "cast" ? { friendlyName: target.name } : null,
   );
@@ -71,6 +80,7 @@ export function RemotePlayerController() {
   const store = useStore();
   const playMedia = usePlayMedia();
   const syncPlay = useSyncPlay();
+  const { updateSettings } = useSettings();
   // Read when the screen asks: set at the commit, so an event arriving before the passive effects reads it.
   const castTarget = target?.kind === "cast" ? target : null;
   const latest = useRef({
@@ -78,10 +88,47 @@ export function RemotePlayerController() {
     inGroup: syncPlay.enabled,
     t,
     castTarget,
+    updateSettings,
   });
   useLayoutEffect(() => {
-    latest.current = { playMedia, inGroup: syncPlay.enabled, t, castTarget };
-  }, [playMedia, syncPlay.enabled, t, castTarget]);
+    latest.current = {
+      playMedia,
+      inGroup: syncPlay.enabled,
+      t,
+      castTarget,
+      updateSettings,
+    };
+  }, [playMedia, syncPlay.enabled, t, castTarget, updateSettings]);
+
+  // On each write of the held play (a send the TV took, a new item, the TV reporting another track) and each mute
+  // change: the TV's tracks, then subtitles while it is muted. Subscribed again with the mute it reads.
+  const autoSubtitle = useRef(INITIAL_REMOTE_AUTO_SUBTITLE);
+  useEffect(() => {
+    if (!routed) return;
+    const evaluate = () => {
+      // The tracks the TV reported while the play was on its way are read once it took it: no report follows.
+      followRemoteTracks(
+        { store, t: latest.current.t },
+        remotePlayback(),
+        latest.current.castTarget,
+      ).catch((error) => {
+        logAndCaptureError("Following the TV's tracks failed", error);
+      });
+      followRemoteMute(
+        { store, t: latest.current.t },
+        autoSubtitle,
+        latest.current.castTarget,
+        muted,
+      ).catch((error) => {
+        logAndCaptureError(
+          "Turning subtitles on for the muted TV failed",
+          error,
+        );
+      });
+    };
+    evaluate();
+    return store.sub(remotePlayAtom, evaluate);
+  }, [routed, store, muted]);
 
   useEffect(() => {
     if (!routed) return;
@@ -249,7 +296,29 @@ export function RemotePlayerController() {
         "Following what the TV plays failed",
       );
     };
+    const technicalInfo = remoteTechnicalInfoPanel({
+      store,
+      t: () => latest.current.t,
+      target: () => latest.current.castTarget,
+    });
+    const subtitleSearch = remoteSubtitleSearch({
+      store,
+      t: () => latest.current.t,
+      target: () => latest.current.castTarget,
+    });
     const subscriptions = [
+      addRemotePlayerListener("onSubtitleSearchRequested", ({ language }) => {
+        subtitleSearch.search(language).catch((error) => {
+          logAndCaptureError("Searching subtitles for the TV failed", error);
+        });
+      }),
+      addRemotePlayerListener("onSubtitleDownloadRequested", ({ resultId }) => {
+        subtitleSearch.download(resultId).catch((error) => {
+          logAndCaptureError("Downloading a subtitle for the TV failed", error);
+        });
+      }),
+      addRemotePlayerListener("onTechnicalInfoRequested", technicalInfo.open),
+      addRemotePlayerListener("onTechnicalInfoClosed", technicalInfo.close),
       addRemotePlayerListener("onNextEpisodeRequested", ({ reason }) =>
         reason === "nextUp" ? continueNextUp() : moveOrLog("next"),
       ),
@@ -266,6 +335,43 @@ export function RemotePlayerController() {
           );
         });
       }),
+      addRemotePlayerListener(
+        "onTrackSelectionRequested",
+        ({ kind, jellyfinIndex }) => {
+          chooseRemoteTrack(
+            { store, t: latest.current.t },
+            kind,
+            jellyfinIndex,
+          ).catch((error) => {
+            logAndCaptureError("Choosing a track on the TV failed", error);
+          });
+        },
+      ),
+      addRemotePlayerListener("onQualitySelected", ({ bitrateValue }) => {
+        const remote = latest.current.castTarget;
+        const api = store.get(apiAtom);
+        const userId = store.get(userAtom)?.Id;
+        if (!remote || !api?.accessToken || !userId) return;
+        const receiverName = receiverNameFor({ friendlyName: remote.name });
+        changeRemoteQuality(
+          {
+            store,
+            t: latest.current.t,
+            api,
+            server: {
+              serverAddress: api.basePath,
+              accessToken: api.accessToken,
+              userId,
+              ...(receiverName ? { receiverName } : {}),
+            },
+            updateSettings: latest.current.updateSettings,
+          },
+          remote,
+          bitrateValue,
+        ).catch((error) => {
+          logAndCaptureError("Changing the quality on the TV failed", error);
+        });
+      }),
       addRemotePlayerListener("onPlayHereRequested", ({ positionSec }) => {
         playHere(positionSec).catch((error) => {
           logAndCaptureError("Play here from the remote player failed", error);
@@ -279,12 +385,23 @@ export function RemotePlayerController() {
         });
       }),
       addRemotePlayerListener("onDismiss", () => {
+        technicalInfo.close();
         store.set(remotePlayAtom, null);
         store.set(remoteForeignAtom, null);
+      }),
+      onRemotePlaybackChanged((state) => {
+        followRemoteTracks(
+          { store, t: latest.current.t },
+          state,
+          latest.current.castTarget,
+        ).catch((error) => {
+          logAndCaptureError("Following the TV's tracks failed", error);
+        });
       }),
       onRemotePlaybackChanged(follow),
     ];
     return () => {
+      technicalInfo.close();
       for (const subscription of subscriptions) subscription?.remove();
     };
   }, [routed, store]);

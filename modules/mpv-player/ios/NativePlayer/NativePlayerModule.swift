@@ -92,7 +92,7 @@ public class NativePlayerModule: Module {
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss",
 			"onSubtitleSearchRequested", "onSubtitleDownloadRequested",
 			"onMuteStateChanged", "onSyncPlayAction", "onCastHandOffRequested",
-			"onPlayHereRequested"
+			"onPlayHereRequested", "onTechnicalInfoRequested", "onTechnicalInfoClosed"
 		)
 
 		// MARK: - Lifecycle
@@ -181,6 +181,13 @@ public class NativePlayerModule: Module {
 			return (self.presented as? RemotePlayerSession)?.update(config: config) ?? false
 			#else
 			return false
+			#endif
+		}.runOnQueue(.main)
+
+		// What the TV plays, for the remote screen's technical info panel: nothing when no remote screen is up.
+		AsyncFunction("updateRemoteTechnicalInfo") { (lines: [RemoteTechnicalLineRecord]) in
+			#if os(iOS)
+			(self.presented as? RemotePlayerSession)?.viewModel.technicalLines = lines.map { (label: $0.label, value: $0.value) }
 			#endif
 		}.runOnQueue(.main)
 
