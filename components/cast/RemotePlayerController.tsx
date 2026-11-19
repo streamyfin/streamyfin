@@ -2,9 +2,12 @@ import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import useRouter from "@/hooks/useAppRouter";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
+  consumePendingRemotePlayerRequest,
   onRemotePlaybackChanged,
+  onRemotePlayerRequested,
   type RemotePlaybackState,
   type RemoteTarget,
   remotePlayback,
@@ -30,7 +33,10 @@ import {
   followForeignMedia,
   followRemoteItem,
 } from "@/utils/remotePlayer/followRemoteItem";
-import { showWhatTheTvPlays } from "@/utils/remotePlayer/openRemotePlayer";
+import {
+  openRemotePlayer,
+  showWhatTheTvPlays,
+} from "@/utils/remotePlayer/openRemotePlayer";
 import {
   followOnRemote,
   playOnRemote,
@@ -58,7 +64,8 @@ import { stopAndPlayHere } from "./OutputPickerActions";
  * While a remote player is up it answers its events: Play here goes on on the phone, an error of the
  * receiver after the load is said on the screen, previous, next and a pick in the episode list send that episode
  * from its start with its own bounded list, the TV going on in the list it got is shown in place, Continue at the end
- * of that list sends what comes after it, and closing it only forgets the play, sending nothing.
+ * of that list sends what comes after it, and closing it only forgets the play, sending nothing. It also opens the
+ * remote player native asks for: the Cast notification, the local player's Remote.
  * Mounted once, at the root, off TV; renders nothing.
  */
 export function RemotePlayerController() {
@@ -79,6 +86,7 @@ export function RemotePlayerController() {
   const playMedia = usePlayMedia();
   const syncPlay = useSyncPlay();
   const { updateSettings } = useSettings();
+  const router = useRouter();
   // Read when the screen asks: set at the commit, so an event arriving before the passive effects reads it.
   const castTarget = target?.kind === "cast" ? target : null;
   const latest = useRef({
@@ -87,6 +95,7 @@ export function RemotePlayerController() {
     t,
     castTarget,
     updateSettings,
+    router,
   });
   useLayoutEffect(() => {
     latest.current = {
@@ -95,8 +104,9 @@ export function RemotePlayerController() {
       t,
       castTarget,
       updateSettings,
+      router,
     };
-  }, [playMedia, syncPlay.enabled, t, castTarget, updateSettings]);
+  }, [playMedia, syncPlay.enabled, t, castTarget, updateSettings, router]);
 
   // On each write of the held play (a send the TV took, a new item, the TV reporting another track) and each mute
   // change: the TV's tracks, then subtitles while it is muted. Subscribed again with the mute it reads.
@@ -139,6 +149,46 @@ export function RemotePlayerController() {
       ...(receiverName ? { receiverName } : {}),
     });
   }, [serverAddress, accessToken, userId, receiverName]);
+
+  // Asked from native (the Cast notification, the local player's Remote, that player gone): the screen on what the
+  // TV plays, as Remote does. The app started from the notification resumes the TV's session after mounting: the
+  // request waits natively until the session and the account are there, then the mount or the event takes it.
+  const castTargetId = castTarget?.id;
+  const openingRequested = useRef(false);
+  useEffect(() => {
+    if (!castTargetId || !userId) return;
+    const take = () => {
+      const remote = latest.current.castTarget;
+      const api = store.get(apiAtom);
+      const user = store.get(userAtom)?.Id;
+      // Taken even while one opens: a second tap on the notification opens nothing later.
+      if (!consumePendingRemotePlayerRequest() || openingRequested.current)
+        return;
+      if (!remote || !api || !user) return;
+      openingRequested.current = true;
+      openRemotePlayer(
+        {
+          api,
+          userId: user,
+          store,
+          t: latest.current.t,
+          // The route the music mini player opens.
+          openMusicPlayer: () =>
+            latest.current.router.push("/(auth)/now-playing"),
+        },
+        remote,
+      )
+        .catch((error) => {
+          logAndCaptureError("The remote player failed to open", error);
+        })
+        .finally(() => {
+          openingRequested.current = false;
+        });
+    };
+    take();
+    const subscription = onRemotePlayerRequested(take);
+    return () => subscription.remove();
+  }, [store, castTargetId, userId]);
 
   useEffect(() => {
     const playHere = async (positionSec: number) => {

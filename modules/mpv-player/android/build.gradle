@@ -100,9 +100,8 @@ dependencies {
   // plugin 9.1; raise it together with compileSdk. Linked on Android TV too, where the
   // module answers isAvailable() false and never touches it.
   implementation 'com.google.android.gms:play-services-cast-framework:22.3.1'
-  // The SDK's dialogs, button and expanded controls build on these; declared here so the
-  // module sees their classes and resources (R classes are not transitive).
-  implementation 'androidx.appcompat:appcompat:1.7.0'
+  // Discovery and the receiver's volume go through MediaRouter; declared here so the module
+  // sees its classes (R classes are not transitive).
   implementation 'androidx.mediarouter:mediarouter:1.7.0'
 
   testImplementation 'junit:junit:4.13.2'

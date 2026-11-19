@@ -13,6 +13,7 @@ import {
 } from "@/constants/RemotePlayer";
 import {
   NO_REMOTE_PLAYBACK,
+  NO_REMOTE_TARGET,
   type RemotePlaybackState,
   type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
@@ -21,6 +22,7 @@ import {
   createCastDoubleState,
   emitCastEvent,
   emitRemoteTarget,
+  requestRemotePlayer,
   setCastSession,
 } from "@/test-utils/cast";
 import { makeApi } from "@/test-utils/jellyfinApi";
@@ -54,6 +56,10 @@ jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
       () => mockPlayer,
     ),
 }));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => require("@/test-utils/stubModules").appRouterModule,
+);
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -1487,5 +1493,59 @@ describe("subtitle search from the remote player", () => {
       }),
     );
     expect(mockCast.reloadCalls).toEqual([]);
+  });
+});
+
+// The Cast notification on Android and the local player's Remote on both ask native, which keeps the request.
+describe("the remote player asked from outside the app's screens", () => {
+  beforeEach(() => {
+    // No remote screen up yet: it is presented, not updated.
+    mockPlayer.remoteUpdateAnswer = false;
+    mockCast.remotePlayback = {
+      ...NO_REMOTE_PLAYBACK,
+      connected: true,
+      phase: "playing",
+      foreign: true,
+      title: "Clip",
+    };
+  });
+  const shownOnce = async () => {
+    await waitFor(() => expect(mockPlayer.remotePresented).toHaveLength(1));
+    expect(mockPlayer.remotePresented[0]).toMatchObject({
+      reduced: true,
+      metadata: { title: "Clip" },
+    });
+    // Taken: the event and the mount do not both open it.
+    expect(mockCast.pendingRemotePlayerRequest).toBe(false);
+  };
+
+  test("a request from the notification opens the remote player", async () => {
+    await render(<RemotePlayerController />);
+    expect(mockPlayer.remotePresented).toEqual([]);
+
+    await act(async () => requestRemotePlayer(mockCast));
+
+    await shownOnce();
+  });
+
+  // The app started from the notification: the request was made before JS listened.
+  test("a kept request opens the player at mount", async () => {
+    mockCast.pendingRemotePlayerRequest = true;
+
+    await render(<RemotePlayerController />);
+
+    await shownOnce();
+  });
+
+  // The app started from the notification resumes the Cast session after JS mounts: the request waits for it.
+  test("a kept request waits for the TV's session", async () => {
+    mockCast.remoteTarget = NO_REMOTE_TARGET;
+    mockCast.pendingRemotePlayerRequest = true;
+    await render(<RemotePlayerController />);
+    expect(mockCast.pendingRemotePlayerRequest).toBe(true);
+
+    await act(async () => emitRemoteTarget(mockCast, connected));
+
+    await shownOnce();
   });
 });

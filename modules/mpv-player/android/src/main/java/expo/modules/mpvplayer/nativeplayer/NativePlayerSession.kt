@@ -47,7 +47,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.kotlin.Promise
 import expo.modules.mpvplayer.DeviceKind
 import expo.modules.mpvplayer.MPVLayerRenderer
-import expo.modules.mpvplayer.cast.CastExpandedControllerActivity
+import expo.modules.mpvplayer.cast.RemotePlayerRequests
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
@@ -946,8 +946,7 @@ class NativePlayerSession(
     }
 
     // The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
-    // model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
-    // app's sheet does.
+    // model pauses here and asks JS to send the item. Remote closes this player for the remote player.
     private fun followCastFrom(activity: Activity, strings: Map<String, String>) {
         viewModel.followCast()
         viewModel.onOutputSheetRequested = { anchor ->
@@ -958,13 +957,12 @@ class NativePlayerSession(
                 playingHere = viewModel.metadata?.title,
                 handOff = true,
                 onHandOff = { viewModel.requestCastHandOff() },
-            ) {
-                activity.startActivity(
-                    Intent(activity, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            }
+            ) { openRemotePlayer() }
         }
     }
+
+    // Asked once this player is gone, as the user's close leaves it: the module refuses the remote player over it.
+    internal fun openRemotePlayer() = dismiss("closeButton") { RemotePlayerRequests.request() }
 
     private val accessibility = AccessibilityIsolation()
 

@@ -25,6 +25,8 @@ public class CastModule: Module {
   private let remoteTargets = RemoteTargetHub.shared
   private var targetRelay: TargetRelay?
   private var removePlaybackRelay: (() -> Void)?
+  // Set in OnCreate: a module gone with a JS reload stops hearing the remote player requests.
+  private var stopHearingRequests: (() -> Void)?
   // Held until the receiver answers or the wait ends: a request keeps its delegate weakly.
   private var statusRequests: [StatusRequest] = []
 
@@ -47,7 +49,8 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed"
+      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed",
+      "onRemotePlayerRequested"
     )
 
     OnCreate { [weak self] in
@@ -71,9 +74,15 @@ public class CastModule: Module {
         )
       }
       presenter.onDismissed = { self?.sendEvent("onOutputPickerDismissed", [:]) }
+      // The local player's Remote; JS takes the request through consume.
+      self?.stopHearingRequests = RemotePlayerRequests.shared.listen {
+        self?.sendEvent("onRemotePlayerRequested", [:])
+      }
     }
 
     OnDestroy {
+      self.stopHearingRequests?()
+      self.stopHearingRequests = nil
       // The holder outlives a JS reload, like the hub: this instance stops hearing it.
       let removePlaybackRelay = self.removePlaybackRelay
       DispatchQueue.main.async {
@@ -192,13 +201,8 @@ public class CastModule: Module {
       return self.cached { self.cachedSession }
     }
 
-    AsyncFunction("showExpandedControls") { () -> Bool in
-      self.ensureListening()
-      OutputPickerPresenter.shared.openRemote {
-        GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
-      }
-      return true
-    }.runOnQueue(.main)
+    // A request kept while JS did not listen (a JS reload), given once.
+    Function("consumePendingRemotePlayerRequest") { RemotePlayerRequests.shared.consume() }
 
     // The output sheet (Cast receivers, AirPlay, this device): true once on screen, false where it cannot show.
     AsyncFunction("presentOutputPicker") { (options: [String: Any]) -> Bool in
@@ -545,7 +549,8 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed"
+      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed",
+      "onRemotePlayerRequested"
     )
 
     Function("isAvailable") { false }
@@ -555,6 +560,7 @@ public class CastModule: Module {
     Function("getCurrentSession") { () -> [String: Any]? in nil }
     Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
     Function("getRemotePlayback") { () -> [String: Any?] in RemotePlaybackSnapshot.none.toDictionary() }
+    Function("consumePendingRemotePlayerRequest") { false }
     AsyncFunction("setRemoteServer") { (_: [String: Any]?) in }
     // No Cast here: a load is never sent.
     AsyncFunction("loadOnReceiver") { (_: [String: Any], _: [String: Any]) -> [String: Any] in

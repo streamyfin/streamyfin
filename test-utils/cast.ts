@@ -103,6 +103,8 @@ export interface CastDoubleState {
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
   outputPickerAnswer: boolean;
+  /** A remote player request native keeps until JS takes it (`requestRemotePlayer`). */
+  pendingRemotePlayerRequest: boolean;
   /** Listeners registered through `addListener`, by event. */
   listeners: { [K in keyof CastNativeEvents]: CastNativeEvents[K][] };
 }
@@ -151,6 +153,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   trackCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
+  pendingRemotePlayerRequest: false,
   listeners: {
     onCastStateChanged: [],
     onDevicesChanged: [],
@@ -160,6 +163,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
     onRemoteTargetChanged: [],
     onRemotePlaybackChanged: [],
     onOutputPickerAction: [],
+    onRemotePlayerRequested: [],
   },
 });
 
@@ -278,6 +282,12 @@ export const emitCastSessionEvent = (
     ...(withoutStop ? { withoutStop } : {}),
   });
 
+/** The Cast notification or the local player's Remote, as native asks: the request is kept, then announced. */
+export const requestRemotePlayer = (state: CastDoubleState): void => {
+  state.pendingRemotePlayerRequest = true;
+  emitCastEvent(state, "onRemotePlayerRequested", {});
+};
+
 /** A receiver message on a channel's namespace; the native side only ever hands over strings. */
 export const receiveOnChannel = (
   state: CastDoubleState,
@@ -351,9 +361,10 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   setRemoteSubtitleTrack: jest.fn(async (index: number) => {
     state().trackCalls.push({ kind: "subtitle", index });
   }),
-  showExpandedControls: jest.fn(async () => {
-    state().dialogs.push("expandedControls");
-    return true;
+  consumePendingRemotePlayerRequest: jest.fn(() => {
+    const kept = state().pendingRemotePlayerRequest;
+    state().pendingRemotePlayerRequest = false;
+    return kept;
   }),
   presentOutputPicker: jest.fn(async (options: OutputPickerOptions) => {
     state().outputPickerCalls.push(options);

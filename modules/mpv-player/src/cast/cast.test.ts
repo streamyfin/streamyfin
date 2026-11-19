@@ -5,6 +5,7 @@ import {
   createCastDoubleState,
   emitCastEvent,
   emitRemoteTarget,
+  requestRemotePlayer,
 } from "@/test-utils/cast";
 import {
   type CastMediaStatus,
@@ -17,18 +18,19 @@ import {
   castDevices,
   castState,
   connectToCastDevice,
+  consumePendingRemotePlayerRequest,
   currentCastSession,
   disconnectRemoteTarget,
   isCastAvailable,
   onCastSessionEvent,
   onOutputPickerAction,
+  onRemotePlayerRequested,
   onRemoteTargetChanged,
   playServicesState,
   presentOutputPicker,
   remoteTarget,
   setRemoteTargetMuted,
   setRemoteTargetVolume,
-  showExpandedControls,
   showPlayServicesErrorDialog,
 } from "./cast";
 
@@ -65,7 +67,7 @@ test("every call is a no-op when the module says it is unavailable", async () =>
   expect(castState()).toBeNull();
   expect(castDevices()).toEqual([]);
   expect(currentCastSession()).toBeNull();
-  await expect(showExpandedControls()).resolves.toBe(false);
+  expect(consumePendingRemotePlayerRequest()).toBe(false);
 
   const channel = await addCastChannel(NAMESPACE, () => {});
   expect(channel.connected).toBe(false);
@@ -465,6 +467,24 @@ test("onOutputPickerAction relays remote", () => {
 
   expect(seen).toEqual(["remote"]);
   expect(mockCast.listeners.onOutputPickerAction).toHaveLength(0);
+});
+
+// The remote player took their place: the Cast notification and the local player's Remote ask for it, and a
+// request native kept is taken once.
+test("the Cast module no longer offers the expanded controls", () => {
+  expect(jest.requireActual("./cast")).not.toHaveProperty(
+    "showExpandedControls",
+  );
+  let heard = 0;
+  const subscription = onRemotePlayerRequested(() => heard++);
+
+  requestRemotePlayer(mockCast);
+  subscription.remove();
+
+  expect(heard).toBe(1);
+  expect(consumePendingRemotePlayerRequest()).toBe(true);
+  expect(consumePendingRemotePlayerRequest()).toBe(false);
+  expect(mockCast.listeners.onRemotePlayerRequested).toHaveLength(0);
 });
 
 test("onRemoteTargetChanged hands each state the module publishes", () => {
