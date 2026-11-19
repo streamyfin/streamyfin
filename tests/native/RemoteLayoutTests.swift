@@ -212,13 +212,14 @@ enum RemoteLayoutTests {
 		}
 	}
 
-	// The top bar's ink meets the margins: the chevron's 44 box has 14 of air on its left, the dots of "more" 20 on
-	// their right, a track button's 22 icon 11; the TV button's pill ends at its box.
+	// The top bar's ink meets the margins, as measured on a couched iPhone 17 (19/11): the chevron's 44 box has 12.33
+	// of air on its left, the dots of "more" 12.67 on their right; SF Symbols are not Android's icons, so these are
+	// iOS's own. A track button's 22 icon keeps 11, not measured yet; the TV button's pill ends at its box.
 	static func couchedTheTopBarsInkMeetsTheMargins() {
 		let name = "couchedTheTopBarsInkMeetsTheMargins"
-		check(RemoteMetrics.topBarInkInsets(end: .more) == (14, 20), "\(name): more")
-		check(RemoteMetrics.topBarInkInsets(end: .trackButton) == (14, 11), "\(name): track button")
-		check(RemoteMetrics.topBarInkInsets(end: .target) == (14, 0), "\(name): TV")
+		check(RemoteMetrics.topBarInkInsets(end: .more) == (12.33, 12.67), "\(name): more")
+		check(RemoteMetrics.topBarInkInsets(end: .trackButton) == (12.33, 11), "\(name): track button")
+		check(RemoteMetrics.topBarInkInsets(end: .target) == (12.33, 0), "\(name): TV")
 		// What ends the bar: "more" when it has a menu, else the last track button, else the TV.
 		check(RemoteTopBarEnd.of(showsMore: true, trackButtons: 3) == .more, "\(name): ends on more")
 		check(RemoteTopBarEnd.of(showsMore: false, trackButtons: 1) == .trackButton, "\(name): ends on a track button")

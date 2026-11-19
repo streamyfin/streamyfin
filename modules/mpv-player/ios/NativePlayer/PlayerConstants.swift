@@ -49,11 +49,12 @@ enum PlayerConstants {
 	/// REMOTE_LANDSCAPE_ARTWORK_INSET_DP.
 	static let remoteLandscapeGutter: Double = 24
 	static let remoteLandscapeArtworkInset: Double = 16
-	/// The air the couched top bar's end buttons have in their boxes, on the margin's side: the chevron's 32 icon in
-	/// its 44 box with the drawing's own 8; the dots of "more"; a track button's 22 icon. The bar reaches past the
-	/// margins by as much, so the ink meets them. Android: REMOTE_CHEVRON_INK_INSET_DP and the two others.
-	static let remoteChevronInkInset: Double = 14
-	static let remoteMoreInkInset: Double = 20
+	/// The air the couched top bar's end buttons have in their boxes, on the margin's side: the chevron's and the dots
+	/// of "more", measured on an iPhone 17 capture (SF Symbols draw otherwise than Android's icons, so the numbers
+	/// differ); a track button's 22 icon, not measured yet. The bar reaches past the margins by as much, so the ink
+	/// meets them. Android: REMOTE_CHEVRON_INK_INSET_DP and the two others.
+	static let remoteChevronInkInset: Double = 12.33
+	static let remoteMoreInkInset: Double = 12.67
 	static let remoteTrackButtonInkInset: Double = 11
 	/// What the rest of the screen takes upright: the part that keeps its size (buttons, the bar's track, gaps) and
 	/// the text, counted one line each at the font scale asked for. Measured at the probe on an iPhone 17 with every
