@@ -1,9 +1,12 @@
 // Spec for app/(auth)/player/direct-player.tsx. It lives here rather than next
 // to the page because Expo Router turns every file under app/ into a route.
+
+import type { MediaStream } from "@jellyfin/sdk/lib/generated-client";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import i18next from "i18next";
 import DirectPlayerPage from "@/app/(auth)/player/direct-player";
-import type { MpvPlayerViewProps } from "@/modules";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
+import type { MpvAudioTrack, MpvPlayerViewProps } from "@/modules";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
 import {
@@ -43,8 +46,12 @@ let mockPreventRemove: { held: boolean; onRemove?: MockRemoval } = {
 const mockRepeat = jest.fn();
 const mockRouter = { setParams: jest.fn(), replace: jest.fn() };
 const mockReportProgress = jest.fn(async (_info: unknown) => {});
+/** The audio tracks mpv finds in the file once it is open. */
+let mockAudioTracks: MpvAudioTrack[] = [];
 const mockPlayer = {
   destroy: jest.fn(async () => {}),
+  getAudioTracks: jest.fn(async () => mockAudioTracks),
+  setAudioTrack: jest.fn(async () => {}),
   seekTo: jest.fn(),
   play: jest.fn(),
   pause: jest.fn(async () => {}),
@@ -68,6 +75,8 @@ type ControlsProps = {
   onAudioIndexChange?: (index: number) => void;
   onRefreshSubtitleTracks?: () => Promise<unknown>;
   onSubtitleIndexChange?: (index: number) => void;
+  mediaSource?: { MediaStreams?: MediaStream[] | null } | null;
+  audioIndex?: number;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -77,6 +86,10 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** The streams the server lists for the source. */
+let mockServerStreams: MediaStream[] = [];
+/** What the page last handed the automatic subtitle. */
+let mockAutoSubtitle: { audioLanguage?: string | null } | null = null;
 /** Holds the next stream negotiation until `release` is called. */
 const mockStreamHold: {
   held: boolean;
@@ -214,7 +227,7 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
     return {
       mediaSource: {
         Id: "source-1",
-        MediaStreams: [],
+        MediaStreams: mockServerStreams,
         TranscodingUrl: mockTranscodingUrl,
         LiveStreamId: mockStreamHold.liveStreamId,
       },
@@ -259,7 +272,10 @@ jest.mock("@/components/video-player/controls/contexts/VideoContext", () => ({
   VideoProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 jest.mock("@/components/video-player/controls/hooks", () => ({
-  useAutoSubtitlesOnMute: () => ({ notice: null, clearNotice: mockNoop }),
+  useAutoSubtitlesOnMute: (options: { audioLanguage?: string | null }) => {
+    mockAutoSubtitle = options;
+    return { notice: null, clearNotice: mockNoop };
+  },
   useMuteState: () => ({
     isMuted: false,
     toggleMute: mockNoop,
@@ -409,6 +425,11 @@ describe("direct player stop report", () => {
     mockControlsProps = null;
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
+    mockServerStreams = [];
+    mockAudioTracks = [];
+    mockAutoSubtitle = null;
+    mockPlayer.getAudioTracks.mockClear();
+    mockPlayer.setAudioTrack.mockClear();
     mockStreamHold.liveStreamId = undefined;
     mockStreamHold.held = false;
     mockStreamHold.release = undefined;
@@ -816,6 +837,154 @@ describe("direct player stop report", () => {
 
       expect(restartPosition()).toBe("12000000000");
     });
+  });
+
+  // A server that names tracks from the file name (AIOStreams serving a debrid
+  // link) lists one audio stream for a MULTi release; mpv finds them all once
+  // the file is open.
+  describe("on TV, when mpv finds audio tracks the server does not list", () => {
+    beforeEach(() => {
+      stubReactNative({ isTV: true });
+      mockServerStreams = [
+        { Type: "Video", Index: 0 },
+        { Type: "Audio", Index: 1, Language: "fre" },
+      ] as MediaStream[];
+      mockAudioTracks = [
+        { id: 1, lang: "fre" },
+        { id: 2, lang: "eng" },
+      ];
+    });
+    afterEach(() => stubReactNative());
+
+    /** What the native view sends once mpv has read the file's track list. */
+    const tracksReady = async () => {
+      await act(async () => {
+        mockPlayerProps?.onTracksReady?.({ nativeEvent: {} } as Parameters<
+          NonNullable<MpvPlayerViewProps["onTracksReady"]>
+        >[0]);
+      });
+      await waitFor(() => expect(mockPlayer.getAudioTracks).toHaveBeenCalled());
+    };
+
+    test("switches mpv to a track only it found and hands its language to the automatic subtitle, without a reload", async () => {
+      await openPlayer();
+      await tracksReady();
+      await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("fre"));
+
+      await act(async () =>
+        mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+      );
+
+      expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      await waitFor(() => expect(mockAutoSubtitle?.audioLanguage).toBe("eng"));
+    });
+
+    // A ready event names no stream: one left over from the previous stream
+    // can come in before the new file is open, when mpv lists no track yet.
+    test("reads mpv's audio tracks again on each ready event", async () => {
+      const found = mockAudioTracks;
+      mockAudioTracks = [];
+      await openPlayer();
+      await tracksReady();
+      mockAudioTracks = found;
+      await tracksReady();
+      await waitFor(() =>
+        expect(mockPlayer.getAudioTracks).toHaveBeenCalledTimes(2),
+      );
+      // The controls are handed the row, so it can be picked from the menu.
+      const english = await waitFor(() => {
+        const row = mockControlsProps?.mediaSource?.MediaStreams?.find(
+          (s) => s.Type === "Audio" && s.Language === "eng",
+        );
+        expect(row?.Index).toBeDefined();
+        return row?.Index as number;
+      });
+
+      await act(async () => mockControlsProps?.onAudioIndexChange?.(english));
+
+      expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    // A transcode carries only the track the server encoded into it.
+    test("falls back to the server's default audio when a transcode cannot carry a track only mpv found", async () => {
+      mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+      mockTranscodingUrl = "/videos/item-1/master.m3u8";
+      try {
+        await openPlayer();
+        await tracksReady();
+
+        expect(mockControlsProps).not.toBeNull();
+        expect(mockControlsProps?.audioIndex).toBeUndefined();
+        expect(mockPlayer.setAudioTrack).not.toHaveBeenCalled();
+      } finally {
+        mockParams.audioIndex = "";
+      }
+    });
+
+    // A subtitle or bitrate change re-opens the route with the selection; the
+    // server was asked without it, so mpv starts on its first track.
+    test("puts mpv back on a track only it found when the route carries it", async () => {
+      mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+      try {
+        await openPlayer();
+        await tracksReady();
+
+        await waitFor(() =>
+          expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2),
+        );
+      } finally {
+        mockParams.audioIndex = "";
+      }
+    });
+
+    test("stops reporting the listed audio index once mpv plays a track only it found", async () => {
+      mockParams.audioIndex = "1";
+      try {
+        await openPlayer();
+        await tracksReady();
+        await announcePlaying();
+        expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
+          "AudioStreamIndex",
+          1,
+        );
+
+        await act(async () =>
+          mockControlsProps?.onAudioIndexChange?.(PLAYER_AUDIO_INDEX_BASE + 1),
+        );
+        expect(mockPlayer.setAudioTrack).toHaveBeenCalledWith(2);
+        await announcePlaying();
+
+        expect(mockReportProgress.mock.lastCall?.[0]).toHaveProperty(
+          "AudioStreamIndex",
+          undefined,
+        );
+      } finally {
+        mockParams.audioIndex = "";
+      }
+    });
+  });
+
+  // The phone's controls re-negotiate from the route (VideoContext), so the
+  // route has to drop a track a transcode cannot carry, or a later direct
+  // stream would put mpv back on it.
+  test("clears an mpv-only audio index from the route when a transcode plays the server's default", async () => {
+    mockServerStreams = [
+      { Type: "Video", Index: 0 },
+      { Type: "Audio", Index: 1, Language: "fre" },
+    ] as MediaStream[];
+    mockParams.audioIndex = String(PLAYER_AUDIO_INDEX_BASE + 1);
+    mockTranscodingUrl = "/videos/item-1/master.m3u8";
+    try {
+      await openPlayer();
+
+      await waitFor(() =>
+        expect(mockRouter.setParams).toHaveBeenCalledWith({ audioIndex: "" }),
+      );
+    } finally {
+      mockParams.audioIndex = "";
+    }
   });
 
   // What a top shelf play link or a remote Play command opens the route with.
