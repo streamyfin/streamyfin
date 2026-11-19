@@ -4,13 +4,9 @@ import GoogleCast
 
 /// SDK objects as the records the JS side declares in Cast.types.ts.
 enum CastRecords {
+  /// The record discovery publishes, so a session's device carries the same fields.
   static func device(_ device: GCKDevice?) -> [String: Any?]? {
-    guard let device else { return nil }
-    return [
-      "deviceId": device.deviceID,
-      "friendlyName": device.friendlyName ?? "",
-      "modelName": device.modelName,
-    ]
+    GoogleCastTargetPort.targetDevice(device)?.toDictionary()
   }
 
   static func session(_ session: GCKCastSession?) -> [String: Any?]? {

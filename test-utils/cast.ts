@@ -12,14 +12,18 @@
  *     CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
  *   }));
  */
-import type {
-  CastDevice,
-  CastMediaStatus,
-  CastNativeEvents,
-  CastSessionEvent,
-  CastSessionInfo,
-  CastStateValue,
-  PlayServicesStateValue,
+import {
+  type CastDevice,
+  type CastMediaStatus,
+  type CastNativeEvents,
+  type CastSessionEvent,
+  type CastSessionInfo,
+  type CastStateValue,
+  NO_REMOTE_TARGET,
+  type OutputPickerOptions,
+  type PlayServicesStateValue,
+  type RemoteTargetPhase,
+  type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
 
 /** One channel `addChannel` created; a send goes to the latest open one of its namespace. */
@@ -54,6 +58,22 @@ export interface CastDoubleState {
   holdAdd: Promise<void> | null;
   /** When true, `addChannel` moves the session on, as a Cast session change would. */
   renewSessionOnAdd: boolean;
+  /** What `getRemoteTarget()` answers; none until a test sets it, whatever the session says. */
+  remoteTarget: RemoteTargetState;
+  /** What `connectToDevice` answers: false is a device discovery does not know. */
+  connectAnswer: boolean;
+  /** Device ids handed to `connectToDevice`, in order. */
+  connectRequests: string[];
+  /** The `stopPlayback` of each `disconnect` call, in order. */
+  disconnectCalls: boolean[];
+  /** Levels handed to `setTargetVolume`, in order. */
+  volumeCalls: number[];
+  /** Flags handed to `setTargetMuted`, in order. */
+  muteCalls: boolean[];
+  /** Options handed to `presentOutputPicker`, in order. */
+  outputPickerCalls: OutputPickerOptions[];
+  /** What `presentOutputPicker` answers: false is a TV or a Mac. */
+  outputPickerAnswer: boolean;
   /** Listeners registered through `addListener`, by event. */
   listeners: { [K in keyof CastNativeEvents]: CastNativeEvents[K][] };
 }
@@ -64,6 +84,7 @@ export const castDoubleDevice = (): CastDevice => ({
   deviceId: CAST_DOUBLE_DEVICE_ID,
   friendlyName: "Living Room TV",
   modelName: "Chromecast",
+  videoOut: true,
 });
 
 export const createCastDoubleState = (): CastDoubleState => ({
@@ -81,14 +102,53 @@ export const createCastDoubleState = (): CastDoubleState => ({
   connectOnAdd: true,
   holdAdd: null,
   renewSessionOnAdd: false,
+  remoteTarget: NO_REMOTE_TARGET,
+  connectAnswer: true,
+  connectRequests: [],
+  disconnectCalls: [],
+  volumeCalls: [],
+  muteCalls: [],
+  outputPickerCalls: [],
+  outputPickerAnswer: true,
   listeners: {
     onCastStateChanged: [],
     onDevicesChanged: [],
     onSessionEvent: [],
     onMediaStatusChanged: [],
     onReceiverMessage: [],
+    onRemoteTargetChanged: [],
+    onOutputPickerAction: [],
   },
 });
+
+/** The double's device as a Cast target in the given phase, as the module publishes it. */
+export const castDoubleTarget = (
+  phase: Exclude<RemoteTargetPhase, "none">,
+  device: CastDevice = castDoubleDevice(),
+): RemoteTargetState => ({
+  state: phase,
+  target: {
+    kind: "cast",
+    id: device.deviceId,
+    name: device.friendlyName,
+    capabilities: { volume: true },
+  },
+  reconnecting: false,
+  error: null,
+  volume: null,
+  muted: false,
+  errorCode: null,
+  failedTarget: null,
+});
+
+/** Moves the module's target state on and publishes it, as the native hub does on a change. */
+export const emitRemoteTarget = (
+  state: CastDoubleState,
+  target: RemoteTargetState,
+): void => {
+  state.remoteTarget = target;
+  emitCastEvent(state, "onRemoteTargetChanged", target);
+};
 
 /** Moves the double onto a session; the device stays unless given (null for a session without one). */
 export const setCastSession = (
@@ -145,11 +205,14 @@ export const emitCastSessionEvent = (
   state: CastDoubleState,
   event: CastSessionEvent,
   error: string | null = null,
+  { withoutStop }: { withoutStop?: boolean } = {},
 ): void =>
   emitCastEvent(state, "onSessionEvent", {
     event,
     sessionId: state.session?.id ?? null,
     error,
+    // Only on an end a disconnect without stop brought, as the module sends it.
+    ...(withoutStop ? { withoutStop } : {}),
   });
 
 /** A receiver message on a channel's namespace; the native side only ever hands over strings. */
@@ -180,6 +243,21 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     const session = state().session;
     return session ? { ...session } : null;
   }),
+  // A fresh object per call, as the native bridge hands one over.
+  getRemoteTarget: jest.fn(() => ({ ...state().remoteTarget })),
+  connectToDevice: jest.fn(async (deviceId: string) => {
+    state().connectRequests.push(deviceId);
+    return state().connectAnswer;
+  }),
+  disconnect: jest.fn(async (stopPlayback: boolean) => {
+    state().disconnectCalls.push(stopPlayback);
+  }),
+  setTargetVolume: jest.fn(async (level: number) => {
+    state().volumeCalls.push(level);
+  }),
+  setTargetMuted: jest.fn(async (muted: boolean) => {
+    state().muteCalls.push(muted);
+  }),
   showCastDialog: jest.fn(async () => {
     state().dialogs.push("cast");
     return true;
@@ -188,6 +266,11 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
     state().dialogs.push("expandedControls");
     return true;
   }),
+  presentOutputPicker: jest.fn(async (options: OutputPickerOptions) => {
+    state().outputPickerCalls.push(options);
+    return state().outputPickerAnswer;
+  }),
+  dismissOutputPicker: jest.fn(async () => {}),
   addChannel: jest.fn(async (namespace: string) => {
     const current = state();
     if (current.holdAdd) await current.holdAdd;
