@@ -243,6 +243,14 @@ struct PlayerPresentConfigRecord: Record {
 	@Field var engine: String?
 }
 
+/// The remote screen's colors, `#RRGGBB`, from the artwork (JS: RemotePlayerTint). Read by RemoteColors.of,
+/// which falls back to the neutral on anything missing or unreadable.
+struct RemoteTintRecord: Record {
+	@Field var top: String?
+	@Field var bottom: String?
+	@Field var accent: String?
+}
+
 /// What JS sends to present the remote player: what the TV plays, described for the chrome. No stream
 /// and no engine: the remote engine plays it on the TV (JS: RemotePlayerPresentConfig).
 struct RemotePlayerConfigRecord: Record {
@@ -256,6 +264,10 @@ struct RemotePlayerConfigRecord: Record {
 	@Field var episodeList: [EpisodeListItemRecord] = []
 	@Field var tracks: TrackMenusRecord?
 	@Field var ui: UIOptionsRecord = UIOptionsRecord()
+	/// Nil until JS has the artwork's color: the screen starts on the neutral.
+	@Field var tint: RemoteTintRecord?
+	/// Custom proxy auth headers for the server's images (artwork, episode list).
+	@Field var imageHeaders: [String: String]?
 
 	/// The config the chrome's view model takes, with an empty stream it never loads.
 	func toPresentConfig() -> PlayerPresentConfigRecord {
@@ -268,6 +280,7 @@ struct RemotePlayerConfigRecord: Record {
 		config.episodeList = episodeList
 		config.tracks = tracks
 		config.ui = ui
+		config.imageHeaders = imageHeaders
 		return config
 	}
 }

@@ -122,14 +122,10 @@ struct PlayerControlsRootView: View {
 			if let forward = viewModel.doubleTapSeekForward {
 				HStack {
 					if forward { Spacer() }
-					SeekGlyph(
-						prefix: forward ? "goforward" : "gobackward",
-						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec,
-						size: 28
+					DoubleTapSeekPill(
+						forward: forward,
+						seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
 					)
-					.foregroundStyle(.white)
-					.padding(18)
-					.background(.black.opacity(0.55), in: Circle())
 					if !forward { Spacer() }
 				}
 				.id(forward)
@@ -657,7 +653,8 @@ private struct PlayerChromeAnchorPreferenceKey: PreferenceKey {
 	}
 }
 
-private struct CurrentChapterLabel: View {
+/// The current chapter's name, drawn above the bar (the remote screen's too).
+struct CurrentChapterLabel: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var time: PlaybackTimeModel
 
@@ -740,6 +737,8 @@ struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// The fast clock — time labels and the chapter caption tick off this.
 	@ObservedObject var time: PlaybackTimeModel
+	/// The remote screen's right side: "Ends at" and the duration on one line, in place of the time left.
+	var showsDuration = false
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -763,6 +762,22 @@ struct PlayerBottomBar: View {
 			HStack(alignment: .top) {
 				Text(formatTime(position))
 				Spacer()
+				if showsDuration {
+					HStack(spacing: 8) {
+						if viewModel.duration > 0 && remaining > 0 {
+							// caption2 is the 11 pt it was at the default size and grows with Dynamic Type, on one
+							// line: a second one would push the remote screen's bottom row off it. It shrinks for
+							// width only; the row is offered less height than its times take.
+							Text(endsAtLabel(remaining: remaining))
+								.font(.caption2.monospacedDigit())
+								.lineLimit(1)
+								.minimumScaleFactor(0.5)
+								.fixedSize(horizontal: false, vertical: true)
+								.foregroundStyle(.white.opacity(0.6))
+						}
+						Text(formatTime(viewModel.duration))
+					}
+				} else {
 				VStack(alignment: .trailing, spacing: 1) {
 					Text("-" + formatTime(remaining))
 					if viewModel.duration > 0 {
@@ -785,11 +800,15 @@ struct PlayerBottomBar: View {
 						}
 					}
 				}
+				}
 			}
 			.font(.footnote.monospacedDigit())
 			.foregroundStyle(.white.opacity(0.85))
 		}
 		.padding(.bottom, 8)
+		// The timeline runs left to right in every language: the bar's drag reads its x from the left edge, and
+		// a mirrored layout drew the elapsed part from the right.
+		.environment(\.layoutDirection, .leftToRight)
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

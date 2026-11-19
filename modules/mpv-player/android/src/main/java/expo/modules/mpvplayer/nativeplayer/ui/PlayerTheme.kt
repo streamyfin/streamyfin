@@ -3,6 +3,7 @@ package expo.modules.mpvplayer.nativeplayer.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 val PlayerDarkScrim = Color(0x99000000)
@@ -10,6 +11,10 @@ val PlayerPillBackground = Color(0x8C000000)
 // Streamyfin primary purple — keep in sync with constants/Colors.ts `primary`.
 val PlayerAccentColor = Color(0xFF9334E9)
 val PlayerTrackBackground = Color(0x40FFFFFF)
+
+/** What is active or chosen takes this color where a screen provides one (the remote screen does): the chosen
+ *  track's check in a menu, the current episode in the list. Null keeps the local chrome's look. */
+val LocalPlayerActiveColor = staticCompositionLocalOf<Color?> { null }
 val PlayerBufferTrack = Color(0x66FFFFFF)
 val PlayerProgressTrack = Color(0xFFFFFFFF)
 

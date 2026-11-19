@@ -11,9 +11,14 @@ import androidx.annotation.MainThread
 import androidx.compose.runtime.Composable
 import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.nativeplayer.ChapterRecord
+import expo.modules.mpvplayer.nativeplayer.EpisodeListItemRecord
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
+import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
@@ -37,7 +42,8 @@ object RemotePlayerProbe {
         activity: Activity?,
         schedule: (Long, () -> Unit) -> (() -> Unit) = mainLooperSchedule(),
         log: (String) -> Unit = { Log.i(TAG, it) },
-        screenContent: @Composable (PlayerViewModel, String?) -> Unit = { model, target -> RemotePlayerScreen(model, target) },
+        look: Look = Look(),
+        screenContent: @Composable (PlayerViewModel, RemoteScreenModel) -> Unit = { model, screen -> RemotePlayerScreen(model, screen) },
     ): RemotePlayerSession? {
         if (current != null) {
             log("already presented")
@@ -68,7 +74,7 @@ object RemotePlayerProbe {
             screenContent = screenContent,
         )
         current = session
-        session.present(activity, config())
+        session.present(activity, config(look))
         log("presented: $TITLE on $TARGET")
 
         fun logPosition() {
@@ -81,10 +87,59 @@ object RemotePlayerProbe {
         return session
     }
 
-    private fun config() = RemotePlayerConfigRecord().also {
-        it.metadata = MetadataRecord().also { metadata -> metadata.title = TITLE }
-        it.targetName = TARGET
+    /**
+     * What the broadcast may add to the fixed config, to hold the screen to an artwork: its URL, the tint JS would
+     * send for it (`#top,#bottom,#accent`), and one header the images are asked for with. For the narrow layouts:
+     * the TV's name, which of the three episodes plays (the second has one before it and one after it), and an
+     * item without chapters.
+     */
+    data class Look(
+        val artwork: String? = null,
+        val tint: String? = null,
+        val headerName: String? = null,
+        val headerValue: String? = null,
+        val target: String = TARGET,
+        val episode: Int = 1,
+        val chapters: Boolean = true,
+    )
+
+    /** Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups. */
+    internal fun config(look: Look = Look()) = RemotePlayerConfigRecord().also {
+        it.metadata = MetadataRecord().also { metadata ->
+            metadata.title = TITLE
+            metadata.subtitle = SUBTITLE
+            metadata.artworkUri = look.artwork
+        }
+        it.tint = look.tint?.split(",")?.takeIf { parts -> parts.size == 3 }?.let { (top, bottom, accent) ->
+            RemoteTintRecord().also { tint -> tint.top = top; tint.bottom = bottom; tint.accent = accent }
+        }
+        if (look.headerName != null && look.headerValue != null) it.imageHeaders = mapOf(look.headerName to look.headerValue)
+        it.targetName = look.target
+        if (look.chapters) it.chapters = CHAPTERS.map { (name, start) -> ChapterRecord().also { c -> c.name = name; c.startSec = start } }
+        it.tracks = TrackMenusRecord().also { tracks ->
+            tracks.audio = track("English", 1, selected = true) + track("French", 2, selected = false)
+            tracks.subtitles = track("English", 3, selected = true) + track("French", 4, selected = false)
+        }
+        it.episodeList = (1..3).map { n ->
+            EpisodeListItemRecord().also { e ->
+                e.itemId = "bench-$n"
+                e.title = "Bench episode $n"
+                e.indexNumber = n
+                e.isCurrent = n == look.episode
+            }
+        }
     }
+
+    private fun track(label: String, index: Int, selected: Boolean) = listOf(
+        TrackMenuItemRecord().also { t ->
+            t.label = label
+            t.jellyfinIndex = index
+            t.selected = selected
+        },
+    )
+
+    private const val SUBTITLE = "S1 E1, Bench"
+    private val CHAPTERS = listOf("Opening" to 0.0, "Middle" to 40.0, "Ending" to 80.0)
 }
 
 /** The fake TV with every command the chrome sends logged, and the position each one leaves. */
@@ -130,10 +185,23 @@ private class LoggingEngine(private val inner: ChromeEngine, private val log: (S
     }
 }
 
-/** `adb shell am broadcast -n <package>/expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver -a expo.modules.mpvplayer.REMOTE_PLAYER_PROBE` */
+/**
+ * `adb shell am broadcast -n <package>/expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerProbeReceiver -a expo.modules.mpvplayer.REMOTE_PLAYER_PROBE`,
+ * with `--es artwork <url> --es tint '#top,#bottom,#accent' --es headerName <name> --es headerValue <value>` if wanted,
+ * and `--es target <TV name> --ei episode 2 --ez chapters false` for the narrow layouts.
+ */
 class RemotePlayerProbeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != RemotePlayerProbe.ACTION) return
-        RemotePlayerProbe.run(OutputPickerPresenter.currentActivity())
+        val look = RemotePlayerProbe.Look(
+            artwork = intent.getStringExtra("artwork"),
+            tint = intent.getStringExtra("tint"),
+            headerName = intent.getStringExtra("headerName"),
+            headerValue = intent.getStringExtra("headerValue"),
+            target = intent.getStringExtra("target") ?: RemotePlayerProbe.TARGET,
+            episode = intent.getIntExtra("episode", 1),
+            chapters = intent.getBooleanExtra("chapters", true),
+        )
+        RemotePlayerProbe.run(OutputPickerPresenter.currentActivity(), look = look)
     }
 }

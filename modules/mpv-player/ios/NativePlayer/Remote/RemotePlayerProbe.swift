@@ -11,7 +11,12 @@ import UIKit
 /// through Logger under [RemotePlayerProbe], in `tmp/logs.txt` of the app's container: the commands with the
 /// fake's position, the position every few seconds, the close, and the fake's stop, which only the lease's
 /// release may call. `-RemotePlayerProbeEnd YES` as well gives the fake one short item and a next episode at
-/// the still watching cap: the end of the TV's list, a few seconds in.
+/// the still watching cap: the end of the TV's list, a few seconds in. `-RemotePlayerProbeArtwork <url>`,
+/// `-RemotePlayerProbeTint '#top,#bottom,#accent'`, `-RemotePlayerProbeHeaderName <name>` and
+/// `-RemotePlayerProbeHeaderValue <value>` add an artwork, its tint and an image header, as Android's extras do.
+/// `-RemotePlayerProbeTintDelay <s>` opens the screen neutral and sends the tint that many seconds later, as JS
+/// does once it has the artwork's colors, so the fade can be watched. `-RemotePlayerProbeNoChapters YES` plays an
+/// item without chapters (the remote "more" menu with nothing in it), as Android's `--ez chapters false`.
 enum RemotePlayerProbe {
 	static let launchArgument = "RemotePlayerProbe"
 	static let notification = "expo.modules.mpvplayer.REMOTE_PLAYER_PROBE"
@@ -20,6 +25,14 @@ enum RemotePlayerProbe {
 	static let positionLogMs: Double = 5_000
 	static let endArgument = "RemotePlayerProbeEnd"
 	static let endItemSec: Double = 15
+	/// What the launch may add to the fixed config, to hold the screen to an artwork (Android's Look): its URL,
+	/// the tint JS would send for it (`#top,#bottom,#accent`), and one header the images are asked for with.
+	static let artworkArgument = "RemotePlayerProbeArtwork"
+	static let tintArgument = "RemotePlayerProbeTint"
+	static let tintDelayArgument = "RemotePlayerProbeTintDelay"
+	static let headerNameArgument = "RemotePlayerProbeHeaderName"
+	static let headerValueArgument = "RemotePlayerProbeHeaderValue"
+	static let noChaptersArgument = "RemotePlayerProbeNoChapters"
 
 	private static var current: RemotePlayerSession?
 	private static var cancelPositionLog: (() -> Void)?
@@ -60,10 +73,46 @@ enum RemotePlayerProbe {
 		)
 		current = session
 		let config = RemotePlayerConfigRecord()
+		// Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups
+		// (same config as Android's RemotePlayerProbe.config()). The artwork comes from the bench's server.
 		let metadata = MetadataRecord()
 		metadata.title = title
+		metadata.subtitle = "S1 E1, Bench"
+		let defaults = UserDefaults.standard
+		metadata.artworkUri = defaults.string(forKey: artworkArgument)
 		config.metadata = metadata
+		let tintDelay = defaults.double(forKey: tintDelayArgument)
+		var lateTint: RemoteTintRecord?
+		if let parts = defaults.string(forKey: tintArgument)?.split(separator: ","), parts.count == 3 {
+			let tint = RemoteTintRecord()
+			tint.top = String(parts[0])
+			tint.bottom = String(parts[1])
+			tint.accent = String(parts[2])
+			if tintDelay > 0 { lateTint = tint } else { config.tint = tint }
+		}
+		if let name = defaults.string(forKey: headerNameArgument), let value = defaults.string(forKey: headerValueArgument) {
+			config.imageHeaders = [name: value]
+		}
 		config.targetName = target
+		let chapters = defaults.bool(forKey: noChaptersArgument) ? [] : [("Opening", 0.0), ("Middle", 40.0), ("Ending", 80.0)]
+		config.chapters = chapters.map { name, start in
+			let chapter = ChapterRecord()
+			chapter.name = name
+			chapter.startSec = start
+			return chapter
+		}
+		let tracks = TrackMenusRecord()
+		tracks.audio = [track("English", 1, selected: true), track("French", 2, selected: false)]
+		tracks.subtitles = [track("English", 3, selected: true), track("French", 4, selected: false)]
+		config.tracks = tracks
+		config.episodeList = (1...3).map { n in
+			let episode = EpisodeListItemRecord()
+			episode.itemId = "bench-\(n)"
+			episode.title = "Bench episode \(n)"
+			episode.indexNumber = n
+			episode.isCurrent = n == 1
+			return episode
+		}
 		if ending {
 			var next = NextEpisodeRecord()
 			next.itemId = "bench-next"
@@ -79,6 +128,12 @@ enum RemotePlayerProbe {
 			current = nil
 			return log("failed: \(error.localizedDescription)")
 		}
+		if let lateTint {
+			DispatchQueue.main.asyncAfter(deadline: .now() + tintDelay) {
+				session.updateTint(lateTint)
+				log("tint after \(tintDelay) s")
+			}
+		}
 		logPosition(engine)
 	}
 
@@ -87,6 +142,14 @@ enum RemotePlayerProbe {
 			log("position \(engine.getCurrentPosition()), \(engine.isPaused() ? "paused" : "playing")")
 			logPosition(engine)
 		}
+	}
+
+	private static func track(_ label: String, _ index: Int, selected: Bool) -> TrackMenuItemRecord {
+		let track = TrackMenuItemRecord()
+		track.label = label
+		track.jellyfinIndex = index
+		track.selected = selected
+		return track
 	}
 }
 

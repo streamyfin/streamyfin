@@ -179,6 +179,13 @@ public class NativePlayerModule: Module {
 			#endif
 		}.runOnQueue(.main)
 
+		// The artwork's color lands after the screen is up; with no remote player there is nothing to tint.
+		AsyncFunction("updateRemotePlayerTint") { (tint: RemoteTintRecord) in
+			#if os(iOS)
+			(self.presented as? RemotePlayerSession)?.updateTint(tint)
+			#endif
+		}.runOnQueue(.main)
+
 		AsyncFunction("load") { (config: PlayerPresentConfigRecord, promise: Promise) in
 			guard let session = self.session else {
 				promise.reject(NoActivePlayerException())

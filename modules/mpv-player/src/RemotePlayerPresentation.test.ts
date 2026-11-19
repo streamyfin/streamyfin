@@ -9,6 +9,7 @@ import {
   addRemotePlayerListener,
   isRemotePlayerAvailable,
   presentRemotePlayer,
+  updateRemotePlayerTint,
 } from "./RemotePlayerPresentation";
 import type { RemotePlayerPresentConfig } from "./RemotePlayerPresentation.types";
 
@@ -34,7 +35,10 @@ const config: RemotePlayerPresentConfig = {
   episodeList: [],
   tracks: null,
   ui: {},
+  tint: null,
 };
+
+const tint = { top: "#1F3340", bottom: "#0E1A21", accent: "#C9A7FB" };
 
 beforeEach(() => {
   mockPlayer = createNativePlayerDoubleState();
@@ -56,6 +60,22 @@ describe("presentRemotePlayer", () => {
     await expect(presentRemotePlayer(config)).rejects.toThrow();
     expect(mockPlayer.remotePresented).toEqual([]);
     expect(isRemotePlayerAvailable()).toBe(false);
+  });
+});
+
+describe("updateRemotePlayerTint", () => {
+  it("hands the tint to the remote screen", async () => {
+    await updateRemotePlayerTint(tint);
+
+    expect(mockPlayer.remoteTints).toEqual([tint]);
+  });
+
+  it("sends nothing on TV, where no remote screen opens", async () => {
+    stubReactNative({ OS: "android", isTV: true });
+
+    await updateRemotePlayerTint(tint);
+
+    expect(mockPlayer.remoteTints).toEqual([]);
   });
 });
 

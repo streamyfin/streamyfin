@@ -51,4 +51,18 @@ struct SeekGlyph: View {
 		}
 	}
 }
+
+/// The double-tap seek pill: the numbered glyph in a dark disc, flashed on the tapped half by the video's double tap
+/// and by the remote artwork's (Android: DoubleTapSeekPill).
+struct DoubleTapSeekPill: View {
+	let forward: Bool
+	let seconds: Double
+
+	var body: some View {
+		SeekGlyph(prefix: forward ? "goforward" : "gobackward", seconds: seconds, size: 28)
+			.foregroundStyle(.white)
+			.padding(18)
+			.background(.black.opacity(0.55), in: Circle())
+	}
+}
 #endif

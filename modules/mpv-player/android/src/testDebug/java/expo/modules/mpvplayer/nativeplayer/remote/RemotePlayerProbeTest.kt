@@ -107,4 +107,33 @@ class RemotePlayerProbeTest {
         assertEquals(1, screens())
         assertFalse(logs.contains("already presented"))
     }
+
+    // The proof compares each layout with the mockups, so the probe fills every slot the screen draws from its
+    // config: a subtitle line, chapters, two audio tracks, two subtitle tracks with one on (the active color) and
+    // an episode list with the current one marked. The artwork comes from the bench's server, not from here.
+    @Test
+    fun theProbeConfigFillsEverySlot() {
+        val config = RemotePlayerProbe.config()
+
+        assertNotNull(config.metadata?.subtitle)
+        assertTrue(config.chapters.size >= 2)
+        assertTrue((config.tracks?.audio?.size ?: 0) >= 2)
+        assertEquals(1, config.tracks?.subtitles?.count { it.selected })
+        assertTrue((config.tracks?.subtitles?.size ?: 0) >= 2)
+        assertTrue(config.episodeList.size >= 2)
+        assertEquals(1, config.episodeList.count { it.isCurrent })
+    }
+
+    // The proof of the narrow layouts needs a long TV name, an episode with one before it and one after it (five
+    // transport buttons), and an item without chapters (the remote "more" menu with nothing in it).
+    @Test
+    fun aLookNamesTheTvPicksTheEpisodeAndDropsTheChapters() {
+        val config = RemotePlayerProbe.config(
+            RemotePlayerProbe.Look(target = "Living room Chromecast with Google TV", episode = 2, chapters = false),
+        )
+
+        assertEquals("Living room Chromecast with Google TV", config.targetName)
+        assertEquals(listOf(2), config.episodeList.filter { it.isCurrent }.map { it.indexNumber })
+        assertTrue(config.chapters.isEmpty())
+    }
 }

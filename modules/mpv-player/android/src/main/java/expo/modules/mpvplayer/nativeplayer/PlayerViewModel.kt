@@ -132,6 +132,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
             else -> strings.get("castNotConnected", "Not connected")
         }
 
+    /** The position bar's name for TalkBack; its state is the elapsed time. */
+    val playbackPositionLabel: String
+        get() = strings.get("playbackPosition", "Playback position")
+
     fun followCast(hub: RemoteTargetHub = RemoteTargetHub.shared) {
         unfollowCast?.invoke()
         castPhase = hub.snapshot.phase
@@ -756,6 +760,15 @@ class PlayerViewModel : PlayerEngine.Delegate {
         seekTo(target)
     }
 
+    /** TalkBack's adjustment of the position bar: one skip step toward the value it asks for, as VoiceOver's
+     *  adjustable action on iOS, rather than the 5% of the length Compose would derive. */
+    fun adjustPosition(toward: Float): Boolean {
+        val target = toward.toDouble()
+        if (target == displayPosition) return false
+        seekBy(if (target > displayPosition) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec)
+        return true
+    }
+
     fun flashSeekFeedback() {
         seekFeedbackVisible = true
         seekFeedbackJob?.cancel()
@@ -772,6 +785,12 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun doubleTapSeek(forward: Boolean) {
         if (!uiOptions.doubleTapToSeekEnabled) return
+        seekWithPill(forward)
+    }
+
+    /** Seeks one step and flashes the chrome's pill on that side. The remote artwork's double tap calls it
+     *  directly: no setting gates it there, as no single tap shares the artwork with it. */
+    fun seekWithPill(forward: Boolean) {
         val delta = if (forward) uiOptions.seekForwardSec else -uiOptions.seekBackwardSec
         seekBy(delta)
         doubleTapSeekForward = forward

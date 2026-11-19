@@ -39,4 +39,50 @@ object PlayerConstants {
     // default items lasts. iOS: PlayerConstants.fakeRemoteLoadMs and fakeRemoteItemSec.
     const val FAKE_REMOTE_LOAD_MS = 600L
     const val FAKE_REMOTE_ITEM_SEC = 120.0
+
+    // The remote player's layout (RemoteLayout, RemoteMetrics), by size class and never by device model. A
+    // window shorter than REMOTE_COMPACT_HEIGHT_DP is couched; otherwise one at least REMOTE_WIDE_MIN_WIDTH_DP
+    // wide puts the artwork beside the controls. iOS: the same numbers in points, PlayerConstants.remote*.
+    const val REMOTE_COMPACT_HEIGHT_DP = 480.0
+    const val REMOTE_WIDE_MIN_WIDTH_DP = 600.0
+    // The artwork takes what the rest leaves, between these two; it gives up its height before anything else.
+    const val REMOTE_ARTWORK_MIN_DP = 96.0
+    const val REMOTE_ARTWORK_MAX_DP = 420.0
+    const val REMOTE_HORIZONTAL_PADDING_DP = 24.0
+    // Couched, the artwork is at most this share of the width; wide, beside the column, this one.
+    const val REMOTE_LANDSCAPE_ARTWORK_FRACTION = 0.4
+    const val REMOTE_WIDE_ARTWORK_FRACTION = 0.45
+    // What the rest of the screen takes, upright and couched: the part that keeps its size (buttons, the bar's
+    // track, gaps) and the text, counted one line each at the font scale asked for. Upright, measured at the probe
+    // on a 1080x2400 phone with every slot filled, at font scales 1 and 1.3
+    // (RemoteLayoutTest.theUprightChromeMatchesTheMeasuredScreen); taller than iOS's 305 + 73 (Compose line heights).
+    const val REMOTE_PORTRAIT_FIXED_DP = 326.0
+    const val REMOTE_PORTRAIT_TEXT_DP = 83.0
+    const val REMOTE_LANDSCAPE_FIXED_DP = 108.0
+    const val REMOTE_LANDSCAPE_TEXT_DP = 34.0
+
+    /** The remote transport (RemoteTransport): the chrome's three button sizes, and the gap between them,
+     *  narrower upright so five buttons fit a phone's width. */
+    const val REMOTE_BUTTON_SMALL_DP = 44.0
+    const val REMOTE_BUTTON_MEDIUM_DP = 52.0
+    const val REMOTE_BUTTON_PLAY_DP = 68.0
+    const val REMOTE_TRANSPORT_GAP_PORTRAIT_DP = 20.0
+    const val REMOTE_TRANSPORT_GAP_DP = 28.0
+
+    /** What is active or connected on the remote screen (the TV's name, subtitles on, the current episode, the
+     *  chosen track), ARGB: a light violet, 6:1 on the screen's darkest tones where the app's violet gives 2.2. */
+    const val REMOTE_ACTIVE_COLOR = 0xFFC9A7FB
+
+    /** The remote screen's background with no tint from JS, ARGB (constants/RemotePlayer.ts REMOTE_TINT_NEUTRAL),
+     *  how long a new tint takes to fade in (REMOTE_TINT_FADE_MS), and the share of the height where the gradient
+     *  reaches its bottom color, which then holds to the bottom edge. */
+    const val REMOTE_TINT_NEUTRAL_TOP = 0xFF342E3D
+    const val REMOTE_TINT_NEUTRAL_BOTTOM = 0xFF1F1927
+    const val REMOTE_TINT_FADE_MS = 300
+    const val REMOTE_TINT_GRADIENT_END = 0.66f
+
+    /** A drag down closes the remote screen like the chevron once it covers this share of the screen's height, or
+     *  ends faster than this many dp per second (RemoteGestures). iOS: remoteDismissDrag*, the same numbers. */
+    const val REMOTE_DISMISS_DRAG_FRACTION = 0.25
+    const val REMOTE_DISMISS_VELOCITY_DP = 1200.0
 }

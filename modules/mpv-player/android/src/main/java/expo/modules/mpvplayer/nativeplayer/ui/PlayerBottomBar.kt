@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,9 +43,17 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
@@ -53,11 +62,20 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** The timeline runs left to right in every language: the bar's touch reads its x from the left edge, and a
+ *  mirrored layout drew the elapsed part from the right. */
 @Composable
 fun PlayerBottomBar(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        BottomBarContent(viewModel, modifier)
+    }
+}
+
+@Composable
+private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier) {
     val duration = viewModel.duration
     val position = if (viewModel.isScrubbing) viewModel.scrubPosition else viewModel.displayPosition
     val progress = if (duration > 0) (position / duration).coerceIn(0.0, 1.0) else 0.0
@@ -154,10 +172,18 @@ private fun ScrubberBar(
         }
     }
 
+    val lengthSec = duration.toFloat().coerceAtLeast(0f)
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp),
+            .height(36.dp)
+            // One node for TalkBack: the bar's name, the elapsed time, and a skip step per adjustment.
+            .clearAndSetSemantics {
+                contentDescription = viewModel.playbackPositionLabel
+                stateDescription = formatTimeSec(position)
+                progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat().coerceIn(0f, lengthSec), 0f..lengthSec)
+                setProgress { viewModel.adjustPosition(toward = it) }
+            },
         contentAlignment = Alignment.CenterStart
     ) {
         val totalWidthPx = constraints.maxWidth.toFloat()

@@ -161,6 +161,8 @@ export const buildNativePlayerStrings = (
   castConnected: t("accessibility.cast_connected"),
   castNotConnected: t("accessibility.cast_not_connected"),
   castConnecting: t("cast.output.connecting"),
+  // The position bar's name for a screen reader; its value is the elapsed time.
+  playbackPosition: t("accessibility.playback_position"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),

@@ -250,7 +250,8 @@ export type NativePlayerStrings = Partial<
     | "castButton"
     | "castConnected"
     | "castNotConnected"
-    | "castConnecting",
+    | "castConnecting"
+    | "playbackPosition",
     string
   >
 >;
