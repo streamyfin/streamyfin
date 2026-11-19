@@ -49,11 +49,6 @@ class RemoteLayoutTest {
             val rest = RemoteMetrics.chromeHeight(RemoteLayout.PORTRAIT, scale)
             assertTrue("$artwork + $rest overflows 640 at $scale", artwork + rest <= 640.0)
         }
-        // The same holds couched, where the bar and the top bar share the height with the artwork.
-        val couched = RemoteMetrics.artworkHeight(RemoteLayout.LANDSCAPE, 640.0, 360.0, 1.0)
-        val couchedLarge = RemoteMetrics.artworkHeight(RemoteLayout.LANDSCAPE, 640.0, 360.0, 1.5)
-        assertTrue(couchedLarge < couched)
-        assertTrue(couched + RemoteMetrics.chromeHeight(RemoteLayout.LANDSCAPE, 1.0) <= 360.0)
     }
 
     // Measured at the probe on a 1080x2400 phone at 420 dpi, default text size, every slot filled: header 44, five
@@ -72,7 +67,6 @@ class RemoteLayoutTest {
     fun theArtworkNeverGoesUnderItsMinimum() {
         val min = PlayerConstants.REMOTE_ARTWORK_MIN_DP
         assertEquals(min, RemoteMetrics.artworkHeight(RemoteLayout.PORTRAIT, 320.0, 480.0, 3.0), 0.0)
-        assertEquals(min, RemoteMetrics.artworkHeight(RemoteLayout.LANDSCAPE, 568.0, 200.0, 2.0), 0.0)
         assertEquals(min, RemoteMetrics.artworkHeight(RemoteLayout.WIDE, 600.0, 120.0, 1.0), 0.0)
         // Nor over its maximum, on the largest tablet.
         val max = PlayerConstants.REMOTE_ARTWORK_MAX_DP
@@ -124,8 +118,64 @@ class RemoteLayoutTest {
             val artwork = RemoteMetrics.artworkHeight(RemoteLayout.WIDE, width, 800.0, 1.0)
             assertTrue("wide artwork $artwork does not fit its box $box at $width", artwork <= box)
         }
-        // Couched, the artwork's box wraps it; upright, nothing stands beside the column.
-        assertEquals(null, RemoteMetrics.besideWidth(RemoteLayout.LANDSCAPE, 844.0))
+        // Upright, nothing stands beside the column.
         assertEquals(null, RemoteMetrics.besideWidth(RemoteLayout.PORTRAIT, 390.0))
+    }
+
+    // Couched (validated by Gauvain on the 19/11 captures): two equal halves between the side margins and the
+    // gutter, the image in its own shape, as large as its half and the band under the top bar leave it (an inset
+    // above and below). Measured on the Medium_Phone emulator lying down, 914 x 363 within the system bars.
+    @Test
+    fun couchedTheImageTakesItsShapeInTheLeftHalf() {
+        assertEquals(421.0, RemoteMetrics.besideWidth(RemoteLayout.LANDSCAPE, 914.0)!!, 1e-9)
+        val cases = listOf(
+            // An episode's wide image is as wide as its half.
+            16.0 / 9.0 to RemoteBox(421.0, 421.0 * 9 / 16),
+            // A poster is as tall as the band leaves: 363 - 44 - 2 x 16.
+            2.0 / 3.0 to RemoteBox(287.0 * 2 / 3, 287.0),
+            // No shape known, another server's media: the square the artwork always had.
+            null to RemoteBox(287.0, 287.0),
+        )
+        for ((ratio, expected) in cases) {
+            val box = RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 1.0, ratio)
+            assertEquals("width at $ratio", expected.widthDp, box.widthDp, 1e-9)
+            assertEquals("height at $ratio", expected.heightDp, box.heightDp, 1e-9)
+        }
+        // A small phone, 640 x 360: halves of 284.
+        assertEquals(284.0, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 640.0, 360.0, 1.0, 16.0 / 9.0).widthDp, 1e-9)
+    }
+
+    // Couched, the text stands beside the image, not above or below it: a larger font leaves the image as it is
+    // (the column scrolls instead). A shape that cannot be one is the square too.
+    @Test
+    fun couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone() {
+        val one = RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 1.0, 2.0 / 3.0)
+        assertEquals(one, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 2.0, 2.0 / 3.0))
+        val square = RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 1.0, null)
+        for (bad in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertEquals("shape $bad", square, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 1.0, bad))
+        }
+    }
+
+    // Upright and wide, the artwork keeps its square, whatever the image's shape: those layouts are unchanged.
+    @Test
+    fun uprightAndWideTheArtworkStaysASquare() {
+        for ((layout, w, h) in listOf(Triple(RemoteLayout.PORTRAIT, 390.0, 844.0), Triple(RemoteLayout.WIDE, 1180.0, 820.0))) {
+            val side = RemoteMetrics.artworkHeight(layout, w, h, 1.0)
+            assertEquals(RemoteBox(side, side), RemoteMetrics.artworkBox(layout, w, h, 1.0, 16.0 / 9.0))
+        }
+    }
+
+    // The top bar's ink meets the margins: the chevron's 44 box has 14 of air on its left, the dots of "more" 20 on
+    // their right, a track button's 22 icon 11; the TV button's pill ends at its box.
+    @Test
+    fun couchedTheTopBarsInkMeetsTheMargins() {
+        assertEquals(14.0 to 20.0, RemoteMetrics.topBarInkInsets(RemoteTopBarEnd.MORE))
+        assertEquals(14.0 to 11.0, RemoteMetrics.topBarInkInsets(RemoteTopBarEnd.TRACK_BUTTON))
+        assertEquals(14.0 to 0.0, RemoteMetrics.topBarInkInsets(RemoteTopBarEnd.TARGET))
+        // What ends the bar: "more" when it has a menu, else the last track button, else the TV.
+        assertEquals(RemoteTopBarEnd.MORE, RemoteTopBarEnd.of(showsMore = true, trackButtons = 3))
+        assertEquals(RemoteTopBarEnd.TRACK_BUTTON, RemoteTopBarEnd.of(showsMore = false, trackButtons = 1))
+        assertEquals(RemoteTopBarEnd.TARGET, RemoteTopBarEnd.of(showsMore = false, trackButtons = 0))
     }
 }

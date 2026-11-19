@@ -42,7 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
@@ -50,13 +53,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteActive
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteMetrics
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMore
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteTopBarEnd
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteScreenModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteSpeech
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteTransport
@@ -64,6 +71,7 @@ import expo.modules.mpvplayer.nativeplayer.ui.AudioMenu
 import expo.modules.mpvplayer.nativeplayer.ui.CenterControls
 import expo.modules.mpvplayer.nativeplayer.ui.MoreMenu
 import expo.modules.mpvplayer.nativeplayer.ui.PlayerBottomBar
+import expo.modules.mpvplayer.nativeplayer.ui.PlayerBottomBarHorizontalPadding
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
 import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
 import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
@@ -93,9 +101,12 @@ internal fun RemoteHeader(viewModel: PlayerViewModel, model: RemoteScreenModel, 
     }
 }
 
-/** The artwork, whole, in a square of the size RemoteMetrics gives, asked for with the user's proxy headers. */
+/**
+ * The artwork, whole, in the box RemoteMetrics gives (a square, or couched the image's own shape), asked for with the
+ * user's proxy headers.
+ */
 @Composable
-internal fun RemoteArtwork(viewModel: PlayerViewModel, size: Dp, imageHeaders: Map<String, String>?, modifier: Modifier = Modifier) {
+internal fun RemoteArtwork(viewModel: PlayerViewModel, size: DpSize, imageHeaders: Map<String, String>?, modifier: Modifier = Modifier) {
     RemoteImage(
         url = viewModel.metadata?.artworkUri,
         headers = remoteImageHeaders(viewModel.metadata?.artworkHeaders, imageHeaders),
@@ -106,29 +117,46 @@ internal fun RemoteArtwork(viewModel: PlayerViewModel, size: Dp, imageHeaders: M
     )
 }
 
-/** Title and subtitle, left-aligned; [compact] keeps each to one smaller line, for the couched top bar. */
+private val TitleSize = 22.sp
+
+/**
+ * Title and subtitle, left-aligned, two lines each at most; [capsAtTop] lifts them by the air above the title's
+ * capitals, so the capitals start where the slot does.
+ */
 @Composable
-internal fun RemoteTitles(viewModel: PlayerViewModel, compact: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteTitles(viewModel: PlayerViewModel, capsAtTop: Boolean, modifier: Modifier = Modifier) {
     val metadata = viewModel.metadata
-    Column(modifier) {
+    Column(if (capsAtTop) modifier.capsAtTop(TitleSize) else modifier) {
         Text(
             text = metadata?.title.orEmpty(),
             color = Color.White,
-            fontSize = if (compact) 15.sp else 22.sp,
+            fontSize = TitleSize,
             fontWeight = FontWeight.Bold,
-            maxLines = if (compact) 1 else 2,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         metadata?.subtitle?.let { subtitle ->
             Text(
                 text = subtitle,
                 color = Color.White.copy(alpha = 0.7f),
-                fontSize = if (compact) 12.sp else 15.sp,
-                maxLines = if (compact) 1 else 2,
+                fontSize = 15.sp,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
+}
+
+/** Places the content higher by what its first line has above its capitals: the first baseline less the cap height. */
+private fun Modifier.capsAtTop(fontSize: TextUnit): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val baseline = placeable[FirstBaseline]
+    val lift = if (baseline == AlignmentLine.Unspecified) {
+        0
+    } else {
+        (baseline - fontSize.toPx() * PlayerConstants.REMOTE_TITLE_CAP_HEIGHT_EM).toInt().coerceAtLeast(0)
+    }
+    layout(placeable.width, placeable.height - lift) { placeable.place(0, -lift) }
 }
 
 /**
@@ -136,9 +164,13 @@ internal fun RemoteTitles(viewModel: PlayerViewModel, compact: Boolean, modifier
  * on the right, the thumbnail bubble while dragging. The segment skip is a band on the artwork, [RemoteSkipBanner].
  */
 @Composable
-internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
+internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, inkToEdges: Boolean, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
-        PlayerBottomBar(viewModel = viewModel, enabled = enabled)
+        PlayerBottomBar(
+            viewModel = viewModel,
+            enabled = enabled,
+            horizontalPadding = if (inkToEdges) 0.dp else PlayerBottomBarHorizontalPadding,
+        )
     }
 }
 
@@ -236,22 +268,35 @@ internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, mo
     }
 }
 
-/** Couched: the chevron, the titles, the TV, the track buttons and "more", in one bar across the top. */
+/**
+ * Couched: the chevron on the left; the TV, the track buttons and "more" on the right, in one bar across the top.
+ * The bar reaches past the side margins by the air its end buttons have, so their ink meets the margins.
+ */
 @Composable
 internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, model: RemoteScreenModel, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val showsMore = model.showsMoreMenu && RemoteMore.shows(viewModel.chapters.size, viewModel.qualityMenu.size)
+    val (start, end) = RemoteMetrics.topBarInkInsets(RemoteTopBarEnd.of(showsMore, trackButtons(viewModel, model).count))
+    Row(
+        modifier.fillMaxWidth().bleed(start.dp, end.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
         RemoteChevron(viewModel)
-        RemoteTitles(
-            viewModel,
-            compact = true,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
-        )
-        RemoteTargetButton(viewModel, targetName)
-        RemoteTrackButtons(viewModel, model)
-        if (model.showsMoreMenu) RemoteMoreButton(viewModel)
+        // Weighted without filling, as in the bottom row: a long TV name ends in an ellipsis, the buttons keep theirs.
+        Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically) {
+            RemoteTargetButton(viewModel, targetName, Modifier.weight(1f, fill = false))
+            RemoteTrackButtons(viewModel, model)
+            if (showsMore) RemoteMoreButton(viewModel)
+        }
     }
+}
+
+/** Lays the content out wider than its place by [start] and [end], drawn past both edges by as much. */
+private fun Modifier.bleed(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
+    val before = start.roundToPx()
+    val wide = constraints.maxWidth + before + end.roundToPx()
+    val placeable = measurable.measure(constraints.copy(minWidth = wide, maxWidth = wide))
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-before, 0) }
 }
 
 @Composable
@@ -324,20 +369,20 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?, 
 @Composable
 private fun RemoteTrackButtons(viewModel: PlayerViewModel, model: RemoteScreenModel) {
     val tracksEnabled = model.trackMenusEnabled
-    if (model.showsEpisodes && viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
+    val shown = trackButtons(viewModel, model)
+    if (shown.episodes) {
         ActiveIconButton(Icons.AutoMirrored.Filled.FormatListBulleted, viewModel.strings.get("episodes", "Episodes"), active = false) {
             viewModel.showEpisodeList = true
         }
     }
-    if (!model.showsTrackMenus) return
-    if (viewModel.audioMenu.isNotEmpty()) {
+    if (shown.audio) {
         AudioMenu(viewModel) { open ->
             Box(Modifier.inert(!tracksEnabled)) {
                 ActiveIconButton(Icons.Default.GraphicEq, viewModel.strings.get("audio", "Audio"), active = false, enabled = tracksEnabled, onClick = open)
             }
         }
     }
-    if (viewModel.subtitleMenu.isNotEmpty()) {
+    if (shown.subtitles) {
         val on = RemoteActive.subtitlesOn(viewModel.subtitleMenu.firstOrNull { it.selected }?.jellyfinIndex)
         SubtitleMenu(viewModel) { open ->
             Box(Modifier.inert(!tracksEnabled)) {
@@ -346,6 +391,17 @@ private fun RemoteTrackButtons(viewModel: PlayerViewModel, model: RemoteScreenMo
         }
     }
 }
+
+/** Which track buttons the screen shows: [RemoteTrackButtons] draws them, the top bar ends with the last. */
+private data class TrackButtons(val episodes: Boolean, val audio: Boolean, val subtitles: Boolean) {
+    val count get() = listOf(episodes, audio, subtitles).count { it }
+}
+
+private fun trackButtons(viewModel: PlayerViewModel, model: RemoteScreenModel) = TrackButtons(
+    episodes = model.showsEpisodes && viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive,
+    audio = model.showsTrackMenus && viewModel.audioMenu.isNotEmpty(),
+    subtitles = model.showsTrackMenus && viewModel.subtitleMenu.isNotEmpty(),
+)
 
 @Composable
 private fun ActiveIconButton(icon: ImageVector, description: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {

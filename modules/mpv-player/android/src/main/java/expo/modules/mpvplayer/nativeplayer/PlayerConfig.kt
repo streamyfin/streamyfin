@@ -52,6 +52,8 @@ class MetadataRecord : Record {
     @Field var artworkUri: String? = null
     // Typed loosely: a value Expo cannot convert would reject the whole config.
     @Field var artworkHeaders: Map<String, Any?>? = null
+    // The artwork's width over its height, known before it loads; couched, the remote screen's image takes it.
+    @Field var artworkAspectRatio: Double? = null
     @Field var isEpisode: Boolean = false
 }
 

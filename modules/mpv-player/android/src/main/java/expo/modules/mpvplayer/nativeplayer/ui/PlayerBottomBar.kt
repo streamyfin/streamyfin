@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
@@ -71,14 +72,19 @@ fun PlayerBottomBar(
     modifier: Modifier = Modifier,
     // The remote screen rests the bar while the TV has nothing to seek in: TalkBack says it disabled and adjusts nothing.
     enabled: Boolean = true,
+    // The air on each side of the track and the times; couched, the remote screen sets none, so the ink meets its column.
+    horizontalPadding: Dp = PlayerBottomBarHorizontalPadding,
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        BottomBarContent(viewModel, modifier, enabled)
+        BottomBarContent(viewModel, modifier, enabled, horizontalPadding)
     }
 }
 
+/** The bar's air on each side, the local player's. */
+val PlayerBottomBarHorizontalPadding = 16.dp
+
 @Composable
-private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier, enabled: Boolean) {
+private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier, enabled: Boolean, horizontalPadding: Dp) {
     val duration = viewModel.duration
     val position = if (viewModel.isScrubbing) viewModel.scrubPosition else viewModel.displayPosition
     val progress = if (duration > 0) (position / duration).coerceIn(0.0, 1.0) else 0.0
@@ -90,7 +96,7 @@ private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier, ena
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = horizontalPadding, vertical = 12.dp)
     ) {
         // Chapter name on the left above the scrubber
         currentChapter?.name?.let { chName ->

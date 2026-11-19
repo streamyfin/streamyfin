@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -37,7 +39,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import kotlinx.coroutines.delay
@@ -68,15 +72,19 @@ fun TechnicalInfoLayer(viewModel: PlayerViewModel) {
 fun TechnicalInfoOverlay(
     viewModel: PlayerViewModel,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // The remote screen's, over the artwork: tighter, and its lines scroll when the artwork is shorter than they are.
+    compact: Boolean = false,
+    // False when the caller says the panel opened and closed itself: one that moves between slots remounts.
+    reportsShown: Boolean = true,
 ) {
     var techInfo by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
     val fromJs = viewModel.capabilities.technicalInfoFromJs
 
     // A remote panel asks JS for its lines while it is shown; a local one reads its engine.
     DisposableEffect(Unit) {
-        viewModel.technicalInfoShown(true)
-        onDispose { viewModel.technicalInfoShown(false) }
+        if (reportsShown) viewModel.technicalInfoShown(true)
+        onDispose { if (reportsShown) viewModel.technicalInfoShown(false) }
     }
     LaunchedEffect(fromJs) {
         while (!fromJs) {
@@ -89,7 +97,7 @@ fun TechnicalInfoOverlay(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black.copy(alpha = 0.85f))
-            .padding(16.dp)
+            .padding(if (compact) 10.dp else 16.dp)
             .width(320.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -102,20 +110,22 @@ fun TechnicalInfoOverlay(
                     text = viewModel.strings.get("technicalInfo", "Technical Info"),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = if (compact) 13.sp else 15.sp
                 )
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(if (compact) 24.dp else 28.dp)
                 ) {
                     Icon(Icons.Default.Close, contentDescription = viewModel.strings.get("close", "Close"), tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.2f))
+            HorizontalDivider(modifier = Modifier.padding(vertical = if (compact) 4.dp else 8.dp), color = Color.White.copy(alpha = 0.2f))
 
             if (fromJs) {
-                viewModel.technicalLines.forEach { (label, value) -> TechInfoRow(label, value) }
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    viewModel.technicalLines.forEach { (label, value) -> TechInfoRow(label, value, compact) }
+                }
             } else {
                 TechInfoRow("Video Codec", techInfo["videoCodec"]?.toString() ?: "N/A")
                 val w = techInfo["videoWidth"]
@@ -146,14 +156,33 @@ fun TechnicalInfoOverlay(
 }
 
 @Composable
-private fun TechInfoRow(label: String, value: String) {
+private fun TechInfoRow(label: String, value: String, compact: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp),
+            .padding(vertical = if (compact) 1.dp else 3.dp),
+        // Short, the value stands against the right edge; long, it wraps kept apart from its label.
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-        Text(text = value, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+        // Compact, the line height follows the text: the theme's is 24 sp whatever the size.
+        val lineHeight = if (compact) 15.sp else TextUnit.Unspecified
+        // Over a narrow artwork, a long label wraps rather than leave its value a word per line.
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 12.sp,
+            lineHeight = lineHeight,
+            modifier = Modifier.weight(0.4f, fill = false),
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 12.sp,
+            lineHeight = lineHeight,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.6f).padding(start = 8.dp),
+        )
     }
 }
