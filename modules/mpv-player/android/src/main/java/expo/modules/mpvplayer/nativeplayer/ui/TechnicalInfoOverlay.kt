@@ -155,24 +155,31 @@ fun TechnicalInfoOverlay(
     }
 }
 
+/**
+ * How a line shares the panel's width, label then value. Compact, over a narrow artwork, by weight: a long label
+ * wraps rather than leave its value a word per line. Otherwise null: the local player's panel and the TV's keep the
+ * line they always had.
+ */
+internal fun techInfoRowWeights(compact: Boolean): Pair<Float, Float>? = if (compact) 0.4f to 0.6f else null
+
 @Composable
 private fun TechInfoRow(label: String, value: String, compact: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = if (compact) 1.dp else 3.dp),
-        // Short, the value stands against the right edge; long, it wraps kept apart from its label.
+        // Short, the value stands against the right edge; compact and long, it wraps kept apart from its label.
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         // Compact, the line height follows the text: the theme's is 24 sp whatever the size.
         val lineHeight = if (compact) 15.sp else TextUnit.Unspecified
-        // Over a narrow artwork, a long label wraps rather than leave its value a word per line.
+        val weights = techInfoRowWeights(compact)
         Text(
             text = label,
             color = Color.White.copy(alpha = 0.6f),
             fontSize = 12.sp,
             lineHeight = lineHeight,
-            modifier = Modifier.weight(0.4f, fill = false),
+            modifier = weights?.let { Modifier.weight(it.first, fill = false) } ?: Modifier,
         )
         Text(
             text = value,
@@ -181,8 +188,8 @@ private fun TechInfoRow(label: String, value: String, compact: Boolean = false) 
             lineHeight = lineHeight,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(0.6f).padding(start = 8.dp),
+            textAlign = if (weights != null) TextAlign.End else null,
+            modifier = weights?.let { Modifier.weight(it.second).padding(start = 8.dp) } ?: Modifier,
         )
     }
 }
