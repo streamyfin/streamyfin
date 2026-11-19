@@ -167,6 +167,21 @@ enum RemoteLayoutTests {
 		check(near(small.width, 284), "\(name): small phone \(small.width)")
 	}
 
+	// Couched, the band is what the top bar leaves as it is measured: at an accessibility size the TV button outgrows
+	// the 44 of the other buttons, and a fixed 44 pushed the image past its band (review of the 19/11). Before the
+	// first measure, the 44 of its buttons. Twin: couchedTheBandIsWhatTheMeasuredTopBarLeaves in RemoteLayoutTest.kt.
+	static func couchedTheBandIsWhatTheMeasuredTopBarLeaves() {
+		let name = "couchedTheBandIsWhatTheMeasuredTopBarLeaves"
+		let measured = RemoteMetrics.artworkBox(
+			layout: .landscape, width: 914, height: 363, fontScale: 2, aspectRatio: 2.0 / 3.0, topBarHeight: 60
+		)
+		check(measured.height == 271, "\(name): \(measured.height), not 363 - 60 - 2 x 16")
+		let unmeasured = RemoteMetrics.artworkBox(
+			layout: .landscape, width: 914, height: 363, fontScale: 2, aspectRatio: 2.0 / 3.0, topBarHeight: nil
+		)
+		check(unmeasured.height == 287, "\(name): \(unmeasured.height) before the first measure")
+	}
+
 	// Couched, the text stands beside the image, not above or below it: a larger font leaves the image as it is (the
 	// column scrolls instead). A shape that cannot be one is the square too.
 	static func couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone() {
@@ -219,6 +234,7 @@ enum RemoteLayoutTests {
 		theTransportGapGivesWayOnANarrowColumn()
 		couchedTheImageTakesItsShapeInTheLeftHalf()
 		couchedTheImageIgnoresTheFontScaleAndAShapeThatIsNone()
+		couchedTheBandIsWhatTheMeasuredTopBarLeaves()
 		uprightAndWideTheArtworkStaysASquare()
 		couchedTheTopBarsInkMeetsTheMargins()
 		aTintFromJsGivesTheScreenItsColors()

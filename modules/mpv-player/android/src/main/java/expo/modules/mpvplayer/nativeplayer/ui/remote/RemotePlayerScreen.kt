@@ -36,6 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +50,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -89,6 +93,8 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
     val bottom by animateColorAsState(Color(screen.colors.bottom), fade, label = "remoteTintBottom")
     val accent by animateColorAsState(Color(screen.colors.accent), fade, label = "remoteAccent")
     val columnScroll = rememberScrollState()
+    val density = LocalDensity.current
+    var topBarHeight by remember { mutableStateOf<Double?>(null) }
     // The technical info panel is drawn in the artwork's slot, which a rotation remounts: asked for here, the lines
     // JS writes of what the TV plays survive it.
     val technicalInfoShown = viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo
@@ -108,7 +114,8 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
             val height = maxHeight.value.toDouble()
             val layout = RemoteLayout.of(width, height)
             val fontScale = LocalDensity.current.fontScale.toDouble()
-            val artwork = RemoteMetrics.artworkBox(layout, width, height, fontScale, viewModel.metadata?.artworkAspectRatio)
+            val artwork = RemoteMetrics
+                .artworkBox(layout, width, height, fontScale, viewModel.metadata?.artworkAspectRatio, topBarHeight)
                 .let { DpSize(it.widthDp.dp, it.heightDp.dp) }
             val arrangement = RemoteArrangement.of(layout)
 
@@ -117,7 +124,11 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
                     .fillMaxSize()
                     .padding(horizontal = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp),
             ) {
-                if (arrangement.topBar.isNotEmpty()) RemoteTopBar(viewModel, targetName, model)
+                // Measured: the couched image takes the band under it, and its target button grows with the font.
+                if (arrangement.topBar.isNotEmpty()) {
+                    val measured = Modifier.onSizeChanged { topBarHeight = with(density) { it.height.toDp().value.toDouble() } }
+                    RemoteTopBar(viewModel, targetName, model, measured)
+                }
 
                 Row(
                     modifier = Modifier

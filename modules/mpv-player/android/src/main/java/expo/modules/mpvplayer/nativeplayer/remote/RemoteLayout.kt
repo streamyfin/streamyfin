@@ -47,13 +47,16 @@ enum class RemoteTopBarEnd {
  * as large as the left half and the band under the top bar leave it: the text stands beside it, and scrolls there.
  */
 object RemoteMetrics {
-    /** The height the rest of the screen takes above and below the artwork. */
-    fun chromeHeight(layout: RemoteLayout, fontScale: Double): Double = when (layout) {
+    /**
+     * The height the rest of the screen takes above and below the artwork. Couched, [topBarDp] is the top bar as
+     * measured: its target button grows with the font; before the first measure, the height of its buttons.
+     */
+    fun chromeHeight(layout: RemoteLayout, fontScale: Double, topBarDp: Double? = null): Double = when (layout) {
         RemoteLayout.PORTRAIT ->
             PlayerConstants.REMOTE_PORTRAIT_FIXED_DP + PlayerConstants.REMOTE_PORTRAIT_TEXT_DP * fontScale
         // The top bar, and the image's inset above and below in the band under it.
         RemoteLayout.LANDSCAPE ->
-            PlayerConstants.REMOTE_BUTTON_SMALL_DP + 2 * PlayerConstants.REMOTE_LANDSCAPE_ARTWORK_INSET_DP
+            (topBarDp ?: PlayerConstants.REMOTE_BUTTON_SMALL_DP) + 2 * PlayerConstants.REMOTE_LANDSCAPE_ARTWORK_INSET_DP
         // Beside the column, the artwork only keeps a margin above and below.
         RemoteLayout.WIDE -> 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP
     }
@@ -73,13 +76,21 @@ object RemoteMetrics {
 
     /**
      * The artwork's box. [aspectRatio] is the image's width over its height, as JS sends it (artworkAspectRatio);
-     * couched, an unknown or impossible one gives the square the artwork had before the screen knew shapes.
+     * couched, an unknown or impossible one gives the square the artwork had before the screen knew shapes, and
+     * [topBarDp] is the measured top bar (see [chromeHeight]).
      */
-    fun artworkBox(layout: RemoteLayout, widthDp: Double, heightDp: Double, fontScale: Double, aspectRatio: Double?): RemoteBox {
+    fun artworkBox(
+        layout: RemoteLayout,
+        widthDp: Double,
+        heightDp: Double,
+        fontScale: Double,
+        aspectRatio: Double?,
+        topBarDp: Double? = null,
+    ): RemoteBox {
         if (layout != RemoteLayout.LANDSCAPE) return artworkHeight(layout, widthDp, heightDp, fontScale).let { RemoteBox(it, it) }
         val ratio = aspectRatio?.takeIf { it.isFinite() && it > 0 } ?: 1.0
         val maxWidth = besideWidth(layout, widthDp) ?: 0.0
-        val maxHeight = (heightDp - chromeHeight(layout, fontScale)).coerceAtLeast(0.0)
+        val maxHeight = (heightDp - chromeHeight(layout, fontScale, topBarDp)).coerceAtLeast(0.0)
         // Wider than the room's shape, the width binds; otherwise the height does.
         return if (maxHeight * ratio > maxWidth) RemoteBox(maxWidth, maxWidth / ratio) else RemoteBox(maxHeight * ratio, maxHeight)
     }

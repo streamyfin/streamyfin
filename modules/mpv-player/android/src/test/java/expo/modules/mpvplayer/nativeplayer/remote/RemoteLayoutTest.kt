@@ -145,6 +145,16 @@ class RemoteLayoutTest {
         assertEquals(284.0, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 640.0, 360.0, 1.0, 16.0 / 9.0).widthDp, 1e-9)
     }
 
+    // Couched, the band is what the top bar leaves as it is measured: at an accessibility font the target button
+    // outgrows the 44 of the other buttons, and a fixed 44 pushed the image past its band (review of the 19/11).
+    // Before the first measure, the 44 of its buttons.
+    @Test
+    fun couchedTheBandIsWhatTheMeasuredTopBarLeaves() {
+        val poster = 2.0 / 3.0
+        assertEquals(271.0, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 2.0, poster, 60.0).heightDp, 1e-9)
+        assertEquals(287.0, RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 2.0, poster, null).heightDp, 1e-9)
+    }
+
     // Couched, the text stands beside the image, not above or below it: a larger font leaves the image as it is
     // (the column scrolls instead). A shape that cannot be one is the square too.
     @Test

@@ -9,6 +9,8 @@ struct RemotePlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var screen: RemoteScreenState
 	@Environment(\.dynamicTypeSize) private var dynamicTypeSize
+	/// Measured: the couched image takes the band under it, and its TV button grows with the text size.
+	@State private var topBarHeight: Double?
 
 	private static let slotGap: CGFloat = 16
 	private static let padding = CGFloat(PlayerConstants.remoteHorizontalPadding)
@@ -33,7 +35,7 @@ struct RemotePlayerRootView: View {
 			let layout = RemoteLayout.of(width: width, height: height)
 			let box = RemoteMetrics.artworkBox(
 				layout: layout, width: width, height: height, fontScale: fontScale,
-				aspectRatio: viewModel.metadata?.artworkAspectRatio
+				aspectRatio: viewModel.metadata?.artworkAspectRatio, topBarHeight: topBarHeight
 			)
 			let artwork = CGSize(width: box.width, height: box.height)
 			let beside = RemoteMetrics.besideWidth(layout: layout, width: width).map { CGFloat($0) }
@@ -45,6 +47,11 @@ struct RemotePlayerRootView: View {
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
 					RemoteTopBar(viewModel: viewModel, targetName: targetName, model: model)
+						.background {
+							GeometryReader { bar in
+								Color.clear.preference(key: RemoteTopBarHeightKey.self, value: bar.size.height)
+							}
+						}
 				}
 
 				HStack(spacing: 0) {
@@ -80,6 +87,7 @@ struct RemotePlayerRootView: View {
 			}
 			.padding(.horizontal, Self.padding)
 		}
+		.onPreferenceChange(RemoteTopBarHeightKey.self) { topBarHeight = $0 > 0 ? Double($0) : nil }
 		// Over the top bar, not in the stack: showing it moves nothing.
 		.overlay(alignment: .top) { RemoteVolumeIndicatorView(indicator: screen.volumeIndicator) }
 		// The technical info panel is drawn in the artwork's slot, which a rotation moves: asked for here, the lines JS
@@ -239,6 +247,15 @@ struct RemotePlayerRootView: View {
 }
 /// The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the
 /// label, its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
+/// The couched top bar's height, as laid out; 0 when there is none.
+private struct RemoteTopBarHeightKey: PreferenceKey {
+	static let defaultValue: CGFloat = 0
+
+	static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+		value = max(value, nextValue())
+	}
+}
+
 private struct RemoteNextUpCard: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let next: NextEpisodeRecord
