@@ -62,7 +62,7 @@ jobs:
 
       - name: ☕ Set up JDK 17
         # Same pin as build-apps.yml: the default JDK of ubuntu-26.04 breaks the RN/AGP build.
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: "17"
@@ -103,7 +103,7 @@ jobs:
 
       - name: 📤 Upload test reports
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-unit-test-reports
           # The module projects build under modules/<name>/android, not under android/.

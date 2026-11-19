@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
@@ -31,6 +31,8 @@ const mockNative = {
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
+  /** load rejects with the player still up, as a native throw mid-swap does. */
+  refuseLoad: false,
   emit<K extends keyof NativePlayerEvents>(
     event: K,
     payload: Parameters<NativePlayerEvents[K]>[0],
@@ -67,6 +69,7 @@ jest.mock("@/modules/mpv-player", () => {
     },
     loadNativePlayerStream: async (config: MockConfig) => {
       mockNative.loaded.push(config.stream.url);
+      if (mockNative.refuseLoad) throw new Error("load failed");
       if (!mockNative.session) {
         throw new Error(
           "NoActivePlayerException: No native player is currently presented",
@@ -117,6 +120,11 @@ const mockNegotiation = {
   }>,
   /** Each stream negotiated from now on opens a live stream on the server. */
   live: false,
+  /**
+   * The id every live negotiation gets, as Jellyfin answers for a shared
+   * channel; unset, each negotiation gets its own.
+   */
+  sharedLiveStreamId: null as string | null,
   /** The file's bitrate the negotiated streams carry, when a spec sets one. */
   bitrate: undefined as number | undefined,
   /** Items whose stream negotiation fails. */
@@ -171,7 +179,8 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
           mediaSource: {
             Id: `source-${req.itemId}`,
             ...(mockNegotiation.live && {
-              LiveStreamId: `live-${playSessionId}`,
+              LiveStreamId:
+                mockNegotiation.sharedLiveStreamId ?? `live-${playSessionId}`,
             }),
             ...(mockNegotiation.bitrate && {
               Bitrate: mockNegotiation.bitrate,
@@ -204,9 +213,15 @@ const mockNextEpisode = {
   ParentIndexNumber: 1,
   IndexNumber: 2,
 };
+/** While set, remote progress reports wait in it until the test answers. */
+const mockRemoteProgress = { held: null as Array<() => void> | null };
 const mockPlayback = {
   saveLocalPlaybackProgress: () => undefined,
-  reportRemotePlaybackProgress: async () => undefined,
+  reportRemotePlaybackProgress: async () => {
+    const held = mockRemoteProgress.held;
+    if (held) await new Promise<void>((resolve) => held.push(resolve));
+    return undefined;
+  },
   nextItem: mockNextEpisode,
   previousItem: null,
 };
@@ -278,6 +293,11 @@ jest.mock("@/providers/WebSocketProvider", () => ({
 }));
 jest.mock("@/hooks/useOrientation", () => ({
   useOrientation: () => mockOrientation,
+}));
+// A close retried after no answer waits before going out again; not here.
+jest.mock("@/constants/Playback", () => ({
+  ...jest.requireActual("@/constants/Playback"),
+  LIVE_STREAM_CLOSE_RETRY_DELAY_MS: 0,
 }));
 jest.mock("@/hooks/usePlaybackManager", () => ({
   usePlaybackManager: () => mockPlayback,
@@ -479,11 +499,14 @@ beforeEach(() => {
   mockNative.loaded = [];
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
+  mockNative.refuseLoad = false;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
   mockNegotiation.count = 0;
   mockNegotiation.params = [];
   mockNegotiation.live = false;
+  mockNegotiation.sharedLiveStreamId = null;
+  mockRemoteProgress.held = null;
   mockNegotiation.bitrate = undefined;
   mockNegotiation.failing.clear();
   api.mock.reset();
@@ -1496,5 +1519,216 @@ describe("the next episode's subtitle warm", () => {
     await settle();
 
     expect(warmUpcomingSubtitles).toHaveBeenCalledTimes(2);
+  });
+});
+
+// The server shares a channel's stream between everyone watching it, counts
+// one reference per negotiation, and closes the stream when the count reaches
+// zero: a session that gives its reference back twice cuts the stream from
+// under the others, another device on the channel or the swap's new stream.
+describe("a Live TV stream", () => {
+  /**
+   * Each request that gives a live stream reference back: a close, and a stop
+   * report that names the stream, which Jellyfin closes as well when no
+   * session reported watching it.
+   */
+  const liveStreamReleases = () =>
+    api.mock.history.post.flatMap((request) => {
+      const url = request.url ?? "";
+      const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+      if (close) return [close[1]];
+      if (url !== "https://jellyfin.example.com/Sessions/Playing/Stopped") {
+        return [];
+      }
+      const named = JSON.parse(request.data).LiveStreamId;
+      return named ? [named] : [];
+    });
+
+  test("is given back once when the player closes", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(serverReports()).toEqual([
+      "start play-session-1",
+      "stop play-session-1",
+    ]);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  test("is given back once when a track or bitrate change swaps it", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 60,
+      }),
+    );
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(liveStreamReleases()).toEqual(["live-play-session-1"]);
+  });
+
+  /** Holds every stop report until the returned release is called. */
+  const holdStopReports = () => {
+    const pending: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            pending.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    return async () => {
+      await act(async () => {
+        for (const release of pending.splice(0)) release();
+      });
+      await settle();
+    };
+  };
+
+  const pickQuality = async (bitrateValue: number) => {
+    await act(async () =>
+      mockNative.emit("onQualitySelected", { bitrateValue, positionSec: 60 }),
+    );
+    await settle();
+  };
+
+  // The second pick swaps the channel out while the first still waits for
+  // the stop report of the stream both of them replace.
+  test("is given back once when a second quality pick lands during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await pickQuality(2_000_000);
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([
+      expect.stringContaining("PlaySessionId=play-session-3"),
+    ]);
+    // The first pick's stream never played; the second pick's plays on.
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when the player closes during a swap", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    const releaseStops = holdStopReports();
+
+    await pickQuality(4_000_000);
+    await startClosing();
+    finishClosing();
+    await releaseStops();
+
+    expect(mockNative.loaded).toEqual([]);
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  test("is given back once when a failed swap closes the player", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    mockNative.refuseLoad = true;
+
+    await pickQuality(4_000_000);
+
+    expect(mockNative.session).toBeNull();
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  // A shared channel keeps one LiveStreamId across negotiations, and the
+  // server counts each of them: a release deduplicated on the id instead of
+  // the session would give the swap's stream back once for two negotiations.
+  test("is given back once per negotiation when they all share one stream", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    mockNegotiation.sharedLiveStreamId = "live-shared";
+    await open("item-1");
+
+    await pickQuality(4_000_000);
+    await act(async () =>
+      mockNative.emit("onLoad", { url: mockNative.loaded[0] }),
+    );
+    await startClosing();
+    finishClosing();
+    await settle();
+
+    expect(liveStreamReleases()).toEqual(["live-shared", "live-shared"]);
+  });
+
+  // The server takes the reference off before it can fail: a 500 comes from
+  // closing the stream once the count has dropped. The teardown of a restored
+  // swap releases the same session again, and a second close would take the
+  // reference of another device on the channel.
+  test("is not given back again once the server answered its close", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    api.mock.resetHandlers();
+    api.mock.onPost(/\/LiveStreams\/Close/).replyOnce(500);
+    api.mock.onAny().reply(200, {});
+    // The teardown sends its final progress before it releases: a round trip
+    // that, in the app, comes back after the failed close did.
+    const finalProgress: Array<() => void> = [];
+    mockRemoteProgress.held = finalProgress;
+    mockNative.refuseLoad = true;
+
+    await pickQuality(4_000_000);
+    expect(finalProgress).toHaveLength(1);
+    await act(async () => {
+      for (const answer of finalProgress.splice(0)) answer();
+    });
+    await settle();
+
+    expect(mockNative.session).toBeNull();
+    expect(liveStreamReleases().sort()).toEqual([
+      "live-play-session-1",
+      "live-play-session-2",
+    ]);
+  });
+
+  // No answer: the close most likely never reached the server, and nothing
+  // else gives the reference back.
+  test("is tried again when its close got no answer", async () => {
+    await mount();
+    mockNegotiation.live = true;
+    await open("item-1");
+    api.mock.resetHandlers();
+    api.mock.onPost(/\/LiveStreams\/Close/).networkErrorOnce();
+    api.mock.onAny().reply(200, {});
+
+    await startClosing();
+    finishClosing();
+    // The retry goes out after a timer, which settle() does not wait for.
+    await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+    expect(liveStreamReleases()).toEqual([
+      "live-play-session-1",
+      "live-play-session-1",
+    ]);
   });
 });
