@@ -472,6 +472,21 @@ class RemotePlayerSessionTest {
         assertTrue(session.screenState!!.model.transportEnabled)
     }
 
+    // Each config JS sends says whether the TV plays media our server does not know (PR 6): a full one after a
+    // reduced one brings the menus back, and the other way round.
+    @Test
+    fun aReducedConfigReducesTheScreenAndAFullOneRestoresIt() {
+        val session = presented(configure = { it.reduced = true })
+        assertFalse(session.screenState!!.model.showsTrackMenus)
+        assertFalse(session.screenState!!.model.showsPreviousNext)
+
+        assertTrue(session.update(RemotePlayerConfigRecord().also { it.targetName = "Bench TV" }))
+        assertTrue(session.screenState!!.model.showsTrackMenus)
+
+        assertTrue(session.update(RemotePlayerConfigRecord().also { it.reduced = true }))
+        assertFalse(session.screenState!!.model.showsEpisodes)
+    }
+
     @Test
     fun theScreenSaysWhenTheSessionIsComingBack() {
         val session = presented()

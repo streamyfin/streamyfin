@@ -16,6 +16,9 @@ data class CastMediaSnapshot(
     val customData: JSONObject?,
     val streamDurationMs: Long,
     val hasTextTracks: Boolean,
+    /** The Cast metadata's title and first image: all another app's media says of itself. */
+    val title: String?,
+    val imageUrl: String?,
 )
 
 interface CastMediaListener {

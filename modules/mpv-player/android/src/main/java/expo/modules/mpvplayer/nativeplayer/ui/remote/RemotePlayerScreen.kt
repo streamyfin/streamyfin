@@ -103,7 +103,7 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
                     .fillMaxSize()
                     .padding(horizontal = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp),
             ) {
-                if (arrangement.topBar.isNotEmpty()) RemoteTopBar(viewModel, targetName, model.trackMenusEnabled)
+                if (arrangement.topBar.isNotEmpty()) RemoteTopBar(viewModel, targetName, model)
 
                 Row(
                     modifier = Modifier
@@ -162,7 +162,7 @@ private fun targetLabel(viewModel: PlayerViewModel, model: RemoteScreenModel): S
 private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScreenState, model: RemoteScreenModel, layout: RemoteLayout, artwork: Dp) {
     val targetName = targetLabel(viewModel, model)
     when (slot) {
-        RemoteSlot.HEADER -> RemoteHeader(viewModel)
+        RemoteSlot.HEADER -> RemoteHeader(viewModel, model)
         RemoteSlot.ARTWORK -> Box(contentAlignment = Alignment.Center, modifier = if (layout == RemoteLayout.PORTRAIT) Modifier.fillMaxWidth() else Modifier) {
             Box {
                 // The artwork's double tap seeks like the bar, so it rests when the bar does.
@@ -197,10 +197,11 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                 layout,
                 spinner = model.playShowsSpinner,
                 enabled = model.transportEnabled,
+                showsPreviousNext = model.showsPreviousNext,
                 modifier = Modifier.inert(!model.transportEnabled),
             )
         }
-        RemoteSlot.BOTTOM_ROW -> RemoteBottomRow(viewModel, targetName, model.trackMenusEnabled)
+        RemoteSlot.BOTTOM_ROW -> RemoteBottomRow(viewModel, targetName, model)
     }
 }
 

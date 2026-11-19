@@ -27,7 +27,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The fake TV, with every call that could reach a real one written down. */
-private class RecordingRemoteEngine(private val inner: FakeRemoteEngine) : RemoteEngine by inner {
+private class RecordingRemoteEngine(val inner: FakeRemoteEngine) : RemoteEngine by inner {
     val calls = mutableListOf<String>()
 
     override fun start(owner: PlayerEngine.Owner, onStarted: () -> Unit) {
@@ -161,6 +161,23 @@ class RemotePlaybackTest {
         assertEquals(1, screen.readyToSeek)
         tick(1)
         assertEquals(4.0, screen.positions.last(), 0.0)
+    }
+
+    // Media another sender loaded: the snapshot says so, with what its Cast metadata names (PR 6).
+    @Test
+    fun theSnapshotNamesForeignMediaWithItsTitleAndImage() {
+        connected()
+        assertFalse(published.last().foreign)
+        made.last().inner.simulateForeignMedia("Big Buck Bunny", "https://other.example.test/bbb.jpg")
+        val state = published.last()
+        assertTrue(state.foreign)
+        assertNull(state.itemId)
+        assertEquals("Big Buck Bunny", state.title)
+        assertEquals("https://other.example.test/bbb.jpg", state.imageUrl)
+        val map = state.toMap()
+        assertEquals(true, map["foreign"])
+        assertEquals("Big Buck Bunny", map["title"])
+        assertEquals("https://other.example.test/bbb.jpg", map["imageUrl"])
     }
 
     @Test

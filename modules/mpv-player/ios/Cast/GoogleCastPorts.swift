@@ -218,7 +218,9 @@ final class GoogleCastMediaPort: NSObject, CastMediaPort, GCKRemoteMediaClientLi
       customData: info?.customData as? [String: Any],
       // Live media has an infinite duration.
       streamDuration: duration.isFinite ? duration : 0,
-      hasTextTracks: CastMapping.hasTextTracks(info?.mediaTracks?.map { $0.type.rawValue } ?? [])
+      hasTextTracks: CastMapping.hasTextTracks(info?.mediaTracks?.map { $0.type.rawValue } ?? []),
+      title: info?.metadata?.string(forKey: kGCKMetadataKeyTitle),
+      imageUrl: (info?.metadata?.images().first as? GCKImage)?.url.absoluteString
     )
   }
 

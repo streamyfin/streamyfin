@@ -275,6 +275,8 @@ struct RemotePlayerConfigRecord: Record {
 	@Field var tint: RemoteTintRecord?
 	/// Custom proxy auth headers for the server's images (artwork, episode list).
 	@Field var imageHeaders: [String: String]?
+	/// The TV plays media our server does not know: the reduced player (RemoteScreenModel).
+	@Field var reduced: Bool = false
 
 	/// The config the chrome's view model takes, with an empty stream it never loads.
 	func toPresentConfig() -> PlayerPresentConfigRecord {

@@ -57,6 +57,8 @@ class CastEngine(
     // for media another sender loaded, which carries no customData.
     @Volatile private var ours: ReceiverCustomData? = null
     @Volatile private var hasMedia = false
+    @Volatile private var title: String? = null
+    @Volatile private var imageUrl: String? = null
     @Volatile private var playerState = UNKNOWN
     @Volatile private var position = 0.0
     @Volatile private var itemDuration = 0.0
@@ -160,6 +162,9 @@ class CastEngine(
         val playingIndex: Int,
         val audio: Int,
         val subtitle: Int,
+        val foreign: Boolean,
+        val title: String?,
+        val imageUrl: String?,
     )
 
     private val busListener = object : ReceiverBusListener {
@@ -595,6 +600,13 @@ class CastEngine(
     override val currentItemId: String?
         get() = ours?.itemId
 
+    override val foreign: Boolean
+        get() = hasMedia && ours?.itemId == null
+    override val mediaTitle: String?
+        get() = title
+    override val mediaImageUrl: String?
+        get() = imageUrl
+
     // Read on the main thread, where the callbacks that change these run.
     override val phase: RemotePhase
         get() = ReceiverProtocol.phase(
@@ -704,6 +716,8 @@ class CastEngine(
         }
         ours = data
         hasMedia = true
+        title = status.title
+        imageUrl = status.imageUrl
         itemDuration = durationOf(data, status.streamDurationMs)
         updateTracks()
         if (!holdsPosition(status.playerState)) {
@@ -772,6 +786,8 @@ class CastEngine(
     private fun clearMedia(state: String) {
         hasMedia = false
         ours = null
+        title = null
+        imageUrl = null
         playerState = state
         playSessionId = null
         chosenAudio = null
@@ -968,7 +984,7 @@ class CastEngine(
     }
 
     private fun notifyState() {
-        val state = HeardState(phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle)
+        val state = HeardState(phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle, foreign, title, imageUrl)
         if (state == heardState) return
         heardState = state
         onStateChanged?.invoke()

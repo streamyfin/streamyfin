@@ -235,8 +235,13 @@ protocol RemoteEngine: TransportEngine, QueueEngine {
 	/// The list the engine cast, and where in it the TV plays, -1 when nowhere in it.
 	var queueItemIds: [String] { get }
 	var playingIndex: Int { get }
+	/// The TV holds media without our receiver's item id: another app or sender loaded it.
+	var foreign: Bool { get }
+	/// The Cast metadata's title and first image of what the TV holds, whoever loaded it; nil without media.
+	var mediaTitle: String? { get }
+	var mediaImageUrl: String? { get }
 	/// Called on the main thread when anything but the position changed: phase, item, list, index, a track,
-	/// `reconnecting`.
+	/// `reconnecting`, the media's title or image.
 	var onStateChanged: (() -> Void)? { get set }
 	/// The account's server for the commands that follow, sending nothing now. It names no cap (Auto is measured
 	/// at a send): the cap stays the one the last load or reload named.

@@ -86,7 +86,7 @@ class RemotePlayerSession(
         // The TV button says the session's state to TalkBack; willTeardown stops following it.
         viewModel.followCast(hub)
 
-        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere, ::continueNextUp)
+        val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere, ::continueNextUp, config.reduced)
         // The screen composes as it is attached: it starts from the TV's state rather than from nothing, which a
         // later frame would have to correct (the controls of a reconnecting TV said enabled until then).
         model.snapshot = playback.snapshot
@@ -156,10 +156,10 @@ class RemotePlayerSession(
         val state = screenState ?: return false
         if (closed) return false
         viewModel.apply(config.toPresentConfig())
-        state.replace(config.targetName, config.imageHeaders, config.tint)
+        state.replace(config.targetName, config.imageHeaders, config.tint, config.reduced)
         // Another item: an end the TV reports before it holds it is the item before's. The item the TV plays
         // already (JS followed it through its list) ends this screen.
-        state.sawPlayback = RemoteScreenModel.sawPlaybackOnUpdate(config.metadata?.itemId, state.snapshot)
+        state.sawPlayback = RemoteScreenModel.sawPlaybackOnUpdate(config.metadata?.itemId, state.snapshot, config.reduced)
         clearFailure()
         // apply() starts the view model at the config's position: the TV's state again, as present() does.
         playback.attachScreen(viewModel)
@@ -271,8 +271,13 @@ class RemoteScreenState(
     private val viewModel: PlayerViewModel,
     private val onPlayHere: () -> Unit = {},
     private val onContinueNextUp: () -> Unit = {},
+    reduced: Boolean = false,
 ) {
     var targetName by mutableStateOf(targetName)
+        private set
+
+    /** The TV plays media our server does not know: the reduced player. */
+    var reduced by mutableStateOf(reduced)
         private set
 
     var imageHeaders by mutableStateOf(imageHeaders)
@@ -294,15 +299,15 @@ class RemoteScreenState(
         internal set
 
     /**
-     * What the screen shows of the TV. Read in composition, it follows the snapshot, the next episode and the
-     * engine's error. The reduced player (media our server does not know) comes with the foreign media.
+     * What the screen shows of the TV. Read in composition, it follows the snapshot, the next episode, the engine's
+     * error and the config's [reduced].
      */
     val model: RemoteScreenModel
         get() = RemoteScreenModel.of(
             snapshot,
             targetName,
             hasNext = viewModel.nextEpisode != null,
-            reduced = false,
+            reduced = reduced,
             failure = failure?.message ?: viewModel.errorMessage,
             canPlayHere = failure?.canPlayHere == true,
             sawPlayback = sawPlayback,
@@ -313,9 +318,10 @@ class RemoteScreenState(
     }
 
     /** The parts of a new config the screen draws itself. */
-    fun replace(targetName: String?, imageHeaders: Map<String, String>?, tint: RemoteTintRecord?) {
+    fun replace(targetName: String?, imageHeaders: Map<String, String>?, tint: RemoteTintRecord?, reduced: Boolean) {
         this.targetName = targetName
         this.imageHeaders = imageHeaders
+        this.reduced = reduced
         colors = colorsOf(tint)
     }
 

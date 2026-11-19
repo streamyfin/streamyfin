@@ -25,6 +25,9 @@ final class RecordingRemoteEngine: RemoteEngine {
 	var reconnecting: Bool { inner.reconnecting }
 	var queueItemIds: [String] { inner.queueItemIds }
 	var playingIndex: Int { inner.playingIndex }
+	var foreign: Bool { inner.foreign }
+	var mediaTitle: String? { inner.mediaTitle }
+	var mediaImageUrl: String? { inner.mediaImageUrl }
 	var currentItemId: String? { inner.currentItemId }
 	var targetVolume: Double? { inner.targetVolume }
 	var intendedPlayState: Bool { inner.intendedPlayState }
@@ -278,6 +281,23 @@ enum RemotePlaybackTests {
 				&& bench.screen.positions == [3] && bench.screen.readyToSeek == 1
 			bench.clock.advance(1_000)
 			check("anAttachedScreenIsBroughtUpToDateAtOnce", caughtUp && bench.screen.positions.last == 4)
+		}
+
+		// Media another sender loaded: the snapshot says so, with what its Cast metadata names (PR 6).
+		do {
+			let bench = Bench()
+			bench.connected()
+			let before = bench.published.last?.foreign == false
+			bench.made.last?.inner.simulateForeignMedia(title: "Big Buck Bunny", imageUrl: "https://other.example.test/bbb.jpg")
+			let state = bench.published.last
+			let map = state?.toDictionary()
+			check(
+				"theSnapshotNamesForeignMediaWithItsTitleAndImage",
+				before && state?.foreign == true && state?.itemId == nil && state?.title == "Big Buck Bunny"
+					&& state?.imageUrl == "https://other.example.test/bbb.jpg" && map?["foreign"] as? Bool == true
+					&& map?["title"] as? String == "Big Buck Bunny"
+					&& map?["imageUrl"] as? String == "https://other.example.test/bbb.jpg"
+			)
 		}
 
 		do {

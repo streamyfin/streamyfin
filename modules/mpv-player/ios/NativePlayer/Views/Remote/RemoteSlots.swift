@@ -31,12 +31,13 @@ private let remoteButton = CGFloat(PlayerConstants.remoteButtonSmall)
 /// Header: the chevron that closes the screen without stopping the TV, and the "more" menu.
 struct RemoteHeader: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	let model: RemoteScreenModel
 
 	var body: some View {
 		HStack(spacing: 0) {
 			RemoteChevron(viewModel: viewModel)
 			Spacer(minLength: 0)
-			RemoteMoreButton(viewModel: viewModel)
+			if model.showsMoreMenu { RemoteMoreButton(viewModel: viewModel) }
 		}
 	}
 }
@@ -114,10 +115,12 @@ struct RemoteTransportRow: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let layout: RemoteLayout
 	let spinner: Bool
+	let showsPreviousNext: Bool
 
 	var body: some View {
 		PlayerCenterControls(
-			viewModel: viewModel, time: viewModel.time, style: TransportStyle(RemoteTransport.of(layout)), showsSpinner: spinner
+			viewModel: viewModel, time: viewModel.time, style: TransportStyle(RemoteTransport.of(layout)), showsSpinner: spinner,
+			showsPreviousNext: showsPreviousNext
 		)
 	}
 }
@@ -134,13 +137,13 @@ extension View {
 struct RemoteBottomRow: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
-	let tracksEnabled: Bool
+	let model: RemoteScreenModel
 
 	var body: some View {
 		HStack(spacing: 0) {
 			RemoteTargetButton(viewModel: viewModel, targetName: targetName)
 			Spacer(minLength: 0)
-			RemoteTrackButtons(viewModel: viewModel, tracksEnabled: tracksEnabled)
+			RemoteTrackButtons(viewModel: viewModel, model: model)
 		}
 	}
 }
@@ -149,7 +152,7 @@ struct RemoteBottomRow: View {
 struct RemoteTopBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
-	let tracksEnabled: Bool
+	let model: RemoteScreenModel
 
 	var body: some View {
 		HStack(spacing: 0) {
@@ -158,8 +161,8 @@ struct RemoteTopBar: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, 8)
 			RemoteTargetButton(viewModel: viewModel, targetName: targetName)
-			RemoteTrackButtons(viewModel: viewModel, tracksEnabled: tracksEnabled)
-			RemoteMoreButton(viewModel: viewModel)
+			RemoteTrackButtons(viewModel: viewModel, model: model)
+			if model.showsMoreMenu { RemoteMoreButton(viewModel: viewModel) }
 		}
 	}
 }
@@ -246,12 +249,15 @@ private struct RemoteTargetButton: View {
 /// Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on.
 /// Episodes, audio and subtitles, each when it has something to offer. Audio and subtitles rest while nothing is
 /// loaded on the TV: a track change would have nothing to act on.
+/// Episodes, audio and subtitles, each when it has something to offer and the player is not reduced.
 private struct RemoteTrackButtons: View {
 	@ObservedObject var viewModel: PlayerViewModel
-	let tracksEnabled: Bool
+	let model: RemoteScreenModel
+
+	private var tracksEnabled: Bool { model.trackMenusEnabled }
 
 	var body: some View {
-		if !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
+		if model.showsEpisodes && !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
 			Button {
 				viewModel.showEpisodeList = true
 			} label: {
@@ -259,12 +265,12 @@ private struct RemoteTrackButtons: View {
 			}
 			.accessibilityLabel(viewModel.str("episodes", "Episodes"))
 		}
-		if !viewModel.audioMenu.isEmpty {
+		if model.showsTrackMenus && !viewModel.audioMenu.isEmpty {
 			AudioMenu(viewModel: viewModel) { ActiveIcon(systemName: "waveform", active: false) }
 				.accessibilityLabel(viewModel.str("audio", "Audio"))
 				.remoteInert(!tracksEnabled)
 		}
-		if !viewModel.subtitleMenu.isEmpty {
+		if model.showsTrackMenus && !viewModel.subtitleMenu.isEmpty {
 			let on = RemoteActive.subtitlesOn(selectedIndex: viewModel.subtitleMenu.first(where: { $0.selected })?.jellyfinIndex)
 			SubtitleMenu(viewModel: viewModel) { ActiveIcon(systemName: "captions.bubble", active: on) }
 				.accessibilityLabel(viewModel.str("subtitles", "Subtitles"))

@@ -34,7 +34,7 @@ struct RemotePlayerRootView: View {
 
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
-					RemoteTopBar(viewModel: viewModel, targetName: targetName, tracksEnabled: model.trackMenusEnabled)
+					RemoteTopBar(viewModel: viewModel, targetName: targetName, model: model)
 				}
 
 				HStack(spacing: 0) {
@@ -95,7 +95,7 @@ struct RemotePlayerRootView: View {
 	private func slot(_ slot: RemoteSlot, layout: RemoteLayout, artwork: CGFloat) -> some View {
 		switch slot {
 		case .header:
-			RemoteHeader(viewModel: viewModel)
+			RemoteHeader(viewModel: viewModel, model: model)
 		case .artwork:
 			// The artwork's double tap seeks like the bar, so it rests when the bar does.
 			RemoteArtwork(viewModel: viewModel, size: artwork)
@@ -123,11 +123,13 @@ struct RemotePlayerRootView: View {
 					.remoteInert(!model.seekEnabled)
 			}
 		case .transport:
-			RemoteTransportRow(viewModel: viewModel, layout: layout, spinner: model.playShowsSpinner)
+			RemoteTransportRow(
+				viewModel: viewModel, layout: layout, spinner: model.playShowsSpinner, showsPreviousNext: model.showsPreviousNext
+			)
 				.remoteInert(!model.transportEnabled)
 				.frame(maxWidth: .infinity)
 		case .bottomRow:
-			RemoteBottomRow(viewModel: viewModel, targetName: targetName, tracksEnabled: model.trackMenusEnabled)
+			RemoteBottomRow(viewModel: viewModel, targetName: targetName, model: model)
 		}
 	}
 

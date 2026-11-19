@@ -112,6 +112,21 @@ enum RemoteScreenModelTests {
 		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: tv(.playing)), "onUpdate: no item")
 	}
 
+	// A reduced config is built from what the TV holds now and carries no item id: playing, its end is this screen's.
+	static func aReducedConfigHasSeenWhatTheTvPlays() {
+		var foreign = tv(.playing)
+		foreign.itemId = nil
+		foreign.foreign = true
+		var ended = foreign
+		ended.phase = .ended
+		var loading = foreign
+		loading.phase = .loading
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: foreign, reduced: true), "reduced: playing")
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: tv(.paused), reduced: true), "reduced: paused")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: ended, reduced: true), "reduced: ended")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: loading, reduced: true), "reduced: loading")
+	}
+
 	static func aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
 		let screen = model(tv(.stopped))
 		check(screen.closes == nil, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: closes")
@@ -144,6 +159,37 @@ enum RemoteScreenModelTests {
 		check(!screen.trackMenusEnabled, "aReducedPlayerHasNoTrackMenus: track menus")
 		check(screen.seekEnabled, "aReducedPlayerHasNoTrackMenus: seek")
 		check(screen.transportEnabled, "aReducedPlayerHasNoTrackMenus: transport")
+	}
+
+	// Media our server does not know (PR 6): the title, the artwork, play, pause, both skips, the bar, the TV and the
+	// volume; nothing that needs the item from the server, so no menu, no list, no next episode and no Play here.
+	static func aReducedPlayerShowsOnlyTransportBarAndVolume() {
+		let name = "aReducedPlayerShowsOnlyTransportBarAndVolume"
+		let screen = model(tv(.playing), hasNext: true, reduced: true, failure: "Could not play there", canPlayHere: true)
+		check(!screen.showsEpisodes, "\(name): episodes")
+		check(!screen.showsTrackMenus, "\(name): track menus")
+		check(!screen.showsMoreMenu, "\(name): more")
+		check(!screen.showsPreviousNext, "\(name): previous and next")
+		check(!screen.canPlayHere, "\(name): play here")
+		check(screen.transportEnabled && screen.seekEnabled, "\(name): transport and bar")
+		check(screen.targetLabel == .name("Bench TV"), "\(name): TV")
+		// Its end offers nothing after it and closes the screen.
+		let ended = model(tv(.ended), hasNext: true, reduced: true)
+		check(!ended.nextUpVisible && ended.closes == .playbackEnded, "\(name): end")
+	}
+
+	static func aFullPlayerShowsEverything() {
+		let name = "aFullPlayerShowsEverything"
+		for snapshot in [tv(.playing), tv(.loading), tv(.playing, reconnecting: true)] {
+			let screen = model(snapshot)
+			// A TV that loads or reconnects rests the controls; it never takes them away.
+			check(
+				screen.showsEpisodes && screen.showsTrackMenus && screen.showsMoreMenu && screen.showsPreviousNext,
+				"\(name): \(snapshot.phase)"
+			)
+		}
+		check(model(tv(.stopped), failure: "Could not play there", canPlayHere: true).canPlayHere, "\(name): play here")
+		check(model(tv(.ended), hasNext: true).nextUpVisible, "\(name): next up")
 	}
 
 	// Play here goes with a failure that offers it, never alone.
@@ -184,10 +230,13 @@ enum RemoteScreenModelTests {
 		anEndTheScreenNeverSawPlayKeepsItOpen()
 		theScreenSeesPlaybackOnceTheTvHoldsTheItem()
 		aNewConfigForTheItemTheTvPlaysHasSeenItPlay()
+		aReducedConfigHasSeenWhatTheTvPlays()
 		aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume()
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()
 		aReducedPlayerHasNoTrackMenus()
+		aFullPlayerShowsEverything()
+		aReducedPlayerShowsOnlyTransportBarAndVolume()
 		aFailureOffersPlayHereOnlyWhenItSaysSo()
 		aFailureClearsWhenTheTvLoadsOrPlaysAgain()
 		theReasonsAreTheJsOnes()

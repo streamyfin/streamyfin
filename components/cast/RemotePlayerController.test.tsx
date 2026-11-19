@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import {
   NO_REMOTE_PLAYBACK,
+  type RemotePlaybackState,
   type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/test-utils/nativePlayer";
 import { stubReactNative } from "@/test-utils/reactNative";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
-import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
+import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import { RemotePlayerController } from "./RemotePlayerController";
@@ -241,6 +242,7 @@ test("an error after the load shows the failure", async () => {
 
 test("closing the player sends nothing to the TV", async () => {
   store.set(remotePlayAtom, { play, loaded: true });
+  store.set(remoteForeignAtom, { itemId: null, title: "Clip", imageUrl: null });
   await render(<RemotePlayerController />);
   const sentBefore = mockCast.loadCalls.length;
 
@@ -254,6 +256,7 @@ test("closing the player sends nothing to the TV", async () => {
   });
 
   expect(store.get(remotePlayAtom)).toBeNull();
+  expect(store.get(remoteForeignAtom)).toBeNull();
   expect(mockCast.loadCalls).toHaveLength(sentBefore);
   expect(mockCast.reloadCalls).toEqual([]);
   expect(mockCast.disconnectCalls).toEqual([]);
@@ -550,5 +553,127 @@ describe("moving between episodes from the remote player", () => {
       expect(mockCast.skipCalls).toEqual(["next", "previous"]),
     );
     expect(mockCast.loadCalls).toEqual([]);
+  });
+
+  // Another sender, or the TV's own remote, changed what it plays: the screen asks the server again.
+  describe("following what another sender plays", () => {
+    const serve = (path: RegExp, status: number, body?: object) =>
+      (store.get(apiAtom) as unknown as ReturnType<typeof makeApi>).mock
+        .onGet(path)
+        .reply(status, body);
+    const tvChanges = async (state: Partial<RemotePlaybackState>) => {
+      mockCast.remotePlayback = {
+        ...NO_REMOTE_PLAYBACK,
+        connected: true,
+        phase: "playing",
+        ...state,
+      };
+      await act(async () => {
+        emitCastEvent(
+          mockCast,
+          "onRemotePlaybackChanged",
+          mockCast.remotePlayback,
+        );
+      });
+    };
+    type Config = Shown & { reduced?: boolean; tracks: unknown };
+    const lastConfig = () => mockPlayer.remoteUpdates.at(-1) as Config;
+    const clip = {
+      itemId: null,
+      title: "Clip",
+      imageUrl: "https://other.example/clip.jpg",
+    };
+
+    beforeEach(async () => {
+      store.set(remotePlayAtom, sentList);
+      tvPlays("s1e0", sentList.list.itemIds);
+    });
+
+    test("a change of item rebuilds the config from the server", async () => {
+      serve(/\/Items\/film-1/, 200, {
+        Id: "film-1",
+        Name: "Film",
+        Type: "Movie",
+        MediaType: "Video",
+      });
+      await render(<RemotePlayerController />);
+
+      await tvChanges({ itemId: "film-1", queueItemIds: ["film-1"] });
+
+      await waitFor(() => expect(lastConfig()?.metadata.itemId).toBe("film-1"));
+      // The episode list, what came next and the tracks of the episode are gone with it.
+      expect(lastConfig().episodeList).toEqual([]);
+      expect(lastConfig().nextEpisode).toBeNull();
+      expect(lastConfig().tracks).toBeNull();
+      expect(store.get(remotePlayAtom)?.list).toEqual({
+        itemIds: ["film-1"],
+        nextUpId: null,
+      });
+      expect(mockCast.loadCalls).toEqual([]);
+    });
+
+    test("a change to a foreign item reduces the open player", async () => {
+      await render(<RemotePlayerController />);
+
+      await tvChanges({ ...clip, foreign: true });
+
+      await waitFor(() => expect(lastConfig()?.reduced).toBe(true));
+      expect(lastConfig().metadata).toMatchObject({
+        title: "Clip",
+        artworkUri: clip.imageUrl,
+      });
+      expect(store.get(remotePlayAtom)).toBeNull();
+      expect(store.get(remoteForeignAtom)).toEqual(clip);
+    });
+
+    test("the reduced player shows an item of this server the TV goes to", async () => {
+      store.set(remotePlayAtom, null);
+      store.set(remoteForeignAtom, clip);
+      await render(<RemotePlayerController />);
+
+      await tvChanges({ itemId: "s1e2", queueItemIds: ["s1e2"] });
+
+      await waitFor(() => expect(lastConfig()?.metadata.itemId).toBe("s1e2"));
+      expect(lastConfig().reduced).toBeUndefined();
+      expect(store.get(remoteForeignAtom)).toBeNull();
+      expect(store.get(remotePlayAtom)?.list).toEqual({
+        itemIds: ["s1e2"],
+        nextUpId: "s1e3",
+      });
+    });
+
+    test("a send made while the server answers keeps the screen", async () => {
+      let answer: (reply: [number, object]) => void = () => undefined;
+      (store.get(apiAtom) as unknown as ReturnType<typeof makeApi>).mock
+        .onGet(/\/Items\/film-1/)
+        .reply(() => new Promise((resolve) => (answer = resolve)));
+      await render(<RemotePlayerController />);
+
+      await tvChanges({ itemId: "film-1", queueItemIds: ["film-1"] });
+      // The phone sends meanwhile: its play owns the screen until the TV takes it.
+      store.set(remotePlayAtom, { play, loaded: false });
+      await act(async () => {
+        answer([200, { Id: "film-1", Type: "Movie", MediaType: "Video" }]);
+      });
+
+      expect(mockPlayer.remoteUpdates).toEqual([]);
+      expect(mockPlayer.remotePresented).toEqual([]);
+      expect(store.get(remotePlayAtom)).toEqual({ play, loaded: false });
+    });
+
+    test("a change to music closes the remote player", async () => {
+      serve(/\/Items\/track-1/, 200, {
+        Id: "track-1",
+        Type: "Audio",
+        MediaType: "Audio",
+      });
+      await render(<RemotePlayerController />);
+
+      await tvChanges({ itemId: "track-1", queueItemIds: ["track-1"] });
+
+      await waitFor(() => expect(mockPlayer.dismissals).toBe(1));
+      expect(store.get(remotePlayAtom)).toBeNull();
+      expect(mockPlayer.remoteUpdates).toEqual([]);
+    });
   });
 });

@@ -57,4 +57,10 @@ export type RemotePlayerPresentConfig = {
    * item; left out when the user has none.
    */
   imageHeaders?: Record<string, string>;
+  /**
+   * The TV plays media this server does not know: the reduced player, with
+   * the title, the artwork, the transport, the bar, the TV and the volume, and
+   * no menu, list, previous or next. Left out for the full player.
+   */
+  reduced?: boolean;
 };

@@ -165,6 +165,17 @@ class FakeRemoteEngineTest {
         assertEquals(2, changes())
     }
 
+    // One clip after another, as the iOS fake: only the title and image change, and the screen hears it.
+    @Test
+    fun theFakeTellsAnotherForeignClip() {
+        started()
+        val changes = countStateChanges()
+        engine.simulateForeignMedia("Clip A", "https://other.example/a.jpg")
+        assertEquals(1, changes())
+        engine.simulateForeignMedia("Clip B", "https://other.example/b.jpg")
+        assertEquals(2, changes())
+    }
+
     @Test
     fun aSimulatedSuspensionSaysReconnectingUntilTheResume() {
         started()

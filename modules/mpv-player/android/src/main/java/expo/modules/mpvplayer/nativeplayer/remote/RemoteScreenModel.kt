@@ -30,6 +30,11 @@ data class RemoteScreenModel(
     val transportEnabled: Boolean,
     val seekEnabled: Boolean,
     val trackMenusEnabled: Boolean,
+    /** What the reduced player leaves out: it plays media our server does not know, so nothing comes from it. */
+    val showsEpisodes: Boolean,
+    val showsTrackMenus: Boolean,
+    val showsMoreMenu: Boolean,
+    val showsPreviousNext: Boolean,
     val playShowsSpinner: Boolean,
     val nextUpVisible: Boolean,
     /** A failure, shown whatever the rest says. */
@@ -56,10 +61,10 @@ data class RemoteScreenModel(
         /**
          * [sawPlayback] for a new config of [itemId] while the TV is at [snapshot]: the item it holds already when JS
          * followed it onto the next of its list, since no phase change comes before that item's end; another item
-         * waits for its playback.
+         * waits for its playback. A [reduced] config carries no item id and is built from what the TV holds now.
          */
-        fun sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot): Boolean =
-            itemId != null && itemId == snapshot.itemId && sawPlayback(false, snapshot.phase)
+        fun sawPlaybackOnUpdate(itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+            (reduced || (itemId != null && itemId == snapshot.itemId)) && sawPlayback(false, snapshot.phase)
 
         /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
@@ -79,19 +84,25 @@ data class RemoteScreenModel(
             // Something is loaded on the TV, so a seek or a track change has something to act on.
             val itemLoaded = snapshot.phase in setOf(RemotePhase.LOADING, RemotePhase.PLAYING, RemotePhase.PAUSED)
             val ended = snapshot.phase == RemotePhase.ENDED && sawPlayback
+            // The reduced player knows nothing after what plays, nor how to play it on the phone.
+            val next = hasNext && !reduced
             return RemoteScreenModel(
                 targetLabel = if (reconnecting) TargetLabel.Reconnecting else TargetLabel.Name(targetName),
                 controlsDimmed = reconnecting,
                 transportEnabled = !reconnecting,
                 seekEnabled = !reconnecting && itemLoaded,
                 trackMenusEnabled = !reconnecting && itemLoaded && !reduced,
+                showsEpisodes = !reduced,
+                showsTrackMenus = !reduced,
+                showsMoreMenu = !reduced,
+                showsPreviousNext = !reduced,
                 playShowsSpinner = !reconnecting && (snapshot.phase == RemotePhase.LOADING || snapshot.phase == RemotePhase.BETWEEN),
-                nextUpVisible = snapshot.connected && ended && hasNext,
+                nextUpVisible = snapshot.connected && ended && next,
                 failure = failure,
-                canPlayHere = failure != null && canPlayHere,
+                canPlayHere = failure != null && canPlayHere && !reduced,
                 closes = when {
                     !snapshot.connected -> RemoteClose.REMOTE_ENDED
-                    ended && !hasNext -> RemoteClose.PLAYBACK_ENDED
+                    ended && !next -> RemoteClose.PLAYBACK_ENDED
                     else -> null
                 },
             )

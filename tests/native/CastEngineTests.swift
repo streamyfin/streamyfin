@@ -157,11 +157,13 @@ func ours(_ overrides: [String: Any] = [:]) -> [String: Any] {
 
 func snapshot(
   playerState: String = "playing", idleReason: String = "none", customData: [String: Any]? = ours(),
-  streamPosition: TimeInterval = 0, streamDuration: TimeInterval = -1, hasTextTracks: Bool = true, hasMedia: Bool = true
+  streamPosition: TimeInterval = 0, streamDuration: TimeInterval = -1, hasTextTracks: Bool = true, hasMedia: Bool = true,
+  title: String? = nil, imageUrl: String? = nil
 ) -> CastMediaSnapshot {
   CastMediaSnapshot(
     playerState: playerState, idleReason: idleReason, hasMedia: hasMedia, streamPosition: streamPosition,
-    playbackRate: 1, customData: customData, streamDuration: streamDuration, hasTextTracks: hasTextTracks
+    playbackRate: 1, customData: customData, streamDuration: streamDuration, hasTextTracks: hasTextTracks,
+    title: title, imageUrl: imageUrl
   )
 }
 
@@ -1931,6 +1933,36 @@ enum CastEngineTests {
       var changes = 0
       engine.onStateChanged = { changes += 1 }
       return { changes }
+    }
+
+    // Media another sender loaded: the remote screen shows what its Cast metadata says, the reduced player (PR 6).
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let changes = countStateChanges(engine)
+      bench.media.report(snapshot(customData: nil, title: "Big Buck Bunny", imageUrl: "https://other.example.test/bbb.jpg"))
+      var ok = engine.foreign && engine.mediaTitle == "Big Buck Bunny"
+        && engine.mediaImageUrl == "https://other.example.test/bbb.jpg" && engine.phase == .playing
+      let before = changes()
+      // Another track of the same app: nothing but the metadata changed, and the screen follows it.
+      bench.media.report(snapshot(customData: nil, title: "Elephants Dream", imageUrl: nil))
+      ok = ok && engine.mediaTitle == "Elephants Dream" && engine.mediaImageUrl == nil && changes() == before + 1
+      // Gone from the TV: nothing is left of it.
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", customData: nil, hasMedia: false))
+      check("aForeignMediaPublishesItsTitleAndImage", ok && !engine.foreign && engine.mediaTitle == nil)
+    }
+
+    // The receiver names its item even when another server sent it: the JS asks the server, and needs the title
+    // the TV shows when the server does not know it.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let image = "https://jellyfin.example.test/Items/item-1/Images/Primary"
+      bench.media.report(snapshot(title: "Episode 2", imageUrl: image))
+      check(
+        "aReceiverItemIsNotForeignAndKeepsItsTitle",
+        !engine.foreign && engine.currentItemId == "item-1" && engine.mediaTitle == "Episode 2" && engine.mediaImageUrl == image
+      )
     }
 
     do {

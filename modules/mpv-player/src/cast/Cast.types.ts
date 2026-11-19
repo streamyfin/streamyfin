@@ -249,6 +249,11 @@ export interface RemotePlaybackState {
   /** The list the native engine cast, and where in it the TV plays, -1 when nowhere. */
   queueItemIds: string[];
   playingIndex: number;
+  /** The TV holds media without the receiver's item id: another app or sender loaded it. */
+  foreign: boolean;
+  /** The Cast metadata's title and first image of what the TV holds, whoever loaded it. */
+  title: string | null;
+  imageUrl: string | null;
 }
 
 export const NO_REMOTE_PLAYBACK: RemotePlaybackState = Object.freeze({
@@ -262,6 +267,9 @@ export const NO_REMOTE_PLAYBACK: RemotePlaybackState = Object.freeze({
   subtitleIndex: -1,
   queueItemIds: [],
   playingIndex: -1,
+  foreign: false,
+  title: null,
+  imageUrl: null,
 }) as RemotePlaybackState;
 
 /** The envelope every receiver message carries, which native needs to play from the account's server. */

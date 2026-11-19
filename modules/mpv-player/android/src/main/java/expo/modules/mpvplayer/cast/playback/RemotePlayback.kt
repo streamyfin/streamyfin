@@ -153,6 +153,9 @@ class RemotePlayback(
             subtitleIndex = engine?.getCurrentSubtitleTrack() ?: -1,
             queueItemIds = engine?.queueItemIds ?: emptyList(),
             playingIndex = engine?.playingIndex ?: -1,
+            foreign = engine?.foreign == true,
+            title = engine?.mediaTitle,
+            imageUrl = engine?.mediaImageUrl,
         )
         if (next.itemId == null) readyToSeek = false
         if (next == state) return

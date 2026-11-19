@@ -194,6 +194,9 @@ private final class LoggingRemoteEngine: RemoteEngine {
 	var reconnecting: Bool { inner.reconnecting }
 	var queueItemIds: [String] { inner.queueItemIds }
 	var playingIndex: Int { inner.playingIndex }
+	var foreign: Bool { inner.foreign }
+	var mediaTitle: String? { inner.mediaTitle }
+	var mediaImageUrl: String? { inner.mediaImageUrl }
 	var intendedPlayState: Bool { inner.intendedPlayState }
 	var canChangeSpeed: Bool { inner.canChangeSpeed }
 	var currentItemId: String? { inner.currentItemId }

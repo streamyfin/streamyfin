@@ -15,6 +15,10 @@ data class RemotePlaybackSnapshot(
     val subtitleIndex: Int,
     val queueItemIds: List<String>,
     val playingIndex: Int,
+    /** Media without our receiver's item id, and the title and image its Cast metadata names (any media's). */
+    val foreign: Boolean,
+    val title: String?,
+    val imageUrl: String?,
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "connected" to connected,
@@ -27,6 +31,9 @@ data class RemotePlaybackSnapshot(
         "subtitleIndex" to subtitleIndex,
         "queueItemIds" to queueItemIds,
         "playingIndex" to playingIndex,
+        "foreign" to foreign,
+        "title" to title,
+        "imageUrl" to imageUrl,
     )
 
     companion object {
@@ -41,6 +48,9 @@ data class RemotePlaybackSnapshot(
             subtitleIndex = -1,
             queueItemIds = emptyList(),
             playingIndex = -1,
+            foreign = false,
+            title = null,
+            imageUrl = null,
         )
     }
 }
