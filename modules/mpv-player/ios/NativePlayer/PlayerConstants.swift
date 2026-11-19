@@ -62,4 +62,8 @@ enum PlayerConstants {
 	/// faster than this many points per second (RemoteGestures). Android: REMOTE_DISMISS_*, the same numbers.
 	static let remoteDismissDragFraction: Double = 0.25
 	static let remoteDismissDragVelocity: Double = 1200
+
+	/// How long the TV's level stays on the remote screen after it changes, restarted by the next change
+	/// (VolumeIndicatorModel). Android: REMOTE_VOLUME_INDICATOR_MS, the same duration.
+	static let remoteVolumeIndicatorDuration: TimeInterval = 1.5
 }

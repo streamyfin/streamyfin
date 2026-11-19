@@ -70,6 +70,8 @@ struct RemotePlayerRootView: View {
 			}
 			.padding(.horizontal, Self.padding)
 		}
+		// Over the top bar, not in the stack: showing it moves nothing.
+		.overlay(alignment: .top) { RemoteVolumeIndicatorView(indicator: screen.volumeIndicator) }
 		// Tone 20 at the top to tone 10 at remoteTintGradientEnd, flat below; a new tint fades in.
 		.background(
 			LinearGradient(

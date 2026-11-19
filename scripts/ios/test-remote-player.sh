@@ -67,6 +67,13 @@ swiftc -module-cache-path "$test_dir/modules" \
 
 swiftc -module-cache-path "$test_dir/modules" \
   modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/VolumeIndicatorModel.swift \
+  tests/native/VolumeIndicatorModelTests.swift \
+  -o "$test_dir/volume-indicator"
+"$test_dir/volume-indicator"
+
+swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
   modules/mpv-player/ios/NativePlayer/Remote/RemoteNavigation.swift \
   tests/native/RemoteNavigationTests.swift \
   -o "$test_dir/remote-navigation"

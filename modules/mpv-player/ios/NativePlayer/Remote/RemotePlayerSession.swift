@@ -16,6 +16,8 @@ final class RemoteScreenState: ObservableObject {
 	@Published var reduced = false
 	/// What JS said of a send that failed; the engine's own error shows when there is none.
 	@Published var failure: RemoteFailure?
+	/// The TV's level while it shows after a change (VolumeIndicatorModel); nil when hidden.
+	@Published var volumeIndicator: VolumeIndicator?
 	/// The screen's Play here button; the session sets it.
 	var playHere: () -> Void = {}
 	/// Continue on the next episode's card; the session sets it.
@@ -62,6 +64,8 @@ final class RemotePlayerSession: PresentedPlayer {
 	private var viewController: RemotePlayerViewController?
 	private var closed = false
 	private var unfollowPlayback: (() -> Void)?
+	private var unfollowVolume: (() -> Void)?
+	private var volumeWatch: VolumeWatch?
 
 	init(
 		playback: RemotePlayback = .shared,
@@ -121,7 +125,28 @@ final class RemotePlayerSession: PresentedPlayer {
 			guard let self, !self.closed else { return }
 			self.unfollowPlayback = self.playback.addListener { [weak self] in self?.follow($0) }
 			self.follow(self.playback.snapshot)
+			// The first state may have closed the screen: nothing to follow while it goes.
+			guard !self.closed else { return }
+			self.followVolume()
 		}
+	}
+
+	// The TV's level for a moment after it changes; the hub publishes on the main thread. The volume buttons reach
+	// the TV through the Cast SDK and show nothing on the iPhone: this is their only trace.
+	private func followVolume() {
+		let screen = self.screen
+		let model = VolumeIndicatorModel(
+			schedule: { delay, action in
+				let work = DispatchWorkItem(block: action)
+				DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+				return { work.cancel() }
+			},
+			show: { screen.volumeIndicator = $0 }
+		)
+		let watch = VolumeWatch(model: model)
+		watch.remoteTargetDidChange(RemoteTargetHub.shared.snapshot)
+		volumeWatch = watch
+		unfollowVolume = RemoteTargetHub.shared.addListener(watch)
 	}
 
 	// The holder publishes on the main thread. The film over with nothing after it, or the connection over: the
@@ -232,10 +257,30 @@ final class RemotePlayerSession: PresentedPlayer {
 	private func detach() {
 		unfollowPlayback?()
 		unfollowPlayback = nil
+		unfollowVolume?()
+		unfollowVolume = nil
+		volumeWatch?.model.close()
+		volumeWatch = nil
+		screen.volumeIndicator = nil
 		playback.detachScreen(viewModel)
 		viewModel.engine = nil
 		viewController = nil
 		onTornDown()
 	}
+}
+
+/// Hears the hub for the volume indicator; the hub holds its listeners weakly, the session holds this one.
+private final class VolumeWatch: RemoteTargetListener {
+	let model: VolumeIndicatorModel
+
+	init(model: VolumeIndicatorModel) {
+		self.model = model
+	}
+
+	func remoteTargetDidChange(_ snapshot: RemoteTargetSnapshot) {
+		model.update(level: snapshot.volume, muted: snapshot.muted)
+	}
+
+	func remoteTargetDevicesDidChange(_ devices: [TargetDevice]) {}
 }
 #endif

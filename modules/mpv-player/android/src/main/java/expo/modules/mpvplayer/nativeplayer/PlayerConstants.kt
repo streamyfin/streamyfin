@@ -96,4 +96,8 @@ object PlayerConstants {
      *  ends faster than this many dp per second (RemoteGestures). iOS: remoteDismissDrag*, the same numbers. */
     const val REMOTE_DISMISS_DRAG_FRACTION = 0.25
     const val REMOTE_DISMISS_VELOCITY_DP = 1200.0
+
+    /** How long the TV's level stays on the remote screen after it changes, restarted by the next change
+     *  (VolumeIndicatorModel). iOS: remoteVolumeIndicatorDuration, the same duration. */
+    const val REMOTE_VOLUME_INDICATOR_MS = 1500L
 }

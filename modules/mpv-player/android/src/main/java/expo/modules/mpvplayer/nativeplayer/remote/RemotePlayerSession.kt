@@ -26,6 +26,9 @@ import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
 import expo.modules.mpvplayer.cast.playback.RemotePlayback
 import expo.modules.mpvplayer.cast.playback.RemotePlaybackSnapshot
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
+import expo.modules.mpvplayer.cast.target.RemoteTargetListener
+import expo.modules.mpvplayer.cast.target.RemoteTargetSnapshot
+import expo.modules.mpvplayer.cast.target.TargetDevice
 import expo.modules.mpvplayer.nativeplayer.AccessibilityIsolation
 import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
@@ -65,6 +68,8 @@ class RemotePlayerSession(
     private val accessibility = AccessibilityIsolation()
     private var closed = false
     private var unfollowPlayback: (() -> Unit)? = null
+    private var unfollowVolume: (() -> Unit)? = null
+    private var volumeIndicator: VolumeIndicatorModel? = null
 
     /** What the screen draws besides the view model; null until presented. */
     var screenState: RemoteScreenState? = null
@@ -125,6 +130,31 @@ class RemotePlayerSession(
         playback.attachScreen(viewModel)
         unfollowPlayback = playback.addListener(::follow)
         follow(playback.snapshot)
+        // The first state may have closed the screen, whose detach has run: nothing to follow then.
+        if (closed) return
+        followVolume(model)
+    }
+
+    // The TV's level for a moment after it changes; the hub publishes on the main thread. The keys stay the
+    // system's: they reach the TV through the Cast SDK, and this shows what they did.
+    private fun followVolume(state: RemoteScreenState) {
+        val main = Handler(Looper.getMainLooper())
+        val indicator = VolumeIndicatorModel(
+            schedule = { delayMs, action ->
+                val runnable = Runnable(action)
+                main.postDelayed(runnable, delayMs)
+                ({ main.removeCallbacks(runnable) })
+            },
+            show = { state.volumeIndicator = it },
+        )
+        volumeIndicator = indicator
+        // The port folds a device mute set by another sender into the stream's (receiverMuted).
+        val read = { snapshot: RemoteTargetSnapshot -> indicator.update(snapshot.volume, snapshot.muted) }
+        read(hub.snapshot)
+        unfollowVolume = hub.addListener(object : RemoteTargetListener {
+            override fun targetChanged(snapshot: RemoteTargetSnapshot) = read(snapshot)
+            override fun devicesChanged(devices: List<TargetDevice>) = Unit
+        })
     }
 
     // The holder publishes on the main thread. A failure goes once the TV loads or plays again. The film over with
@@ -231,6 +261,11 @@ class RemotePlayerSession(
         accessibility.restore()
         unfollowPlayback?.invoke()
         unfollowPlayback = null
+        unfollowVolume?.invoke()
+        unfollowVolume = null
+        volumeIndicator?.close()
+        volumeIndicator = null
+        screenState?.volumeIndicator = null
         playback.detachScreen(viewModel)
         viewModel.engine = null
         host = null
@@ -292,6 +327,10 @@ class RemoteScreenState(
 
     /** What the TV does, as the holder last published it. */
     var snapshot by mutableStateOf(RemotePlaybackSnapshot.NONE)
+        internal set
+
+    /** The TV's level while it shows after a change (VolumeIndicatorModel); null when hidden. */
+    var volumeIndicator by mutableStateOf<VolumeIndicator?>(null)
         internal set
 
     /** The TV held this screen's item at some point (RemoteScreenModel.sawPlayback). */
