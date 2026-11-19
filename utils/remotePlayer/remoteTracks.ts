@@ -32,7 +32,7 @@ import {
   NO_REMOTE_QUALITY,
   setTargetQuality,
 } from "@/utils/cast/remoteQuality";
-import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
+import type { ReceiverPlay } from "@/utils/remotePlayer/playOnRemote";
 import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import {

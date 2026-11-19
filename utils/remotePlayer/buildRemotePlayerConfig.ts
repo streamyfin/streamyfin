@@ -27,7 +27,6 @@ import type {
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
 import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
-import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import { getJellyfinHeadersForUrl, hasHeaders } from "@/utils/customHeaders";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
@@ -41,6 +40,7 @@ import {
   subtitleSearchLanguageOptions,
   trackTagLabels,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
+import type { ReceiverPlay } from "@/utils/remotePlayer/playOnRemote";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { ticksToSeconds } from "@/utils/time";
 

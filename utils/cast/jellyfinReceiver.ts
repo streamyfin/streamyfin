@@ -633,8 +633,7 @@ const untilReady = <T>(
  *
  * Sending PlayNow only means the message left the phone. A receiver that
  * cannot reach the server fails on its first request without a word back, and
- * one that replaces playing media goes idle before loading the new item, which
- * closes Android's expanded controls if they were opened on the send.
+ * one that replaces playing media goes idle before loading the new item.
  *
  * The cast takes its turn when called, and `session` may still be on its way
  * (Auto measuring the bitrate): a cast made while it is replaces this one.

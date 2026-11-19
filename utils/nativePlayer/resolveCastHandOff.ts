@@ -1,6 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { RemoteTarget } from "@/modules/mpv-player/src/cast";
-import type { ReceiverPlay, SendResult } from "@/utils/cast/sendToReceiver";
+import type {
+  ReceiverPlay,
+  SendResult,
+} from "@/utils/remotePlayer/playOnRemote";
 import {
   playOnRemote,
   type RemotePlayDeps,

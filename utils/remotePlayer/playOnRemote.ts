@@ -1,5 +1,7 @@
+import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import type { TFunction } from "i18next";
 import type { createStore } from "jotai";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import { RECEIVER_UNCAPPED_BITRATE } from "@/constants/Cast";
@@ -34,11 +36,6 @@ import {
 } from "@/utils/cast/jellyfinReceiver";
 import { remoteErrorMessage } from "@/utils/cast/receiverLoadErrorMessage";
 import { autoBitrateOn, bitrateRequestFor } from "@/utils/cast/remoteQuality";
-import type {
-  ReceiverPlay,
-  SendDeps,
-  SendResult,
-} from "@/utils/cast/sendToReceiver";
 import { getJellyfinHeaders } from "@/utils/customHeaders";
 import { extractImageColor } from "@/utils/imageColors";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
@@ -60,9 +57,28 @@ import {
 import { remoteTint } from "./remoteTint";
 import { type SeriesEpisode, seriesEpisodes } from "./seriesEpisodes";
 
-/** What `sendToReceiver` gets, with a store that can also say what the remote player shows. */
-export interface RemotePlayDeps extends Omit<SendDeps, "store"> {
+/** What to play on the receiver: an item, where to start, and the streams chosen for it. */
+export interface ReceiverPlay {
+  item: BaseItemDto;
+  positionTicks: number;
+  mediaSourceId?: string;
+  audioIndex?: number;
+  subtitleIndex?: number;
+}
+
+/** How a send went; whatever did not start carries the sentence to show. */
+export type SendResult =
+  | { status: "loaded" }
+  | { status: "superseded" }
+  | { status: "notStarted"; message: string }
+  | { status: "failed"; message: string };
+
+/** The account a send goes under, with a store that can also say what the remote player shows. */
+export interface RemotePlayDeps {
+  api: Api;
+  userId: string;
   store: Pick<ReturnType<typeof createStore>, "get" | "set">;
+  t: TFunction;
 }
 
 /** Counts sends, so an older one's tint or outcome never lands over a newer one's screen. */
@@ -214,7 +230,7 @@ const episodeListing = async (
 
 /**
  * The cap a receiver gets for `quality`: it knows no Auto, so it gets the bitrate measured here, held under a stick's
- * ceiling, and its own ceiling for no cap, as `sendToReceiver` hands it.
+ * ceiling, and its own ceiling for no cap.
  */
 export const receiverBitrateFor = async (
   api: RemotePlayDeps["api"],

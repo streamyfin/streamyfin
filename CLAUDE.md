@@ -65,7 +65,7 @@ UI and headers:
 - `sheets-draw-under-the-android-nav-bar` | use `@/hooks/useActionSheet`; `showModal` content goes in `SheetView` / `SheetScrollView`, a sheet's FlatList takes `useSheetContentPadding()`
 - `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
 - `accessibility-value-undefined-clears-label` | on Android an accessibilityValue that turns undefined wipes the whole content description, label included; keep it an object with a text
-- `android-alert-lost-while-paused` | an Alert asked for while MainActivity is paused (the Cast expanded controls, the background) is dropped on Android with no error; wait for AppState "active"
+- `android-alert-lost-while-paused` | an Alert asked for while MainActivity is paused (another activity over it, the background) is dropped on Android with no error; wait for AppState "active"
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries

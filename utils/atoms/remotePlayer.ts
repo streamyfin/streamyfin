@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
+import type { ReceiverPlay } from "@/utils/remotePlayer/playOnRemote";
 
 /**
  * The play the remote player shows, set by `playOnRemote` and cleared when the screen closes: what Play here
