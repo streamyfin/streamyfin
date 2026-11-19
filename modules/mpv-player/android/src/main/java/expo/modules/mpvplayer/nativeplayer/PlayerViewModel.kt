@@ -640,6 +640,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     fun scheduleAutoHide(delayMs: Long = PlayerConstants.AUTO_HIDE_DELAY_MS) {
         autoHideJob?.cancel()
+        // A remote control keeps its controls up: nothing under them to uncover.
+        if (!capabilities.autoHide) return
         autoHideJob = scope.launch {
             delay(delayMs)
             if (canAutoHide()) {
@@ -810,8 +812,9 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Scrubbing (Phone Touch)
     fun startScrubbing() {
-        wasPlayingBeforeScrub = isPlaying
-        if (isPlaying && !syncPlayActive) engine?.pause()
+        // A remote target keeps playing through the drag: pausing it would stall its stream for nothing.
+        wasPlayingBeforeScrub = isPlaying && capabilities.pausesWhileScrubbing
+        if (wasPlayingBeforeScrub && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         scheduleAutoHide(PlayerConstants.MENU_AUTO_HIDE_DELAY_MS)
@@ -837,8 +840,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
     // MARK: - Scrubbing (TV Remote Armed Scrub)
     fun beginScrub() {
         if (isScrubbing) return
-        wasPlayingBeforeScrub = isPlaying
-        if (isPlaying && !syncPlayActive) engine?.pause()
+        wasPlayingBeforeScrub = isPlaying && capabilities.pausesWhileScrubbing
+        if (wasPlayingBeforeScrub && !syncPlayActive) engine?.pause()
         isScrubbing = true
         scrubPosition = displayPosition
         autoHideJob?.cancel()
@@ -1069,7 +1072,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
 
     // MARK: - Sleep Timer
     fun setSleepTimer(minutes: Int) {
-        if (syncPlayActive) return
+        // Remote: a sleeping phone could not stop the TV, so the timer is not offered.
+        if (syncPlayActive || !capabilities.sleepTimer) return
         sleepTimerMinutes = minutes
         val deadline = System.currentTimeMillis() + (minutes * 60 * 1000L)
         sleepTimerEndDate = deadline
@@ -1118,7 +1122,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
             }
         }
 
-        // Next episode countdown
+        // Next episode countdown; a remote target moves on by itself.
+        if (!capabilities.nextEpisodeCountdown) return
         val next = nextEpisode ?: return
         if (countdownCanceled || countdownFired) return
 
@@ -1525,10 +1530,10 @@ class PlayerViewModel : PlayerEngine.Delegate {
             return
         }
         val next = nextEpisode
-        if (next != null && next.countdownSeconds > 0 && !countdownCanceled) {
+        if (next != null && capabilities.nextEpisodeCountdown && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()
             fireNextEpisode(reason = "countdown")
-        } else if (next?.stillWatchingRequired == true) {
+        } else if (next?.stillWatchingRequired == true && capabilities.nextEpisodeCountdown) {
             isPlaying = false
             showStillWatching = true
             // The media session and its locks follow the play state.

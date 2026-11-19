@@ -31,9 +31,32 @@ enum ChromeCapabilitiesTests {
 			ChromeCapabilities.of(isRemote: true, pictureInPictureSupported: true, canChangeSpeed: true),
 			ChromeCapabilities(
 				pictureInPicture: false, zoom: false, brightness: false,
-				decoderSettings: false, technicalInfo: false, speed: true
+				decoderSettings: false, technicalInfo: false, speed: true,
+				autoHide: false, pausesWhileScrubbing: false, sleepTimer: false,
+				lockControls: false, rotate: false, nextEpisodeCountdown: false
 			),
 			"a remote engine offers nothing that drives this device"
+		)
+
+		let remote = ChromeCapabilities.of(isRemote: true, pictureInPictureSupported: true, canChangeSpeed: true)
+		// A remote screen is a remote control: nothing on it is in the way of a picture, so it never hides.
+		cases += 1
+		precondition(!remote.autoHide, "a remote chrome keeps its controls visible")
+		// Pausing the TV for the length of a drag would stall its stream for nothing: the seek goes on release.
+		cases += 1
+		precondition(!remote.pausesWhileScrubbing, "a remote scrub does not pause the target")
+		// A sleeping phone cannot stop the TV, nothing on the phone turns, and the TV goes on by itself.
+		cases += 1
+		precondition(
+			!remote.sleepTimer && !remote.lockControls && !remote.rotate && !remote.nextEpisodeCountdown,
+			"a remote chrome has no sleep timer, lock, rotate nor countdown"
+		)
+		let local = ChromeCapabilities.of(isRemote: false, pictureInPictureSupported: true, canChangeSpeed: true)
+		cases += 1
+		precondition(
+			local.autoHide && local.pausesWhileScrubbing && local.sleepTimer
+				&& local.lockControls && local.rotate && local.nextEpisodeCountdown,
+			"a local chrome keeps them all"
 		)
 		cases += 1
 		precondition(

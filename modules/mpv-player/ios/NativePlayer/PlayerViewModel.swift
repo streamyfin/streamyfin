@@ -245,11 +245,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published private(set) var isMuted = false
 
 	#if os(iOS)
-	/// System volume/brightness for the side sliders. The controllers exist
-	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
-	/// has no writable volume/brightness (remote/HDMI-CEC own them).
-	let volumeController = SystemVolumeController()
-	let brightnessController = SystemBrightnessController()
+	/// System volume/brightness for the side sliders; the show* flags gate the
+	/// UI. iOS-only: tvOS has no writable volume/brightness (remote/HDMI-CEC own
+	/// them). Made for a local engine only, by followSystemControls(): a remote
+	/// one drives the TV, not this phone, and the volume controller reads the
+	/// audio session as it is made, a call to the audio server. Lazy, so a
+	/// remote chrome, which never shows the sliders, never makes them.
+	private(set) lazy var volumeController = makeVolumeController()
+	private(set) lazy var brightnessController = SystemBrightnessController()
 	#endif
 
 	private(set) var playMethod: String?
@@ -352,10 +355,17 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	static let volumeBoostPresets: [Int] = [100, 125, 150, 200]
 	static let sleepTimerPresetMinutes: [Int] = [15, 30, 45, 60, 90, 120]
 
-	override init() {
-		super.init()
-		#if os(iOS)
-		volumeController.onExternalChange = { [weak self] in
+	#if os(iOS)
+	/// The local player's system volume and brightness, made with its session,
+	/// as they were with the view model before a remote engine could hold it.
+	func followSystemControls() {
+		_ = volumeController
+		_ = brightnessController
+	}
+
+	private func makeVolumeController() -> SystemVolumeController {
+		let controller = SystemVolumeController()
+		controller.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
 		}
 		// Mute transitions (hardware buttons or the in-player slider hitting
@@ -363,15 +373,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// (subtitlesOnMute setting) and revert when sound returns. iOS-only:
 		// tvOS volume lives in the TV/receiver (remote/HDMI-CEC) and is
 		// invisible to the app, so no mute event can ever fire there.
-		muteDetectionCancellable = volumeController.$volume
+		muteDetectionCancellable = controller.$volume
 			.removeDuplicates()
 			.sink { [weak self] value in
 				self?.detectMuteTransition(volume: value)
 			}
-		#endif
+		return controller
 	}
 
-	#if os(iOS)
 	private var muteDetectionCancellable: AnyCancellable?
 	private var lastVolumeForMuteDetection: Double?
 
@@ -707,6 +716,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Every control interaction calls this to keep the overlay up.
 	func scheduleAutoHide(delay: TimeInterval? = nil) {
 		autoHideTask?.cancel()
+		// A remote control keeps its controls up: nothing under them to uncover.
+		guard capabilities.autoHide else { return }
 		let effectiveDelay = delay ?? autoHideDelay
 		autoHideTask = Task { [weak self] in
 			try? await Task.sleep(nanoseconds: UInt64(effectiveDelay * 1_000_000_000))
@@ -840,8 +851,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		scrubPosition = displayPosition
 		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
 		// Pause while scrubbing; endScrub resumes only if it was playing
-		// (mirror of the JS player's useVideoSlider).
-		wasPlayingBeforeScrub = isPlaying
+		// (mirror of the JS player's useVideoSlider). A remote target keeps
+		// playing through the drag: pausing it would stall its stream for nothing.
+		wasPlayingBeforeScrub = isPlaying && capabilities.pausesWhileScrubbing
 		if wasPlayingBeforeScrub && !isSyncPlayActive {
 			engine?.pause()
 		}
@@ -1481,7 +1493,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// checked in 1s slices, so a stint suspended in the background fires on
 	/// resume instead of drifting.
 	func setSleepTimer(minutes: Int) {
-		guard !isSyncPlayActive else { return }
+		// Remote: a sleeping phone could not stop the TV, so the timer is not offered.
+		guard !isSyncPlayActive, capabilities.sleepTimer else { return }
 		haptic()
 		sleepTimerTask?.cancel()
 		sleepTimerMinutes = minutes
@@ -1636,7 +1649,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// Items without credits markers still get the countdown near the end
 		// (JS parity: remainingTime < countdown length arms it too).
 		var nearEnd = false
-		guard !isSyncPlayActive else { return }
+		// A remote target moves on by itself: no countdown on the phone.
+		guard !isSyncPlayActive, capabilities.nextEpisodeCountdown else { return }
 		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {
 			nearEnd = currentPosition > 0 && duration - currentPosition <= next.countdownSeconds
 		}
@@ -1905,7 +1919,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 		}
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
-		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
+		if let next = nextEpisode, capabilities.nextEpisodeCountdown, next.countdownSeconds > 0, !countdownCanceled {
 			// Idempotent: an outro skip lets a short countdown arm over the
 			// final seconds, so its tick may already have fired this request.
 			// Emit once, but stay in this branch either way so a fired
@@ -1919,7 +1933,7 @@ extension PlayerViewModel: PlayerEngineDelegate {
 					"positionSec": displayPosition,
 				])
 			}
-		} else if nextEpisode?.stillWatchingRequired == true {
+		} else if nextEpisode?.stillWatchingRequired == true, capabilities.nextEpisodeCountdown {
 			// Autoplay episode cap reached: ask instead of advancing. The
 			// video sits on its last frame under the card.
 			// mpv never flips its pause property at EOF (no keep-open), so

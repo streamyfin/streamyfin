@@ -9,3 +9,6 @@ export { default as MpvPlayerView } from "./src/MpvPlayerView";
 // Presented native player (iOS and Android; module-level, no React view)
 export * from "./src/NativePlayerPresentation";
 export * from "./src/NativePlayerPresentation.types";
+// The remote player: the same chrome over the TV a Cast session drives
+export * from "./src/RemotePlayerPresentation";
+export * from "./src/RemotePlayerPresentation.types";

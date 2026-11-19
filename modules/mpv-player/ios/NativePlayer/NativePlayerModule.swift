@@ -24,6 +24,18 @@ internal final class UnsupportedEngineException: GenericException<String>, @unch
 	}
 }
 
+internal final class NoRemoteEngineException: Exception, @unchecked Sendable {
+	override var reason: String {
+		"No remote engine to present a remote player over"
+	}
+}
+
+internal final class RemotePlayerUnsupportedException: Exception, @unchecked Sendable {
+	override var reason: String {
+		"This device does not present a remote player"
+	}
+}
+
 /// Module-level (non-view) player: presents a full-screen native
 /// UIViewController with SwiftUI controls over the engine the config names.
 /// Compiles for both iOS and tvOS; the view controller hosts the platform's
@@ -33,7 +45,45 @@ internal final class UnsupportedEngineException: GenericException<String>, @unch
 /// JS must attach every event listener BEFORE calling presentPlayer: module
 /// events emitted with no listener are dropped.
 public class NativePlayerModule: Module {
-	private var session: NativePlayerSession?
+	/// The player presented, local or remote: one at a time.
+	private var presented: PresentedPlayer?
+
+	/// The local player, for its own calls: load, mpv tracks, SyncPlay, technical info, Now Playing.
+	private var session: NativePlayerSession? { presented as? NativePlayerSession }
+
+	/// What JS's transport calls reach: the local player's view model, never the remote one's.
+	private var transport: PlayerViewModel? { jsTransportTarget(presented) }
+
+	private static func exception(for refusal: PresentRefusal) -> Exception {
+		switch refusal {
+		case .alreadyPresented: return PlayerAlreadyPresentedException()
+		case .invalidStream: return InvalidStreamUrlException()
+		case let .unsupportedEngine(name): return UnsupportedEngineException(name)
+		case .noRemoteEngine: return NoRemoteEngineException()
+		case .remoteUnsupported: return RemotePlayerUnsupportedException()
+		}
+	}
+
+	/// The remote engine a screen borrows, nil without one. Tier 1 builds (fake Cast receivers) lend a fake
+	/// TV, shut down when the screen hands it back; the engine bound to a real Cast session comes later.
+	private static func remoteEngineLease() -> RemoteEngineLease? {
+		#if os(iOS) && !targetEnvironment(macCatalyst)
+		guard RemoteTargets.fakeDevices else { return nil }
+		let fake = FakeRemoteEngine(deliver: mainQueueSchedule)
+		return RemoteEngineLease(engine: fake) { fake.shutdown() }
+		#else
+		return nil
+		#endif
+	}
+
+	/// tvOS and Catalyst do not cast, so they never present the remote player.
+	private static var castsFromThisDevice: Bool {
+		#if os(tvOS) || targetEnvironment(macCatalyst)
+		return false
+		#else
+		return true
+		#endif
+	}
 
 	public func definition() -> ModuleDefinition {
 		Name("NativePlayer")
@@ -53,22 +103,13 @@ public class NativePlayerModule: Module {
 		// MARK: - Lifecycle
 
 		AsyncFunction("presentPlayer") { (config: PlayerPresentConfigRecord, promise: Promise) in
-			switch PresentRefusal(
-				presented: self.session != nil,
+			if let refusal = PresentRefusal(
+				presented: self.presented != nil,
 				streamIsValid: config.stream.toVideoLoadConfig() != nil,
 				engine: config.engine
 			) {
-			case .alreadyPresented:
-				promise.reject(PlayerAlreadyPresentedException())
+				promise.reject(Self.exception(for: refusal))
 				return
-			case .invalidStream:
-				promise.reject(InvalidStreamUrlException())
-				return
-			case let .unsupportedEngine(name):
-				promise.reject(UnsupportedEngineException(name))
-				return
-			case nil:
-				break
 			}
 			// The refusal above already turned every other name away: this only unwraps the kind.
 			guard let kind = NativeEngineKind(configName: config.engine) else {
@@ -81,19 +122,61 @@ public class NativePlayerModule: Module {
 					self?.sendEvent(name, payload)
 				},
 				onTornDown: { [weak self] in
-					self?.session = nil
+					self?.presented = nil
 				},
 				presenterProvider: { [weak self] in
 					self?.appContext?.utilities?.currentViewController()
 				}
 			)
-			self.session = session
+			self.presented = session
 			do {
 				try session.present(config: config, promise: promise)
 			} catch {
-				self.session = nil
+				self.presented = nil
 				promise.reject(error)
 			}
+		}.runOnQueue(.main)
+
+		// The remote player: the chrome over a remote engine, apart from the local player's entry.
+		AsyncFunction("presentRemotePlayer") { (config: RemotePlayerConfigRecord, promise: Promise) in
+			let isTv = !Self.castsFromThisDevice
+			let alreadyPresented = self.presented != nil
+			let lease = !alreadyPresented && !isTv ? Self.remoteEngineLease() : nil
+			if let refusal = PresentRefusal(
+				presented: alreadyPresented, hasRemoteEngine: lease != nil, isTv: isTv
+			) {
+				promise.reject(Self.exception(for: refusal))
+				return
+			}
+			#if os(iOS)
+			// The refusal above already turned a missing lease away: this only unwraps it.
+			guard let lease else {
+				promise.reject(NoRemoteEngineException())
+				return
+			}
+			let remote = RemotePlayerSession(
+				lease: lease,
+				emit: { [weak self] name, body in
+					self?.sendEvent(name, body)
+				},
+				onTornDown: { [weak self] in
+					self?.presented = nil
+				},
+				presenterProvider: { [weak self] in
+					self?.appContext?.utilities?.currentViewController()
+				}
+			)
+			self.presented = remote
+			do {
+				try remote.present(config: config) { promise.resolve() }
+			} catch {
+				remote.teardownImmediately()
+				self.presented = nil
+				promise.reject(error)
+			}
+			#else
+			promise.reject(RemotePlayerUnsupportedException())
+			#endif
 		}.runOnQueue(.main)
 
 		AsyncFunction("load") { (config: PlayerPresentConfigRecord, promise: Promise) in
@@ -110,18 +193,18 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		AsyncFunction("dismiss") { (promise: Promise) in
-			guard let session = self.session else {
+			guard let presented = self.presented else {
 				// Already gone — dismissal must be idempotent for the JS side.
 				promise.resolve()
 				return
 			}
-			session.dismiss(reason: .programmatic) {
+			presented.dismiss(reason: .programmatic) {
 				promise.resolve()
 			}
 		}.runOnQueue(.main)
 
 		Function("isPresented") { () -> Bool in
-			return self.session != nil
+			return self.presented != nil
 		}
 
 		// MARK: - Late-arriving data pushes
@@ -140,47 +223,48 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateSegments") { (segments: [MediaSegmentRecord]) in
-			self.session?.viewModel.updateSegments(segments)
+			self.presented?.viewModel.updateSegments(segments)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateNextEpisode") { (next: NextEpisodeRecord?) in
-			self.session?.viewModel.updateNextEpisode(next)
+			self.presented?.viewModel.updateNextEpisode(next)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateChapters") { (chapters: [ChapterRecord]) in
-			self.session?.viewModel.updateChapters(chapters)
+			self.presented?.viewModel.updateChapters(chapters)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateTrickplay") { (trickplay: TrickplayRecord?) in
-			self.session?.viewModel.updateTrickplay(trickplay)
+			self.presented?.viewModel.updateTrickplay(trickplay)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateTrackMenus") { (menus: TrackMenusRecord) in
-			self.session?.viewModel.updateTrackMenus(menus)
+			self.presented?.viewModel.updateTrackMenus(menus)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateMetadata") { (metadata: MetadataRecord) in
-			self.session?.viewModel.updateMetadata(metadata)
+			self.presented?.viewModel.updateMetadata(metadata)
+			// Now Playing is the local player's: a remote screen has no entry there.
 			self.session?.applyNowPlayingMetadata(metadata)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateEpisodeList") { (episodes: [EpisodeListItemRecord]) in
-			self.session?.viewModel.updateEpisodeList(episodes)
+			self.presented?.viewModel.updateEpisodeList(episodes)
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateSubtitleSearch") { (state: SubtitleSearchStateRecord) in
-			self.session?.viewModel.updateSubtitleSearch(state)
+			self.presented?.viewModel.updateSubtitleSearch(state)
 		}.runOnQueue(.main)
 
 		// Transient one-line notice on the player's own notice surface, for
 		// things the JS coordinator decides (automatic subtitles on mute).
 		AsyncFunction("showNotice") { (text: String) in
-			self.session?.viewModel.showNotice(text)
+			self.presented?.viewModel.showNotice(text)
 		}.runOnQueue(.main)
 
 		// Jellyfin remote ToggleMute. Same entry point as the TV mute button.
 		AsyncFunction("toggleMute") {
-			self.session?.viewModel.toggleMute()
+			self.transport?.toggleMute()
 		}.runOnQueue(.main)
 
 		// Adds a sidecar subtitle to the live mpv handle and selects it
@@ -190,7 +274,9 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		// MARK: - Transport (driven by the JS coordinator: WebSocket remote
-		// control commands from the Jellyfin server, not the native UI)
+		// control commands from the Jellyfin server, not the native UI). The
+		// local player only, through `session` and `transport`: a command
+		// addressed to the phone must never drive the TV.
 
 		AsyncFunction("play") {
 			self.session?.engine.play()
@@ -205,11 +291,11 @@ public class NativePlayerModule: Module {
 		// one, or the server keeps reporting the pre-seek position until the
 		// next 10s interval. Android routes this the same way.
 		AsyncFunction("seekTo") { (positionSec: Double) in
-			self.session?.viewModel.seekFromCoordinator(to: positionSec)
+			self.transport?.seekFromCoordinator(to: positionSec)
 		}.runOnQueue(.main)
 
 		AsyncFunction("setSpeed") { (speed: Double) in
-			self.session?.viewModel.setSpeed(speed)
+			self.transport?.setSpeed(speed)
 		}.runOnQueue(.main)
 
 		AsyncFunction("getCurrentPosition") { () -> Double in
@@ -259,8 +345,8 @@ public class NativePlayerModule: Module {
 		OnDestroy {
 			// App reload / module teardown while a player is up: tear down
 			// synchronously so the mpv handle and audio session are released.
-			self.session?.teardownImmediately()
-			self.session = nil
+			self.presented?.teardownImmediately()
+			self.presented = nil
 		}
 	}
 

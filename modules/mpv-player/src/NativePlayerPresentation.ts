@@ -1,10 +1,10 @@
-import { NativeModule, requireNativeModule } from "expo";
 import type { EventSubscription } from "expo-modules-core";
 import type {
   AudioTrack,
   SubtitleTrack,
   TechnicalInfo,
 } from "./MpvPlayer.types";
+import { NativePlayerNativeModule } from "./NativePlayerModule";
 import type {
   NativePlayerChapter,
   NativePlayerConfig,
@@ -19,50 +19,6 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "./NativePlayerPresentation.types";
-
-declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
-  presentPlayer(config: NativePlayerConfig): Promise<void>;
-  load(config: NativePlayerConfig): Promise<void>;
-  dismiss(): Promise<void>;
-  isPresented(): boolean;
-  updateSegments(segments: NativePlayerSegment[]): Promise<void>;
-  updateNextEpisode(next: NativePlayerNextEpisode | null): Promise<void>;
-  updateChapters(chapters: NativePlayerChapter[]): Promise<void>;
-  updateTrickplay(trickplay: NativePlayerTrickplay | null): Promise<void>;
-  updateTrackMenus(menus: NativePlayerTrackMenus): Promise<void>;
-  updateMetadata(metadata: NativePlayerMetadata): Promise<void>;
-  updateEpisodeList(episodes: NativePlayerEpisodeListItem[]): Promise<void>;
-  updateSubtitleSearch(state: NativePlayerSubtitleSearchState): Promise<void>;
-  updateSyncPlay(state: NativePlayerSyncPlayState | null): Promise<void>;
-  applySyncPlayCommand(command: NativePlayerSyncPlayCommand): Promise<boolean>;
-  cancelSyncPlayCommands(): Promise<void>;
-  showNotice(text: string): Promise<void>;
-  toggleMute(): Promise<void>;
-  addExternalSubtitle(url: string): Promise<void>;
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  seekTo(positionSec: number): Promise<void>;
-  setSpeed(speed: number): Promise<void>;
-  getCurrentPosition(): Promise<number>;
-  getDuration(): Promise<number>;
-  getSubtitleTracks(): Promise<SubtitleTrack[]>;
-  setSubtitleTrack(mpvId: number): Promise<void>;
-  disableSubtitles(): Promise<void>;
-  getAudioTracks(): Promise<AudioTrack[]>;
-  setAudioTrack(mpvId: number): Promise<void>;
-  getTechnicalInfo(): Promise<TechnicalInfo>;
-}
-
-// The NativePlayer module only ships on iOS (iPhone/iPad). Resolve it
-// optionally so Android/TV bundles that import this file don't crash —
-// same pattern as modules/top-shelf-cache.
-let NativePlayerNativeModule: NativePlayerModuleType | null = null;
-try {
-  NativePlayerNativeModule =
-    requireNativeModule<NativePlayerModuleType>("NativePlayer");
-} catch {
-  NativePlayerNativeModule = null;
-}
 
 export const isNativePlayerModuleAvailable = (): boolean =>
   NativePlayerNativeModule !== null;
@@ -84,16 +40,26 @@ export const applyNativePlayerSyncPlayCommand = (
 export const cancelNativePlayerSyncPlayCommands = (): Promise<void> =>
   NativePlayerNativeModule?.cancelSyncPlayCommands() ?? Promise.resolve();
 
+/** Whether a native event came from the remote player's screen, which marks every body it sends. */
+export const isRemotePlayerEvent = (payload: unknown): boolean =>
+  typeof payload === "object" &&
+  payload !== null &&
+  (payload as { remote?: unknown }).remote === true;
+
 /**
  * Attach a NativePlayer event listener. IMPORTANT: attach every listener
  * BEFORE calling presentNativePlayer — module events emitted with no
- * listener are dropped.
+ * listener are dropped. The remote player's events share these names and
+ * never reach it: the local player must not report a playback on the TV.
  */
 export const addNativePlayerListener = <K extends keyof NativePlayerEvents>(
   event: K,
   listener: NativePlayerEvents[K],
 ): EventSubscription | null =>
-  NativePlayerNativeModule?.addListener(event, listener) ?? null;
+  NativePlayerNativeModule?.addListener(event, ((payload: unknown) => {
+    if (isRemotePlayerEvent(payload)) return;
+    (listener as (value: unknown) => void)(payload);
+  }) as NativePlayerEvents[K]) ?? null;
 
 export const presentNativePlayer = (
   config: NativePlayerConfig,

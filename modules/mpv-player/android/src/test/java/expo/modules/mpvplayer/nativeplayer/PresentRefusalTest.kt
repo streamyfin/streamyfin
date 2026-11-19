@@ -30,6 +30,15 @@ class PresentRefusalTest {
         assertTrue(presentRefusal(presented = true, config(url = "", engine = "cast")) is PlayerAlreadyPresentedException)
     }
 
+    // presentRemotePlayer refuses, in this order: a player already up, a TV, then no remote engine to drive.
+    @Test
+    fun presentingWithNoRemoteEngineIsRefused() {
+        assertTrue(remotePresentRefusal(presented = false, hasRemoteEngine = false, isTv = false) is NoRemoteEngineException)
+        assertTrue(remotePresentRefusal(presented = true, hasRemoteEngine = false, isTv = true) is PlayerAlreadyPresentedException)
+        assertTrue(remotePresentRefusal(presented = false, hasRemoteEngine = true, isTv = true) is RemotePlayerUnsupportedException)
+        assertNull(remotePresentRefusal(presented = false, hasRemoteEngine = true, isTv = false))
+    }
+
     @Test
     fun anUnreadableStreamIsRefusedBeforeTheEngine() {
         assertTrue(presentRefusal(presented = false, config(url = "", engine = "cast")) is InvalidStreamUrlException)

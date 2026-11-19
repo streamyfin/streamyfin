@@ -2,11 +2,18 @@ package expo.modules.mpvplayer.nativeplayer
 
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.mpvplayer.DeviceKind
+import expo.modules.mpvplayer.cast.engine.mainLooperSchedule
+import expo.modules.mpvplayer.cast.target.RemoteTargets
+import expo.modules.mpvplayer.nativeplayer.remote.FakeRemoteEngine
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteEngineLease
+import expo.modules.mpvplayer.nativeplayer.remote.RemotePlayerSession
 import expo.modules.mpvplayer.nativeplayer.engine.NativeEngineKind
 import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 
@@ -22,6 +29,23 @@ class InvalidStreamUrlException :
 class UnsupportedEngineException(name: String?) :
     CodedException("The native player does not run the engine \"$name\"")
 
+class NoRemoteEngineException :
+    CodedException("No remote engine to present a remote player over")
+
+class RemotePlayerUnsupportedException :
+    CodedException("This device does not present a remote player")
+
+/**
+ * Why presentRemotePlayer refuses, checked in this order: a player already up (local or remote), a TV (TVs
+ * do not cast), then no remote engine to drive; null when it presents.
+ */
+internal fun remotePresentRefusal(presented: Boolean, hasRemoteEngine: Boolean, isTv: Boolean): CodedException? = when {
+    presented -> PlayerAlreadyPresentedException()
+    isTv -> RemotePlayerUnsupportedException()
+    !hasRemoteEngine -> NoRemoteEngineException()
+    else -> null
+}
+
 /** Why presentPlayer refuses [config] before it builds a session, checked in this order; null when it presents it. */
 internal fun presentRefusal(presented: Boolean, config: PlayerPresentConfigRecord): CodedException? = when {
     presented -> PlayerAlreadyPresentedException()
@@ -32,11 +56,32 @@ internal fun presentRefusal(presented: Boolean, config: PlayerPresentConfigRecor
 
 class NativePlayerModule : Module() {
 
-    private var session: NativePlayerSession? = null
+    /** The player presented, local or remote: one at a time. */
+    private var presented: PresentedPlayer? = null
+
+    /** The local player, for its own calls: load, mpv tracks, SyncPlay, technical info. */
+    private val session: NativePlayerSession? get() = presented as? NativePlayerSession
+
+    /** What JS's transport calls reach: the local player's view model, never the remote one's. */
+    private val transport: PlayerViewModel? get() = jsTransportTarget(presented)
 
     // HandlerThread for off-main MPV property reads to prevent UI thread blockage
     private val propsThread = HandlerThread("mpv-props").apply { start() }
     private val propsHandler = Handler(propsThread.looper)
+
+    /**
+     * The remote engine a screen borrows, null without one. Tier 1 builds (fake Cast receivers) lend a fake
+     * TV, stopped when the screen hands it back; the engine bound to a real Cast session comes later.
+     */
+    private fun remoteEngineLease(): RemoteEngineLease? {
+        if (!RemoteTargets.fakeDevices) return null
+        val main = Handler(Looper.getMainLooper())
+        val fake = FakeRemoteEngine(
+            schedule = mainLooperSchedule(),
+            runOnMain = { block -> if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) },
+        )
+        return RemoteEngineLease(fake) { fake.stop() }
+    }
 
     override fun definition() = ModuleDefinition {
         Name("NativePlayer")
@@ -56,7 +101,7 @@ class NativePlayerModule : Module() {
         // MARK: - Lifecycle
 
         AsyncFunction("presentPlayer") { config: PlayerPresentConfigRecord, promise: Promise ->
-            presentRefusal(this@NativePlayerModule.session != null, config)?.let {
+            presentRefusal(this@NativePlayerModule.presented != null, config)?.let {
                 promise.reject(it)
                 return@AsyncFunction
             }
@@ -66,21 +111,53 @@ class NativePlayerModule : Module() {
                     sendEvent(name, payload)
                 },
                 onTornDown = {
-                    this@NativePlayerModule.session = null
+                    this@NativePlayerModule.presented = null
                 },
                 presenterProvider = {
                     appContext.currentActivity
                 }
             )
-            this@NativePlayerModule.session = newSession
+            this@NativePlayerModule.presented = newSession
 
             try {
                 newSession.present(config, promise)
             } catch (e: Exception) {
-                this@NativePlayerModule.session = null
+                this@NativePlayerModule.presented = null
                 promise.reject("PRESENT_FAILED", e.message, e)
             }
         }
+
+        // The remote player: the chrome over a remote engine, apart from the local player's entry.
+        AsyncFunction("presentRemotePlayer") { config: RemotePlayerConfigRecord, promise: Promise ->
+            val context = appContext.reactContext
+            val isTv = context != null && DeviceKind.isTelevision(context)
+            val alreadyPresented = this@NativePlayerModule.presented != null
+            val lease = if (!alreadyPresented && !isTv) remoteEngineLease() else null
+            remotePresentRefusal(presented = alreadyPresented, hasRemoteEngine = lease != null, isTv = isTv)?.let {
+                promise.reject(it)
+                return@AsyncFunction
+            }
+            val activity = appContext.currentActivity
+            if (lease == null || activity == null) {
+                lease?.release()
+                promise.reject("NO_PRESENTER", "Could not find an Activity to present the remote player from", null)
+                return@AsyncFunction
+            }
+            val remote = RemotePlayerSession(
+                lease = lease,
+                emit = { name, body -> sendEvent(name, body) },
+                onTornDown = { this@NativePlayerModule.presented = null },
+            )
+            this@NativePlayerModule.presented = remote
+            try {
+                remote.present(activity, config)
+                promise.resolve(null)
+            } catch (e: Exception) {
+                remote.teardownImmediately()
+                this@NativePlayerModule.presented = null
+                promise.reject("PRESENT_FAILED", e.message, e)
+            }
+        }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("load") { config: PlayerPresentConfigRecord, promise: Promise ->
             val s = this@NativePlayerModule.session
@@ -97,7 +174,7 @@ class NativePlayerModule : Module() {
         }
 
         AsyncFunction("dismiss") { promise: Promise ->
-            val s = this@NativePlayerModule.session
+            val s = this@NativePlayerModule.presented
             if (s == null) {
                 promise.resolve(null)
                 return@AsyncFunction
@@ -108,7 +185,7 @@ class NativePlayerModule : Module() {
         }
 
         Function("isPresented") {
-            this@NativePlayerModule.session != null
+            this@NativePlayerModule.presented != null
         }
 
         // MARK: - Late-Arriving Data Pushes
@@ -128,46 +205,46 @@ class NativePlayerModule : Module() {
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("updateSegments") { segments: List<MediaSegmentRecord> ->
-            this@NativePlayerModule.session?.viewModel?.updateSegments(segments)
+            this@NativePlayerModule.presented?.viewModel?.updateSegments(segments)
         }
 
         AsyncFunction("updateNextEpisode") { next: NextEpisodeRecord? ->
-            this@NativePlayerModule.session?.viewModel?.updateNextEpisode(next)
+            this@NativePlayerModule.presented?.viewModel?.updateNextEpisode(next)
         }
 
         AsyncFunction("updateChapters") { chapters: List<ChapterRecord> ->
-            this@NativePlayerModule.session?.viewModel?.updateChapters(chapters)
+            this@NativePlayerModule.presented?.viewModel?.updateChapters(chapters)
         }
 
         AsyncFunction("updateTrickplay") { trickplay: TrickplayRecord? ->
-            this@NativePlayerModule.session?.viewModel?.updateTrickplay(trickplay)
+            this@NativePlayerModule.presented?.viewModel?.updateTrickplay(trickplay)
         }
 
         AsyncFunction("updateTrackMenus") { menus: TrackMenusRecord ->
-            this@NativePlayerModule.session?.viewModel?.updateTrackMenus(menus)
+            this@NativePlayerModule.presented?.viewModel?.updateTrackMenus(menus)
         }
 
         AsyncFunction("updateMetadata") { metadata: MetadataRecord ->
-            this@NativePlayerModule.session?.viewModel?.updateMetadata(metadata)
+            this@NativePlayerModule.presented?.viewModel?.updateMetadata(metadata)
         }
 
         AsyncFunction("updateEpisodeList") { episodes: List<EpisodeListItemRecord> ->
-            this@NativePlayerModule.session?.viewModel?.updateEpisodeList(episodes)
+            this@NativePlayerModule.presented?.viewModel?.updateEpisodeList(episodes)
         }
 
         AsyncFunction("updateSubtitleSearch") { state: SubtitleSearchStateRecord ->
-            this@NativePlayerModule.session?.viewModel?.updateSubtitleSearch(state)
+            this@NativePlayerModule.presented?.viewModel?.updateSubtitleSearch(state)
         }
 
         // Transient one-line notice on the player's own notice surface, for
         // things the JS coordinator decides (automatic subtitles on mute).
         AsyncFunction("showNotice") { text: String ->
-            this@NativePlayerModule.session?.viewModel?.showNotice(text)
+            this@NativePlayerModule.presented?.viewModel?.showNotice(text)
         }
 
         // Jellyfin remote ToggleMute. Same entry point as the TV mute button.
         AsyncFunction("toggleMute") {
-            this@NativePlayerModule.session?.viewModel?.toggleMute()
+            this@NativePlayerModule.transport?.toggleMute()
         }
 
         AsyncFunction("addExternalSubtitle") { url: String ->
@@ -177,11 +254,11 @@ class NativePlayerModule : Module() {
         // MARK: - Transport
 
         AsyncFunction("play") {
-            this@NativePlayerModule.session?.viewModel?.playLocal()
+            this@NativePlayerModule.transport?.playLocal()
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("pause") {
-            this@NativePlayerModule.session?.viewModel?.pauseLocal()
+            this@NativePlayerModule.transport?.pauseLocal()
         }.runOnQueue(Queues.MAIN)
 
         // Main queue, as on iOS: viewModel.seekTo syncs the window's
@@ -190,11 +267,11 @@ class NativePlayerModule : Module() {
         // before the tick that moves JS's tracked position, so a backward
         // remote seek followed by an exit reported the pre-seek position.
         AsyncFunction("seekTo") { positionSec: Double ->
-            this@NativePlayerModule.session?.viewModel?.seekLocal(positionSec)
+            this@NativePlayerModule.transport?.seekLocal(positionSec)
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("setSpeed") { speed: Double ->
-            this@NativePlayerModule.session?.viewModel?.setSpeed(speed)
+            this@NativePlayerModule.transport?.setSpeed(speed)
         }
 
         AsyncFunction("getCurrentPosition") {
@@ -256,8 +333,8 @@ class NativePlayerModule : Module() {
         }
 
         OnDestroy {
-            this@NativePlayerModule.session?.teardownImmediately()
-            this@NativePlayerModule.session = null
+            this@NativePlayerModule.presented?.teardownImmediately()
+            this@NativePlayerModule.presented = null
             propsThread.quitSafely()
         }
     }

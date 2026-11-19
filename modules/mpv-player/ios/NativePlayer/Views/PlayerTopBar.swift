@@ -320,16 +320,20 @@ struct PlayerTopBar: View {
 					Label(viewModel.str("chapters", "Chapters"), systemImage: "bookmark")
 				}
 			}
-			if !viewModel.isSyncPlayActive { sleepTimerMenu }
-			Button {
-				viewModel.requestRotate()
-			} label: {
-				Label(viewModel.str("rotate", "Rotate"), systemImage: "rotate.right")
+			if !viewModel.isSyncPlayActive && viewModel.capabilities.sleepTimer { sleepTimerMenu }
+			if viewModel.capabilities.rotate {
+				Button {
+					viewModel.requestRotate()
+				} label: {
+					Label(viewModel.str("rotate", "Rotate"), systemImage: "rotate.right")
+				}
 			}
-			Button {
-				viewModel.lockControls()
-			} label: {
-				Label(viewModel.str("lockControls", "Lock controls"), systemImage: "lock")
+			if viewModel.capabilities.lockControls {
+				Button {
+					viewModel.lockControls()
+				} label: {
+					Label(viewModel.str("lockControls", "Lock controls"), systemImage: "lock")
+				}
 			}
 			if viewModel.capabilities.technicalInfo {
 				Button {

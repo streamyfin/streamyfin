@@ -195,3 +195,35 @@ class PlayerPresentConfigRecord : Record {
     // ExoPlayer or on iOS.
     @Field var voDriver: String? = null
 }
+
+/**
+ * What JS sends to present the remote player: what the TV plays, described for the chrome. No stream and
+ * no engine: the remote engine plays it on the TV (JS: RemotePlayerPresentConfig).
+ */
+class RemotePlayerConfigRecord : Record {
+    @Field var metadata: MetadataRecord? = null
+    /** The TV's name, under the transport. */
+    @Field var targetName: String? = null
+    @Field var chapters: List<ChapterRecord> = emptyList()
+    @Field var segments: List<MediaSegmentRecord> = emptyList()
+    @Field var trickplay: TrickplayRecord? = null
+    @Field var nextEpisode: NextEpisodeRecord? = null
+    @Field var episodeList: List<EpisodeListItemRecord> = emptyList()
+    @Field var tracks: TrackMenusRecord? = null
+    @Field var ui: UIOptionsRecord = UIOptionsRecord()
+
+    /** The config the chrome's view model takes, with an empty stream it never loads. */
+    fun toPresentConfig(): PlayerPresentConfigRecord {
+        val remote = this
+        return PlayerPresentConfigRecord().apply {
+            metadata = remote.metadata
+            chapters = remote.chapters
+            segments = remote.segments
+            trickplay = remote.trickplay
+            nextEpisode = remote.nextEpisode
+            episodeList = remote.episodeList
+            tracks = remote.tracks
+            ui = remote.ui
+        }
+    }
+}
