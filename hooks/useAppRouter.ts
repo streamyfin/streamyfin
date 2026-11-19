@@ -26,9 +26,15 @@ export function useAppRouter() {
   const router = useRouter();
   const isOffline = useOfflineMode();
 
-  // Optional: undefined when used outside a navigator (root layout, providers).
-  // When present it reflects the focus state of the screen this hook lives in.
-  const navigation = useContext(NavigationContext);
+  // The navigation of the screen this hook lives in, whose focus state the
+  // guard reads. The root layout and its providers have one too: expo-router
+  // renders them inside its own root route, which has no parent and never
+  // takes the focus again, so a guard there would drop every push after the
+  // first. They have no taps to drop, and go unguarded.
+  const contextNavigation = useContext(NavigationContext);
+  const navigation = contextNavigation?.getParent?.()
+    ? contextNavigation
+    : undefined;
 
   // Synchronous re-entry guard for TV: a single remote "select" on Android TV
   // can fire onPress more than once within the same JS batch
@@ -50,7 +56,7 @@ export function useAppRouter() {
       // navigation state (only the native render is slow). Any further push from
       // this screen — duplicate or not — is dropped until focus returns, so taps
       // fired before the pushed screen renders can't stack screens.
-      // No navigation context => nothing to guard (deep-link pushes from root).
+      // Not on a screen => nothing to guard (deep-link pushes from root).
       if (navigation) {
         if (navigation.isFocused?.() === false || pushInFlightRef.current)
           return;
