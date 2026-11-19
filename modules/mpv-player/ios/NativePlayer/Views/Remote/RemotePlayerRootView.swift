@@ -245,8 +245,7 @@ struct RemotePlayerRootView: View {
 		return Double(UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traits) / 100)
 	}
 }
-/// The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the
-/// label, its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
+
 /// The couched top bar's height, as laid out; 0 when there is none.
 private struct RemoteTopBarHeightKey: PreferenceKey {
 	static let defaultValue: CGFloat = 0
@@ -256,6 +255,8 @@ private struct RemoteTopBarHeightKey: PreferenceKey {
 	}
 }
 
+/// The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the
+/// label, its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
 private struct RemoteNextUpCard: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let next: NextEpisodeRecord
