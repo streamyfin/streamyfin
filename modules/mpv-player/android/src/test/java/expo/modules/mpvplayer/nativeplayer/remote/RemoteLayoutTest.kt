@@ -74,7 +74,20 @@ class RemoteLayoutTest {
         // Nor over its maximum, on the largest tablet.
         val max = PlayerConstants.REMOTE_ARTWORK_MAX_DP
         assertEquals(max, RemoteMetrics.artworkHeight(RemoteLayout.WIDE, 1366.0, 1024.0, 1.0), 0.0)
-        assertEquals(max, RemoteMetrics.artworkHeight(RemoteLayout.PORTRAIT, 480.0, 1600.0, 1.0), 0.0)
+        assertEquals(432.0, RemoteMetrics.artworkHeight(RemoteLayout.PORTRAIT, 480.0, 1600.0, 1.0), 0.0)
+    }
+
+    // Upright, a tablet's artwork grows with its screen as a phone's does: on a Pixel Tablet (800 x 1232 under the
+    // bars) it stopped at 420; it now takes 90 % of the width, the share the widest phone's margins leave it. Every
+    // phone keeps its size, and the wide layout its maximum.
+    @Test
+    fun uprightTheArtworkGrowsWithTheScreen() {
+        assertEquals(720.0, RemoteMetrics.artworkHeight(RemoteLayout.PORTRAIT, 800.0, 1232.0, 1.0), 1e-9)
+        for ((width, height, side) in listOf(Triple(360.0, 740.0, 312.0), Triple(411.0, 860.0, 363.0), Triple(448.0, 900.0, 400.0))) {
+            assertEquals("phone $width", side, RemoteMetrics.artworkHeight(RemoteLayout.PORTRAIT, width, height, 1.0), 0.0)
+        }
+        val couched = RemoteMetrics.artworkHeight(RemoteLayout.WIDE, 1280.0, 752.0, 1.0)
+        assertEquals(PlayerConstants.REMOTE_ARTWORK_MAX_DP, couched, 0.0)
     }
 
     @Test

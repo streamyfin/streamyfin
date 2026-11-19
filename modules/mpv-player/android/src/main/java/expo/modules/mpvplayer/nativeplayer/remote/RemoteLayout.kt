@@ -43,8 +43,9 @@ enum class RemoteTopBarEnd {
 
 /**
  * How big the artwork is. Upright and wide, a square: what the rest of the screen leaves once its text is counted
- * at the font scale asked for, between REMOTE_ARTWORK_MIN_DP and REMOTE_ARTWORK_MAX_DP; the artwork gives up its
- * height first, and when nothing fits even at its minimum, the column scrolls. Couched, the image in its own shape,
+ * at the font scale asked for, between REMOTE_ARTWORK_MIN_DP and REMOTE_ARTWORK_MAX_DP (upright, at least
+ * REMOTE_PORTRAIT_ARTWORK_MAX_SHARE of the width); the artwork gives up its height first, and when nothing fits even
+ * at its minimum, the column scrolls. Couched, the image in its own shape,
  * as large as the left half and the band under the top bar leave it: the text stands beside it, and scrolls there.
  */
 object RemoteMetrics {
@@ -106,8 +107,13 @@ object RemoteMetrics {
                 widthDp * PlayerConstants.REMOTE_WIDE_ARTWORK_FRACTION - 2 * PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP
         }
         val byHeight = heightDp - chromeHeight(layout, fontScale)
-        return minOf(byWidth, byHeight)
-            .coerceIn(PlayerConstants.REMOTE_ARTWORK_MIN_DP, PlayerConstants.REMOTE_ARTWORK_MAX_DP)
+        // Upright, the maximum grows with the window: a tablet's artwork takes the share of it a phone's does.
+        val largest = if (layout == RemoteLayout.PORTRAIT) {
+            maxOf(PlayerConstants.REMOTE_ARTWORK_MAX_DP, widthDp * PlayerConstants.REMOTE_PORTRAIT_ARTWORK_MAX_SHARE)
+        } else {
+            PlayerConstants.REMOTE_ARTWORK_MAX_DP
+        }
+        return minOf(byWidth, byHeight).coerceIn(PlayerConstants.REMOTE_ARTWORK_MIN_DP, largest)
     }
 
     /**

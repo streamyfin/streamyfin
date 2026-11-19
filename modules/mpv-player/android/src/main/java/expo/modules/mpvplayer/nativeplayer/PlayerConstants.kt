@@ -49,8 +49,12 @@ object PlayerConstants {
     const val REMOTE_COMPACT_HEIGHT_DP = 480.0
     const val REMOTE_WIDE_MIN_WIDTH_DP = 600.0
     // The artwork takes what the rest leaves, between these two; it gives up its height before anything else.
+    // Upright, the maximum grows with the window, to this share of its width when that is more, so a tablet's
+    // artwork is as large a part of its screen as a phone's: a phone's margins leave it 87 to 89 %, under 420, so no
+    // phone changes. iOS: PlayerConstants.remotePortraitArtworkMaxShare.
     const val REMOTE_ARTWORK_MIN_DP = 96.0
     const val REMOTE_ARTWORK_MAX_DP = 420.0
+    const val REMOTE_PORTRAIT_ARTWORK_MAX_SHARE = 0.9
     const val REMOTE_HORIZONTAL_PADDING_DP = 24.0
     // The remote screen draws the technical info panel within the artwork, this far from its edges.
     // iOS: PlayerConstants.remoteTechnicalInfoInset.
