@@ -1,5 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import {
   onCastSessionEvent,
   useCastDevice,
@@ -22,12 +23,21 @@ interface LastCast {
 /**
  * Mounted once for the whole app: a cast can be stopped from the notification
  * or the native Cast dialog while no casting screen is open. Renders nothing.
+ * Once the stop is reported, the pages read the resume point again, as the
+ * phone's player has them do when it closes: an item page left open meanwhile
+ * still holds the one from before the cast, and its Play would send that.
  */
 export function JellyfinCastStopReporter() {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const castDevice = useCastDevice();
   const mediaStatus = useCastMediaStatus();
+  // A new function every render: the session listener reads the latest one.
+  const refreshProgress = useInvalidatePlaybackProgressCache();
+  const refreshProgressRef = useRef(refreshProgress);
+  useEffect(() => {
+    refreshProgressRef.current = refreshProgress;
+  }, [refreshProgress]);
 
   // The device and media status are already gone by the time the session has
   // ended, so the last values seen are kept for then.
@@ -115,6 +125,13 @@ export function JellyfinCastStopReporter() {
           if (pendingReport.current === controller) {
             pendingReport.current = null;
           }
+          // After the report, which may be what writes the receiver's last position.
+          void refreshProgressRef.current().catch((refreshError) => {
+            logAndCaptureError(
+              "Cast: reading the resume points again failed",
+              refreshError,
+            );
+          });
         });
     });
 

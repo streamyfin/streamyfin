@@ -1,3 +1,5 @@
+import { MAX_BITRATE_KEY } from "@/constants/Bitrate";
+
 /**
  * Heartbeat cadence, in ms, for the periodic playback progress report. The
  * players tick once a second, but the server only needs the position often
@@ -46,6 +48,37 @@ export const NEXT_EPISODE_COUNTDOWN_MS = 10_000;
  * settles would hold every later report, the Stop included.
  */
 export const PLAYBACK_REPORT_TIMEOUT_MS = 15_000;
+
+/**
+ * How many times a Live TV stream's close goes out, and the wait before the
+ * first retry, in ms, doubled before each later one. Jellyfin shares a
+ * channel's stream between sessions and counts one reference per negotiation;
+ * every close it handles takes one off. So a close is only sent again when no
+ * answer came back, when it most likely never reached the server: one the
+ * server answered, even with an error, took a reference off already.
+ */
+export const LIVE_STREAM_CLOSE_ATTEMPTS = 3;
+export const LIVE_STREAM_CLOSE_RETRY_DELAY_MS = 2_000;
+
+export type Bitrate = {
+  key: string;
+  value: number | undefined;
+};
+
+/**
+ * The streaming caps, highest first: what a download is made at, and what
+ * the pickers of this device offer after Auto (`PLAYBACK_BITRATES`). Max caps
+ * nothing.
+ */
+export const BITRATES: Bitrate[] = [
+  { key: MAX_BITRATE_KEY, value: undefined },
+  { key: "8 Mb/s", value: 8_000_000 },
+  { key: "4 Mb/s", value: 4_000_000 },
+  { key: "2 Mb/s", value: 2_000_000 },
+  { key: "1 Mb/s", value: 1_000_000 },
+  { key: "500 Kb/s", value: 500_000 },
+  { key: "250 Kb/s", value: 250_000 },
+];
 
 /**
  * How long, in ms, a volume step a server sent keeps being the starting point

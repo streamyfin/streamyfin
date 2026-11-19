@@ -189,7 +189,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the Cast mapping, the engine protocols, the receiver protocol), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
@@ -216,6 +216,9 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 - Direct HTTP is reserved for endpoints outside the SDK: Streamyfin and
   intro-skipper plugins, Web's static configuration, configurable custom sections,
   and external services (Seerr, StreamyStats, Marlin, OpenSubtitles, Wikidata).
+  One SDK endpoint is the exception: Auto quality's speed test
+  (`utils/jellyfin/bitrateTest.ts`) times the body of `/Playback/BitrateTest` as it
+  streams in, through expo/fetch, which Axios cannot; it sends the same headers.
   The SDK itself uses Axios; keep its custom-header transport and error handling.
   Plugin requests use the explicitly named `pluginGet` / `pluginPost` /
   `pluginPut` / `pluginDelete` extensions, not generic `Api.get` / `post` /

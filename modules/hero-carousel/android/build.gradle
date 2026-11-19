@@ -40,4 +40,8 @@ dependencies {
   // filter). Already on the app's classpath via modules/mpv-player.
   implementation 'androidx.compose.material:material-icons-extended:1.7.8'
   implementation 'androidx.core:core-ktx:1.19.1'
+
+  testImplementation 'junit:junit:4.13.2'
+  // The payload parser reads org.json, which the unit test android.jar only stubs.
+  testImplementation 'org.json:json:20180813'
 }

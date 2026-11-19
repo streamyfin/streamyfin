@@ -68,6 +68,7 @@ them.
 | Images | `<Image>` from `components/common/ServerImage` (it carries expo-image's statics, so it is the only import a screen needs) and `getItemImage`, whose source wins when it already resolved them |
 | Image prefetch | `prefetchServerImage` |
 | Video playback | `MpvVideoSource.headers` in `direct-player` |
+| Auto quality speed tests | `detectBitrate` (`utils/jellyfin/bitrateTest.ts`), which times the body with `expo/fetch` |
 | Now Playing artwork (iOS) | `nowPlayingMetadata.artworkHeaders` |
 | Video downloads | `BackgroundDownloader.enqueueDownload(..., headers)` |
 | Trickplay, subtitles, posters | `File.downloadFileAsync(..., optionsWithOptionalHeaders(...))` |

@@ -66,6 +66,8 @@ type ControlsProps = {
   seek: (ms: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
   onAudioIndexChange?: (index: number) => void;
+  onRefreshSubtitleTracks?: () => Promise<unknown>;
+  onSubtitleIndexChange?: (index: number) => void;
 };
 let mockControlsProps: ControlsProps | null = null;
 /** What the page does when the seeking flag changes, to run by hand: the
@@ -75,13 +77,22 @@ let mockSeekReaction:
   | null = null;
 /** Set to have the server answer with a transcode instead of a direct stream. */
 let mockTranscodingUrl: string | undefined;
+/** Holds the next stream negotiation until `release` is called. */
+const mockStreamHold: {
+  held: boolean;
+  release?: () => void;
+  liveStreamId?: string;
+} = { held: false };
+/** The max streaming bitrate of each stream the page asked the server for. */
+const mockAskedBitrates: (number | undefined)[] = [];
+const mockSettings: { defaultBitrate?: { key: string; value?: number } } = {};
 let mockDownloads: Record<string, unknown> = {};
-const mockSettings = {};
 const mockNoop = () => {};
-/** The volume commands the page handed the session socket. */
+/** The commands the page handed the session socket. */
 let mockSocketCommands: {
   volumeUp?: () => Promise<void>;
   volumeDown?: () => Promise<void>;
+  stopPlayback?: () => void;
 } = {};
 /** What the page did with the device volume: reads and writes, in order. */
 const mockVolumeCalls: string[] = [];
@@ -183,16 +194,37 @@ jest.mock("@/utils/atoms/downloadedSubtitles", () => ({
 jest.mock("@/utils/profiles/native", () => ({
   generateDeviceProfile: () => ({}),
 }));
+// A close retried after no answer waits before going out again; not here.
+jest.mock("@/constants/Playback", () => ({
+  ...jest.requireActual("@/constants/Playback"),
+  LIVE_STREAM_CLOSE_RETRY_DELAY_MS: 0,
+}));
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
-  getStreamUrl: async ({ item }: { item: { Id: string } }) => ({
-    mediaSource: {
-      Id: "source-1",
-      MediaStreams: [],
-      TranscodingUrl: mockTranscodingUrl,
-    },
-    sessionId: `session-${item.Id}`,
-    url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
-  }),
+  getStreamUrl: async ({
+    item,
+    maxStreamingBitrate,
+  }: {
+    item: { Id: string };
+    maxStreamingBitrate?: number;
+  }) => {
+    mockAskedBitrates.push(maxStreamingBitrate);
+    if (mockStreamHold.held) {
+      await new Promise<void>((resolve) => (mockStreamHold.release = resolve));
+    }
+    return {
+      mediaSource: {
+        Id: "source-1",
+        MediaStreams: [],
+        TranscodingUrl: mockTranscodingUrl,
+        LiveStreamId: mockStreamHold.liveStreamId,
+      },
+      sessionId: `session-${item.Id}`,
+      url: `https://jellyfin.example.com/Videos/${item.Id}/stream.mkv`,
+    };
+  },
+}));
+jest.mock("@/utils/jellyfin/bitrateTest", () => ({
+  detectBitrate: async () => 12_000_000,
 }));
 jest.mock("@/utils/subtitles/subtitleStyle", () => ({
   applySubtitleStyle: async () => {},
@@ -263,6 +295,20 @@ const stopReports = () =>
   api.mock.history.post
     .filter((request) => request.url?.endsWith("/Sessions/Playing/Stopped"))
     .map((request) => JSON.parse(request.data));
+
+/**
+ * Each request that gives a live stream reference back: a close, and a stop
+ * report that names the stream, which Jellyfin 12 and later close as well.
+ */
+const liveStreamReleases = () =>
+  api.mock.history.post.flatMap((request) => {
+    const url = request.url ?? "";
+    const close = /\/LiveStreams\/Close\?liveStreamId=([^&]+)/.exec(url);
+    if (close) return [close[1]];
+    if (!url.endsWith("/Sessions/Playing/Stopped")) return [];
+    const named = JSON.parse(request.data).LiveStreamId;
+    return named ? [named] : [];
+  });
 
 const startReports = () =>
   api.mock.history.post.filter((request) =>
@@ -363,6 +409,9 @@ describe("direct player stop report", () => {
     mockControlsProps = null;
     mockSeekReaction = null;
     mockTranscodingUrl = undefined;
+    mockStreamHold.liveStreamId = undefined;
+    mockStreamHold.held = false;
+    mockStreamHold.release = undefined;
     mockRouter.setParams.mockClear();
     mockRouter.replace.mockClear();
     mockReportProgress.mockClear();
@@ -604,6 +653,66 @@ describe("direct player stop report", () => {
     expect(mockPlayerProps?.liveStream).toBe(true);
   });
 
+  // The server shares a channel's stream between everyone watching it and
+  // closes it when the last reference is given back. A stop report that named
+  // the stream gave one back on top of the close, and another device on the
+  // channel lost its picture.
+  test("gives a TV channel's live stream back once when the player is left", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    mockStreamHold.liveStreamId = "live-1";
+    await openPlayer();
+    await leavePlayer();
+
+    screen.unmount();
+    await waitFor(() => expect(liveStreamReleases()).toContain("live-1"));
+
+    expect(liveStreamReleases()).toEqual(["live-1"]);
+  });
+
+  // A remote Stop goes back only when there is a screen to go back to, and
+  // the page stays up otherwise: the channel's tuner stayed held until the
+  // user left it, once the stop report no longer named the stream.
+  test("gives a live stream back when a remote Stop leaves the page up", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    mockStreamHold.liveStreamId = "live-1";
+    await openPlayer();
+
+    await act(async () => mockSocketCommands.stopPlayback?.());
+    await waitFor(() => expect(liveStreamReleases()).toEqual(["live-1"]));
+
+    screen.unmount();
+    await waitFor(() => expect(stopReports()).toHaveLength(1));
+    await act(async () => {});
+    expect(liveStreamReleases()).toEqual(["live-1"]);
+  });
+
+  // No answer: the close most likely never reached the server, and nothing
+  // else gives the reference back, so the channel's tuner stayed held.
+  test("tries a live stream's close again when it got no answer", async () => {
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+      UserData: {},
+    });
+    api.mock.onPost(/\/LiveStreams\/Close/).networkErrorOnce();
+    mockStreamHold.liveStreamId = "live-1";
+    await openPlayer();
+    await leavePlayer();
+
+    screen.unmount();
+    await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+    expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
+  });
+
   // Fast forward and rewind from a headset or the notification went +30 and
   // -10 s whatever the user had set.
   test("hands the session the user's skip settings", async () => {
@@ -646,6 +755,58 @@ describe("direct player stop report", () => {
       await act(async () => mockControlsProps?.onAudioIndexChange?.(2));
 
       expect(restartPosition()).toBe(String(RESUME_TICKS));
+    });
+
+    // The server counts one reference per negotiation, and a shared channel
+    // keeps its LiveStreamId across them: a stream negotiated again in place
+    // and never given back held the tuner after the last viewer had left.
+    test("gives back the live stream of every negotiation when the subtitles are refreshed", async () => {
+      api.mock.onGet(/\/Items\/item-1/).reply(200, {
+        Id: "item-1",
+        Type: "TvChannel",
+        UserData: {},
+      });
+      mockStreamHold.liveStreamId = "live-1";
+      await openPlayer();
+      await act(async () => {
+        await mockControlsProps?.onRefreshSubtitleTracks?.();
+      });
+      await leavePlayer();
+
+      screen.unmount();
+      await waitFor(() => expect(liveStreamReleases()).toHaveLength(2));
+
+      expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
+    });
+
+    // A remote Stop leaves the page up when there is no screen to go back
+    // to. A refresh it overtook came back with a stream that played again
+    // after the Stop and held the channel's tuner until the page was left.
+    test("neither plays nor holds a stream negotiated past a remote Stop", async () => {
+      api.mock.onGet(/\/Items\/item-1/).reply(200, {
+        Id: "item-1",
+        Type: "TvChannel",
+        UserData: {},
+      });
+      mockStreamHold.liveStreamId = "live-1";
+      await openPlayer();
+      const mounts = mockPlayerMounts;
+      mockStreamHold.held = true;
+
+      // One act for the whole refresh, which straddles the Stop: its state
+      // updates must not land outside it.
+      await act(async () => {
+        const refreshing = mockControlsProps?.onRefreshSubtitleTracks?.();
+        while (!mockStreamHold.release) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        mockSocketCommands.stopPlayback?.();
+        mockStreamHold.release();
+        await refreshing;
+      });
+
+      expect(liveStreamReleases()).toEqual(["live-1", "live-1"]);
+      expect(mockPlayerMounts).toBe(mounts);
     });
 
     test("restarts from where playback is once MPV has reported a position", async () => {
@@ -843,5 +1004,174 @@ describe("direct player subtitles", () => {
 
     await waitFor(() => expect(mockPlayer.disableSubtitles).toHaveBeenCalled());
     expect(mockPlayer.setSubtitleTrack).not.toHaveBeenCalled();
+  });
+});
+
+describe("direct player quality", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    mockAskedBitrates.length = 0;
+    api.mock.reset();
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "Movie",
+      RunTimeTicks: RUNTIME_TICKS,
+    });
+    api.mock.onPost(/\/Sessions\/Playing/).reply(204);
+  });
+
+  afterEach(async () => {
+    screen.unmount();
+    await waitFor(() => expect(stopReports()).toHaveLength(1));
+    mockParams.bitrateValue = "";
+    delete mockSettings.defaultBitrate;
+    jest.restoreAllMocks();
+  });
+
+  test("asks the server for what Auto measures", async () => {
+    mockParams.bitrateValue = "auto";
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([12_000_000]);
+  });
+
+  // What Live TV asks for, whatever the default quality.
+  test("asks for no cap under Max", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    mockParams.bitrateValue = "max";
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([undefined]);
+  });
+
+  // A Play command from another client, or a Top Shelf or TV recommendation
+  // tile where the native player is off, opens the route with no quality.
+  test("asks for the default quality when the route names none", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([8_000_000]);
+  });
+
+  test("measures the default quality when it is Auto", async () => {
+    mockSettings.defaultBitrate = { key: "Auto", value: undefined };
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([12_000_000]);
+  });
+
+  test("asks for a fixed quality as it is", async () => {
+    mockParams.bitrateValue = "8000000";
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([8_000_000]);
+  });
+
+  // A Play command from another client opens a channel with no quality: it
+  // played at the default, where every other way in plays it uncapped.
+  test("asks for no cap for live television whose route names no quality", async () => {
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+
+    await openPlayer();
+
+    expect(mockAskedBitrates).toEqual([undefined]);
+  });
+
+  // On TV a track change asks the route for another stream: it named the
+  // default quality there, and the live channel came back capped at it.
+  test("keeps live television uncapped when a track change asks for another stream", async () => {
+    stubReactNative({ isTV: true });
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    mockRouter.replace.mockClear();
+    try {
+      await openPlayer();
+      await act(async () => mockControlsProps?.onSubtitleIndexChange?.(3));
+    } finally {
+      stubReactNative();
+    }
+
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    const [href] = mockRouter.replace.mock.calls[0];
+    expect(
+      new URLSearchParams(String(href).split("?")[1]).get("bitrateValue"),
+    ).toBe("max");
+  });
+
+  // The audio track of a transcode needs another stream too, asked the same way.
+  test("keeps live television uncapped when its audio track asks for another stream", async () => {
+    stubReactNative({ isTV: true });
+    mockTranscodingUrl = "/videos/item-1/master.m3u8";
+    mockSettings.defaultBitrate = { key: "8 Mb/s", value: 8_000_000 };
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    mockRouter.replace.mockClear();
+    try {
+      await openPlayer();
+      await act(async () => mockControlsProps?.onAudioIndexChange?.(2));
+    } finally {
+      stubReactNative();
+      mockTranscodingUrl = undefined;
+    }
+
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    const [href] = mockRouter.replace.mock.calls[0];
+    expect(
+      new URLSearchParams(String(href).split("?")[1]).get("bitrateValue"),
+    ).toBe("max");
+  });
+});
+
+describe("a player left while its stream is negotiated", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "log").mockImplementation(() => {});
+    api.mock.reset();
+    api.mock.onGet(/\/Items\/item-1/).reply(200, {
+      Id: "item-1",
+      Type: "TvChannel",
+    });
+    api.mock.onPost().reply(204);
+    mockStreamHold.held = true;
+    mockStreamHold.liveStreamId = "live-1";
+  });
+
+  afterEach(() => {
+    mockStreamHold.held = false;
+    mockStreamHold.release = undefined;
+    mockStreamHold.liveStreamId = undefined;
+    jest.restoreAllMocks();
+  });
+
+  // The live stream the server opened for it came back after the page was
+  // gone: nothing closed it, and it held its tuner until the server reaped it.
+  test("closes the live stream that comes back after it", async () => {
+    await render(<DirectPlayerPage />);
+    await waitFor(() => expect(mockStreamHold.release).toBeDefined());
+    screen.unmount();
+
+    await act(async () => mockStreamHold.release?.());
+
+    await waitFor(() =>
+      expect(
+        api.mock.history.post.map((request) => request.url ?? ""),
+      ).toContainEqual(
+        expect.stringContaining("/LiveStreams/Close?liveStreamId=live-1"),
+      ),
+    );
+    expect(startReports()).toHaveLength(0);
   });
 });
