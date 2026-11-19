@@ -101,6 +101,17 @@ enum RemoteScreenModelTests {
 		check(RemoteScreenModel.sawPlayback(before: true, phase: .ended), "theScreenSeesPlayback: kept")
 	}
 
+	// A new config for the item the TV holds already (JS followed it through its list): no phase change comes
+	// before that item's end, so the screen counts it seen. Another item waits for its playback.
+	static func aNewConfigForTheItemTheTvPlaysHasSeenItPlay() {
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: "episode-1", snapshot: tv(.playing)), "onUpdate: playing")
+		check(RemoteScreenModel.sawPlaybackOnUpdate(itemId: "episode-1", snapshot: tv(.paused)), "onUpdate: paused")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: "episode-2", snapshot: tv(.playing)), "onUpdate: other")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: "episode-1", snapshot: tv(.ended)), "onUpdate: ended")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: "episode-1", snapshot: tv(.loading)), "onUpdate: loading")
+		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: tv(.playing)), "onUpdate: no item")
+	}
+
 	static func aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
 		let screen = model(tv(.stopped))
 		check(screen.closes == nil, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: closes")
@@ -172,6 +183,7 @@ enum RemoteScreenModelTests {
 		aFilmThatEndsClosesThePlayer()
 		anEndTheScreenNeverSawPlayKeepsItOpen()
 		theScreenSeesPlaybackOnceTheTvHoldsTheItem()
+		aNewConfigForTheItemTheTvPlaysHasSeenItPlay()
 		aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume()
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()

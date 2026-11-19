@@ -122,6 +122,7 @@ The broadcast needs the `DUMP` permission, which `adb shell` has. The log then r
   `reload settled loaded` for the capped reload;
   `detached from session <id>` and `disarmed`.
 - `idle finished, waiting for the next item` at the end of a track with more to come.
+- `idle finished, end of the queue` at the end of the last item the engine cast: the end comes at once.
 
 What the server recorded for the receiver is read with `sessions.py`, during V03 for a
 direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:

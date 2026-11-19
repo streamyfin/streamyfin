@@ -44,6 +44,8 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   ): Promise<RemoteLoadResult>;
   /** Reloads what the TV plays under this server, from where it is. */
   reloadOnReceiver(server: ReceiverServerRecord): Promise<void>;
+  /** Next or previous inside the receiver's queue, through the session's engine. */
+  skipOnReceiver(direction: "next" | "previous"): Promise<void>;
   showExpandedControls(): Promise<boolean>;
   /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
   presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;

@@ -1,3 +1,4 @@
+import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { createStore } from "jotai";
 import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
 import { RECEIVER_UNCAPPED_BITRATE } from "@/constants/Cast";
@@ -7,8 +8,10 @@ import {
   type RemoteTarget,
 } from "@/modules/mpv-player/src/cast";
 import type {
+  ReceiverPlayItem,
   ReceiverPlayRequest,
   RemoteLoadResult,
+  RemotePlaybackState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
 import {
   presentRemotePlayer,
@@ -16,9 +19,12 @@ import {
   updateRemotePlayer,
   updateRemotePlayerTint,
 } from "@/modules/mpv-player/src/RemotePlayerPresentation";
-import type { RemotePlayerPresentConfig } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
+import type {
+  RemotePlayerPresentConfig,
+  RemotePlayerTint,
+} from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
-import { effectiveSettingsAtom } from "@/utils/atoms/settings";
+import { effectiveSettingsAtom, type Settings } from "@/utils/atoms/settings";
 import { liveTvBitrateRequest } from "@/utils/bitrate";
 import {
   receiverNameFor,
@@ -36,8 +42,12 @@ import { extractImageColor } from "@/utils/imageColors";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
+import { secondsToTicks } from "@/utils/time";
+import { type BoundedQueue, boundedEpisodeQueue } from "./boundedEpisodeQueue";
 import { buildRemotePlayerConfig } from "./buildRemotePlayerConfig";
+import { remoteEpisodeList, remoteNextUp } from "./remoteEpisodes";
 import { remoteTint } from "./remoteTint";
+import { type SeriesEpisode, seriesEpisodes } from "./seriesEpisodes";
 
 /** What `sendToReceiver` gets, with a store that can also say what the remote player shows. */
 export interface RemotePlayDeps extends Omit<SendDeps, "store"> {
@@ -46,6 +56,8 @@ export interface RemotePlayDeps extends Omit<SendDeps, "store"> {
 
 /** Counts sends, so an older one's tint or outcome never lands over a newer one's screen. */
 let sends = 0;
+/** The tint the newest send faded in, carried by the config that later takes the screen in place. */
+let shownTint: { send: number; tint: RemotePlayerTint } | null = null;
 
 /** The sentence for a load the TV did not start, or null when it did or a later load replaced it. */
 const notStartedMessage = (
@@ -74,10 +86,75 @@ const followTint = async (
   try {
     const color = await extractImageColor(artworkUri, artworkHeaders);
     if (color === null || send !== sends) return;
-    await updateRemotePlayerTint(remoteTint(color));
+    const tint = remoteTint(color);
+    shownTint = { send, tint };
+    await updateRemotePlayerTint(tint);
   } catch (error) {
     // An artwork that does not load leaves the neutral, which reads as well.
     writeErrorLog("The remote player's tint could not be read", error);
+  }
+};
+
+/** What the screen shows of `play` on `remote`; the tint fades in once read. */
+const configFor = (
+  deps: RemotePlayDeps,
+  play: ReceiverPlay,
+  remote: RemoteTarget,
+  episodeList: RemotePlayerPresentConfig["episodeList"],
+  nextEpisode: RemotePlayerPresentConfig["nextEpisode"],
+): RemotePlayerPresentConfig => {
+  const settings = deps.store.get(effectiveSettingsAtom);
+  return buildRemotePlayerConfig({
+    item: play.item,
+    mediaSource:
+      play.item.MediaSources?.find(
+        (source) => source.Id === play.mediaSourceId,
+      ) ??
+      play.item.MediaSources?.[0] ??
+      null,
+    targetName: remote.name,
+    audioIndex: play.audioIndex,
+    subtitleIndex: play.subtitleIndex,
+    episodeList,
+    nextEpisode,
+    tint: null,
+    imageHeaders: getJellyfinHeaders(deps.api.basePath),
+    settings,
+    api: deps.api,
+    t: deps.t,
+    bitrateValue: liveTvBitrateRequest(
+      play.item,
+      bitrateRequestFor(remote, settings?.remotePlaybackQuality),
+    ),
+  });
+};
+
+/** The series around an episode and the list the TV gets of it; null when the series cannot be read. */
+const episodeListing = async (
+  deps: RemotePlayDeps,
+  play: ReceiverPlay,
+  settings: Settings | null,
+): Promise<{ episodes: SeriesEpisode[]; queue: BoundedQueue } | null> => {
+  const seriesId = play.item.SeriesId;
+  if (play.item.Type !== "Episode" || !seriesId) return null;
+  try {
+    const episodes = await seriesEpisodes(deps.api, deps.userId, seriesId);
+    const index = episodes.findIndex(({ id }) => id === play.item.Id);
+    if (index < 0) return null;
+    const queue = boundedEpisodeQueue({
+      episodes,
+      index,
+      startPositionTicks: play.positionTicks,
+      autoPlayNextEpisode: settings?.autoPlayNextEpisode ?? false,
+      preset: settings?.stillWatchingPreset,
+    });
+    return { episodes, queue };
+  } catch (error) {
+    writeErrorLog(
+      "The series of the episode sent to the TV could not be read",
+      error,
+    );
+    return null;
   }
 };
 
@@ -105,27 +182,8 @@ export const playOnRemote = async (
   let config: RemotePlayerPresentConfig;
   deps.store.set(remotePlayAtom, { play, loaded: false });
   try {
-    config = buildRemotePlayerConfig({
-      item: play.item,
-      mediaSource:
-        play.item.MediaSources?.find(
-          (source) => source.Id === play.mediaSourceId,
-        ) ??
-        play.item.MediaSources?.[0] ??
-        null,
-      targetName: remote.name,
-      audioIndex: play.audioIndex,
-      subtitleIndex: play.subtitleIndex,
-      // The TV gets the item alone for now, as `sendToReceiver` sends it: no list to show yet.
-      episodeList: [],
-      nextEpisode: null,
-      tint: null,
-      imageHeaders: getJellyfinHeaders(deps.api.basePath),
-      settings,
-      api: deps.api,
-      t: deps.t,
-      bitrateValue: quality,
-    });
+    // An episode's list and what comes after it follow once the series is read.
+    config = configFor(deps, play, remote, [], null);
     if (!(await updateRemotePlayer(config))) await presentRemotePlayer(config);
   } catch (error) {
     // Refused natively (no remote engine for the session, a player already up), or no config to show: nothing
@@ -135,6 +193,8 @@ export const playOnRemote = async (
     return { status: "failed", message: deps.t("cast.output.failed") };
   }
   void followTint(config, send);
+  // Read while Auto measures: the screen is up already, the list comes to it in place.
+  const listing = episodeListing(deps, play, settings);
 
   const failed = async (message: string): Promise<SendResult> => {
     if (send === sends) {
@@ -162,6 +222,23 @@ export const playOnRemote = async (
     ) {
       return { status: "superseded" };
     }
+    const listed = await listing;
+    if (isStale() || send !== sends) return { status: "superseded" };
+    if (listed) {
+      const nextUp = listed.episodes.find(
+        ({ id }) => id === listed.queue.nextUpId,
+      );
+      await updateRemotePlayer({
+        ...config,
+        episodeList: remoteEpisodeList(
+          deps.api,
+          listed.episodes,
+          play.item.Id ?? "",
+        ),
+        nextEpisode: remoteNextUp(deps.api, nextUp),
+        tint: shownTint?.send === send ? shownTint.tint : config.tint,
+      });
+    }
     const receiverName = receiverNameFor({ friendlyName: remote.name });
     const sent = toReceiverRequest({
       items: [play.item],
@@ -170,14 +247,18 @@ export const playOnRemote = async (
       audioStreamIndex: play.audioIndex,
       subtitleStreamIndex: play.subtitleIndex,
     });
-    const request: ReceiverPlayRequest = {
-      items: sent.items.map((item) => ({
+    const items: ReceiverPlayItem[] =
+      listed?.queue.items ??
+      sent.items.map((item) => ({
         id: item.Id ?? "",
         name: item.Name ?? undefined,
-        type: item.Type ?? undefined,
+        // An episode alone goes without its type: the receiver would unfold a typed one into its whole series.
+        ...(item.Type && item.Type !== "Episode" ? { type: item.Type } : {}),
         mediaType: item.MediaType ?? undefined,
         isFolder: item.IsFolder ?? false,
-      })),
+      }));
+    const request: ReceiverPlayRequest = {
+      items,
       startPositionTicks: sent.startPositionTicks,
       mediaSourceId: sent.mediaSourceId,
       audioStreamIndex: sent.audioStreamIndex,
@@ -202,10 +283,71 @@ export const playOnRemote = async (
       return failed(message);
     }
     if (result.outcome !== "loaded") return { status: "superseded" };
-    if (send === sends) deps.store.set(remotePlayAtom, { play, loaded: true });
+    if (send === sends) {
+      deps.store.set(remotePlayAtom, {
+        play,
+        loaded: true,
+        list: {
+          itemIds: items.map(({ id }) => id),
+          nextUpId: listed?.queue.nextUpId ?? null,
+        },
+      });
+    }
     return { status: "loaded" };
   } catch (error) {
     logAndCaptureError("The remote play failed", error);
     return failed(deps.t("player.chromecast_playback_failed"));
   }
+};
+
+/**
+ * The TV went on to `itemId`, another episode of the list the phone sent: the screen shows it in place, its tracks the
+ * TV's, its next episode still what comes after the list, the tint shown kept until the new one is read. Nothing goes
+ * to the TV. A send made meanwhile owns the screen.
+ */
+export const followOnRemote = async (
+  deps: RemotePlayDeps,
+  itemId: string,
+  remote: RemoteTarget,
+  state: RemotePlaybackState,
+): Promise<void> => {
+  const list = deps.store.get(remotePlayAtom)?.list;
+  if (!list) return;
+  // The tint the screen shows, when the newest send faded it in: carried, or the screen would go back to the neutral.
+  const shown = shownTint?.send === sends ? shownTint.tint : null;
+  const send = ++sends;
+  if (shown) shownTint = { send, tint: shown };
+  const { data: item } = await getLibraryApi(deps.api).getItem({
+    itemId,
+    userId: deps.userId,
+  });
+  const episodes = item.SeriesId
+    ? await seriesEpisodes(deps.api, deps.userId, item.SeriesId).catch(
+        (error) => {
+          writeErrorLog("The series the TV plays could not be read", error);
+          return [];
+        },
+      )
+    : [];
+  if (send !== sends) return;
+  const play: ReceiverPlay = {
+    item,
+    positionTicks: secondsToTicks(state.positionSec),
+    mediaSourceId: item.MediaSources?.[0]?.Id ?? undefined,
+    audioIndex: state.audioIndex >= 0 ? state.audioIndex : undefined,
+    subtitleIndex: state.subtitleIndex,
+  };
+  const config = configFor(
+    deps,
+    play,
+    remote,
+    remoteEpisodeList(deps.api, episodes, itemId),
+    remoteNextUp(
+      deps.api,
+      episodes.find(({ id }) => id === list.nextUpId),
+    ),
+  );
+  deps.store.set(remotePlayAtom, { play, loaded: true, list });
+  await updateRemotePlayer({ ...config, tint: shown ?? config.tint });
+  void followTint(config, send);
 };

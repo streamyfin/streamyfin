@@ -117,6 +117,18 @@ class RemoteScreenModelTest {
         assertTrue(RemoteScreenModel.sawPlayback(true, RemotePhase.ENDED))
     }
 
+    // A new config for the item the TV holds already (JS followed it through its list): no phase change comes before
+    // that item's end, so the screen counts it seen. Another item waits for its playback.
+    @Test
+    fun aNewConfigForTheItemTheTvPlaysHasSeenItPlay() {
+        assertTrue(RemoteScreenModel.sawPlaybackOnUpdate("episode-1", tv(RemotePhase.PLAYING)))
+        assertTrue(RemoteScreenModel.sawPlaybackOnUpdate("episode-1", tv(RemotePhase.PAUSED)))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate("episode-2", tv(RemotePhase.PLAYING)))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate("episode-1", tv(RemotePhase.ENDED)))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate("episode-1", tv(RemotePhase.LOADING)))
+        assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, tv(RemotePhase.PLAYING)))
+    }
+
     @Test
     fun aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
         val screen = model(tv(RemotePhase.STOPPED))

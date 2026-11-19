@@ -64,3 +64,10 @@ swiftc -module-cache-path "$test_dir/modules" \
   tests/native/RemoteGesturesTests.swift \
   -o "$test_dir/remote-gestures"
 "$test_dir/remote-gestures"
+
+swiftc -module-cache-path "$test_dir/modules" \
+  modules/mpv-player/ios/NativePlayer/PlayerConstants.swift \
+  modules/mpv-player/ios/NativePlayer/Remote/RemoteNavigation.swift \
+  tests/native/RemoteNavigationTests.swift \
+  -o "$test_dir/remote-navigation"
+"$test_dir/remote-navigation"

@@ -379,6 +379,86 @@ class RemotePlayerSessionTest {
         assertNull(session.viewModel.countdownRemaining)
     }
 
+    // Continue on the card: JS sends what comes after the list the TV got. The screen stays for it.
+    @Test
+    fun continueAsksForTheNextUp() {
+        val session = presented(configure = { it.nextEpisode = NextEpisodeRecord().apply { itemId = "next"; title = "Next" } })
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+        events.clear()
+
+        session.screenState!!.continueNextUp()
+
+        assertEquals(
+            listOf(
+                "onNextEpisodeRequested" to mapOf<String, Any?>(
+                    "reason" to "nextUp",
+                    "positionSec" to session.viewModel.authoritativePosition,
+                    "remote" to true,
+                ),
+            ),
+            events,
+        )
+        assertTrue(hasScreen())
+    }
+
+    // The card waits for the user however long the TV sits at its end: no countdown, no question, nothing sent.
+    // The TV is finished, so the main looper can run on.
+    @Test
+    fun theNextUpCardNeverCountsDown() {
+        val session = presented(configure = {
+            it.nextEpisode = NextEpisodeRecord().apply {
+                itemId = "next"
+                title = "Next"
+                countdownSeconds = 10.0
+                stillWatchingRequired = true
+            }
+        })
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idleFor(Duration.ofSeconds(30))
+
+        assertTrue(session.screenState!!.model.nextUpVisible)
+        assertNull(session.viewModel.countdownRemaining)
+        assertFalse(session.viewModel.showStillWatching)
+        assertFalse("$events", events.any { it.first == "onNextEpisodeRequested" })
+        assertTrue(hasScreen())
+    }
+
+    // JS follows the TV onto the item it already plays (the next of the list it got): no phase change comes before
+    // that item's end, which still closes the screen.
+    @Test
+    fun anUpdateForTheItemTheTvPlaysStillEndsIt() {
+        val session = presented()
+        session.update(RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.itemId = "film"; metadata.title = "Film" }
+            it.targetName = "Bench TV"
+        })
+        shadowOf(getMainLooper()).idle()
+
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals("playbackEnded", events.singleOrNull { it.first == "onDismiss" }?.second?.get("reason"))
+        assertFalse(hasScreen())
+    }
+
+    // A new send while the TV still holds the item before: that item's end is not the new one's.
+    @Test
+    fun anUpdateForAnotherItemWaitsForItsPlayback() {
+        val session = presented()
+        session.update(RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.itemId = "next-film"; metadata.title = "Next film" }
+            it.targetName = "Bench TV"
+        })
+        shadowOf(getMainLooper()).idle()
+
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" })
+    }
+
     @Test
     fun aTvStoppedFromItsRemoteKeepsTheScreen() {
         val session = presented()

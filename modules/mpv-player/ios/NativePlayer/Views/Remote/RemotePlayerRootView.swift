@@ -112,8 +112,12 @@ struct RemotePlayerRootView: View {
 						.font(.subheadline)
 						.foregroundStyle(.white)
 					if model.canPlayHere {
-						RemotePlayHereButton(label: viewModel.str("playHere", "Play here"), action: screen.playHere)
+						RemotePillButton(label: viewModel.str("playHere", "Play here"), action: screen.playHere)
 					}
+				}
+				// The list the TV got is over and the phone knows what comes after it: offered, never counted down.
+				if model.nextUpVisible, let next = viewModel.nextEpisode {
+					RemoteNextUpCard(viewModel: viewModel, next: next, onContinue: screen.continueNextUp)
 				}
 				RemoteBar(viewModel: viewModel)
 					.remoteInert(!model.seekEnabled)
@@ -176,8 +180,62 @@ struct RemotePlayerRootView: View {
 		return Double(UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traits) / 100)
 	}
 }
-/// The failure's way out: plays on the phone from where the TV is.
-private struct RemotePlayHereButton: View {
+/// The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the
+/// label, its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
+private struct RemoteNextUpCard: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	let next: NextEpisodeRecord
+	let onContinue: () -> Void
+	// Dynamic Type: each size grows with the text style it stands for, as Android's sp do.
+	@ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 12
+	@ScaledMetric(relativeTo: .subheadline) private var titleSize: CGFloat = 15
+	@ScaledMetric(relativeTo: .footnote) private var subtitleSize: CGFloat = 13
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			HStack(spacing: 12) {
+				ZStack {
+					if let uri = next.imageUrl, let url = URL(string: uri) {
+						RemoteImage(url: url, headers: RemoteImageHeaders.of(own: nil, server: viewModel.imageHeaders)) {
+							Color.white.opacity(0.08)
+						}
+						.scaledToFill()
+					}
+				}
+				.frame(
+					width: PlayerConstants.remoteNextUpImageWidth,
+					height: PlayerConstants.remoteNextUpImageWidth * 9 / 16
+				)
+				.background(Color.white.opacity(0.08))
+				.clipShape(RoundedRectangle(cornerRadius: 6))
+				.accessibilityHidden(true)
+				// Read as one by VoiceOver: "Next Episode", then the episode.
+				VStack(alignment: .leading, spacing: 2) {
+					Text(viewModel.str("nextEpisode", "Next Episode"))
+						.font(.system(size: labelSize))
+						.foregroundStyle(.white.opacity(0.7))
+					Text(next.title)
+						.font(.system(size: titleSize, weight: .semibold))
+						.foregroundStyle(.white)
+						.lineLimit(2)
+					if let subtitle = next.subtitle {
+						Text(subtitle)
+							.font(.system(size: subtitleSize))
+							.foregroundStyle(.white.opacity(0.7))
+							.lineLimit(2)
+					}
+				}
+				.accessibilityElement(children: .combine)
+				.frame(maxWidth: .infinity, alignment: .leading)
+			}
+			RemotePillButton(label: viewModel.str("continueWatching", "Continue Watching"), action: onContinue)
+		}
+		.padding(.bottom, 4)
+	}
+}
+
+/// A pill under a message: Play here under a failure, Continue under the next episode.
+private struct RemotePillButton: View {
 	let label: String
 	let action: () -> Void
 

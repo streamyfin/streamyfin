@@ -1075,6 +1075,74 @@ enum CastEngineTests {
       check("aNextItemWithinTheWaitCancelsTheEnd", bench.delegate.ended == 0)
     }
 
+    func finishedLast(of items: [ReceiverItem], hasMedia: Bool = true) -> (Bench, CastEngine) {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: items)) { _ in }
+      for (index, item) in items.enumerated() {
+        bench.media.report(snapshot(customData: ours(["itemId": item.id ?? "", "playSessionId": "ps-\(index)"])), position: 0)
+      }
+      let last = ours(["itemId": items.last?.id ?? "", "playSessionId": "ps-\(items.count - 1)"])
+      bench.media.report(
+        snapshot(playerState: "idle", idleReason: "finished", customData: hasMedia ? last : nil, hasMedia: hasMedia), position: 0)
+      return (bench, engine)
+    }
+
+    // The receiver has nothing to fetch after the last item of the queue this engine cast: waiting for
+    // one held a spinner on Play for fifteen seconds before the end.
+    do {
+      let (bench, engine) = finishedLast(of: ["e-1", "e-2"].map { ReceiverItem(id: $0, type: "Episode") })
+      bench.clock.advance(0)
+      check("theLastItemOfTheQueueItCastEndsAtOnce", engine.phase == .ended && bench.delegate.ended == 1)
+    }
+
+    do {
+      let (bench, engine) = finishedLast(of: [ReceiverItem(id: "e-1")], hasMedia: false)
+      bench.clock.advance(0)
+      check("aLoneEpisodeWithoutItsTypeEndsAtOnce", engine.phase == .ended && bench.delegate.ended == 1)
+    }
+
+    // The receiver unfolds a lone typed episode into its series: the next episode is on its way.
+    do {
+      let (bench, engine) = finishedLast(of: [ReceiverItem(id: "e-1", type: "Episode")])
+      bench.clock.advance(0)
+      let between = engine.phase == .between
+      bench.clock.advance(CastEngineConstants.nextItemWaitMs)
+      check("aLoneEpisodeWithItsTypeWaitsForTheNextOne", between && bench.delegate.ended == 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let episodes = ["e-1", "e-2"].map { ReceiverItem(id: $0, type: "Episode") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: episodes)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1", "playSessionId": "ps-0"])), position: 0)
+      bench.media.report(
+        snapshot(playerState: "idle", idleReason: "finished", customData: ours(["itemId": "e-1", "playSessionId": "ps-0"])), position: 0)
+      bench.clock.advance(0)
+      check("anItemWithOneAfterItInTheQueueWaitsForIt", engine.phase == .between && bench.delegate.ended == 0)
+    }
+
+    // iOS only: the SDK reports a finished item without its media, then forgets the status (the bench,
+    // 17/11, within the second). The end stays, and the next episode card with it.
+    do {
+      let (bench, engine) = finishedLast(of: [ReceiverItem(id: "e-1")], hasMedia: false)
+      bench.clock.advance(0)
+      bench.media.reportNoStatus()
+      check("anEndOutlivesTheStatusTheSdkForgets", engine.phase == .ended && bench.delegate.ended == 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let episodes = ["e-1", "e-2"].map { ReceiverItem(id: $0, type: "Episode") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: episodes)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1", "playSessionId": "ps-0"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: nil, hasMedia: false), position: 0)
+      bench.media.reportNoStatus()
+      check("aWaitForTheNextItemOutlivesTheStatusTheSdkForgets", engine.phase == .between)
+    }
+
     // The session's life
 
     do {
@@ -1268,7 +1336,7 @@ enum CastEngineTests {
           "load settled loaded",
           "seek 20.0 path=bus",
           "send Seek",
-          "idle finished, waiting for the next item",
+          "idle finished, end of the queue",
           "binding lost session=session-1 error=nil",
           "detached from session session-1",
         ]
@@ -1496,6 +1564,61 @@ enum CastEngineTests {
       engine.reloadCurrentItem()
       let options = bench.sentMessages().last?["options"] as? [String: Any]
       check("aQueueThatPlaysOnFollowsTheCopyOfAnItemQueuedTwice", (options?["startIndex"] as? NSNumber)?.intValue == 2)
+    }
+
+    // A lone episode sent with its type is unfolded by the receiver into the rest of the series (proof of 12/11):
+    // the reload of one sent without it must not add one.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let lone = ReceiverPlayRequest(items: [ReceiverItem(id: "e1", name: "Pilot", mediaType: "Video")])
+      engine.load(server: server, request: lone) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e1"]), hasTextTracks: false), position: 0)
+      engine.setSubtitleTrack(3)
+      let items = (bench.sentMessages().last?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []
+      check("aReloadOfASingleUntypedEpisodeStaysUntyped", items.count == 1 && items[0]["Type"] == nil)
+    }
+
+    // The bounded list is the whole of what the TV plays: a reload for a track mid-list sends what is left of it.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let list = ["e1", "e2", "e3"].map { ReceiverItem(id: $0, type: "Episode", mediaType: "Video") }
+      engine.load(server: server, request: ReceiverPlayRequest(items: list)) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "e1", "playSessionId": "ps-1"]), hasTextTracks: false), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "e2", "playSessionId": "ps-2"]), hasTextTracks: false), position: 0)
+      engine.setSubtitleTrack(3)
+      let options = bench.sentMessages().last?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
+      let start = (options["startIndex"] as? NSNumber)?.intValue ?? 0
+      check("aTrackChangeKeepsTheRestOfTheList", Array(ids.dropFirst(start)) == ["e2", "e3"])
+    }
+
+    // A Cast message holds 64 KB: a long list (a disabled still watching preset) goes in a PlayNow of the first
+    // window, the rest by PlayLast once the receiver took it, a window at a time.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let ids = (0..<250).map { "e\($0)" }
+      var results: [String] = []
+      let list = ReceiverPlayRequest(items: ids.map { ReceiverItem(id: $0, type: "Episode", mediaType: "Video") })
+      engine.load(server: server, request: list) { results.append("\($0)") }
+      let playNow = bench.sentMessages()
+      let first = (playNow.first?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []
+      let firstIds = first.compactMap { $0["Id"] as? String }
+      bench.media.report(snapshot(customData: ours(["itemId": "e0", "playSessionId": "ps-1"])), position: 0)
+      let appended = bench.sentMessages().dropFirst()
+      let windows = appended.map { message in
+        ((message["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
+      }
+      check(
+        "aLongListGoesOutInWindowsOfOneHundred",
+        playNow.count == 1 && firstIds == Array(ids.prefix(CastEngineConstants.maxQueueItems))
+          && results == ["\(CastLoadResult.settled(.loaded))"]
+          && appended.map { $0["command"] as? String } == ["PlayLast", "PlayLast"]
+          && windows == [Array(ids[100..<200]), Array(ids[200..<250])]
+          && engine.queueItemIds == ids
+      )
     }
 
     // A send result that comes back after a newer load (Android's Play Services hands it over later)

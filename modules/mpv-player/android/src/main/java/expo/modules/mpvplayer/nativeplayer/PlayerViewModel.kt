@@ -20,6 +20,10 @@ import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.engine.RenderingEngine
 import expo.modules.mpvplayer.nativeplayer.engine.isRemote
+import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
+import expo.modules.mpvplayer.nativeplayer.remote.EpisodeNeighbours
+import expo.modules.mpvplayer.nativeplayer.remote.PreviousAction
+import expo.modules.mpvplayer.nativeplayer.remote.previousAction
 import expo.modules.mpvplayer.nativeplayer.engine.technicalInfoOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1354,6 +1358,37 @@ class PlayerViewModel : PlayerEngine.Delegate {
     fun confirmExit() {
         showExitConfirmation = false
         onDismissRequested?.invoke("closeButton")
+    }
+
+    // MARK: - Remote previous and next
+
+    /**
+     * Previous and next on a remote screen, from the episode list: the receiver's queue ends where the bounded list
+     * does. A list that is not a series has no episode list, and moves inside the receiver's queue.
+     */
+    val remoteNeighbours: EpisodeNeighbours
+        get() {
+            if (episodeList.isNotEmpty()) {
+                return EpisodeNeighbours.of(episodeList.map { it.itemId }, episodeList.firstOrNull { it.isCurrent }?.itemId)
+            }
+            val remote = engine as? RemoteEngine ?: return EpisodeNeighbours(hasPrevious = false, hasNext = false)
+            val index = remote.playingIndex
+            return EpisodeNeighbours(hasPrevious = index > 0, hasNext = index in 0 until remote.queueItemIds.size - 1)
+        }
+
+    /** Restarts the episode on the engine past the first seconds or on the first one, else asks JS for the one before. */
+    fun remotePrevious() {
+        haptic()
+        when (previousAction(displayPosition, remoteNeighbours.hasPrevious)) {
+            PreviousAction.RESTART -> seekTo(0.0)
+            PreviousAction.PREVIOUS_ITEM -> emit?.invoke("onPreviousEpisodeRequested", mapOf("positionSec" to displayPosition))
+        }
+    }
+
+    /** JS sends the episode after the one the TV plays, with its own bounded list. */
+    fun remoteNext() {
+        haptic()
+        emit?.invoke("onNextEpisodeRequested", mapOf("reason" to "userTap", "positionSec" to displayPosition))
     }
 
     // MARK: - Episode List & Subtitle Search

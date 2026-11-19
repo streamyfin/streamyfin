@@ -339,8 +339,11 @@ class CastEngine(
             onResult(CastLoadResult.NotSent(NO_SESSION_ERROR))
             return@runOnMain
         }
+        // A Cast message holds 64 KB: the PlayNow carries the window that starts the play, the items after it go
+        // by PlayLast once the receiver took it, as a later [enqueue] would.
+        val (first, later) = firstWindow(request)
         val message = try {
-            ReceiverProtocol.playNow(server, request)
+            ReceiverProtocol.playNow(server, first)
         } catch (refused: ReceiverContainerRefused) {
             onResult(CastLoadResult.NotSent(refused.message ?: CONTAINER_ERROR))
             return@runOnMain
@@ -349,7 +352,7 @@ class CastEngine(
         val previousQueue = queue
         val previousIndex = playingIndex
         val generation = ++queueGeneration
-        val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
+        val receiverRequest = ReceiverProtocol.toReceiverRequest(first)
         this.server = server
         queue = receiverRequest.items
         playingIndex = receiverRequest.startIndex ?: 0
@@ -360,7 +363,13 @@ class CastEngine(
         cancelEndWait()
         noCompatibleStreamFollows = false
         // The media on the TV now, read at the send: a status of its play session is never this load.
-        val load = PendingLoad(ReceiverLoadTracker(request, ours?.playSessionId), onResult)
+        val settled: (CastLoadResult) -> Unit = if (later.isEmpty()) onResult else { result ->
+            if (result == CastLoadResult.Settled(ReceiverLoadOutcome.Loaded) && generation == queueGeneration) {
+                enqueueWindows(later.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), generation)
+            }
+            onResult(result)
+        }
+        val load = PendingLoad(ReceiverLoadTracker(first, ours?.playSessionId), settled)
         val previous = pendingLoad
         // The new load is pending before the old one settles, so loading never blinks off between them.
         pendingLoad = load
@@ -390,6 +399,16 @@ class CastEngine(
             notifyState()
             onResult(CastLoadResult.NotSent(error))
         }
+    }
+
+    /** The part of [request] one PlayNow carries, the window holding its start, and the ids that come after it. */
+    private fun firstWindow(request: ReceiverPlayRequest): Pair<ReceiverPlayRequest, List<String>> {
+        if (request.items.size <= CastEngineConstants.MAX_QUEUE_ITEMS) return request to emptyList()
+        val selected = (request.startIndex ?: 0).coerceIn(0, request.items.size - 1)
+        val window = ReceiverProtocol.queueWindow(request.items, selected, CastEngineConstants.MAX_QUEUE_ITEMS)
+        val end = selected - window.startIndex + window.items.size
+        val first = request.copy(items = window.items, startIndex = window.startIndex.takeIf { it > 0 })
+        return first to request.items.drop(end).mapNotNull { it.id }
     }
 
     // The item again where it is, with the tracks it plays.
@@ -798,10 +817,13 @@ class CastEngine(
 
     private fun isBuffering() = playerState == BUFFERING || playerState == LOADING || awaitingReceiver()
 
+    // After the last item of the queue this engine cast the receiver fetches nothing: the end comes on
+    // the next turn, once this status is the engine's, not a spinner fifteen seconds later.
     private fun armEndWait() {
         cancelEndWait()
-        log("idle finished, waiting for the next item")
-        endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
+        val lastOfOurQueue = castQueueEndsHere()
+        log(if (lastOfOurQueue) "idle finished, end of the queue" else "idle finished, waiting for the next item")
+        endWait = schedule(if (lastOfOurQueue) 0L else CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
             delegate?.onPlaybackEnded()
             notifyState()
@@ -931,6 +953,10 @@ class CastEngine(
     // A finished item the receiver goes on from: the queue this engine cast has one after it, which the
     // receiver fetches while the end waits. Play then would race it with the finished item.
     private fun nextItemComing() = endWait != null && playingIndex in 0 until queue.size - 1
+
+    // The receiver unfolds a lone typed episode into its series: that queue goes on past its one item.
+    private fun castQueueEndsHere() =
+        playingIndex >= 0 && playingIndex == queue.lastIndex && !(queue.size == 1 && queue[0].type == "Episode")
 
     // The receiver names the item it plays, not which copy of one queued twice: the copy where the
     // engine is in the queue, else the one after it (the queue went on), else the one before (it went

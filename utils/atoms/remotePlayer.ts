@@ -8,4 +8,6 @@ import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 export const remotePlayAtom = atom<{
   play: ReceiverPlay;
   loaded: boolean;
+  /** The items the TV got and what comes after them, once it took them: the screen follows the TV through them. */
+  list?: { itemIds: string[]; nextUpId: string | null };
 } | null>(null);

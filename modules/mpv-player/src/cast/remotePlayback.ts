@@ -59,6 +59,13 @@ export const reloadOnReceiver = async (
   await CastNative?.reloadOnReceiver(server);
 };
 
+/** Next or previous inside the receiver's queue: how a list that is not a series moves. */
+export const skipOnReceiver = async (
+  direction: "next" | "previous",
+): Promise<void> => {
+  await CastNative?.skipOnReceiver(direction);
+};
+
 /** What the TV plays, followed. */
 export const useRemotePlayback = (): RemotePlaybackState => {
   const [state, setState] = useState<RemotePlaybackState>(() =>

@@ -16,6 +16,8 @@ final class RemoteScreenState: ObservableObject {
 	@Published var failure: RemoteFailure?
 	/// The screen's Play here button; the session sets it.
 	var playHere: () -> Void = {}
+	/// Continue on the next episode's card; the session sets it.
+	var continueNextUp: () -> Void = {}
 
 	private let viewModel: PlayerViewModel
 
@@ -79,6 +81,7 @@ final class RemotePlayerSession: PresentedPlayer {
 			self?.dismiss(reason: reason)
 		}
 		screen.playHere = { [weak self] in self?.playHere() }
+		screen.continueNextUp = { [weak self] in self?.continueNextUp() }
 	}
 
 	/// `onPresented` runs once the screen is up; the module resolves its promise there, the debug probe logs.
@@ -150,8 +153,11 @@ final class RemotePlayerSession: PresentedPlayer {
 		viewModel.apply(config: config.toPresentConfig())
 		screen.targetName = config.targetName
 		screen.colors = RemoteColors.of(top: config.tint?.top, bottom: config.tint?.bottom, accent: config.tint?.accent)
-		// Another item: an end the TV reports before it holds it is the item before's.
-		screen.sawPlayback = false
+		// Another item: an end the TV reports before it holds it is the item before's. The item the TV plays
+		// already (JS followed it through its list) ends this screen.
+		screen.sawPlayback = RemoteScreenModel.sawPlaybackOnUpdate(
+			itemId: config.metadata?.itemId, snapshot: screen.snapshot
+		)
 		clearFailure()
 		// apply() starts the view model at the config's position: the TV's state again, as present() does.
 		_ = playback.attachScreen(viewModel)
@@ -171,6 +177,12 @@ final class RemotePlayerSession: PresentedPlayer {
 	private func playHere() {
 		guard !closed else { return }
 		emit("onPlayHereRequested", markRemote(["positionSec": viewModel.position]))
+	}
+
+	// Continue on the next episode's card: JS sends what comes after the list the TV got.
+	private func continueNextUp() {
+		guard !closed else { return }
+		emit("onNextEpisodeRequested", markRemote(["reason": "nextUp", "positionSec": viewModel.position]))
 	}
 
 	// Both failures go: the one JS said, and the engine's own error.

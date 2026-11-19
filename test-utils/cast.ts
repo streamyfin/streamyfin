@@ -91,6 +91,8 @@ export interface CastDoubleState {
   loadCalls: { server: ReceiverServerRecord; request: ReceiverPlayRequest }[];
   /** Servers handed to `reloadOnReceiver`, in order. */
   reloadCalls: ReceiverServerRecord[];
+  /** Directions handed to `skipOnReceiver`, in order. */
+  skipCalls: ("next" | "previous")[];
   /** Options handed to `presentOutputPicker`, in order. */
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
@@ -137,6 +139,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
   loadAnswer: { outcome: "loaded" },
   loadCalls: [],
   reloadCalls: [],
+  skipCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
   listeners: {
@@ -322,6 +325,9 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   ),
   reloadOnReceiver: jest.fn(async (server: ReceiverServerRecord) => {
     state().reloadCalls.push(server);
+  }),
+  skipOnReceiver: jest.fn(async (direction: "next" | "previous") => {
+    state().skipCalls.push(direction);
   }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");

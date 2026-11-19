@@ -18,7 +18,7 @@ import { stubReactNative } from "@/test-utils/reactNative";
 import { remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { extractImageColor } from "@/utils/imageColors";
-import { playOnRemote } from "./playOnRemote";
+import { followOnRemote, playOnRemote } from "./playOnRemote";
 import { remoteTint } from "./remoteTint";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -114,19 +114,86 @@ test("the player opens before the load answers", async () => {
   await expect(sent).resolves.toEqual({ status: "loaded" });
 });
 
+const seriesOf = (count: number): BaseItemDto[] =>
+  Array.from({ length: count }, (_, index) => ({
+    Id: `s1e${index}`,
+    Name: `Episode ${index}`,
+    Type: "Episode",
+    SeriesId: "series-1",
+    IndexNumber: index + 1,
+    RunTimeTicks: 22 * 600_000_000,
+  }));
+
+const seriesPlay = {
+  ...play,
+  item: { ...episode, Id: "s1e1", Name: "Episode 1", SeriesId: "series-1" },
+  positionTicks: 0,
+};
+
+test("an episode is sent with its bounded list", async () => {
+  api.mock.onGet(/\/Shows\/series-1\/Episodes/).reply(200, {
+    Items: seriesOf(10),
+  });
+
+  await playOnRemote(deps(), seriesPlay, livingRoom, fresh);
+
+  // The default preset asks after five 22 minute episodes (boundedEpisodeQueue), autoplay being on.
+  const { items } = mockCast.loadCalls[0].request;
+  expect(items.map((item) => item.id)).toEqual([
+    "s1e1",
+    "s1e2",
+    "s1e3",
+    "s1e4",
+    "s1e5",
+  ]);
+  expect(items.every((item) => item.type === "Episode")).toBe(true);
+  // The screen opened before the list was read: the list and what comes after it arrive in place.
+  const shown = mockPlayer.remoteUpdates.at(-1) as {
+    episodeList: { itemId: string; isCurrent: boolean }[];
+    nextEpisode: { itemId: string; title: string } | null;
+  };
+  expect(shown.episodeList.map((entry) => entry.itemId)).toEqual(
+    seriesOf(10).map((entry) => entry.Id),
+  );
+  expect(shown.episodeList.find((entry) => entry.isCurrent)?.itemId).toBe(
+    "s1e1",
+  );
+  expect(shown.nextEpisode).toMatchObject({
+    itemId: "s1e6",
+    title: "Episode 6",
+  });
+});
+
+test("an episode whose series cannot be read goes alone, without its type", async () => {
+  api.mock.onGet(/\/Shows\/series-1\/Episodes/).reply(500);
+
+  await expect(
+    playOnRemote(deps(), seriesPlay, livingRoom, fresh),
+  ).resolves.toEqual({ status: "loaded" });
+
+  // Typed, a lone episode would play the whole series on the TV.
+  expect(mockCast.loadCalls[0].request.items).toEqual([
+    { id: "s1e1", name: "Episode 1", mediaType: "Video", isFolder: false },
+  ]);
+});
+
 test("a loaded outcome leaves the player as it is", async () => {
   await expect(playOnRemote(deps(), play, livingRoom, fresh)).resolves.toEqual({
     status: "loaded",
   });
 
   expect(mockPlayer.remoteFailures).toEqual([]);
-  expect(store.get(remotePlayAtom)).toEqual({ play, loaded: true });
+  expect(store.get(remotePlayAtom)).toEqual({
+    play,
+    loaded: true,
+    list: { itemIds: ["episode-1"], nextUpId: null },
+  });
   expect(mockCast.loadCalls[0].request).toEqual({
+    // An episode alone goes without its type: the receiver would unfold a typed one into its series.
     items: [
       {
         id: "episode-1",
         name: "Pilot",
-        type: "Episode",
         mediaType: "Video",
         isFolder: false,
       },
@@ -252,6 +319,32 @@ test("the tint follows once the artwork's color is known", async () => {
   await flush();
 
   expect(mockPlayer.remoteTints).toEqual([remoteTint("#1F6F8B")]);
+});
+
+// The TV went on in its list: the screen keeps the tint it shows until the new episode's is read, rather than going
+// back to the neutral.
+test("following the TV keeps the tint shown", async () => {
+  jest.mocked(extractImageColor).mockResolvedValue("#1F6F8B");
+  await playOnRemote(deps(), play, livingRoom, fresh);
+  await flush();
+  jest.mocked(extractImageColor).mockResolvedValue(null);
+  api.mock
+    .onGet(/\/Items\/episode-2/)
+    .reply(200, { Id: "episode-2", Name: "Second", Type: "Episode" });
+  mockPlayer.remoteUpdateAnswer = true;
+
+  await followOnRemote(deps(), "episode-2", livingRoom, {
+    ...mockCast.remotePlayback,
+    itemId: "episode-2",
+    phase: "playing",
+  });
+
+  const shown = mockPlayer.remoteUpdates.at(-1) as {
+    metadata: { itemId: string };
+    tint: unknown;
+  };
+  expect(shown.metadata.itemId).toBe("episode-2");
+  expect(shown.tint).toEqual(remoteTint("#1F6F8B"));
 });
 
 // Refused natively (no remote engine for the session): no screen says it, so the caller does, and nothing loads.

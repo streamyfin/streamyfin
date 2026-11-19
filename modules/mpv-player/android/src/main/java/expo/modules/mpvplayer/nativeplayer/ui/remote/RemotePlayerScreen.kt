@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +35,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -44,6 +48,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteArrangement
@@ -57,6 +62,8 @@ import expo.modules.mpvplayer.nativeplayer.remote.TargetLabel
 import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
+import expo.modules.mpvplayer.nativeplayer.ui.RemoteImage
+import expo.modules.mpvplayer.nativeplayer.ui.remoteImageHeaders
 
 private val SlotGap = 16.dp
 
@@ -176,7 +183,11 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
             // A failure is said above the bar, whatever the TV does, with Play here when it offers it.
             model.failure?.let { message ->
                 Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                if (model.canPlayHere) PlayHereButton(viewModel.strings.get("playHere", "Play here"), screen::playHere)
+                if (model.canPlayHere) PillButton(viewModel.strings.get("playHere", "Play here"), screen::playHere)
+            }
+            // The list the TV got is over and the phone knows what comes after it: offered, never counted down.
+            viewModel.nextEpisode?.takeIf { model.nextUpVisible }?.let { next ->
+                NextUpCard(viewModel, next, screen.imageHeaders, screen::continueNextUp)
             }
             RemoteBar(viewModel, enabled = model.seekEnabled, modifier = Modifier.inert(!model.seekEnabled))
         }
@@ -234,9 +245,50 @@ private fun Modifier.closeOnDragDown(viewModel: PlayerViewModel, columnScroll: S
         }
     }
 
-/** The failure's way out: plays on the phone from where the TV is. */
+/**
+ * The next episode, at the end of the list the TV got: its image (asked for with the user's proxy headers), the label,
+ * its titles, and Continue, which sends it. No countdown: the TV waits as long as the phone does.
+ */
 @Composable
-private fun PlayHereButton(label: String, onClick: () -> Unit) {
+private fun NextUpCard(viewModel: PlayerViewModel, next: NextEpisodeRecord, imageHeaders: Map<String, String>?, onContinue: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        RemoteImage(
+            url = next.imageUrl,
+            headers = remoteImageHeaders(null, imageHeaders),
+            modifier = Modifier
+                .width(PlayerConstants.REMOTE_NEXT_UP_IMAGE_WIDTH_DP.dp)
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(6.dp)),
+        )
+        Spacer(Modifier.width(12.dp))
+        // Read as one by TalkBack: "Next Episode", then the episode.
+        Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
+            Text(text = viewModel.strings.get("nextEpisode", "Next Episode"), color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+            Text(
+                text = next.title,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            next.subtitle?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+    PillButton(viewModel.strings.get("continueWatching", "Continue Watching"), onContinue)
+}
+
+/** A pill under a message: Play here under a failure, Continue under the next episode. */
+@Composable
+private fun PillButton(label: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(

@@ -1443,6 +1443,32 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		])
 	}
 
+	/// Previous and next on a remote screen, from the episode list: the receiver's queue ends where the bounded list
+	/// does. A list that is not a series has no episode list, and moves inside the receiver's queue.
+	var remoteNeighbours: EpisodeNeighbours {
+		if !episodeList.isEmpty {
+			return EpisodeNeighbours.of(episodeList.map(\.itemId), currentId: episodeList.first(where: \.isCurrent)?.itemId)
+		}
+		guard let remote = engine as? RemoteEngine else { return EpisodeNeighbours(hasPrevious: false, hasNext: false) }
+		let index = remote.playingIndex
+		return EpisodeNeighbours(hasPrevious: index > 0, hasNext: index >= 0 && index < remote.queueItemIds.count - 1)
+	}
+
+	/// Restarts the episode on the engine past the first seconds or on the first one, else asks JS for the one before.
+	func remotePrevious() {
+		switch previousAction(positionSec: displayPosition, hasPrevious: remoteNeighbours.hasPrevious) {
+		case .restart:
+			seek(to: 0)
+		case .previousItem:
+			emit?("onPreviousEpisodeRequested", ["positionSec": displayPosition])
+		}
+	}
+
+	/// JS sends the episode after the one the TV plays, with its own bounded list.
+	func remoteNext() {
+		emit?("onNextEpisodeRequested", ["reason": "userTap", "positionSec": displayPosition])
+	}
+
 	func playPreviousEpisode() {
 		if isSyncPlayActive { syncPlayAction("previous"); return }
 		disarmCountdownForEpisodeChange()
