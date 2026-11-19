@@ -15,7 +15,10 @@ import {
   skipOnReceiver,
   useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
-import { dismissNativePlayer } from "@/modules/mpv-player/src/NativePlayerPresentation";
+import {
+  dismissNativePlayer,
+  isNativePlayerPresented,
+} from "@/modules/mpv-player/src/NativePlayerPresentation";
 import {
   addRemotePlayerListener,
   showRemotePlayerFailure,
@@ -164,6 +167,9 @@ export function RemotePlayerController() {
       // Taken even while one opens: a second tap on the notification opens nothing later.
       if (!consumePendingRemotePlayerRequest() || openingRequested.current)
         return;
+      // A player is up: native refuses another over it. The local one stays (the notification tapped over it, its
+      // own Remote closes it first), the remote one shows the TV already; the request is dropped.
+      if (isNativePlayerPresented()) return;
       if (!remote || !api || !user) return;
       openingRequested.current = true;
       openRemotePlayer(

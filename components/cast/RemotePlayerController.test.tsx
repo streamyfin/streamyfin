@@ -36,7 +36,7 @@ import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { remoteForeignAtom, remotePlayAtom } from "@/utils/atoms/remotePlayer";
 import { pluginSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import { NO_REMOTE_QUALITY } from "@/utils/cast/remoteQuality";
-import { writeErrorLog } from "@/utils/log";
+import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import {
   getSeriesTrackMemory,
   rememberSeriesTrack,
@@ -1547,5 +1547,22 @@ describe("the remote player asked from outside the app's screens", () => {
     await act(async () => emitRemoteTarget(mockCast, connected));
 
     await shownOnce();
+  });
+
+  // The Cast notification while the local player is up: native refuses a remote player over it, every tap went to
+  // Sentry. The local player stays, and the request is dropped rather than kept for its close.
+  test("a request while the local player is up leaves it and reports nothing", async () => {
+    mockPlayer.presentedAnswer = true;
+    mockPlayer.remoteRefusal = new Error("A player is already presented");
+    await render(<RemotePlayerController />);
+
+    await act(async () => {
+      requestRemotePlayer(mockCast);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(jest.mocked(logAndCaptureError)).not.toHaveBeenCalled();
+    expect(mockPlayer.dismissals).toBe(0);
+    expect(mockCast.pendingRemotePlayerRequest).toBe(false);
   });
 });
