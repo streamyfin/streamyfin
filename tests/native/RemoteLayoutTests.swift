@@ -68,7 +68,23 @@ enum RemoteLayoutTests {
 		// Nor over its maximum, on the largest tablet.
 		let max = PlayerConstants.remoteArtworkMax
 		check(RemoteMetrics.artworkHeight(layout: .wide, width: 1366, height: 1024, fontScale: 1) == max, "maximum: wide")
-		check(RemoteMetrics.artworkHeight(layout: .portrait, width: 480, height: 1600, fontScale: 1) == max, "maximum: portrait")
+		check(RemoteMetrics.artworkHeight(layout: .portrait, width: 480, height: 1600, fontScale: 1) == 432, "maximum: portrait")
+	}
+
+	// Upright, a tablet's artwork grows with its screen as a phone's does: on the iPad Air 11 (820 x 1136 under the
+	// bars) it stopped at 420, 34 % of the width over 365 pt of nothing; it now takes 90 % of the width, the share the
+	// widest phone's margins leave it (392 of 440). Every phone keeps its size, and the wide layout its maximum.
+	static func uprightTheArtworkGrowsWithTheScreen() {
+		let ipad = RemoteMetrics.artworkHeight(layout: .portrait, width: 820, height: 1136, fontScale: 1)
+		check(abs(ipad - 738) < 1e-9, "uprightTheArtworkGrowsWithTheScreen: iPad Air upright \(ipad), not 738")
+		let ipadPro = RemoteMetrics.artworkHeight(layout: .portrait, width: 1032, height: 1332, fontScale: 1)
+		check(abs(ipadPro - 928.8) < 1e-9, "uprightTheArtworkGrowsWithTheScreen: iPad Pro 13 upright \(ipadPro), not 928.8")
+		for (width, height, side) in [(375.0, 647.0, 269.0), (402, 778, 354), (440, 830, 392)] {
+			let phone = RemoteMetrics.artworkHeight(layout: .portrait, width: width, height: height, fontScale: 1)
+			check(phone == side, "uprightTheArtworkGrowsWithTheScreen: phone \(width) is \(phone), was \(side)")
+		}
+		let couched = RemoteMetrics.artworkHeight(layout: .wide, width: 1180, height: 776, fontScale: 1)
+		check(couched == PlayerConstants.remoteArtworkMax, "uprightTheArtworkGrowsWithTheScreen: iPad couched \(couched)")
 	}
 
 	static func theArtworkIsNeverWiderThanItsColumn() {
@@ -239,6 +255,7 @@ enum RemoteLayoutTests {
 		theArtworkShrinksBeforeAnythingIsCut()
 		theUprightChromeMatchesTheMeasuredScreen()
 		theArtworkNeverGoesUnderItsMinimum()
+		uprightTheArtworkGrowsWithTheScreen()
 		theArtworkIsNeverWiderThanItsColumn()
 		theWideArtworkGetsItsShareOfTheWholeWidth()
 		theWideArtworkKeepsAMarginBesideTheColumn()

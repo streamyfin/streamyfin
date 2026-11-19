@@ -36,8 +36,9 @@ enum RemoteTopBarEnd: Equatable {
 }
 
 /// How big the artwork is. Upright and wide, a square: what the rest of the screen leaves once its text is counted
-/// at the font scale asked for, between remoteArtworkMin and remoteArtworkMax; the artwork gives up its height
-/// first, and when nothing fits even at its minimum, the column scrolls. Couched, the image in its own shape, as
+/// at the font scale asked for, between remoteArtworkMin and remoteArtworkMax (upright, at least
+/// remotePortraitArtworkMaxShare of the width); the artwork gives up its height first, and when nothing fits even at
+/// its minimum, the column scrolls. Couched, the image in its own shape, as
 /// large as the left half and the band under the top bar leave it: the text stands beside it, and scrolls there.
 enum RemoteMetrics {
 	/// The height the rest of the screen takes above and below the artwork. Couched, `topBarHeight` is the top bar as
@@ -100,7 +101,11 @@ enum RemoteMetrics {
 		case .wide: byWidth = width * PlayerConstants.remoteWideArtworkFraction - 2 * PlayerConstants.remoteHorizontalPadding
 		}
 		let byHeight = height - chromeHeight(layout: layout, fontScale: fontScale)
-		return min(max(min(byWidth, byHeight), PlayerConstants.remoteArtworkMin), PlayerConstants.remoteArtworkMax)
+		// Upright, the maximum grows with the window: a tablet's artwork takes the share of it a phone's does.
+		let largest = layout == .portrait
+			? max(PlayerConstants.remoteArtworkMax, width * PlayerConstants.remotePortraitArtworkMaxShare)
+			: PlayerConstants.remoteArtworkMax
+		return min(max(min(byWidth, byHeight), PlayerConstants.remoteArtworkMin), largest)
 	}
 
 	/// How far the couched top bar reaches past the side margins, start and end, so the ink of its first and last

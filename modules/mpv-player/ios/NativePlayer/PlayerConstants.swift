@@ -18,8 +18,12 @@ enum PlayerConstants {
 	static let remoteCompactHeight: Double = 480
 	static let remoteWideMinWidth: Double = 600
 	/// The artwork takes what the rest leaves, between these two; it gives up its height before anything else.
+	/// Upright, the maximum grows with the window, to this share of its width when that is more, so a tablet's artwork
+	/// is as large a part of its screen as a phone's: a phone's margins leave it 87 to 89 %, under 420, so no phone
+	/// changes. Android: REMOTE_PORTRAIT_ARTWORK_MAX_SHARE.
 	static let remoteArtworkMin: Double = 96
 	static let remoteArtworkMax: Double = 420
+	static let remotePortraitArtworkMaxShare: Double = 0.9
 	static let remoteHorizontalPadding: Double = 24
 	/// The remote screen draws the technical info panel within the artwork, this far from its edges.
 	/// Android: REMOTE_TECHNICAL_INFO_INSET_DP.
