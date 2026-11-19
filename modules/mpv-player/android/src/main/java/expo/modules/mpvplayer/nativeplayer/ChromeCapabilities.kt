@@ -29,7 +29,8 @@ data class ChromeCapabilities(
     val rotate: Boolean = true,
     /**
      * The phone decides what follows the end: the next episode card counts down and starts the next one, or
-     * the still watching card asks first. A remote target's list moves on by itself.
+     * the still watching card asks first. A remote target's list moves on by itself, and the remote screen decides
+     * what its end leads to.
      */
     val nextEpisodeCountdown: Boolean = true,
 ) {

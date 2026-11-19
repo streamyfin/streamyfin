@@ -113,9 +113,20 @@ struct RemoteBar: View {
 struct RemoteTransportRow: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let layout: RemoteLayout
+	let spinner: Bool
 
 	var body: some View {
-		PlayerCenterControls(viewModel: viewModel, time: viewModel.time, style: TransportStyle(RemoteTransport.of(layout)))
+		PlayerCenterControls(
+			viewModel: viewModel, time: viewModel.time, style: TransportStyle(RemoteTransport.of(layout)), showsSpinner: spinner
+		)
+	}
+}
+
+extension View {
+	/// A control the TV's state leaves inactive: dimmed, deaf to touches, and dimmed to VoiceOver too.
+	func remoteInert(_ inert: Bool) -> some View {
+		opacity(inert ? PlayerConstants.remoteInertOpacity : 1)
+			.disabled(inert)
 	}
 }
 
@@ -123,12 +134,13 @@ struct RemoteTransportRow: View {
 struct RemoteBottomRow: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
+	let tracksEnabled: Bool
 
 	var body: some View {
 		HStack(spacing: 0) {
 			RemoteTargetButton(viewModel: viewModel, targetName: targetName)
 			Spacer(minLength: 0)
-			RemoteTrackButtons(viewModel: viewModel)
+			RemoteTrackButtons(viewModel: viewModel, tracksEnabled: tracksEnabled)
 		}
 	}
 }
@@ -137,6 +149,7 @@ struct RemoteBottomRow: View {
 struct RemoteTopBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let targetName: String?
+	let tracksEnabled: Bool
 
 	var body: some View {
 		HStack(spacing: 0) {
@@ -145,7 +158,7 @@ struct RemoteTopBar: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 				.padding(.horizontal, 8)
 			RemoteTargetButton(viewModel: viewModel, targetName: targetName)
-			RemoteTrackButtons(viewModel: viewModel)
+			RemoteTrackButtons(viewModel: viewModel, tracksEnabled: tracksEnabled)
 			RemoteMoreButton(viewModel: viewModel)
 		}
 	}
@@ -231,8 +244,11 @@ private struct RemoteTargetButton: View {
 }
 
 /// Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on.
+/// Episodes, audio and subtitles, each when it has something to offer. Audio and subtitles rest while nothing is
+/// loaded on the TV: a track change would have nothing to act on.
 private struct RemoteTrackButtons: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	let tracksEnabled: Bool
 
 	var body: some View {
 		if !viewModel.isSyncPlayActive && !viewModel.episodeList.isEmpty {
@@ -246,11 +262,13 @@ private struct RemoteTrackButtons: View {
 		if !viewModel.audioMenu.isEmpty {
 			AudioMenu(viewModel: viewModel) { ActiveIcon(systemName: "waveform", active: false) }
 				.accessibilityLabel(viewModel.str("audio", "Audio"))
+				.remoteInert(!tracksEnabled)
 		}
 		if !viewModel.subtitleMenu.isEmpty {
 			let on = RemoteActive.subtitlesOn(selectedIndex: viewModel.subtitleMenu.first(where: { $0.selected })?.jellyfinIndex)
 			SubtitleMenu(viewModel: viewModel) { ActiveIcon(systemName: "captions.bubble", active: on) }
 				.accessibilityLabel(viewModel.str("subtitles", "Subtitles"))
+				.remoteInert(!tracksEnabled)
 		}
 	}
 }

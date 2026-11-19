@@ -18,6 +18,8 @@ struct PlayerCenterControls: View {
 
 	/// The remote screen's fixed sizes and look; nil keeps the chrome's density tiers.
 	var style: TransportStyle?
+	/// The remote screen spins from the state of the TV (RemoteScreenModel); nil follows the engine's loading.
+	var showsSpinner: Bool?
 
 	private var hasChapters: Bool { !viewModel.chapters.isEmpty }
 
@@ -168,7 +170,7 @@ struct PlayerCenterControls: View {
 			} label: {
 				ZStack {
 					Circle().fill(.white)
-					if viewModel.isBuffering {
+					if showsSpinner ?? viewModel.isBuffering {
 						ProgressView().tint(.black)
 					} else {
 						Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")

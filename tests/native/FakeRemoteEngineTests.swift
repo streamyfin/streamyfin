@@ -176,7 +176,78 @@ enum FakeRemoteEngineTests {
 		)
 	}
 
+	// The phase and the scenes the remote screen is tried on.
+
+	static func countStateChanges(_ engine: FakeRemoteEngine) -> () -> Int {
+		var changes = 0
+		engine.onStateChanged = { changes += 1 }
+		return { changes }
+	}
+
+	static func theFakePhaseFollowsItsList() {
+		let bench = Bench()
+		var ok = bench.engine.phase == .none
+		try? bench.engine.start()
+		ok = ok && bench.engine.phase == .loading
+		bench.clock.advance(PlayerConstants.fakeRemoteLoadMs)
+		ok = ok && bench.engine.phase == .playing && bench.engine.queueItemIds == ["a", "b"] && bench.engine.playingIndex == 0
+		bench.engine.pause()
+		ok = ok && bench.engine.phase == .paused
+		bench.engine.play()
+		bench.tick(3)
+		ok = ok && bench.engine.playingIndex == 1
+		bench.tick(2)
+		check(ok && bench.engine.phase == .ended, "theFakePhaseFollowsItsList")
+	}
+
+	static func theFakeTellsItsStateButNotItsTicks() {
+		let bench = Bench()
+		bench.started()
+		let changes = countStateChanges(bench.engine)
+		bench.tick()
+		var ok = changes() == 0
+		bench.engine.pause()
+		ok = ok && changes() == 1
+		bench.engine.skipToNext()
+		check(ok && changes() == 2, "theFakeTellsItsStateButNotItsTicks")
+	}
+
+	static func aSimulatedSuspensionSaysReconnectingUntilTheResume() {
+		let bench = Bench()
+		bench.started()
+		let changes = countStateChanges(bench.engine)
+		bench.engine.simulateSuspended()
+		var ok = bench.engine.reconnecting && changes() == 1
+		let heard = bench.delegate.positions.count
+		bench.tick(2)
+		ok = ok && bench.delegate.positions.count == heard
+		bench.engine.simulateResumed()
+		check(
+			ok && !bench.engine.reconnecting && changes() == 2 && bench.delegate.positions.last == 2,
+			"aSimulatedSuspensionSaysReconnectingUntilTheResume"
+		)
+	}
+
+	static func aSimulatedStopIsStoppedAndPlayResumesWhereItWas() {
+		let bench = Bench()
+		bench.started()
+		bench.tick(2)
+		bench.engine.simulateStoppedFromReceiver()
+		var ok = bench.engine.phase == .stopped && bench.engine.isPaused()
+		bench.tick(3)
+		ok = ok && bench.engine.getCurrentPosition() == 2
+		bench.engine.play()
+		check(
+			ok && bench.engine.phase == .playing && bench.engine.getCurrentPosition() == 2,
+			"aSimulatedStopIsStoppedAndPlayResumesWhereItWas"
+		)
+	}
+
 	static func main() {
+		theFakePhaseFollowsItsList()
+		theFakeTellsItsStateButNotItsTicks()
+		aSimulatedSuspensionSaysReconnectingUntilTheResume()
+		aSimulatedStopIsStoppedAndPlayResumesWhereItWas()
 		theFakeLoadsThenPlaysAndReportsItsPosition()
 		aPauseStopsTheClock()
 		aSeekMovesThePositionAndAnswersItsRequest()

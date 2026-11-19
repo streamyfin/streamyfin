@@ -7,6 +7,7 @@ import expo.modules.mpvplayer.cast.receiver.ReceiverLoadOutcome
 import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemotePhase
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -1187,4 +1188,141 @@ class CastEngineTest {
     }
 
     private fun playLasts() = port.sent.count { JSONObject(it.second).getString("command") == "PlayLast" }
+
+    // The phase and the state listener: what the remote screen shows comes from them.
+
+    private fun CastEngine.countStateChanges(): () -> Int {
+        var changes = 0
+        onStateChanged = { changes += 1 }
+        return { changes }
+    }
+
+    @Test
+    fun aStatusChangeTellsTheStateListenerButAPositionTickDoesNot() {
+        val engine = engine()
+        val changes = engine.countStateChanges()
+        media.report(snapshot(), 1_000)
+        assertEquals(RemotePhase.PLAYING, engine.phase)
+        assertEquals(1, changes())
+        media.tick(2_000)
+        media.report(snapshot(), 3_000)
+        assertEquals(1, changes())
+        media.report(snapshot(playerState = "paused"), 3_000)
+        assertEquals(RemotePhase.PAUSED, engine.phase)
+        assertEquals(2, changes())
+        media.report(snapshot(playerState = "paused", customData = ours("subtitleStreamIndex" to 4)), 3_000)
+        assertEquals(3, changes())
+        media.report(snapshot(playerState = "paused", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 3_000)
+        assertEquals(4, changes())
+    }
+
+    @Test
+    fun theQueueAndItsIndexFollowTheReceiver() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("e-1", "e-2").map { ReceiverItem(id = it) })) {}
+        val changes = engine.countStateChanges()
+        media.report(snapshot(customData = ours("itemId" to "e-1", "playSessionId" to "ps-2")), 0)
+        assertEquals(listOf("e-1", "e-2"), engine.queueItemIds)
+        assertEquals(0, engine.playingIndex)
+        val afterLoad = changes()
+        media.report(snapshot(customData = ours("itemId" to "e-2", "playSessionId" to "ps-3")), 0)
+        assertEquals(1, engine.playingIndex)
+        assertEquals(afterLoad + 1, changes())
+    }
+
+    @Test
+    fun aFinishedItemIsBetweenUntilTheNextOneLoads() {
+        val engine = playing()
+        media.report(snapshot(playerState = "idle", idleReason = "finished"))
+        assertEquals(RemotePhase.BETWEEN, engine.phase)
+        scheduler.advance(5_000)
+        media.report(snapshot(playerState = "buffering", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")))
+        assertEquals(RemotePhase.LOADING, engine.phase)
+        media.report(snapshot(customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")))
+        assertEquals(RemotePhase.PLAYING, engine.phase)
+    }
+
+    @Test
+    fun theEndOfTheQueueIsEndedAfterTheWait() {
+        val engine = playing()
+        media.report(snapshot(playerState = "idle", idleReason = "finished"))
+        val changes = engine.countStateChanges()
+        scheduler.advance(CastEngineConstants.NEXT_ITEM_WAIT_MS - 1)
+        assertEquals(RemotePhase.BETWEEN, engine.phase)
+        scheduler.advance(1)
+        assertEquals(RemotePhase.ENDED, engine.phase)
+        assertEquals(1, changes())
+    }
+
+    @Test
+    fun aStopFromTheReceiverIsStoppedAndPlayResumesWhereItWas() {
+        val engine = playing(42_500)
+        val changes = engine.countStateChanges()
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        assertEquals(RemotePhase.STOPPED, engine.phase)
+        assertEquals(1, changes())
+        engine.play()
+        val options = JSONObject(port.sent.single().second).getJSONObject("options")
+        assertEquals(425_000_000L, options.getLong("startPositionTicks"))
+        assertEquals(RemotePhase.LOADING, engine.phase)
+        assertEquals(2, changes())
+    }
+
+    @Test
+    fun aSuspendedSessionKeepsTheEngineAndSaysReconnecting() {
+        val engine = playing()
+        val changes = engine.countStateChanges()
+        source.listener!!.onSuspended("session-1")
+        assertTrue(engine.reconnecting)
+        assertEquals(1, changes())
+        assertTrue(source.listener != null)
+        assertEquals("item-1", engine.currentItemId)
+        assertEquals(RemotePhase.PLAYING, engine.phase)
+    }
+
+    @Test
+    fun aResumedSessionReadsPositionPauseAndItemAgain() {
+        val engine = playing(42_500)
+        source.listener!!.onSuspended("session-1")
+        val changes = engine.countStateChanges()
+        val media2 = FakeMedia()
+        source.listener!!.onResumed(FakeSession(media = media2))
+        assertFalse(engine.reconnecting)
+        assertEquals(1, changes())
+        assertEquals(1, media2.statusRequests)
+        media2.report(snapshot(playerState = "paused", customData = ours("itemId" to "item-2", "playSessionId" to "ps-2")), 90_000)
+        assertEquals("item-2", engine.currentItemId)
+        assertEquals(90.0, engine.currentPosition, 1e-9)
+        assertTrue(delegate.pauses.last())
+        assertEquals(RemotePhase.PAUSED, engine.phase)
+    }
+
+    @Test
+    fun theCastEngineCannotChangeSpeed() {
+        assertFalse(engine().canChangeSpeed)
+    }
+
+    @Test
+    fun aSeekWithNothingLoadedIsNotSent() {
+        val engine = engine()
+        assertEquals(RemotePhase.NONE, engine.phase)
+        engine.seekTo(10.0)
+        engine.seekBy(5.0)
+        engine.seekToTracked(20.0, exact = false, requestId = 7)
+        assertEquals(emptyList<Long>(), media.seeks)
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+        // The chrome waits for its tracked seek: a refused one answers where the engine is.
+        assertEquals(listOf(7L to 0.0), delegate.seeksCompleted)
+    }
+
+    @Test
+    fun aTrackChangeWithNothingLoadedIsNotSent() {
+        val engine = engine()
+        engine.setAudioTrack(2)
+        engine.setSubtitleTrack(3)
+        engine.disableSubtitles()
+        assertEquals(emptyList<Pair<String, String>>(), port.sent)
+        assertEquals(-1, engine.getCurrentAudioTrack())
+        assertEquals(-1, engine.getCurrentSubtitleTrack())
+    }
 }

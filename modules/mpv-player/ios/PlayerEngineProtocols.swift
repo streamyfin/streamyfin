@@ -220,6 +220,26 @@ typealias ChromeEngine = TransportEngine & QueueEngine
 /// A local engine: all three faces.
 typealias PlayerEngine = ChromeEngine & RenderingEngine
 
+/// Where the TV is in what it plays, as the remote screen shows it. `between`: an item just finished and
+/// the TV fetches the next one of its list. `stopped`: stopped before the end, the session holds, and play
+/// resumes where it was. `ended`: the list is over. The raw values are the shared vectors' and the JS's.
+enum RemotePhase: String {
+	case none, loading, playing, paused, between, stopped, ended
+}
+
+/// A chrome engine that plays on a TV: the state the remote screen and the JS read besides the position.
+protocol RemoteEngine: TransportEngine, QueueEngine {
+	var phase: RemotePhase { get }
+	/// True from a suspension of the session to its resume: what the engine holds may be stale.
+	var reconnecting: Bool { get }
+	/// The list the engine cast, and where in it the TV plays, -1 when nowhere in it.
+	var queueItemIds: [String] { get }
+	var playingIndex: Int { get }
+	/// Called on the main thread when anything but the position changed: phase, item, list, index, a track,
+	/// `reconnecting`.
+	var onStateChanged: (() -> Void)? { get set }
+}
+
 /// Whether the chrome offers picture in picture: only an engine with a screen that can float.
 func pictureInPictureSupported(by engine: ChromeEngine?) -> Bool {
 	(engine as? RenderingEngine)?.isPictureInPictureSupported() == true

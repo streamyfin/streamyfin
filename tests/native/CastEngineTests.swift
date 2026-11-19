@@ -36,6 +36,12 @@ final class FakeMedia: CastMediaPort {
     listener?.castMediaDidUpdateStatus()
   }
 
+  /// The SDK forgetting the media status altogether, as iOS's does a moment after the receiver stopped.
+  func reportNoStatus() {
+    status = nil
+    listener?.castMediaDidUpdateStatus()
+  }
+
   func finishSeek(_ succeeded: Bool) {
     seeksInFlight.removeFirst()(succeeded)
   }
@@ -1726,6 +1732,154 @@ enum CastEngineTests {
         active = probe.isActive
       }
       check("aScriptStartedInsideTheEngineStartRunsToItsEnd", active && !bench.logs.contains("item never played"))
+    }
+
+    // The phase and the state listener: what the remote screen shows comes from them.
+
+    func countStateChanges(_ engine: CastEngine) -> () -> Int {
+      var changes = 0
+      engine.onStateChanged = { changes += 1 }
+      return { changes }
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let changes = countStateChanges(engine)
+      bench.media.report(snapshot(), position: 1)
+      var ok = engine.phase == .playing && changes() == 1
+      bench.clock.advance(CastEngineConstants.progressIntervalMs)
+      bench.media.report(snapshot(), position: 3)
+      ok = ok && changes() == 1
+      bench.media.report(snapshot(playerState: "paused", streamPosition: 3))
+      ok = ok && engine.phase == .paused && changes() == 2
+      bench.media.report(snapshot(playerState: "paused", customData: ours(["subtitleStreamIndex": 4]), streamPosition: 3))
+      ok = ok && changes() == 3
+      bench.media.report(snapshot(playerState: "paused", customData: ours(["itemId": "item-2", "playSessionId": "ps-2"]), streamPosition: 3))
+      check("aStatusChangeTellsTheStateListenerButAPositionTickDoesNot", ok && changes() == 4)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["e-1", "e-2"].map { ReceiverItem(id: $0) })) { _ in }
+      let changes = countStateChanges(engine)
+      bench.media.report(snapshot(customData: ours(["itemId": "e-1", "playSessionId": "ps-2"])), position: 0)
+      let first = engine.queueItemIds == ["e-1", "e-2"] && engine.playingIndex == 0
+      let afterLoad = changes()
+      bench.media.report(snapshot(customData: ours(["itemId": "e-2", "playSessionId": "ps-3"])), position: 0)
+      check("theQueueAndItsIndexFollowTheReceiver", first && engine.playingIndex == 1 && changes() == afterLoad + 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished"))
+      var ok = engine.phase == .between
+      bench.clock.advance(5_000)
+      bench.media.report(snapshot(playerState: "buffering", customData: ours(["itemId": "item-2", "playSessionId": "ps-2"])))
+      ok = ok && engine.phase == .loading
+      bench.media.report(snapshot(customData: ours(["itemId": "item-2", "playSessionId": "ps-2"])))
+      check("aFinishedItemIsBetweenUntilTheNextOneLoads", ok && engine.phase == .playing)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished"))
+      let changes = countStateChanges(engine)
+      bench.clock.advance(CastEngineConstants.nextItemWaitMs - 1)
+      let between = engine.phase == .between
+      bench.clock.advance(1)
+      check("theEndOfTheQueueIsEndedAfterTheWait", between && engine.phase == .ended && changes() == 1)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      let changes = countStateChanges(engine)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 0), position: 0)
+      let stopped = engine.phase == .stopped && changes() == 1
+      engine.play()
+      let options = bench.sentMessages().first?["options"] as? [String: Any] ?? [:]
+      check(
+        "aStopFromTheReceiverIsStoppedAndPlayResumesWhereItWas",
+        stopped && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && engine.phase == .loading
+          && changes() == 2
+      )
+    }
+
+    // iOS only: the SDK drops the media from the status the receiver stops on, then the status itself
+    // (the bench, 17/11: idle cancelled without media, then none). The item stays, stopped, and Play
+    // casts it again where it stopped, as on Android where the status keeps the media.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", customData: nil, hasMedia: false), position: 0)
+      let stopped = engine.phase == .stopped
+      bench.media.reportNoStatus()
+      let still = engine.phase == .stopped
+      engine.play()
+      let sent = bench.sentMessages()
+      let options = sent.first?["options"] as? [String: Any] ?? [:]
+      let ids = (options["items"] as? [[String: Any]] ?? []).map { $0["Id"] as? String }
+      check(
+        "aStopWhoseStatusLosesTheMediaStaysStoppedAndPlayCastsTheItemAgain",
+        stopped && still && sent.count == 1 && sent[0]["command"] as? String == "PlayNow" && ids == ["item-1"]
+          && (options["startPositionTicks"] as? NSNumber)?.int64Value == 425_000_000 && bench.media.calls.isEmpty
+          && bench.logs.filter { $0 == "stopped without media, item kept" }.count == 1
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      let changes = countStateChanges(engine)
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      check(
+        "aSuspendedSessionKeepsTheEngineAndSaysReconnecting",
+        engine.reconnecting && changes() == 1 && bench.source.listener != nil && engine.currentItemId == "item-1"
+          && engine.phase == .playing
+      )
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.source.listener?.castSessionDidSuspend(sessionId: "session-1")
+      let changes = countStateChanges(engine)
+      let media2 = FakeMedia()
+      bench.source.listener?.castSessionDidResume(FakeSession(media: media2))
+      let resumed = !engine.reconnecting && changes() == 1 && media2.statusRequests == 1
+      media2.report(snapshot(playerState: "paused", customData: ours(["itemId": "item-2", "playSessionId": "ps-2"]), streamPosition: 90))
+      check(
+        "aResumedSessionReadsPositionPauseAndItemAgain",
+        resumed && engine.currentItemId == "item-2" && close(engine.getCurrentPosition(), 90) && engine.isPaused()
+          && bench.delegate.pauses.last == true && engine.phase == .paused
+      )
+    }
+
+    do {
+      let bench = Bench()
+      check("theCastEngineCannotChangeSpeed", !bench.engine().canChangeSpeed)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let none = engine.phase == .none
+      engine.seekTo(position: 10, exact: false)
+      engine.seekBy(offset: 5)
+      check("aSeekWithNothingLoadedIsNotSent", none && bench.media.seeks.isEmpty && bench.port.sent.isEmpty)
+    }
+
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.setAudioTrack(2)
+      engine.setSubtitleTrack(3)
+      engine.disableSubtitles()
+      check("aTrackChangeWithNothingLoadedIsNotSent", bench.port.sent.isEmpty && audio(engine) == -1 && subtitle(engine) == -1)
     }
 
     if failures.isEmpty {

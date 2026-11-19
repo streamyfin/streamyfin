@@ -1548,6 +1548,8 @@ class PlayerViewModel : PlayerEngine.Delegate {
             syncPlayAction("ended")
             return
         }
+        // What follows a remote end is the remote screen's to decide, from the state of the TV (RemoteScreenModel).
+        if (!capabilities.nextEpisodeCountdown) return
         val next = nextEpisode
         if (next != null && capabilities.nextEpisodeCountdown && next.countdownSeconds > 0 && !countdownCanceled) {
             cancelCountdown()

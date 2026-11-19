@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
@@ -67,15 +68,17 @@ import kotlin.math.roundToInt
 @Composable
 fun PlayerBottomBar(
     viewModel: PlayerViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // The remote screen rests the bar while the TV has nothing to seek in: TalkBack says it disabled and adjusts nothing.
+    enabled: Boolean = true,
 ) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        BottomBarContent(viewModel, modifier)
+        BottomBarContent(viewModel, modifier, enabled)
     }
 }
 
 @Composable
-private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier) {
+private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier, enabled: Boolean) {
     val duration = viewModel.duration
     val position = if (viewModel.isScrubbing) viewModel.scrubPosition else viewModel.displayPosition
     val progress = if (duration > 0) (position / duration).coerceIn(0.0, 1.0) else 0.0
@@ -108,7 +111,8 @@ private fun BottomBarContent(viewModel: PlayerViewModel, modifier: Modifier) {
             progress = progress,
             cacheProgress = cacheProgress,
             position = position,
-            duration = duration
+            duration = duration,
+            enabled = enabled,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -159,7 +163,8 @@ private fun ScrubberBar(
     progress: Double,
     cacheProgress: Double,
     position: Double,
-    duration: Double
+    duration: Double,
+    enabled: Boolean,
 ) {
     var previewThumbnail by remember { mutableStateOf<Bitmap?>(null) }
     val currentTileIndex = if (viewModel.isScrubbing) viewModel.trickplay?.tileIndex(position) else null
@@ -182,7 +187,7 @@ private fun ScrubberBar(
                 contentDescription = viewModel.playbackPositionLabel
                 stateDescription = formatTimeSec(position)
                 progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat().coerceIn(0f, lengthSec), 0f..lengthSec)
-                setProgress { viewModel.adjustPosition(toward = it) }
+                if (enabled) setProgress { viewModel.adjustPosition(toward = it) } else disabled()
             },
         contentAlignment = Alignment.CenterStart
     ) {

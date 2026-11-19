@@ -95,10 +95,10 @@ class PlayerViewModelRemoteTest {
         assertTrue("no next-episode request: $emitted", "onNextEpisodeRequested" !in emitted)
     }
 
-    // The remote screen draws no "still watching" card: asking there would leave it paused with nothing to
-    // answer. The TV's list ended, so the screen ends as it does with no next episode.
+    // The remote screen draws no "still watching" card and runs no countdown: what follows the end is the screen
+    // model's to decide (RemoteScreenModel), from the state of the TV, so the view model reports and closes nothing.
     @Test
-    fun aRemoteEndAtTheEpisodeCapEndsInsteadOfAsking() {
+    fun aRemoteEndLeavesWhatFollowsToTheScreenModel() {
         val viewModel = remoteViewModel(RemoteOnlyEngine())
         val emitted = mutableListOf<String>()
         val dismissals = mutableListOf<String>()
@@ -114,7 +114,7 @@ class PlayerViewModelRemoteTest {
         viewModel.onPlaybackEnded()
 
         assertFalse(viewModel.showStillWatching)
-        assertTrue("no end reported: $emitted", "onPlaybackEnded" in emitted)
-        assertEquals(listOf("playbackEnded"), dismissals)
+        assertTrue("no end reported: $emitted", "onPlaybackEnded" !in emitted)
+        assertTrue("no dismissal: $dismissals", dismissals.isEmpty())
     }
 }

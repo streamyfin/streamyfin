@@ -32,9 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -128,31 +131,47 @@ internal fun RemoteTitles(viewModel: PlayerViewModel, compact: Boolean, modifier
  * on the right, the thumbnail bubble while dragging. The local "Skip intro" sits above it, on the right.
  */
 @Composable
-internal fun RemoteBar(viewModel: PlayerViewModel, modifier: Modifier = Modifier) {
+internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
         viewModel.activeSegment?.takeIf { it.skipMode != "auto" }?.let { segment ->
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                 SkipSegmentButton(viewModel = viewModel, segment = segment)
             }
         }
-        PlayerBottomBar(viewModel = viewModel)
+        PlayerBottomBar(viewModel = viewModel, enabled = enabled)
     }
 }
 
+/**
+ * A control the TV's state leaves inactive: dimmed, and deaf to taps and drags (taken in the Initial pass, before
+ * the control sees them). The screen's drag down still sees them: it does not consume. TalkBack reads each button
+ * and the bar as its own node, so each says it disabled itself (`enabled`): a disabled wrapper does not reach them.
+ */
+internal fun Modifier.inert(inert: Boolean): Modifier =
+    if (!inert) this else this
+        .alpha(PlayerConstants.REMOTE_INERT_ALPHA)
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+            }
+        }
+
 /** Previous, back, play, forward, next: the chrome's transport at the remote sizes, play a white disc. */
 @Composable
-internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout, modifier: Modifier = Modifier) {
+internal fun RemoteTransportRow(viewModel: PlayerViewModel, layout: RemoteLayout, spinner: Boolean, enabled: Boolean, modifier: Modifier = Modifier) {
     val t = RemoteTransport.of(layout)
     CenterControls(
         viewModel = viewModel,
         modifier = modifier,
         style = TransportStyle(side = t.sideDp.dp, seek = t.seekDp.dp, play = t.playDp.dp, gap = t.gapDp.dp, disc = true, fit = true),
+        showsSpinner = spinner,
+        enabled = enabled,
     )
 }
 
 /** The bottom row: the TV on the left, episodes, audio and subtitles on the right. */
 @Composable
-internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, modifier: Modifier = Modifier) {
+internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, tracksEnabled: Boolean, modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -161,13 +180,13 @@ internal fun RemoteBottomRow(viewModel: PlayerViewModel, targetName: String?, mo
         // Weighted without filling, the TV is measured after the track buttons: a long name ends in an ellipsis
         // instead of taking the row and leaving them no width. The buttons keep together in a row of their own.
         RemoteTargetButton(viewModel, targetName, Modifier.weight(1f, fill = false))
-        Row(verticalAlignment = Alignment.CenterVertically) { RemoteTrackButtons(viewModel) }
+        Row(verticalAlignment = Alignment.CenterVertically) { RemoteTrackButtons(viewModel, tracksEnabled) }
     }
 }
 
 /** Couched: the chevron, the titles, the TV, the track buttons and "more", in one bar across the top. */
 @Composable
-internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, modifier: Modifier = Modifier) {
+internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, tracksEnabled: Boolean, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         RemoteChevron(viewModel)
         RemoteTitles(
@@ -178,7 +197,7 @@ internal fun RemoteTopBar(viewModel: PlayerViewModel, targetName: String?, modif
                 .padding(horizontal = 8.dp),
         )
         RemoteTargetButton(viewModel, targetName)
-        RemoteTrackButtons(viewModel)
+        RemoteTrackButtons(viewModel, tracksEnabled)
         RemoteMoreButton(viewModel)
     }
 }
@@ -246,9 +265,12 @@ private fun RemoteTargetButton(viewModel: PlayerViewModel, targetName: String?, 
     }
 }
 
-/** Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on. */
+/**
+ * Episodes, audio and subtitles, each when it has something to offer; subtitles light up while on. Audio and subtitles
+ * rest while nothing is loaded on the TV: a track change would have nothing to act on.
+ */
 @Composable
-private fun RemoteTrackButtons(viewModel: PlayerViewModel) {
+private fun RemoteTrackButtons(viewModel: PlayerViewModel, tracksEnabled: Boolean) {
     if (viewModel.episodeList.isNotEmpty() && !viewModel.syncPlayActive) {
         ActiveIconButton(Icons.AutoMirrored.Filled.FormatListBulleted, viewModel.strings.get("episodes", "Episodes"), active = false) {
             viewModel.showEpisodeList = true
@@ -256,20 +278,24 @@ private fun RemoteTrackButtons(viewModel: PlayerViewModel) {
     }
     if (viewModel.audioMenu.isNotEmpty()) {
         AudioMenu(viewModel) { open ->
-            ActiveIconButton(Icons.Default.GraphicEq, viewModel.strings.get("audio", "Audio"), active = false, onClick = open)
+            Box(Modifier.inert(!tracksEnabled)) {
+                ActiveIconButton(Icons.Default.GraphicEq, viewModel.strings.get("audio", "Audio"), active = false, enabled = tracksEnabled, onClick = open)
+            }
         }
     }
     if (viewModel.subtitleMenu.isNotEmpty()) {
         val on = RemoteActive.subtitlesOn(viewModel.subtitleMenu.firstOrNull { it.selected }?.jellyfinIndex)
         SubtitleMenu(viewModel) { open ->
-            ActiveIconButton(Icons.Default.ClosedCaption, viewModel.strings.get("subtitles", "Subtitles"), active = on, onClick = open)
+            Box(Modifier.inert(!tracksEnabled)) {
+                ActiveIconButton(Icons.Default.ClosedCaption, viewModel.strings.get("subtitles", "Subtitles"), active = on, enabled = tracksEnabled, onClick = open)
+            }
         }
     }
 }
 
 @Composable
-private fun ActiveIconButton(icon: ImageVector, description: String, active: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(RemoteButton)) {
+private fun ActiveIconButton(icon: ImageVector, description: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(RemoteButton), enabled = enabled) {
         ActiveIcon(icon, description, active)
     }
 }

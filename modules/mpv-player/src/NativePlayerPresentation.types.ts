@@ -251,6 +251,7 @@ export type NativePlayerStrings = Partial<
     | "castConnected"
     | "castNotConnected"
     | "castConnecting"
+    | "reconnecting"
     | "playbackPosition",
     string
   >
@@ -434,7 +435,9 @@ export type NativePlayerDismissReason =
   | "closeButton"
   | "programmatic"
   | "playbackEnded"
-  | "error";
+  | "error"
+  /** The remote player only: the connection to the TV is over. */
+  | "remoteEnded";
 
 export type NativePlayerDismissPayload = {
   positionSec: number;

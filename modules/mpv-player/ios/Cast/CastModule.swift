@@ -24,6 +24,7 @@ public class CastModule: Module {
   // target state, and holds the module's relay weakly.
   private let remoteTargets = RemoteTargetHub.shared
   private var targetRelay: TargetRelay?
+  private var removePlaybackRelay: (() -> Void)?
   // Held until the receiver answers or the wait ends: a request keeps its delegate weakly.
   private var statusRequests: [StatusRequest] = []
 
@@ -46,7 +47,7 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged", "onOutputPickerAction", "onOutputPickerDismissed"
+      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed"
     )
 
     OnCreate { [weak self] in
@@ -73,7 +74,12 @@ public class CastModule: Module {
     }
 
     OnDestroy {
-      DispatchQueue.main.async { OutputPickerPresenter.shared.dismiss() }
+      // The holder outlives a JS reload, like the hub: this instance stops hearing it.
+      let removePlaybackRelay = self.removePlaybackRelay
+      DispatchQueue.main.async {
+        OutputPickerPresenter.shared.dismiss()
+        removePlaybackRelay?()
+      }
     }
 
     OnStartObserving {
@@ -107,6 +113,18 @@ public class CastModule: Module {
       if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
       return self.remoteTargets.snapshot.toDictionary()
     }
+
+    // What the TV plays, as the holder of the remote engine publishes it.
+    Function("getRemotePlayback") { () -> [String: Any?] in
+      if self.listener == nil { DispatchQueue.main.async { self.ensureListening() } }
+      return RemotePlayback.shared.snapshot.toDictionary()
+    }
+
+    // The account's server for the remote engine: none drops the engine, sending nothing to the TV.
+    AsyncFunction("setRemoteServer") { (record: ReceiverServerRecord?) in
+      self.ensureListening()
+      RemotePlayback.shared.setServer(record?.server)
+    }.runOnQueue(.main)
 
     // False when discovery does not know the device; the state then follows the session events.
     AsyncFunction("connectToDevice") { (deviceId: String) -> Bool in
@@ -251,6 +269,9 @@ public class CastModule: Module {
     let relay = TargetRelay(module: self)
     targetRelay = relay
     _ = remoteTargets.addListener(relay)
+    removePlaybackRelay = RemotePlayback.shared.addListener { [weak self] snapshot in
+      self?.sendEvent("onRemotePlaybackChanged", snapshot.toDictionary())
+    }
     RemoteTargets.installDefault()
     context.sessionManager.add(listener)
     NotificationCenter.default.addObserver(
@@ -485,7 +506,7 @@ public class CastModule: Module {
 
     Events(
       "onCastStateChanged", "onDevicesChanged", "onSessionEvent", "onMediaStatusChanged", "onReceiverMessage",
-      "onRemoteTargetChanged", "onOutputPickerAction", "onOutputPickerDismissed"
+      "onRemoteTargetChanged", "onRemotePlaybackChanged", "onOutputPickerAction", "onOutputPickerDismissed"
     )
 
     Function("isAvailable") { false }
@@ -494,6 +515,8 @@ public class CastModule: Module {
     Function("getDevices") { [[String: Any]]() }
     Function("getCurrentSession") { () -> [String: Any]? in nil }
     Function("getRemoteTarget") { () -> [String: Any?] in RemoteTargetSnapshot.none.toDictionary() }
+    Function("getRemotePlayback") { () -> [String: Any?] in RemotePlaybackSnapshot.none.toDictionary() }
+    AsyncFunction("setRemoteServer") { (_: [String: Any]?) in }
     AsyncFunction("connectToDevice") { (_: String) -> Bool in false }
     AsyncFunction("disconnect") { (_: Bool) in }
     AsyncFunction("setTargetVolume") { (_: Double) in }

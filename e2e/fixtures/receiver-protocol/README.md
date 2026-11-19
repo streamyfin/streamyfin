@@ -20,6 +20,7 @@ the Python bench sender and the native engines cannot drift apart:
 | `media-status-custom-data.json` | The fields read off the receiver's media `customData`, the same 11 keys on every load | Jest |
 | `media-position.json` | The position in the item, from the media status `currentTime` and the `customData` | Jest |
 | `load-outcomes.json` | How a sequence of receiver events settles a load: `loaded`, `failed`, `timed_out`, `superseded`. The top-level `request` is sent unless a case has its own; a container is refused whatever the receiver reports, never loaded through one of its children | Jest |
+| `phases.json` | The phase the remote player shows (`none`, `loading`, `playing`, `paused`, `between`, `stopped`, `ended`), from the media status (player state and idle reason in the Cast mapping's names, whether it still carries media) and what the engine holds (a load or reload on its way, the wait for the next item after an end, a list it cast) | JUnit, Swift |
 
 A container is an item whose `Type` is `Playlist`, `MusicArtist` or `MusicGenre`, or any
 item with `IsFolder` true. Handed one first, the receiver plays children it picks itself

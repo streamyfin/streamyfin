@@ -1,7 +1,7 @@
 import Foundation
 
 /// What every message carries: the receiver re-reads the server and the token on each one.
-struct ReceiverServer {
+struct ReceiverServer: Equatable {
   let serverAddress: String
   let accessToken: String
   let userId: String
@@ -278,6 +278,27 @@ enum ReceiverProtocol {
   /// Whether the receiver would play children it picks itself instead of this item.
   static func isContainer(_ item: ReceiverItem) -> Bool {
     containerTypes.contains(item.type ?? "") || item.isFolder
+  }
+
+  /// The phase of what the TV plays (phases.json), from the media status in CastMapping's names and
+  /// what the engine holds: a load or reload on its way, the wait for the next item after an end, and
+  /// a list it can play again. An interrupted item is loading: the SDK names that idle reason for a
+  /// stream another load replaces.
+  static func phase(
+    hasMedia: Bool, playerState: String, idleReason: String, loadPending: Bool, waitingForNext: Bool, hasQueue: Bool
+  ) -> RemotePhase {
+    if loadPending || playerState == "buffering" || playerState == "loading" { return .loading }
+    switch playerState {
+    case "playing": return .playing
+    case "paused": return .paused
+    case "idle": break
+    default: return .none
+    }
+    switch idleReason {
+    case "finished": return waitingForNext ? .between : .ended
+    case "interrupted": return .loading
+    default: return hasMedia || hasQueue ? .stopped : .none
+    }
   }
 }
 

@@ -470,6 +470,7 @@ extension RemoteTargets {
         Logger.shared.log($0, type: "RemoteTargets")
       }
     )
+    RemotePlayback.installDefault(hub: hub)
   }
 }
 

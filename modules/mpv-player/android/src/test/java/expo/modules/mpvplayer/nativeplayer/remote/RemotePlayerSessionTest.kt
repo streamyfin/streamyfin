@@ -9,23 +9,36 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.cast.target.FakeCastDevices
 import expo.modules.mpvplayer.cast.target.RemoteTargetConstants
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
 import expo.modules.mpvplayer.cast.target.TargetPhase
 import expo.modules.mpvplayer.nativeplayer.MetadataRecord
 import expo.modules.mpvplayer.nativeplayer.NativePlayerSession
+import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
+import expo.modules.mpvplayer.nativeplayer.NoRemoteEngineException
+import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
+import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
 import expo.modules.mpvplayer.nativeplayer.jsTransportTarget
-import expo.modules.mpvplayer.nativeplayer.engine.RemoteOnlyEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
+import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,19 +47,31 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 // The remote screen is the chrome over a remote engine and nothing else: no surface, no change to the window
-// (the bars stay, the phone sleeps, it turns with the phone), and closing it hands the engine back without
-// stopping the TV. Every event it sends says it is remote.
+// (the bars stay, the phone sleeps, it turns with the phone), and closing it hands the engine back to the holder
+// without stopping the TV. Every event it sends says it is remote, and the state of the TV decides when it closes.
 @RunWith(RobolectricTestRunner::class)
 class RemotePlayerSessionTest {
-    private class StopCountingEngine : RemoteOnlyEngine() {
+    /** The fake TV, its stops counted: closing a screen must never stop what the TV plays. */
+    private class StopCountingEngine(private val inner: FakeRemoteEngine) : RemoteEngine by inner {
         var stops = 0
         override fun stop() {
             stops += 1
+            inner.stop()
         }
     }
 
-    private val engine = StopCountingEngine()
-    private var released = 0
+    private val clock = ManualScheduler()
+    private val fake = FakeRemoteEngine(clock.schedule, { it() }, listOf(FakeRemoteItem("film", 60.0)))
+    private val engine = StopCountingEngine(fake)
+
+    // A session with the TV, its engine loaded and the film paused: a playing TV keeps the view model's frame
+    // callback posting, and the main looper would never idle.
+    private val playback = RemotePlayback(engineFactory = { engine }).also {
+        it.setServer(ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1", "Bench TV"))
+        it.targetChanged(connected = true, suspended = false)
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        engine.pause()
+    }
     private var tornDown = 0
     private val events = mutableListOf<Pair<String, Map<String, Any?>>>()
     private val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -67,10 +92,12 @@ class RemotePlayerSessionTest {
         on: ComponentActivity = activity,
         idle: Boolean = true,
         hub: RemoteTargetHub = RemoteTargetHub(),
+        holder: RemotePlayback = playback,
+        configure: (RemotePlayerConfigRecord) -> Unit = {},
     ): RemotePlayerSession {
         val session = RemotePlayerSession(
             hub = hub,
-            lease = RemoteEngineLease(engine) { released += 1 },
+            playback = holder,
             emit = { name, body -> events += name to body },
             onTornDown = { tornDown += 1 },
             screenContent = { _, _ -> },
@@ -78,6 +105,7 @@ class RemotePlayerSessionTest {
         session.present(on, RemotePlayerConfigRecord().also {
             it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
             it.targetName = "Bench TV"
+            configure(it)
         })
         if (idle) shadowOf(getMainLooper()).idle()
         this.session = session
@@ -132,16 +160,19 @@ class RemotePlayerSessionTest {
         assertEquals(0, activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN)
     }
 
+    // The holder is the engine's delegate for as long as the session lasts: a screen that took it would leave the
+    // holder deaf once closed, and JS would stop hearing what the TV plays.
     @Test
-    fun closingARemoteSessionReleasesItsLeaseAndNeverStopsTheEngine() {
+    fun closingARemoteSessionHandsTheEngineBackAndNeverStopsIt() {
         val session = presented()
+        assertSame(playback, engine.delegate)
 
         session.dismiss("closeButton")
         shadowOf(getMainLooper()).idle()
 
-        assertEquals(1, released)
         assertEquals(0, engine.stops)
-        assertNull(engine.delegate)
+        assertSame(engine, playback.engine)
+        assertSame(playback, engine.delegate)
         assertFalse(hasScreen())
         assertEquals(1, tornDown)
         assertEquals("closeButton", events.single { it.first == "onDismiss" }.second["reason"])
@@ -170,7 +201,6 @@ class RemotePlayerSessionTest {
         shadowOf(getMainLooper()).idle()
 
         assertEquals(0, js.get().jsBacks)
-        assertEquals(1, released)
         assertEquals("closeButton", events.single { it.first == "onDismiss" }.second["reason"])
         assertEquals(roots, js.get().findViewById<ViewGroup>(android.R.id.content).childCount)
         js.pause().stop().destroy()
@@ -183,7 +213,6 @@ class RemotePlayerSessionTest {
         activity.onBackPressedDispatcher.onBackPressed()
         shadowOf(getMainLooper()).idle()
 
-        assertEquals(1, released)
         assertFalse(hasScreen())
         assertEquals("closeButton", events.single { it.first == "onDismiss" }.second["reason"])
     }
@@ -195,9 +224,8 @@ class RemotePlayerSessionTest {
         session.teardownImmediately()
         shadowOf(getMainLooper()).idle()
 
-        assertEquals(1, released)
         assertEquals(0, engine.stops)
-        assertNull(engine.delegate)
+        assertSame(playback, engine.delegate)
         assertFalse(hasScreen())
         assertEquals(1, tornDown)
     }
@@ -211,7 +239,6 @@ class RemotePlayerSessionTest {
         screen.recreate()
         shadowOf(getMainLooper()).idle()
 
-        assertEquals(1, released)
         assertEquals(0, engine.stops)
         assertEquals(1, tornDown)
     }
@@ -254,11 +281,169 @@ class RemotePlayerSessionTest {
     @Test
     fun aTintFromJsReachesTheScreen() {
         val session = presented()
-        assertEquals(RemoteColors.of(null, null, null), session.screenModel?.colors)
+        assertEquals(RemoteColors.of(null, null, null), session.screenState?.colors)
 
         session.updateTint(RemoteTintRecord().also { it.top = "#1F3340"; it.bottom = "#0E1A21"; it.accent = "#C9A7FB" })
         shadowOf(getMainLooper()).idle()
 
-        assertEquals(RemoteColors(top = 0xFF1F3340, bottom = 0xFF0E1A21, accent = 0xFFC9A7FB), session.screenModel?.colors)
+        assertEquals(RemoteColors(top = 0xFF1F3340, bottom = 0xFF0E1A21, accent = 0xFFC9A7FB), session.screenState?.colors)
     }
+
+    // The screen opens on what the TV plays: apply() starts the view model at the config's position, so the holder's
+    // state has to come after it.
+    @Test
+    fun aScreenOpenedOnAPlayingTvStartsWhereTheTvIs() {
+        engine.seekTo(30.0)
+        engine.play()
+
+        val session = presented(idle = false)
+
+        assertEquals(30.0, session.viewModel.authoritativePosition, 0.0)
+        assertEquals(60.0, session.viewModel.duration, 0.0)
+        assertTrue(session.viewModel.isPlaying)
+    }
+
+    @Test
+    fun aSessionWithNoEngineIsRefused() {
+        val none = RemotePlayback()
+        val session = RemotePlayerSession(
+            playback = none,
+            hub = RemoteTargetHub(),
+            emit = { name, body -> events += name to body },
+            onTornDown = { tornDown += 1 },
+            screenContent = { _, _ -> },
+        )
+
+        assertThrows(NoRemoteEngineException::class.java) { session.present(activity, RemotePlayerConfigRecord()) }
+        assertFalse(hasScreen())
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun aFinishedConnectionDismissesWithRemoteEnded() {
+        presented()
+
+        playback.targetChanged(connected = false, suspended = false)
+        shadowOf(getMainLooper()).idle()
+
+        val dismiss = events.single { it.first == "onDismiss" }.second
+        assertEquals("remoteEnded", dismiss["reason"])
+        assertEquals(true, dismiss["remote"])
+        assertFalse("a lost connection is no end of playback: $events", events.any { it.first == "onPlaybackEnded" })
+        assertFalse(hasScreen())
+        assertEquals(1, tornDown)
+    }
+
+    // The film is over on the TV and nothing follows: the end is reported, then the screen closes.
+    @Test
+    fun aFilmThatEndsDismissesWithPlaybackEnded() {
+        presented()
+
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        val names = events.map { it.first }
+        assertTrue("ended then dismissed: $names", names.indexOf("onPlaybackEnded") in 0 until names.indexOf("onDismiss"))
+        assertEquals("playbackEnded", events.single { it.first == "onDismiss" }.second["reason"])
+        assertFalse(hasScreen())
+    }
+
+    // The next episode is known: the screen stays for the card that offers it, no countdown and no question.
+    @Test
+    fun anEndWithANextEpisodeKeepsTheScreen() {
+        val session = presented(configure = { it.nextEpisode = NextEpisodeRecord().apply { itemId = "next"; title = "Next" } })
+
+        engine.skipToNext()
+        shadowOf(getMainLooper()).idle()
+
+        assertTrue(hasScreen())
+        assertFalse(events.any { it.first == "onDismiss" })
+        assertTrue(session.screenState!!.model.nextUpVisible)
+        assertFalse(session.viewModel.showStillWatching)
+        assertNull(session.viewModel.countdownRemaining)
+    }
+
+    @Test
+    fun aTvStoppedFromItsRemoteKeepsTheScreen() {
+        val session = presented()
+
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+
+        assertTrue(hasScreen())
+        assertFalse(events.any { it.first == "onDismiss" })
+        assertFalse(session.screenState!!.model.seekEnabled)
+        assertTrue(session.screenState!!.model.transportEnabled)
+    }
+
+    @Test
+    fun theScreenSaysWhenTheSessionIsComingBack() {
+        val session = presented()
+        assertEquals(TargetLabel.Name("Bench TV"), session.screenState!!.model.targetLabel)
+
+        playback.targetChanged(connected = true, suspended = true)
+        assertEquals(TargetLabel.Reconnecting, session.screenState!!.model.targetLabel)
+        assertTrue(session.screenState!!.model.controlsDimmed)
+
+        playback.targetChanged(connected = true, suspended = false)
+        assertEquals(TargetLabel.Name("Bench TV"), session.screenState!!.model.targetLabel)
+        assertTrue(hasScreen())
+    }
+
+    // A failure the engine reports is the screen's to say, whatever the TV's state.
+    @Test
+    fun anEngineErrorShowsOnTheScreen() {
+        val session = presented()
+
+        playback.onError("Could not play there")
+
+        assertEquals("Could not play there", session.screenState!!.model.failure)
+    }
+
+    // A control the TV's state leaves inactive is said disabled to TalkBack, which then runs none of its actions.
+    // Each button and the bar is its own node: dimming the row around them does not reach them.
+    @Test
+    fun aReconnectingTvSaysItsInactiveControlsDisabledToTalkBack() {
+        playback.targetChanged(connected = true, suspended = true)
+        val session = RemotePlayerSession(
+            hub = RemoteTargetHub(),
+            playback = playback,
+            emit = { name, body -> events += name to body },
+            onTornDown = { tornDown += 1 },
+        )
+        this.session = session
+        session.present(activity, RemotePlayerConfigRecord().also {
+            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
+            it.targetName = "Bench TV"
+            it.tracks = TrackMenusRecord().also { tracks ->
+                tracks.audio = listOf(track("English", 1, selected = true))
+                tracks.subtitles = listOf(track("English", 2, selected = false))
+            }
+        })
+        assertFalse(session.screenState!!.model.transportEnabled)
+        // The screen composes as present() attaches it, from the TV's state: no later frame is needed, which
+        // Compose does not always ask for under Robolectric after other suites. The wait covers the tint's fade.
+        shadowOf(getMainLooper()).idleFor(Duration.ofMillis(PlayerConstants.REMOTE_TINT_FADE_MS.toLong()))
+
+        val inactive = listOf("Seek Backward", "Play", "Seek Forward", "Playback position", "Audio", "Subtitles")
+        val nodes = semanticsNodes().filter { it.label() in inactive }
+        assertEquals(inactive.sorted(), nodes.mapNotNull { it.label() }.sorted())
+        val saidEnabled = nodes.filterNot { it.config.contains(SemanticsProperties.Disabled) }.mapNotNull { it.label() }
+        assertEquals(emptyList<String>(), saidEnabled.sorted())
+    }
+
+    private fun track(label: String, index: Int, selected: Boolean) = TrackMenuItemRecord().also {
+        it.label = label
+        it.jellyfinIndex = index
+        it.selected = selected
+    }
+
+    // The screen's nodes as TalkBack reads them, each button merged with its icon.
+    private fun semanticsNodes(): List<SemanticsNode> {
+        val root = everyView(content()).filterIsInstance<ViewRootForTest>().first()
+        fun walk(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::walk)
+        return walk(root.semanticsOwner.rootSemanticsNode)
+    }
+
+    private fun SemanticsNode.label(): String? = config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
 }

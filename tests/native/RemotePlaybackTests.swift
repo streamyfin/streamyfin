@@ -1,0 +1,316 @@
+import Foundation
+
+// The holder keeps the Cast engine with the session, not with a screen, the cases of RemotePlaybackTest.kt
+// under the same names: born with a session and a server, alive through a suspension and a closed screen,
+// gone with the session or the account, sending nothing.
+
+/// The fake TV, with every call that could reach a real one written down.
+final class RecordingRemoteEngine: RemoteEngine {
+	let inner: FakeRemoteEngine
+	private(set) var calls: [String] = []
+	/// What reached the TV: everything but binding to it and letting go of it.
+	var sent: [String] { calls.filter { $0 != "start" && $0 != "shutdown" } }
+
+	init(_ inner: FakeRemoteEngine) { self.inner = inner }
+
+	var delegate: PlayerEngineDelegate? {
+		get { inner.delegate }
+		set { inner.delegate = newValue }
+	}
+	var onStateChanged: (() -> Void)? {
+		get { inner.onStateChanged }
+		set { inner.onStateChanged = newValue }
+	}
+	var phase: RemotePhase { inner.phase }
+	var reconnecting: Bool { inner.reconnecting }
+	var queueItemIds: [String] { inner.queueItemIds }
+	var playingIndex: Int { inner.playingIndex }
+	var currentItemId: String? { inner.currentItemId }
+	var targetVolume: Double? { inner.targetVolume }
+	var intendedPlayState: Bool { inner.intendedPlayState }
+	var canChangeSpeed: Bool { inner.canChangeSpeed }
+
+	func start() throws {
+		calls.append("start")
+		try inner.start()
+	}
+	func shutdown() {
+		calls.append("shutdown")
+		inner.shutdown()
+	}
+	func destroy() { calls.append("destroy"); inner.destroy() }
+	func loadVideo(config: VideoLoadConfig, force: Bool) { calls.append("loadVideo") }
+	func play() { calls.append("play"); inner.play() }
+	func pause() { calls.append("pause"); inner.pause() }
+	func seekTo(position: Double, exact: Bool) { calls.append("seekTo"); inner.seekTo(position: position, exact: exact) }
+	func seekBy(offset: Double) { calls.append("seekBy"); inner.seekBy(offset: offset) }
+	func requestSeek(to position: Double) { calls.append("requestSeekTo") }
+	func requestPlaying(_ playing: Bool) { calls.append("requestPlaying") }
+	func requestSeek(by offset: Double) { calls.append("requestSeekBy") }
+	func setSpeed(speed: Double) { calls.append("setSpeed") }
+	func setMute(_ muted: Bool) { calls.append("setMute") }
+	func getSpeed() -> Double { 1 }
+	func isPaused() -> Bool { inner.isPaused() }
+	func getCurrentPosition() -> Double { inner.getCurrentPosition() }
+	func getDuration() -> Double { inner.getDuration() }
+	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]?) {}
+	func setSkipIntervals(forward: Double, backward: Double) {}
+	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
+	func setSubtitleTrack(_ trackId: Int) { calls.append("setSubtitleTrack") }
+	func disableSubtitles() { calls.append("disableSubtitles") }
+	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) { completion(-1) }
+	func addSubtitleFile(url: String, select: Bool) {}
+	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) { completion([]) }
+	func setAudioTrack(_ trackId: Int) { calls.append("setAudioTrack") }
+	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) { completion(-1) }
+	func setAudioDelay(_ seconds: Double) {}
+	func setVolumeBoost(_ percent: Int) {}
+	func setDialogueBoost(_ enabled: Bool) {}
+	func setMonoDownmix(_ enabled: Bool) {}
+	func skipToNext() { calls.append("skipToNext"); inner.skipToNext() }
+	func skipToPrevious() { calls.append("skipToPrevious"); inner.skipToPrevious() }
+	func enqueue(itemIds: [String]) { calls.append("enqueue") }
+	func setTargetVolume(_ level: Double) { calls.append("setTargetVolume") }
+}
+
+final class ScreenDelegate: PlayerEngineDelegate {
+	var positions: [Double] = []
+	var pauses: [Bool] = []
+	var loadings: [Bool] = []
+	var readyToSeek = 0
+
+	func engine(_ engine: TransportEngine, didLoad config: VideoLoadConfig) {}
+	func engine(_ engine: TransportEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
+		positions.append(position)
+	}
+	func engine(_ engine: TransportEngine, didChangePause isPaused: Bool) { pauses.append(isPaused) }
+	func engine(_ engine: TransportEngine, didChangeLoading isLoading: Bool) { loadings.append(isLoading) }
+	func engine(_ engine: TransportEngine, didBecomeReadyToSeek ready: Bool) { if ready { readyToSeek += 1 } }
+	func engine(_ engine: TransportEngine, didBecomeTracksReady ready: Bool) {}
+	func engine(_ engine: TransportEngine, didChangePictureInPicture isActive: Bool) {}
+	func engine(_ engine: TransportEngine, didFailWithError message: String) {}
+	func engine(_ engine: TransportEngine, didDetectHDRMode mode: HDRMode, fps: Double) {}
+	func engineDidReachEnd(_ engine: TransportEngine) {}
+}
+
+/// A clock that moves only when told to, running what fell due in order, what that schedules included.
+final class PlaybackClock {
+	private struct Task {
+		let id: Int
+		let at: Double
+		let run: () -> Void
+	}
+
+	private var now = 0.0
+	private var lastId = 0
+	private var tasks: [Task] = []
+
+	lazy var deliver: FakeRemoteEngine.Delivery = { [unowned self] delay, run in
+		self.lastId += 1
+		let id = self.lastId
+		self.tasks.append(Task(id: id, at: self.now + delay, run: run))
+		return { [unowned self] in self.tasks.removeAll { $0.id == id } }
+	}
+
+	func advance(_ ms: Double) {
+		let target = now + ms
+		while let next = tasks.filter({ $0.at <= target }).min(by: { $0.at < $1.at || ($0.at == $1.at && $0.id < $1.id) }) {
+			tasks.removeAll { $0.id == next.id }
+			now = next.at
+			next.run()
+		}
+		now = target
+	}
+}
+
+let server = ReceiverServer(
+	serverAddress: "https://jellyfin.example.test", accessToken: "tok-123", userId: "user-1", receiverName: "Living Room TV"
+)
+
+/// One case's world: the holder, the engines its factory made and what it published.
+final class Bench {
+	let clock = PlaybackClock()
+	var made: [RecordingRemoteEngine] = []
+	var servers: [ReceiverServer] = []
+	var published: [RemotePlaybackSnapshot] = []
+	let screen = ScreenDelegate()
+	lazy var playback: RemotePlayback = {
+		let playback = RemotePlayback { [unowned self] server in
+			self.servers.append(server)
+			let engine = RecordingRemoteEngine(
+				FakeRemoteEngine(
+					deliver: self.clock.deliver,
+					items: [FakeRemoteItem(id: "a", durationSec: 60), FakeRemoteItem(id: "b", durationSec: 60)]
+				)
+			)
+			self.made.append(engine)
+			return engine
+		}
+		_ = playback.addListener { [unowned self] in self.published.append($0) }
+		return playback
+	}()
+
+	@discardableResult
+	func connected() -> RemoteEngine? {
+		playback.setServer(server)
+		playback.targetChanged(connected: true, suspended: false)
+		clock.advance(PlayerConstants.fakeRemoteLoadMs)
+		return playback.engine
+	}
+}
+
+@main
+enum RemotePlaybackTests {
+	static var failures: [String] = []
+	static var cases = 0
+
+	static func check(_ name: String, _ ok: Bool) {
+		cases += 1
+		if !ok { failures.append(name) }
+	}
+
+	static func main() {
+		do {
+			let bench = Bench()
+			bench.playback.setServer(server)
+			let none = bench.playback.engine == nil
+			bench.playback.targetChanged(connected: true, suspended: false)
+			check(
+				"anEngineIsBornWithTheSessionAndTheServer",
+				none && bench.made.count == 1 && bench.playback.engine === bench.made.first
+					&& bench.servers.map(\.userId) == ["user-1"] && bench.made[0].calls == ["start"]
+					&& bench.playback.snapshot.connected
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.playback.targetChanged(connected: true, suspended: false)
+			check(
+				"noServerMeansNoEngine",
+				bench.playback.engine == nil && bench.made.isEmpty && !bench.playback.snapshot.connected
+					&& bench.playback.snapshot.phase == .none
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.playback.targetChanged(connected: false, suspended: false)
+			check(
+				"theEngineDiesWithTheSession",
+				bench.playback.engine == nil && bench.made[0].calls == ["start", "shutdown"]
+					&& !bench.playback.snapshot.connected && bench.playback.snapshot.phase == .none
+					&& bench.published.last?.connected == false
+			)
+		}
+
+		do {
+			let bench = Bench()
+			let engine = bench.connected()
+			bench.playback.targetChanged(connected: true, suspended: true)
+			let suspended = bench.playback.engine === engine && bench.playback.snapshot.connected
+				&& bench.playback.snapshot.reconnecting && bench.published.last?.reconnecting == true
+			bench.playback.targetChanged(connected: true, suspended: false)
+			check(
+				"aSuspensionKeepsTheEngine",
+				suspended && bench.playback.engine === engine && !bench.playback.snapshot.reconnecting
+					&& bench.made.count == 1 && bench.made[0].calls == ["start"]
+			)
+		}
+
+		do {
+			let bench = Bench()
+			let engine = bench.connected()
+			let lent = bench.playback.attachScreen(bench.screen) === engine
+			bench.playback.detachScreen(bench.screen)
+			let heard = bench.screen.positions.count
+			bench.clock.advance(5_000)
+			check(
+				"closingTheScreenSendsNothingAndKeepsTheEngine",
+				lent && bench.playback.engine === engine && bench.made[0].sent.isEmpty && bench.made[0].calls == ["start"]
+					&& bench.screen.positions.count == heard
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			bench.clock.advance(3_000)
+			_ = bench.playback.attachScreen(bench.screen)
+			let caughtUp = bench.screen.loadings == [false] && bench.screen.pauses == [false]
+				&& bench.screen.positions == [3] && bench.screen.readyToSeek == 1
+			bench.clock.advance(1_000)
+			check("anAttachedScreenIsBroughtUpToDateAtOnce", caughtUp && bench.screen.positions.last == 4)
+		}
+
+		do {
+			let bench = Bench()
+			let engine = bench.connected()
+			let first = bench.published.last
+			let playing = first?.phase == .playing && first?.itemId == "a" && first?.queueItemIds == ["a", "b"]
+				&& first?.playingIndex == 0
+			bench.clock.advance(2_000)
+			engine?.pause()
+			let last = bench.published.last
+			check(
+				"theSnapshotFollowsTheEngineState",
+				playing && last?.phase == .paused && last?.positionSec == 2 && last?.durationSec == 60 && last?.connected == true
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			let count = bench.published.count
+			bench.clock.advance(5_000)
+			check(
+				"aPositionTickPublishesNoSnapshot", bench.published.count == count && bench.playback.snapshot.positionSec == 5
+			)
+		}
+
+		do {
+			let bench = Bench()
+			bench.connected()
+			_ = bench.playback.attachScreen(bench.screen)
+			bench.playback.setServer(nil)
+			check(
+				"aSignOutDropsTheEngineWithoutStoppingTheTv",
+				bench.playback.engine == nil && bench.made[0].calls == ["start", "shutdown"]
+					&& !bench.playback.snapshot.connected && bench.published.last?.connected == false
+			)
+		}
+
+		do {
+			let target = RemoteTarget(kind: RemoteTarget.kindCast, id: "tv", name: "TV", volume: true)
+			func of(_ phase: TargetPhase, reconnecting: Bool) -> (Bool, Bool) {
+				RemotePlayback.session(of: RemoteTargetSnapshot(phase: phase, target: target, reconnecting: reconnecting, error: nil))
+			}
+			check(
+				"theHubStateTellsWhetherASessionHolds",
+				of(.connected, reconnecting: false) == (true, false) && of(.connecting, reconnecting: true) == (true, true)
+					&& of(.connecting, reconnecting: false) == (false, false) && of(.ending, reconnecting: false) == (false, false)
+					&& RemotePlayback.session(of: .none) == (false, false)
+			)
+		}
+
+		// A tier 1 build's fake receivers have no TV behind them: the fake engine plays for them.
+		do {
+			let bench = Bench()
+			let fake = RecordingRemoteEngine(FakeRemoteEngine(deliver: bench.clock.deliver))
+			let real = RecordingRemoteEngine(FakeRemoteEngine(deliver: bench.clock.deliver))
+			check(
+				"theFakeReceiversPlayOnTheFakeEngine",
+				RemotePlayback.factory(fake: true, real: { _ in real }, fakeEngine: { fake })(server) === fake
+					&& RemotePlayback.factory(fake: false, real: { _ in real }, fakeEngine: { fake })(server) === real
+			)
+		}
+
+		if failures.isEmpty {
+			print("PASS: remote playback holder (\(cases) cases)")
+		} else {
+			failures.forEach { print("FAIL: " + $0) }
+			exit(1)
+		}
+	}
+}

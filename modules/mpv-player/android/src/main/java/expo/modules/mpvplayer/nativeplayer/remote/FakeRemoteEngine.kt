@@ -2,8 +2,9 @@ package expo.modules.mpvplayer.nativeplayer.remote
 
 import expo.modules.mpvplayer.cast.engine.CastEngineConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
-import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemotePhase
 import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 
@@ -13,19 +14,21 @@ data class FakeRemoteItem(val id: String, val durationSec: Double)
  * A TV that is not there, for the remote chrome's tests and the debug probe: a list of items on a clock
  * that moves one second per progress step, with the Cast engine's transport and queue faces. It has no
  * rendering face, so the chrome reads it as remote. Every entry runs through [runOnMain], as the Cast
- * engine's do; after [stop] it announces nothing.
+ * engine's do; after [stop] it announces nothing. The simulate calls play the scenes of a real TV the
+ * remote screen has to follow: a suspended session, its resume, a stop from the TV's own remote.
  */
 class FakeRemoteEngine(
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val runOnMain: (() -> Unit) -> Unit,
     private val items: List<FakeRemoteItem> = DEFAULT_ITEMS,
-) : ChromeEngine {
+) : RemoteEngine {
     companion object {
         val DEFAULT_ITEMS = (1..3).map { FakeRemoteItem("fake-episode-$it", PlayerConstants.FAKE_REMOTE_ITEM_SEC) }
     }
 
     override var delegate: TransportEngine.Delegate? = null
     override var playbackResumeIntent = true
+    override var onStateChanged: (() -> Unit)? = null
 
     private var index = 0
     private var position = 0.0
@@ -35,6 +38,9 @@ class FakeRemoteEngine(
     private var cancelLoad: (() -> Unit)? = null
     private var cancelTick: (() -> Unit)? = null
     private var volume = 0.5
+    private var suspended = false
+    private var stoppedFromReceiver = false
+    private var heardState: List<Any?>? = null
 
     private val current: FakeRemoteItem? get() = items.getOrNull(index)
 
@@ -45,6 +51,18 @@ class FakeRemoteEngine(
     override val canChangeSpeed = false
     override val currentItemId: String? get() = if (loaded) current?.id else null
     override val targetVolume: Double get() = volume
+
+    override val phase: RemotePhase
+        get() = when {
+            !loaded -> if (cancelLoad != null) RemotePhase.LOADING else RemotePhase.NONE
+            current == null -> RemotePhase.ENDED
+            stoppedFromReceiver -> RemotePhase.STOPPED
+            paused -> RemotePhase.PAUSED
+            else -> RemotePhase.PLAYING
+        }
+    override val reconnecting: Boolean get() = suspended
+    override val queueItemIds: List<String> get() = items.map { it.id }
+    override val playingIndex: Int get() = if (loaded && current != null) index else -1
 
     // MARK: - Lifecycle
 
@@ -59,7 +77,9 @@ class FakeRemoteEngine(
             delegate?.onReadyToSeek()
             setPaused(false)
             report()
+            notifyState()
         }
+        notifyState()
     }
 
     override fun stop() = runOnMain {
@@ -75,9 +95,43 @@ class FakeRemoteEngine(
 
     // MARK: - Transport
 
-    override fun play() = runOnMain { if (loaded && !stopped) setPaused(false) }
+    // A TV stopped from its own remote plays again from where it stopped, as the Cast engine resumes it.
+    override fun play() = runOnMain { if (loaded && !stopped) resume() }
     override fun pause() = runOnMain { if (loaded && !stopped) setPaused(true) }
-    override fun togglePause() = runOnMain { if (loaded && !stopped) setPaused(!paused) }
+    override fun togglePause() = runOnMain { if (loaded && !stopped) if (paused) resume() else setPaused(true) }
+
+    private fun resume() {
+        stoppedFromReceiver = false
+        setPaused(false)
+        notifyState()
+    }
+
+    // MARK: - Scenes of a real TV
+
+    /** The session suspended (the phone asleep, the app in the background): the TV plays on, unheard. */
+    fun simulateSuspended() = runOnMain {
+        if (stopped || suspended) return@runOnMain
+        suspended = true
+        delegate?.onLoadingChanged(true)
+        notifyState()
+    }
+
+    /** The session back: the TV's state is heard again, where its clock went meanwhile. */
+    fun simulateResumed() = runOnMain {
+        if (stopped || !suspended) return@runOnMain
+        suspended = false
+        delegate?.onLoadingChanged(false)
+        report()
+        notifyState()
+    }
+
+    /** Stopped from the TV's remote before the end: the item stays where it was, the session holds. */
+    fun simulateStoppedFromReceiver() = runOnMain {
+        if (!loaded || stopped || current == null) return@runOnMain
+        stoppedFromReceiver = true
+        setPaused(true)
+        notifyState()
+    }
 
     override fun seekTo(seconds: Double) = runOnMain { move(seconds)?.let { report() } }
 
@@ -127,6 +181,7 @@ class FakeRemoteEngine(
         paused = value
         delegate?.onPauseChanged(value)
         if (value) stopTicking() else scheduleTick()
+        notifyState()
     }
 
     private fun scheduleTick() {
@@ -160,13 +215,25 @@ class FakeRemoteEngine(
             position = 0.0
             paused = true
             stopTicking()
-            delegate?.onPlaybackEnded()
+            if (!suspended) delegate?.onPlaybackEnded()
+            notifyState()
             return
         }
         index = next
         position = 0.0
         report()
+        notifyState()
     }
 
-    private fun report() = delegate?.onPositionChanged(position, duration, 0.0)
+    // A suspended session hears nothing of the TV.
+    private fun report() {
+        if (!suspended) delegate?.onPositionChanged(position, duration, 0.0)
+    }
+
+    private fun notifyState() {
+        val state = listOf(phase, suspended, currentItemId, playingIndex)
+        if (state == heardState || stopped) return
+        heardState = state
+        onStateChanged?.invoke()
+    }
 }

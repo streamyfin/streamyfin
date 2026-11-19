@@ -64,16 +64,10 @@ public class NativePlayerModule: Module {
 		}
 	}
 
-	/// The remote engine a screen borrows, nil without one. Tier 1 builds (fake Cast receivers) lend a fake
-	/// TV, shut down when the screen hands it back; the engine bound to a real Cast session comes later.
-	private static func remoteEngineLease() -> RemoteEngineLease? {
-		#if os(iOS) && !targetEnvironment(macCatalyst)
-		guard RemoteTargets.fakeDevices else { return nil }
-		let fake = FakeRemoteEngine(deliver: mainQueueSchedule)
-		return RemoteEngineLease(engine: fake) { fake.shutdown() }
-		#else
-		return nil
-		#endif
+	/// Whether the holder has an engine to lend: the one it keeps with the Cast session (the fake receivers' fake
+	/// one in a tier 1 build); none without a session, or in a published build, where JS gives it no server.
+	private static var hasRemoteEngine: Bool {
+		RemotePlayback.shared.engine != nil
 	}
 
 	/// tvOS and Catalyst do not cast, so they never present the remote player.
@@ -141,21 +135,15 @@ public class NativePlayerModule: Module {
 		AsyncFunction("presentRemotePlayer") { (config: RemotePlayerConfigRecord, promise: Promise) in
 			let isTv = !Self.castsFromThisDevice
 			let alreadyPresented = self.presented != nil
-			let lease = !alreadyPresented && !isTv ? Self.remoteEngineLease() : nil
 			if let refusal = PresentRefusal(
-				presented: alreadyPresented, hasRemoteEngine: lease != nil, isTv: isTv
+				presented: alreadyPresented, hasRemoteEngine: Self.hasRemoteEngine, isTv: isTv
 			) {
 				promise.reject(Self.exception(for: refusal))
 				return
 			}
 			#if os(iOS)
-			// The refusal above already turned a missing lease away: this only unwraps it.
-			guard let lease else {
-				promise.reject(NoRemoteEngineException())
-				return
-			}
 			let remote = RemotePlayerSession(
-				lease: lease,
+				playback: RemotePlayback.shared,
 				emit: { [weak self] name, body in
 					self?.sendEvent(name, body)
 				},

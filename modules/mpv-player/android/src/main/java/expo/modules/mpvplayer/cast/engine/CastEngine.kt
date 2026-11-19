@@ -14,8 +14,9 @@ import expo.modules.mpvplayer.cast.receiver.ReceiverPlayRequest
 import expo.modules.mpvplayer.cast.receiver.ReceiverProtocol
 import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
-import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
+import expo.modules.mpvplayer.nativeplayer.engine.RemotePhase
 import expo.modules.mpvplayer.nativeplayer.engine.TransportEngine
 import expo.modules.mpvplayer.nativeplayer.engine.VideoLoadConfig
 import org.json.JSONObject
@@ -39,9 +40,10 @@ class CastEngine(
     private val schedule: (Long, () -> Unit) -> (() -> Unit),
     private val runOnMain: (() -> Unit) -> Unit,
     private val log: (String) -> Unit = {},
-) : ChromeEngine {
+) : RemoteEngine {
     override var delegate: TransportEngine.Delegate? = null
     var bindingListener: CastBindingListener? = null
+    override var onStateChanged: (() -> Unit)? = null
 
     // Kept for the interface: it only matters to a local surface coming back.
     override var playbackResumeIntent: Boolean = false
@@ -111,7 +113,8 @@ class CastEngine(
     private var queue: List<ReceiverItem> = emptyList()
 
     // Where in [queue] the receiver plays: it names the item, not which copy of one queued twice.
-    private var playingIndex = -1
+    override var playingIndex = -1
+        private set
 
     // Bumped by each load: Play Services hands a send's result over later, and a result that comes
     // back after a newer load no longer describes the receiver's queue.
@@ -145,6 +148,19 @@ class CastEngine(
     // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
     // belongs to the same failure.
     private var noCompatibleStreamFollows = false
+
+    // What the state listener last heard: it hears again only when something but the position changed.
+    private var heardState: HeardState? = null
+
+    private data class HeardState(
+        val phase: RemotePhase,
+        val reconnecting: Boolean,
+        val itemId: String?,
+        val queue: List<String>,
+        val playingIndex: Int,
+        val audio: Int,
+        val subtitle: Int,
+    )
 
     private val busListener = object : ReceiverBusListener {
         override fun onMessage(raw: String) = onBusMessage(ReceiverProtocol.parseMessage(raw))
@@ -246,6 +262,7 @@ class CastEngine(
         if (session != null) log("detached from session $boundSessionId")
         session = null
         boundSessionId = null
+        heardState = null
     }
 
     // A CastSession answers null once the SDK has ended it, and iOS reports a session that failed to
@@ -261,6 +278,7 @@ class CastEngine(
         suspended = true
         setLoading(true)
         log("session $boundSessionId suspended")
+        notifyState()
     }
 
     // A resume rebuilt the Cast client: the media channel is a new one, and nothing of the old counts.
@@ -278,6 +296,7 @@ class CastEngine(
         if (identity == null) identity = resumed.wasLaunched
         attachMedia(resumed.media)
         log("session ${resumed.sessionId} resumed")
+        notifyState()
     }
 
     private fun loseBinding(error: String?) {
@@ -346,6 +365,7 @@ class CastEngine(
             if (pendingLoad === load) load.tracker.timeOut()?.let { settleLoad(load, it) }
         }
         setLoading(true)
+        notifyState()
         log("send PlayNow")
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
             if (error == null) {
@@ -363,6 +383,7 @@ class CastEngine(
             load.cancelTimer()
             pendingLoad = null
             setLoading(isBuffering())
+            notifyState()
             onResult(CastLoadResult.NotSent(error))
         }
     }
@@ -412,11 +433,11 @@ class CastEngine(
 
     private fun seek(seconds: Double, requestId: Long?) {
         // A load on its way replaces the item: a seek would reach the old one.
-        if (pendingLoad != null) return
-        val port = media ?: return
+        if (pendingLoad != null) return refuseSeek(requestId)
+        val port = media ?: return refuseSeek(requestId)
         val data = ours
         // Nothing loaded, stopped, or live: a Seek by reload would restart a stopped item.
-        if (!hasMedia || playerState == IDLE || data?.canSeek == false) return
+        if (!hasMedia || playerState == IDLE || data?.canSeek == false) return refuseSeek(requestId)
         val target = if (itemDuration > 0) seconds.coerceIn(0.0, itemDuration) else seconds.coerceAtLeast(0.0)
         if (data == null || data.canClientSeek != false) {
             log("seek $target path=media")
@@ -438,6 +459,14 @@ class CastEngine(
         log("seek $target path=bus")
         startReload(target, requestId, data) { send("Seek", JSONObject().put("position", target), it) }
     }
+
+    // The chrome waits for a tracked seek: one that goes nowhere answers where the engine is.
+    private fun refuseSeek(requestId: Long?) {
+        requestId?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
+    }
+
+    // The receiver plays at 1x: it takes no playback rate.
+    override val canChangeSpeed = false
 
     override fun setSpeed(speed: Double) = Unit
 
@@ -489,9 +518,11 @@ class CastEngine(
             playAgain(data, currentAudio.takeIf { it >= 0 }, index, undo)
             return
         }
+        notifyState()
         send("SetSubtitleStreamIndex", JSONObject().put("index", index)) { error ->
             undo()
             updateTracks()
+            notifyState()
             delegate?.onError(error)
         }
     }
@@ -541,6 +572,24 @@ class CastEngine(
     override val currentItemId: String?
         get() = ours?.itemId
 
+    // Read on the main thread, where the callbacks that change these run.
+    override val phase: RemotePhase
+        get() = ReceiverProtocol.phase(
+            hasMedia = hasMedia,
+            playerState = playerState,
+            idleReason = idleReason ?: NO_IDLE_REASON,
+            loadPending = pendingLoad != null || reload != null,
+            waitingForNext = endWait != null,
+            hasQueue = queue.isNotEmpty(),
+        )
+
+    override val reconnecting: Boolean
+        get() = suspended
+
+    // One entry per queued item, so [playingIndex] addresses it: an item without an id stays as "".
+    override val queueItemIds: List<String>
+        get() = queue.map { it.id.orEmpty() }
+
     // The queue lives on the receiver, which the sender does not see; it announces no QUEUE_NEXT, so
     // the bus carries these.
 
@@ -577,6 +626,7 @@ class CastEngine(
             sent = {
                 if (generation == queueGeneration) {
                     queue = queue + window.map { ReceiverItem(id = it) }
+                    notifyState()
                     enqueueWindows(windows.drop(1), generation)
                 }
             },
@@ -598,6 +648,7 @@ class CastEngine(
             if (finished && !(playerState == IDLE && idleReason == FINISHED)) armEndWait()
             clearMedia(status?.playerState ?: IDLE)
             idleReason = status?.idleReason
+            notifyState()
             return
         }
         val data = status.customData?.let(ReceiverProtocol::parseCustomData)
@@ -651,6 +702,7 @@ class CastEngine(
         seekToComplete = null
         completed?.let { delegate?.onSeekCompleted(it, position, itemDuration, 0.0) }
         loaded?.let { (load, outcome) -> settleLoad(load, outcome) }
+        notifyState()
     }
 
     // The position stays on its target through a reload, and where it was on an idle status: the SDK
@@ -669,6 +721,7 @@ class CastEngine(
             if (state.has("AudioStreamIndex")) chosenAudio = intOrNull(state.opt("AudioStreamIndex"))
             if (state.has("SubtitleStreamIndex")) chosenSubtitle = intOrNull(state.opt("SubtitleStreamIndex"))
             updateTracks()
+            notifyState()
         }
         val error = ReceiverProtocol.loadErrorOf(message) ?: return
         pendingLoad?.let { load ->
@@ -747,6 +800,7 @@ class CastEngine(
         endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
             delegate?.onPlaybackEnded()
+            notifyState()
         }
     }
 
@@ -760,6 +814,7 @@ class CastEngine(
         load.cancelTimer()
         if (pendingLoad === load) pendingLoad = null
         setLoading(isBuffering())
+        notifyState()
         load.onResult(CastLoadResult.Settled(outcome))
     }
 
@@ -795,6 +850,7 @@ class CastEngine(
         reload = Reload(tracker, target, requestId, cancelTimer, undoAll, data.itemId)
         position = target
         setLoading(true)
+        notifyState()
         delegate?.onPositionChanged(position, itemDuration, 0.0)
         send { error ->
             // Never sent: nothing will reload, so the position goes back to what the receiver reports.
@@ -803,6 +859,7 @@ class CastEngine(
                 reload = null
                 pending.undo()
                 updateTracks()
+                notifyState()
                 delegate?.onError(error)
                 recomputePosition()
             }
@@ -824,6 +881,7 @@ class CastEngine(
             ReceiverLoadOutcome.Loaded, ReceiverLoadOutcome.Superseded -> Unit
         }
         if (recompute) recomputePosition()
+        notifyState()
     }
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
@@ -879,6 +937,13 @@ class CastEngine(
         playingIndex = near.firstOrNull { queue.getOrNull(it)?.id == itemId } ?: queue.indexOfFirst { it.id == itemId }
     }
 
+    private fun notifyState() {
+        val state = HeardState(phase, suspended, ours?.itemId, queueItemIds, playingIndex, currentAudio, currentSubtitle)
+        if (state == heardState) return
+        heardState = state
+        onStateChanged?.invoke()
+    }
+
     private fun updateTracks() {
         val data = ours
         currentAudio = if (data == null) -1 else chosenAudio ?: data.audioStreamIndex ?: -1
@@ -924,5 +989,6 @@ class CastEngine(
         private const val ERROR = "error"
         private const val INTERRUPTED = "interrupted"
         private const val FINISHED = "finished"
+        private const val NO_IDLE_REASON = "none"
     }
 }

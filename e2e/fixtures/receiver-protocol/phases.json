@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "a load on its way is loading, whatever the TV still shows",
+      "input": {
+        "hasMedia": true,
+        "playerState": "playing",
+        "idleReason": "none",
+        "loadPending": true,
+        "waitingForNext": false,
+        "hasQueue": true
+      },
+      "expected": "loading"
+    },
+    {
+      "name": "a load on its way wins over the end of the item before",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "finished",
+        "loadPending": true,
+        "waitingForNext": true,
+        "hasQueue": true
+      },
+      "expected": "loading"
+    },
+    {
+      "name": "a buffering TV is loading",
+      "input": {
+        "hasMedia": true,
+        "playerState": "buffering",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "loading"
+    },
+    {
+      "name": "a TV loading its item is loading",
+      "input": {
+        "hasMedia": true,
+        "playerState": "loading",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "loading"
+    },
+    {
+      "name": "a playing TV is playing",
+      "input": {
+        "hasMedia": true,
+        "playerState": "playing",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "playing"
+    },
+    {
+      "name": "a paused TV is paused",
+      "input": {
+        "hasMedia": true,
+        "playerState": "paused",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "paused"
+    },
+    {
+      "name": "a finished item is between while the next one may come",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "finished",
+        "loadPending": false,
+        "waitingForNext": true,
+        "hasQueue": true
+      },
+      "expected": "between"
+    },
+    {
+      "name": "a finished item is the end once the wait is over",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "finished",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": true
+      },
+      "expected": "ended"
+    },
+    {
+      "name": "a finished item ends with nothing left in the status nor retained",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "finished",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "ended"
+    },
+    {
+      "name": "a stop from the TV with its item still in the status is stopped",
+      "input": {
+        "hasMedia": true,
+        "playerState": "idle",
+        "idleReason": "cancelled",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "stopped"
+    },
+    {
+      "name": "a stop with the cast list retained is stopped",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "cancelled",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": true
+      },
+      "expected": "stopped"
+    },
+    {
+      "name": "a playback error with the item still there is stopped",
+      "input": {
+        "hasMedia": true,
+        "playerState": "idle",
+        "idleReason": "error",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "stopped"
+    },
+    {
+      "name": "an interrupted item is loading: the stream that replaces it follows",
+      "input": {
+        "hasMedia": true,
+        "playerState": "idle",
+        "idleReason": "interrupted",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": true
+      },
+      "expected": "loading"
+    },
+    {
+      "name": "a stop with nothing loaded nor retained is none",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "cancelled",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "none"
+    },
+    {
+      "name": "an idle TV with nothing at all is none",
+      "input": {
+        "hasMedia": false,
+        "playerState": "idle",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "none"
+    },
+    {
+      "name": "nothing reported yet is none",
+      "input": {
+        "hasMedia": false,
+        "playerState": "unknown",
+        "idleReason": "none",
+        "loadPending": false,
+        "waitingForNext": false,
+        "hasQueue": false
+      },
+      "expected": "none"
+    }
+  ]
+}

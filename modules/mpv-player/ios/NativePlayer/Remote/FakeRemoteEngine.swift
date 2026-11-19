@@ -8,8 +8,9 @@ struct FakeRemoteItem: Equatable {
 /// A TV that is not there, for the remote chrome's tests and the debug probe: a list of items on a clock
 /// that moves one second per progress step, with the Cast engine's transport and queue faces. It has no
 /// rendering face, so the chrome reads it as remote. Main thread only, like the Cast engine; after
-/// `shutdown()` it announces nothing.
-final class FakeRemoteEngine: ChromeEngine {
+/// `shutdown()` it announces nothing. The simulate calls play the scenes of a real TV the remote screen
+/// has to follow: a suspended session, its resume, a stop from the TV's own remote.
+final class FakeRemoteEngine: RemoteEngine {
 	/// Runs the closure after a delay in milliseconds and hands back its cancel, as `CastEngine.Delivery`.
 	typealias Delivery = (Double, @escaping () -> Void) -> (() -> Void)
 
@@ -18,6 +19,7 @@ final class FakeRemoteEngine: ChromeEngine {
 	}
 
 	weak var delegate: PlayerEngineDelegate?
+	var onStateChanged: (() -> Void)?
 
 	private let deliver: Delivery
 	private let items: [FakeRemoteItem]
@@ -29,6 +31,9 @@ final class FakeRemoteEngine: ChromeEngine {
 	private var cancelLoad: (() -> Void)?
 	private var cancelTick: (() -> Void)?
 	private var volume = 0.5
+	private var suspended = false
+	private var stoppedFromReceiver = false
+	private var heardState: [AnyHashable?]?
 
 	init(deliver: @escaping Delivery, items: [FakeRemoteItem] = FakeRemoteEngine.defaultItems) {
 		self.deliver = deliver
@@ -41,6 +46,16 @@ final class FakeRemoteEngine: ChromeEngine {
 	var canChangeSpeed: Bool { false }
 	var currentItemId: String? { loaded ? current?.id : nil }
 	var targetVolume: Double? { volume }
+
+	var phase: RemotePhase {
+		guard loaded else { return cancelLoad != nil ? .loading : .none }
+		guard current != nil else { return .ended }
+		if stoppedFromReceiver { return .stopped }
+		return paused ? .paused : .playing
+	}
+	var reconnecting: Bool { suspended }
+	var queueItemIds: [String] { items.map(\.id) }
+	var playingIndex: Int { loaded && current != nil ? index : -1 }
 
 	// MARK: - Lifecycle
 
@@ -55,7 +70,9 @@ final class FakeRemoteEngine: ChromeEngine {
 			self.delegate?.engine(self, didBecomeReadyToSeek: true)
 			self.setPaused(false)
 			self.report()
+			self.notifyState()
 		}
+		notifyState()
 	}
 
 	func shutdown() {
@@ -72,7 +89,8 @@ final class FakeRemoteEngine: ChromeEngine {
 
 	// MARK: - Transport
 
-	func play() { if loaded && !stopped { setPaused(false) } }
+	// A TV stopped from its own remote plays again from where it stopped, as the Cast engine resumes it.
+	func play() { if loaded && !stopped { resume() } }
 	func pause() { if loaded && !stopped { setPaused(true) } }
 	func requestPlaying(_ playing: Bool) { playing ? play() : pause() }
 
@@ -96,6 +114,33 @@ final class FakeRemoteEngine: ChromeEngine {
 	func skipToNext() { if loaded && !stopped { moveTo(index + 1) } }
 	func skipToPrevious() { if loaded && !stopped { moveTo(max(0, index - 1)) } }
 	func setTargetVolume(_ level: Double) { volume = min(max(level, 0), 1) }
+
+	// MARK: - Scenes of a real TV
+
+	/// The session suspended (the phone asleep, the app in the background): the TV plays on, unheard.
+	func simulateSuspended() {
+		guard !stopped, !suspended else { return }
+		suspended = true
+		delegate?.engine(self, didChangeLoading: true)
+		notifyState()
+	}
+
+	/// The session back: the TV's state is heard again, where its clock went meanwhile.
+	func simulateResumed() {
+		guard !stopped, suspended else { return }
+		suspended = false
+		delegate?.engine(self, didChangeLoading: false)
+		report()
+		notifyState()
+	}
+
+	/// Stopped from the TV's remote before the end: the item stays where it was, the session holds.
+	func simulateStoppedFromReceiver() {
+		guard loaded, !stopped, current != nil else { return }
+		stoppedFromReceiver = true
+		setPaused(true)
+		notifyState()
+	}
 
 	// MARK: - Tracks and audio: the fake has none
 
@@ -121,11 +166,18 @@ final class FakeRemoteEngine: ChromeEngine {
 		return true
 	}
 
+	private func resume() {
+		stoppedFromReceiver = false
+		setPaused(false)
+		notifyState()
+	}
+
 	private func setPaused(_ value: Bool) {
 		guard paused != value else { return }
 		paused = value
 		delegate?.engine(self, didChangePause: value)
 		if value { stopTicking() } else { scheduleTick() }
+		notifyState()
 	}
 
 	private func scheduleTick() {
@@ -155,15 +207,26 @@ final class FakeRemoteEngine: ChromeEngine {
 			position = 0
 			paused = true
 			stopTicking()
-			delegate?.engineDidReachEnd(self)
+			if !suspended { delegate?.engineDidReachEnd(self) }
+			notifyState()
 			return
 		}
 		index = next
 		position = 0
 		report()
+		notifyState()
 	}
 
+	// A suspended session hears nothing of the TV.
 	private func report() {
+		guard !suspended else { return }
 		delegate?.engine(self, didUpdateProgress: position, duration: getDuration(), cacheSeconds: 0)
+	}
+
+	private func notifyState() {
+		let state: [AnyHashable?] = [phase, suspended, currentItemId, playingIndex]
+		guard !stopped, state != heardState else { return }
+		heardState = state
+		onStateChanged?()
 	}
 }

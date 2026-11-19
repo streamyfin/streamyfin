@@ -19,20 +19,24 @@ import expo.modules.mpvplayer.nativeplayer.RemotePlayerConfigRecord
 import expo.modules.mpvplayer.nativeplayer.RemoteTintRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenuItemRecord
 import expo.modules.mpvplayer.nativeplayer.TrackMenusRecord
-import expo.modules.mpvplayer.nativeplayer.engine.ChromeEngine
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
+import expo.modules.mpvplayer.nativeplayer.engine.RemoteEngine
 import expo.modules.mpvplayer.nativeplayer.engine.PlayerEngine
 import expo.modules.mpvplayer.nativeplayer.ui.remote.RemotePlayerScreen
 
-// The device proof of the remote screen, in debug builds only: a broadcast opens the remote chrome over a
-// fake TV of its own, with a fixed config, whatever the build's fake receivers flag says. It goes around
+// The device proof of the remote screen, in debug builds only: a broadcast opens the remote chrome, with a fixed
+// config, over the engine the holder keeps with a Cast session when one holds, and over a fake TV of its own
+// otherwise, whatever the build's fake receivers flag says. It goes around
 // the module, so a presentPlayer from JS while it is up is not refused. Everything it logs is what the
 // proof reads: the commands with the fake's position, the position every few seconds, the close, and the
-// fake's stop, which only the lease's release may call.
+// fake's stop, which only the end of its holder's session may cause.
 object RemotePlayerProbe {
     const val ACTION = "expo.modules.mpvplayer.REMOTE_PLAYER_PROBE"
     const val POSITION_LOG_MS = 5_000L
     const val TITLE = "Bench episode"
     const val TARGET = "Bench TV"
+    private const val SERVER_URL = "https://probe.invalid"
     private const val TAG = "RemotePlayerProbe"
     private var current: RemotePlayerSession? = null
 
@@ -43,7 +47,8 @@ object RemotePlayerProbe {
         schedule: (Long, () -> Unit) -> (() -> Unit) = mainLooperSchedule(),
         log: (String) -> Unit = { Log.i(TAG, it) },
         look: Look = Look(),
-        screenContent: @Composable (PlayerViewModel, RemoteScreenModel) -> Unit = { model, screen -> RemotePlayerScreen(model, screen) },
+        holder: RemotePlayback = RemotePlayback.shared,
+        screenContent: @Composable (PlayerViewModel, RemoteScreenState) -> Unit = { model, screen -> RemotePlayerScreen(model, screen) },
     ): RemotePlayerSession? {
         if (current != null) {
             log("already presented")
@@ -53,6 +58,7 @@ object RemotePlayerProbe {
             log("failed: no activity to present from")
             return null
         }
+        holder.engine?.let { return runOnSession(activity, schedule, log, look, holder, screenContent) }
         val main = Handler(Looper.getMainLooper())
         val fake = FakeRemoteEngine(
             schedule = schedule,
@@ -60,16 +66,20 @@ object RemotePlayerProbe {
         )
         val engine = LoggingEngine(fake, log)
         var cancelPositionLog: (() -> Unit)? = null
-        val lease = RemoteEngineLease(engine) {
-            log("lease released")
-            engine.stop()
+        // A holder of its own, its session made up: the screen borrows the fake as it would the Cast engine, and
+        // the fake stops only when that session ends, after the screen handed it back.
+        val playback = RemotePlayback(engineFactory = { engine }).apply {
+            setServer(ReceiverServer(SERVER_URL, "probe", "probe", TARGET))
+            targetChanged(connected = true, suspended = false)
         }
         val session = RemotePlayerSession(
-            lease = lease,
+            playback = playback,
             emit = { name, body -> if (name == "onDismiss") log("dismissed: ${body["reason"]}") },
             onTornDown = {
                 cancelPositionLog?.invoke()
                 current = null
+                log("lease released")
+                playback.targetChanged(connected = false, suspended = false)
             },
             screenContent = screenContent,
         )
@@ -80,6 +90,40 @@ object RemotePlayerProbe {
         fun logPosition() {
             cancelPositionLog = schedule(POSITION_LOG_MS) {
                 log("position ${engine.currentPosition}, ${if (engine.isPausedState) "paused" else "playing"}")
+                logPosition()
+            }
+        }
+        logPosition()
+        return session
+    }
+
+    // The session's engine is the holder's: the screen hands it back and the TV plays on.
+    private fun runOnSession(
+        activity: Activity,
+        schedule: (Long, () -> Unit) -> (() -> Unit),
+        log: (String) -> Unit,
+        look: Look,
+        holder: RemotePlayback,
+        screenContent: @Composable (PlayerViewModel, RemoteScreenState) -> Unit,
+    ): RemotePlayerSession {
+        var cancelPositionLog: (() -> Unit)? = null
+        val session = RemotePlayerSession(
+            playback = holder,
+            emit = { name, body -> if (name == "onDismiss") log("dismissed: ${body["reason"]}") },
+            onTornDown = {
+                cancelPositionLog?.invoke()
+                current = null
+            },
+            screenContent = screenContent,
+        )
+        current = session
+        session.present(activity, config(look))
+        log("presented: $TITLE on the session's engine")
+
+        fun logPosition() {
+            cancelPositionLog = schedule(POSITION_LOG_MS) {
+                val snapshot = holder.snapshot
+                log("position ${snapshot.positionSec}, ${snapshot.phase.name.lowercase()}")
                 logPosition()
             }
         }
@@ -143,7 +187,7 @@ object RemotePlayerProbe {
 }
 
 /** The fake TV with every command the chrome sends logged, and the position each one leaves. */
-private class LoggingEngine(private val inner: ChromeEngine, private val log: (String) -> Unit) : ChromeEngine by inner {
+private class LoggingEngine(private val inner: RemoteEngine, private val log: (String) -> Unit) : RemoteEngine by inner {
     override fun start(owner: PlayerEngine.Owner, onStarted: () -> Unit) {
         log("engine started")
         inner.start(owner, onStarted)

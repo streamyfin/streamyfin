@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
 import expo.modules.mpvplayer.cast.engine.ManualScheduler
+import expo.modules.mpvplayer.cast.playback.RemotePlayback
+import expo.modules.mpvplayer.cast.receiver.ReceiverServer
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.engine.isRemote
 import org.junit.After
@@ -13,6 +15,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,8 +23,9 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
-// The debug probe of the remote screen: it opens over a fake TV of its own, whatever the build's fake
-// receivers flag says (the unit tests build without it), and logs what the device proof reads.
+// The debug probe of the remote screen: it opens over the engine the holder keeps with a Cast session when one
+// holds, and over a fake TV of its own otherwise, whatever the build's fake receivers flag says (the unit tests
+// build without it), and logs what the device proof reads.
 @RunWith(RobolectricTestRunner::class)
 class RemotePlayerProbeTest {
     private val scheduler = ManualScheduler()
@@ -38,8 +42,8 @@ class RemotePlayerProbeTest {
     }
 
     // Robolectric cannot idle the screen's endless spinner: the probe draws nothing here.
-    private fun probe(): RemotePlayerSession? =
-        RemotePlayerProbe.run(activity, scheduler.schedule, logs::add) { _, _ -> }
+    private fun probe(holder: RemotePlayback = RemotePlayback()): RemotePlayerSession? =
+        RemotePlayerProbe.run(activity, scheduler.schedule, logs::add, holder = holder) { _, _ -> }
             .also { shadowOf(getMainLooper()).idle() }
 
     private fun everyView(root: View): List<View> =
@@ -135,5 +139,28 @@ class RemotePlayerProbeTest {
         assertEquals("Living room Chromecast with Google TV", config.targetName)
         assertEquals(listOf(2), config.episodeList.filter { it.isCurrent }.map { it.indexNumber })
         assertTrue(config.chapters.isEmpty())
+    }
+
+    // With a Cast session the probe shows the session's engine, the one the bench proof follows: closing it leaves
+    // that engine to its holder, playing, never stopped.
+    @Test
+    fun theProbeOpensOnTheSessionsEngineWhenOneHolds() {
+        val tv = FakeRemoteEngine(scheduler.schedule, { it() })
+        val holder = RemotePlayback(engineFactory = { tv }).apply {
+            setServer(ReceiverServer("https://jellyfin.example.test", "tok-123", "user-1", "Living Room TV"))
+            targetChanged(connected = true, suspended = false)
+        }
+
+        val session = probe(holder).also { session = it }
+
+        assertSame(tv, session!!.viewModel.engine)
+        assertTrue(logs.contains("presented: Bench episode on the session's engine"))
+
+        session.dismiss("closeButton")
+        shadowOf(getMainLooper()).idle()
+
+        assertSame(tv, holder.engine)
+        assertFalse("the session's engine is the holder's to stop: $logs", "engine stopped" in logs)
+        assertFalse("lease released" in logs)
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -38,6 +39,7 @@ import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteArrangement
@@ -45,7 +47,9 @@ import expo.modules.mpvplayer.nativeplayer.remote.RemoteGestures
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMetrics
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteScreenModel
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteScreenState
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteSlot
+import expo.modules.mpvplayer.nativeplayer.remote.TargetLabel
 import expo.modules.mpvplayer.nativeplayer.ui.DoubleTapSeekPill
 import expo.modules.mpvplayer.nativeplayer.ui.EpisodeListSheet
 import expo.modules.mpvplayer.nativeplayer.ui.LocalPlayerActiveColor
@@ -59,8 +63,10 @@ private val SlotGap = 16.dp
  * goes is RemoteArrangement's; the artwork's size is RemoteMetrics', so it shrinks before anything is cut.
  */
 @Composable
-fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
-    val targetName = screen.targetName
+fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenState) {
+    // What the TV does: read here, the screen follows each snapshot, the next episode and the engine's error.
+    val model = screen.model
+    val targetName = targetLabel(viewModel, model)
     // A new tint fades in; the gradient reaches its bottom color two thirds down and holds it to the edge.
     val fade = tween<Color>(PlayerConstants.REMOTE_TINT_FADE_MS)
     val top by animateColorAsState(Color(screen.colors.top), fade, label = "remoteTintTop")
@@ -86,7 +92,7 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
                     .fillMaxSize()
                     .padding(horizontal = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp),
             ) {
-                if (arrangement.topBar.isNotEmpty()) RemoteTopBar(viewModel, targetName)
+                if (arrangement.topBar.isNotEmpty()) RemoteTopBar(viewModel, targetName, model.trackMenusEnabled)
 
                 Row(
                     modifier = Modifier
@@ -99,7 +105,7 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
                         val besideModifier = RemoteMetrics.besideWidth(layout, width)?.let { Modifier.width(it.dp) }
                             ?: Modifier.padding(end = PlayerConstants.REMOTE_HORIZONTAL_PADDING_DP.dp)
                         Box(besideModifier, contentAlignment = Alignment.Center) {
-                            Slot(slot, viewModel, screen, layout, artwork)
+                            Slot(slot, viewModel, screen, model, layout, artwork)
                         }
                     }
                     // The column fills the height it is given, so its free height lands where `spaces` says;
@@ -115,14 +121,14 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
                             arrangement.column.forEachIndexed { index, slot ->
                                 if (index > 0) Spacer(Modifier.height(SlotGap))
                                 if (index in arrangement.spaces) Spacer(Modifier.weight(1f))
-                                Slot(slot, viewModel, screen, layout, artwork)
+                                Slot(slot, viewModel, screen, model, layout, artwork)
                             }
                             if (arrangement.column.size in arrangement.spaces) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
 
-                arrangement.bottom.forEach { slot -> Slot(slot, viewModel, screen, layout, artwork) }
+                arrangement.bottom.forEach { slot -> Slot(slot, viewModel, screen, model, layout, artwork) }
             }
 
             if (viewModel.showEpisodeList) {
@@ -132,15 +138,24 @@ fun RemotePlayerScreen(viewModel: PlayerViewModel, screen: RemoteScreenModel) {
     }
 }
 
+/** The TV button's text: the TV's name, or that the session is coming back. */
+@Composable
+private fun targetLabel(viewModel: PlayerViewModel, model: RemoteScreenModel): String? =
+    when (val label = model.targetLabel) {
+        is TargetLabel.Name -> label.name
+        TargetLabel.Reconnecting -> viewModel.strings.get("reconnecting", "Reconnecting")
+    }
+
 /** One slot, alone in its place: the column, the side or the bottom band. The top bar draws its own three. */
 @Composable
-private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScreenModel, layout: RemoteLayout, artwork: Dp) {
-    val targetName = screen.targetName
+private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScreenState, model: RemoteScreenModel, layout: RemoteLayout, artwork: Dp) {
+    val targetName = targetLabel(viewModel, model)
     when (slot) {
         RemoteSlot.HEADER -> RemoteHeader(viewModel)
         RemoteSlot.ARTWORK -> Box(contentAlignment = Alignment.Center, modifier = if (layout == RemoteLayout.PORTRAIT) Modifier.fillMaxWidth() else Modifier) {
             Box {
-                RemoteArtwork(viewModel, artwork, screen.imageHeaders, Modifier.seekOnDoubleTap(viewModel))
+                // The artwork's double tap seeks like the bar, so it rests when the bar does.
+                RemoteArtwork(viewModel, artwork, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
                 // The chrome's pill, on the half that was tapped.
                 viewModel.doubleTapSeekForward?.let { forward ->
                     Box(Modifier.matchParentSize(), contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart) {
@@ -153,11 +168,23 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
             }
         }
         RemoteSlot.TITLES -> RemoteTitles(viewModel, compact = false, modifier = Modifier.fillMaxWidth())
-        RemoteSlot.BAR -> RemoteBar(viewModel)
-        RemoteSlot.TRANSPORT -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            RemoteTransportRow(viewModel, layout)
+        RemoteSlot.BAR -> Column(Modifier.fillMaxWidth()) {
+            // A failure is said above the bar, whatever the TV does.
+            model.failure?.let { message ->
+                Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            RemoteBar(viewModel, enabled = model.seekEnabled, modifier = Modifier.inert(!model.seekEnabled))
         }
-        RemoteSlot.BOTTOM_ROW -> RemoteBottomRow(viewModel, targetName)
+        RemoteSlot.TRANSPORT -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            RemoteTransportRow(
+                viewModel,
+                layout,
+                spinner = model.playShowsSpinner,
+                enabled = model.transportEnabled,
+                modifier = Modifier.inert(!model.transportEnabled),
+            )
+        }
+        RemoteSlot.BOTTOM_ROW -> RemoteBottomRow(viewModel, targetName, model.trackMenusEnabled)
     }
 }
 

@@ -19,9 +19,12 @@ import {
   type CastSessionEvent,
   type CastSessionInfo,
   type CastStateValue,
+  NO_REMOTE_PLAYBACK,
   NO_REMOTE_TARGET,
   type OutputPickerOptions,
   type PlayServicesStateValue,
+  type ReceiverServerRecord,
+  type RemotePlaybackState,
   type RemoteTargetPhase,
   type RemoteTargetState,
 } from "@/modules/mpv-player/src/cast/Cast.types";
@@ -76,6 +79,10 @@ export interface CastDoubleState {
   volumeCalls: number[];
   /** Flags handed to `setTargetMuted`, in order. */
   muteCalls: boolean[];
+  /** What `getRemotePlayback()` answers. */
+  remotePlayback: RemotePlaybackState;
+  /** Servers handed to `setRemoteServer`, in order, null for a drop. */
+  remoteServerCalls: (ReceiverServerRecord | null)[];
   /** Options handed to `presentOutputPicker`, in order. */
   outputPickerCalls: OutputPickerOptions[];
   /** What `presentOutputPicker` answers: false is a TV or a Mac. */
@@ -117,6 +124,8 @@ export const createCastDoubleState = (): CastDoubleState => ({
   disconnectCalls: [],
   volumeCalls: [],
   muteCalls: [],
+  remotePlayback: NO_REMOTE_PLAYBACK,
+  remoteServerCalls: [],
   outputPickerCalls: [],
   outputPickerAnswer: true,
   listeners: {
@@ -126,6 +135,7 @@ export const createCastDoubleState = (): CastDoubleState => ({
     onMediaStatusChanged: [],
     onReceiverMessage: [],
     onRemoteTargetChanged: [],
+    onRemotePlaybackChanged: [],
     onOutputPickerAction: [],
   },
 });
@@ -287,6 +297,11 @@ export const castDoubleModule = (state: () => CastDoubleState) => ({
   }),
   setTargetMuted: jest.fn(async (muted: boolean) => {
     state().muteCalls.push(muted);
+  }),
+  // A fresh object per call, as the native bridge hands one over.
+  getRemotePlayback: jest.fn(() => ({ ...state().remotePlayback })),
+  setRemoteServer: jest.fn(async (server: ReceiverServerRecord | null) => {
+    state().remoteServerCalls.push(server);
   }),
   showExpandedControls: jest.fn(async () => {
     state().dialogs.push("expandedControls");
