@@ -125,6 +125,7 @@ import {
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
+import { playerTitle } from "@/utils/jellyfin/media/trailers";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
 import {
@@ -1133,6 +1134,7 @@ const NativePlayerProviderInner: React.FC<{
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),
         originalLabel: t("common.original_audio"),
+        itemTitle: (item) => playerTitle(t, item),
         qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
         item: options.item,
         maxStreamingBitrate: options.maxStreamingBitrate,

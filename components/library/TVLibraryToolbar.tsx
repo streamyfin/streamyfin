@@ -5,6 +5,7 @@ import { TVFocusGuideView, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVButton } from "@/components/tv/TVButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TV_MODAL_FOCUS_RESTORE_MS } from "@/constants/Values";
 import { requestTVFocus } from "@/utils/requestTVFocus";
 import { scaleSize } from "@/utils/scaleSize";
 
@@ -12,8 +13,6 @@ import { scaleSize } from "@/utils/scaleSize";
 // rendering bug on TV, and the labels differ in length in every language.
 const ACTION_WIDTH = scaleSize(210);
 const DISABLED_OPACITY = 0.4;
-// Long enough for the sheet's route to have left the screen.
-const FOCUS_RESTORE_DELAY_MS = 300;
 
 export interface TVLibraryToolbarAction {
   key: string;
@@ -66,7 +65,7 @@ export const TVLibraryToolbar: React.FC<Props> = ({
     if (!focusRequest) return;
     const timer = setTimeout(
       () => requestTVFocus(buttons.current[focusRequest.key]),
-      FOCUS_RESTORE_DELAY_MS,
+      TV_MODAL_FOCUS_RESTORE_MS,
     );
     return () => clearTimeout(timer);
   }, [focusRequest]);

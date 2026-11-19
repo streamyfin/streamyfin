@@ -33,6 +33,7 @@ import { TVSimilarItems } from "@/components/TVSimilarItems";
 import { TVButton } from "@/components/tv/TVButton";
 import { TVCastCrewText } from "@/components/tv/TVCastCrewText";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import { TVTrailerButton } from "@/components/tv/TVTrailerButton";
 import {
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_POSTER_WIDTH_RATIO,
@@ -533,6 +534,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               )}
 
               <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
+              <TVTrailerButton item={item} disabled={isSeasonModalVisible} />
             </View>
           </View>
 

@@ -49,6 +49,7 @@ import {
   TVRefreshButton,
   TVSeriesNavigation,
   TVTechnicalDetails,
+  TVTrailerButton,
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
@@ -854,6 +855,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   item={versionItem ?? item}
                   disabled={isVersionPending}
                 />
+                <TVTrailerButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
                 {!isOffline && item.Type !== "Program" && (
                   <TVSyncPlayButton items={[item]} title={item.Name} />
