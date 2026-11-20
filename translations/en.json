@@ -953,6 +953,7 @@
     "download_plays_here": "Downloads play on this device",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
+    "previous_episode": "Previous episode",
     "up_next": "Up next",
     "continue_watching": "Continue watching",
     "go_back": "Go back",

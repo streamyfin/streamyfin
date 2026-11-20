@@ -216,6 +216,7 @@ export type NativePlayerStrings = Partial<
     | "segmentSkippedCommercial"
     | "segmentSkippedPreview"
     | "nextEpisode"
+    | "previousEpisode"
     | "playNow"
     | "cancel"
     | "episodes"
