@@ -66,6 +66,7 @@ final class RemotePlayerSession: PresentedPlayer {
 	private var unfollowPlayback: (() -> Void)?
 	private var unfollowVolume: (() -> Void)?
 	private var volumeWatch: VolumeWatch?
+	private var openedSheet = false
 
 	init(
 		playback: RemotePlayback = .shared,
@@ -104,6 +105,17 @@ final class RemotePlayerSession: PresentedPlayer {
 		viewModel.apply(config: config.toPresentConfig())
 		// The TV button says the session's state to VoiceOver; willTeardown stops following it.
 		viewModel.followCast()
+		#if !targetEnvironment(macCatalyst)
+		// It opens the Cast sheet over the screen, for Stop and the volume; Continue here is Play here, and Remote
+		// is this screen already.
+		viewModel.onOutputSheetRequested = { [weak self, weak viewModel] anchor in
+			guard let viewModel else { return }
+			self?.openedSheet = true
+			let sheet = OutputPickerPresenter.shared
+			sheet.strings = OutputPickerStrings(viewModel.outputPickerStrings)
+			sheet.present(anchor: anchor, playingHere: nil, onPlayHere: { self?.playHere() }) {}
+		}
+		#endif
 		if let tint = config.tint { updateTint(tint) }
 		screen.targetName = config.targetName
 		screen.reduced = config.reduced
@@ -265,6 +277,10 @@ final class RemotePlayerSession: PresentedPlayer {
 		playback.detachScreen(viewModel)
 		viewModel.engine = nil
 		viewController = nil
+		#if !targetEnvironment(macCatalyst)
+		// A sheet the TV button opened goes down with the screen, which UIKit does not report.
+		if openedSheet { OutputPickerPresenter.shared.releaseRemoteScreenSheet() }
+		#endif
 		onTornDown()
 	}
 }

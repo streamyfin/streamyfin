@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.content.pm.ActivityInfo
+import android.graphics.Rect
 import android.os.Looper.getMainLooper
 import android.os.SystemClock
 import android.view.InputDevice
@@ -307,6 +308,37 @@ class RemotePlayerSessionTest {
         assertTrue(OutputPickerPresenter.isPresented)
 
         presented(idle = false)
+
+        assertFalse(OutputPickerPresenter.isPresented)
+    }
+
+    // The TV button opens the Cast sheet over the screen, in the app's language, for Stop and the volume. Its Remote
+    // row is this screen: it closes the sheet and opens no other.
+    @Test
+    fun theTvButtonOpensTheCastSheetOverTheScreen() {
+        val session = presented(idle = false) {
+            it.ui = UIOptionsRecord().also { ui -> ui.outputPickerStrings = mapOf("title" to "Diffuser") }
+        }
+
+        session.viewModel.openOutputSheet(Rect(0, 0, 40, 40))
+
+        assertTrue(OutputPickerPresenter.isPresented)
+        assertEquals("Diffuser", OutputPickerPresenter.strings.get("title"))
+        assertEquals(false, OutputPickerPresenter.presentedController?.environment?.handOff)
+        val emitted = events.size
+        OutputPickerPresenter.presentedController?.remote()
+        assertFalse(OutputPickerPresenter.isPresented)
+        assertTrue(hasScreen())
+        assertEquals(emitted, events.size)
+    }
+
+    // The sheet is a view of its own on the activity: left there, its rows would answer a closed screen.
+    @Test
+    fun theTvButtonsSheetGoesWithTheScreen() {
+        val session = presented(idle = false)
+        session.viewModel.openOutputSheet(Rect(0, 0, 40, 40))
+
+        session.dismiss("closeButton")
 
         assertFalse(OutputPickerPresenter.isPresented)
     }

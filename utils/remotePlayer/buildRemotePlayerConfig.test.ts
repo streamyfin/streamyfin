@@ -68,6 +68,8 @@ test("the config carries no stream and no picture in picture", () => {
   });
   expect(config.chapters).toEqual([{ name: "Opening", startSec: 60 }]);
   expect(config.ui.strings?.playHere).toBe("player.play_here");
+  // The TV's button opens the Cast sheet over the screen, in the app's language.
+  expect(config.ui.outputPickerStrings?.title).toBe("cast.output.title");
 });
 
 // The phone has no player to add a file to here: only the server's own search, which its policy gates, is offered.
@@ -282,6 +284,7 @@ test("the reduced config shows the Cast title and image and nothing of this serv
   expect(config).not.toHaveProperty("imageHeaders");
   expect(config.ui.allowPip).toBe(false);
   expect(config.ui.strings?.playHere).toBe("player.play_here");
+  expect(config.ui.outputPickerStrings?.title).toBe("cast.output.title");
 });
 
 test("the reduced config without a title or image leaves them out", () => {

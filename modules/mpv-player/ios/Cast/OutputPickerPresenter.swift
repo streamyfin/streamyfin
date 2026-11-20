@@ -115,6 +115,12 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     dismiss(then: nil)
   }
 
+  /// The remote player's screen closes and takes the sheet its TV button opened down with it, which UIKit does not
+  /// report, a dismissal still running included: the sheet lets go of discovery and its callbacks.
+  func releaseRemoteScreenSheet() {
+    finish(keepHandOff: false)
+  }
+
   /// The receiver started or changed what it plays: the panel's remote row follows.
   func refresh() {
     controller?.environment.receiverTitle = receiverTitle()
