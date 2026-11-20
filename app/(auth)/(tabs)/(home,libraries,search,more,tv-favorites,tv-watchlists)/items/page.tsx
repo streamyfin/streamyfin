@@ -42,6 +42,11 @@ const Page: React.FC = () => {
     gcTime: 0,
   });
 
+  // For Program items, fetch the associated channel to get its IsFavorite status
+  const channelId =
+    item?.Type === "Program" ? (item?.ChannelId ?? undefined) : undefined;
+  const { data: channelForFavorite } = useItemQuery(channelId, isOffline);
+
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -73,6 +78,7 @@ const Page: React.FC = () => {
           item={item}
           itemWithSources={itemWithSources}
           isLoading={isLoading}
+          channelForFavorite={channelForFavorite}
         />
 
         {/* Skeleton overlay - fades out when content loads */}

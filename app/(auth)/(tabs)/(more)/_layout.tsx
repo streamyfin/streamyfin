@@ -63,6 +63,16 @@ export default function MoreLayout() {
         }}
       />
       <Stack.Screen
+        name='livetv'
+        options={{
+          title: t("live_tv.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: false,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
