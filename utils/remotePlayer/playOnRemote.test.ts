@@ -320,6 +320,40 @@ test("a TV switched while Auto measures gets nothing", async () => {
   expect(mockCast.loadCalls).toEqual([]);
 });
 
+// The series is read and shown after Auto's measure: a TV switched meanwhile got the load all the same.
+test.each([
+  ["while its series is read", "read"],
+  ["while its list is shown", "shown"],
+] as const)("a TV switched %s gets nothing", async (_when, at) => {
+  const switchTv = () => setCastSession(mockCast, "session-2");
+  api.mock.onGet(/\/Shows\/series-1\/Episodes/).reply(async () => {
+    // Answered past the check made once Auto has measured.
+    await flush();
+    if (at === "read") switchTv();
+    return [200, { Items: seriesOf(10) }];
+  });
+  // The double's own answer, put back after: implementations outlive a test.
+  const { NativePlayerNativeModule } = jest.requireMock(
+    "@/modules/mpv-player/src/NativePlayerModule",
+  );
+  const update = jest.mocked(NativePlayerNativeModule.updateRemotePlayer);
+  const double = update.getMockImplementation();
+  update.mockImplementation(async (config: { episodeList: unknown[] }) => {
+    if (at === "shown" && config.episodeList.length > 0) switchTv();
+    return (await double?.(config)) ?? false;
+  });
+
+  const result = await playOnRemote(
+    deps(),
+    seriesPlay,
+    livingRoom,
+    fresh,
+  ).finally(() => update.mockImplementation(double));
+
+  expect(result).toEqual({ status: "superseded" });
+  expect(mockCast.loadCalls).toEqual([]);
+});
+
 test("a send while the player is up updates it in place", async () => {
   mockPlayer.remoteUpdateAnswer = true;
 
