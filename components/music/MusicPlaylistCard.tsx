@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { getLocalPath } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -82,7 +82,7 @@ export const MusicPlaylistCard: React.FC<Props> = ({ playlist }) => {
         }}
       >
         {imageUrl ? (
-          <Image
+          <ArtworkImage
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'

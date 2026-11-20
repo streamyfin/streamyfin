@@ -14,7 +14,14 @@ jest.mock(
   () => jest.requireActual("@/test-utils/drax").draxModule,
 );
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
+// The double keeps the props each artwork is rendered with.
+const mockImageProps: Record<string, unknown>[] = [];
+jest.mock("@/components/common/ServerImage", () => ({
+  Image: (props: Record<string, unknown>) => {
+    mockImageProps.push(props);
+    return null;
+  },
+}));
 
 const rows: QueueRow[] = [
   { key: "a", title: "First" },
@@ -75,6 +82,46 @@ const draxItems = () =>
   screen
     .getAllByTestId("drax-item")
     .map((item) => item.props.draxItemProps as Record<string, unknown>);
+
+// After a cast handed the queue back, the last rows showed the album of the queue before it, the right tracks under
+// the wrong cover (Android, 15/11): a recycled row keeps the picture it had until the new one loads, and keeps it when
+// the new one fails. Keyed on its source, each one starts again from blank.
+test("keys each artwork to its source, so a recycled row starts from blank", async () => {
+  mockImageProps.length = 0;
+  const withArtwork = (album: string): QueueRow[] =>
+    ["1", "2"].map((track) => ({
+      key: `${album}-${track}`,
+      title: `${album} ${track}`,
+      imageUrl: `http://server/Items/${album}/Images/Primary`,
+    }));
+  const view = await render(
+    <DraggableQueueList
+      rows={withArtwork("aurore")}
+      currentIndex={0}
+      icon='musical-note'
+      emptyText='Nothing queued'
+      {...handlers()}
+    />,
+  );
+
+  await view.rerender(
+    <DraggableQueueList
+      rows={withArtwork("compresse")}
+      currentIndex={0}
+      icon='musical-note'
+      emptyText='Nothing queued'
+      {...handlers()}
+    />,
+  );
+
+  const rendered = mockImageProps.filter((props) =>
+    String((props.source as { uri?: string })?.uri).includes("compresse"),
+  );
+  expect(rendered.length).toBeGreaterThan(0);
+  for (const props of rendered) {
+    expect(props.recyclingKey).toBe((props.source as { uri: string }).uri);
+  }
+});
 
 describe.each([
   ["scrolls itself", true],
@@ -328,6 +375,30 @@ describe("DraggableQueueList rows", () => {
     await fireEvent.press(screen.getByTestId("queue-remove-b"));
     expect(on.onPressRow).not.toHaveBeenCalled();
     expect(on.onRemoveRow).not.toHaveBeenCalled();
+  });
+
+  // A Cast receiver playing the queue has no command to move or remove a track: its rows still play on a press.
+  test("of a queue that cannot be edited offer no handle and no remove button", async () => {
+    const on = handlers();
+    await render(
+      <DraggableQueueList
+        testID='queue'
+        rows={rows}
+        currentIndex={0}
+        icon='musical-note'
+        emptyText='Nothing queued'
+        editable={false}
+        {...on}
+      />,
+    );
+
+    expect(screen.queryAllByTestId("drax-handle")).toHaveLength(0);
+    expect(screen.queryByTestId("queue-remove-b")).toBeNull();
+    for (const item of draxItems()) {
+      expect(item).toMatchObject({ draggable: false });
+    }
+    await fireEvent.press(screen.getByTestId("queue-row-b"));
+    expect(on.onPressRow).toHaveBeenCalledWith(1);
   });
 
   test("keep the playing row unless it can be removed", async () => {

@@ -18,13 +18,12 @@ import { PlayButton } from "./PlayButton";
 const mockCast = jest.fn(async (..._args: unknown[]) => ({ status: "loaded" }));
 const mockPlayMedia = jest.fn(async (..._args: unknown[]) => {});
 const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
-const mockClient = { getMediaStatus: async () => null };
+let mockClient: object | null = { getMediaStatus: async () => null };
 /** The entry picked in the Chromecast / Device / Cancel sheet. */
 let mockChoice = 0;
 /** The receiver the phone is connected to. */
-let mockDevice: { friendlyName: string; modelName?: string } = {
-  friendlyName: "Living Room TV",
-};
+let mockDevice: { deviceId: string; friendlyName: string; modelName?: string } =
+  { deviceId: "device-1", friendlyName: "Living Room TV" };
 
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => ({
@@ -34,29 +33,32 @@ jest.mock("@expo/react-native-action-sheet", () => ({
     ) => onSelect(mockChoice),
   }),
 }));
-jest.mock("@expo/vector-icons", () => ({
-  Feather: () => null,
-  Ionicons: () => null,
-}));
+jest.mock("@expo/vector-icons", () => {
+  const { View } = jest.requireActual("react-native");
+  const Glyph = ({ name }: { name: string }) => (
+    <View testID={`glyph-${name}`} />
+  );
+  return { Feather: Glyph, Ionicons: Glyph };
+});
 jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock("react-native-google-cast", () => ({
-  __esModule: true,
-  default: {
-    getPlayServicesState: async () => "success",
-    showPlayServicesErrorDialog: () => {},
-    showExpandedControls: () => {},
-  },
-  CastButton: () => null,
-  PlayServicesState: { SUCCESS: "success" },
-  useCastDevice: () => mockDevice,
-  useMediaStatus: () => null,
-  useRemoteMediaClient: () => mockClient,
-}));
+jest.mock("@/modules/mpv-player/src/cast", () => {
+  const { View } = jest.requireActual("react-native");
+  return {
+    CastButton: () => <View testID='native-cast-button' />,
+    PlayServicesState: { SUCCESS: "success" },
+    playServicesState: () => "success",
+    showExpandedControls: jest.fn(),
+    showPlayServicesErrorDialog: jest.fn(),
+    useCastClient: () => mockClient,
+    useCastDevice: () => (mockClient ? mockDevice : null),
+    useCastMediaStatus: () => null,
+  };
+});
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireActual("@/test-utils/reanimated").reanimatedModule,
 }));
@@ -80,6 +82,11 @@ jest.mock("@/providers/OfflineModeProvider", () => ({
 }));
 jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({ enabled: false }),
+}));
+jest.mock("@/utils/atoms/primaryColor", () => ({
+  itemThemeColorAtom: jest
+    .requireActual("jotai")
+    .atom({ primary: "#FFFFFF", text: "#000000" }),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
   useSettings: () => ({ settings: { showResumeDialog: false } }),
@@ -149,7 +156,8 @@ beforeEach(() => {
   mockCast.mockClear();
   mockPlayMedia.mockClear();
   mockDetectBitrate.mockClear();
-  mockDevice = { friendlyName: "Living Room TV" };
+  mockClient = { getMediaStatus: async () => null };
+  mockDevice = { deviceId: "device-1", friendlyName: "Living Room TV" };
 });
 
 describe("casting from the item page", () => {
@@ -222,6 +230,7 @@ describe("casting from the item page", () => {
 describe("casting to a Chromecast stick", () => {
   beforeEach(() => {
     mockDevice = {
+      deviceId: "device-1",
       friendlyName: "Living Room TV",
       modelName: CHROMECAST_STICK_MODEL,
     };
@@ -249,6 +258,7 @@ describe("casting to a Chromecast stick", () => {
 
   test("hands another model the bitrate Auto measures", async () => {
     mockDevice = {
+      deviceId: "device-1",
       friendlyName: "Living Room TV",
       modelName: "Google TV Streamer",
     };
@@ -286,4 +296,23 @@ describe("playing on the device from the item page", () => {
       ),
     );
   });
+});
+
+// The glyph is the whole cue: the pill used to also mount the library's Cast
+// button, transparent, as the Android discovery workaround. The module's
+// discovery needs no mounted button, and an invisible tap target in the pill
+// would open the Cast dialog instead of playing.
+test("a connected receiver shows the cast glyph and no native Cast button", async () => {
+  await render(<PlayButton item={MOVIE} selectedOptions={{} as never} />);
+  // The glyph's id is what the bench's flows wait for after picking a receiver.
+  expect(screen.getByTestId("play-button-cast")).toBeTruthy();
+  expect(screen.getByTestId("glyph-cast")).toBeTruthy();
+  expect(screen.queryByTestId("native-cast-button")).toBeNull();
+});
+
+test("without a receiver the pill carries the play glyph only", async () => {
+  mockClient = null;
+  await render(<PlayButton item={MOVIE} selectedOptions={{} as never} />);
+  expect(screen.getByTestId("glyph-play-circle")).toBeTruthy();
+  expect(screen.queryByTestId("play-button-cast")).toBeNull();
 });

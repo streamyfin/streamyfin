@@ -63,6 +63,29 @@ describe("native-tests.yml", () => {
       [],
     );
   });
+
+  // The standalone Swift checks (scripts/ios/test-*.sh) need swiftc, so only
+  // a macOS runner can run them; the runner script picks up every check, a new
+  // one included.
+  test("runs every standalone Swift check on macOS", () => {
+    const workflow = withoutComments(readWorkflow("native-tests.yml"));
+    expect(workflow).toMatch(/runs-on: macos-/);
+    expect(workflow).toContain("bash scripts/ios/run-native-checks.sh");
+  });
+
+  // The JUnit and Swift readers replay the receiver vectors, and the Swift
+  // checks live outside modules/: a change to any of them must start the job.
+  test("starts on a change to what the native checks read", () => {
+    const rules = listUnder(readWorkflow("native-tests.yml"), "modules");
+    expect(rules).toEqual(
+      expect.arrayContaining([
+        "modules/**",
+        "tests/native/**",
+        "scripts/ios/**",
+        "e2e/fixtures/receiver-protocol/**",
+      ]),
+    );
+  });
 });
 
 /**
