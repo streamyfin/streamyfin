@@ -23,7 +23,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, BackHandler, Platform } from "react-native";
+import { Alert, AppState, BackHandler, Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import {
   PlaybackSpeedScope,
@@ -81,12 +81,7 @@ import {
   updateNativePlayerSyncPlay,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
-import {
-  castClientFor,
-  currentCastSession,
-  remoteTarget,
-  showExpandedControls,
-} from "@/modules/mpv-player/src/cast";
+import { remoteTarget } from "@/modules/mpv-player/src/cast";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
 // module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -120,8 +115,11 @@ import {
   fromNativeQualityIndex,
 } from "@/utils/bitrate";
 import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
-import { chooseRemotePlay } from "@/utils/cast/playTarget";
-import { sendToReceiver } from "@/utils/cast/sendToReceiver";
+import {
+  choosePlay,
+  chooseRemotePlay,
+  isLatestPlayChoice,
+} from "@/utils/cast/playTarget";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
 import { detectBitrate, keepPlaybackRate } from "@/utils/jellyfin/bitrateTest";
 import {
@@ -157,9 +155,8 @@ import {
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
 import {
+  handOffToRemote,
   mayHandOff,
-  nextStepAfterSend,
-  resolveCastHandOff,
   stepAfterRefusal,
 } from "@/utils/nativePlayer/resolveCastHandOff";
 import { resolveFailedPresentation } from "@/utils/nativePlayer/resolveFailedPresentation";
@@ -518,8 +515,6 @@ const NativePlayerProviderInner: React.FC<{
   }, [syncIds, syncPlay.resolveVideos]);
 
   const sessionRef = useRef<NativeSession | null>(null);
-  // Counts the player's hand-offs: only the latest closes or resumes the player.
-  const handOffCountRef = useRef(0);
   // A measure can end after the provider is gone, its session still in the ref.
   const aliveRef = useRef(true);
   useEffect(() => {
@@ -2543,8 +2538,8 @@ const NativePlayerProviderInner: React.FC<{
           void syncRef.current.stopWatching().catch(() => {});
         void teardownSession(session, payload.positionSec);
       }),
-      // The output sheet handed the video off: the receiver gets the item where the player paused, then the player
-      // closes and the receiver's controls open, or it says why and plays on.
+      // The output sheet handed the video off: the player closes and the remote player opens on the TV where it
+      // paused, or it plays on when nothing can go.
       addNativePlayerListener(
         "onCastHandOffRequested",
         ({ positionSec, itemId, wasPlaying = true }) => {
@@ -2570,48 +2565,30 @@ const NativePlayerProviderInner: React.FC<{
               void nativePlayerPlay();
             return;
           }
-          // A later hand-off, to another receiver say, owns the player once it starts.
-          const handOff = ++handOffCountRef.current;
-          void sendToReceiver(
-            { api: currentApi, userId, store, t },
-            resolveCastHandOff(session, positionSec),
+          // A later hand-off or play, a group joined or another account by then: nothing goes to the TV.
+          const choice = choosePlay();
+          void handOffToRemote(
+            {
+              api: currentApi,
+              userId,
+              store,
+              t,
+              closeLocalPlayer: async () => {
+                await dismissNativePlayer();
+                await waitForClosingNativePlayer();
+              },
+            },
+            session,
+            positionSec,
             target.target,
-            // Another item in the player by then, or a group it now plays for: nothing goes to the receiver.
-            () => sessionRef.current !== session || syncRef.current.enabled,
+            () =>
+              !isLatestPlayChoice(choice) ||
+              syncRef.current.enabled ||
+              userRef.current?.Id !== userId,
           ).then((result) => {
-            const current = sessionRef.current;
-            // The player closed meanwhile: what the receiver plays is the user's.
-            if (!current) return;
-            const step = nextStepAfterSend(result, {
-              latest: handOff === handOffCountRef.current,
-              inSyncPlay: syncRef.current.enabled,
-              wasPlaying,
-              // Another episode, or played here again while the receiver loaded.
-              movedOn: current !== session || session.isPlaying,
-            });
-            switch (step.kind) {
-              case "dismiss":
-                void dismissNativePlayer();
-                void showExpandedControls();
-                return;
-              case "notice":
-                void nativePlayerShowNotice(step.message);
-                if (step.resume) void nativePlayerPlay();
-                return;
-              case "resume":
-                void nativePlayerPlay();
-                return;
-              case "stopReceiver": {
-                const cast = currentCastSession();
-                if (cast)
-                  void castClientFor(cast)
-                    .stop()
-                    .catch(() => {});
-                return;
-              }
-              case "none":
-                return;
-            }
+            // The local player is gone: a remote screen that could not open is said here.
+            if (result.status === "failed")
+              Alert.alert(t("player.client_error"), result.message);
           });
         },
       ),

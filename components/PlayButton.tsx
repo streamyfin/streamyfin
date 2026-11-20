@@ -16,13 +16,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { SheetScrollView } from "@/components/common/SheetContent";
 import { useActionSheet } from "@/hooks/useActionSheet";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
 import {
   CastMediaPlayerState,
   type RemoteTarget,
-  showExpandedControls,
   useCastMediaStatus,
   useRemoteTarget,
 } from "@/modules/mpv-player/src/cast";
@@ -42,9 +42,9 @@ import {
   resolvePlay,
   waitForTarget,
 } from "@/utils/cast/playTarget";
-import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
-import { sendToReceiver } from "@/utils/cast/sendToReceiver";
+import { logAndCaptureError } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
+import { openRemotePlayer } from "@/utils/remotePlayer/openRemotePlayer";
 import { playOnRemote } from "@/utils/remotePlayer/playOnRemote";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 import { Button } from "./Button";
@@ -91,6 +91,9 @@ export const PlayButton: React.FC<Props> = ({
   const playMedia = usePlayMedia();
   const { enabled: inSyncPlayGroup } = useSyncPlay();
   const store = useStore();
+  const router = useRouter();
+  // One remote opening at a time: a second press while it opens would be refused natively and reported.
+  const openingRemote = useRef(false);
   // The press waiting for a connection: one at a time, dropped with the button.
   const pendingWait = useRef<AbortController | null>(null);
   useEffect(() => () => pendingWait.current?.abort(), []);
@@ -139,24 +142,11 @@ export const PlayButton: React.FC<Props> = ({
       // Another account or a later play choice by then gets nothing sent.
       const isStale = () =>
         store.get(userAtom)?.Id !== user.Id || !isLatestPlayChoice(choice);
-      if (remotePlayerRouted()) {
-        // Our remote player opens at once and says a load the TV did not start itself, with Play here: only a
-        // screen that could not open is said here.
-        const result = await playOnRemote(deps, play, remote, isStale);
-        if (result.status === "failed") {
-          Alert.alert(t("player.client_error"), result.message);
-        }
-        return;
-      }
-      const result = await sendToReceiver(deps, play, remote, isStale);
-      if (result.status === "notStarted" || result.status === "failed") {
+      // Our remote player opens at once and says a load the TV did not start itself, with Play here: only a
+      // screen that could not open is said here.
+      const result = await playOnRemote(deps, play, remote, isStale);
+      if (result.status === "failed") {
         Alert.alert(t("player.client_error"), result.message);
-      } else if (
-        result.status === "loaded" &&
-        // A later choice by then (a Continue here) presents its own player: the remote would open over it.
-        isLatestPlayChoice(choice)
-      ) {
-        showExpandedControls();
       }
     },
     [api, user, store, item, selectedOptions, t],
@@ -390,7 +380,25 @@ export const PlayButton: React.FC<Props> = ({
           "target" &&
         target.target?.kind === "cast"
       ) {
-        showExpandedControls();
+        if (!api || !user?.Id || openingRemote.current) return;
+        openingRemote.current = true;
+        openRemotePlayer(
+          {
+            api,
+            userId: user.Id,
+            store,
+            t,
+            // The route the music mini player opens.
+            openMusicPlayer: () => router.push("/(auth)/now-playing"),
+          },
+          target.target,
+        )
+          .catch((error) => {
+            logAndCaptureError("The remote player failed to open", error);
+          })
+          .finally(() => {
+            openingRemote.current = false;
+          });
         return;
       }
 
@@ -438,6 +446,10 @@ export const PlayButton: React.FC<Props> = ({
       startPlayback,
       t,
       settings.showResumeDialog,
+      api,
+      user,
+      store,
+      router,
     ],
   );
 

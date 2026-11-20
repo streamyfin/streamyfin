@@ -73,29 +73,6 @@ class OutputPickerPresenterTest {
         assertEquals(false, presentedAtTheRemote)
     }
 
-    // The remote JS opens (a queue that just loaded on the TV it connected from the sheet) waits for the sheet the
-    // same way: opened over it, the sheet was back on screen once the remote closed (finding 5 of the TV block 2).
-    @Test
-    fun aRemoteOpenedFromJsTakesTheSheetDownFirst() {
-        val screen = Robolectric.buildActivity(ComponentActivity::class.java).setup()
-        OutputPickerPresenter.present(screen.get(), anchor = null, playingHere = null) {}
-        var sheetAtTheRemote: Boolean? = null
-
-        OutputPickerPresenter.openRemote { sheetAtTheRemote = sheetIn(screen.get()) }
-
-        assertEquals(false, sheetAtTheRemote)
-        assertFalse(OutputPickerPresenter.isPresented)
-    }
-
-    @Test
-    fun aRemoteOpensRightAwayWithNoSheet() {
-        var opened = 0
-
-        OutputPickerPresenter.openRemote { opened++ }
-
-        assertEquals(1, opened)
-    }
-
     // The player's video goes to the TV once the sheet is gone, as the remote does.
     @Test
     fun aHandOffClosesTheSheetThenCallsBack() {

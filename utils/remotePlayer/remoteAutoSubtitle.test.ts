@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { Settings } from "@/utils/atoms/settings";
-import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
+import type { ReceiverPlay } from "@/utils/remotePlayer/playOnRemote";
 import {
   evaluateRemoteAutoSubtitle,
   INITIAL_REMOTE_AUTO_SUBTITLE,

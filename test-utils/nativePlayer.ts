@@ -28,6 +28,8 @@ export interface NativePlayerDoubleState {
   remoteUpdates: unknown[];
   /** What `updateRemotePlayer` answers: false is no remote screen up. */
   remoteUpdateAnswer: boolean;
+  /** What `isPresented` answers: true is a player up, the local one or the remote one. */
+  presentedAnswer: boolean;
   /** Menus handed to `updateTrackMenus`, in order: the screen's track and quality rows. */
   trackMenuUpdates: unknown[];
   /** Texts handed to `showNotice`, in order. */
@@ -52,6 +54,7 @@ export const createNativePlayerDoubleState = (): NativePlayerDoubleState => ({
   trackMenuUpdates: [],
   notices: [],
   remoteUpdateAnswer: true,
+  presentedAnswer: false,
   remoteFailures: [],
   technicalInfoUpdates: [],
   subtitleSearchUpdates: [],
@@ -105,7 +108,7 @@ export const nativePlayerDoubleModule = (
   dismiss: jest.fn(async () => {
     state().dismissals += 1;
   }),
-  isPresented: jest.fn(() => false),
+  isPresented: jest.fn(() => state().presentedAnswer),
   addListener: jest.fn((event: string, listener: Listener) => {
     const listeners = state().listeners;
     listeners.set(event, [...(listeners.get(event) ?? []), listener]);

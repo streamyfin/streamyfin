@@ -32,6 +32,15 @@ server log, the session the server records, the receiver on the TV.
   flows find by test id, and on demand (`.github/workflows/e2e-tier1-android.yml`): the smoke
   flow, then the output sheet on the fake receivers, signed in to a throwaway server
   (`e2e/suites/cast/README.md`).
+  On iOS under Xcode 27.2, Maestro 2.8.0's driver takes over 30 minutes to come up: the runner
+  plays six internal tests before the one that serves Maestro, and each waits 300 s for the
+  crash reporter, past the startup timeout. Start the runner yourself, from the driver packed in
+  `~/.maestro/lib/maestro-ios-driver.jar` under `driver-iPhoneSimulator/` (the two apps are
+  zipped there) with `SwipeRouteHandlerV2ClassificationTests` added to the `SkipTestIdentifiers`
+  of its `.xctestrun`:
+  `TEST_RUNNER_PORT=22087 xcodebuild test-without-building -xctestrun <file> -destination id=<udid>`.
+  Then run Maestro itself, as the bench runner does not pass the port:
+  `USE_XCODE_TEST_RUNNER=1 maestro --device <udid> test --driver-host-port 22087 <flow>`.
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the
@@ -42,9 +51,15 @@ server log, the session the server records, the receiver on the TV.
 Tier 1 has no Chromecast, so a build can ask for two fake receivers in place of the Cast SDK's:
 "Bench TV" and "Bench Speaker". They list on discovery, connect 600 ms after a request and end
 300 ms after a disconnection (`RemoteTargetConstants`), and a switch ends one session before
-the next starts. Only the target the module publishes (`getRemoteTarget`, `connectToDevice`,
-`onRemoteTargetChanged`) and the output sheet, which reads it, go through them: no media
-plays, so the sheet's end action reads Disconnect.
+the next starts. The target the module publishes (`getRemoteTarget`, `connectToDevice`,
+`onRemoteTargetChanged`) and the output sheet, which reads it, go through them, and a connected
+one drives a fake TV (`FakeRemoteEngine`) in place of the Cast engine, on which Play opens our
+remote player. The fake TV plays each item for 2 minutes from the position the server saved,
+so a flow plays an item its account has never started, and it refuses an item whose id is
+`fake-fail`. The Cast SDK sees no media: the sheet's end action reads Disconnect and offers no
+Remote, and Play on the item the fake TV plays loads it again rather than opening the screen
+on it. `e2e/suites/cast/flows/remote-player-fake-receiver.yml` drives it
+(`e2e/suites/cast/README.md`).
 
 - **Android**: `./gradlew … -PstreamyfinFakeCastDevices=true`, or the variable as a prefix of
   one command, for example

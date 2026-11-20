@@ -53,7 +53,8 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   setRemoteAudioTrack(index: number): Promise<void>;
   /** The subtitle the TV shows, by Jellyfin index, -1 for none, through the session's engine. */
   setRemoteSubtitleTrack(index: number): Promise<void>;
-  showExpandedControls(): Promise<boolean>;
+  /** True once for a remote player request native kept (the app started from the notification), then false. */
+  consumePendingRemotePlayerRequest(): boolean;
   /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
   presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;
   dismissOutputPicker(): Promise<void>;

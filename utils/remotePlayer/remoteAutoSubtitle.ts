@@ -6,11 +6,11 @@ import {
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
-import type { ReceiverPlay } from "@/utils/cast/sendToReceiver";
 import {
   findSubtitleTrackIdentity,
   pickAutoSubtitleTrack,
 } from "@/utils/jellyfin/subtitleUtils";
+import type { ReceiverPlay } from "@/utils/remotePlayer/playOnRemote";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { mediaSourceOf } from "./buildRemotePlayerConfig";
 

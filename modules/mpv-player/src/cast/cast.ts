@@ -89,8 +89,12 @@ export const setRemoteTargetVolume = (level: number): Promise<void> =>
 export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
   native()?.setTargetMuted(muted) ?? Promise.resolve();
 
-export const showExpandedControls = (): Promise<boolean> =>
-  native()?.showExpandedControls() ?? Promise.resolve(false);
+/**
+ * Takes the remote player request native kept while JS did not listen (the app started from the Cast
+ * notification): true once, then false. The event and the mount both take it, so one opens the player.
+ */
+export const consumePendingRemotePlayerRequest = (): boolean =>
+  native()?.consumePendingRemotePlayerRequest() ?? false;
 
 /**
  * Opens the output sheet: this device, the Cast receivers, and AirPlay on iOS.
@@ -115,6 +119,7 @@ const listeners: { [K in EventName]: Set<Listener<K>> } = {
   onRemoteTargetChanged: new Set(),
   onRemotePlaybackChanged: new Set(),
   onOutputPickerAction: new Set(),
+  onRemotePlayerRequested: new Set(),
 };
 const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
 
@@ -192,6 +197,11 @@ export const onOutputPickerAction = (
   listener: (action: OutputPickerAction) => void,
 ): CastSubscription =>
   subscribe("onOutputPickerAction", ({ action }) => listener(action));
+
+/** The remote player asked from native: the Cast notification, the local player's Remote. */
+export const onRemotePlayerRequested = (
+  listener: () => void,
+): CastSubscription => subscribe("onRemotePlayerRequested", () => listener());
 
 /**
  * Opens a custom channel on the current session and hands every message the

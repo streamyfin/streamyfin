@@ -30,9 +30,8 @@ enum CastMappingTests {
         precondition(CastMapping.receiverAppId(fromInfoPlist: ["StreamyfinCastReceiverAppId": "ABCD1234"]) == "ABCD1234")
         precondition(CastMapping.receiverAppId(fromInfoPlist: ["StreamyfinCastReceiverAppId": ""]) == "F007D354")
 
-        // Tapping the playing media in the Cast dialog opens the SDK's expanded controls, as it did
-        // with react-native-google-cast; false would only post a notification nothing observes.
-        precondition(CastMapping.useDefaultExpandedMediaControls == true)
+        // The remote player replaced the SDK's expanded controls: the SDK presents them nowhere.
+        precondition(CastMapping.useDefaultExpandedMediaControls == false)
 
         // GCKMediaPlayerIdleReason: none 0, finished 1, cancelled 2, interrupted 3, error 4. The engine
         // tells an end from an error by it.

@@ -65,7 +65,7 @@ UI and headers:
 - `sheets-draw-under-the-android-nav-bar` | use `@/hooks/useActionSheet`; `showModal` content goes in `SheetView` / `SheetScrollView`, a sheet's FlatList takes `useSheetContentPadding()`
 - `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
 - `accessibility-value-undefined-clears-label` | on Android an accessibilityValue that turns undefined wipes the whole content description, label included; keep it an object with a text
-- `android-alert-lost-while-paused` | an Alert asked for while MainActivity is paused (the Cast expanded controls, the background) is dropped on Android with no error; wait for AppState "active"
+- `android-alert-lost-while-paused` | an Alert asked for while MainActivity is paused (another activity over it, the background) is dropped on Android with no error; wait for AppState "active"
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
@@ -83,7 +83,7 @@ Native modules:
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
-- `engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine (transport and queue faces, both platforms) and reaches rendering through a cast; the engine rides config.engine, an unknown one is refused at presentPlayer; resolvers split engine vs renderer; the phone chrome's controls follow ChromeCapabilities
+- `engine-agnostic-native-chrome` | The native chrome holds a ChromeEngine (transport and queue faces, both platforms) and reaches rendering through a cast; the engine rides config.engine, an unknown one is refused at presentPlayer; resolvers split engine vs renderer; the phone chrome's controls follow ChromeCapabilities; a remote engine is driven by the remote player (presentRemotePlayer), which every Cast entry opens since the SDK's expanded controls went
 - `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
 - `native-player-ignores-js-controls` | the iPhone/iPad default player is a presented native view controller; Controls.tsx and its hooks never mount there, so input (keyboard) needs a native counterpart
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
@@ -93,12 +93,11 @@ Native modules:
 - `keychain-accessibility-set-at-creation` | before SDK 58 a SecureStore item kept the accessibility it was created with, `setItem` over it changed only the data; a default item throws on read when iOS launches the app on a locked phone
 - `track-player-queue-is-not-the-app-queue` | the native music queue only holds the tracks loaded so far, so a state queue index does not address it; on iOS `add` past the end rejects with the same message as `skip`
 - `drax-drop-needs-patch-in-release` | drax 1.1.0 on Gesture Handler 3 springs a dropped row back in release builds only; `patches/react-native-drax@1.1.0.patch` fixes it, keep it until a release passes its spec
-- `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (incl. under the Cast expanded controls); zero-delay ones and fetch still do
+- `android-js-timers-pause-in-background` | Delayed timers don't fire while the Android app is paused (in the background, or under another activity); zero-delay ones and fetch still do
 - `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
 - `android17-background-audio-needs-media-fgs` | Android 17 mutes an app with no visible activity and no foreground service (`AudioHardening ... level: partial` in logcat); mpv stalls on the muted sink. The player screen holds the mediaPlayback service from MediaPlaybackController while it is open, paused included; a start refused in the background leaves it without one until the next play in front
 - `mpv-surface-loss-drops-video-track-and-seeks` | a detached surface fails mpv's VO, the video track is dropped and the refresh seek can restart at byte 0 of an unindexed MKV (20 s+ stall at 2h in); detachSurface attaches an offscreen ImageReader sink instead, on Android 10 and later only
 - `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the target port with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, run while a hub owner asks (app, sheet, probe); no hidden MediaRouteButton, which the library needed
-- `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
 - `cast-resume-rebuilds-the-client` | a Cast resume hands a new media client and drops channel callbacks; register again on resume, never keep either across one. On iOS the resumed session object keeps its old channel and refuses a second, so the hub takes a port's channels off before it drops the port
 - `cast-session-id-goes-null-when-ended` | an ended Android CastSession answers null for its id, so an end matched against the live id matches nothing; keep the id the binding was made with
 - `cast-stop-from-tv-leaves-an-idle-status` | stopped from the TV, the session stays connected and the SDK keeps an idle status with its media, at position 0; play() does nothing there, send the item or queue again from your own position
@@ -131,6 +130,7 @@ Build and tooling:
 - `expo-prebuilt-modules-need-matching-rn` | the prebuilt ExpoModulesCore uses React core classes of the RN patch the SDK targets; expo-modules-core 58.0.30 on react-native-tvos 0.88.0-0 dies in dyld at every iOS launch while the build stays green
 - `new-swift-file-needs-pod-install` | a Swift file added to a local module joins its Pods target only after `pod install`; until then xcodebuild fails on the types it declares
 - `robolectric-idle-hangs-on-a-playing-player` | a PlayerViewModel told it plays reposts a Choreographer frame callback every frame, so `shadowOf(getMainLooper()).idle()` never returns and the Gradle test task hangs with no error; a spec over a playing engine pauses it first or does not idle
+- `fake-cast-receivers-have-no-sdk-media` | a tier 1 build's fake receivers drive a fake TV that only the RemotePlayback holder hears; the Cast SDK has no media, so the sheet has no Remote nor Stop playback, Play on the TV's item loads it again, no notification; each fake item lasts 120 s from the saved position, so a resumed item closes the remote player at once
 
 ## Project overview
 
@@ -201,7 +201,7 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
 | `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module, the native player module |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities, the remote target, the output sheet, the audio session's queues, the remote player's fake engine, its layout, its arrangement, its gestures, its navigation, its screen model and its volume indicator, the remote playback holder, the track rows' second line), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol, the receiver channel hub, the Cast engine, the native engine kind, the chrome capabilities, the remote target, the output sheet, the audio session's queues, the remote player's fake engine, its layout, its arrangement, its gestures, its navigation, its screen model and its volume indicator, the remote playback holder, the remote player's requests, the track rows' second line), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |

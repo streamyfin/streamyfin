@@ -1,10 +1,57 @@
+import type { TFunction } from "i18next";
+import { createStore } from "jotai";
+import type { RemoteTarget } from "@/modules/mpv-player/src/cast";
+import {
+  type CastDoubleState,
+  createCastDoubleState,
+  setCastSession,
+} from "@/test-utils/cast";
+import { makeApi } from "@/test-utils/jellyfinApi";
+import {
+  createNativePlayerDoubleState,
+  type NativePlayerDoubleState,
+} from "@/test-utils/nativePlayer";
+import { stubReactNative } from "@/test-utils/reactNative";
 import { localSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 import {
+  handOffToRemote,
   mayHandOff,
-  nextStepAfterSend,
   resolveCastHandOff,
   stepAfterRefusal,
 } from "./resolveCastHandOff";
+
+let mockCast: CastDoubleState = createCastDoubleState();
+jest.mock("@/modules/mpv-player/src/cast/CastModule", () => ({
+  __esModule: true,
+  CastNative: require("@/test-utils/cast").castDoubleModule(() => mockCast),
+}));
+let mockPlayer: NativePlayerDoubleState = createNativePlayerDoubleState();
+jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
+  __esModule: true,
+  NativePlayerNativeModule:
+    require("@/test-utils/nativePlayer").nativePlayerDoubleModule(
+      () => mockPlayer,
+    ),
+}));
+jest.mock("@/utils/jellyfin/maxStreamingBitrate", () => ({
+  resolveMaxStreamingBitrate: jest.fn(async () => 30_000_000),
+}));
+// The remote player's tint reads the artwork natively.
+jest.mock("@/utils/imageColors", () => ({
+  extractImageColor: jest.fn(async () => null),
+}));
+jest.mock("@/utils/log", () => ({
+  logAndCaptureError: jest.fn(),
+  writeErrorLog: jest.fn(),
+}));
+
+const t = ((key: string) => key) as unknown as TFunction;
+const livingRoom: RemoteTarget = {
+  kind: "cast",
+  id: "device-a",
+  name: "Living Room TV",
+  capabilities: { volume: true },
+};
 
 const item = { Id: "item-1", Name: "Film", Type: "Movie" } as never;
 const session = {
@@ -15,6 +62,43 @@ const session = {
   awaitingLoad: false,
   positionMs: 0,
 };
+
+// The local player closes first: native refuses the remote screen over it. The TV goes on where the player was.
+test("handing the local player off opens the remote player where it was", async () => {
+  mockCast = createCastDoubleState();
+  setCastSession(mockCast, "session-1");
+  mockPlayer = createNativePlayerDoubleState();
+  mockPlayer.remoteUpdateAnswer = false;
+  stubReactNative({ OS: "android" });
+  let shownWhenClosed: number | undefined;
+
+  const result = await handOffToRemote(
+    {
+      api: makeApi(),
+      userId: "user-1",
+      store: createStore(),
+      t,
+      closeLocalPlayer: async () => {
+        shownWhenClosed = mockPlayer.remotePresented.length;
+      },
+    },
+    session,
+    61.5,
+    livingRoom,
+    () => false,
+  );
+
+  expect(result).toEqual({ status: "loaded" });
+  expect(shownWhenClosed).toBe(0);
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  expect(mockCast.loadCalls[0].request).toMatchObject({
+    items: [{ id: "item-1" }],
+    startPositionTicks: 615_000_000,
+    mediaSourceId: "source-1",
+    audioStreamIndex: 2,
+    subtitleStreamIndex: 4,
+  });
+});
 
 test("the hand-off sends the session's streams at the position", () => {
   expect(resolveCastHandOff(session, 61.5)).toEqual({
@@ -66,87 +150,6 @@ test("a subtitle on this device gives none on the receiver", () => {
       0,
     ).subtitleIndex,
   ).toBe(-1);
-});
-
-test("a loaded hand-off closes the player", () => {
-  expect(nextStepAfterSend({ status: "loaded" })).toEqual({ kind: "dismiss" });
-});
-
-// The receiver refused the item: the player stays, says why and plays on.
-test("a refused hand-off keeps the player and says why", () => {
-  expect(
-    nextStepAfterSend({ status: "notStarted", message: "It did not start" }),
-  ).toEqual({ kind: "notice", message: "It did not start", resume: true });
-  expect(
-    nextStepAfterSend({ status: "failed", message: "The connection failed" }),
-  ).toEqual({ kind: "notice", message: "The connection failed", resume: true });
-});
-
-// A video paused before the sheet opened stays paused: the notice still says why.
-test("a hand-off of a paused player that does not go through leaves it paused", () => {
-  expect(
-    nextStepAfterSend(
-      { status: "failed", message: "The connection failed" },
-      { wasPlaying: false },
-    ),
-  ).toEqual({
-    kind: "notice",
-    message: "The connection failed",
-    resume: false,
-  });
-  expect(
-    nextStepAfterSend({ status: "superseded" }, { wasPlaying: false }),
-  ).toEqual({ kind: "none" });
-});
-
-// The player went on with another episode, or played here again, while the receiver loaded: the receiver stops
-// the item the player left, and the player is left alone.
-test("a receiver that loads after the player moved on is stopped there", () => {
-  expect(nextStepAfterSend({ status: "loaded" }, { movedOn: true })).toEqual({
-    kind: "stopReceiver",
-  });
-  expect(
-    nextStepAfterSend(
-      { status: "failed", message: "The connection failed" },
-      { movedOn: true },
-    ),
-  ).toEqual({ kind: "none" });
-});
-
-// Another send replaced this one: nothing to say, the player plays on.
-test("a superseded hand-off only resumes", () => {
-  expect(nextStepAfterSend({ status: "superseded" })).toEqual({
-    kind: "resume",
-  });
-});
-
-// A newer hand-off started while this one waited: the player is the newer one's to close or to resume.
-test("a hand-off a newer one replaced leaves the player alone", () => {
-  for (const result of [
-    { status: "superseded" },
-    { status: "loaded" },
-    { status: "failed", message: "The connection failed" },
-  ] as const) {
-    expect(nextStepAfterSend(result, { latest: false })).toEqual({
-      kind: "none",
-    });
-  }
-});
-
-// A group joined while the receiver loaded owns the player now: it neither closes nor plays on its own, and the
-// receiver stops the item it loaded, which nobody watches there.
-test("a hand-off a SyncPlay join overtook leaves the player to the group", () => {
-  expect(nextStepAfterSend({ status: "loaded" }, { inSyncPlay: true })).toEqual(
-    { kind: "stopReceiver" },
-  );
-  for (const result of [
-    { status: "superseded" },
-    { status: "notStarted", message: "It did not start" },
-  ] as const) {
-    expect(nextStepAfterSend(result, { inSyncPlay: true })).toEqual({
-      kind: "none",
-    });
-  }
 });
 
 const request = {

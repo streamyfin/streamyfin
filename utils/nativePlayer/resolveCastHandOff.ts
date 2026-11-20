@@ -1,5 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { ReceiverPlay, SendResult } from "@/utils/cast/sendToReceiver";
+import type { RemoteTarget } from "@/modules/mpv-player/src/cast";
+import type {
+  ReceiverPlay,
+  SendResult,
+} from "@/utils/remotePlayer/playOnRemote";
+import {
+  playOnRemote,
+  type RemotePlayDeps,
+} from "@/utils/remotePlayer/playOnRemote";
 import { toServerSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 import { secondsToTicks } from "@/utils/time";
 
@@ -15,16 +23,8 @@ export interface HandOffSession {
   positionMs: number;
 }
 
-/**
- * What the player does once the receiver answered the hand-off; nothing when a newer hand-off owns the player. A
- * notice resumes the player only if it was playing; `stopReceiver` stops an item the player has moved on from.
- */
-export type HandOffStep =
-  | { kind: "dismiss" }
-  | { kind: "notice"; message: string; resume: boolean }
-  | { kind: "resume" }
-  | { kind: "stopReceiver" }
-  | { kind: "none" };
+/** What the player does after a hand-off that goes nowhere. */
+export type HandOffStep = { kind: "resume" } | { kind: "none" };
 
 /** The player's hand-off, and what the app holds when it arrives. */
 export interface HandOffRequest {
@@ -81,39 +81,19 @@ export const stepAfterRefusal = (request: HandOffRequest): HandOffStep =>
     : { kind: "resume" };
 
 /**
- * Loaded, the player closes and the receiver's controls open; refused, the player stays, says why and plays on if it
- * was playing; replaced by another send, it plays on without a word if it was playing. A hand-off a newer one
- * replaced (`latest` false) leaves the player to the newer one. A player that moved on meanwhile (`movedOn`: another
- * episode, or played here again), or that now plays for a SyncPlay group joined meanwhile (`inSyncPlay`), keeps
- * going, and the receiver stops the item it loaded.
+ * The hand-off once it goes: the local player closes, then the remote player opens on the TV where it was, and the
+ * TV loads it. Native refuses the remote screen over the local one. A load the TV does not start is said on the remote
+ * screen, with Play here; only a screen that could not open is the caller's to say.
  */
-export const nextStepAfterSend = (
-  result: SendResult,
-  {
-    latest = true,
-    inSyncPlay = false,
-    wasPlaying = true,
-    movedOn = false,
-  }: {
-    latest?: boolean;
-    inSyncPlay?: boolean;
-    wasPlaying?: boolean;
-    movedOn?: boolean;
-  } = {},
-): HandOffStep => {
-  if (!latest) return { kind: "none" };
-  if (movedOn || inSyncPlay) {
-    return result.status === "loaded"
-      ? { kind: "stopReceiver" }
-      : { kind: "none" };
-  }
-  switch (result.status) {
-    case "loaded":
-      return { kind: "dismiss" };
-    case "notStarted":
-    case "failed":
-      return { kind: "notice", message: result.message, resume: wasPlaying };
-    case "superseded":
-      return wasPlaying ? { kind: "resume" } : { kind: "none" };
-  }
+export const handOffToRemote = async (
+  deps: RemotePlayDeps & { closeLocalPlayer: () => Promise<void> },
+  session: HandOffSession,
+  positionSec: number,
+  remote: RemoteTarget,
+  isStale: () => boolean,
+): Promise<SendResult> => {
+  // Read before the player closes: the session goes with it.
+  const play = resolveCastHandOff(session, positionSec);
+  await deps.closeLocalPlayer();
+  return playOnRemote(deps, play, remote, isStale);
 };

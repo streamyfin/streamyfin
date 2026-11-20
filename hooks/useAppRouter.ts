@@ -26,23 +26,27 @@ export function useAppRouter() {
   const router = useRouter();
   const isOffline = useOfflineMode();
 
-  // Optional: undefined when used outside a navigator (root layout, providers).
-  // When present it reflects the focus state of the screen this hook lives in.
+  // Optional: undefined outside expo-router's tree. When present it reflects
+  // the focus state of the screen this hook lives in. The root layout and its
+  // providers have one too: expo-router renders them inside its own root
+  // route, which has no parent and never takes the focus again.
   const navigation = useContext(NavigationContext);
+  const onScreen = Boolean(navigation?.getParent?.());
 
   // Synchronous re-entry guard for TV: a single remote "select" on Android TV
   // can fire onPress more than once within the same JS batch
   // (react-native-tvos#110/#138), BEFORE react-navigation commits the pushed
   // route — so isFocused() still reads true for the duplicate. The ref flips
-  // synchronously on the first push and resets when the screen regains focus.
+  // synchronously on the first push and resets when the screen regains focus;
+  // in the root route, which never does, once the push has landed.
   const pushInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!navigation) return;
-    return navigation.addListener("focus", () => {
+    return navigation.addListener(onScreen ? "focus" : "state", () => {
       pushInFlightRef.current = false;
     });
-  }, [navigation]);
+  }, [navigation, onScreen]);
 
   const push = useCallback(
     (href: Parameters<typeof router.push>[0]) => {
@@ -50,7 +54,7 @@ export function useAppRouter() {
       // navigation state (only the native render is slow). Any further push from
       // this screen — duplicate or not — is dropped until focus returns, so taps
       // fired before the pushed screen renders can't stack screens.
-      // No navigation context => nothing to guard (deep-link pushes from root).
+      // No navigation context => nothing to guard.
       if (navigation) {
         if (navigation.isFocused?.() === false || pushInFlightRef.current)
           return;

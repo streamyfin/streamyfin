@@ -1,7 +1,6 @@
 package expo.modules.mpvplayer.cast
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -47,6 +46,9 @@ class CastModule : Module() {
     // a callback still queued on the main looper has to know it is late.
     @Volatile
     private var destroyed = false
+
+    // Set in OnCreate: a module gone with a JS reload stops hearing the remote player requests.
+    private var stopHearingRequests: (() -> Unit)? = null
 
     private val context: Context
         get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
@@ -159,6 +161,7 @@ class CastModule : Module() {
             "onRemotePlaybackChanged",
             "onOutputPickerAction",
             "onOutputPickerDismissed",
+            "onRemotePlayerRequested",
         )
 
         OnCreate {
@@ -181,6 +184,10 @@ class CastModule : Module() {
             OutputPickerPresenter.currentActivity = { if (destroyed) null else appContext.currentActivity }
             // Installed from the sheet: the context the module could not start before starts now.
             OutputPickerPresenter.onPlayServicesAvailable = { if (!destroyed) ensureContext() }
+            // The notification and the local player's Remote; JS takes the request through consume.
+            stopHearingRequests = RemotePlayerRequests.listen {
+                if (!destroyed) sendEvent("onRemotePlayerRequested", emptyMap<String, Any?>())
+            }
         }
 
         OnStartObserving {
@@ -191,6 +198,8 @@ class CastModule : Module() {
         // would keep feeding events to a dead app context.
         OnDestroy {
             destroyed = true
+            stopHearingRequests?.invoke()
+            stopHearingRequests = null
             mainHandler.removeCallbacksAndMessages(null)
             mainHandler.post {
                 OutputPickerPresenter.dismiss()
@@ -348,12 +357,8 @@ class CastModule : Module() {
             OutputPickerPresenter.dismiss()
         }.runOnQueue(Queues.MAIN)
 
-        AsyncFunction("showExpandedControls") {
-            if (ensureContext() == null) return@AsyncFunction false
-            val intent = Intent(context, CastExpandedControllerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            OutputPickerPresenter.openRemote { context.startActivity(intent) }
-            true
-        }.runOnQueue(Queues.MAIN)
+        // A request kept while JS did not listen (the app started from the notification), given once.
+        Function("consumePendingRemotePlayerRequest") { RemotePlayerRequests.consume() }
 
         // The hub registers the namespace on every session it is given, a resume included, so the
         // relay hears the receiver from the next session on as well.

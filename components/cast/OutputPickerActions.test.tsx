@@ -39,10 +39,6 @@ jest.mock("@/modules/mpv-player/src/NativePlayerModule", () => ({
       () => mockPlayer,
     ),
 }));
-let mockRouted = false;
-jest.mock("@/utils/cast/remotePlayerGate", () => ({
-  remotePlayerRouted: () => mockRouted,
-}));
 jest.mock(
   "@/hooks/useAppRouter",
   () => require("@/test-utils/stubModules").appRouterModule,
@@ -87,7 +83,6 @@ beforeEach(() => {
   mockCast = createCastDoubleState();
   mockPlayer = createNativePlayerDoubleState();
   mockPlayer.remoteUpdateAnswer = false;
-  mockRouted = false;
   appRouter.push.mockClear();
   mockSyncPlayEnabled = false;
   getDefaultStore().set(settingsAtom, null);
@@ -134,41 +129,35 @@ const continueHereFromTheSheet = async () => {
   await sheetAnswers("playHere");
 };
 
-// Mounted once for the app, it answers each action once, whichever button opened the sheet.
-test("with the gate closed Remote keeps the SDK's controls", async () => {
+// Mounted once for the app, it answers each action once, whichever button opened the sheet. A release build too:
+// the SDK's controls are gone.
+test("Remote opens the remote player", async () => {
+  mockCast.remoteTarget = castDoubleTarget("connected");
+  mockCast.remotePlayback = {
+    ...NO_REMOTE_PLAYBACK,
+    connected: true,
+    phase: "playing",
+    foreign: true,
+    title: "Clip",
+  };
   await render(<OutputPickerActions />);
+
   await sheetAnswers("remote");
-  expect(mockCast.dialogs).toEqual(["expandedControls"]);
-  expect(mockPlayer.remotePresented).toEqual([]);
+
+  expect(mockCast.dialogs).toEqual([]);
+  expect(mockPlayer.remotePresented).toHaveLength(1);
+  expect(mockPlayer.remotePresented[0]).toMatchObject({
+    reduced: true,
+    metadata: { title: "Clip" },
+  });
 });
 
-describe("with the gate open", () => {
+describe("Remote on a connected TV", () => {
   beforeEach(() => {
-    mockRouted = true;
     mockCast.remoteTarget = castDoubleTarget("connected");
   });
   afterEach(() => {
     getDefaultStore().set(apiAtom, { basePath: "http://server" } as never);
-  });
-
-  test("Remote opens the remote player on what the TV plays", async () => {
-    mockCast.remotePlayback = {
-      ...NO_REMOTE_PLAYBACK,
-      connected: true,
-      phase: "playing",
-      foreign: true,
-      title: "Clip",
-    };
-    await render(<OutputPickerActions />);
-
-    await sheetAnswers("remote");
-
-    expect(mockCast.dialogs).toEqual([]);
-    expect(mockPlayer.remotePresented).toHaveLength(1);
-    expect(mockPlayer.remotePresented[0]).toMatchObject({
-      reduced: true,
-      metadata: { title: "Clip" },
-    });
   });
 
   test("Remote on music opens the app's music player", async () => {

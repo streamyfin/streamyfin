@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, renderHook } from "@testing-library/react-native";
 import { type CastDoubleState, createCastDoubleState } from "@/test-utils/cast";
 import { makeApi } from "@/test-utils/jellyfinApi";
+import { appRouter } from "@/test-utils/stubModules";
 import { useMusicCast } from "./useMusicCast";
 
 let mockCast: CastDoubleState = createCastDoubleState();
@@ -16,11 +17,41 @@ jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
   writeErrorLog: jest.fn(),
 }));
+jest.mock(
+  "@/hooks/useAppRouter",
+  () => require("@/test-utils/stubModules").appRouterModule,
+);
+// The receiver's answer to the load: the TV took the queue.
+jest.mock("@/utils/cast/jellyfinReceiver", () => ({
+  ...jest.requireActual("@/utils/cast/jellyfinReceiver"),
+  castToJellyfinReceiver: jest.fn(async () => ({ status: "loaded" })),
+  currentReceiverName: async () => "Salon",
+}));
 
 const track = { Id: "track-1", Name: "Song", Type: "Audio" } as BaseItemDto;
 
 beforeEach(() => {
   mockCast = createCastDoubleState();
+  appRouter.push.mockClear();
+});
+
+// The SDK's controls are gone: the queue the TV took shows in the app's music player.
+test("casting music opens the music player", async () => {
+  const view = await renderHook(() =>
+    useMusicCast({ api: makeApi(), userId: "user-1" }),
+  );
+
+  let result: boolean | undefined;
+  await act(async () => {
+    result = await view.result.current.castQueue({
+      queue: [track],
+      startIndex: 0,
+    });
+  });
+
+  expect(result).toBe(true);
+  expect(mockCast.dialogs).toEqual([]);
+  expect(appRouter.push).toHaveBeenCalledWith("/(auth)/now-playing");
 });
 
 // A phone whose Play Services are behind cannot cast: the SDK's own dialog says

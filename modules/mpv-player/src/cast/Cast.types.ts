@@ -405,4 +405,6 @@ export type CastNativeEvents = {
   /** Carries the new state, sent on each change but the position; remotePlayback() reads the present. */
   onRemotePlaybackChanged: (payload: RemotePlaybackState) => void;
   onOutputPickerAction: (payload: { action: OutputPickerAction }) => void;
+  /** The Cast notification (Android) or the local player's Remote, the local player gone; kept natively too. */
+  onRemotePlayerRequested: (payload: Record<string, never>) => void;
 };

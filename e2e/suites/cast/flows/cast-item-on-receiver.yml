@@ -1,5 +1,6 @@
 appId: com.fredrikburmester.streamyfin
-# Casts one item on a receiver from a signed-in app, then stops casting from the SDK's expanded controls.
+# Casts one item on a receiver from a signed-in app, sees our remote player open on it, closes it, then stops the
+# receiver from the output sheet.
 # Needs ITEM_NAME (the item's title, as the search shows it) and CAST_NAME (the receiver's name in the output sheet),
 # a phone emulator on the receiver's network, and the release build installed (the module's Cast support is native).
 # Taps by position are for the 1080x2400 phone emulator of the bench (Review_Phone).
@@ -52,17 +53,23 @@ appId: com.fredrikburmester.streamyfin
 # Play goes to the connected receiver, which the button names; there is no choice to make any more.
 - assertVisible: "Play on ${CAST_NAME}"
 - tapOn: "Play button.*"
-# The SDK expanded controls cover the item page; their toolbar Cast button is the way to stop casting.
+# Play opens our remote player over the item page: its TV button names the receiver with the session's state.
 - extendedWaitUntil:
-    notVisible: "Play button.*"
+    visible: "${CAST_NAME}, Connected"
     timeout: 30000
-- takeScreenshot: cast-expanded-controls
-- tapOn: "Cast. Connected"
+- takeScreenshot: cast-remote-player
+# The cross closes it and leaves the receiver playing; the output sheet's Stop playback stops it and ends the session.
+- tapOn: "Close"
 - extendedWaitUntil:
-    visible: "Stop casting"
+    notVisible: "${CAST_NAME}, Connected"
     timeout: 15000
-- tapOn: "Stop casting"
+- tapOn:
+    id: "output-button"
 - extendedWaitUntil:
-    visible: "Play button.*"
+    visible: "Stop playback"
+    timeout: 15000
+- tapOn: "Stop playback"
+- extendedWaitUntil:
+    visible: "Cast button.*, Not connected"
     timeout: 30000
 - takeScreenshot: cast-stopped

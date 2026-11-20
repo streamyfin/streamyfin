@@ -15,14 +15,12 @@ import {
   disconnectRemoteTarget,
   onOutputPickerAction,
   remoteTarget,
-  showExpandedControls,
 } from "@/modules/mpv-player/src/cast";
 import { useSyncPlay } from "@/providers/SyncPlayProvider";
 import { apiAtom, userAtom } from "@/utils/atoms/api";
 import { effectiveSettingsAtom } from "@/utils/atoms/settings";
 import { playRequestFromReceiver } from "@/utils/cast/playRequestFromReceiver";
 import { choosePlay, isLatestPlayChoice } from "@/utils/cast/playTarget";
-import { remotePlayerRouted } from "@/utils/cast/remotePlayerGate";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { logAndCaptureError, writeErrorLog } from "@/utils/log";
 import type { PlayRequest } from "@/utils/nativePlayer/playRequest";
@@ -160,8 +158,7 @@ const continueReceiverHere = async (
 
 /**
  * Answers the output sheet's actions for the whole app, mounted once: its remote opens the remote player on what the
- * TV plays (the Cast expanded controls while the remote player's gate is closed),
- * and this device chosen while the receiver plays continues the receiver's video here. At the root, its plays go
+ * TV plays, and this device chosen while the receiver plays continues the receiver's video here. At the root, its plays go
  * through no screen that could lose the focus meanwhile, and no Cast button holds a player. Renders nothing.
  * Its usePlayMedia holds useAppRouter at the root, which native-bottom-tabs-userouter-conflict warns about: expo-router
  * 57's useRouter is the imperative router (it reads the preview context only), so nothing here follows the
@@ -190,35 +187,28 @@ export function OutputPickerActions() {
         const target = remoteTarget().target;
         const api = store.get(apiAtom);
         const userId = store.get(userAtom)?.Id;
-        if (remotePlayerRouted() && target?.kind === "cast" && api && userId) {
-          if (opening.current) return;
-          opening.current = true;
-          openRemotePlayer(
-            {
-              api,
-              userId,
-              store,
-              t: latest.current.t,
-              // The route the music mini player opens.
-              openMusicPlayer: () =>
-                latest.current.router.push("/(auth)/now-playing"),
-            },
-            target,
-          )
-            .catch((error) => {
-              logAndCaptureError("The remote player failed to open", error);
-            })
-            .finally(() => {
-              opening.current = false;
-            });
+        // Nothing to show without a Cast receiver or an account.
+        if (target?.kind !== "cast" || !api || !userId || opening.current)
           return;
-        }
-        showExpandedControls().catch((error) => {
-          logAndCaptureError(
-            "The Cast expanded controls failed to open",
-            error,
-          );
-        });
+        opening.current = true;
+        openRemotePlayer(
+          {
+            api,
+            userId,
+            store,
+            t: latest.current.t,
+            // The route the music mini player opens.
+            openMusicPlayer: () =>
+              latest.current.router.push("/(auth)/now-playing"),
+          },
+          target,
+        )
+          .catch((error) => {
+            logAndCaptureError("The remote player failed to open", error);
+          })
+          .finally(() => {
+            opening.current = false;
+          });
         return;
       }
       // An action this build does not know is left alone.

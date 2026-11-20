@@ -7,11 +7,11 @@ import {
   RECEIVER_LOAD_TIMEOUT_MS,
   RECEIVER_MAX_QUEUE_ITEMS,
 } from "@/constants/Cast";
+import useRouter from "@/hooks/useAppRouter";
 import {
   CastState,
   PlayServicesState,
   playServicesState,
-  showExpandedControls,
   showPlayServicesErrorDialog,
   useCastClient,
   useCastDevice,
@@ -42,11 +42,11 @@ interface CastQueueOptions {
    */
   isStale?: () => boolean;
   /**
-   * Whether the receiver's controls open once it plays; true by default. A
-   * cast from the music player that drives the receiver already, or one with
-   * no press behind it, leaves them closed.
+   * Whether the app's music player opens once the receiver plays; true by
+   * default. A cast from the music player itself, or one with no press behind
+   * it, leaves it closed.
    */
-  openExpandedControls?: boolean;
+  openMusicPlayer?: boolean;
 }
 
 /**
@@ -54,6 +54,7 @@ interface CastQueueOptions {
  */
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const { t } = useTranslation();
+  const router = useRouter();
   const client = useCastClient();
   const castState = useCastState();
   const castDeviceName = receiverNameFor(useCastDevice());
@@ -70,7 +71,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
       startIndex,
       startPositionTicks,
       isStale,
-      openExpandedControls = true,
+      openMusicPlayer = true,
     }: CastQueueOptions): Promise<boolean> => {
       if (!client || !api || !userId) {
         console.warn("Cannot cast: missing client, api, or userId");
@@ -117,7 +118,8 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         }
         if (outcome.status !== "loaded") return false;
 
-        if (openExpandedControls) showExpandedControls();
+        // The route the music mini player opens.
+        if (openMusicPlayer) router.push("/(auth)/now-playing");
         return true;
       } catch (error) {
         logAndCaptureError("Casting music queue failed", error);
@@ -130,7 +132,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         return false;
       }
     },
-    [client, api, userId, castDeviceName, t],
+    [client, api, userId, castDeviceName, t, router],
   );
 
   /**

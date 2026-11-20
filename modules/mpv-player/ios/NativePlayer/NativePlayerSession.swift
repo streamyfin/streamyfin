@@ -1,8 +1,5 @@
 import ExpoModulesCore
 import UIKit
-#if os(iOS) && !targetEnvironment(macCatalyst)
-import GoogleCast
-#endif
 
 enum PlayerDismissReason: String {
 	case closeButton
@@ -108,19 +105,19 @@ final class NativePlayerSession: PresentedPlayer {
 
 	#if os(iOS) && !targetEnvironment(macCatalyst)
 	// The Cast button's glyph follows the receiver, and its sheet hands the video off: the sheet closes, then the view
-	// model pauses here and asks JS to send the item. Remote opens the receiver's controls over the player, as the
-	// app's sheet does.
+	// model pauses here and asks JS to send the item. Remote closes this player for the remote player, asked once the
+	// cross-dissolve has ended: the module refuses a player while the closing one is still on screen.
 	private func followCast() {
 		viewModel.followCast()
-		viewModel.onOutputSheetRequested = { [weak viewModel] anchor in
+		viewModel.onOutputSheetRequested = { [weak self, weak viewModel] anchor in
 			guard let viewModel else { return }
 			let presenter = OutputPickerPresenter.shared
 			presenter.strings = OutputPickerStrings(viewModel.outputPickerStrings)
 			presenter.present(
 				anchor: anchor, playingHere: viewModel.metadata?.title, handOff: true,
 				onHandOff: { [weak viewModel] in viewModel?.requestCastHandOff() }
-			) {
-				GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
+			) { [weak self] in
+				self?.dismiss(reason: .closeButton) { RemotePlayerRequests.shared.request() }
 			}
 		}
 	}

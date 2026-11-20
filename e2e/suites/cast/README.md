@@ -64,11 +64,29 @@ python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/output-sheet-fake-rece
 `maestro.py` masks the values it echoes; Maestro's own output and its debug files under
 `~/.maestro/tests/` do not, so keep them off anything shared when the account is a real one.
 
+`flows/remote-player-fake-receiver.yml` drives our remote player on the fake receivers of a
+tier 1 build: from a signed-in app it opens an item's page by its id, connects to "Bench TV"
+from the header Cast button, plays the item on it, checks that the remote player shows the
+item's title and the TV's name, pauses, moves the bar, closes the screen, then disconnects.
+It needs an English device and an item the account has never started: the fake TV plays each
+item for 2 minutes from the position the server saved, so an item resumed past them ends at
+once and closes the screen. Two things are not in it, as no gesture reaches them on the fake
+receivers: the screen opened again by Remote (the sheet offers Remote, and Play on the item
+the TV plays opens the screen, only on the Cast SDK's media status, which a fake TV never
+has), and a load the TV refuses, with Play here (the fake TV refuses only an item whose id is
+`fake-fail`). The unit tests cover both (`openRemotePlayer.test.ts`, `FakeRemoteEngineTest`).
+On iOS, start Maestro's runner by hand and run Maestro itself (`e2e/README.md`, "Tiers").
+
+```sh
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/remote-player-fake-receiver.yml --device emulator-5554 \
+  --env ITEM_ID=<id> --env "ITEM_NAME=<title>"
+```
+
 `flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
 the phone emulator it finds an item by name, connects to a receiver from the output sheet,
-which the header Cast button opens, plays the item on it, then stops casting from the SDK's
-expanded controls. It needs the emulator (so the Mac) on the receiver's network, a build
-without the fake receivers, and two variables:
+which the header Cast button opens, plays the item on it, sees our remote player open on the
+receiver, closes it, then stops the receiver from the output sheet. It needs the emulator (so
+the Mac) on the receiver's network, a build without the fake receivers, and two variables:
 
 ```sh
 python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.yml --device emulator-5554 \
@@ -131,10 +149,10 @@ direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
 e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
 ```
 
-Stopping the cast from the Cast dialog logs `binding lost session=<id> error=null`,
-`detached from session <id>` and `disarmed`. After a cast the SDK's expanded controls are
-open: their toolbar Cast button, read as `Cast. Connected`, opens that dialog; the app's
-header button reads `Cast button, Connected`.
+Stopping the cast from the output sheet logs `binding lost session=<id> error=null`,
+`detached from session <id>` and `disarmed`. After a cast our remote player is open over the
+item's page: its cross, read as `Close`, closes it, and the app's header button, read as
+`Cast button, Connected`, opens the sheet, whose Stop playback ends the cast.
 
 Cutting the phone's network ended the session on the emulator, within a second of the cut,
 after a suspend of about 16 s, or once right after a resume over its mobile link. The
@@ -205,7 +223,7 @@ receiver's volume once connected (`setting the volume to 0.40`), then logs each 
 receiver reports back as `volume=0.40 muted=false` until it disconnects. With `keep` the probe ends
 as soon as it has asked, before any report: leave `keep` off, with a `hold`, to read the level back.
 `--ez mute true|false` sets its mute after the level (`setting the mute to true`). On Android the app
-mutes the playing stream, not the device, which the SDK's expanded controls mute instead: with no
+mutes the playing stream, not the device, which the Cast SDK's own mute toggle mutes: with no
 media loaded the port logs `setMute: no media playing to mute` and the receiver reports nothing, so
 cast something before.
 

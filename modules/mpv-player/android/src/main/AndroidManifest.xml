@@ -25,11 +25,13 @@
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="expo.modules.mpvplayer.cast.CastOptionsProvider" />
 
-        <!-- The SDK's expanded controls, opened after a cast until the remote player of the native chrome exists. -->
+        <!-- The Cast notification's target: brings the app to the front and asks JS for the remote player. In a task of
+             its own: the SDK starts it with CLEAR_TASK (TaskStackBuilder), which would empty the app's task. -->
         <activity
-            android:name="expo.modules.mpvplayer.cast.CastExpandedControllerActivity"
-            android:theme="@style/Theme.AppCompat.NoActionBar"
-            android:launchMode="singleTask"
+            android:name="expo.modules.mpvplayer.cast.RemotePlayerLaunchActivity"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
             android:exported="false" />
     </application>
 </manifest>
