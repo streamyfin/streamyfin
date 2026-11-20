@@ -16,6 +16,7 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
+import { RECEIVER_MAX_QUEUE_ITEMS } from "@/constants/Cast";
 import { DEFAULT_MUSIC_NORMALIZATION_MODE } from "@/constants/Music";
 import { PROGRESS_REPORT_INTERVAL } from "@/constants/Playback";
 import { useMusicCast } from "@/hooks/useMusicCast";
@@ -39,6 +40,7 @@ import {
   setMusicNormalizationTrack,
 } from "@/services/MusicNormalization";
 import { settingsAtom } from "@/utils/atoms/settings";
+import { queueWindow } from "@/utils/cast/jellyfinReceiver";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { markExpectedError } from "@/utils/errors";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
@@ -1316,8 +1318,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         setState((prev) => ({ ...prev, isPlaying: false }));
       }
       if (isStale()) return;
-      const sent = beginOnReceiver(queue, startIndex);
-      const started = await castQueue({ queue, startIndex, isStale });
+      // The receiver gets at most RECEIVER_MAX_QUEUE_ITEMS tracks: the player
+      // shows that same part, not tracks the receiver can never move on to.
+      const part = queueWindow(queue, startIndex, RECEIVER_MAX_QUEUE_ITEMS);
+      const sent = beginOnReceiver(part.items, part.startIndex);
+      const started = await castQueue({
+        queue: part.items,
+        startIndex: part.startIndex,
+        isStale,
+      });
       if (!started) endOnReceiver(sent);
     },
     [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],

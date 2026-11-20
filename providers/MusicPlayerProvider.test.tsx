@@ -2,7 +2,10 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Text } from "react-native";
-import { MUSIC_CAST_PROGRESS_TICK_MS } from "@/constants/Cast";
+import {
+  MUSIC_CAST_PROGRESS_TICK_MS,
+  RECEIVER_MAX_QUEUE_ITEMS,
+} from "@/constants/Cast";
 import { userAtom } from "@/providers/JellyfinProvider";
 import {
   type CastDoubleState,
@@ -496,6 +499,30 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(nativeIds()).toEqual([]);
     await receiverLoads("t1");
   });
+
+  // The receiver gets at most RECEIVER_MAX_QUEUE_ITEMS tracks: the player shows
+  // those, not tracks the receiver can never move on to.
+  test.each([0, 150])(
+    "shows the part of a long queue the receiver got, started at %i",
+    async (startIndex) => {
+      const queue = Array.from(
+        { length: RECEIVER_MAX_QUEUE_ITEMS + 60 },
+        (_, index) => track(`long-${index}`),
+      );
+      mockCast.castState = "connected";
+      setCastSession(mockCast, "session-1");
+      await mount();
+
+      await run((p) => p.playQueue(queue, startIndex));
+      const sent = playNows()[0].options.items.map((item) => item.Id);
+      await receiverStatus(`long-${startIndex}`, "playing");
+
+      expect(sent).toHaveLength(RECEIVER_MAX_QUEUE_ITEMS);
+      expect(player.queue.map((item) => item.Id)).toEqual(sent);
+      expect(player.currentTrack?.Id).toBe(`long-${startIndex}`);
+      expect(player.queue[player.queueIndex]?.Id).toBe(`long-${startIndex}`);
+    },
+  );
 
   test("sends the queue the phone plays to the receiver when a session connects", async () => {
     await mount();
