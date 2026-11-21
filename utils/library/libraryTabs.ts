@@ -78,7 +78,21 @@ export const getLibraryTabQuery = (
   tab: LibraryTab,
   library: Library,
   isTV: boolean,
-): { includeItemTypes?: BaseItemKind[]; mediaTypes?: MediaType[] } => {
+): Pick<
+  LibraryApiGetItemsRequest,
+  "includeItemTypes" | "excludeItemTypes" | "mediaTypes"
+> => {
+  // A recursive mixed-library grid can contain the series, all its seasons
+  // and episodes, and the backing folders. Keep standalone items of any
+  // other kind, including videos and box sets.
+  if (
+    tab === "items" &&
+    library.Type === "CollectionFolder" &&
+    (library.CollectionType ?? "unknown") === "unknown"
+  ) {
+    return { excludeItemTypes: ["Season", "Episode", "Folder"] };
+  }
+
   // The items tab asks for one type when the library has one: the underlying
   // directory sometimes holds other types, and they should not show.
   const itemType: BaseItemKind | undefined =
