@@ -83,8 +83,7 @@ describe("searchPeople", () => {
   test("keeps the closest of the people the server lists", async () => {
     const fillers = Array.from(
       { length: SEARCH_RESULT_LIMIT + 10 },
-      (_, index) =>
-        person(`Atom ${String(index).padStart(3, "0")}`),
+      (_, index) => person(`Atom ${String(index).padStart(3, "0")}`),
     );
     const api = makeApi({ Items: [...fillers, person("Tom Hanks")] });
 
