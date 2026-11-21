@@ -10,6 +10,7 @@ import {
   libraryRootIds,
   locateBookPosition,
   naturalCompare,
+  slimPart,
   sortParts,
   toBookPosition,
 } from "./books";
@@ -194,6 +195,53 @@ describe("a book's metadata", () => {
     expect(
       bookFromParts([fellowship1, fellowship2], folders[1]).imageItemId,
     ).toBe(null);
+  });
+});
+
+describe("a part kept on the device", () => {
+  // The player shows the file's details for a downloaded part too.
+  test("keeps the file's audio details and drops the rest", () => {
+    const slim = slimPart({
+      ...fellowship1,
+      MediaSources: [
+        {
+          Id: "source",
+          Container: "m4b",
+          Size: 512_000_000,
+          Bitrate: 64_000,
+          Path: "/books/fellowship.m4b",
+          MediaStreams: [
+            {
+              Type: "Audio",
+              Codec: "aac",
+              BitRate: 64_000,
+              SampleRate: 44_100,
+              Channels: 2,
+              Language: "eng",
+            },
+            { Type: "EmbeddedImage", Codec: "mjpeg" },
+          ],
+        },
+        { Id: "second" },
+      ],
+    });
+    expect(slim.MediaSources).toEqual([
+      {
+        Id: "source",
+        Container: "m4b",
+        Size: 512_000_000,
+        Bitrate: 64_000,
+        MediaStreams: [
+          {
+            Type: "Audio",
+            Codec: "aac",
+            BitRate: 64_000,
+            SampleRate: 44_100,
+            Channels: 2,
+          },
+        ],
+      },
+    ]);
   });
 });
 

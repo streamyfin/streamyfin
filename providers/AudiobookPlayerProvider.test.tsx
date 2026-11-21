@@ -114,7 +114,7 @@ jest.mock("@/utils/jellyfin/audio/getAudioStreamUrl", () => ({
   ) => ({
     url: `https://jellyfin.example.com/Audio/${itemId}/stream`,
     sessionId: `session-${itemId}`,
-    mediaSource: null,
+    mediaSource: { Id: itemId, Container: "m4b" },
     isTranscoding: false,
   }),
 }));
@@ -246,6 +246,23 @@ describe("playing a book", () => {
     expect(player.partIndex).toBe(1);
     expect(position).toBe(HOUR + 600);
     expect(reported(START_URL)).toEqual(["p2"]);
+  });
+
+  test("tells how the part playing plays, the next one once it plays", async () => {
+    const book = bookFromParts([part("p1"), part("p2")]);
+    await mount();
+    await run((p) => p.playBook(book));
+    expect(player.partMedia).toEqual({
+      mediaSource: { Id: "p1", Container: "m4b" },
+      method: "DirectStream",
+    });
+
+    await fire("playback-active-track-changed", {
+      index: 1,
+      lastPosition: HOUR,
+    });
+
+    expect(player.partMedia?.mediaSource?.Id).toBe("p2");
   });
 
   test("a part ending reports it and starts the next", async () => {

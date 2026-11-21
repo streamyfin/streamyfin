@@ -420,6 +420,22 @@ export const slimPart = (part: BaseItemDto): BaseItemDto => ({
     Name: chapter.Name,
     StartPositionTicks: chapter.StartPositionTicks,
   })),
+  // What the player shows about the file, for one on the device too.
+  MediaSources: part.MediaSources?.slice(0, 1).map((source) => ({
+    Id: source.Id,
+    Container: source.Container,
+    Size: source.Size,
+    Bitrate: source.Bitrate,
+    MediaStreams: source.MediaStreams?.filter(
+      (stream) => stream.Type === "Audio",
+    ).map((stream) => ({
+      Type: stream.Type,
+      Codec: stream.Codec,
+      BitRate: stream.BitRate,
+      SampleRate: stream.SampleRate,
+      Channels: stream.Channels,
+    })),
+  })),
   UserData: part.UserData
     ? {
         Key: part.UserData.Key,

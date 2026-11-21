@@ -1,4 +1,7 @@
-import type { PlayMethod } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  MediaSourceInfo,
+  PlayMethod,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { getSessionApi, getUserDataApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQueryClient } from "@tanstack/react-query";
 import i18next from "i18next";
@@ -148,6 +151,15 @@ interface AudiobookPlayerState {
   progressRevision: number;
   /** Bumped when bookmarks changed. */
   bookmarksRevision: number;
+  /** How the part playing is played, once it is loaded. */
+  partMedia: PartMedia | null;
+}
+
+/** How a part plays: the file as the server described it, and the method. */
+export interface PartMedia {
+  /** Null for a file on the device, which needs no server to describe it. */
+  mediaSource: MediaSourceInfo | null;
+  method: PlayMethod;
 }
 
 interface AudiobookProgressState {
@@ -210,6 +222,7 @@ const initialState: AudiobookPlayerState = {
   sleepTimer: SLEEP_TIMER_OFF,
   progressRevision: 0,
   bookmarksRevision: 0,
+  partMedia: null,
 };
 
 const initialProgress: AudiobookProgressState = {
@@ -286,10 +299,9 @@ const TVAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
   );
 };
 
-interface PreparedPart {
+interface PreparedPart extends PartMedia {
   track: Track;
   sessionId: string | null;
-  method: PlayMethod;
 }
 
 const ownsPlayer = () => getAudioOwner() === "audiobook";
@@ -340,7 +352,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
   // Each load bumps it; async work for an older load gives up when it moved.
   const loadSeqRef = useRef(0);
   const sessionsRef = useRef<
-    Record<string, { sessionId: string | null; method: PlayMethod }>
+    Record<string, PartMedia & { sessionId: string | null }>
   >({});
   const lastSaveAtRef = useRef(0);
   const lastReportAtRef = useRef(0);
@@ -409,6 +421,15 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
 
   // ---------------------------------------------------------------- position
 
+  /** How a loaded part plays, from what was kept when it was queued. */
+  const partMediaAt = useCallback((partIndex: number): PartMedia | null => {
+    const partId = bookRef.current?.parts[partIndex]?.Id;
+    const session = partId ? sessionsRef.current[partId] : undefined;
+    return session
+      ? { mediaSource: session.mediaSource, method: session.method }
+      : null;
+  }, []);
+
   /** Moves the position on screen and in the refs. */
   const setPosition = useCallback(
     (partIndex: number, partPosition: number) => {
@@ -426,13 +447,19 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
         duration: bookDuration(book),
         chapterIndex,
       });
-      if (partChanged) setState((prev) => ({ ...prev, partIndex }));
+      if (partChanged) {
+        setState((prev) => ({
+          ...prev,
+          partIndex,
+          partMedia: partMediaAt(partIndex),
+        }));
+      }
       if (chapterChanged) {
         updateSleepChapterEnd();
         showChapterOnLockScreen();
       }
     },
-    [updateSleepChapterEnd, showChapterOnLockScreen],
+    [updateSleepChapterEnd, showChapterOnLockScreen, partMediaAt],
   );
 
   // ------------------------------------------------------------- persisting
@@ -623,6 +650,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
           track: buildTrack(book, partIndex, local, true),
           sessionId: null,
           method: "DirectPlay",
+          mediaSource: null,
         };
       }
       if (!api || !userId || offlineRef.current) return null;
@@ -635,6 +663,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
               track: buildTrack(book, partIndex, fallback, true),
               sessionId: null,
               method: "DirectPlay",
+              mediaSource: null,
             }
           : null;
       }
@@ -642,6 +671,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
         track: buildTrack(book, partIndex, stream.url, false),
         sessionId: stream.sessionId,
         method: stream.isTranscoding ? "Transcode" : "DirectStream",
+        mediaSource: stream.mediaSource ?? null,
       };
     },
     [buildTrack],
@@ -700,6 +730,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
           sessionsRef.current[partId] = {
             sessionId: prepared.sessionId,
             method: prepared.method,
+            mediaSource: prepared.mediaSource,
           };
         }
       }
@@ -790,6 +821,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
               [partId]: {
                 sessionId: prepared.sessionId,
                 method: prepared.method,
+                mediaSource: prepared.mediaSource,
               },
             }
           : {};
@@ -803,6 +835,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
           isLoading: false,
           isLive: true,
           isPlaying: autoplay,
+          partMedia: partMediaAt(partIndex),
         }));
         updateSleepChapterEnd();
         showChapterOnLockScreen();

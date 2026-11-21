@@ -17,12 +17,18 @@ import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { AudiobookCover } from "@/components/audiobooks/AudiobookCover";
+import {
+  type AudiobookPlayerTab,
+  type AudiobookPlayerTabItem,
+  AudiobookPlayerTabs,
+} from "@/components/audiobooks/AudiobookPlayerTabs";
 import { SkipButton } from "@/components/audiobooks/SkipButton";
 import {
   DraggableQueueList,
   type QueueRow,
 } from "@/components/common/DraggableQueueList";
 import { Text } from "@/components/common/Text";
+import { AudioStats } from "@/components/music/AudioStats";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import {
   AUDIOBOOK_PLAYBACK_RATES,
@@ -55,8 +61,6 @@ import {
   sleepTimerForMinutes,
 } from "@/utils/audiobooks/sleepTimer";
 
-type ViewMode = "player" | "chapters" | "bookmarks" | "queue";
-
 const ACCENT = "#a78bfa";
 
 /**
@@ -69,7 +73,7 @@ export default function AudiobookPlayerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const player = useAudiobookPlayer();
-  const [viewMode, setViewMode] = useState<ViewMode>("player");
+  const [viewMode, setViewMode] = useState<AudiobookPlayerTab>("player");
 
   const chapterName = useCallback(
     (chapter: AudiobookChapter | undefined, index: number) =>
@@ -94,15 +98,11 @@ export default function AudiobookPlayerScreen() {
     );
   }
 
-  const tabs: {
-    mode: ViewMode;
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-  }[] = [
-    { mode: "player", icon: "book", label: t("audiobooks.now_playing") },
-    { mode: "chapters", icon: "list", label: t("chapters.title") },
-    { mode: "bookmarks", icon: "bookmarks", label: t("audiobooks.bookmarks") },
-    { mode: "queue", icon: "albums", label: t("audiobooks.up_next") },
+  const tabs: AudiobookPlayerTabItem[] = [
+    { tab: "player", label: t("audiobooks.now_playing") },
+    { tab: "chapters", label: t("chapters.title") },
+    { tab: "bookmarks", label: t("audiobooks.bookmarks") },
+    { tab: "queue", label: t("audiobooks.up_next") },
   ];
 
   return (
@@ -123,27 +123,12 @@ export default function AudiobookPlayerScreen() {
         >
           <Ionicons name='chevron-down' size={28} color='white' />
         </TouchableOpacity>
-        <View className='flex-row bg-neutral-900 rounded-full p-1'>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.mode}
-              onPress={() => setViewMode(tab.mode)}
-              className='px-4 py-1.5 rounded-full'
-              style={{
-                backgroundColor:
-                  viewMode === tab.mode ? "rgba(147,52,233,0.35)" : undefined,
-              }}
-              accessibilityRole='tab'
-              accessibilityLabel={tab.label}
-              accessibilityState={{ selected: viewMode === tab.mode }}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={18}
-                color={viewMode === tab.mode ? "white" : "#737373"}
-              />
-            </TouchableOpacity>
-          ))}
+        <View className='flex-1 mx-2'>
+          <AudiobookPlayerTabs
+            tabs={tabs}
+            activeTab={viewMode}
+            onSelect={setViewMode}
+          />
         </View>
         <View style={{ width: 44 }} />
       </View>
@@ -175,7 +160,7 @@ const PlayerView: React.FC<
   const { position, duration, chapterIndex } = useAudiobookProgress();
   const book = player.book!;
   const chapter = player.chapters[chapterIndex];
-  const coverSize = squareArtworkSide(windowSize, { inset: 72 });
+  const coverSize = squareArtworkSide(windowSize, { inset: 144 });
 
   const skipBack =
     settings?.audiobookSkipBackSeconds ?? DEFAULT_AUDIOBOOK_SKIP_BACK_SECONDS;
@@ -294,6 +279,14 @@ const PlayerView: React.FC<
           {authorLine(book)}
         </Text>
       )}
+      <AudioStats
+        mediaSource={
+          // A file on the device: what the book page fetched about it.
+          player.partMedia?.mediaSource ??
+          book.parts[player.partIndex]?.MediaSources?.[0]
+        }
+        isTranscoding={player.partMedia?.method === "Transcode"}
+      />
 
       {player.chapters.length > 1 && (
         <TouchableOpacity

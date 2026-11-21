@@ -37,12 +37,13 @@ const LIST_FIELDS: ItemFields[] = [
   "Genres",
 ];
 
-/** The detail fields: chapters, people and the description too. */
+/** The detail fields: chapters, people, the description and the files too. */
 const DETAIL_FIELDS: ItemFields[] = [
   ...LIST_FIELDS,
   "Chapters",
   "People",
   "Overview",
+  "MediaSources",
 ];
 
 /**
