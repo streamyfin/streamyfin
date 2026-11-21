@@ -24,6 +24,11 @@ jest.mock(
   "@/providers/NetworkStatusProvider",
   () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
 );
+// No book in the player, so the mini player shows the music being measured.
+jest.mock("@/providers/AudiobookPlayerProvider", () => ({
+  useAudiobookPlayer: () => ({ book: null, chapters: [] }),
+  useAudiobookProgress: () => ({ position: 0, duration: 0, chapterIndex: -1 }),
+}));
 
 jest.mock(
   "@/hooks/useNetworkStatus",
