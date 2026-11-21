@@ -1,4 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { SEARCH_RESULT_LIMIT } from "@/constants/Search";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { logAndCaptureError } from "@/utils/log";
 import {
@@ -79,16 +80,18 @@ describe("searchPeople", () => {
 
   // The Persons API answers in name order at best, so more are asked for than
   // shown and the closest names are the ones kept.
-  test("keeps the ten closest of the people the server lists", async () => {
-    const fillers = Array.from({ length: 12 }, (_, index) =>
-      person(`Atom ${String(index).padStart(2, "0")}`),
+  test("keeps the closest of the people the server lists", async () => {
+    const fillers = Array.from(
+      { length: SEARCH_RESULT_LIMIT + 10 },
+      (_, index) =>
+        person(`Atom ${String(index).padStart(3, "0")}`),
     );
     const api = makeApi({ Items: [...fillers, person("Tom Hanks")] });
 
     const people = await searchPeople({ api, query: "tom" });
 
     expect(sentRequest(api).query.get("limit")).toBe("100");
-    expect(people).toHaveLength(10);
+    expect(people).toHaveLength(SEARCH_RESULT_LIMIT);
     expect(people[0].Name).toBe("Tom Hanks");
   });
 
@@ -112,7 +115,7 @@ describe("searchPeople", () => {
       serverVersion: "12.1.0",
     });
 
-    expect(people).toHaveLength(10);
+    expect(people).toHaveLength(SEARCH_RESULT_LIMIT);
     expect(people[0].Name).toBe("Tom Hanks");
     const limits = api.mock.history.get.map((request) =>
       new URL(request.url ?? "").searchParams.get("limit"),
@@ -210,7 +213,7 @@ describe("searchStudios", () => {
     expect(query.get("searchTerm")).toBe("pix");
     expect(query.getAll("includeItemTypes")).toEqual(["Movie", "Series"]);
     expect(query.get("userId")).toBe("user-1");
-    expect(query.get("limit")).toBe("10");
+    expect(query.get("limit")).toBe(String(SEARCH_RESULT_LIMIT));
   });
 
   test("asks for the date each studio was added", async () => {
