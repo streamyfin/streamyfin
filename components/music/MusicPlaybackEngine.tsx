@@ -13,6 +13,11 @@ import {
   getLocalPath,
 } from "@/providers/AudioStorage";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { getAudioOwner } from "@/services/audioOwner";
+
+// The native player is shared with audiobooks (services/audioOwner.ts): while
+// a book has it, its tracks and events are none of music's business.
+const audiobookOwnsPlayer = () => getAudioOwner() === "audiobook";
 
 // Mounted once the player is ready: these hooks read the native state a single
 // time on mount and swallow the rejection when there is no player.
@@ -32,6 +37,7 @@ const MusicPlaybackPolling: React.FC = () => {
 
   // Sync progress from TrackPlayer to our state
   useEffect(() => {
+    if (audiobookOwnsPlayer()) return;
     if (position > 0) {
       setProgress(position);
     }
@@ -39,6 +45,7 @@ const MusicPlaybackPolling: React.FC = () => {
 
   // Sync duration from TrackPlayer to our state
   useEffect(() => {
+    if (audiobookOwnsPlayer()) return;
     if (duration > 0) {
       setDuration(duration);
     }
@@ -46,19 +53,21 @@ const MusicPlaybackPolling: React.FC = () => {
 
   // Sync playback state from TrackPlayer to our state
   useEffect(() => {
+    if (audiobookOwnsPlayer()) return;
     const isPlaying = playbackState.state === State.Playing;
     setIsPlaying(isPlaying);
   }, [playbackState.state, setIsPlaying]);
 
   // Sync active track changes
   useEffect(() => {
-    if (activeTrack) {
+    if (activeTrack && !audiobookOwnsPlayer()) {
       syncFromTrackPlayer();
     }
   }, [activeTrack?.id, syncFromTrackPlayer]);
 
   // Report progress every ~10 seconds
   useEffect(() => {
+    if (audiobookOwnsPlayer()) return;
     if (
       Math.floor(position) - Math.floor(lastReportedProgressRef.current) >=
       10
@@ -83,6 +92,7 @@ export const MusicPlaybackEngine: React.FC = () => {
       TrackPlayer.addEventListener<PlaybackActiveTrackChangedEvent>(
         Event.PlaybackActiveTrackChanged,
         async (event) => {
+          if (audiobookOwnsPlayer()) return;
           // Trigger look-ahead caching when a new track starts playing
           if (event.track) {
             triggerLookahead();
@@ -143,6 +153,7 @@ export const MusicPlaybackEngine: React.FC = () => {
       localPath: string;
     }) => {
       console.log(`[AudioCache] Track ${itemId} cached successfully`);
+      if (audiobookOwnsPlayer()) return;
 
       try {
         const queue = await TrackPlayer.getQueue();
@@ -185,6 +196,7 @@ export const MusicPlaybackEngine: React.FC = () => {
     const subscription = TrackPlayer.addEventListener(
       Event.PlaybackError,
       async (event) => {
+        if (audiobookOwnsPlayer()) return;
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack?.url) return;
 

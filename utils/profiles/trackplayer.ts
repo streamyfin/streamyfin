@@ -24,10 +24,11 @@ export interface TrackPlayerProfileOptions {
  */
 const getDirectPlayProfile = (platform: PlatformType): DirectPlayProfile => {
   if (platform === "ios") {
-    // iOS AVPlayer supported formats
+    // iOS AVPlayer supported formats. m4b is an MP4 audiobook: left out, the
+    // server transcoded a whole book to mp3, which cannot seek ahead.
     return {
       Type: MediaTypes.Audio,
-      Container: "mp3,m4a,aac,flac,alac,wav,aiff,caf",
+      Container: "mp3,m4a,m4b,aac,flac,alac,wav,aiff,caf",
       AudioCodec: "mp3,aac,alac,flac,opus,pcm",
     };
   }
@@ -35,7 +36,7 @@ const getDirectPlayProfile = (platform: PlatformType): DirectPlayProfile => {
   // Android ExoPlayer supported formats
   return {
     Type: MediaTypes.Audio,
-    Container: "mp3,m4a,aac,ogg,flac,wav,webm,mka",
+    Container: "mp3,m4a,m4b,aac,ogg,flac,wav,webm,mka",
     AudioCodec: "mp3,aac,flac,vorbis,opus,pcm",
   };
 };

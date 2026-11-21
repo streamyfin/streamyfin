@@ -143,6 +143,16 @@ export default function MoreLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/audiobooks/page'
+        options={{
+          title: t("audiobooks.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='settings/appearance/hide-libraries/page'
         options={{
           title: t("home.settings.other.hide_libraries"),

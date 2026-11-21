@@ -41,4 +41,6 @@ export interface DownloadErrorEvent {
 export interface DownloadProgressEvent {
   itemId: string;
   progress: number; // 0-1
+  bytesWritten?: number;
+  totalBytes?: number;
 }

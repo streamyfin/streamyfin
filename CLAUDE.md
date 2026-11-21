@@ -120,7 +120,8 @@ Build and tooling:
 
 Streamyfin is a cross platform Jellyfin client built with Expo and React Native. It runs
 on iOS, Android, Apple TV and Android TV, with offline downloads, Chromecast and
-Seerr integration.
+Seerr integration. Music and audiobooks play through `react-native-track-player` on
+phones; `services/audioOwner.ts` decides which of the two holds it.
 
 ## Commands
 
@@ -270,10 +271,11 @@ PersistQueryClientProvider
                     DownloadProvider
                       NativePlayerProvider
                         MusicPlayerProvider
-                          GlobalModalProvider
-                            BottomSheetModalProvider
-                              IntroSheetProvider
-                                ThemeProvider
+                          AudiobookPlayerProvider   shares the track player with music
+                            GlobalModalProvider
+                              BottomSheetModalProvider
+                                IntroSheetProvider
+                                  ThemeProvider
 ```
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.

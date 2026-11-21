@@ -14,6 +14,11 @@ import { atom, useAtom, useAtomValue, useStore } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import {
+  DEFAULT_AUDIOBOOK_PLAYBACK_RATE,
+  DEFAULT_AUDIOBOOK_SKIP_BACK_SECONDS,
+  DEFAULT_AUDIOBOOK_SKIP_FORWARD_SECONDS,
+} from "@/constants/Audiobooks";
+import {
   BITRATE_DETECTION_TTL_MS,
   DETECTED_BITRATE_RATIO,
   IN_NETWORK_MIN_BITRATE,
@@ -567,6 +572,17 @@ export type Settings = {
   preferLocalAudio: boolean;
   /** Evens out loudness between music tracks with the server's gains. */
   musicNormalizationMode: MusicNormalizationMode;
+  // Audiobook playback
+  /** Seconds the skip back button and the lock screen's go back. */
+  audiobookSkipBackSeconds: number;
+  /** Seconds the skip forward button and the lock screen's go forward. */
+  audiobookSkipForwardSeconds: number;
+  /** The speed books play at, changed from the player too. */
+  audiobookPlaybackRate: number;
+  /** Go back a few seconds on resume, the more the longer the pause. */
+  audiobookAutoRewind: boolean;
+  /** Fetch the next part of a multi-part book ahead into the audio cache. */
+  audiobookCacheNextPart: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
   // Optional third-party lookups. Both call a service directly from the client
@@ -751,6 +767,12 @@ export const defaultValues: Settings = {
   // Music playback
   preferLocalAudio: true,
   musicNormalizationMode: DEFAULT_MUSIC_NORMALIZATION_MODE,
+  // Audiobook playback
+  audiobookSkipBackSeconds: DEFAULT_AUDIOBOOK_SKIP_BACK_SECONDS,
+  audiobookSkipForwardSeconds: DEFAULT_AUDIOBOOK_SKIP_FORWARD_SECONDS,
+  audiobookPlaybackRate: DEFAULT_AUDIOBOOK_PLAYBACK_RATE,
+  audiobookAutoRewind: true,
+  audiobookCacheNextPart: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
   // Optional third-party lookups

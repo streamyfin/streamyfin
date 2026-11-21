@@ -7,6 +7,18 @@ import DownloadsPage from "@/app/(auth)/(tabs)/(home)/downloads/index";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { makeItems } from "@/test-utils/baseItems";
 
+// The page's audiobook row reaches the track player, which is installed from
+// git without the entry point Jest resolves, and reads the audiobook player.
+// No book is downloaded here, so the row draws nothing.
+jest.mock(
+  "react-native-track-player",
+  () => jest.requireActual("@/test-utils/trackPlayer").trackPlayerModule,
+  { virtual: true },
+);
+jest.mock("@/providers/AudiobookPlayerProvider", () => ({
+  useAudiobookPlayer: () => ({ book: null, progressRevision: 0 }),
+}));
+
 // The downloads live in native storage; the page reads them from the hook.
 const mockDownloaded = atom<DownloadedItem[]>([]);
 jest.mock("@/providers/DownloadProvider", () => {

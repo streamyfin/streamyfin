@@ -1,6 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Platform,
@@ -22,9 +23,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "@/components/common/GlassSurface";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { DEFAULT_AUDIOBOOK_SKIP_BACK_SECONDS } from "@/constants/Audiobooks";
 import useRouter from "@/hooks/useAppRouter";
+import {
+  useAudiobookPlayer,
+  useAudiobookProgress,
+} from "@/providers/AudiobookPlayerProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { authorLine, chapterDisplayTitle } from "@/utils/audiobooks/books";
+import { audiobookCoverUrl } from "@/utils/audiobooks/images";
 
 const HORIZONTAL_MARGIN = Platform.OS === "android" ? 12 : 20;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
@@ -46,28 +55,40 @@ export const MiniPlayerBar: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const {
-    currentTrack,
-    isPlaying,
-    isLoading,
-    progress,
-    duration,
-    togglePlayPause,
-    next,
-    stop,
-  } = useMusicPlayer();
+  const music = useMusicPlayer();
+  const audiobook = useAudiobookPlayer();
+  const { chapterIndex } = useAudiobookProgress();
+  const { settings } = useSettings();
+  const { t } = useTranslation();
+
+  // The bar shows whichever player has something loaded: one book or one
+  // queue at a time, since they share the native player. A book wins when
+  // both have restored something after a restart.
+  const book = audiobook.book;
+  const currentTrack = book ? null : music.currentTrack;
+  const isPlaying = book ? audiobook.isPlaying : music.isPlaying;
+  const isLoading = book ? audiobook.isLoading : music.isLoading;
+  const { progress, duration } = music;
+  const togglePlayPause = book
+    ? audiobook.togglePlayPause
+    : music.togglePlayPause;
+  const next = book ? audiobook.skipBackward : music.next;
+  const stop = book ? audiobook.stop : music.stop;
+  const skipBackSeconds =
+    settings?.audiobookSkipBackSeconds ?? DEFAULT_AUDIOBOOK_SKIP_BACK_SECONDS;
 
   // Gesture state
   const translateY = useSharedValue(0);
 
   const imageUrl = useMemo(() => {
+    if (book) return audiobookCoverUrl(api, book, 120);
     if (!api || !currentTrack) return null;
     const albumId = currentTrack.AlbumId || currentTrack.ParentId;
     if (albumId) {
       return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=100&maxWidth=100`;
     }
     return `${api.basePath}/Items/${currentTrack.Id}/Images/Primary?maxHeight=100&maxWidth=100`;
-  }, [api, currentTrack]);
+  }, [api, currentTrack, book]);
 
   const _progressPercentage = useMemo(() => {
     if (!duration || duration === 0) return 0;
@@ -75,8 +96,8 @@ export const MiniPlayerBar: React.FC = () => {
   }, [progress, duration]);
 
   const handlePress = useCallback(() => {
-    router.push("/(auth)/now-playing");
-  }, [router]);
+    router.push(book ? "/(auth)/audiobook-player" : "/(auth)/now-playing");
+  }, [router, book]);
 
   const handlePlayPause = useCallback(
     (e: any) => {
@@ -154,7 +175,17 @@ export const MiniPlayerBar: React.FC = () => {
     ),
   }));
 
-  if (!currentTrack) return null;
+  if (!currentTrack && !book) return null;
+
+  const title = book ? book.title : currentTrack?.Name;
+  const chapter = book ? audiobook.chapters[chapterIndex] : undefined;
+  const subtitle = book
+    ? chapter && audiobook.chapters.length > 1
+      ? chapterDisplayTitle(chapter, chapterIndex, (number) =>
+          t("chapters.chapter_number", { number }),
+        )
+      : authorLine(book)
+    : currentTrack?.Artists?.join(", ") || currentTrack?.AlbumArtist;
 
   const content = (
     <>
@@ -175,7 +206,11 @@ export const MiniPlayerBar: React.FC = () => {
             />
           ) : (
             <View style={styles.albumPlaceholder}>
-              <Ionicons name='musical-note' size={20} color='#888' />
+              <Ionicons
+                name={book ? "book" : "musical-note"}
+                size={20}
+                color='#888'
+              />
             </View>
           )}
         </View>
@@ -183,10 +218,10 @@ export const MiniPlayerBar: React.FC = () => {
         {/* Track info */}
         <View style={styles.trackInfo}>
           <Text numberOfLines={1} style={styles.trackTitle}>
-            {currentTrack.Name}
+            {title}
           </Text>
           <Text numberOfLines={1} style={styles.artistName}>
-            {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
+            {subtitle}
           </Text>
         </View>
       </TouchableOpacity>
@@ -213,7 +248,20 @@ export const MiniPlayerBar: React.FC = () => {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.controlButton}
             >
-              <Ionicons name='play-forward' size={22} color='white' />
+              {book ? (
+                <MaterialCommunityIcons
+                  name={
+                    `rewind-${skipBackSeconds}` in
+                    MaterialCommunityIcons.glyphMap
+                      ? (`rewind-${skipBackSeconds}` as "rewind")
+                      : "rewind"
+                  }
+                  size={24}
+                  color='white'
+                />
+              ) : (
+                <Ionicons name='play-forward' size={22} color='white' />
+              )}
             </TouchableOpacity>
           </>
         )}
