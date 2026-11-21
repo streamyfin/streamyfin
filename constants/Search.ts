@@ -1,7 +1,19 @@
 import type { PersonKind } from "@jellyfin/sdk/lib/generated-client/models";
 
-/** How many results each section of the library search shows. */
-export const SEARCH_RESULT_LIMIT = 10;
+/**
+ * How many results each section of the library search shows. Ten made every
+ * section a single sideways rail with no way to see more: on a library with
+ * thousands of films a descriptive search has far more good answers than that.
+ */
+export const SEARCH_RESULT_LIMIT = 30;
+
+/**
+ * How long typing has to pause before the search is run. Each run is a dozen
+ * recursive requests to the server, so a short window means most of them are
+ * aborted by the next keystroke before they answer, and the last one can lose
+ * that race and leave the screen empty.
+ */
+export const SEARCH_DEBOUNCE_MS = 400;
 
 /**
  * How many people a search asks for before keeping the best matches. The
