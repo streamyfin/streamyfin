@@ -108,6 +108,18 @@ translations from the hook mocks `react-i18next` with `@/test-utils/realI18next`
 (`components/series/SeasonDropdown.test.tsx`). Packages that need app start-up
 configuration belong in global setup too.
 
+Quick reference — defaults already wired for every unit spec:
+
+| Where | What it provides |
+| --- | --- |
+| `jest.config.js` (`moduleNameMapper`) | `react-i18next` (identity `t`, stable `i18n.language` `en-US`), `@expo/vector-icons` (null `Ionicons`), `react-native-safe-area-context` (zero insets), `@gorhom/bottom-sheet` |
+| `test-utils/unitSetup.ts` | silent `@/utils/log`, the `@/components/common/ServerImage` view double, `expo-notifications`, `sonner-native` |
+
+Do not repeat these defaults in a spec. Keep a local override only when it
+changes behavior the test asserts (interpolation, nonzero insets, an icon's
+name, captured calls), or unmock when the spec is about the module itself. The
+perf config deliberately does not inherit these unit doubles.
+
 ### The rules
 
 1. **Check what is already wired before writing a mock.** `jest.config.js`

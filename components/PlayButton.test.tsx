@@ -38,12 +38,6 @@ jest.mock("@expo/vector-icons", () => ({
   Feather: () => null,
   Ionicons: () => null,
 }));
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("react-native-google-cast", () => ({
   __esModule: true,
   default: {
@@ -91,11 +85,6 @@ jest.mock("@/utils/cast/jellyfinReceiver", () => ({
 }));
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
   detectBitrate: (api: unknown) => mockDetectBitrate(api),
-}));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeErrorLog: jest.fn(),
-  writeToLog: jest.fn(),
 }));
 
 const MOVIE: BaseItemDto = {

@@ -30,9 +30,6 @@ jest.mock("@/providers/JellyfinProvider", () => {
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 16, right: 24 }),
 }));
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("@tanstack/react-query", () => ({
   useQuery: (options: { queryKey: unknown[] }) => ({
     data:

@@ -8,11 +8,6 @@ const mockDetectBitrate = jest.fn();
 jest.mock("./bitrateTest", () => ({
   detectBitrate: (...args: unknown[]) => mockDetectBitrate(...args),
 }));
-jest.mock("@/utils/log", () => ({
-  writeToLog: jest.fn(),
-  logAndCaptureError: jest.fn(),
-}));
-
 const api = makeApi();
 
 beforeEach(() => {

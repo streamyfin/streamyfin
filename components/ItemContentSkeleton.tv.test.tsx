@@ -18,10 +18,6 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   }),
 }));
 
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
 const overviewMaxWidth = (root: TestInstance | null) => {
   const [overview] = root!.queryAll(
     (node) => node.props?.style?.maxWidth !== undefined,
