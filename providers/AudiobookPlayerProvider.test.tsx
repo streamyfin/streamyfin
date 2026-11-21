@@ -439,4 +439,64 @@ describe("the sleep timer", () => {
     await run((p) => p.setSleepTimer({ mode: "off" }));
     expect(player.sleepTimer).toEqual({ mode: "off" });
   });
+
+  // Reported on #2532: a book of mp3 files played on past the timer. Here
+  // only the provider hears the track change, as when it hears it first.
+  test("the end of chapter timer pauses when a file of its own ends", async () => {
+    const book = bookFromParts([part("p1"), part("p2")]);
+    await mount();
+    await run((p) => p.playBook(book));
+    await run((p) => p.setSleepTimer({ mode: "chapter" }));
+    mockNative.calls = [];
+
+    await fire("playback-active-track-changed", {
+      index: 1,
+      lastPosition: HOUR,
+    });
+
+    expect(mockNative.calls).toContain("pause");
+    expect(player.sleepTimer).toEqual({ mode: "off" });
+  });
+
+  test("the end of chapter timer pauses as playback leaves the chapter", async () => {
+    const book = bookFromParts([
+      {
+        ...part("p1"),
+        Chapters: [
+          { Name: "One", StartPositionTicks: 0 },
+          { Name: "Two", StartPositionTicks: ticks(600) },
+        ],
+      },
+    ]);
+    await mount();
+    await run((p) => p.playBook(book));
+    await fire("playback-progress-updated", { position: 30, track: 0 });
+    await run((p) => p.setSleepTimer({ mode: "chapter" }));
+    mockNative.calls = [];
+
+    await fire("playback-progress-updated", { position: 600.4, track: 0 });
+
+    expect(mockNative.calls).toContain("pause");
+    expect(player.sleepTimer).toEqual({ mode: "off" });
+  });
+
+  test("skipping to the next chapter moves the timer on with it", async () => {
+    const book = bookFromParts([part("p1"), part("p2"), part("p3")]);
+    await mount();
+    await run((p) => p.playBook(book));
+    await run((p) => p.setSleepTimer({ mode: "chapter" }));
+    mockNative.calls = [];
+
+    api.mock.resetHistory();
+    await run((p) => p.nextChapter());
+    // The skip's own track change comes after.
+    await fire("playback-active-track-changed", { index: 1, lastPosition: 5 });
+
+    expect(mockNative.calls).toContain("skip(1,0)");
+    expect(mockNative.calls).not.toContain("pause");
+    expect(player.sleepTimer).toEqual({ mode: "chapter" });
+    // The part change is told to the server once.
+    expect(reported(STOP_URL)).toEqual(["p1"]);
+    expect(reported(START_URL)).toEqual(["p2"]);
+  });
 });

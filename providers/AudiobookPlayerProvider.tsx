@@ -40,6 +40,7 @@ import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import {
   cancelSleepTimer,
   getSleepTimer,
+  handleAudiobookChapterPlayedOut,
   onSleepTimerChange,
   onSleepTimerExpired,
   setAudiobookRemoteHandlers,
@@ -430,9 +431,12 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
       : null;
   }, []);
 
-  /** Moves the position on screen and in the refs. */
+  /**
+   * Moves the position on screen and in the refs. `played` is for playback
+   * moving it, not a seek or a load: only that ends a chapter for the timer.
+   */
   const setPosition = useCallback(
-    (partIndex: number, partPosition: number) => {
+    (partIndex: number, partPosition: number, played = false) => {
       const book = bookRef.current;
       if (!book) return;
       const partChanged = partIndex !== partIndexRef.current;
@@ -440,8 +444,12 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
       partPositionRef.current = partPosition;
       const position = toBookPosition(book, partIndex, partPosition);
       const chapterIndex = chapterIndexAt(chaptersRef.current, position);
-      const chapterChanged = chapterIndex !== chapterIndexRef.current;
+      const chapterBefore = chapterIndexRef.current;
+      const chapterChanged = chapterIndex !== chapterBefore;
       chapterIndexRef.current = chapterIndex;
+      if (played && chapterBefore >= 0 && chapterIndex > chapterBefore) {
+        handleAudiobookChapterPlayedOut();
+      }
       setProgressState({
         position,
         duration: bookDuration(book),
@@ -895,11 +903,20 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
         setPosition(partIndex, partPosition);
         await TrackPlayer.seekTo(partPosition).catch(() => {});
       } else if (nativeIndex >= 0 && nativeIndex < loadedCountRef.current) {
-        // The track change handler reports the part change.
+        // On the new part before the skip, so the track change it causes is
+        // not taken for the part before playing out (which would also end an
+        // end of chapter sleep timer); the part change is reported here.
+        const previousIndex = partIndexRef.current;
+        const previousPosition = partPositionRef.current;
+        setPosition(partIndex, partPosition);
+        reportStop(previousIndex, previousPosition);
         await editNativeQueue(() =>
           TrackPlayer.skip(nativeIndex, partPosition),
         ).catch(() => {});
-        setPosition(partIndex, partPosition);
+        // The new item may come up at the default speed.
+        if (rateRef.current !== 1) TrackPlayer.setRate(rateRef.current);
+        reportStart(partIndex, partPosition, !playingRef.current);
+        cacheNextPart(book, partIndex);
       } else {
         await loadBook(book, partIndex, partPosition, playingRef.current);
         return;
@@ -907,7 +924,15 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
       updateSleepChapterEnd();
       persist();
     },
-    [loadBook, persist, setPosition, updateSleepChapterEnd],
+    [
+      cacheNextPart,
+      loadBook,
+      persist,
+      reportStart,
+      reportStop,
+      setPosition,
+      updateSleepChapterEnd,
+    ],
   );
 
   const skipBy = useCallback(
@@ -1294,7 +1319,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
         book.parts[previousIndex]?.RunTimeTicks,
       );
       reportStop(previousIndex, event.lastPosition || previousDuration);
-      setPosition(partIndex, 0);
+      setPosition(partIndex, 0, true);
       reportStart(partIndex, 0, !playingRef.current);
       persist();
       // The new item may come up at the default speed.
@@ -1405,7 +1430,7 @@ const MobileAudiobookPlayerProvider: React.FC<Props> = ({ children }) => {
           : partIndexRef.current;
       // A part change is the track change handler's to report.
       if (partIndex !== partIndexRef.current) return;
-      setPosition(partIndex, event.position);
+      setPosition(partIndex, event.position, true);
       const now = Date.now();
       if (now - lastSaveAtRef.current >= AUDIOBOOK_LOCAL_SAVE_INTERVAL_MS) {
         persist();

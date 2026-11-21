@@ -354,7 +354,9 @@ export default function DownloadsPage() {
             />
           )}
 
-          {!Platform.isTV && (
+          {/* Only mounted with books in it: Reassure measured the empty
+              row's hooks on every render of this page. */}
+          {downloadedBooks.length > 0 && (
             <DownloadedAudiobooksRow books={downloadedBooks} />
           )}
 

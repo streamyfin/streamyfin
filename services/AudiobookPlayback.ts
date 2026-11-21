@@ -167,6 +167,17 @@ export const handleAudiobookTrackChanged = (index?: number) => {
   if (index !== undefined && index > chapterEnd.nativeIndex) expire();
 };
 
+/**
+ * The player provider saw playback carry the book into the next chapter. It
+ * hears the native events too, and when it hears them first it has already
+ * moved the chapter end on to the next chapter, which the events above then
+ * never reach: a book of one file per chapter played on past the timer.
+ */
+export const handleAudiobookChapterPlayedOut = () => {
+  if (!ownsPlayer() || timer.mode !== "chapter") return;
+  expire();
+};
+
 // ---------------------------------------------------- lock screen buttons
 
 export interface AudiobookRemoteHandlers {
