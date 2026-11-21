@@ -52,10 +52,7 @@ import {
   SeerrIndexPage,
   SeerrSearchSort,
 } from "@/components/seerr/SeerrIndexPage";
-import {
-  SEARCH_DEBOUNCE_MS,
-  SEARCH_RESULT_LIMIT,
-} from "@/constants/Search";
+import { SEARCH_DEBOUNCE_MS, SEARCH_RESULT_LIMIT } from "@/constants/Search";
 import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { useServerVersion } from "@/hooks/useServerVersion";
@@ -124,7 +121,10 @@ export default function SearchPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
-    const timeout = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    const timeout = setTimeout(
+      () => setDebouncedSearch(search),
+      SEARCH_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timeout);
   }, [search]);
 
