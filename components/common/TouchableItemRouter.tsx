@@ -13,6 +13,9 @@ interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
 }
 
+const isAudiobookLibrary = (item: BaseItemDto) =>
+  !Platform.isTV && "CollectionType" in item && item.CollectionType === "books";
+
 export const itemRouter = (item: BaseItemDto, from: string) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
@@ -20,6 +23,11 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
 
   if ("CollectionType" in item && item.CollectionType === "music") {
     return `/(auth)/(tabs)/(libraries)/music/${item.Id}`;
+  }
+
+  // Audiobooks have no TV player: TV keeps the generic library.
+  if (isAudiobookLibrary(item)) {
+    return `/(auth)/(tabs)/(libraries)/audiobooks/${item.Id}`;
   }
 
   if (item.Type === "Series") {
@@ -64,6 +72,21 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     return {
       pathname: "/music/[libraryId]" as const,
       params: { libraryId: item.Id! },
+    };
+  }
+
+  if (isAudiobookLibrary(item)) {
+    return {
+      pathname: "/audiobooks/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
+  // One file of a book, which may have more: the book page finds them.
+  if (item.Type === "AudioBook" && !Platform.isTV) {
+    return {
+      pathname: "/audiobooks/book/[bookId]" as const,
+      params: { bookId: item.Id! },
     };
   }
 
@@ -177,7 +200,10 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const handlePress = useCallback(() => {
     // Force music libraries to navigate via the explicit string route.
     // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
-    if ("CollectionType" in item && item.CollectionType === "music") {
+    if (
+      ("CollectionType" in item && item.CollectionType === "music") ||
+      isAudiobookLibrary(item)
+    ) {
       router.push(itemRouter(item, from) as any);
       return;
     }

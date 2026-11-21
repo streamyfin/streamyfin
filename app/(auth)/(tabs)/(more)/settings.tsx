@@ -133,6 +133,13 @@ function SettingsMobile() {
               showArrow
               title={t("home.settings.music.title")}
             />
+            {!Platform.isTV && (
+              <ListItem
+                onPress={() => router.push("/settings/audiobooks/page")}
+                showArrow
+                title={t("audiobooks.title")}
+              />
+            )}
             <ListItem
               onPress={() => router.push("/settings/appearance/page")}
               showArrow

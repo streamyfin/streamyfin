@@ -16,6 +16,7 @@ import { AUDIO_STORAGE_INDEX_KEY } from "@/constants/Music";
 import type {
   DownloadCompleteEvent as BGDownloadCompleteEvent,
   DownloadErrorEvent as BGDownloadErrorEvent,
+  DownloadProgressEvent as BGDownloadProgressEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
 import { appDirectoryRebaser, safeNamePart } from "@/providers/Downloads/utils";
@@ -25,6 +26,7 @@ import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadOptions,
+  DownloadProgressEvent,
   StoredTrackInfo,
 } from "./types";
 
@@ -43,6 +45,8 @@ let configuredMaxCacheSizeBytes = DEFAULT_MAX_CACHE_SIZE_BYTES;
 class AudioStorageEventEmitter extends EventEmitter<{
   complete: (event: DownloadCompleteEvent) => void;
   error: (event: DownloadErrorEvent) => void;
+  /** A user download moving on; the look-ahead cache reports none. */
+  progress: (event: DownloadProgressEvent) => void;
 }> {}
 
 export const audioStorageEvents = new AudioStorageEventEmitter();
@@ -69,6 +73,7 @@ let permanentDir: Directory | null = null;
 // Event listener subscriptions (for cleanup)
 let _completeSubscription: EventSubscription | null = null;
 let _errorSubscription: EventSubscription | null = null;
+let _progressSubscription: EventSubscription | null = null;
 let listenersSetup = false;
 
 /**
@@ -270,6 +275,21 @@ function setupEventListeners(): void {
         if (!downloadInfo) return; // Not an audio download
 
         handleDownloadError(event, downloadInfo);
+      },
+    );
+
+    // Audiobook parts run to hundreds of megabytes: their download shows how
+    // far it got. Only user downloads, the cache works unseen.
+    _progressSubscription = BackgroundDownloader.addProgressListener(
+      (event: BGDownloadProgressEvent) => {
+        const downloadInfo = activeDownloads.get(event.taskId);
+        if (!downloadInfo?.permanent) return;
+        audioStorageEvents.emit("progress", {
+          itemId: downloadInfo.itemId,
+          progress: event.progress,
+          bytesWritten: event.bytesWritten,
+          totalBytes: event.totalBytes,
+        });
       },
     );
 

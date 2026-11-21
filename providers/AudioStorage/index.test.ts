@@ -36,6 +36,7 @@ jest.mock("@/modules", () => ({
       return { remove() {} };
     },
     addErrorListener: () => ({ remove() {} }),
+    addProgressListener: () => ({ remove() {} }),
   },
 }));
 
