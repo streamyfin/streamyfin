@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
@@ -96,6 +97,58 @@ class MovieSeedTest(unittest.TestCase):
                 seed.seed(inventory_path=inventory_path)
                 self.assertEqual(len([c for c in calls if c[0] == "/Library/Refresh"]), 2)
 
+    def test_library_creation_disables_every_metadata_and_image_fetcher(self):
+        with TemporaryDirectory() as directory:
+            state = Path(directory)
+            inventory_path = state / "inventory.json"
+            inventory_path.write_text(json.dumps({"movies": [], "shows": [], "episodes": [], "tracks": []}))
+            (state / "credentials.json").write_text(json.dumps({
+                "url": setup.URL, "host": {"token": "stored-host-token", "userId": "host"},
+            }))
+            folders = []
+            posts = []
+            expected_items = {spec["name"]: spec["expected"] for spec in seed.LIBRARIES}
+
+            def api(path, method="GET", data=None, token=None):
+                if path == "/Library/VirtualFolders":
+                    return folders
+                if path.startswith("/Library/VirtualFolders?"):
+                    name = parse_qs(urlsplit(path).query)["name"][0]
+                    posts.append((name, data))
+                    spec = next(spec for spec in seed.LIBRARIES if spec["name"] == name)
+                    folders.append({
+                        "Name": name, "Locations": [spec["mount"]],
+                        "CollectionType": spec["collectionType"], "ItemId": name,
+                    })
+                    return None
+                if path.startswith("/Users/host/Items?"):
+                    parent = parse_qs(urlsplit(path).query)["ParentId"][0]
+                    return {"Items": expected_items[parent]}
+                if path == "/Library/Refresh":
+                    return None
+                raise AssertionError(path)
+
+            with (
+                mock.patch.object(setup, "STATE", state),
+                mock.patch.object(setup, "api", side_effect=api),
+                mock.patch.object(seed, "catalog_files", return_value=False),
+                mock.patch.object(catalog_seed, "generate", return_value=False),
+            ):
+                seed.seed(inventory_path=inventory_path)
+
+            self.assertEqual([name for name, _ in posts], ["Movies", "Shows", "Music"])
+            expected_types = {
+                "Movies": {"Movie"},
+                "Shows": {"Series", "Season", "Episode"},
+                "Music": {"MusicArtist", "MusicAlbum", "Audio"},
+            }
+            for name, data in posts:
+                options = {option["Type"]: option for option in data["LibraryOptions"]["TypeOptions"]}
+                self.assertEqual(set(options), expected_types[name])
+                for option in options.values():
+                    self.assertEqual(option["MetadataFetchers"], [])
+                    self.assertEqual(option["ImageFetchers"], [])
+
     def test_setup_scopes_syncplay_credentials_to_the_original_library(self):
         with TemporaryDirectory() as directory:
             state = Path(directory)
@@ -122,13 +175,20 @@ class MovieSeedTest(unittest.TestCase):
                     return None
                 raise AssertionError(path)
 
+            def docker(command, **kwargs):
+                if command[1] == "ps":
+                    return CompletedProcess([], 0, stdout="")
+                if command[1] == "container":
+                    return CompletedProcess([], 0, stdout=str((setup.ROOT / "compose.yml").resolve()))
+                return CompletedProcess([], 0, stdout="")
+
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "ENV_FILE", state / ".env"),
                 mock.patch.object(setup, "generate_media"),
                 mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
                 mock.patch.object(setup, "api", side_effect=api),
-                mock.patch.object(setup.subprocess, "run"),
+                mock.patch.object(setup.subprocess, "run", side_effect=docker),
             ):
                 setup.main()
             item_paths = [path for path in calls if path.startswith("/Users/host/Items?")]
@@ -136,7 +196,7 @@ class MovieSeedTest(unittest.TestCase):
             self.assertIn("ParentId=fixture", item_paths[0])
             self.assertEqual(auth_devices, [None, "syncplay-guest-setup"])
             self.assertIn("SYNCPLAY_PORT=", (state / ".env").read_text())
-            for folder in ("catalog/movies", "catalog/shows", "catalog/music"):
+            for folder in ("config", "config/plugins", "catalog/movies", "catalog/shows", "catalog/music"):
                 self.assertTrue((state / folder).is_dir())
 
 

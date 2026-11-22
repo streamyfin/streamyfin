@@ -17,6 +17,55 @@ def inspected(label, returncode=0):
     return CompletedProcess([], returncode, stdout=label + "\n")
 
 
+def docker_fake(own_compose, name_owner=None, project=None):
+    """Fake `subprocess.run` for the docker calls setup and teardown make.
+
+    `docker ps` lists the project container ids, `docker inspect` reports each one's
+    owning compose file (a None project entry means the label is absent), and
+    `docker container inspect` checks the requested name, which name_owner="missing"
+    answers as if no such container existed. Anything else succeeds silently.
+    """
+    project = project or {}
+
+    def run(command, **kwargs):
+        if command[1] == "ps":
+            return inspected("\n".join(project))
+        if command[1] == "inspect":
+            containers = []
+            for container_id in command[2:]:
+                labels = {}
+                if project[container_id] is not None:
+                    labels["com.docker.compose.project.config_files"] = project[container_id]
+                containers.append({"Id": container_id, "Config": {"Labels": labels}})
+            return inspected(json.dumps(containers))
+        if command[1] == "container":
+            if name_owner == "missing":
+                return inspected("", returncode=1)
+            return inspected(name_owner or own_compose)
+        return inspected("")
+
+    return run
+
+
+def setup_api(path, method="GET", data=None, token=None, device_id=None):
+    if path == "/System/Info/Public":
+        return {"StartupWizardCompleted": True, "Version": "10.11.11"}
+    if path == "/Users/AuthenticateByName":
+        return {"AccessToken": "local", "User": {"Id": "host", "Name": "syncplay-host"}}
+    if path == "/Users":
+        return [{"Id": "guest", "Name": "syncplay-guest"}]
+    if path == "/Library/VirtualFolders":
+        return [{"Name": "SyncPlay Fixtures", "ItemId": "fixture"}]
+    if path.startswith("/Users/host/Items?"):
+        return {"Items": [
+            {"Name": f"SyncPlay Clip {number}", "Id": str(number), "RunTimeTicks": 1200000000}
+            for number in range(1, 4)
+        ]}
+    if path == "/Library/Refresh" or path.startswith("/Users/") and path.endswith("/Policy"):
+        return None
+    raise AssertionError(path)
+
+
 class IdentityTest(unittest.TestCase):
     def test_saved_identity_replaces_retyped_variables(self):
         with TemporaryDirectory() as directory:
@@ -45,21 +94,103 @@ class IdentityTest(unittest.TestCase):
         with mock.patch.object(setup.subprocess, "run", return_value=inspected("", returncode=1)):
             setup.refuse_foreign_container("mine")
 
+    def test_an_empty_or_own_project_is_accepted(self):
+        own = str((setup.ROOT / "compose.yml").resolve())
+        with mock.patch.object(setup.subprocess, "run", side_effect=docker_fake(own)):
+            setup.refuse_foreign_project("mine")
+        with mock.patch.object(setup.subprocess, "run", side_effect=docker_fake(own, project={"abc123": own})):
+            setup.refuse_foreign_project("mine")
+
+    def test_a_project_started_by_another_checkout_is_refused(self):
+        docker = docker_fake(str((setup.ROOT / "compose.yml").resolve()), project={"abc123": "/elsewhere/compose.yml"})
+        with mock.patch.object(setup.subprocess, "run", side_effect=docker):
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                setup.refuse_foreign_project("streamyfin-syncplay-e2e")
+
+    def test_a_project_container_with_no_owner_label_is_refused(self):
+        docker = docker_fake(str((setup.ROOT / "compose.yml").resolve()), project={"abc123": None})
+        with mock.patch.object(setup.subprocess, "run", side_effect=docker):
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                setup.refuse_foreign_project("mine")
+
+
+class SetupTest(unittest.TestCase):
+    def run_setup(self, root, docker, environ=None):
+        calls = []
+
+        def recording(command, **kwargs):
+            calls.append(command)
+            return docker(command)
+
+        with (
+            mock.patch.object(setup, "ROOT", root),
+            mock.patch.object(setup, "STATE", root / ".state"),
+            mock.patch.object(setup, "ENV_FILE", root / ".env"),
+            mock.patch.object(setup, "generate_media"),
+            mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
+            mock.patch.object(setup, "api", side_effect=setup_api),
+            mock.patch.object(setup.subprocess, "run", side_effect=recording),
+            mock.patch.dict(os.environ, environ or {}, clear=True),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            try:
+                setup.main()
+            finally:
+                self.calls = calls
+
+    def test_up_targets_the_saved_project_not_an_inherited_compose_name(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".env").write_text("SYNCPLAY_PROJECT=mine\n")
+            self.run_setup(root, docker_fake(str((root / "compose.yml").resolve())), environ={"COMPOSE_PROJECT_NAME": "wrong"})
+            up = [command for command in self.calls if "up" in command]
+            self.assertEqual(len(up), 1)
+            self.assertEqual(up[0][up[0].index("-p") + 1], "mine")
+
+    def test_an_unwritable_config_dir_is_refused_before_compose_up(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            plugins = root / ".state" / "config" / "plugins"
+            plugins.mkdir(parents=True)
+            real_access = os.access
+
+            def access(path, mode):
+                return False if Path(path) == plugins else real_access(path, mode)
+
+            docker = docker_fake(str((root / "compose.yml").resolve()), name_owner="missing")
+            with mock.patch.object(setup.os, "access", side_effect=access):
+                with self.assertRaisesRegex(RuntimeError, "not writable"):
+                    self.run_setup(root, docker)
+            self.assertFalse([command for command in self.calls if "up" in command])
+
+    def test_a_foreign_project_is_refused_even_when_the_container_name_is_free(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            docker = docker_fake(
+                str((root / "compose.yml").resolve()),
+                name_owner="missing", project={"abc123": "/elsewhere/compose.yml"},
+            )
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                self.run_setup(root, docker)
+            self.assertFalse((root / ".env").exists())
+            self.assertFalse([command for command in self.calls if "up" in command or "down" in command])
+
 
 class TeardownTest(unittest.TestCase):
-    def run_teardown(self, root, owner):
+    def run_teardown(self, root, owner, project=None, environ=None):
         calls = []
+        docker = docker_fake(str((root / "compose.yml").resolve()), name_owner=owner, project=project)
 
         def run(command, **kwargs):
             calls.append((command, kwargs))
-            return inspected(owner or str((root / "compose.yml").resolve()))
+            return docker(command)
 
         with (
             mock.patch.object(setup, "ROOT", root),
             mock.patch.object(setup, "STATE", root / ".state"),
             mock.patch.object(setup, "ENV_FILE", root / ".env"),
             mock.patch.object(setup.subprocess, "run", side_effect=run),
-            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.dict(os.environ, environ or {}, clear=True),
             contextlib.redirect_stdout(io.StringIO()),
         ):
             try:
@@ -73,12 +204,21 @@ class TeardownTest(unittest.TestCase):
             (root / ".state" / "config").mkdir(parents=True)
             (root / "artifacts").mkdir()
             (root / ".env").write_text("SYNCPLAY_PROJECT=mine\n")
-            self.run_teardown(root, None)
+            self.run_teardown(root, None, project={"abc123": str((root / "compose.yml").resolve())})
             down = [(command, kwargs) for command, kwargs in self.calls if "down" in command]
             self.assertEqual(len(down), 1)
             self.assertEqual(down[0][1]["env"]["SYNCPLAY_PROJECT"], "mine")
             for leftover in (".state", "artifacts", ".env"):
                 self.assertFalse((root / leftover).exists())
+
+    def test_down_targets_the_saved_project_not_an_inherited_compose_name(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".env").write_text("SYNCPLAY_PROJECT=mine\n")
+            self.run_teardown(root, None, environ={"COMPOSE_PROJECT_NAME": "wrong"})
+            down = [command for command, _ in self.calls if "down" in command]
+            self.assertEqual(len(down), 1)
+            self.assertEqual(down[0][down[0].index("-p") + 1], "mine")
 
     def test_leaves_another_checkouts_container_and_files_alone(self):
         with TemporaryDirectory() as directory:
@@ -86,6 +226,16 @@ class TeardownTest(unittest.TestCase):
             (root / ".state").mkdir()
             with self.assertRaises(RuntimeError):
                 self.run_teardown(root, "/elsewhere/compose.yml")
+            self.assertFalse([command for command, _ in self.calls if "down" in command])
+            self.assertTrue((root / ".state").exists())
+
+    def test_leaves_a_foreign_projects_containers_and_files_alone(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".state").mkdir()
+            (root / ".env").write_text("SYNCPLAY_PROJECT=mine\n")
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                self.run_teardown(root, "missing", project={"abc123": "/elsewhere/compose.yml"})
             self.assertFalse([command for command, _ in self.calls if "down" in command])
             self.assertTrue((root / ".state").exists())
 

@@ -1,13 +1,25 @@
 """Generate ten-second playback placeholders from the catalog inventory."""
 
+import contextlib
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
+from tempfile import TemporaryDirectory
 import xml.etree.ElementTree as ET
 
 MEDIA_SECONDS = 10
+
+
+@contextlib.contextmanager
+def staged_output(target):
+    # Stage beside the target so os.replace publishes only a finished file: a partial
+    # output would satisfy the non-empty skip check and never be generated again.
+    with TemporaryDirectory(dir=target.parent) as temporary:
+        staged = Path(temporary) / target.name
+        yield staged
+        os.replace(staged, target)
 
 
 def identifier(entry):
@@ -35,14 +47,15 @@ def video_template(target):
     if target.is_file() and target.stat().st_size:
         return False
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "lavfi", "-i", f"color=c=0x1f2937:size=640x360:rate=24:duration={MEDIA_SECONDS}",
-        "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=48000:duration={MEDIA_SECONDS}",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k",
-        "-shortest", "-movflags", "+faststart", str(target),
-    ], check=True)
+    with staged_output(target) as staged:
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "lavfi", "-i", f"color=c=0x1f2937:size=640x360:rate=24:duration={MEDIA_SECONDS}",
+            "-f", "lavfi", "-i", f"anullsrc=channel_layout=stereo:sample_rate=48000:duration={MEDIA_SECONDS}",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k",
+            "-shortest", "-movflags", "+faststart", str(staged),
+        ], check=True)
     return True
 
 
@@ -50,11 +63,12 @@ def audio_template(target):
     if target.is_file() and target.stat().st_size:
         return False
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
-        "-t", str(MEDIA_SECONDS), "-c:a", "flac", str(target),
-    ], check=True)
+    with staged_output(target) as staged:
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+            "-t", str(MEDIA_SECONDS), "-c:a", "flac", str(staged),
+        ], check=True)
     return True
 
 
@@ -64,10 +78,11 @@ def copy_video(template, target):
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         raise RuntimeError(f"Empty catalog file needs manual review: {target}")
-    try:
-        os.link(template, target)
-    except OSError:
-        shutil.copyfile(template, target)
+    with staged_output(target) as staged:
+        try:
+            os.link(template, staged)
+        except OSError:
+            shutil.copyfile(template, staged)
     return True
 
 
@@ -75,12 +90,13 @@ def tag_audio(template, target, tags):
     if target.is_file() and target.stat().st_size:
         return False
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-i", str(template), "-c:a", "copy",
-        *[option for name, value in tags.items() for option in ("-metadata", f"{name}={value}")],
-        str(target),
-    ], check=True)
+    with staged_output(target) as staged:
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-i", str(template), "-c:a", "copy",
+            *[option for name, value in tags.items() for option in ("-metadata", f"{name}={value}")],
+            str(staged),
+        ], check=True)
     return True
 
 

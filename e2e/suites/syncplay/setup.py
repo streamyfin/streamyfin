@@ -77,6 +77,35 @@ def refuse_foreign_container(name):
         )
 
 
+def refuse_foreign_project(project):
+    """Refuse to run compose against a project another checkout's compose.yml started.
+
+    The container-name guard alone is not enough: `compose -p <project> up/down` acts on
+    every container carrying the project label, so a free SYNCPLAY_CONTAINER name still
+    leaves foreign containers under this project to adopt or destroy.
+    """
+    listed = subprocess.run(
+        ["docker", "ps", "-aq", "--filter", f"label=com.docker.compose.project={project}"],
+        capture_output=True, text=True, check=True,
+    )
+    ids = listed.stdout.split()
+    if not ids:
+        return
+    inspected = subprocess.run(
+        ["docker", "inspect", *ids],
+        capture_output=True, text=True, check=True,
+    )
+    compose = str((ROOT / "compose.yml").resolve())
+    for container in json.loads(inspected.stdout):
+        labels = (container.get("Config") or {}).get("Labels") or {}
+        owner = labels.get("com.docker.compose.project.config_files")
+        if owner != compose:
+            raise RuntimeError(
+                f"Compose project {project!r} includes a container from {owner or 'another compose project'}, "
+                "not this checkout. Pass a unique SYNCPLAY_PROJECT."
+            )
+
+
 def wait_for_server():
     for _ in range(90):
         try:
@@ -117,12 +146,22 @@ def generate_media():
 def main():
     owned = identity()
     refuse_foreign_container(owned["SYNCPLAY_CONTAINER"])
+    refuse_foreign_project(owned["SYNCPLAY_PROJECT"])
     ENV_FILE.write_text("".join(f"{key}={value}\n" for key, value in owned.items()))
     generate_media()
     # Docker creates a missing bind source as root, which the seed then cannot write into on Linux.
-    for folder in ("config", "cache", "catalog/movies", "catalog/shows", "catalog/music"):
-        (STATE / folder).mkdir(parents=True, exist_ok=True)
-    subprocess.run(["docker", "compose", "-f", str(ROOT / "compose.yml"), "up", "-d"], check=True, env={**os.environ, **owned})
+    for folder in ("config", "config/plugins", "cache", "catalog/movies", "catalog/shows", "catalog/music"):
+        path = STATE / folder
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except PermissionError as error:
+            raise RuntimeError(f"Cannot create {path}; fix its parent's ownership or remove it first") from error
+        if not os.access(path, os.W_OK):
+            raise RuntimeError(f"{path} is not writable; fix its ownership or remove it first")
+    subprocess.run(
+        ["docker", "compose", "-p", owned["SYNCPLAY_PROJECT"], "-f", str(ROOT / "compose.yml"), "up", "-d"],
+        check=True, env={**os.environ, **owned},
+    )
     info = wait_for_server()
     if not info.get("StartupWizardCompleted"):
         api("/Startup/Configuration", "POST", {

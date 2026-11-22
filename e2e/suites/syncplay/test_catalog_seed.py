@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
@@ -124,6 +125,63 @@ class CatalogSeedTest(unittest.TestCase):
                 seed.seed(inventory_path=manifest)
                 self.assertEqual(len(commands), encoded)
                 self.assertEqual(len([c for c in calls if c == ("/Library/Refresh", "POST")]), 1)
+
+
+class AtomicOutputTest(unittest.TestCase):
+    """A failed write must leave nothing the next run would mistake for finished."""
+
+    def test_failed_ffmpeg_output_never_reaches_the_target(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template.flac"
+            template.write_bytes(b"silent template")
+            cases = {
+                "clip.mp4": catalog_seed.video_template,
+                "tone.flac": catalog_seed.audio_template,
+                "tagged.flac": lambda target: catalog_seed.tag_audio(template, target, {"title": "Track"}),
+            }
+            for name, function in cases.items():
+                target = root / "out" / name
+                with self.subTest(name=name):
+                    def failed(command, check):
+                        Path(command[-1]).write_bytes(b"partial output")
+                        raise subprocess.CalledProcessError(1, command)
+
+                    with mock.patch.object(catalog_seed.subprocess, "run", side_effect=failed):
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            function(target)
+                    self.assertFalse(target.exists())
+                    self.assertFalse([path for path in target.parent.iterdir() if path.is_dir()])
+
+                    def encoded(command, check):
+                        Path(command[-1]).write_bytes(b"finished output")
+
+                    with mock.patch.object(catalog_seed.subprocess, "run", side_effect=encoded):
+                        self.assertTrue(function(target))
+                    self.assertEqual(target.read_bytes(), b"finished output")
+
+    def test_a_failed_copy_leaves_no_file_and_the_retry_succeeds(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template.mp4"
+            template.write_bytes(b"template video")
+            target = root / "copy.mp4"
+
+            def partial_copy(source, destination):
+                Path(destination).write_bytes(b"partial copy")
+                raise OSError("simulated write failure")
+
+            with (
+                mock.patch.object(catalog_seed.os, "link", side_effect=OSError("no hard links")),
+                mock.patch.object(catalog_seed.shutil, "copyfile", side_effect=partial_copy),
+            ):
+                with self.assertRaises(OSError):
+                    catalog_seed.copy_video(template, target)
+            self.assertFalse(target.exists())
+            self.assertEqual([path.name for path in root.iterdir()], ["template.mp4"])
+
+            self.assertTrue(catalog_seed.copy_video(template, target))
+            self.assertEqual(target.read_bytes(), b"template video")
 
 
 if __name__ == "__main__":

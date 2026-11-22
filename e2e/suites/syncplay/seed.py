@@ -43,7 +43,7 @@ LIBRARIES = [
     },
     {
         "name": "Shows", "collectionType": "tvshows", "mount": "/catalog/shows",
-        "include": "Series,Episode", "options": library_options("/catalog/shows", ("Series", "Episode")),
+        "include": "Series,Episode", "options": library_options("/catalog/shows", ("Series", "Season", "Episode")),
         "expected": [
             {"Name": "Show", "Type": "Series"},
             {"Name": "Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
@@ -52,7 +52,7 @@ LIBRARIES = [
     },
     {
         "name": "Music", "collectionType": "music", "mount": "/catalog/music",
-        "include": "MusicArtist,MusicAlbum,Audio", "options": library_options("/catalog/music"),
+        "include": "MusicArtist,MusicAlbum,Audio", "options": library_options("/catalog/music", ("MusicArtist", "MusicAlbum", "Audio")),
         "expected": [
             {"Name": "Artist", "Type": "MusicArtist"},
             {"Name": "Album", "Type": "MusicAlbum"},
