@@ -74,7 +74,6 @@ if (Platform.isTV) {
   LogBox.ignoreLogs(["HoverGestureHandler is not supported on tvOS"]);
 }
 
-import * as Sentry from "@sentry/react-native";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import useRouter from "@/hooks/useAppRouter";
 import { useNativePlayerLogBridge } from "@/hooks/useNativePlayerLogBridge";
@@ -86,6 +85,7 @@ import { effectiveSettingsAtom, settingsAtom } from "@/utils/atoms/settings";
 import {
   applySentryConsent,
   initializeSentryIfConsented,
+  wrapRootIfSentryEnabled,
 } from "@/utils/sentry";
 import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
@@ -234,8 +234,9 @@ function RootLayout() {
   );
 }
 
-// Sentry.wrap is inert while the SDK is not initialized (crash reporting off).
-export default Sentry.wrap(RootLayout);
+// The profiler only mounts where a Sentry client can exist — an ordinary dev
+// build never initializes one, and wrap would only warn about it there.
+export default wrapRootIfSentryEnabled(RootLayout);
 
 // Render-phase crashes anywhere in the tree get a retry screen instead of a
 // blank app, and the error reaches Sentry with its component stack.

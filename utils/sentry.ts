@@ -400,6 +400,12 @@ export const initializeSentryIfConsented = () => {
   }
 };
 
+// Sentry's root profiler warns when it mounts without a client; ordinary dev
+// builds skip init.
+export const wrapRootIfSentryEnabled = (
+  component: Parameters<typeof Sentry.wrap>[0],
+) => (__DEV__ && !sentryDebugInDev ? component : Sentry.wrap(component));
+
 // Consent changes run strictly in sequence: Sentry.close() tears the native
 // SDK down asynchronously, and an init racing ahead of an in-flight close
 // (off-then-on double tap) would be shut down by it once it lands.
