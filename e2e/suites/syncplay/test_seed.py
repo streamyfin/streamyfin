@@ -14,6 +14,8 @@ class MovieSeedTest(unittest.TestCase):
     def test_seed_adds_a_browseable_movie_and_does_not_rescan_on_rerun(self):
         with TemporaryDirectory() as directory:
             state = Path(directory)
+            inventory_path = state / "inventory.json"
+            inventory_path.write_text(json.dumps({"movies": [], "shows": [], "episodes": [], "tracks": []}))
             (state / "credentials.json").write_text(json.dumps({
                 "url": setup.URL, "host": {"token": "stored-host-token", "userId": "host"},
             }))
@@ -67,7 +69,7 @@ class MovieSeedTest(unittest.TestCase):
                 mock.patch.object(setup, "api", side_effect=api),
                 mock.patch.object(seed.subprocess, "run", side_effect=ffmpeg),
             ):
-                seed.seed()
+                seed.seed(inventory_path=inventory_path)
                 nfo = state / "catalog/movies/Maestro Movie/movie.nfo"
                 self.assertIn("<title>Maestro Movie</title>", nfo.read_text())
                 show = state / "catalog/shows/Maestro Show"
@@ -86,12 +88,12 @@ class MovieSeedTest(unittest.TestCase):
                 self.assertEqual(len([c for c in calls if c[0] == "/Library/Refresh"]), 1)
                 self.assertEqual(len([c for c in calls if c[0].startswith("/Library/VirtualFolders?")]), 3)
                 command_count = len(commands)
-                seed.seed()
+                seed.seed(inventory_path=inventory_path)
                 self.assertEqual(len([c for c in calls if c[0] == "/Library/Refresh"]), 1)
                 self.assertEqual(len(commands), command_count)
                 self.assertEqual(len([c for c in calls if c[0].startswith("/Library/VirtualFolders?")]), 3)
                 items["movies"].clear()
-                seed.seed()
+                seed.seed(inventory_path=inventory_path)
                 self.assertEqual(len([c for c in calls if c[0] == "/Library/Refresh"]), 2)
 
     def test_setup_scopes_syncplay_credentials_to_the_original_library(self):

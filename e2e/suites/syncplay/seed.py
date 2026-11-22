@@ -17,7 +17,7 @@ import urllib.parse
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parents[1]))
 
-from suites.syncplay import setup  # noqa: E402
+from suites.syncplay import catalog_seed, setup  # noqa: E402
 
 MOVIE_TITLE = "Maestro Movie"
 MOVIE_NFO = "<movie><title>Maestro Movie</title><plot>Deterministic local Maestro fixture.</plot><year>2026</year></movie>\n"
@@ -147,10 +147,12 @@ def covered(items, expected):
     )
 
 
-def seed():
+def seed(inventory_path=ROOT / "inventory.json"):
     creds = credentials()
     token = creds["host"]["token"]
     items_query = f"/Users/{creds['host']['userId']}/Items?"
+    inventory = json.loads(inventory_path.read_text())
+    catalog_expected = catalog_seed.expected_items(inventory)
 
     folders = setup.api("/Library/VirtualFolders", token=token)
     specs = {spec["name"]: spec for spec in LIBRARIES}
@@ -174,6 +176,7 @@ def seed():
                     raise RuntimeError(f"{location} is already claimed by library {name!r}")
 
     changed = catalog_files()
+    changed = catalog_seed.generate(setup.STATE / "catalog", inventory) or changed
 
     for spec in LIBRARIES:
         if spec["name"] in library_ids:
@@ -194,8 +197,12 @@ def seed():
                 f"{items_query}ParentId={library_ids[spec['name']]}&Recursive=true&IncludeItemTypes={spec['include']}",
                 token=token,
             )
-            if not covered(result["Items"], spec["expected"]):
-                pending[spec["name"]] = result["Items"]
+            expected = [*spec["expected"], *catalog_expected[spec["name"]]]
+            if not covered(result["Items"], expected):
+                pending[spec["name"]] = {
+                    "expected": len(expected), "observed": len(result["Items"]),
+                    "sample": [item.get("Name") for item in result["Items"][:5]],
+                }
         return pending
 
     if changed or unready():
