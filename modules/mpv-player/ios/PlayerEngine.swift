@@ -120,6 +120,12 @@ final class MPVPlayerEngine: NSObject {
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleDidBecomeActive),
 			name: UIApplication.didBecomeActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleWillResignActive),
+			name: UIApplication.willResignActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleProtectedDataDidBecomeAvailable),
+			name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
 		#endif
 
 		// tvOS has no windowed/minimized state: leaving the app backgrounds it
@@ -137,8 +143,23 @@ final class MPVPlayerEngine: NSObject {
 
 	#if os(iOS)
 	@objc private func handleDidBecomeActive() {
-		guard !isShutDown, !isPictureInPictureActive() else { return }
-		renderer?.restoreSubtitlesAfterForeground()
+		guard !isShutDown else { return }
+		renderer?.retryVideoToolboxAfterWake(.foreground)
+		if !isPictureInPictureActive() {
+			renderer?.restoreSubtitlesAfterForeground()
+		}
+	}
+
+	@objc private func handleWillResignActive() {
+		renderer?.cancelVideoToolboxWakeRetry()
+	}
+
+	@objc private func handleProtectedDataDidBecomeAvailable() {
+		// Unlock can leave the app in the background with PiP still visible.
+		guard !isShutDown, isPictureInPictureActive(),
+		      UIApplication.shared.applicationState != .active
+		else { return }
+		renderer?.retryVideoToolboxAfterWake(.pictureInPicture)
 	}
 	#endif
 

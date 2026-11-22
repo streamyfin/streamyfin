@@ -135,6 +135,11 @@ final class MPVLayerRenderer {
     /// `queue`, by the mpv event handlers (see `updateDeinterlace`).
     private var isDeinterlaceFilterOn = false
 
+    #if os(iOS)
+    /// Mutated only on the mpv queue.
+    private var videoToolboxRecovery = VideoToolboxRecovery()
+    #endif
+
     weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
@@ -337,6 +342,42 @@ final class MPVLayerRenderer {
     }
 
     #if os(iOS)
+    func retryVideoToolboxAfterWake(_ context: VideoToolboxRecovery.Wake) {
+        queue.async { [weak self] in
+            guard let self, !self.isStopping, !self.isLoadPending, let handle = self.mpv else { return }
+            self.videoToolboxRecovery.wake(context, at: ProcessInfo.processInfo.systemUptime)
+            self.refreshVideoToolboxRecovery(handle)
+        }
+    }
+
+    func cancelVideoToolboxWakeRetry() {
+        queue.async { [weak self] in self?.videoToolboxRecovery.cancelWake() }
+    }
+
+    private func refreshVideoToolboxRecovery(_ handle: OpaquePointer) {
+        guard !isStopping, !isLoadPending else { return }
+        let active = getStringProperty(handle: handle, name: "hwdec-current")
+        videoToolboxRecovery.observe(active: active)
+        guard active == "no" else { return }
+
+        // Changing hwdec makes mpv seek back from the current position to give
+        // the new decoder the reference frames it needs.
+        var seekable: Int32 = 0
+        guard getProperty(handle: handle, name: "seekable", format: MPV_FORMAT_FLAG, value: &seekable) >= 0,
+              seekable != 0,
+              let requested = getStringProperty(handle: handle, name: "hwdec"),
+              videoToolboxRecovery.shouldRetry(
+                requested: requested, active: active, at: ProcessInfo.processInfo.systemUptime
+              )
+        else { return }
+
+        Logger.shared.log("VideoToolbox: retrying after iOS playback resumed", type: "Info")
+        // mpv's fallback leaves the requested hwdec unchanged. Toggle it so
+        // mpv reinitializes the decoder, with software fallback still enabled.
+        commandSync(handle, ["set", "hwdec", "no"])
+        commandSync(handle, ["set", "hwdec", requested])
+    }
+
     /// SpringBoard can leave mpv's OSD stale even when video resumes.
     func restoreSubtitlesAfterForeground() {
         guard isRunning, !isStopping, let expectedHandle = mpv else { return }
@@ -927,6 +968,9 @@ final class MPVLayerRenderer {
             ("demuxer-cache-duration", MPV_FORMAT_DOUBLE),
             ("current-ao", MPV_FORMAT_STRING)
         ]
+        #if os(iOS)
+        mpv_observe_property(handle, 0, "hwdec-current", MPV_FORMAT_STRING)
+        #endif
         for (name, format) in properties {
             mpv_observe_property(handle, 0, name, format)
         }
@@ -1020,6 +1064,7 @@ final class MPVLayerRenderer {
             #endif
         case MPV_EVENT_START_FILE:
             #if os(iOS)
+            videoToolboxRecovery = VideoToolboxRecovery()
             // Here and not in load(): the file being replaced still reconfigures
             // on its way out, with its own height, and would put the filter back.
             if let handle = mpv {
@@ -1117,6 +1162,11 @@ final class MPVLayerRenderer {
             // The decoder in use may not be known yet at the first reconfigure.
             // Safe to repeat: it only acts when the plan differs from what mpv runs.
             updateDeinterlace()
+            // Successive files can report the same hwdec-current without a
+            // property change. Sample the active decoder for each new file.
+            if let handle = mpv {
+                refreshVideoToolboxRecovery(handle)
+            }
             #endif
             let generation = activeLoadGeneration
             DispatchQueue.main.async { [weak self] in
@@ -1184,6 +1234,10 @@ final class MPVLayerRenderer {
     private func refreshProperty(named name: String, event: mpv_event) {
         guard let handle = mpv else { return }
         switch name {
+        #if os(iOS)
+        case "hwdec-current":
+            refreshVideoToolboxRecovery(handle)
+        #endif
         case "duration":
             guard !isLoadPending else {
                 skippedReplacedFileUpdates += 1
