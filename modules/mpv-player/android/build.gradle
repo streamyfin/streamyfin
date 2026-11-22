@@ -39,7 +39,7 @@ android {
 
 dependencies {
   // libmpv from Maven Central
-  implementation 'dev.jdtech.mpv:libmpv:1.0.0'
+  implementation 'dev.jdtech.mpv:libmpv:1.1.0'
 
   // Jetpack Compose dependencies matching @expo/ui
   implementation 'androidx.compose.foundation:foundation-android:1.12.1'
