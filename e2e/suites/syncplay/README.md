@@ -68,6 +68,29 @@ SYNCPLAY_PORT=18117 bun run e2e:seed
 Rerun `setup.py` if credentials become stale: it refreshes distinct host and guest
 sessions, and seeding reuses the stored host token without logging either one out.
 
+### Optional artwork and Streamyfin plugin
+
+The offline seed never downloads media or artwork. To opt in to online metadata
+and posters for the local Maestro catalog, run:
+
+```sh
+SYNCPLAY_PORT=18117 bun run e2e:enrich --limit 10
+SYNCPLAY_PORT=18117 bun run e2e:enrich
+```
+
+The first invocation is a small trial batch; omit `--limit` to request missing
+artwork and descriptions for the whole catalog. This step installs the pinned
+Streamyfin Jellyfin plugin on this worktree's container if missing, restarts
+only that container, enables available image and metadata fetchers on the
+three Maestro libraries, and refreshes incomplete items without replacing
+existing images or metadata. The SyncPlay Fixtures library remains offline.
+Jellyfin may take time to finish fetching; rerunning the command retries items
+that still lack artwork or a movie/series overview. The command reports queued
+requests, not a promise that every third-party provider has an image.
+Fetched posters may have copyright separate from the underlying film; keep
+Jellyfin's downloaded artwork in ignored `.state/`, not in the repository.
+This command requires internet access; `setup.py` and `e2e:seed` do not.
+
 ## Controller against a live server
 
 ```sh
