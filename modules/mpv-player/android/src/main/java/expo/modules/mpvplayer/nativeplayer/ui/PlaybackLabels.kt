@@ -14,6 +14,10 @@ private fun trimmedDecimal(value: Double): String =
 /** A playback rate, for the speed menus and the hold pill: "0.25×", "1×", "1.5×", "2×". */
 internal fun speedLabel(rate: Double): String = trimmedDecimal(rate) + "×"
 
+/** A sleep timer preset: "45 min", "1 h", "1.5 h". */
+internal fun sleepTimerLabel(minutes: Int): String =
+    if (minutes < 60) "$minutes min" else trimmedDecimal(minutes / 60.0) + " h"
+
 /** A sync offset, signed as on iOS: "-5 s", "0 s", "+0.25 s". */
 internal fun syncOffsetLabel(seconds: Double): String =
     if (seconds == 0.0) "0 s" else (if (seconds > 0) "+" else "") + trimmedDecimal(seconds) + " s"
