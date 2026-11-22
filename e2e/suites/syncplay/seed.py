@@ -74,6 +74,10 @@ def credentials():
     creds = json.loads(path.read_text())
     if creds.get("url") != setup.URL:
         raise RuntimeError(f"{path} targets {creds.get('url')!r}, not {setup.URL}; rerun setup.py")
+    host = creds.get("host", {})
+    if not host.get("token") or not host.get("userId"):
+        raise RuntimeError(f"{path} lacks a stored host token and userId; rerun setup.py")
+    return creds
 
 
 def write_nfo(path, text):
@@ -144,10 +148,9 @@ def covered(items, expected):
 
 
 def seed():
-    credentials()
-    host = setup.api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-host", "Pw": setup.PASSWORD})
-    token = host["AccessToken"]
-    items_query = f"/Users/{host['User']['Id']}/Items?"
+    creds = credentials()
+    token = creds["host"]["token"]
+    items_query = f"/Users/{creds['host']['userId']}/Items?"
 
     folders = setup.api("/Library/VirtualFolders", token=token)
     specs = {spec["name"]: spec for spec in LIBRARIES}

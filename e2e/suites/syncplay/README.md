@@ -27,6 +27,43 @@ Two ways to run it:
 Prerequisites for the throwaway server: Docker Desktop, Python 3, FFmpeg with H.264 and AAC
 encoders, Bun.
 
+## Opt-in Maestro catalog
+
+Run the throwaway server setup, then seed the same server with deterministic media:
+
+```sh
+python3 e2e/suites/syncplay/setup.py
+bun run e2e:seed
+```
+
+The seed creates separate `Maestro Movies`, `Maestro Shows` and `Maestro Music` libraries:
+one 20-second movie, a two-episode series, and a two-track album. Video and audio are
+generated locally with FFmpeg, without a metadata-provider or network dependency. The
+libraries' files live under `e2e/suites/syncplay/.state/catalog/` and are mounted
+read-only; the three original SyncPlay clips remain in `SyncPlay Fixtures`. The command
+waits for Jellyfin to expose the catalog, then prints the server URL and library names.
+Rerunning it reuses existing media and libraries without rescanning unless an expected
+item is missing. This is opt-in and does not change the CI smoke flow.
+
+Use `syncplay-host` or `syncplay-guest` with password `SyncPlay-local-2026` in Maestro.
+For an Android emulator, first run `adb reverse tcp:18096 tcp:18096` and enter
+`http://127.0.0.1:18096` as the server URL. The app's movie, series, episode, artist,
+album and track screens now have stable labels for Maestro assertions. `SYNCPLAY_PORT`
+can override 18096 for both setup and seed. No reset/delete command is provided: the
+catalog and its Jellyfin state remain in the ignored `.state/` directory until the
+developer explicitly removes them.
+
+If another checkout already owns the default Docker Compose container, use unique names
+when starting setup; pass the same port to seeding:
+
+```sh
+SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin SYNCPLAY_PORT=18117 python3 e2e/suites/syncplay/setup.py
+SYNCPLAY_PORT=18117 bun run e2e:seed
+```
+
+Rerun `setup.py` if credentials become stale: it refreshes distinct host and guest
+sessions, and seeding reuses the stored host token without logging either one out.
+
 ## Controller against a live server
 
 ```sh

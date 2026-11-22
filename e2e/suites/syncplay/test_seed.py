@@ -14,7 +14,9 @@ class MovieSeedTest(unittest.TestCase):
     def test_seed_adds_a_browseable_movie_and_does_not_rescan_on_rerun(self):
         with TemporaryDirectory() as directory:
             state = Path(directory)
-            (state / "credentials.json").write_text(json.dumps({"url": setup.URL}))
+            (state / "credentials.json").write_text(json.dumps({
+                "url": setup.URL, "host": {"token": "stored-host-token", "userId": "host"},
+            }))
             calls = []
             folders = []
             items = {"movies": [], "shows": [], "music": []}
@@ -22,7 +24,7 @@ class MovieSeedTest(unittest.TestCase):
             def api(path, method="GET", data=None, token=None):
                 calls.append((path, method, data))
                 if path == "/Users/AuthenticateByName":
-                    return {"AccessToken": "local", "User": {"Id": "host"}}
+                    raise AssertionError("seeding must not replace the observer's stored host token")
                 if path == "/Library/VirtualFolders":
                     return folders
                 if path.startswith("/Library/VirtualFolders?"):
@@ -96,12 +98,14 @@ class MovieSeedTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             state = Path(directory)
             calls = []
+            auth_devices = []
 
-            def api(path, method="GET", data=None, token=None):
+            def api(path, method="GET", data=None, token=None, device_id=None):
                 calls.append(path)
                 if path == "/System/Info/Public":
                     return {"StartupWizardCompleted": True, "Version": "10.11.11"}
                 if path == "/Users/AuthenticateByName":
+                    auth_devices.append(device_id)
                     return {"AccessToken": "local", "User": {"Id": "host", "Name": "syncplay-host"}}
                 if path == "/Users":
                     return [{"Id": "guest", "Name": "syncplay-guest"}]
@@ -127,6 +131,7 @@ class MovieSeedTest(unittest.TestCase):
             item_paths = [path for path in calls if path.startswith("/Users/host/Items?")]
             self.assertEqual(len(item_paths), 1)
             self.assertIn("ParentId=fixture", item_paths[0])
+            self.assertEqual(auth_devices, [None, "syncplay-guest-setup"])
 
 
 if __name__ == "__main__":

@@ -16,8 +16,11 @@ PASSWORD = "SyncPlay-local-2026"
 AUTH = 'MediaBrowser Client="SyncPlay E2E setup", Device="Local", DeviceId="syncplay-setup", Version="1.0"'
 
 
-def api(path, method="GET", data=None, token=None):
-    headers = {"Authorization": AUTH, "Content-Type": "application/json"}
+def api(path, method="GET", data=None, token=None, device_id=None):
+    headers = {
+        "Authorization": AUTH if device_id is None else AUTH.replace('DeviceId="syncplay-setup"', f'DeviceId="{device_id}"'),
+        "Content-Type": "application/json",
+    }
     if token:
         headers["X-Emby-Token"] = token
     body = json.dumps(data).encode() if data is not None else None
@@ -117,7 +120,7 @@ def main():
         time.sleep(2)
     if len(items) != 3 or {item.get("Name") for item in items} != clip_names:
         raise RuntimeError(f"Expected the three SyncPlay clips in 'SyncPlay Fixtures', got {[item.get('Name') for item in items]}")
-    guest_auth = api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-guest", "Pw": PASSWORD})
+    guest_auth = api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-guest", "Pw": PASSWORD}, device_id="syncplay-guest-setup")
     credentials = {
         "url": URL, "serverVersion": info["Version"], "password": PASSWORD,
         "host": {"name": "syncplay-host", "userId": host["User"]["Id"], "token": token},

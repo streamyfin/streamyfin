@@ -1,8 +1,9 @@
-name: streamyfin-syncplay-e2e
+# Override both names for a second worktree so setup never adopts another checkout's container.
+name: ${SYNCPLAY_PROJECT:-streamyfin-syncplay-e2e}
 services:
   jellyfin:
     image: jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
-    container_name: streamyfin-syncplay-e2e-jellyfin
+    container_name: ${SYNCPLAY_CONTAINER:-streamyfin-syncplay-e2e-jellyfin}
     ports:
       - "${SYNCPLAY_BIND:-127.0.0.1}:${SYNCPLAY_PORT:-18096}:8096"
     volumes:
