@@ -26,6 +26,7 @@
     "test:unit": "jest",
     "test:coverage": "jest --coverage",
     "e2e:smoke": "python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/smoke-launch.yml",
+    "e2e:setup": "python3 e2e/suites/syncplay/setup.py",
     "e2e:seed": "python3 e2e/suites/syncplay/seed.py",
     "e2e:enrich": "python3 e2e/suites/syncplay/enrich.py",
     "e2e:down": "python3 e2e/suites/syncplay/teardown.py",

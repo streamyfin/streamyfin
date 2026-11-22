@@ -1,8 +1,4 @@
-"""Turn the fixed demo inventory into local ten-second playback placeholders.
-
-The titles and relationships come from inventory.json; no media is copied from
-the demo server. See CATALOG.md for the inventory's provenance and limits.
-"""
+"""Generate ten-second playback placeholders from the catalog inventory."""
 
 import os
 from pathlib import Path

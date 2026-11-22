@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in online artwork/metadata refresh for the local Maestro catalog.
+"""Opt-in online artwork/metadata refresh for the local catalog.
 
 The offline seed intentionally disables remote fetchers. Discover available
 providers on this Jellyfin build rather than hardcoding their display names.

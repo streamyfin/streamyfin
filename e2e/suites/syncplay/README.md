@@ -17,7 +17,7 @@ Two ways to run it:
   client out and deletes that account, and reports as a failure whatever it could not clean
   up. `syncplay-host` must be an administrator: creating and deleting that restricted account
   needs it, and the harness checks the permission before any step runs.
-- **Throwaway server (CI and destructive rounds).** `python3 e2e/suites/syncplay/setup.py`
+- **Throwaway server (CI and destructive rounds).** `bun run e2e:setup`
   starts the official `jellyfin/jellyfin:10.11.11` image on the host loopback only, finishes
   onboarding, creates two SyncPlay enabled users and scans three generated two minute clips.
   Users `syncplay-host` and `syncplay-guest`, password `SyncPlay-local-2026`; tokens and
@@ -27,22 +27,21 @@ Two ways to run it:
 Prerequisites for the throwaway server: Docker Desktop, Python 3.10+, FFmpeg with H.264 and AAC
 encoders, Bun.
 
-## Opt-in Maestro catalog
+## Opt-in catalog
 
 Run the throwaway server setup, then seed the same server with deterministic media:
 
 ```sh
-python3 e2e/suites/syncplay/setup.py
+bun run e2e:setup
 bun run e2e:seed
 ```
 
-The seed adds a small subset checked against the demo server: 20 movies,
-four series with 12 episodes, and 15 tracks in five albums by five artists, plus one
-`Maestro` movie, show with two episodes, and album with two tracks that it always creates.
+The seed adds 20 movies, four series with 12 episodes, and 15 tracks in five
+albums by five artists, plus one `Maestro` movie, show with two episodes, and
+album with two tracks that it always creates.
 Each new movie and episode is a generated 10-second black/silent video; each new track is
 10 seconds of silence. Titles, years, provider IDs, episode numbers and audio
-tags come from the committed inventory, not from copied media. See [CATALOG.md](CATALOG.md)
-for provenance and the limits of its public-domain claims. The three original
+tags come from the committed inventory, not from copied media. The three original
 SyncPlay clips stay in `SyncPlay Fixtures`. The seed does not fetch original films, audio,
 posters or descriptions, or contact metadata providers.
 Its generated files live in `e2e/suites/syncplay/.state/catalog/` and are mounted
@@ -63,7 +62,7 @@ start when a container with that name was started by another checkout. In a seco
 worktree, give it its own names the first time:
 
 ```sh
-SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin SYNCPLAY_PORT=18117 python3 e2e/suites/syncplay/setup.py
+SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin SYNCPLAY_PORT=18117 bun run e2e:setup
 bun run e2e:seed
 ```
 
@@ -87,7 +86,7 @@ An `--env KEY=VALUE` on the same command overrides any of them.
 ### Optional artwork and Streamyfin plugin
 
 The offline seed never downloads media or artwork. To opt in to online metadata
-and posters for the local Maestro catalog, run:
+and posters for the local catalog, run:
 
 ```sh
 bun run e2e:enrich --limit 10

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed opt-in 'Maestro' catalogs on the throwaway SyncPlay server.
+"""Seed the opt-in catalog on the throwaway SyncPlay server.
 
 setup.py keeps owning the SyncPlay fixture library; this adds movies, shows and
 music libraries over .state/catalog (mounted read-only under /catalog) so Maestro
