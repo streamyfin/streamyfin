@@ -31,7 +31,8 @@ server log, the session the server records, the receiver on the TV.
   data. In CI on pull requests that touch cast code, the bench (`e2e/**`) or the screen the
   smoke flow drives, and on demand (`.github/workflows/e2e-tier1-android.yml`). For local
   browsing flows, seed the optional throwaway catalog with `bun run e2e:seed` after the
-  SyncPlay server setup (see `suites/syncplay/README.md`).
+  SyncPlay server setup (see `suites/syncplay/README.md`), pass `--syncplay` to the bench to hand
+  the flow its sign-in, and remove it with `bun run e2e:down`.
 - **Tier 2, real devices.** Driven from a developer machine against the test server:
   Chromecast, Google TV, Apple TV, phones and tablets. The Python sender talks to the
   Jellyfin receiver directly, so the receiver and the server can be tested without the

@@ -24,7 +24,7 @@ Two ways to run it:
   media ids in `.state/credentials.json`; generated media, config and cache in `.state/`.
   Without `E2E_BENCH_CONFIG` the harness refuses any host but `127.0.0.1`.
 
-Prerequisites for the throwaway server: Docker Desktop, Python 3, FFmpeg with H.264 and AAC
+Prerequisites for the throwaway server: Docker Desktop, Python 3.10+, FFmpeg with H.264 and AAC
 encoders, Bun.
 
 ## Opt-in Maestro catalog
@@ -37,14 +37,14 @@ bun run e2e:seed
 ```
 
 The seed adds a small subset checked against the demo server: 20 movies,
-four series with 12 episodes, and 15 tracks in five albums by five artists. Each new
-movie and episode is a generated 10-second black/silent video; each new track is
+four series with 12 episodes, and 15 tracks in five albums by five artists, plus one
+`Maestro` movie, show with two episodes, and album with two tracks that it always creates.
+Each new movie and episode is a generated 10-second black/silent video; each new track is
 10 seconds of silence. Titles, years, provider IDs, episode numbers and audio
 tags come from the committed inventory, not from copied media. See [CATALOG.md](CATALOG.md)
 for provenance and the limits of its public-domain claims. The three original
-SyncPlay clips stay in `SyncPlay Fixtures`; the older `Maestro` placeholders
-are left as-is. The seed does not fetch original films, audio, posters or
-descriptions, or contact metadata providers.
+SyncPlay clips stay in `SyncPlay Fixtures`. The seed does not fetch original films, audio,
+posters or descriptions, or contact metadata providers.
 Its generated files live in `e2e/suites/syncplay/.state/catalog/` and are mounted
 read-only. First-time generation and scanning can take a few minutes. The command
 waits for Jellyfin to expose the expected items, then prints its URL and library
@@ -52,21 +52,37 @@ names. Rerunning it does not rewrite media or rescan unless an expected item is
 missing. This is opt-in and does not change the CI smoke flow.
 
 Use `syncplay-host` or `syncplay-guest` with password `SyncPlay-local-2026` in
-Maestro. For an Android emulator, first run `adb reverse tcp:18096 tcp:18096`
-and enter `http://127.0.0.1:18096` as the server URL. `SYNCPLAY_PORT` can override
-18096 for both setup and seed. No reset/delete command is provided: catalog
-files and Jellyfin state remain in ignored `.state/` until explicitly removed.
+Maestro. The default port is 18096.
 
-If another checkout already owns the default Docker Compose container, use unique names
-when starting setup; pass the same port to seeding:
+### Several checkouts side by side
+
+`setup.py` records this checkout's compose project, container name and port in
+`e2e/suites/syncplay/.env` (ignored). Every later command, `seed`, `enrich`, `e2e:down`
+and `docker compose`, reads it, so the variables are typed once. `setup.py` refuses to
+start when a container with that name was started by another checkout. In a second
+worktree, give it its own names the first time:
 
 ```sh
 SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin SYNCPLAY_PORT=18117 python3 e2e/suites/syncplay/setup.py
-SYNCPLAY_PORT=18117 bun run e2e:seed
+bun run e2e:seed
 ```
 
-Rerun `setup.py` if credentials become stale: it refreshes distinct host and guest
-sessions, and seeding reuses the stored host token without logging either one out.
+A variable that disagrees with `.env` is refused. Rerun `setup.py` if credentials become
+stale: it refreshes distinct host and guest sessions, and seeding reuses the stored host
+token without logging either one out.
+
+### Running a Maestro flow against it
+
+```sh
+python3 e2e/bench/maestro.py --flow <flow> --syncplay
+```
+
+`--syncplay` passes these variables to the flow, read from `.state/credentials.json`, so
+a flow never hardcodes the port: `SERVER_URL` (`http://127.0.0.1:<port>`),
+`ANDROID_SERVER_URL` (`http://10.0.2.2:<port>`), `USERNAME` (`syncplay-host`),
+`GUEST_USERNAME` and `PASSWORD`. An iOS simulator uses `SERVER_URL`. An Android emulator
+uses `ANDROID_SERVER_URL`, or `SERVER_URL` after `adb reverse tcp:<port> tcp:<port>`.
+An `--env KEY=VALUE` on the same command overrides any of them.
 
 ### Optional artwork and Streamyfin plugin
 
@@ -74,8 +90,8 @@ The offline seed never downloads media or artwork. To opt in to online metadata
 and posters for the local Maestro catalog, run:
 
 ```sh
-SYNCPLAY_PORT=18117 bun run e2e:enrich --limit 10
-SYNCPLAY_PORT=18117 bun run e2e:enrich
+bun run e2e:enrich --limit 10
+bun run e2e:enrich
 ```
 
 The first invocation is a small trial batch; omit `--limit` to request missing
@@ -107,8 +123,8 @@ stale commands. The result lands in `artifacts/controller-integration.json`, wit
 
 Simulated decoders say nothing about the native players. For those, sign in to the app as
 `syncplay-guest` and to Jellyfin Web on the same server as `syncplay-host`, and put both in
-one group. An Android emulator reaches a throwaway server through
-`adb reverse tcp:18096 tcp:18096`.
+one group. An Android emulator reaches a throwaway server at
+`http://10.0.2.2:<port>`, or through `adb reverse tcp:<port> tcp:<port>`.
 
 SyncPlay always presents the native Swift or Compose player, whatever the solo player
 preference is. After a change under `modules/`, rebuild the app: a Metro reload cannot add
@@ -141,7 +157,10 @@ state handlers.
 ## Teardown of the throwaway server
 
 ```sh
-docker compose -f e2e/suites/syncplay/compose.yml down
+bun run e2e:down
 ```
 
-Delete `e2e/suites/syncplay/.state/` to reset onboarding and media.
+Stops and removes this checkout's container and network, then deletes `.state/`,
+`artifacts/` and `.env`, so the next `setup.py` starts from onboarding. It refuses a
+container that another checkout started. On Linux, Docker may have written root-owned
+files into `.state/config`; remove those with `sudo` if the command reports a permission error.

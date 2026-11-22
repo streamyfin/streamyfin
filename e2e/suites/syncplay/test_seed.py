@@ -124,6 +124,7 @@ class MovieSeedTest(unittest.TestCase):
 
             with (
                 mock.patch.object(setup, "STATE", state),
+                mock.patch.object(setup, "ENV_FILE", state / ".env"),
                 mock.patch.object(setup, "generate_media"),
                 mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
                 mock.patch.object(setup, "api", side_effect=api),
@@ -134,6 +135,9 @@ class MovieSeedTest(unittest.TestCase):
             self.assertEqual(len(item_paths), 1)
             self.assertIn("ParentId=fixture", item_paths[0])
             self.assertEqual(auth_devices, [None, "syncplay-guest-setup"])
+            self.assertIn("SYNCPLAY_PORT=", (state / ".env").read_text())
+            for folder in ("catalog/movies", "catalog/shows", "catalog/music"):
+                self.assertTrue((state / folder).is_dir())
 
 
 if __name__ == "__main__":

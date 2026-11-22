@@ -11,7 +11,21 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parent
 STATE = ROOT / ".state"
-URL = f"http://127.0.0.1:{os.environ.get('SYNCPLAY_PORT', '18096')}"
+ENV_FILE = ROOT / ".env"
+IDENTITY = {
+    "SYNCPLAY_PROJECT": "streamyfin-syncplay-e2e",
+    "SYNCPLAY_CONTAINER": "streamyfin-syncplay-e2e-jellyfin",
+    "SYNCPLAY_PORT": "18096",
+}
+
+
+def saved_identity():
+    if not ENV_FILE.is_file():
+        return {}
+    return dict(line.split("=", 1) for line in ENV_FILE.read_text().splitlines() if "=" in line)
+
+
+URL = f"http://127.0.0.1:{os.environ.get('SYNCPLAY_PORT') or saved_identity().get('SYNCPLAY_PORT') or IDENTITY['SYNCPLAY_PORT']}"
 PASSWORD = "SyncPlay-local-2026"
 AUTH = 'MediaBrowser Client="SyncPlay E2E setup", Device="Local", DeviceId="syncplay-setup", Version="1.0"'
 
@@ -28,6 +42,39 @@ def api(path, method="GET", data=None, token=None, device_id=None):
     with urllib.request.urlopen(request, timeout=30) as response:
         result = response.read()
         return json.loads(result) if result else None
+
+
+def identity():
+    """The compose project, container and port this checkout owns.
+
+    .env (next to compose.yml, so compose reads it too) persists them from the first
+    setup, so later commands never need the variables retyped. An explicit variable
+    that disagrees with .env is refused: it would target another instance.
+    """
+    saved = saved_identity()
+    resolved = {}
+    for key, default in IDENTITY.items():
+        explicit = os.environ.get(key)
+        if explicit and saved.get(key) and explicit != saved[key]:
+            raise RuntimeError(f"{key}={explicit} conflicts with {saved[key]} in {ENV_FILE}; run e2e:down first, or unset it")
+        resolved[key] = explicit or saved.get(key) or default
+    return resolved
+
+
+def refuse_foreign_container(name):
+    """Never recreate or remove a container that another checkout's compose.yml started."""
+    inspected = subprocess.run(
+        ["docker", "container", "inspect", name, "--format", '{{ index .Config.Labels "com.docker.compose.project.config_files" }}'],
+        capture_output=True, text=True,
+    )
+    if inspected.returncode != 0:
+        return
+    owner = inspected.stdout.strip()
+    if owner != str((ROOT / "compose.yml").resolve()):
+        raise RuntimeError(
+            f"Container {name!r} belongs to {owner or 'another compose project'}, not this checkout. "
+            "Pass unique SYNCPLAY_PROJECT, SYNCPLAY_CONTAINER and SYNCPLAY_PORT."
+        )
 
 
 def wait_for_server():
@@ -68,10 +115,14 @@ def generate_media():
 
 
 def main():
+    owned = identity()
+    refuse_foreign_container(owned["SYNCPLAY_CONTAINER"])
+    ENV_FILE.write_text("".join(f"{key}={value}\n" for key, value in owned.items()))
     generate_media()
-    (STATE / "config").mkdir(exist_ok=True)
-    (STATE / "cache").mkdir(exist_ok=True)
-    subprocess.run(["docker", "compose", "-f", str(ROOT / "compose.yml"), "up", "-d"], check=True)
+    # Docker creates a missing bind source as root, which the seed then cannot write into on Linux.
+    for folder in ("config", "cache", "catalog/movies", "catalog/shows", "catalog/music"):
+        (STATE / folder).mkdir(parents=True, exist_ok=True)
+    subprocess.run(["docker", "compose", "-f", str(ROOT / "compose.yml"), "up", "-d"], check=True, env={**os.environ, **owned})
     info = wait_for_server()
     if not info.get("StartupWizardCompleted"):
         api("/Startup/Configuration", "POST", {
