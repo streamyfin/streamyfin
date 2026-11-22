@@ -36,15 +36,15 @@ python3 e2e/suites/syncplay/setup.py
 bun run e2e:seed
 ```
 
-The seed adds the fixed inventory checked against the demo server: 296 movies,
-14 series with 230 episodes, and 94 tracks in 20 albums by 14 artists. Each new
+The seed adds a small subset checked against the demo server: 20 movies,
+four series with 12 episodes, and 15 tracks in five albums by five artists. Each new
 movie and episode is a generated 10-second black/silent video; each new track is
 10 seconds of silence. Titles, years, provider IDs, episode numbers and audio
 tags come from the committed inventory, not from copied media. See [CATALOG.md](CATALOG.md)
 for provenance and the limits of its public-domain claims. The three original
 SyncPlay clips stay in `SyncPlay Fixtures`; the older `Maestro` placeholders
-are left as-is. The seed does not fetch
-original films, audio, posters or descriptions, or contact metadata providers.
+are left as-is. The seed does not fetch original films, audio, posters or
+descriptions, or contact metadata providers.
 Its generated files live in `e2e/suites/syncplay/.state/catalog/` and are mounted
 read-only. First-time generation and scanning can take a few minutes. The command
 waits for Jellyfin to expose the expected items, then prints its URL and library

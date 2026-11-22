@@ -1,4 +1,4 @@
-"""Pin the demo server's catalog shape before generating local placeholder media."""
+"""Keep the demo-derived fixture small enough for a few browsing screens."""
 
 import json
 from collections import Counter
@@ -9,13 +9,13 @@ INVENTORY = Path(__file__).with_name("inventory.json")
 
 
 class DemoInventoryTest(unittest.TestCase):
-    def test_demo_catalog_has_the_observed_titles_and_relationships(self):
+    def test_compact_catalog_keeps_browsing_depth_and_relationships(self):
         inventory = json.loads(INVENTORY.read_text())
         self.assertEqual({kind: len(inventory[kind]) for kind in ("movies", "shows", "episodes", "tracks")}, {
-            "movies": 296, "shows": 14, "episodes": 230, "tracks": 94,
+            "movies": 20, "shows": 4, "episodes": 12, "tracks": 15,
         })
-        self.assertEqual(len({track["albumKey"] for track in inventory["tracks"]}), 20)
-        self.assertEqual(len({track["artistKey"] for track in inventory["tracks"]}), 14)
+        self.assertEqual(len({track["albumKey"] for track in inventory["tracks"]}), 5)
+        self.assertEqual(len({track["artistKey"] for track in inventory["tracks"]}), 5)
         self.assertIn("The General", {movie["title"] for movie in inventory["movies"]})
         self.assertIn("Lights Out", {show["title"] for show in inventory["shows"]})
         self.assertIn("Maple Leaf Rag", {track["title"] for track in inventory["tracks"]})
@@ -25,18 +25,18 @@ class DemoInventoryTest(unittest.TestCase):
         self.assertEqual(len({
             (episode["showKey"], episode["season"], episode["episode"])
             for episode in inventory["episodes"]
-        }), 230)
+        }), 12)
         self.assertEqual(len({
             (track["albumKey"], track["track"]) for track in inventory["tracks"]
-        }), 94)
+        }), 15)
         self.assertEqual(len({
             entry["key"]
             for kind in ("movies", "shows", "episodes", "tracks")
             for entry in inventory[kind]
-        }), 296 + 14 + 230 + 94)
+        }), 20 + 4 + 12 + 15)
         self.assertEqual(Counter(key.split(":", 1)[0] for kind in inventory for key in (
             entry["key"] for entry in inventory[kind]
-        )), {"movie": 296, "show": 14, "episode": 230, "track": 94})
+        )), {"movie": 20, "show": 4, "episode": 12, "track": 15})
 
 
 if __name__ == "__main__":
