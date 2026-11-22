@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from suites.syncplay import seed, setup
+from suites.syncplay import catalog_seed, seed, setup
 
 
 class MovieSeedTest(unittest.TestCase):
@@ -67,7 +67,7 @@ class MovieSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
-                mock.patch.object(seed.subprocess, "run", side_effect=ffmpeg),
+                mock.patch.object(catalog_seed.subprocess, "run", side_effect=ffmpeg),
             ):
                 seed.seed(inventory_path=inventory_path)
                 nfo = state / "catalog/movies/Maestro Movie/movie.nfo"

@@ -8,8 +8,6 @@ flows have browseable items without touching those fixtures.
 
 import json
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 import time
 import urllib.parse
@@ -20,8 +18,6 @@ sys.path.insert(0, str(ROOT.parents[1]))
 from suites.syncplay import catalog_seed, setup  # noqa: E402
 
 MOVIE_TITLE = "Maestro Movie"
-MOVIE_NFO = "<movie><title>Maestro Movie</title><plot>Deterministic local Maestro fixture.</plot><year>2026</year></movie>\n"
-SHOW_NFO = "<tvshow><title>Maestro Show</title><plot>Deterministic local Maestro series.</plot></tvshow>\n"
 EPISODES = ((1, "Maestro Pilot"), (2, "Maestro Finale"))
 TRACKS = ((1, "Maestro Track One"), (2, "Maestro Track Two"))
 
@@ -80,63 +76,42 @@ def credentials():
     return creds
 
 
-def write_nfo(path, text):
-    if not path.exists() or path.read_text() != text:
-        path.write_text(text)
-        return True
-    return False
-
-
 def catalog_files():
-    changed = False
+    catalog = setup.STATE / "catalog"
+    video = catalog / "templates" / "catalog-black-silent-10s.mp4"
+    audio = catalog / "templates" / "catalog-silent-10s.flac"
+    changed = catalog_seed.video_template(video)
+    changed = catalog_seed.audio_template(audio) or changed
 
-    movie_dir = setup.STATE / "catalog" / "movies" / MOVIE_TITLE
-    movie_dir.mkdir(parents=True, exist_ok=True)
-    mp4 = movie_dir / f"{MOVIE_TITLE}.mp4"
-    if not mp4.exists() or mp4.stat().st_size == 0:
-        subprocess.run([
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-            "-f", "lavfi", "-i", "color=c=0x1f2937:size=640x360:rate=24:duration=20",
-            "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000:duration=20",
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k",
-            "-shortest", "-movflags", "+faststart", str(mp4),
-        ], check=True)
-        changed = True
-    changed = write_nfo(movie_dir / "movie.nfo", MOVIE_NFO) or changed
+    movie_dir = catalog / "movies" / MOVIE_TITLE
+    changed = catalog_seed.copy_video(video, movie_dir / f"{MOVIE_TITLE}.mp4") or changed
+    changed = catalog_seed.nfo(
+        movie_dir / "movie.nfo", "movie",
+        {"title": MOVIE_TITLE, "plot": "Deterministic local Maestro fixture.", "year": 2026},
+    ) or changed
 
-    show_dir = setup.STATE / "catalog" / "shows" / "Maestro Show"
+    show_dir = catalog / "shows" / "Maestro Show"
     season_dir = show_dir / "Season 01"
     season_dir.mkdir(parents=True, exist_ok=True)
-    changed = write_nfo(show_dir / "tvshow.nfo", SHOW_NFO) or changed
+    changed = catalog_seed.nfo(
+        show_dir / "tvshow.nfo", "tvshow",
+        {"title": "Maestro Show", "plot": "Deterministic local Maestro series."},
+    ) or changed
     for number, title in EPISODES:
         episode = season_dir / f"{number:02d}_{title}.mp4"
-        if not episode.exists() or episode.stat().st_size == 0:
-            shutil.copyfile(mp4, episode)
-            changed = True
-        changed = write_nfo(
-            episode.with_suffix(".nfo"),
-            f"<episodedetails><title>{title}</title><showtitle>Maestro Show</showtitle>"
-            f"<season>1</season><episode>{number}</episode></episodedetails>\n",
+        changed = catalog_seed.copy_video(video, episode) or changed
+        changed = catalog_seed.nfo(
+            episode.with_suffix(".nfo"), "episodedetails",
+            {"title": title, "showtitle": "Maestro Show", "season": 1, "episode": number},
         ) or changed
 
-    album_dir = setup.STATE / "catalog" / "music" / "Maestro Artist" / "Maestro Album"
-    album_dir.mkdir(parents=True, exist_ok=True)
+    album_dir = catalog / "music" / "Maestro Artist" / "Maestro Album"
     for number, title in TRACKS:
-        flac = album_dir / f"{number:02d}_{title}.flac"
-        if not flac.exists() or flac.stat().st_size == 0:
-            subprocess.run([
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
-                "-t", "20", "-c:a", "flac",
-                "-metadata", f"title={title}",
-                "-metadata", "artist=Maestro Artist",
-                "-metadata", "album=Maestro Album",
-                "-metadata", "album_artist=Maestro Artist",
-                "-metadata", f"track={number}",
-                str(flac),
-            ], check=True)
-            changed = True
+        tags = {
+            "title": title, "artist": "Maestro Artist", "album": "Maestro Album",
+            "album_artist": "Maestro Artist", "track": str(number),
+        }
+        changed = catalog_seed.tag_audio(audio, album_dir / f"{number:02d}_{title}.flac", tags) or changed
     return changed
 
 
