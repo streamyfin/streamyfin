@@ -30,10 +30,15 @@ jest.mock("@sentry/react-native", () => ({
   },
 }));
 
-import { AxiosError, type AxiosResponse } from "axios";
+import axios, { AxiosError, type AxiosResponse } from "axios";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { isErrorReported, markExpectedError } from "./errors";
-import { logAndCaptureError, normalizeNativeDetail, readFromLog } from "./log";
+import {
+  logAndCaptureError,
+  normalizeNativeDetail,
+  readFromLog,
+  writeErrorLog,
+} from "./log";
 
 // The session's memory outlives a test, so each one fails in its own place.
 let serverCount = 0;
@@ -57,6 +62,235 @@ const httpError = (
 beforeEach(() => {
   mockCaptured.length = 0;
   clearMmkv();
+});
+
+// Settings, Logs shares this log as logs.txt, which users attach to public
+// issues. Callers pass what they caught as is (hooks/useLibraryPlayQueue.ts),
+// and a raw AxiosError serializes its request config, headers and body included.
+describe("writeErrorLog: a failed request is stored without its credentials", () => {
+  // Rejects the way the XHR adapter does when the server cannot be reached.
+  const unreachable = axios.create({
+    adapter: (config) =>
+      Promise.reject(
+        new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, {}),
+      ),
+  });
+  const failureOf = (request: Promise<unknown>) =>
+    request.then(
+      () => {
+        throw new Error("the request was expected to fail");
+      },
+      (error: unknown) => error,
+    );
+
+  test("a library request keeps its token, API key and proxy header out", async () => {
+    const error = await failureOf(
+      unreachable.get(
+        "https://jellyfin.example.test/Users/user-1/Items?api_key=key-in-url&Limit=50",
+        {
+          headers: {
+            Authorization:
+              'MediaBrowser Client="Streamyfin", Token="token-in-header"',
+            "X-Emby-Token": "token-in-emby-header",
+            // One the user added for their reverse proxy (custom headers).
+            "CF-Access-Client-Secret": "proxy-secret",
+          },
+        },
+      ),
+    );
+    writeErrorLog("Library play queue failed to start", error);
+
+    const stored = JSON.stringify(readFromLog());
+    for (const secret of [
+      "token-in-header",
+      "token-in-emby-header",
+      "proxy-secret",
+      "key-in-url",
+    ]) {
+      expect(stored).not.toContain(secret);
+    }
+    expect(readFromLog()[0].data).toMatchObject({
+      message: "Network Error",
+      code: "ERR_NETWORK",
+      url: "https://jellyfin.example.test/Users/user-1/Items",
+    });
+  });
+
+  test("a failed sign-in keeps the password out", async () => {
+    const error = await failureOf(
+      unreachable.post(
+        "https://jellyfin.example.test/Users/AuthenticateByName",
+        { Username: "mobile", Pw: "password-in-body" },
+      ),
+    );
+    writeErrorLog("Login failed", error);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("password-in-body");
+    // An empty log keeps the password out too: the entry has to be there.
+    expect(readFromLog()[0]).toMatchObject({
+      message: "Login failed",
+      data: { message: "Network Error", code: "ERR_NETWORK" },
+    });
+  });
+
+  // AxiosError.from keeps the original error's status when no response came with it.
+  test("a failed request without a response keeps its status", () => {
+    const error = AxiosError.from(
+      Object.assign(new Error("Service Unavailable"), { status: 503 }),
+      AxiosError.ERR_BAD_RESPONSE,
+    );
+    writeErrorLog("Library play queue failed to start", error);
+
+    expect(readFromLog()[0].data).toMatchObject({
+      code: "ERR_BAD_RESPONSE",
+      status: 503,
+    });
+  });
+
+  // A plain Error used to be stored as {}: message and stack are not enumerable.
+  test("an error that is not a request keeps its message", () => {
+    writeErrorLog("Storage migration 12 failed", new Error("disk full"));
+
+    expect(readFromLog()[0].data).toMatchObject({
+      name: "Error",
+      message: "disk full",
+    });
+  });
+
+  test("data that is not an error is stored as it came", () => {
+    writeErrorLog("Download turned down", { itemId: "item-1", reason: "none" });
+
+    expect(readFromLog()[0].data).toEqual({ itemId: "item-1", reason: "none" });
+  });
+
+  test("an error a caller wraps in an object is reduced too", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Sync failed", { itemId: "item-1", error });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0].data).toMatchObject({
+      itemId: "item-1",
+      error: { message: "Network Error", code: "ERR_NETWORK" },
+    });
+  });
+
+  // Rebuilding an object drops a toJSON that is not enumerable, and with it
+  // what that toJSON leaves out, so one that holds no error is left whole.
+  test("data that holds no error keeps its own JSON", () => {
+    const summary = {
+      itemId: "item-1",
+      Authorization: 'MediaBrowser Token="token-in-field"',
+    };
+    Object.defineProperty(summary, "toJSON", {
+      value: () => ({ itemId: "item-1" }),
+    });
+    writeErrorLog("Sync failed", summary);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-field");
+    expect(readFromLog()[0].data).toEqual({ itemId: "item-1" });
+  });
+
+  // A wrapper is read through its own toJSON, as storage would read it: what
+  // that leaves out stays out, and an error it hands back is still reduced.
+  test("a wrapper with its own toJSON is read through it, then reduced", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    const hidden = {
+      itemId: "item-1",
+      Authorization: 'MediaBrowser Token="token-in-field"',
+      error,
+    };
+    Object.defineProperty(hidden, "toJSON", {
+      value: () => ({ itemId: "item-1", error }),
+    });
+    const handedBack = { itemId: "item-2", error, toJSON: () => ({ error }) };
+    writeErrorLog("Sync failed", hidden);
+    writeErrorLog("Sync failed", handedBack);
+
+    const stored = JSON.stringify(readFromLog());
+    expect(stored).not.toContain("token-in-header");
+    expect(stored).not.toContain("token-in-field");
+    expect(readFromLog().map((entry) => entry.data)).toMatchObject([
+      { itemId: "item-1", error: { message: "Network Error" } },
+      { error: { message: "Network Error" } },
+    ]);
+  });
+
+  // axios sets isAxiosError on the error itself, so a spread copy still is one,
+  // config and headers included, while being a plain object.
+  test("a copy of a failed request is reduced like the request", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Sync failed", { ...(error as object) });
+    logAndCaptureError("Sync failed", { ...(error as object) });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog().map((entry) => entry.data)).toMatchObject([
+      { message: "Network Error", code: "ERR_NETWORK" },
+      { message: "Network Error", code: "ERR_NETWORK" },
+    ]);
+  });
+
+  test("errors in a list are reduced one by one", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    writeErrorLog("Some syncs failed", [error, "item-2"]);
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0].data).toMatchObject([
+      { message: "Network Error" },
+      "item-2",
+    ]);
+  });
+
+  // Callers log from their catch blocks: the logger itself must never throw.
+  // Storing the value unreduced instead could keep what reduction drops.
+  test("data that throws when read is stored as unrenderable", () => {
+    const data = {
+      itemId: "item-1",
+      get detail(): string {
+        throw new Error("detail is gone");
+      },
+    };
+
+    expect(() => writeErrorLog("Sync failed", data)).not.toThrow();
+    expect(() => logAndCaptureError("Sync failed", data)).not.toThrow();
+    expect(readFromLog()).toMatchObject([
+      { message: "Sync failed", data: "[unrenderable]" },
+      { message: "Sync failed", data: "[unrenderable]" },
+    ]);
+  });
+
+  test("logAndCaptureError reduces a wrapped error the same way", async () => {
+    const error = await failureOf(
+      unreachable.get("https://jellyfin.example.test/Items", {
+        headers: { Authorization: 'MediaBrowser Token="token-in-header"' },
+      }),
+    );
+    logAndCaptureError("Sync failed", { itemId: "item-1", error });
+
+    expect(JSON.stringify(readFromLog())).not.toContain("token-in-header");
+    expect(readFromLog()[0]).toMatchObject({
+      message: "Sync failed",
+      data: {
+        itemId: "item-1",
+        error: { message: "Network Error", code: "ERR_NETWORK" },
+      },
+    });
+  });
 });
 
 describe("logAndCaptureError — what is kept local", () => {

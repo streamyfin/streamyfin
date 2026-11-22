@@ -7,6 +7,7 @@ import {
   QUICK_CONNECT_POLL_INTERVAL_MS,
   QUICK_CONNECT_REQUEST_TIMEOUT_MS,
 } from "@/constants/QuickConnect";
+import { sessionEndsSettled } from "@/utils/jellyfin/endSession";
 import { writeErrorLog } from "@/utils/log";
 
 export type QuickConnectStatus =
@@ -99,6 +100,10 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
     attemptRef.current = attempt;
 
     try {
+      // An end still on its way would end the session this code opens too.
+      await sessionEndsSettled(api.basePath);
+      if (!isCurrent(attempt)) return;
+
       const response = await api.axiosInstance.post(
         `${api.basePath}/QuickConnect/Initiate`,
         null,
