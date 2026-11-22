@@ -17,7 +17,9 @@ import { PlayButton } from "./PlayButton";
 
 const mockCast = jest.fn(async (..._args: unknown[]) => ({ status: "loaded" }));
 const mockPlayMedia = jest.fn(async (..._args: unknown[]) => {});
-const mockDetectBitrate = jest.fn(async (_api: unknown) => 12_000_000);
+const mockDetectBitrate = jest.fn(
+  async (_api: unknown, _force?: unknown, _options?: unknown) => 12_000_000,
+);
 const mockClient = { getMediaStatus: async () => null };
 /** The entry picked in the Chromecast / Device / Cancel sheet. */
 let mockChoice = 0;
@@ -25,14 +27,21 @@ let mockChoice = 0;
 let mockDevice: { friendlyName: string; modelName?: string } = {
   friendlyName: "Living Room TV",
 };
+/** The settings the page reads on its next render. */
+let mockSettings: Record<string, unknown> = { showResumeDialog: false };
+// One value for every render, as the real hooks give between two renders
+// where nothing changed: a double rebuilt each time would rebuild every
+// callback that lists it, and hide a dependency missing from the list.
+const mockActionSheet = {
+  showActionSheetWithOptions: (
+    _options: unknown,
+    onSelect: (index?: number) => void,
+  ) => onSelect(mockChoice),
+};
+const mockTranslation = { t: (key: string) => key };
 
 jest.mock("@expo/react-native-action-sheet", () => ({
-  useActionSheet: () => ({
-    showActionSheetWithOptions: (
-      _options: unknown,
-      onSelect: (index?: number) => void,
-    ) => onSelect(mockChoice),
-  }),
+  useActionSheet: () => mockActionSheet,
 }));
 jest.mock("@expo/vector-icons", () => ({
   Feather: () => null,
@@ -42,7 +51,7 @@ jest.mock("@gorhom/bottom-sheet", () =>
   jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
 jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => mockTranslation,
 }));
 jest.mock("react-native-google-cast", () => ({
   __esModule: true,
@@ -82,7 +91,7 @@ jest.mock("@/providers/SyncPlayProvider", () => ({
   useSyncPlay: () => ({ enabled: false }),
 }));
 jest.mock("@/utils/atoms/settings", () => ({
-  useSettings: () => ({ settings: { showResumeDialog: false } }),
+  useSettings: () => ({ settings: mockSettings }),
 }));
 jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   castToJellyfinReceiver: (...args: unknown[]) => mockCast(...args),
@@ -90,7 +99,8 @@ jest.mock("@/utils/cast/jellyfinReceiver", () => ({
   receiverNameFor: () => "Living Room TV",
 }));
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
-  detectBitrate: (api: unknown) => mockDetectBitrate(api),
+  detectBitrate: (api: unknown, force?: unknown, options?: unknown) =>
+    mockDetectBitrate(api, force, options),
 }));
 jest.mock("@/utils/log", () => ({
   logAndCaptureError: jest.fn(),
@@ -150,6 +160,7 @@ beforeEach(() => {
   mockPlayMedia.mockClear();
   mockDetectBitrate.mockClear();
   mockDevice = { friendlyName: "Living Room TV" };
+  mockSettings = { showResumeDialog: false };
 });
 
 describe("casting from the item page", () => {
@@ -257,6 +268,35 @@ describe("casting to a Chromecast stick", () => {
     await play(AUTO, "Chromecast");
 
     expect(await castBitrate()).toBe(58_139_017);
+  });
+});
+
+// The settings were missing from the cast callback's dependencies (18/11/2026).
+// In the app the real playMedia is rebuilt on every settings change and hid
+// it; playMedia is a fixed double here, so only the button's own list counts.
+describe("Auto settings changed while the item page is open", () => {
+  test("measures with the ratio set after the page opened", async () => {
+    const selectedOptions = {
+      bitrate: AUTO,
+      mediaSource: SOURCE,
+      audioIndex: 1,
+      subtitleIndex: -1,
+    };
+    mockChoice = 0;
+    mockSettings = { showResumeDialog: false, autoBitrateRatio: 0.5 };
+    const page = await render(
+      <PlayButton item={MOVIE} selectedOptions={selectedOptions} />,
+    );
+
+    mockSettings = { showResumeDialog: false, autoBitrateRatio: 0.25 };
+    await page.rerender(
+      <PlayButton item={MOVIE} selectedOptions={selectedOptions} />,
+    );
+    await fireEvent.press(screen.getByLabelText("accessibility.play_button"));
+
+    await waitFor(() => expect(mockDetectBitrate).toHaveBeenCalled());
+    const [, , measuredWith] = mockDetectBitrate.mock.calls[0];
+    expect(measuredWith).toMatchObject({ ratio: 0.25 });
   });
 });
 

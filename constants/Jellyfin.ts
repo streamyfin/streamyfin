@@ -31,3 +31,10 @@ export const JELLYFIN_ID_PARAMETER_PATTERN = `(?:${JELLYFIN_ID_PATTERN}|\\{${DAS
  * long a feature gated on the version lags behind an upgrade.
  */
 export const SERVER_INFO_STALE_TIME_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * How long a sign-out lets the server take to end the session it leaves. The
+ * sign-out does not wait for it; this only bounds a request a server that
+ * went away would otherwise leave open.
+ */
+export const SIGN_OUT_SESSION_END_TIMEOUT_MS = 15_000;
