@@ -42,7 +42,7 @@ class CatalogSeedTest(unittest.TestCase):
             manifest = state / "inventory.json"
             manifest.write_text(json.dumps(inventory))
             folders = [
-                {"Name": f"Maestro {label}", "Locations": [f"/catalog/{kind}"],
+                {"Name": f"{label}", "Locations": [f"/catalog/{kind}"],
                  "CollectionType": collection_type, "ItemId": kind}
                 for label, kind, collection_type in (
                     ("Movies", "movies", "movies"),
@@ -64,13 +64,13 @@ class CatalogSeedTest(unittest.TestCase):
                     return {"Items": items[kind]}
                 if path == "/Library/Refresh":
                     items["movies"] = [
-                        {"Name": "Maestro Movie", "Type": "Movie"},
+                        {"Name": "Movie", "Type": "Movie"},
                         {"Name": "The General", "Type": "Movie"},
                     ]
                     items["shows"] = [
-                        {"Name": "Maestro Show", "Type": "Series"},
-                        {"Name": "Maestro Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
-                        {"Name": "Maestro Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
+                        {"Name": "Show", "Type": "Series"},
+                        {"Name": "Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
+                        {"Name": "Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
                         {"Name": "Lights Out", "Type": "Series"},
                         {"Name": "Edna Warren", "Type": "Episode", "SeriesName": "Lights Out",
                          "ParentIndexNumber": 1, "IndexNumber": 1},
@@ -78,10 +78,10 @@ class CatalogSeedTest(unittest.TestCase):
                          "ParentIndexNumber": 1, "IndexNumber": 2},
                     ]
                     items["music"] = [
-                        {"Name": "Maestro Artist", "Type": "MusicArtist"},
-                        {"Name": "Maestro Album", "Type": "MusicAlbum"},
-                        {"Name": "Maestro Track One", "Type": "Audio"},
-                        {"Name": "Maestro Track Two", "Type": "Audio"},
+                        {"Name": "Artist", "Type": "MusicArtist"},
+                        {"Name": "Album", "Type": "MusicAlbum"},
+                        {"Name": "Track One", "Type": "Audio"},
+                        {"Name": "Track Two", "Type": "Audio"},
                         {"Name": "Scott Joplin", "Type": "MusicArtist"},
                         {"Name": "Maple Leaf Rag and Other Rags", "Type": "MusicAlbum",
                          "AlbumArtist": "Scott Joplin"},

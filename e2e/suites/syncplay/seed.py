@@ -17,9 +17,9 @@ sys.path.insert(0, str(ROOT.parents[1]))
 
 from suites.syncplay import catalog_seed, setup  # noqa: E402
 
-MOVIE_TITLE = "Maestro Movie"
-EPISODES = ((1, "Maestro Pilot"), (2, "Maestro Finale"))
-TRACKS = ((1, "Maestro Track One"), (2, "Maestro Track Two"))
+MOVIE_TITLE = "Movie"
+EPISODES = ((1, "Pilot"), (2, "Finale"))
+TRACKS = ((1, "Track One"), (2, "Track Two"))
 
 
 def library_options(mount, types=()):
@@ -37,27 +37,27 @@ def library_options(mount, types=()):
 
 LIBRARIES = [
     {
-        "name": "Maestro Movies", "collectionType": "movies", "mount": "/catalog/movies",
+        "name": "Movies", "collectionType": "movies", "mount": "/catalog/movies",
         "include": "Movie", "options": library_options("/catalog/movies", ("Movie",)),
-        "expected": [{"Name": "Maestro Movie", "Type": "Movie"}],
+        "expected": [{"Name": "Movie", "Type": "Movie"}],
     },
     {
-        "name": "Maestro Shows", "collectionType": "tvshows", "mount": "/catalog/shows",
+        "name": "Shows", "collectionType": "tvshows", "mount": "/catalog/shows",
         "include": "Series,Episode", "options": library_options("/catalog/shows", ("Series", "Episode")),
         "expected": [
-            {"Name": "Maestro Show", "Type": "Series"},
-            {"Name": "Maestro Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
-            {"Name": "Maestro Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
+            {"Name": "Show", "Type": "Series"},
+            {"Name": "Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
+            {"Name": "Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
         ],
     },
     {
-        "name": "Maestro Music", "collectionType": "music", "mount": "/catalog/music",
+        "name": "Music", "collectionType": "music", "mount": "/catalog/music",
         "include": "MusicArtist,MusicAlbum,Audio", "options": library_options("/catalog/music"),
         "expected": [
-            {"Name": "Maestro Artist", "Type": "MusicArtist"},
-            {"Name": "Maestro Album", "Type": "MusicAlbum"},
-            {"Name": "Maestro Track One", "Type": "Audio"},
-            {"Name": "Maestro Track Two", "Type": "Audio"},
+            {"Name": "Artist", "Type": "MusicArtist"},
+            {"Name": "Album", "Type": "MusicAlbum"},
+            {"Name": "Track One", "Type": "Audio"},
+            {"Name": "Track Two", "Type": "Audio"},
         ],
     },
 ]
@@ -87,29 +87,29 @@ def catalog_files():
     changed = catalog_seed.copy_video(video, movie_dir / f"{MOVIE_TITLE}.mp4") or changed
     changed = catalog_seed.nfo(
         movie_dir / "movie.nfo", "movie",
-        {"title": MOVIE_TITLE, "plot": "Deterministic local Maestro fixture.", "year": 2026},
+        {"title": MOVIE_TITLE, "plot": "Deterministic local fixture.", "year": 2026},
     ) or changed
 
-    show_dir = catalog / "shows" / "Maestro Show"
+    show_dir = catalog / "shows" / "Show"
     season_dir = show_dir / "Season 01"
     season_dir.mkdir(parents=True, exist_ok=True)
     changed = catalog_seed.nfo(
         show_dir / "tvshow.nfo", "tvshow",
-        {"title": "Maestro Show", "plot": "Deterministic local Maestro series."},
+        {"title": "Show", "plot": "Deterministic local series."},
     ) or changed
     for number, title in EPISODES:
         episode = season_dir / f"{number:02d}_{title}.mp4"
         changed = catalog_seed.copy_video(video, episode) or changed
         changed = catalog_seed.nfo(
             episode.with_suffix(".nfo"), "episodedetails",
-            {"title": title, "showtitle": "Maestro Show", "season": 1, "episode": number},
+            {"title": title, "showtitle": "Show", "season": 1, "episode": number},
         ) or changed
 
-    album_dir = catalog / "music" / "Maestro Artist" / "Maestro Album"
+    album_dir = catalog / "music" / "Artist" / "Album"
     for number, title in TRACKS:
         tags = {
-            "title": title, "artist": "Maestro Artist", "album": "Maestro Album",
-            "album_artist": "Maestro Artist", "track": str(number),
+            "title": title, "artist": "Artist", "album": "Album",
+            "album_artist": "Artist", "track": str(number),
         }
         changed = catalog_seed.tag_audio(audio, album_dir / f"{number:02d}_{title}.flac", tags) or changed
     return changed

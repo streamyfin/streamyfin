@@ -164,10 +164,10 @@ def expected_items(inventory):
         for track in inventory["tracks"]
     }
     return {
-        "Maestro Movies": [
+        "Movies": [
             {"Name": movie["title"], "Type": "Movie"} for movie in inventory["movies"]
         ],
-        "Maestro Shows": [
+        "Shows": [
             *({"Name": show["title"], "Type": "Series"} for show in inventory["shows"]),
             *(
                 {
@@ -179,7 +179,7 @@ def expected_items(inventory):
                 for episode in inventory["episodes"]
             ),
         ],
-        "Maestro Music": [
+        "Music": [
             *({"Name": name, "Type": "MusicArtist"} for name in artists.values()),
             *(
                 {"Name": name, "Type": "MusicAlbum", "AlbumArtist": artist}

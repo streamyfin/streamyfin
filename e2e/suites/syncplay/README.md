@@ -37,8 +37,8 @@ bun run e2e:seed
 ```
 
 The seed adds 20 movies, four series with 12 episodes, and 15 tracks in five
-albums by five artists, plus one `Maestro` movie, show with two episodes, and
-album with two tracks that it always creates.
+albums by five artists, plus a placeholder `Movie`, a `Show` with two episodes, and an
+`Album` with two tracks that it always creates.
 Each new movie and episode is a generated 10-second black/silent video; each new track is
 10 seconds of silence. Titles, years, provider IDs, episode numbers and audio
 tags come from the committed inventory, not from copied media. The three original
@@ -97,11 +97,14 @@ The first invocation is a small trial batch; omit `--limit` to request missing
 artwork and descriptions for the whole catalog. This step installs the pinned
 Streamyfin Jellyfin plugin on this worktree's container if missing, restarts
 only that container, enables available image and metadata fetchers on the
-three Maestro libraries, and refreshes incomplete items without replacing
+three catalog libraries, and refreshes incomplete items without replacing
 existing images or metadata. The SyncPlay Fixtures library remains offline.
-Jellyfin may take time to finish fetching; rerunning the command retries items
-that still lack artwork or a movie/series overview. The command reports queued
-requests, not a promise that every third-party provider has an image.
+The command blocks until Jellyfin has fetched what it queued, polling every few
+seconds, then prints a summary with `stillMissing` listing any item that did not get
+artwork or an overview. It exits 1 when `stillMissing` is not empty, for example
+because a provider has no image or `--timeout` (300 seconds by default) passed. Pass
+`--async` to queue the requests and return at once. Rerunning the command retries
+items that still lack artwork or a movie/series overview.
 Fetched posters may have copyright separate from the underlying film; keep
 Jellyfin's downloaded artwork in ignored `.state/`, not in the repository.
 This command requires internet access; `setup.py` and `e2e:seed` do not.

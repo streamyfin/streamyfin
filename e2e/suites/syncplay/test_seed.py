@@ -32,7 +32,7 @@ class MovieSeedTest(unittest.TestCase):
                 if path.startswith("/Library/VirtualFolders?"):
                     query = parse_qs(urlsplit(path).query)
                     name = query["name"][0]
-                    library_id = {"Maestro Movies": "movies", "Maestro Shows": "shows", "Maestro Music": "music"}[name]
+                    library_id = {"Movies": "movies", "Shows": "shows", "Music": "music"}[name]
                     folders.append({
                         "Name": name, "Locations": [f"/catalog/{library_id}"],
                         "CollectionType": "tvshows" if library_id == "shows" else library_id,
@@ -43,17 +43,17 @@ class MovieSeedTest(unittest.TestCase):
                     library_id = parse_qs(urlsplit(path).query)["ParentId"][0]
                     return {"Items": items[library_id]}
                 if path == "/Library/Refresh":
-                    items["movies"] = [{"Name": "Maestro Movie", "Type": "Movie"}]
+                    items["movies"] = [{"Name": "Movie", "Type": "Movie"}]
                     items["shows"] = [
-                        {"Name": "Maestro Show", "Type": "Series"},
-                        {"Name": "Maestro Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
-                        {"Name": "Maestro Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
+                        {"Name": "Show", "Type": "Series"},
+                        {"Name": "Pilot", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 1},
+                        {"Name": "Finale", "Type": "Episode", "ParentIndexNumber": 1, "IndexNumber": 2},
                     ]
                     items["music"] = [
-                        {"Name": "Maestro Artist", "Type": "MusicArtist"},
-                        {"Name": "Maestro Album", "Type": "MusicAlbum"},
-                        {"Name": "Maestro Track One", "Type": "Audio"},
-                        {"Name": "Maestro Track Two", "Type": "Audio"},
+                        {"Name": "Artist", "Type": "MusicArtist"},
+                        {"Name": "Album", "Type": "MusicAlbum"},
+                        {"Name": "Track One", "Type": "Audio"},
+                        {"Name": "Track Two", "Type": "Audio"},
                     ]
                     return None
                 raise AssertionError(path)
@@ -70,18 +70,18 @@ class MovieSeedTest(unittest.TestCase):
                 mock.patch.object(catalog_seed.subprocess, "run", side_effect=ffmpeg),
             ):
                 seed.seed(inventory_path=inventory_path)
-                nfo = state / "catalog/movies/Maestro Movie/movie.nfo"
-                self.assertIn("<title>Maestro Movie</title>", nfo.read_text())
-                show = state / "catalog/shows/Maestro Show"
-                self.assertIn("<title>Maestro Show</title>", (show / "tvshow.nfo").read_text())
-                for number, title in ((1, "Maestro Pilot"), (2, "Maestro Finale")):
+                nfo = state / "catalog/movies/Movie/movie.nfo"
+                self.assertIn("<title>Movie</title>", nfo.read_text())
+                show = state / "catalog/shows/Show"
+                self.assertIn("<title>Show</title>", (show / "tvshow.nfo").read_text())
+                for number, title in ((1, "Pilot"), (2, "Finale")):
                     episode = show / "Season 01" / f"{number:02d}_{title}.nfo"
                     self.assertIn(f"<title>{title}</title>", episode.read_text())
                     self.assertIn(f"<episode>{number}</episode>", episode.read_text())
-                music = state / "catalog/music/Maestro Artist/Maestro Album"
-                self.assertTrue((music / "01_Maestro Track One.flac").is_file())
-                self.assertTrue((music / "02_Maestro Track Two.flac").is_file())
-                self.assertTrue(any("-metadata" in cmd and "album=Maestro Album" in cmd for cmd in commands))
+                music = state / "catalog/music/Artist/Album"
+                self.assertTrue((music / "01_Track One.flac").is_file())
+                self.assertTrue((music / "02_Track Two.flac").is_file())
+                self.assertTrue(any("-metadata" in cmd and "album=Album" in cmd for cmd in commands))
                 self.assertEqual(len(items["movies"]), 1)
                 self.assertEqual(len(items["shows"]), 3)
                 self.assertEqual(len(items["music"]), 4)

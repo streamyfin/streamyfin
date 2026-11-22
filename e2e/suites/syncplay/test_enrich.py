@@ -1,5 +1,7 @@
 """Online enrichment must leave SyncPlay alone and refresh only missing catalog art."""
 
+import contextlib
+import io
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -28,7 +30,7 @@ class EnrichmentTest(unittest.TestCase):
             }))
             folders = {
                 kind: {
-                    "Name": f"Maestro {label}", "ItemId": kind, "CollectionType": collection_type,
+                    "Name": f"{label}", "ItemId": kind, "CollectionType": collection_type,
                     "Locations": [f"/catalog/{kind}"],
                     "LibraryOptions": {"PathInfos": [{"Path": f"/catalog/{kind}"}],
                                        "EnableInternetProviders": False, "TypeOptions": []},
@@ -50,7 +52,7 @@ class EnrichmentTest(unittest.TestCase):
             items = {
                 "movies": [
                     {"Id": "movie", "Name": "The General", "Type": "Movie", "ProviderIds": {"Tmdb": "961"}},
-                    {"Id": "old", "Name": "Maestro Movie", "Type": "Movie", "ProviderIds": {}},
+                    {"Id": "old", "Name": "Movie", "Type": "Movie", "ProviderIds": {}},
                 ],
                 "shows": [
                     {"Id": "series", "Name": "Lights Out", "Type": "Series", "ProviderIds": {"Tmdb": "24684"}},
@@ -151,6 +153,49 @@ class EnrichmentTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "does not own"):
                     enrich.run(limit=1)
                 install.assert_not_called()
+
+
+class EnrichmentWaitTest(unittest.TestCase):
+    ITEM = {"Id": "movie", "Name": "The General", "Type": "Movie", "ProviderIds": {"Tmdb": "961"}}
+
+    def run_enrich(self, polls, **options):
+        remaining = iter(polls)
+        refreshes = []
+
+        def api(path, method="GET", data=None, token=None):
+            refreshes.append(path)
+
+        with (
+            mock.patch.object(enrich.seed, "credentials", return_value={"host": {"token": "t", "userId": "host"}}),
+            mock.patch.object(enrich, "libraries", return_value={spec["name"]: {} for spec in enrich.seed.LIBRARIES}),
+            mock.patch.object(enrich, "enable_fetchers", return_value=False),
+            mock.patch.object(enrich, "incomplete_items", side_effect=lambda *args: next(remaining)),
+            mock.patch.object(plugin, "ensure", return_value=False),
+            mock.patch.object(setup, "api", side_effect=api),
+            mock.patch.object(enrich.time, "sleep") as sleep,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            result = enrich.run(**options)
+        return result, sleep, refreshes
+
+    def test_waits_until_the_queued_item_has_its_artwork(self):
+        pending = ([(self.ITEM, False, True)], 0)
+        result, sleep, refreshes = self.run_enrich([pending, pending, pending, ([], 1)])
+        self.assertEqual(result["stillMissing"], [])
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(len(refreshes), 1)
+
+    def test_async_queues_and_returns_without_polling(self):
+        result, sleep, refreshes = self.run_enrich([([(self.ITEM, False, True)], 0)], wait=False)
+        self.assertEqual(result["queued"], 1)
+        self.assertNotIn("stillMissing", result)
+        sleep.assert_not_called()
+        self.assertEqual(len(refreshes), 1)
+
+    def test_reports_what_is_still_missing_when_the_timeout_passes(self):
+        pending = ([(self.ITEM, False, True)], 0)
+        result, _, _ = self.run_enrich([pending, pending], timeout=0)
+        self.assertEqual(result["stillMissing"], ["The General"])
 
 
 if __name__ == "__main__":
