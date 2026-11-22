@@ -117,8 +117,12 @@ Quick reference — defaults already wired for every unit spec:
 
 Do not repeat these defaults in a spec. Keep a local override only when it
 changes behavior the test asserts (interpolation, nonzero insets, an icon's
-name, captured calls), or unmock when the spec is about the module itself. The
-perf config deliberately does not inherit these unit doubles.
+name, captured calls). Unmock with `jest.unmock` only the `jest.mock` defaults in
+`test-utils/unitSetup.ts` when the spec is about the module itself. `jest.unmock` does not
+bypass `moduleNameMapper`: `jest.unmock("react-i18next")` still loads the double, so a spec
+of the real package needs a separate Jest configuration without that mapping, as
+`jest.perf.config.js` does. The perf config deliberately does not inherit these unit
+doubles.
 
 ### The rules
 
