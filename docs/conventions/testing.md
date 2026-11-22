@@ -129,7 +129,10 @@ mock `react-i18next` with `@/test-utils/realI18next`, as
 `components/series/SeasonDropdown.test.tsx` does. Use a separate Jest
 configuration without package mappings only for scenarios that need the real
 packages by default, as `jest.perf.config.js` does. The perf config deliberately
-does not inherit these unit doubles.
+does not inherit these unit doubles, but that does not make every package real:
+`test-utils/perfSetup.ts` still mocks the native and boundary modules most
+scenarios need, `@gorhom/bottom-sheet` among them. Read it before assuming a perf
+spec measures a package's real implementation.
 
 ### The rules
 
