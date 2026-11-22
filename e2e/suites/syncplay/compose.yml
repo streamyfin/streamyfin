@@ -9,6 +9,7 @@ services:
       - ./.state/config:/config
       - ./.state/cache:/cache
       - ./.state/media:/media:ro
+      - ./.state/catalog/movies:/catalog/movies:ro
     environment:
       JELLYFIN_PublishedServerUrl: "http://${SYNCPLAY_HOST:-127.0.0.1}:${SYNCPLAY_PORT:-18096}"
     restart: "no"

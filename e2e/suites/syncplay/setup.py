@@ -92,7 +92,8 @@ def main():
         policy.update({"EnableAllFolders": True, "EnableMediaPlayback": True, "SyncPlayAccess": "CreateAndJoinGroups"})
         api(f"/Users/{user['Id']}/Policy", "POST", policy, token)
     folders = api("/Library/VirtualFolders", token=token)
-    if not any(folder["Name"] == "SyncPlay Fixtures" for folder in folders):
+    fixture = next((folder for folder in folders if folder["Name"] == "SyncPlay Fixtures"), None)
+    if fixture is None:
         query = urllib.parse.urlencode({"name": "SyncPlay Fixtures", "collectionType": "movies", "refreshLibrary": "true"})
         api("/Library/VirtualFolders?" + query, "POST", {
             "LibraryOptions": {
@@ -102,15 +103,20 @@ def main():
                 "TypeOptions": [{"Type": "Movie", "MetadataFetchers": [], "ImageFetchers": []}],
             }
         }, token)
+        folders = api("/Library/VirtualFolders", token=token)
+        fixture = next((folder for folder in folders if folder["Name"] == "SyncPlay Fixtures"), None)
+    if fixture is None:
+        raise RuntimeError("'SyncPlay Fixtures' was accepted but is not listed")
     api("/Library/Refresh", "POST", token=token)
+    clip_names = {f"SyncPlay Clip {number}" for number in range(1, 4)}
     items = []
     for _ in range(90):
-        items = api(f"/Users/{host['User']['Id']}/Items?Recursive=true&IncludeItemTypes=Movie&Fields=MediaSources", token=token)["Items"]
-        if len(items) >= 3:
+        items = api(f"/Users/{host['User']['Id']}/Items?ParentId={fixture['ItemId']}&Recursive=true&IncludeItemTypes=Movie&Fields=MediaSources", token=token)["Items"]
+        if len(items) == 3 and {item.get("Name") for item in items} == clip_names:
             break
         time.sleep(2)
-    if len(items) < 3:
-        raise RuntimeError("Expected three generated media items after scanning")
+    if len(items) != 3 or {item.get("Name") for item in items} != clip_names:
+        raise RuntimeError(f"Expected the three SyncPlay clips in 'SyncPlay Fixtures', got {[item.get('Name') for item in items]}")
     guest_auth = api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-guest", "Pw": PASSWORD})
     credentials = {
         "url": URL, "serverVersion": info["Version"], "password": PASSWORD,
