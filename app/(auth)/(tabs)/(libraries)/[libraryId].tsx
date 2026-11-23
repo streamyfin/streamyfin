@@ -663,6 +663,7 @@ const LibraryPage = () => {
       ownFilters && {
         userId: user?.Id,
         libraryId,
+        libraryType: library?.Type,
         collectionType: library?.CollectionType,
         sortBy: ownFilters.sortBy[0],
         sortOrder: ownFilters.sortOrder[0],
@@ -675,7 +676,14 @@ const LibraryPage = () => {
         subtitleLanguages: ownFilters.subtitleLanguages,
         serverVersion,
       },
-    [user?.Id, libraryId, library?.CollectionType, ownFilters, serverVersion],
+    [
+      user?.Id,
+      libraryId,
+      library?.Type,
+      library?.CollectionType,
+      ownFilters,
+      serverVersion,
+    ],
   );
 
   const fetchItems = useCallback(

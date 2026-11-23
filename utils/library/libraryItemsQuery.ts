@@ -13,10 +13,16 @@ import { sortsSeriesDatePlayedQuickly } from "@/utils/jellyfin/serverVersion";
 
 type CollectionType = BaseItemDto["CollectionType"];
 
+export type LibraryItemTypeQuery = Pick<
+  LibraryApiGetItemsRequest,
+  "includeItemTypes" | "excludeItemTypes"
+>;
+
 /** What the filter bar of a library page currently selects. */
 export interface LibraryItemsFilter {
   userId?: string;
   libraryId: string;
+  libraryType?: BaseItemDto["Type"];
   collectionType?: CollectionType;
   sortBy: ItemSortBy;
   sortOrder: SortOrder;
@@ -33,7 +39,7 @@ export interface LibraryItemsFilter {
 
 // Only one kind of item per library, when the library names one: the
 // underlying directory sometimes holds other kinds, and they must not show.
-export const ITEM_TYPE_BY_COLLECTION: Partial<
+const ITEM_TYPE_BY_COLLECTION: Partial<
   Record<NonNullable<CollectionType>, BaseItemKind>
 > = {
   movies: "Movie",
@@ -45,9 +51,8 @@ export const ITEM_TYPE_BY_COLLECTION: Partial<
 };
 
 /**
- * The kinds of item a library page lists: the one its collection type names,
- * or every kind when it names none. The rating choices are asked for the same
- * kinds, so they only offer ratings the grid can match.
+ * The item kind named by a typed library. Jellyfin's ratings endpoint accepts
+ * only an inclusion filter, so it also uses this mapping.
  */
 export const getLibraryItemTypes = (
   collectionType: CollectionType | null | undefined,
@@ -56,6 +61,22 @@ export const getLibraryItemTypes = (
     ? ITEM_TYPE_BY_COLLECTION[collectionType]
     : undefined;
   return itemType ? [itemType] : undefined;
+};
+
+export const getLibraryItemTypeQuery = ({
+  Type,
+  CollectionType,
+}: Pick<BaseItemDto, "Type" | "CollectionType">): LibraryItemTypeQuery => {
+  // Keep recursive browsing through subdirectories while omitting nested show
+  // entries and backing folders from a mixed library's grid and queue.
+  if (
+    Type === "CollectionFolder" &&
+    (CollectionType ?? "unknown") === "unknown"
+  ) {
+    return { excludeItemTypes: ["Season", "Episode", "Folder"] };
+  }
+
+  return { includeItemTypes: getLibraryItemTypes(CollectionType) };
 };
 
 /**
@@ -85,6 +106,7 @@ export const serverSortBy = (
 export const buildLibraryItemsQuery = ({
   userId,
   libraryId,
+  libraryType,
   collectionType,
   sortBy,
   sortOrder,
@@ -111,7 +133,10 @@ export const buildLibraryItemsQuery = ({
     officialRatings,
     tags,
     years: years.map((year) => Number.parseInt(year, 10)),
-    includeItemTypes: getLibraryItemTypes(collectionType),
+    ...getLibraryItemTypeQuery({
+      Type: libraryType,
+      CollectionType: collectionType,
+    }),
   };
 };
 
