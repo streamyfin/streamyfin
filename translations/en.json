@@ -26,6 +26,7 @@
     "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection.",
     "an_unexpected_error_occurred": "An unexpected error occurred",
     "change_server": "Change server",
+    "server_changed": "Another server was picked before this sign-in finished. Sign in again.",
     "invalid_username_or_password": "Invalid username or password",
     "user_does_not_have_permission_to_log_in": "User does not have permission to log in",
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",

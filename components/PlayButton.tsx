@@ -250,6 +250,7 @@ export const PlayButton: React.FC<Props> = ({
       selectedOptions,
       playMedia,
       isOffline,
+      settings,
       t,
     ],
   );
