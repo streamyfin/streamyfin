@@ -8,11 +8,12 @@ struct VideoToolboxRecovery {
         case foreground
     }
 
-    /// Time for mpv to finish switching decoders and produce a software frame.
+    /// Time for mpv to finish switching decoders after playback can advance.
     private static let fallbackWindow: TimeInterval = 3
 
     private var hasUsedVideoToolbox = false
-    private var pendingWake: (context: Wake, deadline: TimeInterval)?
+    // A nil deadline holds the wake while the user has playback paused.
+    private var pendingWake: (context: Wake, deadline: TimeInterval?)?
     private var attemptedWake: Wake?
 
     mutating func observe(active: String?) {
@@ -22,24 +23,44 @@ struct VideoToolboxRecovery {
         }
     }
 
-    mutating func wake(_ context: Wake, at now: TimeInterval) {
+    mutating func wake(_ context: Wake, at now: TimeInterval, paused: Bool = false) {
         guard hasUsedVideoToolbox, canRetry(in: context) else { return }
-        pendingWake = (context, now + Self.fallbackWindow)
+        pendingWake = (context, paused ? nil : now + Self.fallbackWindow)
     }
 
-    mutating func cancelWake() {
+    mutating func cancelWake(_ context: Wake? = nil) {
+        if context == nil || pendingWake?.context == context {
+            pendingWake = nil
+        }
+    }
+
+    mutating func playbackPauseChanged(_ paused: Bool, at now: TimeInterval) {
+        guard let wake = pendingWake else { return }
+        if paused, let deadline = wake.deadline {
+            pendingWake = now <= deadline ? (wake.context, nil) : nil
+        } else if !paused, wake.deadline == nil {
+            pendingWake = (wake.context, now + Self.fallbackWindow)
+        }
+    }
+
+    mutating func displayResetStarted(at now: TimeInterval) {
+        guard let wake = pendingWake else { return }
+        if wake.deadline.map({ now <= $0 }) ?? true {
+            attemptedWake = wake.context
+        }
         pendingWake = nil
     }
 
-    mutating func shouldRetry(requested: String?, active: String?, at now: TimeInterval) -> Bool {
-        guard let wake = pendingWake,
-              now <= wake.deadline,
-              active == "no", Self.isVideoToolbox(requested)
-        else { return false }
+    mutating func retryMode(
+        requested: String?, active: String?, deinterlacing: Bool = false, at now: TimeInterval
+    ) -> String? {
+        guard let wake = pendingWake, let deadline = wake.deadline, now <= deadline,
+              active == "no", let requested, Self.isVideoToolbox(requested)
+        else { return nil }
 
         pendingWake = nil
         attemptedWake = wake.context
-        return true
+        return VideoDeinterlace.hwdecForReset(requested, filterOn: deinterlacing)
     }
 
     private func canRetry(in context: Wake) -> Bool {

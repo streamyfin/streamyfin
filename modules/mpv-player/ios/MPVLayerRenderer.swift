@@ -246,6 +246,8 @@ final class MPVLayerRenderer {
             if layer.status == .failed {
                 print("🔧 Display layer failed - auto-resetting decoder")
                 self.queue.async {
+                    // The layer may already have recovered before the queued reset runs.
+                    guard self.displayLayer.status == .failed else { return }
                     self.performDecoderReset()
                 }
             }
@@ -275,13 +277,17 @@ final class MPVLayerRenderer {
         }
         decoderResetCount = attempt
 
+        #if os(iOS)
+        videoToolboxRecovery.displayResetStarted(at: ProcessInfo.processInfo.systemUptime)
+        #endif
         print("🔧 Resetting decoder (\(attempt)/\(Self.maxDecoderResets)): status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
         commandSync(handle, ["set", "hwdec", "no"])
 
         // On the final attempt, stay on software decoding rather than handing
         // the same unsupported stream back to VideoToolbox one more time.
         if attempt < Self.maxDecoderResets {
-            commandSync(handle, ["set", "hwdec", configuredHwdec])
+            let mode = VideoDeinterlace.hwdecForReset(configuredHwdec, filterOn: isDeinterlaceFilterOn)
+            commandSync(handle, ["set", "hwdec", mode])
         }
     }
 
@@ -345,29 +351,35 @@ final class MPVLayerRenderer {
     func retryVideoToolboxAfterWake(_ context: VideoToolboxRecovery.Wake) {
         queue.async { [weak self] in
             guard let self, !self.isStopping, !self.isLoadPending, let handle = self.mpv else { return }
-            self.videoToolboxRecovery.wake(context, at: ProcessInfo.processInfo.systemUptime)
+            var paused: Int32 = 0
+            guard self.getProperty(handle: handle, name: "pause", format: MPV_FORMAT_FLAG, value: &paused) >= 0
+            else { return }
+            self.videoToolboxRecovery.wake(context, at: ProcessInfo.processInfo.systemUptime, paused: paused != 0)
             self.refreshVideoToolboxRecovery(handle)
         }
     }
 
-    func cancelVideoToolboxWakeRetry() {
-        queue.async { [weak self] in self?.videoToolboxRecovery.cancelWake() }
+    func cancelVideoToolboxWakeRetry(_ context: VideoToolboxRecovery.Wake) {
+        queue.async { [weak self] in self?.videoToolboxRecovery.cancelWake(context) }
     }
 
     private func refreshVideoToolboxRecovery(_ handle: OpaquePointer) {
         guard !isStopping, !isLoadPending else { return }
         let active = getStringProperty(handle: handle, name: "hwdec-current")
         videoToolboxRecovery.observe(active: active)
-        guard active == "no" else { return }
+        // The layer's failure observer owns recovery if the display itself failed.
+        guard active == "no", displayLayer.status != .failed else { return }
 
-        // Changing hwdec makes mpv seek back from the current position to give
-        // the new decoder the reference frames it needs.
+        // mpv seeks to rebuild the decoder's reference frames. Leave non-seekable
+        // streams, such as some Live TV sources, on mpv's software fallback.
         var seekable: Int32 = 0
         guard getProperty(handle: handle, name: "seekable", format: MPV_FORMAT_FLAG, value: &seekable) >= 0,
               seekable != 0,
-              let requested = getStringProperty(handle: handle, name: "hwdec"),
-              videoToolboxRecovery.shouldRetry(
-                requested: requested, active: active, at: ProcessInfo.processInfo.systemUptime
+              let mode = videoToolboxRecovery.retryMode(
+                requested: getStringProperty(handle: handle, name: "hwdec"),
+                active: active,
+                deinterlacing: isDeinterlaceFilterOn,
+                at: ProcessInfo.processInfo.systemUptime
               )
         else { return }
 
@@ -375,7 +387,7 @@ final class MPVLayerRenderer {
         // mpv's fallback leaves the requested hwdec unchanged. Toggle it so
         // mpv reinitializes the decoder, with software fallback still enabled.
         commandSync(handle, ["set", "hwdec", "no"])
-        commandSync(handle, ["set", "hwdec", requested])
+        commandSync(handle, ["set", "hwdec", mode])
     }
 
     /// SpringBoard can leave mpv's OSD stale even when video resumes.
@@ -1287,6 +1299,12 @@ final class MPVLayerRenderer {
                 let newPaused = flag != 0
                 if newPaused != isPaused {
                     isPaused = newPaused
+                    #if os(iOS)
+                    videoToolboxRecovery.playbackPauseChanged(newPaused, at: ProcessInfo.processInfo.systemUptime)
+                    if !newPaused {
+                        refreshVideoToolboxRecovery(handle)
+                    }
+                    #endif
                     // The playing clock is reported only once per second and
                     // cachedPosition can contain an optimistic seek target.
                     // Capture mpv's physical clock before the immediate pause

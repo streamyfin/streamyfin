@@ -151,11 +151,14 @@ final class MPVPlayerEngine: NSObject {
 	}
 
 	@objc private func handleWillResignActive() {
-		renderer?.cancelVideoToolboxWakeRetry()
+		renderer?.cancelVideoToolboxWakeRetry(.foreground)
 	}
 
 	@objc private func handleProtectedDataDidBecomeAvailable() {
-		// Unlock can leave the app in the background with PiP still visible.
+		retryVideoToolboxInBackgroundPiP()
+	}
+
+	private func retryVideoToolboxInBackgroundPiP() {
 		guard !isShutDown, isPictureInPictureActive(),
 		      UIApplication.shared.applicationState != .active
 		else { return }
@@ -911,8 +914,22 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		completionHandler(true)
 	}
 
+	#if os(iOS)
+	func pipController(_ controller: PiPController, didChangeVisibility visible: Bool) {
+		guard controller === pipController else { return }
+		if visible {
+			retryVideoToolboxInBackgroundPiP()
+		} else {
+			renderer?.cancelVideoToolboxWakeRetry(.pictureInPicture)
+		}
+	}
+	#endif
+
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
+		#if os(iOS)
+		retryVideoToolboxInBackgroundPiP()
+		#endif
 		requestPlaying(true)
 	}
 
