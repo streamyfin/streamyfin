@@ -42,3 +42,10 @@ export const JELLYFIN_MAX_RESUME_PCT = 90;
 export const JELLYFIN_MIN_RESUME_DURATION_SECONDS = 300;
 export const JELLYFIN_MIN_AUDIOBOOK_RESUME_MINUTES = 5;
 export const JELLYFIN_MAX_AUDIOBOOK_RESUME_MINUTES = 5;
+
+/**
+ * How long a sign-out lets the server take to end the session it leaves. The
+ * sign-out does not wait for it; this only bounds a request a server that
+ * went away would otherwise leave open.
+ */
+export const SIGN_OUT_SESSION_END_TIMEOUT_MS = 15_000;

@@ -31,6 +31,15 @@ class PlaybackLabelsTest {
         )
     }
 
+    // The phone menu read "1 h" for both 60 and 90 min (integer division). iOS reads "1.5 h".
+    @Test
+    fun labelsEverySleepTimerPresetDistinctly() {
+        assertEquals(
+            listOf("15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h"),
+            PlayerConstants.SLEEP_TIMER_PRESET_MINUTES.map(::sleepTimerLabel),
+        )
+    }
+
     // The hold rate comes from the JS settings unchecked: a label must not take the player down.
     @Test
     fun labelsAValueThatIsNotFiniteWithoutThrowing() {
