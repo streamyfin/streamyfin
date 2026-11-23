@@ -592,7 +592,7 @@ fun PlayerTopBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (mins < 60) "$mins min" else "${mins / 60} h")
+                                    Text(sleepTimerLabel(mins))
                                     if (viewModel.sleepTimerMinutes == mins) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))

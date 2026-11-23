@@ -42,6 +42,10 @@ import { getDeviceName, getOrSetDeviceId } from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
 import {
+  endSessionOnServerAfter,
+  sessionEndsSettled,
+} from "@/utils/jellyfin/endSession";
+import {
   hasLegacyRoutePrefix,
   migrateLegacyServerAddress,
 } from "@/utils/jellyfin/legacyServerAddress";
@@ -459,6 +463,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!api || !jellyfin) throw new Error("API not initialized");
 
+      // An end still on its way would end this session as well. The user can
+      // pick another server meanwhile: signed in anyway, this token would be
+      // saved beside that server's address, and the next launch would send it
+      // there.
+      const selectedServer = storage.getString("serverUrl");
+      await sessionEndsSettled(api.basePath);
+      if (storage.getString("serverUrl") !== selectedServer) {
+        throw markExpectedError(new Error(t("login.server_changed")));
+      }
+
       try {
         writeInfoLog(`Login: authenticating against ${api.basePath}`);
         // Authenticating writes the token into the Api that asked (SDK 1.0),
@@ -472,6 +486,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
         if (auth.data.AccessToken && auth.data.User) {
+          // Checked again: the user can pick another server while this one
+          // checks the password too. The session it opened is held by no one
+          // then, so it is ended there.
+          if (storage.getString("serverUrl") !== selectedServer) {
+            endSessionOnServerAfter(Promise.resolve(), {
+              jellyfin,
+              serverUrl: api.basePath,
+              token: auth.data.AccessToken,
+              userId: auth.data.User.Id,
+            });
+            throw markExpectedError(new Error(t("login.server_changed")));
+          }
+
           // Held from before the session is set: SeerrAutoLogin starts as soon
           // as the plugin's Seerr address reaches it, and would open a second
           // Seerr session for the same user. Let go once the sign-in to Seerr
@@ -642,7 +669,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // Not awaited, so sign out does not wait on the server, but in line behind
       // a registration still on its way, which would otherwise bring the row back.
       if (api) {
-        inRegistrationOrder(() =>
+        const pushRowDeleted = inRegistrationOrder(() =>
           api.pluginDelete(`${PUSH_DEVICE_PATH}/${deviceId}`, {
             timeout: PUSH_REGISTRATION_TIMEOUT_MS,
           }),
@@ -651,6 +678,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           .catch((_e) =>
             writeErrorLog("Failed to delete expo push token for device"),
           );
+
+        // After the push row, whose delete is sent with the token this ends.
+        const { basePath, accessToken } = api;
+        if (jellyfin && accessToken) {
+          endSessionOnServerAfter(pushRowDeleted, {
+            jellyfin,
+            serverUrl: basePath,
+            token: accessToken,
+            userId: user?.Id,
+          });
+        }
       }
 
       await clearSessionState();
@@ -670,6 +708,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
+      // An end still on its way would end this session as well. Waited for
+      // before the move below, which takes the custom headers the end goes
+      // out with to the new address.
+      await sessionEndsSettled(savedServerUrl);
+
       // A server saved under /emby or /mediabrowser moves to its root address
       // first, while the saved one still answers and can vouch for it: once
       // the server is on Jellyfin 12 it answers nothing, and the sign-in
@@ -683,6 +726,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // attempt: the user is told to sign in again, as for a rejected token.
         throw markExpectedError(new Error(t("server.session_expired")));
       }
+
+      // And once moved, on both addresses: a sign-out during the move files
+      // its end under the one as saved.
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance with saved token
       const apiInstance = createApiWithCustomHeaders(
@@ -787,9 +837,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
-      // As for a saved token: the server moves off a legacy prefix first.
+      // As for a saved token: an end still on its way is waited for before
+      // the server moves off a legacy prefix, and after on both addresses.
+      await sessionEndsSettled(savedServerUrl);
       const serverUrl =
         (await migrateLegacyServerAddress(savedServerUrl)) ?? savedServerUrl;
+      await Promise.all([
+        sessionEndsSettled(savedServerUrl),
+        sessionEndsSettled(serverUrl),
+      ]);
 
       // Create API instance for the server
       const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
@@ -954,31 +1010,22 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               .then(async (response) => {
                 // The response can resolve long after startup (no axios timeout).
                 // If the session changed meanwhile (logout, account switch), drop
-                // it instead of repopulating a stale user / re-saving credentials.
+                // it instead of repopulating a stale user / its saved account.
                 if (getTokenFromStorage() !== token) return;
                 setUser(response.data);
 
-                // Migrate current session to secure storage if not already saved
-                if (storedUser?.Id && storedUser?.Name) {
+                // A session the user did not save stays unsaved: saving it here
+                // put it on the account list without protection, and kept its
+                // token alive past the sign-out.
+                if (storedUser?.Id) {
                   const existingCredential = await getAccountCredential(
                     serverUrl,
                     storedUser.Id,
                   );
-                  if (!existingCredential) {
-                    await saveAccountCredential({
-                      serverUrl,
-                      serverName: "",
-                      token,
-                      userId: storedUser.Id,
-                      username: storedUser.Name,
-                      savedAt: Date.now(),
-                      securityType: "none",
-                      primaryImageTag:
-                        response.data.PrimaryImageTag ?? undefined,
-                    });
-                  } else if (
+                  if (
+                    existingCredential &&
                     response.data.PrimaryImageTag !==
-                    existingCredential.primaryImageTag
+                      existingCredential.primaryImageTag
                   ) {
                     // Update image tag if it has changed
                     addAccountToServer(
@@ -1013,9 +1060,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             // An address saved with /emby or /mediabrowser answers nothing
             // once its server is on Jellyfin 12, so the session moves to the
             // root address when that is the same server. Before the
-            // validation, which looks the saved account up by address and
-            // would save it again under the old one. Not awaited either: it
-            // asks the network.
+            // validation, which looks the saved account up by address and,
+            // refreshing its picture, would list it again under the old one.
+            // Not awaited either: it asks the network.
             void migrateLegacyServerAddress(serverUrl, {
               // What proves the root to be this server and not another one
               // behind the same host.
