@@ -1297,14 +1297,16 @@ final class MPVLayerRenderer {
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_FLAG, value: &flag)
             if status >= 0 {
                 let newPaused = flag != 0
+                #if os(iOS)
+                // A wake can sample a pause that mpv coalesces with resume.
+                // Recovery needs the current value even when the cache agrees.
+                videoToolboxRecovery.playbackPauseChanged(newPaused, at: ProcessInfo.processInfo.systemUptime)
+                if !newPaused {
+                    refreshVideoToolboxRecovery(handle)
+                }
+                #endif
                 if newPaused != isPaused {
                     isPaused = newPaused
-                    #if os(iOS)
-                    videoToolboxRecovery.playbackPauseChanged(newPaused, at: ProcessInfo.processInfo.systemUptime)
-                    if !newPaused {
-                        refreshVideoToolboxRecovery(handle)
-                    }
-                    #endif
                     // The playing clock is reported only once per second and
                     // cachedPosition can contain an optimistic seek target.
                     // Capture mpv's physical clock before the immediate pause
