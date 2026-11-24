@@ -232,8 +232,16 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                 }
             }
             Box(Modifier.size(artwork).clip(RoundedCornerShape(8.dp))) {
-                // The segment skip rests with the bar too, as it did above it.
-                RemoteSkipBanner(viewModel, enabled = model.seekEnabled, modifier = Modifier.align(Alignment.BottomCenter))
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    // A failure is said on the image, whatever the TV does, with Play here when it offers it.
+                    model.failure?.let { message ->
+                        val playHere = viewModel.strings.get("playHere", "Play on this device").takeIf { model.canPlayHere }
+                        // Within the artwork, however small it is and however long the message: the button stays whole.
+                        RemoteFailureCard(message, playHere, screen::playHere, Modifier.weight(1f, fill = false))
+                    }
+                    // The segment skip rests with the bar too, as it did above it, and waits while Play here is there.
+                    RemoteSkipBanner(viewModel, enabled = model.seekEnabled, allowed = model.showsSkip)
+                }
                 // The chrome's pill, on the half that was tapped.
                 viewModel.doubleTapSeekForward?.let { forward ->
                     Box(Modifier.matchParentSize(), contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart) {
@@ -248,11 +256,6 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
         // Couched, the title's capitals start level with the image's top.
         RemoteSlot.TITLES -> RemoteTitles(viewModel, capsAtTop = couched, modifier = Modifier.fillMaxWidth())
         RemoteSlot.BAR -> Column(Modifier.fillMaxWidth()) {
-            // A failure is said above the bar, whatever the TV does, with Play here when it offers it.
-            model.failure?.let { message ->
-                Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                if (model.canPlayHere) PillButton(viewModel.strings.get("playHere", "Play here"), screen::playHere)
-            }
             // The list the TV got is over and the phone knows what comes after it: offered, never counted down.
             viewModel.nextEpisode?.takeIf { model.nextUpVisible }?.let { next ->
                 NextUpCard(viewModel, next, screen.imageHeaders, screen::continueNextUp)

@@ -208,6 +208,15 @@ class RemoteScreenModelTest {
         assertTrue(model(tv(RemotePhase.ENDED), hasNext = true).nextUpVisible)
     }
 
+    // Play here is the way out the failure offers: the segment skip waits while it is there, and is back with a
+    // failure that offers nothing, or with none.
+    @Test
+    fun theSkipWaitsWhilePlayHereIsOffered() {
+        assertFalse(model(tv(RemotePhase.PLAYING), failure = "Could not play there", canPlayHere = true).showsSkip)
+        assertTrue(model(tv(RemotePhase.PLAYING), failure = "Could not play there").showsSkip)
+        assertTrue(model(tv(RemotePhase.PLAYING)).showsSkip)
+    }
+
     // Play here goes with a failure that offers it, never alone.
     @Test
     fun aFailureOffersPlayHereOnlyWhenItSaysSo() {

@@ -41,6 +41,8 @@ data class RemoteScreenModel(
     val failure: String?,
     /** The failure offers to play on the phone instead. */
     val canPlayHere: Boolean,
+    /** The segment skip band may show: not over Play here, the one way out the failure offers. */
+    val showsSkip: Boolean,
     val closes: RemoteClose?,
 ) {
     companion object {
@@ -86,6 +88,7 @@ data class RemoteScreenModel(
             val ended = snapshot.phase == RemotePhase.ENDED && sawPlayback
             // The reduced player knows nothing after what plays, nor how to play it on the phone.
             val next = hasNext && !reduced
+            val playHere = failure != null && canPlayHere && !reduced
             return RemoteScreenModel(
                 targetLabel = if (reconnecting) TargetLabel.Reconnecting else TargetLabel.Name(targetName),
                 controlsDimmed = reconnecting,
@@ -99,7 +102,8 @@ data class RemoteScreenModel(
                 playShowsSpinner = !reconnecting && (snapshot.phase == RemotePhase.LOADING || snapshot.phase == RemotePhase.BETWEEN),
                 nextUpVisible = snapshot.connected && ended && next,
                 failure = failure,
-                canPlayHere = failure != null && canPlayHere && !reduced,
+                canPlayHere = playHere,
+                showsSkip = !playHere,
                 closes = when {
                     !snapshot.connected -> RemoteClose.REMOTE_ENDED
                     ended && !next -> RemoteClose.PLAYBACK_ENDED

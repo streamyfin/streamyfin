@@ -949,7 +949,7 @@
     "chromecast_did_not_start": "The Chromecast did not start playing. Make sure it can reach your Jellyfin server.",
     "play_on": "Play on {{name}}",
     "connecting_to": "Connecting to {{name}}…",
-    "play_here": "Play here",
+    "play_here": "Play on this device",
     "download_plays_here": "Downloads play on this device",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",

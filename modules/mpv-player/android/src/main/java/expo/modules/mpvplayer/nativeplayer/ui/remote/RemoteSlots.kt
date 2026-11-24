@@ -177,40 +177,72 @@ internal fun RemoteBar(viewModel: PlayerViewModel, enabled: Boolean, inkToEdges:
 /**
  * Skip the segment the TV is in, as a band across the bottom of the artwork: the artwork's whole width, so a long
  * label in any language stays on one line (cut with an ellipsis past it; TalkBack reads it whole). Hidden in auto
- * mode, where the TV skips by itself. It fades in and out without moving anything, the artwork being there in every
- * layout. The last segment shown is kept for the fade out.
+ * mode, where the TV skips by itself, and while [allowed] is false. It fades in and out without moving the screen, the
+ * artwork being there in every layout; a failure said above it moves with it. The last segment shown is kept for the
+ * fade out.
  */
 @Composable
-internal fun RemoteSkipBanner(viewModel: PlayerViewModel, enabled: Boolean, modifier: Modifier = Modifier) {
-    val active = viewModel.activeSegment?.takeIf { it.skipMode != "auto" }
+internal fun RemoteSkipBanner(viewModel: PlayerViewModel, enabled: Boolean, allowed: Boolean, modifier: Modifier = Modifier) {
+    val active = viewModel.activeSegment?.takeIf { allowed && it.skipMode != "auto" }
     var shown by remember { mutableStateOf(active) }
     if (active != null && active != shown) shown = active
     AnimatedVisibility(visible = active != null, enter = fadeIn(), exit = fadeOut(), modifier = modifier.fillMaxWidth()) {
         val segment = shown ?: return@AnimatedVisibility
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+        ArtworkBand(viewModel.skipLabel(segment.type), enabled, Icons.Default.FastForward) { viewModel.skipActiveSegment() }
+    }
+}
+
+/**
+ * A failure said on the artwork, its message over Play here when it offers it: the message stays with its button in
+ * every layout. Play here never rests with the bar: a failed send often leaves the TV stopped, the bar resting. The
+ * button is laid out first and the message takes what height is left, cut with an ellipsis on a small artwork.
+ */
+@Composable
+internal fun RemoteFailureCard(message: String, playHere: String?, onPlayHere: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth()) {
+        Text(
+            text = message,
+            color = Color.White,
+            fontSize = 14.sp,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
+                .weight(1f, fill = false)
                 .fillMaxWidth()
-                .heightIn(min = PlayerConstants.REMOTE_SKIP_BANNER_HEIGHT_DP.dp)
-                // Before the band, so the band dims with its label.
-                .inert(!enabled)
                 .background(RemoteSkipBannerBackground)
-                // TalkBack reaches the button through enabled, not through inert.
-                .clickable(enabled = enabled, role = Role.Button) { viewModel.skipActiveSegment() }
-                .padding(horizontal = 12.dp),
-        ) {
-            Text(
-                text = viewModel.skipLabel(segment.type),
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        if (playHere != null) ArtworkBand(playHere, enabled = true, icon = null, onClick = onPlayHere)
+    }
+}
+
+/** A band across the artwork's width, the skip's and Play here's: one line, cut with an ellipsis past it. */
+@Composable
+private fun ArtworkBand(label: String, enabled: Boolean, icon: ImageVector?, onClick: () -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = PlayerConstants.REMOTE_SKIP_BANNER_HEIGHT_DP.dp)
+            // Before the band, so the band dims with its label.
+            .inert(!enabled)
+            .background(RemoteSkipBannerBackground)
+            // TalkBack reaches the button through enabled, not through inert.
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp),
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        if (icon != null) {
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
 }
