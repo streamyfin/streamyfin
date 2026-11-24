@@ -22,10 +22,18 @@ jobs:
   comment:
     name: 📝 Post plugin parity
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    # One at a time for each PR, or two runs could both find no comment and
+    # post one each. A fork's run carries no PR number, so its branch stands
+    # for it; a newer run waiting replaces an older one.
+    concurrency:
+      group: plugin-parity-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
+      # The report artifact of the run that ended.
       actions: read
+      # Checkout of develop, for the script that words the comment.
       contents: read
       # Comments and labels on a PR.
       pull-requests: write

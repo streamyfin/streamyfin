@@ -10,18 +10,21 @@ name: 🧩 Plugin Parity
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # edited for a PR moved to another base, which changes what it adds.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   parity:
     name: 🧩 Settings the plugin mirrors
+    # A new title or description changes nothing here.
+    if: github.event.action != 'edited' || github.event.changes.base
+    # On the job, so a skipped edit does not cancel a run in progress.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
