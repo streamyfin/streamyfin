@@ -10,6 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { UNRENDERABLE_LOG_VALUE } from "@/constants/Logs";
 import { MAX_SESSION_REPORT_KEYS } from "@/constants/Sentry";
 import {
   describeHttpError,
@@ -18,6 +19,7 @@ import {
   isEnvironmentError,
   isErrorReported,
   isExpectedError,
+  isPlainObject,
   isStaleIdError,
   markErrorReported,
 } from "./errors";
@@ -82,7 +84,8 @@ const appendLogEntry = (level: LogLevel, message: string, data?: any) => {
 // the plugin), and a level-triggered capture would silently opt in every
 // present and future one of them.
 export const writeToLog = (level: LogLevel, message: string, data?: any) => {
-  appendLogEntry(level, message, data);
+  // Callers pass what they caught: an error is reduced before it is stored, whoever logs it.
+  appendLogEntry(level, message, reduceErrorsForLog(data));
 };
 
 const stringifyErrorValue = (value: unknown): string | undefined => {
@@ -106,7 +109,8 @@ const describeErrorForLog = (error: unknown): unknown => {
       name: error.name,
       message: error.message,
       code: error.code,
-      status: error.response?.status,
+      // AxiosError.from keeps the original status when no response came.
+      status: error.response?.status ?? error.status,
       url: error.config?.url?.split("?")[0],
     };
   }
@@ -118,6 +122,45 @@ const describeErrorForLog = (error: unknown): unknown => {
     };
   }
   return error;
+};
+
+// A spread copy of an AxiosError is a plain object that still carries
+// isAxiosError and its config, so it counts as the request it is.
+const isErrorForLog = (value: unknown): boolean =>
+  isAxiosError(value) || value instanceof Error;
+
+// A value that serializes itself is read the way storage's JSON.stringify
+// reads it, through its own toJSON: what that leaves out stays out.
+const serializedForLog = (value: unknown): unknown =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { toJSON?: unknown }).toJSON === "function"
+    ? (value as { toJSON: (key: string) => unknown }).toJSON("")
+    : value;
+
+// A caller can wrap what it caught ({ itemId, error }) or list several, so
+// the values one level down are reduced too. Only a plain object or an array
+// that holds an error is rebuilt: anything else keeps the JSON it already had.
+const reduceErrorsForLog = (data: unknown): unknown => {
+  // Reading a value can throw (a getter) and the logger must not. The value
+  // unreduced is no fallback: it would keep what reduction is there to drop.
+  try {
+    if (isErrorForLog(data)) return describeErrorForLog(data);
+    // An error the wrapper's toJSON hands back is reduced like any other.
+    const value = serializedForLog(data);
+    if (isErrorForLog(value)) return describeErrorForLog(value);
+    if (!Array.isArray(value) && !isPlainObject(value)) return value;
+    if (!Object.values(value).some(isErrorForLog)) return value;
+    if (Array.isArray(value)) return value.map(describeErrorForLog);
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        describeErrorForLog(entry),
+      ]),
+    );
+  } catch {
+    return UNRENDERABLE_LOG_VALUE;
+  }
 };
 
 // A heap address in a native message ("ssl=0xb400007329635958") is different
@@ -160,7 +203,7 @@ export const logAndCaptureError = (
   error: unknown,
   context?: Record<string, unknown>,
 ) => {
-  appendLogEntry("ERROR", message, describeErrorForLog(error));
+  appendLogEntry("ERROR", message, reduceErrorsForLog(error));
   // Expected errors (markExpectedError) are user-facing outcomes — a wrong
   // URL, a server that can't satisfy the device profile — logged locally
   // like everything else, but never a Sentry event.
