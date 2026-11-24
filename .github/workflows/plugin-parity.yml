@@ -9,22 +9,21 @@ name: 🧩 Plugin Parity
 # plugin from here.
 
 on:
+  # Not edited: a run skipped for a new title would show as this check's
+  # result. A PR moved to another base is checked again by re-running it.
   pull_request:
-    # edited for a PR moved to another base, which changes what it adds.
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   parity:
     name: 🧩 Settings the plugin mirrors
-    # A new title or description changes nothing here.
-    if: github.event.action != 'edited' || github.event.changes.base
-    # On the job, so a skipped edit does not cancel a run in progress.
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:

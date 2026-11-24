@@ -24,10 +24,13 @@ jobs:
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     # One at a time for each PR, or two runs could both find no comment and
     # post one each. A fork's run carries no PR number, so its branch stands
-    # for it; a newer run waiting replaces an older one.
+    # for it. Every run waits its turn: with one waiting at most, a re-run for
+    # an older commit could take the place of the current one, then post
+    # nothing at the commit check.
     concurrency:
       group: plugin-parity-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
       cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
