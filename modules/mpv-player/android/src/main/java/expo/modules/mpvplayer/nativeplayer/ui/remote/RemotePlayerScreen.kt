@@ -359,7 +359,7 @@ private fun NextUpCard(viewModel: PlayerViewModel, next: NextEpisodeRecord, imag
     PillButton(viewModel.strings.get("continueWatching", "Continue Watching"), onContinue)
 }
 
-/** A pill under a message: Play here under a failure, Continue under the next episode. */
+/** A pill under a message: Continue under the next episode. */
 @Composable
 private fun PillButton(label: String, onClick: () -> Unit) {
     Button(

@@ -151,8 +151,23 @@ struct RemotePlayerRootView: View {
 				}
 				Color.clear
 					.overlay { if model.seekEnabled { seekPill } }
-					// The segment skip rests with the bar too, as it did above it.
-					.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
+					.overlay(alignment: .bottom) {
+						VStack(spacing: 0) {
+							// A failure is said on the image, whatever the TV does, with Play here when it offers it. Within
+							// the artwork however small it is and however long the message: the bands keep their height.
+							if let failure = model.failure {
+								RemoteFailureCard(
+									message: failure,
+									playHere: model.canPlayHere ? viewModel.str("playHere", "Play on this device") : nil,
+									onPlayHere: screen.playHere
+								)
+								.layoutPriority(-1)
+							}
+							// The segment skip rests with the bar too, as it did above it, and waits while Play here is there.
+							RemoteSkipBanner(viewModel: viewModel, allowed: model.showsSkip)
+								.remoteInert(!model.seekEnabled)
+						}
+					}
 					.frame(width: artwork.width, height: artwork.height)
 					.clipShape(RoundedRectangle(cornerRadius: 8))
 			}
@@ -164,15 +179,6 @@ struct RemotePlayerRootView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 		case .bar:
 			VStack(alignment: .leading, spacing: 8) {
-				// A failure is said above the bar, whatever the TV does, with Play here when it offers it.
-				if let failure = model.failure {
-					Text(failure)
-						.font(.subheadline)
-						.foregroundStyle(.white)
-					if model.canPlayHere {
-						RemotePillButton(label: viewModel.str("playHere", "Play here"), action: screen.playHere)
-					}
-				}
 				// The list the TV got is over and the phone knows what comes after it: offered, never counted down.
 				if model.nextUpVisible, let next = viewModel.nextEpisode {
 					RemoteNextUpCard(viewModel: viewModel, next: next, onContinue: screen.continueNextUp)
@@ -309,7 +315,7 @@ private struct RemoteNextUpCard: View {
 	}
 }
 
-/// A pill under a message: Play here under a failure, Continue under the next episode.
+/// A pill under a message: Continue under the next episode.
 private struct RemotePillButton: View {
 	let label: String
 	let action: () -> Void

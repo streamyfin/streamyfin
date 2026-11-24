@@ -43,6 +43,8 @@ struct RemoteScreenModel: Equatable {
 	var failure: String?
 	/// The failure offers to play on the phone instead.
 	var canPlayHere: Bool
+	/// The segment skip band may show: not over Play here, the one way out the failure offers.
+	var showsSkip: Bool
 	var closes: RemoteClose?
 
 	/// Whether a failure shown while the TV was at `from` goes as it moves to `to`: the TV loads again or plays
@@ -77,6 +79,7 @@ struct RemoteScreenModel: Equatable {
 		let ended = snapshot.phase == .ended && sawPlayback
 		// The reduced player knows nothing after what plays, nor how to play it on the phone.
 		let next = hasNext && !reduced
+		let playHere = failure != nil && canPlayHere && !reduced
 		let closes: RemoteClose?
 		if !snapshot.connected {
 			closes = .remoteEnded
@@ -98,7 +101,8 @@ struct RemoteScreenModel: Equatable {
 			playShowsSpinner: !reconnecting && (snapshot.phase == .loading || snapshot.phase == .between),
 			nextUpVisible: snapshot.connected && ended && next,
 			failure: failure,
-			canPlayHere: failure != nil && canPlayHere && !reduced,
+			canPlayHere: playHere,
+			showsSkip: !playHere,
 			closes: closes
 		)
 	}

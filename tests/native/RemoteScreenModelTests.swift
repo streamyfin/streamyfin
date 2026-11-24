@@ -200,6 +200,15 @@ enum RemoteScreenModelTests {
 		check(!model(tv(.stopped), canPlayHere: true).canPlayHere, "\(what): no failure")
 	}
 
+	// Play here is the way out the failure offers: the segment skip waits while it is there, and is back with a
+	// failure that offers nothing, or with none.
+	static func theSkipWaitsWhilePlayHereIsOffered() {
+		let what = "theSkipWaitsWhilePlayHereIsOffered"
+		check(!model(tv(.playing), failure: "Could not play there", canPlayHere: true).showsSkip, "\(what): offered")
+		check(model(tv(.playing), failure: "Could not play there").showsSkip, "\(what): not offered")
+		check(model(tv(.playing)).showsSkip, "\(what): no failure")
+	}
+
 	// A failure stays until the TV loads again or plays again: a change into loading or playing, not a TV that was
 	// already there when the failure came (a timed out load still loading).
 	static func aFailureClearsWhenTheTvLoadsOrPlaysAgain() {
@@ -238,6 +247,7 @@ enum RemoteScreenModelTests {
 		aFullPlayerShowsEverything()
 		aReducedPlayerShowsOnlyTransportBarAndVolume()
 		aFailureOffersPlayHereOnlyWhenItSaysSo()
+		theSkipWaitsWhilePlayHereIsOffered()
 		aFailureClearsWhenTheTvLoadsOrPlaysAgain()
 		theReasonsAreTheJsOnes()
 		print("PASS: remote screen model (\(cases) cases)")
