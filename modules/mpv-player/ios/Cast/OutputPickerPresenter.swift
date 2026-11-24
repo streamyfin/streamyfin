@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 /// Presents the output sheet from the topmost view controller, as a popover from the button. In a compact
-/// width UIKit adapts it to a sheet with medium and large detents, and switches between the two as the
+/// width UIKit adapts it to a sheet as tall as its content, and switches between the two as the
 /// window changes (an iPad in Split View, a foldable opened or closed). One sheet at a time; its controller
 /// lives here for as long as the sheet does. Main thread only.
 final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDelegate {
@@ -27,12 +27,16 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   private var onHandOff: (() -> Void)?
   private var onPlayHere: (() -> Void)?
   private var anchored = false
+  /// The height the sheet's content reported last: the compact sheet's detent. Nil until it reports.
+  private var contentHeight: CGFloat?
   private var removeTargetWatch: (() -> Void)?
   // A hand-off whose sheet closed before its receiver connected: it goes once the receiver is connected.
   private var handOffWatch: HandOffWatch?
   private let airPlayRoute = AirPlayRouteObserver()
 
   var isPresented: Bool { hosting != nil }
+
+  private static let contentDetent = UISheetPresentationController.Detent.Identifier("content")
 
   /// True once presented, or already there; false with no view controller to present from.
   /// `anchorView` is the button's own view, which the popover follows when the window turns or resizes;
@@ -77,7 +81,11 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
     )
     sheet.onOutput = { [weak self] output in self?.handle(output) }
     let store = OutputSheetStore(controller: sheet)
-    let hosting = UIHostingController(rootView: OutputSheetView(store: store, strings: strings, controller: sheet))
+    var view = OutputSheetView(store: store, strings: strings, controller: sheet)
+    // A receiver found, a panel opened, a larger text: the sheet follows.
+    view.onContentHeight = { [weak self] height in self?.contentHeightChanged(height) }
+    contentHeight = nil
+    let hosting = UIHostingController(rootView: view)
     // The popover follows the sheet's own size, list or panel.
     hosting.sizingOptions = .preferredContentSize
     hosting.modalPresentationStyle = .popover
@@ -97,7 +105,12 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
         popover.permittedArrowDirections = []
       }
       let compact = popover.adaptiveSheetPresentationController
-      compact.detents = [.medium(), .large()]
+      // As tall as what it shows, up to the large height, past which the list scrolls; half height until it reports.
+      compact.detents = [
+        .custom(identifier: Self.contentDetent) { [weak self] context in
+          min(self?.contentHeight ?? context.maximumDetentValue / 2, context.maximumDetentValue)
+        },
+      ]
       compact.prefersGrabberVisible = true
     }
     airPlayRoute.onChange = { [weak sheet] route in sheet?.environment.airPlay = AirPlayInput(activeRoute: route) }
@@ -132,6 +145,13 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
   // member) offers none, and this device only stops the receiver.
   private func goesOnHere() -> Bool {
     onPlayHere != nil && receiverGoesOnHere()
+  }
+
+  private func contentHeightChanged(_ height: CGFloat) {
+    guard height != contentHeight else { return }
+    contentHeight = height
+    guard let compact = hosting?.popoverPresentationController?.adaptiveSheetPresentationController else { return }
+    compact.animateChanges { compact.invalidateDetents() }
   }
 
   /// The debug probe's sheet, for its screenshots: over whatever the app shows, and never in place of the app's.
