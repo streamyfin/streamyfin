@@ -212,8 +212,8 @@ describe("casting from the item page", () => {
     expect(await castBitrate()).toBe(120_000_000);
   });
 
-  // Live TV plays without a cap whatever the default quality: Auto never
-  // measures for it, a bitrate picked by hand still applies.
+  // Live TV plays without a cap whatever the default quality, off a Chromecast
+  // stick: Auto never measures for it, a bitrate picked by hand still applies.
   test("hands the receiver its own ceiling for live television under Auto", async () => {
     await play(AUTO, "Chromecast", CHANNEL);
 
@@ -252,7 +252,21 @@ describe("casting to a Chromecast stick", () => {
     expect(await castBitrate()).toBe(8_000_000);
   });
 
-  test("hands the stick its own ceiling for live television under Auto", async () => {
+  // Live TV skips the measure, and handed no cap, a channel had the server
+  // copy its video and audio: the stick errored five seconds in (20/11/2026).
+  test("holds live television under Auto at the stick's ceiling", async () => {
+    await play(AUTO, "Chromecast", CHANNEL);
+
+    expect(await castBitrate()).toBe(CHROMECAST_STICK_AUTO_MAX_BITRATE);
+    expect(mockDetectBitrate).not.toHaveBeenCalled();
+  });
+
+  test("leaves live television under Auto uncapped on another model", async () => {
+    mockDevice = {
+      friendlyName: "Living Room TV",
+      modelName: "Google TV Streamer",
+    };
+
     await play(AUTO, "Chromecast", CHANNEL);
 
     expect(await castBitrate()).toBe(120_000_000);

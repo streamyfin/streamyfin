@@ -190,7 +190,8 @@ export const PlayButton: React.FC<Props> = ({
                         ).then((bitrate) =>
                           // The link measured is the phone's: a Chromecast
                           // stick freezes on what it would let the server copy.
-                          quality === AUTO_BITRATE_VALUE
+                          // Auto as picked, since Live TV turns it into Max.
+                          bitrateValue === AUTO_BITRATE_VALUE
                             ? autoBitrateOn(bitrate, castDevice?.modelName)
                             : bitrate,
                         )) ?? RECEIVER_MAX_BITRATE,

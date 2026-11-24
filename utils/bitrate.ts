@@ -48,7 +48,8 @@ export type BitrateRequest =
  * Live TV plays without a cap unless a bitrate was picked by hand, as the
  * guide and the channel grid do: Auto never measures for it, and a request
  * with no quality stands for none, whatever the default. Applied before the
- * default, where the players negotiate the stream.
+ * default, where the players negotiate the stream. A cast still holds Auto at
+ * a Chromecast stick's ceiling.
  */
 export const liveTvBitrateRequest = <T extends BitrateRequest | undefined>(
   item: { Type?: string | null } | null | undefined,
