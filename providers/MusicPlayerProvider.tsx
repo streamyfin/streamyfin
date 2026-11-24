@@ -542,7 +542,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const { isConnected, serverConnected } = useNetworkStatus();
   const { subscribe } = useWebSocketContext();
   const isOffline = !isConnected || serverConnected === false;
-  const { castQueue, castState } = useMusicCast({ api, userId: user?.Id });
+  const {
+    castQueue,
+    castState,
+    client: castClient,
+  } = useMusicCast({ api, userId: user?.Id });
   // Offline, the downloaded tracks stay on the phone: the receiver streams.
   const castConnected = castState === CastState.CONNECTED && !isOffline;
   const initializedRef = useRef(false);
@@ -1334,17 +1338,20 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Connecting while the phone plays moves the queue to the receiver. A queue
   // left paused, restored at launch say, stays: the session may be for a film.
-  const previousCastState = useRef(castState);
+  // The move waits for the session's client as well: iOS reports the state
+  // connected before the session has started, and a send then had nothing to
+  // go through while the phone had already stopped (iPhone simulator, 15/11).
+  const castReady = castConnected && !!castClient;
+  const wasCastReady = useRef(castReady);
   useEffect(() => {
-    const previous = previousCastState.current;
-    previousCastState.current = castState;
-    if (!castConnected || previous === CastState.CONNECTED) return;
+    const wasReady = wasCastReady.current;
+    wasCastReady.current = castReady;
+    if (!castReady || wasReady) return;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
     void castOnReceiver(state.queue, Math.max(index, 0));
   }, [
-    castState,
-    castConnected,
+    castReady,
     castOnReceiver,
     state.isPlaying,
     state.queue,

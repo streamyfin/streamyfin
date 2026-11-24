@@ -11,6 +11,7 @@ import {
   type CastDoubleState,
   createCastDoubleState,
   emitCastEvent,
+  nextCastDoubleState,
   setCastSession,
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
@@ -364,7 +365,7 @@ beforeEach(() => {
   api.mock.reset();
   api.mock.onPost().reply(204);
   // No Cast session unless a test opens one: the player plays on the phone.
-  mockCast = createCastDoubleState();
+  mockCast = nextCastDoubleState(mockCast);
   mockCast.castState = "notConnected";
   setCastSession(mockCast, null);
 });
@@ -551,6 +552,35 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await settle();
 
     expect(playNows()).toEqual([]);
+  });
+
+  // Seen on the iPhone simulator (15/11): the iOS SDK reports the state connected before the session has started, so
+  // the connection had no client to send with; the phone went silent and the TV got nothing.
+  test("sends the queue once the session starts when the state reads connected first, as on iOS", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 1));
+
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    // Nothing to send with yet: the phone keeps playing.
+    expect(playNows()).toHaveLength(0);
+    expect(mockNative.playing).toBe(true);
+
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    // The session read, then its client, then the move: one render more than a connection seen whole.
+    await waitFor(() => expect(playNows()).toHaveLength(1));
+    expect(playNows()[0].options.startIndex).toBe(1);
+    await receiverLoads("t1");
   });
 
   // The receiver is the player while it has the queue: the mini player and
