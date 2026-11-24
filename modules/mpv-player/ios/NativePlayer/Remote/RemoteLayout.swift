@@ -90,6 +90,15 @@ enum RemoteMetrics {
 		return RemoteBox(width: maxHeight * ratio, height: maxHeight)
 	}
 
+	/// The image itself in `box`, scaled to fit: the failure and skip bands lie on it, never past it. An unknown or
+	/// impossible `aspectRatio` fills the box; couched, the box has the image's shape already.
+	static func imageSize(box: RemoteBox, aspectRatio: Double?) -> RemoteBox {
+		guard let ratio = aspectRatio, ratio.isFinite, ratio > 0 else { return box }
+		// Narrower than the box's shape, the height binds; otherwise the width does.
+		if box.width > box.height * ratio { return RemoteBox(width: box.height * ratio, height: box.height) }
+		return RemoteBox(width: box.width, height: box.width / ratio)
+	}
+
 	/// The square artwork's side, upright and wide; couched, the height of the box artworkBox gives a square.
 	static func artworkHeight(layout: RemoteLayout, width: Double, height: Double, fontScale: Double) -> Double {
 		let byWidth: Double

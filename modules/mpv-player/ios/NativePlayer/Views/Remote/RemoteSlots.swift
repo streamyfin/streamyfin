@@ -42,10 +42,12 @@ struct RemoteHeader: View {
 	}
 }
 
-/// The artwork, whole, in the box RemoteMetrics gives: a square, or couched the image's own shape.
+/// The artwork, whole, in the box RemoteMetrics gives (a square, or couched the image's own shape); the image at
+/// `image`, its own size in the box, with its own corners. Twin: RemoteArtwork in RemoteSlots.kt.
 struct RemoteArtwork: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let size: CGSize
+	let image: CGSize
 
 	var body: some View {
 		ZStack {
@@ -57,6 +59,8 @@ struct RemoteArtwork: View {
 					Color.white.opacity(0.08)
 				}
 				.scaledToFit()
+				.frame(width: image.width, height: image.height)
+				.clipShape(RoundedRectangle(cornerRadius: 8))
 			}
 		}
 		.frame(width: size.width, height: size.height)

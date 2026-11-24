@@ -59,6 +59,7 @@ import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteArrangement
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteBox
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteGestures
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMetrics
@@ -212,8 +213,11 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                 RemoteLayout.WIDE -> Modifier
             },
         ) {
+            // On the image, not its square: a poster is narrower, a wide image shorter.
+            val box = RemoteBox(artwork.width.value.toDouble(), artwork.height.value.toDouble())
+            val image = RemoteMetrics.imageSize(box, viewModel.metadata?.artworkAspectRatio).let { DpSize(it.widthDp.dp, it.heightDp.dp) }
             // The artwork's double tap seeks like the bar, so it rests when the bar does.
-            RemoteArtwork(viewModel, artwork, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
+            RemoteArtwork(viewModel, artwork, image, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
             // Over the image and never over the titles or the controls; the skip band and the seek pill are drawn
             // over it. Touches on the card stay on it.
             if (viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo) {
@@ -231,7 +235,7 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                     )
                 }
             }
-            Box(Modifier.size(artwork).clip(RoundedCornerShape(8.dp))) {
+            Box(Modifier.size(image).clip(RoundedCornerShape(8.dp))) {
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                     // A failure is said on the image, whatever the TV does, with Play here when it offers it.
                     model.failure?.let { message ->

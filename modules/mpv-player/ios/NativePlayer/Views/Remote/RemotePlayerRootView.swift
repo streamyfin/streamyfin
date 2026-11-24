@@ -38,11 +38,15 @@ struct RemotePlayerRootView: View {
 				aspectRatio: viewModel.metadata?.artworkAspectRatio, topBarHeight: topBarHeight
 			)
 			let artwork = CGSize(width: box.width, height: box.height)
+			let fitted = RemoteMetrics.imageSize(box: box, aspectRatio: viewModel.metadata?.artworkAspectRatio)
 			let beside = RemoteMetrics.besideWidth(layout: layout, width: width).map { CGFloat($0) }
 			let arrangement = RemoteArrangement.of(layout)
 			// The panel's room: couched the whole half, it centers on the image there; else the image.
 			let infoWidth = (layout == .landscape ? beside ?? 0 : artwork.width) - 2 * Self.infoInset
-			let slots = Slots(layout: layout, artwork: artwork, infoWidth: max(min(TechnicalInfoOverlay.compactMaxWidth, infoWidth), 0))
+			let slots = Slots(
+				layout: layout, artwork: artwork, image: CGSize(width: fitted.width, height: fitted.height),
+				infoWidth: max(min(TechnicalInfoOverlay.compactMaxWidth, infoWidth), 0)
+			)
 
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
@@ -121,10 +125,12 @@ struct RemotePlayerRootView: View {
 
 	private var technicalInfoVisible: Bool { viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo }
 
-	/// What the slots are drawn at: the layout, the artwork's box, and the technical info card's width.
+	/// What the slots are drawn at: the layout, the artwork's box, the image within it, and the technical info card's
+	/// width.
 	private struct Slots {
 		let layout: RemoteLayout
 		let artwork: CGSize
+		let image: CGSize
 		let infoWidth: CGFloat
 	}
 
@@ -140,7 +146,7 @@ struct RemotePlayerRootView: View {
 		case .artwork:
 			ZStack {
 				// The artwork's double tap seeks like the bar, so it rests when the bar does.
-				RemoteArtwork(viewModel: viewModel, size: artwork)
+				RemoteArtwork(viewModel: viewModel, size: artwork, image: slots.image)
 					.overlay { if model.seekEnabled { artworkTaps } }
 				// Over the image and never over the titles or the controls; the skip band and the seek pill are drawn
 				// over it.
@@ -168,7 +174,8 @@ struct RemotePlayerRootView: View {
 								.remoteInert(!model.seekEnabled)
 						}
 					}
-					.frame(width: artwork.width, height: artwork.height)
+					// On the image, not its square: a poster is narrower, a wide image shorter.
+					.frame(width: slots.image.width, height: slots.image.height)
 					.clipShape(RoundedRectangle(cornerRadius: 8))
 			}
 			// Couched, the whole half: the panel centers on the image within it, wider than a poster.

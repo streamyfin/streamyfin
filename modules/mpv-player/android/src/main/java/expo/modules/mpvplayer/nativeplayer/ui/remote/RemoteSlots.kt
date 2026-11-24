@@ -104,18 +104,18 @@ internal fun RemoteHeader(viewModel: PlayerViewModel, model: RemoteScreenModel, 
 
 /**
  * The artwork, whole, in the box RemoteMetrics gives (a square, or couched the image's own shape), asked for with the
- * user's proxy headers.
+ * user's proxy headers; the image at [image], its own size in the box, with its own corners.
  */
 @Composable
-internal fun RemoteArtwork(viewModel: PlayerViewModel, size: DpSize, imageHeaders: Map<String, String>?, modifier: Modifier = Modifier) {
-    RemoteImage(
-        url = viewModel.metadata?.artworkUri,
-        headers = remoteImageHeaders(viewModel.metadata?.artworkHeaders, imageHeaders),
-        contentScale = ContentScale.Fit,
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(8.dp)),
-    )
+internal fun RemoteArtwork(viewModel: PlayerViewModel, size: DpSize, image: DpSize, imageHeaders: Map<String, String>?, modifier: Modifier = Modifier) {
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        RemoteImage(
+            url = viewModel.metadata?.artworkUri,
+            headers = remoteImageHeaders(viewModel.metadata?.artworkHeaders, imageHeaders),
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(image).clip(RoundedCornerShape(8.dp)),
+        )
+    }
 }
 
 private val TitleSize = 22.sp

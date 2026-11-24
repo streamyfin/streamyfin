@@ -192,6 +192,22 @@ class RemoteLayoutTest {
         }
     }
 
+    // The failure and skip bands lie on the image, not on the square it sits in: a poster is narrower than its square,
+    // a wide episode image shorter. Couched the box has the image's shape already; an unknown shape fills the box.
+    @Test
+    fun theBandsLieOnTheImageNotOnItsSquare() {
+        val square = RemoteBox(300.0, 300.0)
+        assertEquals(RemoteBox(200.0, 300.0), RemoteMetrics.imageSize(square, 2.0 / 3.0))
+        assertEquals(RemoteBox(300.0, 168.75), RemoteMetrics.imageSize(square, 16.0 / 9.0))
+        for (bad in listOf(null, 0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertEquals("shape $bad", square, RemoteMetrics.imageSize(square, bad))
+        }
+        val couched = RemoteMetrics.artworkBox(RemoteLayout.LANDSCAPE, 914.0, 363.0, 1.0, 2.0 / 3.0)
+        val image = RemoteMetrics.imageSize(couched, 2.0 / 3.0)
+        assertEquals(couched.widthDp, image.widthDp, 1e-9)
+        assertEquals(couched.heightDp, image.heightDp, 1e-9)
+    }
+
     // The top bar's ink meets the margins: the chevron's 44 box has 14 of air on its left, the dots of "more" 20 on
     // their right, a track button's 22 icon 11; the TV button's pill ends at its box.
     @Test
