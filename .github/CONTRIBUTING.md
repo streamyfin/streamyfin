@@ -160,6 +160,7 @@ When opening a PR:
 - Mention if AI-generated code or content was used (see [AI Assistance Disclosure](#ai-assistance-disclosure)).  
 - Do not include secrets, tokens, or production credentials. Redact sensitive data in logs and screenshots.
 - Keep PRs focused; avoid bundling unrelated changes together.
+- The [Jellyfin plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin) mirrors the app's settings so a server admin can set and lock them. A PR that adds, removes or renames a setting, or changes its default or the values it offers, gets a comment listing them, and the `🧩 needs plugin PR` label while the plugin does not have the change yet. You don't have to open the plugin PR: a maintainer will.
 
 PRs require review and approval by maintainers before merging.---
 

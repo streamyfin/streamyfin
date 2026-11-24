@@ -1,0 +1,102 @@
+name: 🧩 Plugin Parity
+
+# Says whether a PR changes a setting the Jellyfin plugin mirrors, by running
+# the plugin's generator on the PR's base and on the PR (scripts/plugin-parity.ts).
+# It runs PR code with a read-only token and no secret, so a PR from a fork is
+# checked like any other. It only gathers what the generator read:
+# plugin-parity-comment.yml checks that, words the comment and sets the label
+# once this ends. What it finds never fails it: a contributor cannot fix the
+# plugin from here.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: 🧩 Settings the plugin mirrors
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: 🛒 Checkout the PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pr
+          # The PR merged into its base, whose first parent is that base: the
+          # two differ by what the PR itself changes, whatever the plugin lags.
+          fetch-depth: 2
+          # The steps below run PR code, which has no use for the token.
+          persist-credentials: false
+
+      - name: 🛒 Checkout the base
+        run: git -C pr worktree add --detach ../base HEAD^1
+
+      - name: 🛒 Checkout the plugin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: streamyfin/jellyfin-plugin-streamyfin
+          ref: develop
+          path: plugin
+          persist-credentials: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('pr/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      # The generator reads a few values from the app's packages, and runs on
+      # TypeScript from the plugin's. Nothing here builds anything, so no
+      # install script runs.
+      - name: 📦 Install
+        run: |
+          bun install --frozen-lockfile --ignore-scripts --cwd plugin
+          bun install --frozen-lockfile --ignore-scripts --cwd base
+          bun install --frozen-lockfile --ignore-scripts --cwd pr
+
+      - name: 🧩 Read the settings
+        run: bun pr/scripts/plugin-parity.ts gather plugin base pr result
+
+      - name: 📝 Job summary
+        if: always()
+        run: |
+          if [ -f result/summary.md ]; then
+            cat result/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Green, since the PR is not at fault, but not silent: until the plugin's
+      # generator reads develop again, this check sees nothing on any PR.
+      - name: ⚠️ Say when nothing was compared
+        run: |
+          if jq -e '.base | has("error")' result/report.json > /dev/null; then
+            echo "::warning title=Plugin parity::The plugin's generator cannot read this PR's base, so nothing was compared. The job summary says why."
+          fi
+
+      - name: 🔢 Record the PR number
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > result/pr-number
+
+      - name: 📦 Upload the result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-parity
+          path: |
+            result/report.json
+            result/pr-number
+          retention-days: 7

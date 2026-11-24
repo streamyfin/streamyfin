@@ -97,3 +97,6 @@ A reviewer is expected to look at the whole PR, not only the changed lines:
 - what the change leaves behind: a flag nobody sets any more, a doc comment that now
   describes the opposite of the code, a duplicated constant
 - the tests: what was added, what is missing, what a bot asked for and did not get
+- the 🧩 Plugin parity comment, when there is one: each setting it lists as not yet in the
+  plugin needs a plugin PR, linked from this one. Once that one is merged, re-run the
+  🧩 Plugin Parity check, which is the only way the label comes off without a push
