@@ -334,9 +334,13 @@ enum CastEngineTests {
 
     do {
       let bench = Bench()
-      _ = bench.playing()
+      let engine = bench.playing()
       bench.media.report(snapshot(playerState: "idle", idleReason: "error"))
-      check("anIdleErrorReportsThePlaybackError", bench.delegate.errors == ["The receiver stopped on a playback error"])
+      check(
+        "anIdleErrorReportsThePlaybackError",
+        bench.delegate.errors == ["The receiver stopped on a playback error"] && engine.phase == .stopped
+          && !engine.stopRequested
+      )
     }
 
     // iOS's SDK drops the media from the status the receiver stops on (an empty file it could not play): the
@@ -2351,7 +2355,10 @@ enum CastEngineTests {
       ok = ok && engine.mediaTitle == "Elephants Dream" && engine.mediaImageUrl == nil && changes() == before + 1
       // Gone from the TV: nothing is left of it.
       bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", customData: nil, hasMedia: false))
-      check("aForeignMediaPublishesItsTitleAndImage", ok && !engine.foreign && engine.mediaTitle == nil)
+      check(
+        "aForeignMediaPublishesItsTitleAndImage",
+        ok && !engine.foreign && engine.mediaTitle == nil && engine.phase == .none && engine.stopRequested
+      )
     }
 
     // What the TV really plays is the receiver's word: its customData names the method, and a reload's new
@@ -2438,7 +2445,7 @@ enum CastEngineTests {
       let engine = bench.playing(42.5)
       let changes = countStateChanges(engine)
       bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", streamPosition: 0), position: 0)
-      let stopped = engine.phase == .stopped && changes() == 1
+      let stopped = engine.phase == .stopped && engine.stopRequested && changes() == 1
       engine.play()
       let options = bench.sentMessages().first?["options"] as? [String: Any] ?? [:]
       check(
@@ -2457,7 +2464,7 @@ enum CastEngineTests {
       bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled", customData: nil, hasMedia: false), position: 0)
       let stopped = engine.phase == .stopped
       bench.media.reportNoStatus()
-      let still = engine.phase == .stopped
+      let still = engine.phase == .stopped && engine.stopRequested
       engine.play()
       let sent = bench.sentMessages()
       let options = sent.first?["options"] as? [String: Any] ?? [:]

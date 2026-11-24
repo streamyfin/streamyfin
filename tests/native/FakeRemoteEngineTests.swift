@@ -233,7 +233,7 @@ enum FakeRemoteEngineTests {
 		bench.started()
 		bench.tick(2)
 		bench.engine.simulateStoppedFromReceiver()
-		var ok = bench.engine.phase == .stopped && bench.engine.isPaused()
+		var ok = bench.engine.phase == .stopped && bench.engine.stopRequested && bench.engine.isPaused()
 		bench.tick(3)
 		ok = ok && bench.engine.getCurrentPosition() == 2
 		bench.engine.play()

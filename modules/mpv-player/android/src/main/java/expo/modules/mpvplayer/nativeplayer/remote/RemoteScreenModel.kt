@@ -16,13 +16,16 @@ enum class RemoteClose(val reason: String) {
 
     /** The connection to the TV is over. */
     REMOTE_ENDED("remoteEnded"),
+
+    /** The TV was stopped, from its remote or a sender. */
+    REMOTE_STOPPED("remoteStopped"),
 }
 
 /**
  * What the remote screen shows for the state of the TV, the design's table of states: a loading TV spins in the
  * play button, a reconnecting one dims the controls and cuts the transport, between two items the bar and the
- * track menus rest, a TV stopped from its remote keeps the screen and play resumes, and the end of the film or of
- * the connection closes it. Pure. Twin: RemoteScreenModel.swift.
+ * track menus rest, a TV stopped on an error keeps the screen for its failure, and a stop from the TV's remote, the
+ * end of the film or of the connection closes it. Pure. Twin: RemoteScreenModel.swift.
  */
 data class RemoteScreenModel(
     val targetLabel: TargetLabel,
@@ -107,6 +110,8 @@ data class RemoteScreenModel(
                 closes = when {
                     !snapshot.connected -> RemoteClose.REMOTE_ENDED
                     ended && !next -> RemoteClose.PLAYBACK_ENDED
+                    // A Stop, not an error: an error waits for its failure from JS, and a failure shown stays.
+                    snapshot.stopRequested && !reconnecting && sawPlayback && failure == null -> RemoteClose.REMOTE_STOPPED
                     else -> null
                 },
             )

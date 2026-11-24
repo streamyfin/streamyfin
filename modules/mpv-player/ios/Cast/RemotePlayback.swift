@@ -200,7 +200,7 @@ final class RemotePlayback: PlayerEngineDelegate {
       durationSec: 0, audioIndex: audio, subtitleIndex: subtitle, queueItemIds: engine?.queueItemIds ?? [],
       playingIndex: engine?.playingIndex ?? -1, foreign: engine?.foreign == true, title: engine?.mediaTitle,
       imageUrl: engine?.mediaImageUrl,
-      playMethod: engine?.playMethod
+      playMethod: engine?.playMethod, stopRequested: engine?.stopRequested == true
     )
     if next.itemId == nil { readyToSeek = false }
     lock.lock()

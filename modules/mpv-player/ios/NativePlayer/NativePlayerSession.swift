@@ -8,6 +8,8 @@ enum PlayerDismissReason: String {
 	case error
 	/// The connection to the TV is over (the remote player).
 	case remoteEnded
+	/// The TV was stopped, from its remote or a sender (the remote player).
+	case remoteStopped
 }
 
 internal final class NoPresenterException: Exception, @unchecked Sendable {

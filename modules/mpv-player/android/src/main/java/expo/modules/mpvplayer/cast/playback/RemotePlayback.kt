@@ -169,6 +169,7 @@ class RemotePlayback(
             title = engine?.mediaTitle,
             imageUrl = engine?.mediaImageUrl,
             playMethod = engine?.playMethod,
+            stopRequested = engine?.stopRequested == true,
         )
         if (next.itemId == null) readyToSeek = false
         if (next == state) return

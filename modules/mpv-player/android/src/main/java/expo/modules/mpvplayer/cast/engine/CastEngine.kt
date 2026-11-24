@@ -715,6 +715,9 @@ class CastEngine(
             hasQueue = queue.isNotEmpty(),
         )
 
+    override val stopRequested: Boolean
+        get() = (phase == RemotePhase.STOPPED || phase == RemotePhase.NONE) && idleReason == CANCELLED
+
     override val reconnecting: Boolean
         get() = suspended
 
@@ -1167,6 +1170,7 @@ class CastEngine(
         private const val IDLE = "idle"
         private const val UNKNOWN = "unknown"
         private const val ERROR = "error"
+        private const val CANCELLED = "cancelled"
         private const val INTERRUPTED = "interrupted"
         private const val FINISHED = "finished"
         private const val NO_IDLE_REASON = "none"

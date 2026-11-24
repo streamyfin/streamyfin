@@ -191,6 +191,7 @@ private final class LoggingRemoteEngine: RemoteEngine {
 		set { inner.onStateChanged = newValue }
 	}
 	var phase: RemotePhase { inner.phase }
+	var stopRequested: Bool { inner.stopRequested }
 	var reconnecting: Bool { inner.reconnecting }
 	var queueItemIds: [String] { inner.queueItemIds }
 	var playingIndex: Int { inner.playingIndex }

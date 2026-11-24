@@ -167,8 +167,8 @@ class RemotePlayerSession(
     }
 
     // The holder publishes on the main thread. A failure goes once the TV loads or plays again. The film over with
-    // nothing after it, or the connection over: the screen closes, an end of playback reported first as the local
-    // player does.
+    // nothing after it, a stop from the TV, or the connection over: the screen closes, an end of playback reported
+    // first as the local player does.
     private fun follow(snapshot: RemotePlaybackSnapshot) {
         val state = screenState ?: return
         if (closed) return

@@ -139,14 +139,32 @@ class RemoteScreenModelTest {
         assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, foreign.copy(phase = RemotePhase.LOADING), reduced = true))
     }
 
+    // Stopped from the TV's remote or by a sender, once the screen saw it play: the screen closes. Not on a stop it
+    // never saw play, nor over a failure, nor while the session comes back.
     @Test
-    fun aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
-        val screen = model(tv(RemotePhase.STOPPED))
+    fun aTvStoppedFromItsRemoteClosesThePlayer() {
+        val stop = tv(RemotePhase.STOPPED).copy(stopRequested = true)
 
-        assertNull(screen.closes)
-        assertTrue(screen.transportEnabled)
-        assertFalse(screen.seekEnabled)
-        assertFalse(screen.playShowsSpinner)
+        assertEquals(RemoteClose.REMOTE_STOPPED, model(stop).closes)
+        assertNull(model(stop, sawPlayback = false).closes)
+        assertNull(model(stop, failure = "Could not play there").closes)
+        assertNull(model(stop.copy(reconnecting = true)).closes)
+    }
+
+    // R1: a TV stopped on an error keeps the screen for the failure band JS sends after the phase, then shows it with
+    // Play here.
+    @Test
+    fun aTvStoppedOnAnErrorKeepsTheScreenForItsFailure() {
+        val waiting = model(tv(RemotePhase.STOPPED))
+        val failed = model(tv(RemotePhase.STOPPED), failure = "Could not play there", canPlayHere = true)
+
+        assertNull(waiting.closes)
+        assertNull(failed.closes)
+        assertEquals("Could not play there", failed.failure)
+        assertTrue(failed.canPlayHere)
+        assertTrue(waiting.transportEnabled)
+        assertFalse(waiting.seekEnabled)
+        assertFalse(waiting.playShowsSpinner)
     }
 
     @Test
@@ -244,5 +262,6 @@ class RemoteScreenModelTest {
     fun theReasonsAreTheJsOnes() {
         assertEquals("playbackEnded", RemoteClose.PLAYBACK_ENDED.reason)
         assertEquals("remoteEnded", RemoteClose.REMOTE_ENDED.reason)
+        assertEquals("remoteStopped", RemoteClose.REMOTE_STOPPED.reason)
     }
 }

@@ -25,6 +25,8 @@ struct RemotePlaybackSnapshot: Equatable {
   var imageUrl: String?
   /// How the TV plays it, in the receiver's word; nil unknown.
   var playMethod: String? = nil
+  /// Idle on a Stop (TV remote or a sender), not on an error, which `stopped` also covers. Native only.
+  var stopRequested = false
 
   func toDictionary() -> [String: Any?] {
     [

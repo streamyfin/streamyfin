@@ -447,7 +447,9 @@ export type NativePlayerDismissReason =
   | "playbackEnded"
   | "error"
   /** The remote player only: the connection to the TV is over. */
-  | "remoteEnded";
+  | "remoteEnded"
+  /** The remote player only: the TV was stopped, from its remote or a sender. */
+  | "remoteStopped";
 
 export type NativePlayerDismissPayload = {
   positionSec: number;

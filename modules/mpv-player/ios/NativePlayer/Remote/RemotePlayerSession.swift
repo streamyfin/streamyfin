@@ -161,8 +161,8 @@ final class RemotePlayerSession: PresentedPlayer {
 		unfollowVolume = RemoteTargetHub.shared.addListener(watch)
 	}
 
-	// The holder publishes on the main thread. The film over with nothing after it, or the connection over: the
-	// screen closes, an end of playback reported first as the local player does.
+	// The holder publishes on the main thread. The film over with nothing after it, a stop from the TV, or the
+	// connection over: the screen closes, an end of playback reported first as the local player does.
 	private func follow(_ snapshot: RemotePlaybackSnapshot) {
 		guard !closed else { return }
 		// A failure goes once the TV loads or plays again.
@@ -177,6 +177,8 @@ final class RemotePlayerSession: PresentedPlayer {
 			dismiss(reason: .playbackEnded)
 		case .remoteEnded:
 			dismiss(reason: .remoteEnded)
+		case .remoteStopped:
+			dismiss(reason: .remoteStopped)
 		}
 	}
 

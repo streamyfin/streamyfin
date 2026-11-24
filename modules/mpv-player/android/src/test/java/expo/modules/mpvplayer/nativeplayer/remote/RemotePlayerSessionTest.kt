@@ -521,17 +521,32 @@ class RemotePlayerSessionTest {
         assertFalse("$events", events.any { it.first == "onDismiss" })
     }
 
+    // Stopped from the TV's remote: the screen closes, and says no end of playback (the film is not over).
     @Test
-    fun aTvStoppedFromItsRemoteKeepsTheScreen() {
+    fun aTvStoppedFromItsRemoteClosesTheScreen() {
+        presented()
+
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals("remoteStopped", events.single { it.first == "onDismiss" }.second["reason"])
+        assertFalse("a stop is no end of playback: $events", events.any { it.first == "onPlaybackEnded" })
+        assertFalse(hasScreen())
+    }
+
+    // R1: the failure band and its Play here stay when the TV then stops, whatever a stop does to the screen.
+    @Test
+    fun aFailureOnScreenStaysWhenTheTvStops() {
         val session = presented()
+        session.showFailure(failure("The TV could not play this"))
 
         fake.simulateStoppedFromReceiver()
         shadowOf(getMainLooper()).idle()
 
         assertTrue(hasScreen())
         assertFalse(events.any { it.first == "onDismiss" })
-        assertFalse(session.screenState!!.model.seekEnabled)
-        assertTrue(session.screenState!!.model.transportEnabled)
+        assertEquals("The TV could not play this", session.screenState!!.model.failure)
+        assertTrue(session.screenState!!.model.canPlayHere)
     }
 
     // Each config JS sends says whether the TV plays media our server does not know (PR 6): a full one after a

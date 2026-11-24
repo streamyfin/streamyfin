@@ -230,6 +230,9 @@ enum RemotePhase: String {
 /// A chrome engine that plays on a TV: the state the remote screen and the JS read besides the position.
 protocol RemoteEngine: TransportEngine, QueueEngine {
 	var phase: RemotePhase { get }
+	/// Idle on a Stop, from the TV's remote or a sender, not on an error: `phase` is `stopped`, or `none` once nothing
+	/// is left (iOS drops a foreign item's media).
+	var stopRequested: Bool { get }
 	/// True from a suspension of the session to its resume: what the engine holds may be stale.
 	var reconnecting: Bool { get }
 	/// The list the engine cast, and where in it the TV plays, -1 when nowhere in it.

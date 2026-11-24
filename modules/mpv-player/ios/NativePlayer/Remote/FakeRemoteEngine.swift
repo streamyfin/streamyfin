@@ -61,6 +61,8 @@ final class FakeRemoteEngine: RemoteEngine {
 		if stoppedFromReceiver { return .stopped }
 		return paused ? .paused : .playing
 	}
+	// The fake TV stops from its remote only.
+	var stopRequested: Bool { phase == .stopped }
 	var reconnecting: Bool { suspended }
 	var queueItemIds: [String] { items.map(\.id) }
 	var playingIndex: Int { loaded && current != nil && foreignMedia == nil ? index : -1 }

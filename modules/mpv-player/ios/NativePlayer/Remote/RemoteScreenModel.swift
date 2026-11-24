@@ -12,20 +12,23 @@ enum RemoteClose: Equatable {
 	case playbackEnded
 	/// The connection to the TV is over.
 	case remoteEnded
+	/// The TV was stopped, from its remote or a sender.
+	case remoteStopped
 
 	/// The dismiss reason JS gets.
 	var reason: String {
 		switch self {
 		case .playbackEnded: return "playbackEnded"
 		case .remoteEnded: return "remoteEnded"
+		case .remoteStopped: return "remoteStopped"
 		}
 	}
 }
 
 /// What the remote screen shows for the state of the TV, the design's table of states: a loading TV spins in
 /// the play button, a reconnecting one dims the controls and cuts the transport, between two items the bar and
-/// the track menus rest, a TV stopped from its remote keeps the screen and play resumes, and the end of the film
-/// or of the connection closes it. Pure. Twin: RemoteScreenModel.kt.
+/// the track menus rest, a TV stopped on an error keeps the screen for its failure, and a stop from the TV's remote,
+/// the end of the film or of the connection closes it. Pure. Twin: RemoteScreenModel.kt.
 struct RemoteScreenModel: Equatable {
 	var targetLabel: TargetLabel
 	var controlsDimmed: Bool
@@ -85,6 +88,9 @@ struct RemoteScreenModel: Equatable {
 			closes = .remoteEnded
 		} else if ended, !next {
 			closes = .playbackEnded
+		} else if snapshot.stopRequested, !reconnecting, sawPlayback, failure == nil {
+			// A Stop, not an error: an error waits for its failure from JS, and a failure shown stays.
+			closes = .remoteStopped
 		} else {
 			closes = nil
 		}
