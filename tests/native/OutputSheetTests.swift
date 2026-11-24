@@ -97,11 +97,10 @@ enum OutputSheetTests {
 
     // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
     do {
-      let rows = rows(outputSheetState(input(airPlay: AirPlayInput(activeRoute: nil), playingHere: "Big Buck Bunny")))
+      let rows = rows(outputSheetState(input(airPlay: AirPlayInput(activeRoute: nil))))
       check(
-        "theListPutsThisDeviceFirstThenTheDevicesByName",
+        "theListPutsTheDevicesByName",
         rows == [
-          .thisDevice(kind: .phone, playing: "Big Buck Bunny"),
           .device(id: "device-c", name: "Attic speaker", videoOut: false, status: .idle),
           .device(id: "device-b", name: "bedroom", videoOut: true, status: .idle),
           .device(id: "device-a", name: "Living room", videoOut: true, status: .idle),
@@ -281,7 +280,36 @@ enum OutputSheetTests {
       let outdated = rows(outputSheetState(input(devices: [], playServices: .updateRequired)))
       check(
         "missingPlayServicesSaySoInsteadOfSearching",
-        missing.last == .status(.playServicesMissing) && outdated.last == .status(.playServicesUpdate) && missing.count == 2
+        missing.last == .status(.playServicesMissing) && outdated.last == .status(.playServicesUpdate) && missing.count == 1
+      )
+    }
+
+    // The row is there when a tap does something. With no receiver a tap could only close the sheet, even over
+    // something playing here or a failed connection: the list holds the receivers alone.
+    do {
+      let failed = RemoteTargetSnapshot(
+        phase: .none, target: nil, reconnecting: false, error: GoogleCastTargetPort.receiverGone,
+        failedTarget: .cast(livingRoom)
+      )
+      let sheets = [input(), input(playingHere: "Big Buck Bunny"), input(snapshot: failed)]
+      check(
+        "withoutAReceiverThereIsNoRowForThisDevice",
+        sheets.allSatisfy { sheet in
+          !rows(outputSheetState(sheet)).contains { if case .thisDevice = $0 { return true } else { return false } }
+        }
+      )
+    }
+
+    // A receiver reached or held gives the row something to do, stop it or take its video over: it comes first again.
+    do {
+      let first = [TargetPhase.connecting, .connected].map { phase in
+        var sheet = input(snapshot: RemoteTargetSnapshot(phase: phase, target: .cast(livingRoom), reconnecting: false, error: nil))
+        sheet.showingList = true
+        return rows(outputSheetState(sheet)).first
+      }
+      check(
+        "aReceiverBringsBackTheRowForThisDevice",
+        first == [.thisDevice(kind: .phone, playing: nil), .thisDevice(kind: .phone, playing: nil)]
       )
     }
 
