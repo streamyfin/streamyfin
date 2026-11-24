@@ -112,6 +112,10 @@ final class OutputPickerPresenter: NSObject, UIPopoverPresentationControllerDele
         },
       ]
       compact.prefersGrabberVisible = true
+      // A phone on its side would get the sheet full screen, without its detent, grabber or dimmed background, and no
+      // swipe closed it: it stays on the bottom edge, as wide as the popover.
+      compact.prefersEdgeAttachedInCompactHeight = true
+      compact.widthFollowsPreferredContentSizeWhenEdgeAttached = true
     }
     airPlayRoute.onChange = { [weak sheet] route in sheet?.environment.airPlay = AirPlayInput(activeRoute: route) }
     airPlayRoute.start()

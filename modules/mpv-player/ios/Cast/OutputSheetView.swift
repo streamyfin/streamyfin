@@ -80,7 +80,7 @@ struct OutputSheetView: View {
           }
       }
     }
-    // A popover takes the ideal width; a sheet, the window's.
+    // A popover and a sheet on a phone on its side take the ideal width; an upright sheet, the window's.
     .frame(idealWidth: RemoteTargetConstants.popoverWidth, maxWidth: .infinity)
     .background(sheetColor.ignoresSafeArea())
     .foregroundStyle(.white)
