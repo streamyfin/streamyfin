@@ -57,6 +57,5 @@ struct OutputPickerStrings {
     "network": "The connection to this device was lost",
     "failed": "The connection failed",
     "airPlay": "AirPlay…",
-    "airPlayCaption": "System picker",
   ]
 }

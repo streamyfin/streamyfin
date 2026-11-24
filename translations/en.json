@@ -1304,8 +1304,7 @@
       "receiver_unavailable": "The Jellyfin receiver could not start on this device",
       "network": "The connection to this device was lost",
       "failed": "The connection failed",
-      "airplay": "AirPlay…",
-      "airplay_caption": "System picker"
+      "airplay": "AirPlay…"
     }
   },
   "not_found": {

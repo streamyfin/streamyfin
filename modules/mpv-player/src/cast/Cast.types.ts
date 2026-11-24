@@ -352,8 +352,7 @@ export type OutputPickerStringKey =
   | "receiverUnavailable"
   | "network"
   | "failed"
-  | "airPlay"
-  | "airPlayCaption";
+  | "airPlay";
 
 export type OutputPickerStrings = Record<OutputPickerStringKey, string>;
 
