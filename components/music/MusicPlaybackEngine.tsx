@@ -13,6 +13,7 @@ import {
   getLocalPath,
 } from "@/providers/AudioStorage";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { writeErrorLog } from "@/utils/log";
 
 // Mounted once the player is ready: these hooks read the native state a single
 // time on mount and swallow the rejection when there is no player.
@@ -75,6 +76,8 @@ const MusicPlaybackPolling: React.FC = () => {
 // or the first track change is missed.
 export const MusicPlaybackEngine: React.FC = () => {
   const { isPlayerReady, onTrackEnd, triggerLookahead } = useMusicPlayer();
+  // The stream played again after its error; each track load clears it.
+  const replayedTrackIdRef = useRef<string | null>(null);
 
   // Listen for track changes (native -> JS)
   // This triggers look-ahead caching, checks for cached versions, and handles track end
@@ -83,6 +86,7 @@ export const MusicPlaybackEngine: React.FC = () => {
       TrackPlayer.addEventListener<PlaybackActiveTrackChangedEvent>(
         Event.PlaybackActiveTrackChanged,
         async (event) => {
+          replayedTrackIdRef.current = null;
           // Trigger look-ahead caching when a new track starts playing
           if (event.track) {
             triggerLookahead();
@@ -180,7 +184,7 @@ export const MusicPlaybackEngine: React.FC = () => {
     };
   }, []);
 
-  // Listen for playback errors (corrupted cache files)
+  // Listen for playback errors: replay a stream once, drop a corrupted cache file
   useEffect(() => {
     const subscription = TrackPlayer.addEventListener(
       Event.PlaybackError,
@@ -188,9 +192,28 @@ export const MusicPlaybackEngine: React.FC = () => {
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack?.url) return;
 
-        // Only handle local file errors
         const url = activeTrack.url as string;
-        if (!url.startsWith("file://")) return;
+        if (!url.startsWith("file://")) {
+          const playWhenReady = await TrackPlayer.getPlayWhenReady();
+          writeErrorLog("[MusicPlayer] Playback error for stream", {
+            trackId: activeTrack.id,
+            playWhenReady,
+            event,
+          });
+          // A seek right after a load can fail the decoding (FLAC LOST_SYNC).
+          // play() reloads a failed item at its position, as a second tap does;
+          // a paused track stays paused.
+          if (!playWhenReady || replayedTrackIdRef.current === activeTrack.id)
+            return;
+          replayedTrackIdRef.current = activeTrack.id;
+          await TrackPlayer.play().catch((error) =>
+            writeErrorLog(
+              "[MusicPlayer] Replay after a playback error failed",
+              error,
+            ),
+          );
+          return;
+        }
 
         console.warn(
           `[MusicPlayer] Playback error for cached file: ${activeTrack.id}`,
