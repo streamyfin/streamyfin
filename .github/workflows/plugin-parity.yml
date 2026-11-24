@@ -10,7 +10,8 @@ name: 🧩 Plugin Parity
 
 on:
   # Not edited: a run skipped for a new title would show as this check's
-  # result. A PR moved to another base is checked again by re-running it.
+  # result. A PR moved to another base needs a new run, by a push or by
+  # closing and reopening it; a re-run keeps the old merge, and its base.
   pull_request:
     types: [opened, synchronize, reopened]
 

@@ -98,5 +98,7 @@ A reviewer is expected to look at the whole PR, not only the changed lines:
   describes the opposite of the code, a duplicated constant
 - the tests: what was added, what is missing, what a bot asked for and did not get
 - the 🧩 Plugin parity comment, when there is one: each setting it lists as not yet in the
-  plugin needs a plugin PR, linked from this one. Once that one is merged, or once this PR
-  moves to another base, re-run the 🧩 Plugin Parity check: neither runs it again
+  plugin needs a plugin PR, linked from this one. Once that one is merged, re-run the
+  🧩 Plugin Parity check, which reads the plugin's develop afresh. A PR moved to another
+  base needs a new run instead, by a push or by closing and reopening it: a re-run checks
+  the same merge, on the old base
