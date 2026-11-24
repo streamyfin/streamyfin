@@ -5,3 +5,7 @@ export const LOGS_STORAGE_KEY = "logs";
 // so one playback can add a couple of dozen lines; 100 was pushing the
 // startup/audio-route entries out before a user got to Settings → Logs.
 export const MAX_LOG_ENTRIES = 250;
+
+// Stored in place of a value the log cannot read or render: JSON and String()
+// both fail on it, or reading it throws.
+export const UNRENDERABLE_LOG_VALUE = "[unrenderable]";

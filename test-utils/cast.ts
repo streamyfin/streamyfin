@@ -150,6 +150,19 @@ export const emitRemoteTarget = (
   emitCastEvent(state, "onRemoteTargetChanged", target);
 };
 
+/**
+ * A fresh double for the next test that keeps the listeners already registered. The native module lives as long as
+ * the JS modules, and some subscribe once for their whole life (the receiver channel's session watch): with a fresh
+ * list, the one native listener behind them stays on the double of the test before, and every event after it goes
+ * unheard.
+ */
+export const nextCastDoubleState = (
+  previous: CastDoubleState,
+): CastDoubleState => ({
+  ...createCastDoubleState(),
+  listeners: previous.listeners,
+});
+
 /** Moves the double onto a session; the device stays unless given (null for a session without one). */
 export const setCastSession = (
   state: CastDoubleState,
