@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -211,13 +212,15 @@ internal fun RemoteFailureCard(message: String, playHere: String?, onPlayHere: (
                 .background(RemoteSkipBannerBackground)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         )
-        if (playHere != null) ArtworkBand(playHere, enabled = true, icon = null, onClick = onPlayHere)
+        if (playHere != null) {
+            ArtworkBand(playHere, enabled = true, icon = null, maxLines = PlayerConstants.REMOTE_PLAY_HERE_MAX_LINES, onClick = onPlayHere)
+        }
     }
 }
 
-/** A band across the artwork's width, the skip's and Play here's: one line, cut with an ellipsis past it. */
+/** A band across the artwork's width, the skip's and Play here's: [maxLines] lines, cut with an ellipsis past them. */
 @Composable
-private fun ArtworkBand(label: String, enabled: Boolean, icon: ImageVector?, onClick: () -> Unit) {
+private fun ArtworkBand(label: String, enabled: Boolean, icon: ImageVector?, maxLines: Int = 1, onClick: () -> Unit) {
     Row(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -229,14 +232,16 @@ private fun ArtworkBand(label: String, enabled: Boolean, icon: ImageVector?, onC
             .background(RemoteSkipBannerBackground)
             // TalkBack reaches the button through enabled, not through inert.
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp),
+            // Wrapped, the lines keep the message's air above and below.
+            .padding(horizontal = 12.dp, vertical = if (maxLines > 1) 8.dp else 0.dp),
     ) {
         Text(
             text = label,
             color = Color.White,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
-            maxLines = 1,
+            textAlign = TextAlign.Center,
+            maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )

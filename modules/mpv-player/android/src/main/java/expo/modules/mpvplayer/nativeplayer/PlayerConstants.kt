@@ -71,6 +71,8 @@ object PlayerConstants {
     // The segment skip's band across the bottom of the remote artwork, at least this tall.
     // iOS: PlayerConstants.remoteSkipBannerHeight.
     const val REMOTE_SKIP_BANNER_HEIGHT_DP = 44
+    // Play here's band wraps to this many lines: whole at the largest text sizes. iOS: remotePlayHereMaxLines.
+    const val REMOTE_PLAY_HERE_MAX_LINES = 2
     // The Continue pill under the next episode, at least the small button's height: white at this opacity over
     // the tint. iOS: PlayerConstants.remotePlayHereFillOpacity.
     const val REMOTE_PLAY_HERE_FILL_ALPHA = 0.18f

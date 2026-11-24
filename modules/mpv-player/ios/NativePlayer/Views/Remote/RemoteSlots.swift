@@ -107,16 +107,19 @@ struct RemoteFailureCard: View {
 				.remoteSmokedGlass()
 				.layoutPriority(-1)
 			if let playHere {
-				RemoteArtworkBand(label: playHere, icon: nil, action: onPlayHere)
+				RemoteArtworkBand(
+					label: playHere, icon: nil, lines: PlayerConstants.remotePlayHereMaxLines, action: onPlayHere
+				)
 			}
 		}
 	}
 }
 
-/// A band across the artwork's width, the skip's and Play here's: one line, cut with an ellipsis past it.
+/// A band across the artwork's width, the skip's and Play here's: `lines` lines, cut with an ellipsis past them.
 private struct RemoteArtworkBand: View {
 	let label: String
 	let icon: String?
+	var lines = 1
 	let action: () -> Void
 
 	var body: some View {
@@ -124,7 +127,8 @@ private struct RemoteArtworkBand: View {
 			HStack(spacing: 6) {
 				Text(label)
 					.font(.subheadline.weight(.semibold))
-					.lineLimit(1)
+					.lineLimit(lines)
+					.multilineTextAlignment(.center)
 					.truncationMode(.tail)
 				if let icon {
 					Image(systemName: icon)
@@ -134,6 +138,8 @@ private struct RemoteArtworkBand: View {
 			}
 			.foregroundStyle(.white)
 			.padding(.horizontal, 12)
+			// Wrapped, the lines keep the message's air above and below.
+			.padding(.vertical, lines > 1 ? 8 : 0)
 			.frame(maxWidth: .infinity, minHeight: PlayerConstants.remoteSkipBannerHeight)
 			.remoteSmokedGlass()
 			.contentShape(Rectangle())
