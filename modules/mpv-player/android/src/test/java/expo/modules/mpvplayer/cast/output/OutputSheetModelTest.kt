@@ -64,12 +64,11 @@ class OutputSheetModelTest {
 
     // A local order that ignores case: "bedroom" sorts between "Attic speaker" and "Living room".
     @Test
-    fun theListPutsThisDeviceFirstThenTheDevicesByName() {
-        val rows = rows(outputSheetState(input(playingHere = "Big Buck Bunny", airPlay = AirPlayInput(activeRoute = null))))
+    fun theListPutsTheDevicesByName() {
+        val rows = rows(outputSheetState(input(airPlay = AirPlayInput(activeRoute = null))))
 
         assertEquals(
             listOf(
-                OutputRow.ThisDevice(ThisDeviceKind.PHONE, playing = "Big Buck Bunny"),
                 OutputRow.Device("device-c", "Attic speaker", videoOut = false, status = DeviceStatus.Idle),
                 OutputRow.Device("device-b", "bedroom", videoOut = true, status = DeviceStatus.Idle),
                 OutputRow.Device("device-a", "Living room", videoOut = true, status = DeviceStatus.Idle),
@@ -103,7 +102,39 @@ class OutputSheetModelTest {
 
         assertEquals(OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING), missing.last())
         assertEquals(OutputRow.Status(SheetStatus.PLAY_SERVICES_UPDATE), outdated.last())
-        assertEquals(2, missing.size)
+        assertEquals(1, missing.size)
+    }
+
+    // The row is there when a tap does something. With no receiver a tap could only close the sheet, even over
+    // something playing here or a failed connection: the list holds the receivers alone.
+    @Test
+    fun withoutAReceiverThereIsNoRowForThisDevice() {
+        val failed =
+            RemoteTargetSnapshot(
+                TargetPhase.NONE,
+                null,
+                reconnecting = false,
+                error = GoogleCastTargetPort.RECEIVER_GONE,
+                failedTarget = RemoteTarget.cast(livingRoom),
+            )
+
+        listOf(input(), input(playingHere = "Big Buck Bunny"), input(snapshot = failed)).forEach { sheet ->
+            assertEquals("$sheet", listOf<OutputRow>(), rows(outputSheetState(sheet)).filterIsInstance<OutputRow.ThisDevice>())
+        }
+    }
+
+    // A receiver reached or held gives the row something to do, stop it or take its video over: it comes first again.
+    @Test
+    fun aReceiverBringsBackTheRowForThisDevice() {
+        listOf(TargetPhase.CONNECTING, TargetPhase.CONNECTED).forEach { phase ->
+            val snapshot = RemoteTargetSnapshot(phase, RemoteTarget.cast(livingRoom), reconnecting = false, error = null)
+
+            assertEquals(
+                "$phase",
+                OutputRow.ThisDevice(ThisDeviceKind.PHONE, playing = null),
+                rows(outputSheetState(input(snapshot = snapshot, showingList = true))).first(),
+            )
+        }
     }
 
     // The port's own refusals by their message, the SDK's by CastStatusCodes (2155 is what a network loss

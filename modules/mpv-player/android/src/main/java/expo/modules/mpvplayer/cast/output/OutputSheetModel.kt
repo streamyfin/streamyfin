@@ -195,7 +195,10 @@ fun outputSheetState(input: OutputSheetInput): OutputSheetState {
     val continueHere =
         !input.handOff && input.playingHere == null && snapshot.phase == TargetPhase.CONNECTED &&
             input.receiverPlaying && input.receiverGoesOnHere
-    val rows = mutableListOf<OutputRow>(OutputRow.ThisDevice(input.thisDevice, input.playingHere, continueHere))
+    // This device's row is there when a tap does something, stop the receiver or take its video over: with no
+    // receiver it could only close the sheet.
+    val rows = mutableListOf<OutputRow>()
+    if (snapshot.phase != TargetPhase.NONE) rows += OutputRow.ThisDevice(input.thisDevice, input.playingHere, continueHere)
     when (input.playServices) {
         PlayServicesStatus.MISSING -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_MISSING)
         PlayServicesStatus.UPDATE_REQUIRED -> rows += OutputRow.Status(SheetStatus.PLAY_SERVICES_UPDATE)
