@@ -449,6 +449,25 @@ class GoogleCastTargetPortTest {
         )
     }
 
+    // Another receiver asked while the launch is on its way, then a Disconnect before that launch is up: its route is
+    // let go, so the SDK starts nothing once the first launch has ended, and the hub hears only the end.
+    @Test
+    fun aDisconnectDuringASwitchFromALaunchLetsTheNextReceiverGo() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+
+        port.connect(bedroom)
+        port.disconnect(stopPlayback = true)
+        sdk.running = null
+        sdk.report("ended", livingRoom, "Cast session status code 2155 (2155)", 2155)
+        sdk.scheduler.advance(0)
+
+        assertEquals(1, sdk.unselects)
+        assertEquals(listOf(livingRoom, bedroom), sdk.selected)
+        assertEquals(listOf("starting" to livingRoom, "ended" to livingRoom), events.sessions.map { it.first to it.second })
+    }
+
     @Test
     fun aCancelledLaunchThatFailsLeavesNothingBehind() {
         val sdk = Sdk()

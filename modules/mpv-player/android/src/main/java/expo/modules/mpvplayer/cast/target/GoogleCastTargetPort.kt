@@ -148,6 +148,9 @@ internal class GoogleCastTargetPort(
         // Not up: a launch, or a suspended session reconnecting.
         val notUp = session?.device?.takeIf { !session.connected }
         if (notUp != null) {
+            // A switch from it had the next receiver's route selected: let go, or the SDK starts that receiver once
+            // this session has ended, after the user left.
+            if (leaving != null) unselectRoute()
             endedEarly = EndedEarly(notUp, stopPlayback)
             events?.sessionEvent("ended", notUp, null)
             return
