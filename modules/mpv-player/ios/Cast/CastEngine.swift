@@ -123,6 +123,11 @@ final class CastEngine: ChromeEngine {
   // The generation whose queue the engine holds: a refusal gives an older one back.
   private var heldGeneration = 0
 
+  // The windows each enqueue still has to see taken, by enqueue in the order asked: a replay's PlayNow
+  // drops those on their way from the receiver, so it sends them again.
+  private var enqueues: [Int: [[String]]] = [:]
+  private var enqueueCount = 0
+
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
   private var busClaimed = false
@@ -251,6 +256,7 @@ final class CastEngine: ChromeEngine {
   private func detach() {
     if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     endWait(false)
+    enqueues = [:]
     suspended = false
     media?.listener = nil
     media = nil
@@ -358,6 +364,7 @@ final class CastEngine: ChromeEngine {
     let generation = queueGeneration
     replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex, held: heldGeneration)
     heldGeneration = generation
+    enqueues = [:]
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
     queue = receiverRequest.items
@@ -606,9 +613,11 @@ final class CastEngine: ChromeEngine {
   private func playAgain(_ data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: @escaping () -> Void = {}) {
     let index = queue.indices.contains(playingIndex) && queue[playingIndex].id == data.itemId
       ? playingIndex : queue.firstIndex { $0.id == data.itemId }
-    let window = ReceiverProtocol.queueWindow(
-      index == nil ? [ReceiverItem(id: data.itemId)] : queue, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems
-    )
+    // The windows of the enqueues on their way go out before this PlayNow, which drops them: they go
+    // again after the queue, as does the tail of a replay before this one.
+    let unsent = index == nil ? [] : enqueues.keys.sorted().flatMap { enqueues[$0] ?? [] }
+    let items = index == nil ? [ReceiverItem(id: data.itemId)] : queue + unsent.joined().map { ReceiverItem(id: $0) }
+    let window = ReceiverProtocol.queueWindow(items, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems)
     // A start offset the receiver reported can put the position past what ticks hold.
     guard let startPositionTicks = Int64(exactly: (position * ReceiverProtocol.ticksPerSecond).rounded()) else {
       undo()
@@ -629,15 +638,22 @@ final class CastEngine: ChromeEngine {
     // Once the receiver took it, the window is its whole queue: the engine's queue is that window, and
     // the items after it go again a window at a time.
     let generation = queueGeneration
-    let tail = index.map { Array(queue.dropFirst($0 - window.startIndex + window.items.count)).compactMap(\.id) } ?? []
+    let tail = index.map { Array(items.dropFirst($0 - window.startIndex + window.items.count)).compactMap(\.id) } ?? []
+    // The enqueues on their way stop, their windows being this one's; until the PlayNow is taken, a
+    // newer replay sends them again, and a newer load or replay ends this one.
+    enqueueCount += 1
+    let replay = enqueueCount
+    if index != nil {
+      enqueues = [replay: unsent]
+    }
     startReload(target: position, data: data, undo: undo) { failed in
       self.sendMessage(
         "PlayNow", message,
         sent: { [weak self] in
-          guard let self, index != nil, generation == self.queueGeneration else { return }
+          guard let self, index != nil, generation == self.queueGeneration, self.enqueues[replay] != nil else { return }
           self.queue = window.items
           self.playingIndex = window.startIndex
-          self.enqueueWindows(Self.windows(of: tail)[...], generation: generation, binding: self.boundSessionId)
+          self.enqueueWindows(Self.windows(of: tail)[...], generation: generation, binding: self.boundSessionId, id: replay)
         },
         failed: failed
       )
@@ -676,7 +692,8 @@ final class CastEngine: ChromeEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
-    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration, binding: boundSessionId)
+    enqueueCount += 1
+    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration, binding: boundSessionId, id: enqueueCount)
   }
 
   private static func windows(of itemIds: [String]) -> [[String]] {
@@ -689,16 +706,28 @@ final class CastEngine: ChromeEngine {
   // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
   // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
   // sent on: the rest was for that receiver.
-  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int, binding: String?) {
-    guard let window = windows.first else { return }
+  // A replay ends it too, the windows left going in its PlayNow.
+  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int, binding: String?, id: Int) {
+    guard let window = windows.first else {
+      enqueues[id] = nil
+      return
+    }
+    enqueues[id] = Array(windows)
     sendMessage(
       "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
       sent: { [weak self] in
-        guard let self, generation == self.queueGeneration, self.session != nil, self.boundSessionId == binding else { return }
+        guard let self else { return }
+        guard self.enqueues[id] != nil, generation == self.queueGeneration, self.session != nil, self.boundSessionId == binding else {
+          self.enqueues[id] = nil
+          return
+        }
         self.queue += window.map { ReceiverItem(id: $0) }
-        self.enqueueWindows(windows.dropFirst(), generation: generation, binding: binding)
+        self.enqueueWindows(windows.dropFirst(), generation: generation, binding: binding, id: id)
       },
-      failed: reportFailure
+      failed: { [weak self] error in
+        self?.enqueues[id] = nil
+        self?.reportFailure(error)
+      }
     )
   }
 
