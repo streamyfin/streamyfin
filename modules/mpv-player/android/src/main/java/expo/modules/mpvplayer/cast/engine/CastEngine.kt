@@ -542,10 +542,18 @@ class CastEngine(
         val unsent = if (index >= 0) enqueues.values.flatten() else emptyList()
         val items = if (index >= 0) queue + unsent.flatten().map { ReceiverItem(id = it) } else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
+        // A start offset the receiver reported can put the position past what ticks hold.
+        val ticks = position * ReceiverProtocol.TICKS_PER_SECOND
+        if (!(ticks >= Long.MIN_VALUE.toDouble() && ticks < Long.MAX_VALUE.toDouble())) {
+            undo()
+            updateTracks()
+            delegate?.onError(POSITION_ERROR)
+            return
+        }
         val request = ReceiverPlayRequest(
             items = window.items,
             startIndex = window.startIndex.takeIf { it > 0 },
-            startPositionTicks = (position * ReceiverProtocol.TICKS_PER_SECOND).roundToLong(),
+            startPositionTicks = ticks.roundToLong(),
             mediaSourceId = data.mediaSourceId,
             audioStreamIndex = audio,
             subtitleStreamIndex = subtitle,
@@ -984,6 +992,7 @@ class CastEngine(
         const val URL_LOAD_ERROR = "The Cast engine plays Jellyfin items, not URLs"
         const val PLAYBACK_ERROR = "The receiver stopped on a playback error"
         const val SESSION_REPLACED_ERROR = "The Cast session was replaced"
+        const val POSITION_ERROR = "The position is out of the receiver's range"
         private const val CONTAINER_ERROR = "Cannot cast a container"
         private const val NO_COMPATIBLE_STREAM = "NoCompatibleStream"
 

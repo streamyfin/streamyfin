@@ -1376,4 +1376,15 @@ class CastEngineTest {
         val last = port.sent.indexOfLast { JSONObject(it.second).getString("command") == "PlayNow" }
         return port.sent.drop(last).flatMap { itemsOf(it.second) }
     }
+
+    // A start offset past what ticks hold: the replay position went out clamped to Long.MAX_VALUE, where
+    // iOS refuses it.
+    @Test
+    fun aReplayPositionTicksCannotHoldIsRefused() {
+        val engine = playing(1, "canClientSeek" to false, "startPositionTicks" to Long.MAX_VALUE, hasTextTracks = false)
+        engine.setSubtitleTrack(5)
+        assertTrue(port.sent.isEmpty())
+        assertEquals(3, engine.getCurrentSubtitleTrack())
+        assertEquals(listOf(CastEngine.POSITION_ERROR), delegate.errors)
+    }
 }
