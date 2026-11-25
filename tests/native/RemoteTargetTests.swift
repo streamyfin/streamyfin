@@ -274,6 +274,24 @@ enum RemoteTargetTests {
       )
     }
 
+    // Later still, the old end after the new receiver is up: it stays connected, and nothing more is published.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      let listener = Recording()
+      _ = hub.addListener(listener)
+      port.emit("ending", livingRoom)
+      port.emit("starting", bedroom)
+      port.emit("started", bedroom)
+      port.emit("ended", livingRoom)
+      check(
+        "aSwitchWhoseOldEndArrivesAfterTheNewStartStaysOnTheNewDevice",
+        listener.targets.map(\.phase) == [.ending, .connecting, .connected]
+          && listener.targets.map(\.target) == [cast(livingRoom), cast(bedroom), cast(bedroom)]
+          && hub.snapshot.phase == .connected && hub.snapshot.target == cast(bedroom)
+      )
+    }
+
     do {
       let hub = RemoteTargetHub()
       let port = FakeTargetPort()
