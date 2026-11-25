@@ -59,7 +59,10 @@ enum ReceiverChannelHubTests {
       hub.attach(port)
       leavingSubscription.remove()
       port.deliver("next")
-      check("removingOneSubscriberKeepsTheRegistrationForTheOther", port.unregistrations.isEmpty && staying.messages == ["next"])
+      check(
+        "removingOneSubscriberKeepsTheRegistrationForTheOther",
+        port.unregistrations.isEmpty && staying.messages == ["next"] && leaving.messages.isEmpty
+      )
     }
 
     do {

@@ -1187,4 +1187,117 @@ class CastEngineTest {
     }
 
     private fun playLasts() = port.sent.count { JSONObject(it.second).getString("command") == "PlayLast" }
+
+    // Two loads the channel refused in a row: the second went back to the first one's queue, which the
+    // receiver never took, and a reload then dropped the queue the receiver plays.
+    @Test
+    fun twoRefusedLoadsLeaveTheQueueTheReceiverTook() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("a-1", "a-2").map { ReceiverItem(id = it) })) {}
+        media.report(snapshot(customData = ours("itemId" to "a-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        port.sendError = "down"
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+        port.releaseResults()
+        port.holdResults = false
+        port.sendError = null
+        engine.reloadCurrentItem()
+        assertEquals(listOf("a-1", "a-2"), itemsOf(port.sent.last().second))
+    }
+    // A handler of the superseded load cast again inside the newer load: that load, no longer the one
+    // asked, still went out after it, and the receiver played it instead.
+    @Test
+    fun aLoadSupersededBeforeItsSendNeverGoesOut() {
+        val engine = engine()
+        var castAgain = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "a-1")))) {
+            if (castAgain) {
+                castAgain = false
+                engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+            }
+        }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        assertEquals(listOf("a-1", "c-1"), port.sent.map { itemsOf(it.second).single() })
+    }
+
+    private fun itemsOf(text: String): List<String> {
+        val items = JSONObject(text).getJSONObject("options").getJSONArray("items")
+        return (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
+    }
+
+    // A status the media channel cannot read says nothing of the text tracks: the subtitle goes by a
+    // reload, as for an item without any, never by a command the receiver would answer with nothing.
+    @Test
+    fun aSubtitleChangeWithNoStatusToReadReloads() {
+        val engine = playing()
+        media.status = null
+        engine.setSubtitleTrack(3)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+    }
+
+    // An enqueue still sending its windows when the engine let go of the session: the rest went on to
+    // the receiver, or to the next one the engine bound to.
+    @Test
+    fun anEnqueueStopsOnceTheEngineStops() {
+        val engine = playing()
+        port.holdResults = true
+        engine.enqueue((1..150).map { "t-$it" })
+        engine.stop()
+        port.releaseResults()
+        assertEquals(1, playLasts())
+    }
+
+    // A replay sends the window that fits one message, which becomes the receiver's whole queue: the
+    // items after it go again a window at a time, or the receiver stopped short of them.
+    @Test
+    fun aReplayOfALongQueueSendsItsTailAgain() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        engine.enqueue((2..CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "t-$it" })
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.sent.clear()
+        engine.reloadCurrentItem()
+        assertEquals(listOf("PlayNow", "PlayLast"), commands().map { it.first })
+        assertEquals(CastEngineConstants.MAX_QUEUE_ITEMS, itemsOf(port.sent[0].second).size)
+        assertEquals(listOf("t-${CastEngineConstants.MAX_QUEUE_ITEMS + 1}"), itemsOf(port.sent[1].second))
+    }
+
+    // A stopped item played again: the channel refused the PlayNow, and the position went to the 0 the
+    // SDK reports for a stopped stream, so the next Play started the item over.
+    @Test
+    fun aRefusedReplayOfAStoppedItemKeepsItsPosition() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        port.sendError = "down"
+        engine.play()
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+    }
+
+    // A connectionerror with no playbackerror after it, then the playbackerror of another failure: that
+    // one is no follow-up and reports.
+    @Test
+    fun aPlaybackErrorAfterALoneConnectionErrorReports() {
+        playing()
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
+        assertEquals(listOf("playback_info_failed", "playback_failed"), delegate.errors)
+    }
+
+    // An end whose status carries no media still ends this engine's playback: the next item of its queue
+    // is its own, and a resume onto it reclaims the bus.
+    @Test
+    fun aResumeOntoTheItemItsQueueWentOnToAfterAnEndWithoutMediaReclaimsTheBus() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-1")), 0)
+        media.report(snapshot(playerState = "idle", idleReason = "finished", customData = null, hasMedia = false), 0)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 1_000)
+        assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
 }

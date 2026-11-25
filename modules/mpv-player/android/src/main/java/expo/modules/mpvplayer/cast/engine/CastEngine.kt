@@ -117,6 +117,11 @@ class CastEngine(
     // back after a newer load no longer describes the receiver's queue.
     private var queueGeneration = 0L
 
+    // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
+    // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
+    private class QueueState(val server: ReceiverServer, val items: List<ReceiverItem>, val playingIndex: Int)
+    private val replaced = mutableMapOf<Long, QueueState>()
+
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
 
@@ -141,6 +146,10 @@ class CastEngine(
 
     // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
     private var endWait: (() -> Unit)? = null
+
+    // The play session the end waits after, kept past a status without media: the next item is this
+    // engine's when that one was.
+    private var finishedPlaySession: String? = null
 
     // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
     // belongs to the same failure.
@@ -322,10 +331,8 @@ class CastEngine(
             onResult(CastLoadResult.NotSent(refused.message ?: CONTAINER_ERROR))
             return@runOnMain
         }
-        val previousServer = this.server
-        val previousQueue = queue
-        val previousIndex = playingIndex
         val generation = ++queueGeneration
+        replaced[generation] = QueueState(this.server, queue, playingIndex)
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
         queue = receiverRequest.items
@@ -346,24 +353,40 @@ class CastEngine(
             if (pendingLoad === load) load.tracker.timeOut()?.let { settleLoad(load, it) }
         }
         setLoading(true)
+        // A handler of the superseded load, or of the loading, cast again: this load is no longer the
+        // one asked, and the receiver must not get it after the newer one.
+        if (pendingLoad !== load) {
+            load.cancelTimer()
+            refused(generation)
+            return@runOnMain
+        }
         log("send PlayNow")
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
             if (error == null) {
+                replaced.remove(generation)
                 busClaimed = true
                 return@send
             }
-            // Never sent: the receiver keeps its queue, under its server.
-            if (generation == queueGeneration) {
-                this.server = previousServer
-                queue = previousQueue
-                playingIndex = previousIndex
-            }
+            refused(generation)
             if (pendingLoad !== load) return@send
             log("PlayNow not sent: $error")
             load.cancelTimer()
             pendingLoad = null
             setLoading(isBuffering())
             onResult(CastLoadResult.NotSent(error))
+        }
+    }
+
+    // Never sent: the receiver keeps its queue, under its server. A newer load replaced this one's queue,
+    // which the receiver never took: what this one replaced is what that one goes back to.
+    private fun refused(generation: Long) {
+        val previous = replaced.remove(generation) ?: return
+        if (generation == queueGeneration) {
+            server = previous.server
+            queue = previous.items
+            playingIndex = previous.playingIndex
+        } else if (generation + 1 in replaced) {
+            replaced[generation + 1] = previous
         }
     }
 
@@ -483,9 +506,9 @@ class CastEngine(
         chosenSubtitle = index
         updateTracks()
         val undo = { if (chosenSubtitle == index) chosenSubtitle = previous }
-        if (index >= 0 && media?.status?.hasTextTracks == false) {
-            // No text track loaded: the receiver would name the index in its reports and show
-            // nothing, so the item plays again where it is with that subtitle.
+        if (index >= 0 && media?.status?.hasTextTracks != true) {
+            // No text track loaded, or no status to tell: the receiver would name the index in its
+            // reports and show nothing, so the item plays again where it is with that subtitle.
             playAgain(data, currentAudio.takeIf { it >= 0 }, index, undo)
             return
         }
@@ -512,7 +535,18 @@ class CastEngine(
             subtitleStreamIndex = subtitle,
             liveStreamId = data.liveStreamId,
         )
-        startReload(position, null, data, undo) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
+        // Once the receiver took it, the window is its whole queue: the engine's queue is that window,
+        // and the items after it go again a window at a time.
+        val generation = queueGeneration
+        val tail = if (index < 0) emptyList() else items.drop(index - window.startIndex + window.items.size).mapNotNull { it.id }
+        startReload(position, null, data, undo) { failed ->
+            sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) {
+                if (index < 0 || generation != queueGeneration) return@sendMessage
+                queue = window.items
+                playingIndex = window.startIndex
+                enqueueWindows(tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), generation, boundSessionId)
+            }
+        }
     }
 
     // Local-only processing: the receiver has no such controls.
@@ -562,22 +596,23 @@ class CastEngine(
     // A Cast message holds 64 KB: the items go a window at a time.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
-        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration)
+        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration, boundSessionId)
     }
 
     // Each window once the channel took the one before: the queue then holds them in the order the
     // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
-    // its PlayNow having replaced the queue the rest was for.
-    private fun enqueueWindows(windows: List<List<String>>, generation: Long) {
+    // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
+    // sent on: the rest was for that receiver.
+    private fun enqueueWindows(windows: List<List<String>>, generation: Long, binding: String?) {
         val window = windows.firstOrNull() ?: return
         sendMessage(
             "PlayLast",
             ReceiverProtocol.playLast(server, window),
             failed = { delegate?.onError(it) },
             sent = {
-                if (generation == queueGeneration) {
+                if (generation == queueGeneration && session != null && boundSessionId == binding) {
                     queue = queue + window.map { ReceiverItem(id = it) }
-                    enqueueWindows(windows.drop(1), generation)
+                    enqueueWindows(windows.drop(1), generation, binding)
                 }
             },
         )
@@ -616,7 +651,7 @@ class CastEngine(
         settled?.let { (pending, outcome) -> settleReload(pending, outcome, recompute = false) }
         data?.playSessionId?.let { playSession ->
             val ownLoad = loaded?.second == ReceiverLoadOutcome.Loaded || settled?.second == ReceiverLoadOutcome.Loaded
-            val ownQueueWentOn = wentOn && ownPlaySession != null && playSessionId == ownPlaySession &&
+            val ownQueueWentOn = wentOn && ownPlaySession != null && finishedPlaySession == ownPlaySession &&
                 queue.getOrNull(playingIndex)?.id == data.itemId
             if (ownLoad || ownQueueWentOn) ownPlaySession = playSession
         }
@@ -687,7 +722,8 @@ class CastEngine(
         }
         if (noCompatibleStreamFollows && error == ReceiverLoadError.PLAYBACK_FAILED) {
             noCompatibleStreamFollows = false
-            return
+            // Only a NoCompatibleStream is that failure's: another playbackerror is a failure of its own.
+            if ((message as? ReceiverMessage.Parsed)?.json?.optString("message") == NO_COMPATIBLE_STREAM) return
         }
         noCompatibleStreamFollows = error == ReceiverLoadError.PLAYBACK_INFO_FAILED
         delegate?.onError(error.wireName)
@@ -743,6 +779,7 @@ class CastEngine(
 
     private fun armEndWait() {
         cancelEndWait()
+        finishedPlaySession = playSessionId
         log("idle finished, waiting for the next item")
         endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
@@ -827,9 +864,10 @@ class CastEngine(
     }
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
+    // Stopped, the SDK reports the stream at 0: the position stays where the item stopped.
     private fun recomputePosition() {
         val port = media
-        if (port == null || !hasMedia) {
+        if (port == null || !hasMedia || playerState == IDLE) {
             setLoading(isBuffering())
             return
         }
@@ -913,6 +951,7 @@ class CastEngine(
         const val PLAYBACK_ERROR = "The receiver stopped on a playback error"
         const val SESSION_REPLACED_ERROR = "The Cast session was replaced"
         private const val CONTAINER_ERROR = "Cannot cast a container"
+        private const val NO_COMPATIBLE_STREAM = "NoCompatibleStream"
 
         // CastMapping's names for the player state and the idle reason.
         private const val PLAYING = "playing"

@@ -268,6 +268,11 @@ func commandsSent(on port: FakeChannelPort) -> [String] {
   port.sent.compactMap { ((try? JSONSerialization.jsonObject(with: Data($0.text.utf8))) as? [String: Any])?["command"] as? String }
 }
 
+/// The ids of the items a sent message carries.
+func itemIds(_ message: [String: Any]?) -> [String] {
+  ((message?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
+}
+
 @main
 enum CastEngineTests {
   static var failures: [String] = []
@@ -747,8 +752,9 @@ enum CastEngineTests {
     do {
       let url = URL(fileURLWithPath: vectors).appendingPathComponent("load-outcomes.json")
       let file = (try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: Any] ?? [:]
-      var all = file["timeoutMs"] as? Double == CastEngineConstants.loadTimeoutMs
-      for outcomeCase in file["cases"] as? [[String: Any]] ?? [] {
+      let outcomeCases = file["cases"] as? [[String: Any]] ?? []
+      var all = !outcomeCases.isEmpty
+      for outcomeCase in outcomeCases {
         let name = outcomeCase["name"] as? String ?? "?"
         let sent = playRequest(outcomeCase["request"] as? [String: Any] ?? file["request"] as? [String: Any] ?? [:])
         let bench = Bench()
@@ -779,12 +785,14 @@ enum CastEngineTests {
         }
         var want = "settled \(expected["status"] as? String ?? "?")"
         if let error = expected["error"] as? String { want = "settled failed \(error)" }
-        let got = results.first.map(describe) ?? "nothing"
-        if got != want {
+        // Exactly once: a second completion after the expected one is a failure too.
+        let got = results.map(describe)
+        if got != [want] {
           all = false
           print("load-outcomes.json: \(name) gave \(got), expected \(want)")
         }
       }
+      check("loadOutcomesShareTheEngineDeadline", file["timeoutMs"] as? Double == CastEngineConstants.loadTimeoutMs)
       check("loadOutcomesThroughTheEngine", all)
     }
 
@@ -1726,6 +1734,130 @@ enum CastEngineTests {
         active = probe.isActive
       }
       check("aScriptStartedInsideTheEngineStartRunsToItsEnd", active && !bench.logs.contains("item never played"))
+    }
+
+    // Two loads the channel refused in a row: the second went back to the first one's queue, which the
+    // receiver never took, and a reload then dropped the queue the receiver plays.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["a-1", "a-2"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "a-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      bench.port.sendError = "receiver busy"
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      bench.port.releaseResults()
+      bench.port.holdResults = false
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      check("twoRefusedLoadsLeaveTheQueueTheReceiverTook", itemIds(bench.sentMessages().last) == ["a-1", "a-2"])
+    }
+
+    // A handler of the superseded load cast again inside the newer load: that load, no longer the one
+    // asked, still went out after it, and the receiver played it instead.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var castAgain = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "a-1")])) { _ in
+        guard castAgain else { return }
+        castAgain = false
+        engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      check("aLoadSupersededBeforeItsSendNeverGoesOut", bench.sentMessages().map { itemIds($0) } == [["a-1"], ["c-1"]])
+    }
+
+    // A status the media channel cannot read says nothing of the text tracks: the subtitle goes by a
+    // reload, as for an item without any, never by a command the receiver would answer with nothing.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.status = nil
+      engine.setSubtitleTrack(3)
+      check("aSubtitleChangeWithNoStatusToReadReloads", commandsSent(on: bench.port) == ["PlayNow"])
+    }
+
+    // An enqueue still sending its windows when the engine let go of the session: the rest went on to
+    // the receiver, or to the next one the engine bound to.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: (1...150).map { "t-\($0)" })
+      engine.shutdown()
+      bench.port.releaseResults()
+      check("anEnqueueStopsOnceTheEngineStops", commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count == 1)
+    }
+
+    // A replay sends the window that fits one message, which becomes the receiver's whole queue: the
+    // items after it go again a window at a time, or the receiver stopped short of them.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let last = CastEngineConstants.maxQueueItems + 1
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      engine.enqueue(itemIds: (2...last).map { "t-\($0)" })
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      let before = bench.port.sent.count
+      engine.reloadCurrentItem()
+      let replay = Array(bench.sentMessages().dropFirst(before))
+      check(
+        "aReplayOfALongQueueSendsItsTailAgain",
+        replay.map { $0["command"] as? String } == ["PlayNow", "PlayLast"]
+          && itemIds(replay.first).count == CastEngineConstants.maxQueueItems && itemIds(replay.last) == ["t-\(last)"]
+      )
+    }
+
+    // A stopped item played again: the channel refused the PlayNow, and the position went to the 0 the
+    // SDK reports for a stopped stream, so the next Play started the item over.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled"), position: 0)
+      bench.port.sendError = "receiver busy"
+      engine.play()
+      check("aRefusedReplayOfAStoppedItemKeepsItsPosition", close(engine.getCurrentPosition(), 42.5))
+    }
+
+    // A connectionerror with no playbackerror after it, then the playbackerror of another failure: that
+    // one is no follow-up and reports.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.port.deliver("{\"type\":\"connectionerror\",\"message\":\"Request failed\"}")
+      bench.port.deliver("{\"type\":\"playbackerror\",\"message\":\"NotAllowed\"}")
+      check("aPlaybackErrorAfterALoneConnectionErrorReports", bench.delegate.errors == ["playback_info_failed", "playback_failed"])
+    }
+
+    // An end whose status carries no media still ends this engine's playback: the next item of its queue
+    // is its own, and a resume onto it reclaims the bus.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let album = ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })
+      engine.load(server: server, request: album) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: nil, hasMedia: false), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 1)
+      check("aResumeOntoTheItemItsQueueWentOnToAfterAnEndWithoutMediaReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
+    // A start offset past what ticks hold: the replay position did not fit an Int64, and converting it
+    // trapped before the PlayNow or its error. Refused, the subtitle goes back to what plays.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(1, ["canClientSeek": false, "startPositionTicks": Int64.max], hasTextTracks: false)
+      engine.setSubtitleTrack(5)
+      check(
+        "aReplayPositionTicksCannotHoldIsRefused",
+        bench.port.sent.isEmpty && subtitle(engine) == 3 && bench.delegate.errors == [CastEngine.positionError]
+      )
     }
 
     if failures.isEmpty {

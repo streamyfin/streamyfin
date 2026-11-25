@@ -22,6 +22,8 @@ final class CastEngine: ChromeEngine {
   static let urlLoadError = "The Cast engine plays Jellyfin items, not URLs"
   static let playbackError = "The receiver stopped on a playback error"
   static let sessionReplacedError = "The Cast session was replaced"
+  static let positionError = "The position is out of the receiver's range"
+  private static let noCompatibleStream = "NoCompatibleStream"
 
   weak var delegate: PlayerEngineDelegate?
   weak var bindingListener: CastBindingListener?
@@ -107,6 +109,15 @@ final class CastEngine: ChromeEngine {
   // hands it over later) no longer describes the receiver's queue.
   private var queueGeneration = 0
 
+  // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
+  // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
+  private struct QueueState {
+    let server: ReceiverServer
+    let items: [ReceiverItem]
+    let playingIndex: Int
+  }
+  private var replaced: [Int: QueueState] = [:]
+
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
   private var busClaimed = false
@@ -124,6 +135,10 @@ final class CastEngine: ChromeEngine {
 
   // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
   private var cancelEndWait: (() -> Void)?
+
+  // The play session the end waits after, kept past a status without media: the next item is this
+  // engine's when that one was.
+  private var finishedPlaySession: String?
 
   // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
   // belongs to the same failure.
@@ -334,11 +349,9 @@ final class CastEngine: ChromeEngine {
       completion(.notSent(String(describing: error)))
       return
     }
-    let previousServer = self.server
-    let previousQueue = queue
-    let previousIndex = playingIndex
     queueGeneration += 1
     let generation = queueGeneration
+    replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex)
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
     queue = receiverRequest.items
@@ -358,19 +371,40 @@ final class CastEngine: ChromeEngine {
       self.settleLoad(load, outcome)
     }
     setLoading(true)
-    sendMessage("PlayNow", message, sent: { [weak self] in self?.busClaimed = true }) { [weak self] error in
-      guard let self else { return }
-      // Never sent: the receiver keeps its queue, under its server.
-      if generation == self.queueGeneration {
-        self.server = previousServer
-        self.queue = previousQueue
-        self.playingIndex = previousIndex
+    // A handler of the superseded load, or of the loading, cast again: this load is no longer the one
+    // asked, and the receiver must not get it after the newer one.
+    guard pendingLoad === load else {
+      load.cancelTimer()
+      refused(generation)
+      return
+    }
+    sendMessage(
+      "PlayNow", message,
+      sent: { [weak self] in
+        self?.replaced[generation] = nil
+        self?.busClaimed = true
       }
+    ) { [weak self] error in
+      guard let self else { return }
+      self.refused(generation)
       guard self.pendingLoad === load else { return }
       load.cancelTimer()
       self.pendingLoad = nil
       self.setLoading(self.isBuffering())
       load.completion(.notSent(error))
+    }
+  }
+
+  // Never sent: the receiver keeps its queue, under its server. A newer load replaced this one's queue,
+  // which the receiver never took: what this one replaced is what that one goes back to.
+  private func refused(_ generation: Int) {
+    guard let previous = replaced.removeValue(forKey: generation) else { return }
+    if generation == queueGeneration {
+      server = previous.server
+      queue = previous.items
+      playingIndex = previous.playingIndex
+    } else if replaced[generation + 1] != nil {
+      replaced[generation + 1] = previous
     }
   }
 
@@ -544,9 +578,9 @@ final class CastEngine: ChromeEngine {
       guard let self, self.chosenSubtitle == index else { return }
       self.chosenSubtitle = previous
     }
-    if index >= 0, media?.status?.hasTextTracks == false {
-      // No text track loaded: the receiver would name the index in its reports and show nothing,
-      // so the item plays again where it is with that subtitle.
+    if index >= 0, media?.status?.hasTextTracks != true {
+      // No text track loaded, or no status to tell: the receiver would name the index in its reports
+      // and show nothing, so the item plays again where it is with that subtitle.
       let audio = read { $0.audio }
       playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, undo: undo)
       return
@@ -568,17 +602,39 @@ final class CastEngine: ChromeEngine {
     let window = ReceiverProtocol.queueWindow(
       index == nil ? [ReceiverItem(id: data.itemId)] : queue, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems
     )
+    // A start offset the receiver reported can put the position past what ticks hold.
+    guard let startPositionTicks = Int64(exactly: (position * ReceiverProtocol.ticksPerSecond).rounded()) else {
+      undo()
+      publishState()
+      delegate?.engine(self, didFailWithError: Self.positionError)
+      return
+    }
     let request = ReceiverPlayRequest(
       items: window.items,
       startIndex: window.startIndex > 0 ? window.startIndex : nil,
-      startPositionTicks: Int64((position * ReceiverProtocol.ticksPerSecond).rounded()),
+      startPositionTicks: startPositionTicks,
       mediaSourceId: data.mediaSourceId,
       audioStreamIndex: audio,
       subtitleStreamIndex: subtitle,
       liveStreamId: data.liveStreamId
     )
     guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else { return }
-    startReload(target: position, data: data, undo: undo) { failed in self.sendMessage("PlayNow", message, failed: failed) }
+    // Once the receiver took it, the window is its whole queue: the engine's queue is that window, and
+    // the items after it go again a window at a time.
+    let generation = queueGeneration
+    let tail = index.map { Array(queue.dropFirst($0 - window.startIndex + window.items.count)).compactMap(\.id) } ?? []
+    startReload(target: position, data: data, undo: undo) { failed in
+      self.sendMessage(
+        "PlayNow", message,
+        sent: { [weak self] in
+          guard let self, index != nil, generation == self.queueGeneration else { return }
+          self.queue = window.items
+          self.playingIndex = window.startIndex
+          self.enqueueWindows(Self.windows(of: tail)[...], generation: generation, binding: self.boundSessionId)
+        },
+        failed: failed
+      )
+    }
   }
 
   // Local-only processing: the receiver has no such controls.
@@ -613,23 +669,27 @@ final class CastEngine: ChromeEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
-    let windows = stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
+    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration, binding: boundSessionId)
+  }
+
+  private static func windows(of itemIds: [String]) -> [[String]] {
+    stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
       Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
     }
-    enqueueWindows(windows[...], generation: queueGeneration)
   }
 
   // Each window once the channel took the one before: the queue then holds them in the order the
   // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
-  // its PlayNow having replaced the queue the rest was for.
-  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int) {
+  // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
+  // sent on: the rest was for that receiver.
+  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int, binding: String?) {
     guard let window = windows.first else { return }
     sendMessage(
       "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
       sent: { [weak self] in
-        guard let self, generation == self.queueGeneration else { return }
+        guard let self, generation == self.queueGeneration, self.session != nil, self.boundSessionId == binding else { return }
         self.queue += window.map { ReceiverItem(id: $0) }
-        self.enqueueWindows(windows.dropFirst(), generation: generation)
+        self.enqueueWindows(windows.dropFirst(), generation: generation, binding: binding)
       },
       failed: reportFailure
     )
@@ -677,7 +737,7 @@ final class CastEngine: ChromeEngine {
       var ownLoad = false
       if case .loaded? = loadOutcome { ownLoad = true }
       if case .loaded? = reloadOutcome { ownLoad = true }
-      let ownQueueWentOn = wentOn && ownPlaySession != nil && playSessionId == ownPlaySession
+      let ownQueueWentOn = wentOn && ownPlaySession != nil && finishedPlaySession == ownPlaySession
         && queue.indices.contains(playingIndex) && queue[playingIndex].id == data?.itemId
       if ownLoad || ownQueueWentOn { ownPlaySession = playSession }
     }
@@ -765,7 +825,8 @@ final class CastEngine: ChromeEngine {
     }
     if noCompatibleStreamFollows, error == .playbackFailed {
       noCompatibleStreamFollows = false
-      return
+      // Only a NoCompatibleStream is that failure's: another playbackerror is a failure of its own.
+      if case .parsed(let json) = message, json["message"] as? String == Self.noCompatibleStream { return }
     }
     noCompatibleStreamFollows = error == .playbackInfoFailed
     delegate?.engine(self, didFailWithError: error.rawValue)
@@ -829,6 +890,7 @@ final class CastEngine: ChromeEngine {
     cancelEndWait?()
     cancelEndWait = nil
     guard armed else { return }
+    finishedPlaySession = playSessionId
     log("idle finished, waiting for the next item")
     cancelEndWait = deliver(CastEngineConstants.nextItemWaitMs) { [weak self] in
       guard let self else { return }
@@ -900,8 +962,9 @@ final class CastEngine: ChromeEngine {
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.
+  // Stopped, the SDK reports the stream at 0: the position stays where the item stopped.
   private func recomputePosition() {
-    guard hasMedia, let port = media, let status = port.status else {
+    guard hasMedia, playerState != State.idle, let port = media, let status = port.status else {
       setLoading(isBuffering())
       return
     }
