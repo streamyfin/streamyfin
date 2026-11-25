@@ -1449,7 +1449,7 @@ class CastEngineTest {
         engine.reloadCurrentItem()
         port.holdResults = false
         port.releaseResults()
-        assertEquals(ids.take(max) + enqueued.take(max) + ids.drop(max) + enqueued.drop(max), receiverQueue())
+        assertEquals(ids + enqueued, receiverQueue())
     }
 
     // A window refused under a replay the channel refused too, while a Seek by reload had replaced that
@@ -1532,6 +1532,38 @@ class CastEngineTest {
         val refused = refuseALoad(engine) + refusedWindow
         assertEquals(listOf("down"), delegate.errors)
         assertEquals(listOf("t-1") + enqueued.take(5 * CastEngineConstants.MAX_QUEUE_ITEMS), receiverQueue(refused))
+    }
+
+    // An item added while a replay was on its way went out before the replay's tail, so the receiver played
+    // it after the replayed window instead of at the end.
+    @Test
+    fun anEnqueueAskedDuringAReplayGoesAfterItsTail() {
+        val queued = (1..longQueue).map { "t-$it" }
+        val engine = playingOne(queued.drop(1))
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        engine.enqueue(listOf("x-1"))
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(queued + "x-1", receiverQueue())
+        engine.reloadCurrentItem()
+        assertEquals(queued + "x-1", receiverQueue())
+    }
+
+    // An item added while a long enqueue still had windows to send went out between two of them.
+    @Test
+    fun anEnqueueAskedDuringALongOneGoesAfterIt() {
+        val engine = playingOne()
+        val enqueued = (1..longQueue).map { "x-$it" }
+        port.holdResults = true
+        engine.enqueue(enqueued)
+        port.releaseResults()
+        engine.enqueue(listOf("y-1"))
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(listOf("t-1") + enqueued + "y-1", receiverQueue())
+        engine.reloadCurrentItem()
+        assertEquals(listOf("t-1") + enqueued + "y-1", receiverQueue())
     }
 
     // "t-1" playing, cast with [enqueued] after it.

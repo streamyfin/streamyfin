@@ -126,7 +126,7 @@ class CastEngine(
     // The generation whose queue the engine holds: a refusal gives an older one back.
     private var heldGeneration = 0L
 
-    // An enqueue's windows still to go, the first one on its way unless [waiting]. A replay's PlayNow
+    // An enqueue's windows still to go, the first one on its way unless [waiting] its turn. A replay's PlayNow
     // drops from the receiver the windows sent before it, so the replay sends them again and holds those
     // enqueues until the channel settles it: a window taken meanwhile waits in [taken], the next with it, and
     // a window refused leaves its [error] to the replay's outcome.
@@ -394,7 +394,10 @@ class CastEngine(
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
             if (error == null) {
                 replaced.remove(generation)
-                loads.remove(generation)?.let { hold -> enqueues.keys.removeAll { it < hold } }
+                loads.remove(generation)?.let { hold ->
+                    enqueues.keys.removeAll { it < hold }
+                    resumeEnqueues()
+                }
                 busClaimed = true
                 return@send
             }
@@ -602,9 +605,8 @@ class CastEngine(
                 enqueues.keys.removeAll { it < replay }
                 queue = window.items
                 playingIndex = window.startIndex
-                val held = isHeld(replay)
-                enqueues[replay] = Enqueue(generation, boundSessionId, tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = held)
-                if (!held) sendWindow(replay)
+                enqueues[replay] = Enqueue(generation, boundSessionId, tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = true)
+                resumeEnqueues()
             }
         }
     }
@@ -653,12 +655,12 @@ class CastEngine(
         }
     }
 
-    // A Cast message holds 64 KB: the items go a window at a time.
+    // A Cast message holds 64 KB: the items go a window at a time, once the windows asked before them went.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
         val id = ++enqueueCount
-        enqueues[id] = Enqueue(queueGeneration, boundSessionId, itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS))
-        sendWindow(id)
+        enqueues[id] = Enqueue(queueGeneration, boundSessionId, itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = true)
+        resumeEnqueues()
     }
 
     // Each window once the channel took the one before: the queue then holds them in the order the
@@ -672,6 +674,7 @@ class CastEngine(
         val window = entry.windows.firstOrNull()
         if (window == null) {
             enqueues.remove(id)
+            resumeEnqueues()
             return
         }
         sendMessage(
@@ -688,12 +691,14 @@ class CastEngine(
                 } else {
                     enqueues.remove(id)
                     delegate?.onError(it)
+                    resumeEnqueues()
                 }
             },
             sent = {
                 if (enqueues[id] !== entry) return@sendMessage
                 if (!isCurrent(entry) && !isHeld(id)) {
                     enqueues.remove(id)
+                    resumeEnqueues()
                     return@sendMessage
                 }
                 entry.windows = entry.windows.drop(1)
@@ -708,11 +713,12 @@ class CastEngine(
         )
     }
 
-    // A replay or a load the channel refused: the enqueues nothing holds any more go on, from the window
-    // taken meanwhile.
+    // One enqueue at a time, in the order asked, so the receiver queues them in that order: the first one
+    // goes on once nothing holds it, from the window taken meanwhile, and after a replay on its way, whose
+    // tail goes before it.
     private fun resumeEnqueues() {
         for ((id, entry) in enqueues.entries.toList()) {
-            if (!entry.waiting || isHeld(id)) continue
+            if (!entry.waiting || isHeld(id) || replays.any { it < id }) return
             if (entry.error != null || !isCurrent(entry)) {
                 enqueues.remove(id)
                 entry.error?.let { delegate?.onError(it) }
@@ -722,6 +728,7 @@ class CastEngine(
             entry.waiting = false
             entry.taken = emptyList()
             sendWindow(id)
+            return
         }
     }
 
