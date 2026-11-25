@@ -1103,6 +1103,48 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(sent[0].options.startIndex).toBe(2);
   });
 
+  // The iOS window again, for Play: the cast had no client to send with, and the paused queue played nowhere.
+  // The session can also get its client while the phone still fetches the track: the move waits for it to play.
+  test.each([
+    ["once the phone plays it", false],
+    ["while the phone still fetches the track", true],
+  ])(
+    "play on a paused queue before the session starts reaches the receiver when the session starts %s, as on iOS",
+    async (_, fetching) => {
+      persistQueue(ALBUM, 2);
+      await mount();
+      await act(async () => {
+        mockCast.castState = "connected";
+        emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+      });
+      await settle();
+
+      if (fetching) holdStreams("t2");
+      await act(async () => {
+        void player.togglePlayPause();
+      });
+      await settle();
+      expect(playNows()).toHaveLength(0);
+      expect(mockNative.playing).toBe(!fetching);
+
+      await act(async () => {
+        setCastSession(mockCast, "session-ios");
+        emitCastEvent(mockCast, "onSessionEvent", {
+          event: "started",
+          sessionId: "session-ios",
+          error: null,
+        });
+      });
+      await settle();
+      if (fetching) await releaseStreams();
+
+      await waitFor(() => expect(playNows()).toHaveLength(1));
+      expect(playNows()[0].options.startIndex).toBe(2);
+      expect(mockNative.playing).toBe(false);
+      await receiverLoads("t2");
+    },
+  );
+
   // Seen on an iPhone: the TV played the queue while the server still listed
   // the phone as playing it, from the last report before its pause.
   test("play on a paused queue while a session is connected ends the phone's play session on the server", async () => {

@@ -1428,6 +1428,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // go through while the phone had already stopped (iPhone simulator, 15/11).
   const castReady = castConnected && !!castClient;
   const wasCastReady = useRef(castReady);
+  // Resumes on their way on the phone: the session can get its client while
+  // one still fetches the track, and the move then waits for it as for a load.
+  const phoneResumesRef = useRef(0);
   useEffect(() => {
     if (!castReady) {
       wasCastReady.current = false;
@@ -1435,7 +1438,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
     // A track still loading on the phone, tapped before the session had its
     // client, is judged once it plays: otherwise it would stay on the phone.
-    if (wasCastReady.current || state.isLoading) return;
+    if (wasCastReady.current || state.isLoading || phoneResumesRef.current > 0)
+      return;
     wasCastReady.current = true;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
@@ -1608,10 +1612,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setState((prev) => ({ ...prev, isPlaying: false }));
   }, [playerReadyForControl]);
 
-  const resume = useCallback(async () => {
+  const resumeQueue = useCallback(async () => {
     // As on Spotify: a connected session takes the paused queue, from the
-    // track and the place it paused on, and the phone stays silent.
-    if (castConnected && state.queue.length > 0) {
+    // track and the place it paused on, and the phone stays silent. Ready, not
+    // just connected, as for a tap: before that the phone plays it, and the
+    // move to the receiver takes it once the session has its client.
+    if (castReady && state.queue.length > 0) {
       // The index first: a queue can hold the same track twice.
       const index =
         state.queue[state.queueIndex]?.Id === state.currentTrack?.Id
@@ -1751,9 +1757,20 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     playerReadyForControl,
     loadRemainingTracksInBackground,
     reportPlaybackStart,
-    castConnected,
+    castReady,
     castOnReceiver,
   ]);
+
+  // Counted until it lands, so the move to the receiver judges the queue once
+  // it plays: the isPlaying it sets runs the move again.
+  const resume = useCallback(async () => {
+    phoneResumesRef.current += 1;
+    try {
+      await resumeQueue();
+    } finally {
+      phoneResumesRef.current -= 1;
+    }
+  }, [resumeQueue]);
 
   const togglePlayPause = useCallback(async () => {
     if (state.isPlaying) {
