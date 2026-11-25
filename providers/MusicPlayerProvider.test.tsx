@@ -1069,6 +1069,25 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(reports(STOPPED_URL)[0].PlaySessionId).toBeUndefined();
   });
 
+  // A track picked while the session has no client yet: the phone's session is reported stopped, then the cast
+  // pauses the phone, and that pause was reported for the stopped track.
+  test("a track picked before the session's client is ready reports no pause after its stop", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.playTrack(ALBUM[1], ALBUM));
+    await settle();
+
+    expect(reports(STOPPED_URL)).toHaveLength(1);
+    expect(reports(PROGRESS_URL)).toHaveLength(before);
+  });
+
   test("stopping the queue on the receiver does not end the phone's play session a second time", async () => {
     await mount();
     await run((p) => p.playQueue(ALBUM, 0));

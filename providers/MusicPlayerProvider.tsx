@@ -818,8 +818,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
   }, [state.progress, state.currentTrack]);
 
-  // Whether the server lists the phone playing, from a start it reported until the queue leaves for the receiver. A
-  // downloaded track plays in such a session too, without a play session id.
+  // Whether the server lists the phone playing, from a start it reported until a stop it reported, the queue leaving
+  // for the receiver among them. A downloaded track plays in such a session too, without a play session id.
   const phoneSessionOpenRef = useRef(false);
   const reportPlaybackStart = useCallback(
     async (
@@ -934,6 +934,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       sessionId: string | null,
     ) => {
       if (!api || !user?.Id || !track.Id) return;
+      // The server ends the phone's session at the stop: a pause after it is no longer that session's.
+      phoneSessionOpenRef.current = false;
 
       try {
         await getSessionApi(api).reportPlaybackStopped({
