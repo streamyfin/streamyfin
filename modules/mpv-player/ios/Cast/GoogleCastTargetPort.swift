@@ -242,7 +242,7 @@ final class GoogleCastTargetPort: TargetPort {
 
   private func askEnd(stopPlayback: Bool, then next: TargetDevice) {
     // Armed first: the SDK can report the end, or the session suspended again, inside the call.
-    waitForEnd()
+    waitForEnd(stopDue: endedEarly?.stopWhenUp)
     if !endSession(stopPlayback) {
       // The SDK kept the session it was asked to end: this receiver cannot start.
       endWait()
@@ -251,17 +251,20 @@ final class GoogleCastTargetPort: TargetPort {
       events?.sessionEvent("startFailed", device: next, error: Self.endRefused)
       return
     }
-    // The end asked ends a session ended early itself: no stop is due once it is up.
+    // The end asked ends a session ended early itself: no stop is due once it is up, unless that end never comes.
     endedEarly?.stopWhenUp = nil
   }
 
-  private func waitForEnd() {
+  // `stopDue` is the Stop an early-ended session had due before this end: taking the end is no end yet, so the Stop
+  // is due again if the end never comes.
+  private func waitForEnd(stopDue: Bool? = nil) {
     cancelWait?()
     cancelWait = schedule(RemoteTargetConstants.sessionEndWaitMs) { [weak self] in
       guard let self, let next = self.pendingSwitch else { return }
       self.cancelWait = nil
       self.pendingSwitch = nil
       self.restarting = nil
+      if let stopDue { self.endedEarly?.stopWhenUp = stopDue }
       self.events?.sessionEvent("startFailed", device: next, error: Self.endNeverCame)
     }
   }

@@ -727,6 +727,26 @@ enum RemoteTargetTests {
       )
     }
 
+    // A switch away from that cancelled launch, whose end the SDK takes and never brings: the Stop asked at the Cancel
+    // is due again and goes once the session is up, instead of a session the hub no longer shows playing on.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = launching(sdk, events)
+      port.disconnect(stopPlayback: false)
+      port.connect(streamer)
+      sdk.clock.advance(RemoteTargetConstants.sessionEndWaitMs)
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("started", chromecast, nil, nil)
+      check(
+        "aCancelledLaunchWhoseSwitchEndNeverComesIsEndedOnceUp",
+        sdk.ended == [true, false]
+          && events.sessions == [
+            "starting device-a nil", "ended device-a nil", "startFailed device-b " + GoogleCastTargetPort.endNeverCame,
+          ]
+      )
+    }
+
     // The living room's session lost and suspended, then a Disconnect on Reconnecting: the hub hears the end at once.
     func suspendedAfterADisconnect(_ sdk: Sdk, _ events: PortEventsRecording) -> GoogleCastTargetPort {
       sdk.receivers = [chromecast, streamer]
