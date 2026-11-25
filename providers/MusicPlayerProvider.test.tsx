@@ -2401,6 +2401,27 @@ describe("MusicPlayerProvider native player setup", () => {
     expect(reports(START_URL)).toHaveLength(0);
   });
 
+  // A newer start while that resume read where the service stands: the resume still reported the start of the track
+  // it found and put that track back on screen, while the player went on with the newer queue.
+  test("a newer start during the resume's progress read wins over the resume", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    mockNative.queue = [{ id: "t2" }];
+    mockNative.activeIndex = 0;
+    mockNative.beforeProgress = async () => {
+      mockNative.beforeProgress = undefined;
+      await player.playQueue(ALBUM, 3);
+    };
+
+    await run((p) => p.resume());
+    await settle();
+
+    expect(reports(START_URL).map((report) => report.ItemId)).not.toContain(
+      "t2",
+    );
+    expect(player.currentTrack?.Id).toBe("t3");
+  });
+
   // A start waiting on the setup would otherwise resume behind the reset a
   // stop just ran and play a queue that no longer exists.
   test("a stop cancels a start still waiting on the setup", async () => {

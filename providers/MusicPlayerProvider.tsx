@@ -1608,7 +1608,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
     if (!TrackPlayer) return;
     const generation = sessionGenerationRef.current;
-    const isStale = () => generation !== sessionGenerationRef.current;
+    const startSequence = startSequenceRef.current;
+    // A newer queue start supersedes this resume too, and keeps the player: only a session switch resets it here.
+    const isSwitched = () => generation !== sessionGenerationRef.current;
+    const isStale = () =>
+      isSwitched() || startSequence !== startSequenceRef.current;
     if (!(await playerReadyForControl()) || isStale()) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
@@ -1685,7 +1689,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       await TrackPlayer.seekTo(progressRef.current);
       await TrackPlayer.play();
       if (isStale()) {
-        await TrackPlayer.reset().catch(() => {});
+        if (isSwitched()) await TrackPlayer.reset().catch(() => {});
         return;
       }
       setState((prev) => ({
