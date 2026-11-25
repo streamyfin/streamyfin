@@ -754,8 +754,10 @@ final class CastEngine: ChromeEngine {
         self.sendWindow(id)
       },
       failed: { [weak self] error in
-        self?.enqueues[id] = nil
-        self?.reportFailure(error)
+        guard let self else { return }
+        self.enqueues[id] = nil
+        // Held, it goes in the replay's PlayNow: refused, that one reports.
+        if !self.isHeld(id) { self.reportFailure(error) }
       }
     )
   }

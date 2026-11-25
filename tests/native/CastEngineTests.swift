@@ -1984,6 +1984,27 @@ enum CastEngineTests {
       check("aTakenReplaySendsItsTailWhenTheNewerOneIsRefused", receiverQueue(bench, refused: refused) == ids)
     }
 
+    // A window refused on its way while a replay carried it again: the replay sent it, yet the engine
+    // reported the refusal.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      bench.port.sendError = "down"
+      engine.enqueue(itemIds: ["x-1"])
+      let refused: Set<Int> = [bench.port.sent.count - 1]
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      check(
+        "aWindowRefusedUnderATakenReplayReportsNothing",
+        receiverQueue(bench, refused: refused) == ["t-1", "x-1"] && bench.delegate.errors.isEmpty
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
