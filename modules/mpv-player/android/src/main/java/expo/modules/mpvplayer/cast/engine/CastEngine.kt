@@ -132,7 +132,8 @@ class CastEngine(
     private class Enqueue(val generation: Long, val binding: String?, var windows: List<List<String>>, var waiting: Boolean = false) {
         var taken: List<String> = emptyList()
     }
-    private val enqueues = linkedMapOf<Long, Enqueue>()
+    // By id, the order asked: a replay's tail, under the replay's id, goes before what was enqueued meanwhile.
+    private val enqueues = sortedMapOf<Long, Enqueue>()
     private var enqueueCount = 0L
 
     // The replays whose PlayNow the channel has not settled: each holds the enqueues asked before it.

@@ -1431,6 +1431,27 @@ class CastEngineTest {
         assertEquals(emptyList<String>(), delegate.errors)
     }
 
+    // A replay's tail and an enqueue asked while that replay was on its way: a later replay sent the enqueue
+    // first, in another order than the receiver held them and than iOS sends them.
+    @Test
+    fun aReplayKeepsATailBeforeAnEnqueueAskedDuringItsReplay() {
+        val engine = engine()
+        val max = CastEngineConstants.MAX_QUEUE_ITEMS
+        val ids = (1..max + 2).map { "t-$it" }
+        val enqueued = (1..max + 1).map { "x-$it" }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = ids[0])))) {}
+        engine.enqueue(ids.drop(1))
+        media.report(snapshot(customData = ours("itemId" to ids[0], "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        engine.enqueue(enqueued)
+        port.releaseResults()
+        engine.reloadCurrentItem()
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(ids.take(max) + enqueued.take(max) + ids.drop(max) + enqueued.drop(max), receiverQueue())
+    }
+
     // What the receiver queues: the last PlayNow it took, then each PlayLast after it; [refused] holds
     // the indexes in `port.sent` of the sends the channel refused.
     private fun receiverQueue(refused: Set<Int> = emptySet()): List<String> {
