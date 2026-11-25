@@ -38,6 +38,9 @@ const mockNative = {
   playing: false,
   /** Runs inside a pause, before it lands. */
   onPause: undefined as (() => Promise<void>) | undefined,
+  /** Run inside an add or a play, before it lands. */
+  onAdd: undefined as (() => Promise<void>) | undefined,
+  onPlay: undefined as (() => Promise<void>) | undefined,
   outOfBounds: () => new Error("The track index is out of bounds"),
   /**
    * Runs between the native side answering a queue read and the caller seeing
@@ -87,6 +90,7 @@ jest.mock(
       setVolume: async () => undefined,
       play: async () => {
         if (!mockNative.initialized) throw mockNative.notInitialized();
+        await mockNative.onPlay?.();
         mockNative.playing = true;
       },
       pause: async () => {
@@ -117,6 +121,7 @@ jest.mock(
       ) => {
         mockNative.calls.push("add");
         if (!mockNative.initialized) throw mockNative.notInitialized();
+        await mockNative.onAdd?.();
         const added = Array.isArray(tracks) ? tracks : [tracks];
         const count = mockNative.queue.length;
         const index = insertBeforeIndex === -1 ? count : insertBeforeIndex;
@@ -351,6 +356,8 @@ beforeEach(() => {
   mockNative.activeIndex = undefined;
   mockNative.playing = false;
   mockNative.onPause = undefined;
+  mockNative.onAdd = undefined;
+  mockNative.onPlay = undefined;
   mockNative.afterQueueRead = undefined;
   mockNetwork.isConnected = true;
   mockNetwork.serverConnected = true;
@@ -717,6 +724,38 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ]);
     await receiverLoads("t3");
   });
+
+  // A tap while the phone's own start is in its last native calls: the phone stays silent beside the TV.
+  test.each([
+    ["add", "onAdd"],
+    ["play", "onPlay"],
+  ] as const)(
+    "keeps the phone silent when a tap reaches the receiver during its native %s",
+    async (_, hook) => {
+      await mount();
+      await connectedBeforeSession();
+      await settle();
+      let release = () => {};
+      mockNative[hook] = () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      await run((p) => p.playQueue(ALBUM, 1));
+      await sessionStarts();
+      await settle();
+
+      await run((p) => p.playQueue(ALBUM, 3));
+      mockNative[hook] = undefined;
+      await act(async () => release());
+      await settle();
+
+      expect(mockNative.playing).toBe(false);
+      expect(playNows().map((message) => message.options.startIndex)).toEqual([
+        3,
+      ]);
+      await receiverLoads("t3");
+    },
+  );
 
   // The receiver is the player while it has the queue: the mini player and
   // Now Playing show what it plays, not what the phone last played.

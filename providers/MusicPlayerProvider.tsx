@@ -1201,8 +1201,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           // the volume reaches JS only once the track is already loading.
           setMusicNormalizationTrack(targetTrackResult.track);
           await TrackPlayer.add(targetTrackResult.track);
+          if (isStale()) return false;
           await TrackPlayer.play();
-          return !isStale();
+          if (!isStale()) return true;
+          // Superseded during the play itself, by a tap cast to the receiver
+          // say: the phone must not play beside it.
+          await TrackPlayer.pause();
+          return false;
         });
         if (!played) {
           bailIfStale();
