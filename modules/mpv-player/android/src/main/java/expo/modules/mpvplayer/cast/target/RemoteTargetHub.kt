@@ -27,13 +27,16 @@ class RemoteTargetHub {
         private set
 
     /**
-     * True after a disconnect that asked to keep the receiver playing, until the next connection; the module
+     * True after a disconnect that asked to keep the receiver playing, until a connection after its end; the module
      * marks the end it brings. The receiver keeps playing only when this session joined it: the session that
      * launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
      */
     @Volatile
     var disconnectedWithoutStop = false
         private set
+    // That disconnect's end has not come yet: a connection meanwhile leaves the mark to it, since the receiver may
+    // still play the session it ends.
+    private var endWithoutStopDue = false
 
     var log: (String) -> Unit = {}
 
@@ -61,7 +64,7 @@ class RemoteTargetHub {
     fun connect(deviceId: String): Boolean {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
-        disconnectedWithoutStop = false
+        if (!endWithoutStopDue) disconnectedWithoutStop = false
         val current = snapshot
         val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
         // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -77,6 +80,7 @@ class RemoteTargetHub {
     /** The state follows the port's events, ending then ended, not this call. */
     fun disconnect(stopPlayback: Boolean) {
         disconnectedWithoutStop = !stopPlayback
+        endWithoutStopDue = !stopPlayback
         machine.disconnectRequested()
         port?.disconnect(stopPlayback)
     }
@@ -116,7 +120,11 @@ class RemoteTargetHub {
             if (error != null) log("Cast session $event: $error")
             // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
             // kept, or one that came back, is no end of that disconnect any more.
-            if (event == "starting" || event == "endRefused" || event == "resumed") disconnectedWithoutStop = false
+            if (event == "starting" || event == "endRefused" || event == "resumed") {
+                disconnectedWithoutStop = false
+                endWithoutStopDue = false
+            }
+            if (event == "ended" || event == "startFailed") endWithoutStopDue = false
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 
