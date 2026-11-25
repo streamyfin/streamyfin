@@ -155,9 +155,9 @@ final class RemoteTargetMachine {
       // refused it at once, or that end never came, and the receiver holding the session stays, with the cause.
       switchingTo = nil
       guard held, snapshot.phase == .connecting else {
-        // A session that said it was ending and never ended is still there.
+        // A session that said it was ending and never ended is still there, whichever receiver was asked.
         var kept = snapshot
-        if held && kept.phase == .ending { kept.phase = .connected }
+        if kept.phase == .ending { kept.phase = .connected }
         return update(failed(kept.withError(error), error, code, .cast(switching)))
       }
       let ended = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error)

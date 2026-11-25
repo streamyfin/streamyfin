@@ -2387,6 +2387,21 @@ enum RemoteTargetTests {
       )
     }
 
+    // A switch to another receiver once the old session said it was ending, that end never coming: the old session is
+    // still there, yet the state stayed on its end, with volume and mute off.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      _ = hub.connect(deviceId: bedroom.id)
+      port.emit("ending", livingRoom)
+      port.emit("startFailed", bedroom, error: "no end")
+      let state = hub.snapshot
+      check(
+        "aSwitchAfterTheOldEndingWhoseEndNeverCameKeepsTheOldSession",
+        state.phase == .connected && state.target?.id == livingRoom.id && state.error == "no end"
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")
     } else {
