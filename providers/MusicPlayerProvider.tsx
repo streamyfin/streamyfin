@@ -570,6 +570,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Which start put the spinner up: two starts of the same track share its
   // loadingTrackId, so the id alone cannot tell them apart.
   const loadingStartSeqRef = useRef(0);
+  // The start still on its way to playing on the phone, if any: a jump shows
+  // the same spinner, so isLoading cannot tell them apart.
+  const phoneStartRef = useRef<number | null>(null);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -1202,6 +1205,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         return true;
       };
 
+      phoneStartRef.current = startSequence;
       try {
         // Wait for the setup before preparing, not after: the starts waiting
         // on it resume together, and the sequence check drops all but the
@@ -1233,8 +1237,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           // the volume reaches JS only once the track is already loading.
           setMusicNormalizationTrack(targetTrackResult.track);
           await TrackPlayer.add(targetTrackResult.track);
+          if (isStale()) return false;
           await TrackPlayer.play();
-          return !isStale();
+          if (!isStale()) return true;
+          // Superseded during the play itself, by a tap cast to the receiver
+          // say: the phone must not play beside it.
+          await TrackPlayer.pause();
+          return false;
         });
         if (!played) {
           bailIfStale();
@@ -1285,6 +1294,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           isLoading: false,
           loadingTrackId: null,
         }));
+      } finally {
+        if (phoneStartRef.current === startSequence) {
+          phoneStartRef.current = null;
+        }
       }
     },
     [
@@ -1453,11 +1466,21 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.currentTrack,
   ]);
 
-  // A tap cast to the receiver is a new start: one still loading on the phone
-  // stops there, and neither plays it nor reaches the move above.
+  // A tap cast to the receiver is the pick that counts: it spends the move
+  // above, and a start still loading on the phone stops there, its spinner
+  // with it. With none in flight the phone's queue keeps loading: it is what
+  // plays if the TV turns the tap down.
   const castTapped = useCallback(
     (queue: BaseItemDto[], startIndex: number) => {
-      startSequenceRef.current += 1;
+      wasCastReady.current = true;
+      if (phoneStartRef.current === startSequenceRef.current) {
+        startSequenceRef.current += 1;
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          loadingTrackId: null,
+        }));
+      }
       void castOnReceiver(queue, startIndex);
     },
     [castOnReceiver],

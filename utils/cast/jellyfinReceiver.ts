@@ -700,7 +700,8 @@ export const castToJellyfinReceiver = async (
   return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
     let settled = false;
     // Replaced or timed out, the load drops its send. Reported loaded or
-    // failed first, it still sends: the cast was asked for.
+    // failed first, it still sends, unless a newer cast started since: the
+    // cast was asked for.
     let abandoned = false;
     let stopWatchingErrors = () => {};
     let statusUpdates: { remove: () => void } | undefined;
@@ -733,9 +734,13 @@ export const castToJellyfinReceiver = async (
     });
     timer = setTimeout(() => abandon("timed_out"), timeoutMs);
 
-    // Opening the channel can outlast the load: replaced or timed out by then,
-    // it sends nothing.
-    playOnJellyfinReceiver(loadSession, request, () => abandoned || movedOn())
+    // Opening the channel can outlast the load: timed out by then, or followed
+    // by a newer cast even once settled, it sends nothing.
+    playOnJellyfinReceiver(
+      loadSession,
+      request,
+      () => abandoned || cast !== castCount || movedOn(),
+    )
       .then((sent) => {
         if (!sent) settle(() => resolve({ status: "superseded" }));
       })
