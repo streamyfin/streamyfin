@@ -112,8 +112,9 @@ final class RemoteTargetHub {
     }
     let current = snapshot
     let held = current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected)
-    // The receiver already there asks nothing, unless a switch is taking its session away.
-    if held && !machine.isSwitching { return true }
+    // The receiver already there asks nothing, unless a switch is taking its session away, or its session is lost:
+    // the port then ends that session and starts the receiver anew.
+    if held && !machine.isSwitching && !current.reconnecting { return true }
     // Announced before the port is asked: its first event can come back inside connect.
     if machine.connectRequested(device) { publish() }
     // While another device is connected, the port ends that session before this one starts: the

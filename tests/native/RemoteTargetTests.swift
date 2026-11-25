@@ -242,6 +242,17 @@ enum RemoteTargetTests {
       check("askingTheConnectedReceiverAgainDuringASwitchReachesThePort", accepted && port.connects == [bedroom, livingRoom])
     }
 
+    // A suspended session asked for again: the hub took it for the session already there, so the port never heard
+    // the retry, and its restart of a lost session never came while the SDK kept that session for minutes.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      port.emit("suspended", livingRoom)
+      let reconnecting = hub.snapshot.reconnecting
+      let accepted = hub.connect(deviceId: livingRoom.id)
+      check("askingAReconnectingReceiverAgainReachesThePort", reconnecting && accepted && port.connects == [livingRoom])
+    }
+
     do {
       let hub = RemoteTargetHub()
       let first = FakeTargetPort()
