@@ -306,11 +306,17 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   private func sessionChanged(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
-    followOwnEnd(event)
+    let backBeforeItsOwnEnd = followOwnEnd(event)
     let endedEarlyOwn = endedEarlyEvent(event, device: device)
     let restartingOwn = restartingEvent(event, device: device)
     if !endedEarlyOwn && !restartingOwn {
       events?.sessionEvent(event, device: device, error: error, code: code)
+    }
+    // Back before the SDK ended it, the lost session holds the receiver a start waited on: it stays if it is the one
+    // asked last, otherwise the switch ends it as from a session that is up, bounded. After the hub heard it is back.
+    if backBeforeItsOwnEnd, !endedEarlyOwn, cancelWait == nil, let next = pendingSwitch {
+      if next.id == device?.id { pendingSwitch = nil } else { askEnd(stopPlayback: true, then: next) }
+      return
     }
     // No read here: a session that joins a receiver app starts before the receiver's first status, and its
     // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
@@ -322,21 +328,28 @@ final class GoogleCastTargetPort: TargetPort {
   }
 
   // The time the SDK may end a lost session in by itself runs from its suspension, until that session is back or gone.
-  private func followOwnEnd(_ event: String) {
+  // True when the session came back within that time.
+  private func followOwnEnd(_ event: String) -> Bool {
+    let waitingOwnEnd = cancelOwnEnd != nil
     switch event {
     case "suspended":
       // Suspended again by an end the port asked, the SDK keeps the session: it ends it by itself no more.
-      guard cancelOwnEnd == nil, cancelWait == nil else { return }
+      guard cancelOwnEnd == nil, cancelWait == nil else { return false }
       cancelOwnEnd = schedule(RemoteTargetConstants.suspendedOwnEndMs) { [weak self] in
         self?.cancelOwnEnd = nil
         self?.endLostSession()
       }
-    case "started", "resumed", "ended", "startFailed":
+    case "started", "resumed":
+      cancelOwnEnd?()
+      cancelOwnEnd = nil
+      return waitingOwnEnd
+    case "ended", "startFailed":
       cancelOwnEnd?()
       cancelOwnEnd = nil
     default:
       break
     }
+    return false
   }
 
   // Whether the event is the lost session's a connection back to its receiver waits on, which the hub does not hear:

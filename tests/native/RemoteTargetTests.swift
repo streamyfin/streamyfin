@@ -902,6 +902,59 @@ enum RemoteTargetTests {
       )
     }
 
+    // A session lost while the hub holds it, another receiver asked meanwhile, then the SDK resumes it before its own
+    // end: the switch goes on as from a session that is up, bounded, instead of that receiver waiting for good.
+    func lostWhileHeld(_ sdk: Sdk, _ events: PortEventsRecording) -> GoogleCastTargetPort {
+      sdk.receivers = [chromecast, streamer]
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      let port = sdk.port()
+      port.start(events: events)
+      sdk.running = RunningTargetSession(device: chromecast, connected: false, suspended: true)
+      sdk.sessionWatches.last??("suspended", chromecast, nil, nil)
+      return port
+    }
+    func resumed(_ sdk: Sdk) {
+      sdk.running = RunningTargetSession(device: chromecast, connected: true)
+      sdk.sessionWatches.last??("resumed", chromecast, nil, nil)
+    }
+    do {
+      let sdk = Sdk()
+      let port = lostWhileHeld(sdk, PortEventsRecording())
+      port.connect(streamer)
+      resumed(sdk)
+      let atTheResume = (sdk.ended, sdk.started)
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      check(
+        "aLostSessionResumedWhileAnotherReceiverWaitsIsEndedForIt",
+        atTheResume.0 == [true] && atTheResume.1.isEmpty && sdk.started == [streamer]
+      )
+    }
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = lostWhileHeld(sdk, events)
+      port.connect(streamer)
+      resumed(sdk)
+      sdk.clock.advance(RemoteTargetConstants.sessionEndWaitMs)
+      check(
+        "aLostSessionResumedThatNeverEndsFailsTheSwitch",
+        events.sessions.last == "startFailed device-b " + GoogleCastTargetPort.endNeverCame
+      )
+    }
+    // The lost session's own receiver asked last: it stays, and a later switch ends it as usual.
+    do {
+      let sdk = Sdk()
+      let port = lostWhileHeld(sdk, PortEventsRecording())
+      port.connect(streamer)
+      port.connect(chromecast)
+      resumed(sdk)
+      sdk.clock.advance(RemoteTargetConstants.suspendedOwnEndMs + RemoteTargetConstants.sessionEndWaitMs)
+      let kept = sdk.ended
+      port.connect(streamer)
+      check("aLostSessionResumedAfterItsReceiverWasAskedLastIsKept", kept.isEmpty && sdk.ended == [true])
+    }
+
     // A Disconnect while the connection back waits: nothing starts, and the lost session is left to the SDK.
     do {
       let sdk = Sdk()
