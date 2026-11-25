@@ -228,10 +228,12 @@ const mockNetwork = { isConnected: true, serverConnected: true };
 jest.mock("@/providers/NetworkStatusProvider", () => ({
   useNetworkStatus: () => mockNetwork,
 }));
+/** The tracks downloaded on the phone, by item id, for the tests that play one. */
+const mockLocalPaths = new Map<string, string>();
 jest.mock("@/providers/AudioStorage", () => ({
   initAudioStorage: async () => undefined,
   setMaxCacheSizeMB: () => undefined,
-  getLocalPath: () => null,
+  getLocalPath: (id: string) => mockLocalPaths.get(id) ?? null,
   isDownloading: () => false,
   downloadTrack: async () => undefined,
 }));
@@ -357,6 +359,7 @@ const startPlaying = async () => {
 
 beforeEach(() => {
   clearMmkv();
+  mockLocalPaths.clear();
   mockHandlers.clear();
   mockHeldStreams.clear();
   mockNative.queue = [];
@@ -2394,8 +2397,12 @@ describe("MusicPlayerProvider and the server's reports of a play on the phone", 
   });
 
   // The heartbeat goes every 10 s of playback, and a paused track plays none: the server showed it playing long after
-  // the pause (n° 14).
-  test("a pause is reported at once", async () => {
+  // the pause (n° 14). A downloaded track plays without a play session id, and its start is reported all the same.
+  test.each([
+    ["streamed", null],
+    ["downloaded", "file:///music/track-1.flac"],
+  ])("a pause of a %s track is reported at once", async (_, localPath) => {
+    if (localPath) mockLocalPaths.set("track-1", localPath);
     await startPlaying();
     const before = reports(PROGRESS_URL).length;
 
@@ -2427,17 +2434,24 @@ describe("MusicPlayerProvider and the server's reports of a play on the phone", 
   });
 
   // The receiver's pause is the receiver's to report: the phone's session ended when the queue left it.
-  test("a pause on the receiver reports nothing for the phone", async () => {
-    await mount();
-    await run((p) => p.playQueue(ALBUM, 0));
-    await connectCast();
-    await settle();
-    await receiverLoads("t0");
-    const before = reports(PROGRESS_URL).length;
+  test.each([
+    ["streamed", null],
+    ["downloaded", "file:///music/t0.flac"],
+  ])(
+    "a pause on the receiver of a %s track reports nothing for the phone",
+    async (_, localPath) => {
+      if (localPath) mockLocalPaths.set("t0", localPath);
+      await mount();
+      await run((p) => p.playQueue(ALBUM, 0));
+      await connectCast();
+      await settle();
+      await receiverLoads("t0");
+      const before = reports(PROGRESS_URL).length;
 
-    await run((p) => p.setIsPlaying(false));
-    await settle();
+      await run((p) => p.setIsPlaying(false));
+      await settle();
 
-    expect(reports(PROGRESS_URL)).toHaveLength(before);
-  });
+      expect(reports(PROGRESS_URL)).toHaveLength(before);
+    },
+  );
 });
