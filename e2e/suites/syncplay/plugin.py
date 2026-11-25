@@ -1,15 +1,12 @@
 """Install the pinned Streamyfin companion on this worktree's local Jellyfin."""
 
-import hashlib
 from io import BytesIO
-import json
 from pathlib import Path, PurePosixPath
-import subprocess
 from tempfile import TemporaryDirectory
 import time
-import urllib.request
 import zipfile
 
+from bench.download import fetch_verified
 from suites.syncplay import setup
 
 # The exact ABI and archive are published in the plugin's release manifest:
@@ -23,38 +20,13 @@ PLUGIN_URL = (
 )
 
 
-def local_container():
-    """Identify the running container by this checkout's config mount and host port."""
-    ids = subprocess.check_output(["docker", "ps", "-q"], text=True).splitlines()
-    if not ids:
-        raise RuntimeError("No running Docker containers")
-    containers = json.loads(subprocess.check_output(["docker", "inspect", *ids], text=True))
-    expected_config = (setup.STATE / "config").resolve()
-    expected_compose = str((setup.ROOT / "compose.yml").resolve())
-    port = setup.URL.rsplit(":", 1)[1]
-    matches = [
-        container["Id"]
-        for container in containers
-        if container.get("Config", {}).get("Labels", {}).get("com.docker.compose.project.config_files") == expected_compose
-        and any(
-            mount["Destination"] == "/config" and Path(mount["Source"]).resolve() == expected_config
-            for mount in container["Mounts"]
-        )
-        and any(
-            mapping["HostPort"] == port and mapping["HostIp"] == "127.0.0.1"
-            for mapping in (container.get("NetworkSettings", {}).get("Ports", {}).get("8096/tcp") or [])
-        )
-    ]
-    if len(matches) != 1:
-        raise RuntimeError(f"Expected one worktree Jellyfin container on {setup.URL}, got {len(matches)}")
-    return matches[0]
-
-
 def extract_pinned_plugin(folder):
-    with urllib.request.urlopen(PLUGIN_URL, timeout=90) as response:
-        archive = response.read()
-    if hashlib.sha256(archive).hexdigest() != PLUGIN_SHA256:
-        raise RuntimeError("Streamyfin plugin release checksum mismatch; nothing installed")
+    archive = fetch_verified(
+        PLUGIN_URL,
+        PLUGIN_SHA256,
+        "Streamyfin plugin",
+        90,
+    )
 
     folder.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(BytesIO(archive)) as bundle:
@@ -68,7 +40,7 @@ def extract_pinned_plugin(folder):
 
 
 def ensure(token):
-    """Install once, restart only this Jellyfin container, verify plugin API is live."""
+    """Install once, restart only this checkout's Jellyfin, verify plugin API is live."""
     existing = next(
         (plugin for plugin in setup.api("/Plugins", token=token) if plugin.get("Id", "").replace("-", "") == PLUGIN_ID.replace("-", "")),
         None,
@@ -84,8 +56,8 @@ def ensure(token):
     if not folder.exists():
         extract_pinned_plugin(folder)
 
-    container = local_container()
-    subprocess.run(["docker", "restart", container], check=True, stdout=subprocess.DEVNULL)
+    owned = setup.identity()
+    setup.backend(owned).restart_jellyfin(owned)
     setup.wait_for_server()
     for _ in range(30):
         plugins = setup.api("/Plugins", token=token)

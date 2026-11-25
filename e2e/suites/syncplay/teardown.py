@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Remove this checkout's throwaway Jellyfin: container, network and every file under .state.
+"""Remove this checkout's throwaway Jellyfin and Seerr, and every file under .state.
 
 Run it with the same checkout that ran setup.py. It refuses a container that another
-checkout's compose.yml started, so a second worktree never takes down the first one's.
+checkout's compose.yml started, or a fixture port another process holds, so a second
+worktree never takes down the first one's. The native backend's .tools/ stays.
 """
 
-import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -19,17 +18,15 @@ from suites.syncplay import setup  # noqa: E402
 
 def teardown():
     owned = setup.identity()
-    setup.refuse_foreign_container(owned["SYNCPLAY_CONTAINER"])
-    setup.refuse_foreign_project(owned["SYNCPLAY_PROJECT"])
-    subprocess.run(
-        ["docker", "compose", "-p", owned["SYNCPLAY_PROJECT"], "-f", str(setup.ROOT / "compose.yml"), "down", "--remove-orphans"],
-        check=True, env={**os.environ, **owned},
-    )
+    fixture = setup.backend(owned)
+    fixture.refuse_foreign(owned)
+    fixture.down(owned)
     for path in (setup.STATE, setup.ROOT / "artifacts"):
         if path.exists():
             shutil.rmtree(path)
     setup.ENV_FILE.unlink(missing_ok=True)
-    print(f"Removed {owned['SYNCPLAY_CONTAINER']} and {setup.STATE}")
+    removed = owned["SYNCPLAY_CONTAINER"] if fixture.name == "docker" else "this checkout's Jellyfin and Seerr processes"
+    print(f"Removed {removed} and {setup.STATE}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 .state/
+.tools/
 artifacts/
 __pycache__/
 .env

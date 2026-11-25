@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -16,7 +17,11 @@ IDENTITY = {
     "SYNCPLAY_PROJECT": "streamyfin-syncplay-e2e",
     "SYNCPLAY_CONTAINER": "streamyfin-syncplay-e2e-jellyfin",
     "SYNCPLAY_PORT": "18096",
+    "SYNCPLAY_SEERR_CONTAINER": "streamyfin-syncplay-e2e-seerr",
+    "SYNCPLAY_SEERR_PORT": "15055",
+    "SYNCPLAY_BACKEND": "docker",
 }
+BACKEND_NAMES = ("docker", "native")
 
 
 def saved_identity():
@@ -45,20 +50,32 @@ def api(path, method="GET", data=None, token=None, device_id=None):
 
 
 def identity():
-    """The compose project, container and port this checkout owns.
+    """The backend, compose project, containers and ports this checkout owns.
 
     .env (next to compose.yml, so compose reads it too) persists them from the first
     setup, so later commands never need the variables retyped. An explicit variable
     that disagrees with .env is refused: it would target another instance.
     """
     saved = saved_identity()
+    if ENV_FILE.is_file():
+        # A .env written before SYNCPLAY_BACKEND existed belongs to a Docker instance.
+        saved.setdefault("SYNCPLAY_BACKEND", "docker")
     resolved = {}
     for key, default in IDENTITY.items():
         explicit = os.environ.get(key)
         if explicit and saved.get(key) and explicit != saved[key]:
             raise RuntimeError(f"{key}={explicit} conflicts with {saved[key]} in {ENV_FILE}; run e2e:down first, or unset it")
         resolved[key] = explicit or saved.get(key) or default
+    if resolved["SYNCPLAY_BACKEND"] not in BACKEND_NAMES:
+        raise RuntimeError(f"SYNCPLAY_BACKEND={resolved['SYNCPLAY_BACKEND']} is not one of {', '.join(BACKEND_NAMES)}")
     return resolved
+
+
+def backend(owned=None):
+    """The backend that runs this checkout's servers, Docker Compose or host processes."""
+    from suites.syncplay import backend as backends
+
+    return backends.for_identity(owned or identity())
 
 
 def refuse_foreign_container(name):
@@ -145,12 +162,12 @@ def generate_media():
 
 def main():
     owned = identity()
-    refuse_foreign_container(owned["SYNCPLAY_CONTAINER"])
-    refuse_foreign_project(owned["SYNCPLAY_PROJECT"])
+    servers = backend(owned)
+    servers.refuse_foreign(owned)
     ENV_FILE.write_text("".join(f"{key}={value}\n" for key, value in owned.items()))
     generate_media()
     # Docker creates a missing bind source as root, which the seed then cannot write into on Linux.
-    for folder in ("config", "config/plugins", "cache", "catalog/movies", "catalog/shows", "catalog/music"):
+    for folder in ("config", "config/plugins", "cache", "catalog/movies", "catalog/shows", "catalog/music", "seerr"):
         path = STATE / folder
         try:
             path.mkdir(parents=True, exist_ok=True)
@@ -158,10 +175,7 @@ def main():
             raise RuntimeError(f"Cannot create {path}; fix its parent's ownership or remove it first") from error
         if not os.access(path, os.W_OK):
             raise RuntimeError(f"{path} is not writable; fix its ownership or remove it first")
-    subprocess.run(
-        ["docker", "compose", "-p", owned["SYNCPLAY_PROJECT"], "-f", str(ROOT / "compose.yml"), "up", "-d"],
-        check=True, env={**os.environ, **owned},
-    )
+    servers.up(owned)
     info = wait_for_server()
     if not info.get("StartupWizardCompleted"):
         api("/Startup/Configuration", "POST", {
@@ -190,7 +204,7 @@ def main():
         query = urllib.parse.urlencode({"name": "SyncPlay Fixtures", "collectionType": "movies", "refreshLibrary": "true"})
         api("/Library/VirtualFolders?" + query, "POST", {
             "LibraryOptions": {
-                "PathInfos": [{"Path": "/media"}], "EnableRealtimeMonitor": False,
+                "PathInfos": [{"Path": servers.host_path("/media")}], "EnableRealtimeMonitor": False,
                 "EnableInternetProviders": False, "EnableChapterImageExtraction": False,
                 "EnableTrickplayImageExtraction": False,
                 "TypeOptions": [{"Type": "Movie", "MetadataFetchers": [], "ImageFetchers": []}],
@@ -210,6 +224,9 @@ def main():
         time.sleep(2)
     if len(items) != 3 or {item.get("Name") for item in items} != clip_names:
         raise RuntimeError(f"Expected the three SyncPlay clips in 'SyncPlay Fixtures', got {[item.get('Name') for item in items]}")
+    from suites.syncplay import seerr
+
+    seerr.ensure_ready(owned, username="syncplay-host", password=PASSWORD)
     guest_auth = api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-guest", "Pw": PASSWORD}, device_id="syncplay-guest-setup")
     credentials = {
         "url": URL, "serverVersion": info["Version"], "password": PASSWORD,
@@ -224,4 +241,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT.parents[1]))
     main()

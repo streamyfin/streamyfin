@@ -2,8 +2,9 @@
 """Seed the opt-in catalog on the throwaway SyncPlay server.
 
 setup.py keeps owning the SyncPlay fixture library; this adds movies, shows and
-music libraries over .state/catalog (mounted read-only under /catalog) so Maestro
-flows have browseable items without touching those fixtures.
+music libraries over .state/catalog (mounted read-only under /catalog, or read in place
+by the native backend) so Maestro flows have browseable items without touching those
+fixtures.
 """
 
 import json
@@ -115,11 +116,19 @@ def catalog_files():
     return changed
 
 
+REPORTED_FIELDS = ("Name", "Type", "ParentIndexNumber", "IndexNumber")
+
+
+def matches(item, want):
+    return all(item.get(key) == value for key, value in want.items())
+
+
+def unmatched(items, expected):
+    return [want for want in expected if not any(matches(item, want) for item in items)]
+
+
 def covered(items, expected):
-    return len(items) == len(expected) and all(
-        any(all(item.get(key) == value for key, value in want.items()) for item in items)
-        for want in expected
-    )
+    return len(items) == len(expected) and not unmatched(items, expected)
 
 
 def seed(inventory_path=ROOT / "inventory.json"):
@@ -130,8 +139,9 @@ def seed(inventory_path=ROOT / "inventory.json"):
     catalog_expected = catalog_seed.expected_items(inventory)
 
     folders = setup.api("/Library/VirtualFolders", token=token)
+    host_path = setup.backend().host_path
     specs = {spec["name"]: spec for spec in LIBRARIES}
-    mounts = {spec["mount"]: spec["name"] for spec in LIBRARIES}
+    mounts = {host_path(spec["mount"]): spec["name"] for spec in LIBRARIES}
     library_ids = {}
     for folder in folders:
         name = folder.get("Name")
@@ -140,8 +150,8 @@ def seed(inventory_path=ROOT / "inventory.json"):
         if spec is not None:
             if name in library_ids:
                 raise RuntimeError(f"Duplicate library named {name!r}")
-            if locations != [spec["mount"]]:
-                raise RuntimeError(f"'{name}' exists with locations {locations}; expected only {spec['mount']}")
+            if locations != [host_path(spec["mount"])]:
+                raise RuntimeError(f"'{name}' exists with locations {locations}; expected only {host_path(spec['mount'])}")
             if folder.get("CollectionType") != spec["collectionType"]:
                 raise RuntimeError(f"'{name}' exists with CollectionType {folder.get('CollectionType')!r}; expected {spec['collectionType']!r}")
             library_ids[name] = folder["ItemId"]
@@ -157,7 +167,8 @@ def seed(inventory_path=ROOT / "inventory.json"):
         if spec["name"] in library_ids:
             continue
         query = urllib.parse.urlencode({"name": spec["name"], "collectionType": spec["collectionType"], "refreshLibrary": "false"})
-        setup.api("/Library/VirtualFolders?" + query, "POST", {"LibraryOptions": spec["options"]}, token)
+        options = {**spec["options"], "PathInfos": [{"Path": host_path(spec["mount"])}]}
+        setup.api("/Library/VirtualFolders?" + query, "POST", {"LibraryOptions": options}, token)
         changed = True
         folders = setup.api("/Library/VirtualFolders", token=token)
         library = next((folder for folder in folders if folder.get("Name") == spec["name"]), None)
@@ -174,9 +185,16 @@ def seed(inventory_path=ROOT / "inventory.json"):
             )
             expected = [*spec["expected"], *catalog_expected[spec["name"]]]
             if not covered(result["Items"], expected):
+                missing = unmatched(result["Items"], expected)
+                names = {want.get("Name") for want in missing}
                 pending[spec["name"]] = {
                     "expected": len(expected), "observed": len(result["Items"]),
                     "sample": [item.get("Name") for item in result["Items"][:5]],
+                    "unmatched": missing,
+                    "candidates": [
+                        {key: item.get(key) for key in REPORTED_FIELDS}
+                        for item in result["Items"] if item.get("Name") in names
+                    ],
                 }
         return pending
 

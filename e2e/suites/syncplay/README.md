@@ -25,7 +25,37 @@ Two ways to run it:
   Without `E2E_BENCH_CONFIG` the harness refuses any host but `127.0.0.1`.
 
 Prerequisites for the throwaway server: Docker Desktop, Python 3.10+, FFmpeg with H.264 and AAC
-encoders, Bun.
+encoders, Bun. The native backend below replaces Docker Desktop with host processes.
+
+### Native backend (no Docker)
+
+For hosts where Docker cannot run, such as standard Apple silicon GitHub runners (no
+nested virtualization). Select it on the first setup; `.env` keeps it for later commands:
+
+```sh
+SYNCPLAY_BACKEND=native bun run e2e:setup
+```
+
+Requires macOS on Apple silicon, Node `^22.19.0` (Seerr's engine range), `git`, and the
+Python, FFmpeg and Bun listed above. `setup.py` refuses any other platform or Node version.
+
+It runs the same Jellyfin 10.11.11 and Seerr v3.5.0 as host processes on `127.0.0.1`, with
+the containers' ports, users, libraries and `.state/` layout. Jellyfin reads media through
+`/tmp/streamyfin-media-<tag>`, a link to `.state/` unique to this checkout, so `/media`
+becomes `/tmp/streamyfin-media-<tag>/media`. Jellyfin parses season and episode numbers
+from the full media path, and the link keeps digits in the checkout path out of it.
+`setup.py` refuses that path unless it is this checkout's link, and `e2e:down` removes it.
+
+The first setup downloads the pinned Jellyfin and jellyfin-ffmpeg tarballs (sha256
+checked before extraction), signs Jellyfin's Mach-O files ad hoc (Apple silicon kills
+unsigned arm64 code), and clones and builds Seerr at its pinned commit. Everything lands
+in the ignored `e2e/suites/syncplay/.tools/` and is reused by later setups, so CI can
+cache it. Logs are in `.state/logs/`.
+
+The processes run detached, with PIDs in `.state/jellyfin.pid` and `.state/seerr.pid`.
+`setup.py` refuses a fixture port another process listens on. `e2e:down` stops only the
+process groups of those PIDs, and only while each PID still runs this checkout's
+executable. It keeps `.tools/`.
 
 ## Opt-in catalog
 
@@ -55,7 +85,7 @@ Maestro. The default port is 18096.
 
 ### Several checkouts side by side
 
-`setup.py` records this checkout's compose project, container name and port in
+`setup.py` records this checkout's backend, compose project, container name and port in
 `e2e/suites/syncplay/.env` (ignored). Every later command, `seed`, `enrich`, `e2e:down`
 and `docker compose`, reads it, so the variables are typed once. `setup.py` refuses to
 start when a container with that name was started by another checkout. In a second
@@ -66,7 +96,8 @@ SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-
 bun run e2e:seed
 ```
 
-A variable that disagrees with `.env` is refused. Rerun `setup.py` if credentials become
+A variable that disagrees with `.env` is refused. A `.env` without `SYNCPLAY_BACKEND`
+counts as `docker`. Rerun `setup.py` if credentials become
 stale: it refreshes distinct host and guest sessions, and seeding reuses the stored host
 token without logging either one out.
 
@@ -95,8 +126,8 @@ bun run e2e:enrich
 
 The first invocation is a small trial batch; omit `--limit` to request missing
 artwork and descriptions for the whole catalog. This step installs the pinned
-Streamyfin Jellyfin plugin on this worktree's container if missing, restarts
-only that container, enables available image and metadata fetchers on the
+Streamyfin Jellyfin plugin on this worktree's Jellyfin if missing, restarts
+only that Jellyfin, enables available image and metadata fetchers on the
 three catalog libraries, and refreshes incomplete items without replacing
 existing images or metadata. The SyncPlay Fixtures library remains offline.
 The command blocks until Jellyfin has fetched what it queued, polling every few
@@ -108,6 +139,15 @@ items that still lack artwork or a movie/series overview.
 Fetched posters may have copyright separate from the underlying film; keep
 Jellyfin's downloaded artwork in ignored `.state/`, not in the repository.
 This command requires internet access; `setup.py` and `e2e:seed` do not.
+
+### Seerr service
+
+`compose.yml` also starts `ghcr.io/seerr-team/seerr:v3.5.0` as
+`streamyfin-syncplay-e2e-seerr` on `127.0.0.1:15055` (config in `.state/seerr/`); the
+native backend runs the same release there. `setup.py` onboards it against this
+checkout's Jellyfin (`seerr.ensure_ready`) and enables
+the `SyncPlay Fixtures` library. The Seerr API key stays inside the fixture and is never
+logged.
 
 ## Controller against a live server
 
@@ -162,7 +202,8 @@ state handlers.
 bun run e2e:down
 ```
 
-Stops and removes this checkout's container and network, then deletes `.state/`,
-`artifacts/` and `.env`, so the next `setup.py` starts from onboarding. It refuses a
-container that another checkout started. On Linux, Docker may have written root-owned
+Stops and removes this checkout's containers and network, or under the native backend
+its own Jellyfin and Seerr processes, then deletes `.state/`, `artifacts/` and `.env`,
+so the next `setup.py` starts from onboarding. It refuses a container that another
+checkout started, and under the native backend a fixture port another process holds. On Linux, Docker may have written root-owned
 files into `.state/config`; remove those with `sudo` if the command reports a permission error.

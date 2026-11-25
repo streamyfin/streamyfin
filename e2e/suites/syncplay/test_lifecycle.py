@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
 
-from suites.syncplay import maestro_env, setup, teardown
+from suites.syncplay import maestro_env, seerr, setup, teardown
 
 
 def inspected(label, returncode=0):
@@ -23,7 +23,9 @@ def docker_fake(own_compose, name_owner=None, project=None):
     `docker ps` lists the project container ids, `docker inspect` reports each one's
     owning compose file (a None project entry means the label is absent), and
     `docker container inspect` checks the requested name, which name_owner="missing"
-    answers as if no such container existed. Anything else succeeds silently.
+    answers as if no such container existed. A callable name_owner resolves each
+    inspected name, so one container can be foreign while the other is missing.
+    Anything else succeeds silently.
     """
     project = project or {}
 
@@ -39,9 +41,10 @@ def docker_fake(own_compose, name_owner=None, project=None):
                 containers.append({"Id": container_id, "Config": {"Labels": labels}})
             return inspected(json.dumps(containers))
         if command[1] == "container":
-            if name_owner == "missing":
+            owner = name_owner(command[3]) if callable(name_owner) else name_owner
+            if owner == "missing":
                 return inspected("", returncode=1)
-            return inspected(name_owner or own_compose)
+            return inspected(owner or own_compose)
         return inspected("")
 
     return run
@@ -129,6 +132,7 @@ class SetupTest(unittest.TestCase):
             mock.patch.object(setup, "generate_media"),
             mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
             mock.patch.object(setup, "api", side_effect=setup_api),
+            mock.patch.object(seerr, "ensure_ready"),
             mock.patch.object(setup.subprocess, "run", side_effect=recording),
             mock.patch.dict(os.environ, environ or {}, clear=True),
             contextlib.redirect_stdout(io.StringIO()),
@@ -169,6 +173,18 @@ class SetupTest(unittest.TestCase):
             docker = docker_fake(
                 str((root / "compose.yml").resolve()),
                 name_owner="missing", project={"abc123": "/elsewhere/compose.yml"},
+            )
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                self.run_setup(root, docker)
+            self.assertFalse((root / ".env").exists())
+            self.assertFalse([command for command in self.calls if "up" in command or "down" in command])
+
+    def test_a_foreign_seerr_container_is_refused_before_any_write_or_up(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            docker = docker_fake(
+                str((root / "compose.yml").resolve()),
+                name_owner=lambda name: "/elsewhere/compose.yml" if "seerr" in name else "missing",
             )
             with self.assertRaisesRegex(RuntimeError, "not this checkout"):
                 self.run_setup(root, docker)
@@ -226,6 +242,15 @@ class TeardownTest(unittest.TestCase):
             (root / ".state").mkdir()
             with self.assertRaises(RuntimeError):
                 self.run_teardown(root, "/elsewhere/compose.yml")
+            self.assertFalse([command for command, _ in self.calls if "down" in command])
+            self.assertTrue((root / ".state").exists())
+
+    def test_leaves_a_foreign_seerr_container_and_files_alone(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".state").mkdir()
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                self.run_teardown(root, lambda name: "/elsewhere/compose.yml" if "seerr" in name else "missing")
             self.assertFalse([command for command, _ in self.calls if "down" in command])
             self.assertTrue((root / ".state").exists())
 

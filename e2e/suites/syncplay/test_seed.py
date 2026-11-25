@@ -149,6 +149,59 @@ class MovieSeedTest(unittest.TestCase):
                     self.assertEqual(option["MetadataFetchers"], [])
                     self.assertEqual(option["ImageFetchers"], [])
 
+    def test_an_unready_library_names_the_unmatched_entries_and_their_observed_fields(self):
+        # A checkout path Jellyfin parsed as S17E04 matched every count and no episode; the
+        # report must name the field that differs, not only the counts.
+        with TemporaryDirectory() as directory:
+            state = Path(directory)
+            inventory_path = state / "inventory.json"
+            inventory_path.write_text(json.dumps({"movies": [], "shows": [], "episodes": [], "tracks": []}))
+            (state / "credentials.json").write_text(json.dumps({
+                "url": setup.URL, "host": {"token": "stored-host-token", "userId": "host"},
+            }))
+            expected_items = {spec["name"]: spec["expected"] for spec in seed.LIBRARIES}
+            expected_items["Shows"] = [
+                {"Name": "Show", "Type": "Series", "Id": "s"},
+                {"Name": "Pilot", "Type": "Episode", "ParentIndexNumber": 17, "IndexNumber": 4, "Id": "p"},
+                {"Name": "Finale", "Type": "Episode", "ParentIndexNumber": 17, "IndexNumber": 4, "Id": "f"},
+            ]
+            folders = [
+                {"Name": spec["name"], "Locations": [spec["mount"]], "CollectionType": spec["collectionType"], "ItemId": spec["name"]}
+                for spec in seed.LIBRARIES
+            ]
+
+            def api(path, method="GET", data=None, token=None):
+                if path == "/Library/VirtualFolders":
+                    return folders
+                if path.startswith("/Users/host/Items?"):
+                    return {"Items": expected_items[parse_qs(urlsplit(path).query)["ParentId"][0]]}
+                if path == "/Library/Refresh":
+                    return None
+                raise AssertionError(path)
+
+            with (
+                mock.patch.object(setup, "STATE", state),
+                mock.patch.object(setup, "api", side_effect=api),
+                mock.patch.object(seed, "catalog_files", return_value=False),
+                mock.patch.object(catalog_seed, "generate", return_value=False),
+                mock.patch.object(seed.time, "sleep"),
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    seed.seed(inventory_path=inventory_path)
+            report = str(raised.exception)
+            self.assertNotIn("'Movies'", report)
+            self.assertIn("'expected': 3, 'observed': 3", report)
+            self.assertIn(
+                "'unmatched': [{'Name': 'Pilot', 'Type': 'Episode', 'ParentIndexNumber': 1, 'IndexNumber': 1}, "
+                "{'Name': 'Finale', 'Type': 'Episode', 'ParentIndexNumber': 1, 'IndexNumber': 2}]",
+                report,
+            )
+            self.assertIn(
+                "'candidates': [{'Name': 'Pilot', 'Type': 'Episode', 'ParentIndexNumber': 17, 'IndexNumber': 4}, "
+                "{'Name': 'Finale', 'Type': 'Episode', 'ParentIndexNumber': 17, 'IndexNumber': 4}]",
+                report,
+            )
+
     def test_setup_scopes_syncplay_credentials_to_the_original_library(self):
         with TemporaryDirectory() as directory:
             state = Path(directory)

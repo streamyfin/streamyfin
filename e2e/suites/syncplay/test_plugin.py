@@ -9,7 +9,8 @@ import unittest
 from unittest import mock
 import zipfile
 
-from suites.syncplay import plugin, setup
+from bench import download
+from suites.syncplay import backend, plugin, setup
 
 
 class PluginInstallTest(unittest.TestCase):
@@ -64,12 +65,13 @@ class PluginInstallTest(unittest.TestCase):
 
             with (
                 mock.patch.object(setup, "STATE", state),
+                mock.patch.object(setup, "ENV_FILE", state / ".env"),
                 mock.patch.object(setup, "api", side_effect=api),
                 mock.patch.object(setup, "wait_for_server"),
                 mock.patch.object(plugin, "PLUGIN_SHA256", hashlib.sha256(payload).hexdigest()),
-                mock.patch.object(plugin.urllib.request, "urlopen", return_value=BytesIO(payload)),
-                mock.patch.object(plugin.subprocess, "check_output", side_effect=docker_output),
-                mock.patch.object(plugin.subprocess, "run", side_effect=docker_restart),
+                mock.patch.object(download.urllib.request, "urlopen", return_value=BytesIO(payload)),
+                mock.patch.object(backend.subprocess, "check_output", side_effect=docker_output),
+                mock.patch.object(backend.subprocess, "run", side_effect=docker_restart),
             ):
                 self.assertTrue(plugin.ensure("stored-host-token"))
                 installed = state / "config/plugins/Streamyfin_0.68.1.0/Jellyfin.Plugin.Streamyfin.dll"
@@ -83,12 +85,14 @@ class PluginInstallTest(unittest.TestCase):
             state = Path(directory)
             with (
                 mock.patch.object(setup, "STATE", state),
+                mock.patch.object(setup, "ENV_FILE", state / ".env"),
                 mock.patch.object(setup, "api", return_value=[]),
-                mock.patch.object(plugin.urllib.request, "urlopen", return_value=BytesIO(b"wrong file")),
-                mock.patch.object(plugin.subprocess, "run") as restart,
+                mock.patch.object(download.urllib.request, "urlopen", return_value=BytesIO(b"wrong file")) as urlopen,
+                mock.patch.object(backend.subprocess, "run") as restart,
             ):
-                with self.assertRaisesRegex(RuntimeError, "checksum mismatch"):
+                with self.assertRaisesRegex(RuntimeError, "^Streamyfin plugin download checksum mismatch; nothing installed$"):
                     plugin.ensure("stored-host-token")
+            urlopen.assert_called_once_with(plugin.PLUGIN_URL, timeout=90)
             self.assertFalse((state / "config/plugins/Streamyfin_0.68.1.0").exists())
             restart.assert_not_called()
 

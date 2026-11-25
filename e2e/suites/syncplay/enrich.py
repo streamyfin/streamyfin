@@ -31,14 +31,16 @@ TYPES = {
 
 def libraries(token):
     folders = setup.api("/Library/VirtualFolders", token=token)
+    host_path = setup.backend().host_path
     selected = {}
     for spec in seed.LIBRARIES:
         matches = [folder for folder in folders if folder["Name"] == spec["name"]]
         if len(matches) != 1:
             raise RuntimeError(f"Expected one {spec['name']!r} library; run e2e:seed first")
         folder = matches[0]
-        if folder.get("Locations") != [spec["mount"]] or folder.get("CollectionType") != spec["collectionType"]:
-            raise RuntimeError(f"{spec['name']!r} does not own the expected {spec['mount']} mount")
+        mount = host_path(spec["mount"])
+        if folder.get("Locations") != [mount] or folder.get("CollectionType") != spec["collectionType"]:
+            raise RuntimeError(f"{spec['name']!r} does not own the expected {mount} mount")
         selected[spec["name"]] = folder
     return selected
 

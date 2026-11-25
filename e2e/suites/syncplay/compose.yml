@@ -16,3 +16,15 @@ services:
     environment:
       JELLYFIN_PublishedServerUrl: "http://${SYNCPLAY_HOST:-127.0.0.1}:${SYNCPLAY_PORT:-18096}"
     restart: "no"
+  seerr:
+    image: ghcr.io/seerr-team/seerr:v3.5.0
+    container_name: ${SYNCPLAY_SEERR_CONTAINER:-streamyfin-syncplay-e2e-seerr}
+    ports:
+      - "${SYNCPLAY_BIND:-127.0.0.1}:${SYNCPLAY_SEERR_PORT:-15055}:5055"
+    volumes:
+      - ./.state/seerr:/app/config
+    environment:
+      TZ: UTC
+    restart: "no"
+    depends_on:
+      - jellyfin
