@@ -624,6 +624,88 @@ describe("castToJellyfinReceiver", () => {
     expect(lastChannel()?.sent ?? []).toEqual([]);
   });
 
+  describe("a load settled while the channel opens", () => {
+    const playNowIds = () =>
+      mockCast.channels
+        .flatMap((channel) => sentOn(channel) as Record<string, any>[])
+        .filter((message) => message.command === "PlayNow")
+        .map((message) => message.options.items[0].Id);
+
+    const holdChannelOpen = () => {
+      let release = () => {};
+      mockCast.holdAdd = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return () => release();
+    };
+
+    // The receiver reporting the item first settles the load, not the cast:
+    // PlayNow still goes out with the position and tracks asked for.
+    test("still sends a cast the receiver reported loaded", async () => {
+      const client = makeClient();
+      const release = holdChannelOpen();
+      const outcome = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [movie] },
+        1_000,
+      );
+      await sent();
+      client.emit(status("playing", "item-1", "session-a"));
+      expect(await outcome).toEqual({ status: "loaded" });
+
+      release();
+      await sent();
+
+      expect(playNowIds()).toEqual(["item-1"]);
+    });
+
+    // A newer cast owns the TV once it starts: the older one, still waiting
+    // on the channel, must not load its item there as well.
+    test("sends nothing for a cast a newer one replaced", async () => {
+      const client = makeClient();
+      const release = holdChannelOpen();
+      const first = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [movie] },
+        1_000,
+      );
+      await sent();
+      const second = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [{ Id: "item-2", Type: "Movie" }] },
+        1_000,
+      );
+      expect(await first).toEqual({ status: "superseded" });
+
+      release();
+      await sent();
+
+      expect(playNowIds()).toEqual(["item-2"]);
+      client.emit(status("buffering", "item-2", "session-b"));
+      expect(await second).toEqual({ status: "loaded" });
+    });
+
+    // The caller told the user the TV did not start: it must not start later.
+    test("sends nothing for a cast that timed out", async () => {
+      const release = holdChannelOpen();
+      const outcome = castToJellyfinReceiver(
+        makeClient() as never,
+        session(),
+        { items: [movie] },
+        20,
+      );
+      expect(await outcome).toEqual({ status: "timed_out" });
+
+      release();
+      await sent();
+
+      expect(playNowIds()).toEqual([]);
+    });
+  });
+
   test("waits for the receiver to load the item, not for the send", async () => {
     const client = makeClient();
     const outcome = castToJellyfinReceiver(
