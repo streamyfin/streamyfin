@@ -222,6 +222,17 @@ enum RemoteTargetTests {
       check("aConnectionBeforeTheEndLeavesTheMarkToThatEnd", atTheEnd && !hub.disconnectedWithoutStop)
     }
 
+    // A connection to another receiver before that end: the port ends the session with a stop on its way to it, and
+    // that end still carried the mark.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: false)
+      _ = hub.connect(deviceId: bedroom.id)
+      port.emit("ended", livingRoom)
+      check("aConnectionToAnotherReceiverBeforeTheEndClearsTheMark", !hub.disconnectedWithoutStop)
+    }
+
     // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])

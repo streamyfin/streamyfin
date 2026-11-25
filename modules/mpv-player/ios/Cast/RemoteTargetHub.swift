@@ -76,9 +76,9 @@ final class RemoteTargetHub {
   /// marks the end it brings. The receiver keeps playing only when this session joined it: the session that
   /// launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
   private(set) var disconnectedWithoutStop = false
-  // That disconnect's end has not come yet: a connection meanwhile leaves the mark to it, since the receiver may
-  // still play the session it ends.
-  private var endWithoutStopDue = false
+  // The receiver that disconnect left, until its end comes: a connection back to it meanwhile leaves the mark to
+  // that end, since the receiver may still play the session it ends; one to another receiver ends it with a stop.
+  private var endWithoutStopFrom: String?
   var log: (String) -> Void = { _ in }
 
   /// The same port again does nothing, so every JS reload can install it.
@@ -106,7 +106,10 @@ final class RemoteTargetHub {
   /// False, with nothing changed, when the port does not know the device.
   func connect(deviceId: String) -> Bool {
     guard let port, let device = port.devices().first(where: { $0.id == deviceId }) else { return false }
-    if !endWithoutStopDue { disconnectedWithoutStop = false }
+    if endWithoutStopFrom != deviceId {
+      disconnectedWithoutStop = false
+      endWithoutStopFrom = nil
+    }
     let current = snapshot
     let held = current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected)
     // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -122,7 +125,7 @@ final class RemoteTargetHub {
   /// The state follows the port's events, ending then ended, not this call.
   func disconnect(stopPlayback: Bool) {
     disconnectedWithoutStop = !stopPlayback
-    endWithoutStopDue = !stopPlayback
+    endWithoutStopFrom = stopPlayback ? nil : snapshot.target?.id
     machine.disconnectRequested()
     port?.disconnect(stopPlayback: stopPlayback)
   }
@@ -159,9 +162,9 @@ final class RemoteTargetHub {
     // kept, or one that came back, is no end of that disconnect any more.
     if event == "starting" || event == "endRefused" || event == "resumed" {
       disconnectedWithoutStop = false
-      endWithoutStopDue = false
+      endWithoutStopFrom = nil
     }
-    if event == "ended" || event == "startFailed" { endWithoutStopDue = false }
+    if event == "ended" || event == "startFailed" { endWithoutStopFrom = nil }
     if machine.sessionEvent(event, device: device, error: error, code: code) { publish() }
   }
 
