@@ -376,7 +376,8 @@ final class CastEngine: ChromeEngine {
       guard let self, self.pendingLoad === load, let outcome = load.tracker.timeOut() else { return }
       self.settleLoad(load, outcome)
     }
-    setLoading(true)
+    // A handler of the superseded load cast again: this load never goes out, and shows no loading.
+    if pendingLoad === load { setLoading(true) }
     // A handler of the superseded load, or of the loading, cast again: this load is no longer the one
     // asked, and the receiver must not get it after the newer one.
     guard pendingLoad === load else {

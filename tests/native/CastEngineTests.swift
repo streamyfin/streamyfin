@@ -1879,6 +1879,22 @@ enum CastEngineTests {
       check("twoLoadsRefusedNewestFirstLeaveTheQueueTheReceiverTook", itemIds(bench.sentMessages().last) == ["a-1", "a-2"])
     }
 
+    // The superseded load's handler cast again inside the newer load, and the channel refused that one
+    // at once: the newer load then showed loading for a load that never went out.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var castAgain = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "a-1")])) { _ in
+        guard castAgain else { return }
+        castAgain = false
+        bench.port.sendError = "down"
+        engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      check("aLoadCastFromTheSupersededOnesHandlerAndRefusedLeavesNoLoading", bench.delegate.loadings.last == false)
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
