@@ -1452,6 +1452,39 @@ class CastEngineTest {
         assertEquals(ids.take(max) + enqueued.take(max) + ids.drop(max) + enqueued.drop(max), receiverQueue())
     }
 
+    // A window refused under a replay the channel refused too, while a Seek by reload had replaced that
+    // replay's reload: neither refusal was reported, and the enqueued item was gone.
+    @Test
+    fun aWindowRefusedUnderARefusedReplayIsReported() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2", "canClientSeek" to false)), 0)
+        port.holdResults = true
+        port.sendError = "down"
+        engine.enqueue(listOf("x-1"))
+        engine.reloadCurrentItem()
+        port.sendError = null
+        engine.seekTo(10.0)
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(listOf("down"), delegate.errors)
+    }
+
+    // A window refused after a load replaced its queue: the enqueue was for the queue the load dropped.
+    @Test
+    fun aWindowRefusedAfterALoadReportsNothing() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        port.holdResults = true
+        port.sendError = "down"
+        engine.enqueue(listOf("x-1"))
+        port.sendError = null
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(emptyList<String>(), delegate.errors)
+    }
+
     // What the receiver queues: the last PlayNow it took, then each PlayLast after it; [refused] holds
     // the indexes in `port.sent` of the sends the channel refused.
     private fun receiverQueue(refused: Set<Int> = emptySet()): List<String> {
