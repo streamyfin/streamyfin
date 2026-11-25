@@ -1,0 +1,104 @@
+diff --git a/node_modules/expo-intent-launcher/.bun-tag-6bf3f45a7c2bc274 b/.bun-tag-6bf3f45a7c2bc274
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
+index 2a85454974457eb6bd01714687959b2cad08697c..d9757621db377c47349cce91f870c15d3714d290 100644
+--- a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
++++ b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherModule.kt
+@@ -1,5 +1,6 @@
+ package expo.modules.intentlauncher
+ 
++import android.content.ClipData
+ import android.content.ComponentName
+ import android.content.Context
+ import android.content.Intent
+@@ -82,11 +83,27 @@ class IntentLauncherModule : Module() {
+         }
+         intent.putExtras(valuesList.toBundle())
+       }
++      params.uriArrayExtras?.takeIf { it.isNotEmpty() }?.let { extras ->
++        extras.forEach { (key, uris) ->
++          intent.putExtra(key, uris.map { it.toUri() }.toTypedArray())
++        }
++        // A URI grant flag covers the intent's data and its ClipData, never its
++        // extras, so the extra URIs go in the ClipData too, after the data.
++        val grantUris = listOfNotNull(intent.data) + extras.values.flatten().map { it.toUri() }
++        grantUris.firstOrNull()?.let { first ->
++          intent.clipData = ClipData.newRawUri(null, first).apply {
++            grantUris.drop(1).forEach { addItem(ClipData.Item(it)) }
++          }
++        }
++      }
+       params.flags?.let { intent.addFlags(it) }
+       params.category?.let { intent.addCategory(it) }
++      // The chooser ignores the default app set for this intent, and carries the
++      // intent's URI grant over to the app picked in it.
++      val launched = params.chooserTitle?.let { Intent.createChooser(intent, it) } ?: intent
+ 
+       try {
+-        appContext.throwingActivity.startActivityForResult(intent, REQUEST_CODE)
++        appContext.throwingActivity.startActivityForResult(launched, REQUEST_CODE)
+         pendingPromise = promise
+       } catch (e: Throwable) {
+         promise.reject(e.toCodedException())
+diff --git a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
+index 303c5fc2dc57502d7e0a22cb15202774385c2808..c87bc01e5910ac4bcee5c3649c5aa9e63d3a611c 100644
+--- a/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
++++ b/android/src/main/java/expo/modules/intentlauncher/IntentLauncherParams.kt
+@@ -25,5 +25,11 @@ data class IntentLauncherParams(
+   val packageName: String?,
+ 
+   @Field
+-  val className: String?
++  val className: String?,
++
++  @Field
++  val chooserTitle: String?,
++
++  @Field
++  val uriArrayExtras: Map<String, List<String>>?
+ ) : Record
+diff --git a/build/IntentLauncher.d.ts b/build/IntentLauncher.d.ts
+index df467ad52f1e312b0aa51c103bc8e6dd89d412b0..cbd8ab603a14cff8411513b0477aa877f8f72316 100644
+--- a/build/IntentLauncher.d.ts
++++ b/build/IntentLauncher.d.ts
+@@ -256,6 +256,17 @@ export interface IntentLauncherParams {
+      * Class name of the ComponentName.
+      */
+     className?: string;
++    /**
++     * When set, starts the intent through the system chooser with this title, so the user picks
++     * the app even when a default is set. See [`Intent.createChooser`](https://developer.android.com/reference/android/content/Intent#createChooser(android.content.Intent,%20java.lang.CharSequence)).
++     */
++    chooserTitle?: string;
++    /**
++     * Extras whose value is a list of URIs, passed as a `Uri[]` (a `Parcelable[]`), for example
++     * MX Player's `subs`. They also go in the intent's ClipData, so a URI grant in `flags` covers
++     * them as it covers `data`.
++     */
++    uriArrayExtras?: Record<string, string[]>;
+ }
+ export interface IntentLauncherResult {
+     /**
+diff --git a/src/IntentLauncher.ts b/src/IntentLauncher.ts
+index 62715eb8866fecc219f30e4e57adaa8ea810cebc..47237aeaa291ae3895b809d96631f6423cdd163b 100644
+--- a/src/IntentLauncher.ts
++++ b/src/IntentLauncher.ts
+@@ -263,6 +263,17 @@ export interface IntentLauncherParams {
+    * Class name of the ComponentName.
+    */
+   className?: string;
++  /**
++   * When set, starts the intent through the system chooser with this title, so the user picks
++   * the app even when a default is set. See [`Intent.createChooser`](https://developer.android.com/reference/android/content/Intent#createChooser(android.content.Intent,%20java.lang.CharSequence)).
++   */
++  chooserTitle?: string;
++  /**
++   * Extras whose value is a list of URIs, passed as a `Uri[]` (a `Parcelable[]`), for example
++   * MX Player's `subs`. They also go in the intent's ClipData, so a URI grant in `flags` covers
++   * them as it covers `data`.
++   */
++  uriArrayExtras?: Record<string, string[]>;
+ }
+ 
+ // @needsAudit

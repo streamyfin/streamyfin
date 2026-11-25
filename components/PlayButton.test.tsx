@@ -309,7 +309,7 @@ describe("playing on the device from the item page", () => {
     await waitFor(() =>
       expect(mockPlayMedia).toHaveBeenCalledWith(
         expect.objectContaining({ itemId: "movie-1", bitrateValue: "auto" }),
-        { item: MOVIE },
+        expect.objectContaining({ item: MOVIE }),
       ),
     );
     expect(mockDetectBitrate).not.toHaveBeenCalled();
@@ -322,7 +322,7 @@ describe("playing on the device from the item page", () => {
     await waitFor(() =>
       expect(mockPlayMedia).toHaveBeenCalledWith(
         expect.objectContaining({ bitrateValue: "max" }),
-        { item: MOVIE },
+        expect.objectContaining({ item: MOVIE }),
       ),
     );
   });

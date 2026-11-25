@@ -29,7 +29,7 @@
     "hooks/**/*",
     "modules/**/*",
     "packages/**/*",
-    "patches/**/*",
+    "patches/**/*.ts",
     "plugins/**/*",
     "providers/**/*",
     "scripts/**/*",

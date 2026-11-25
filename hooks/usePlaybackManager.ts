@@ -15,6 +15,7 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { markOfflineProgress } from "@/utils/offlineProgressQueue";
+import { resolvePlayState } from "@/utils/playState";
 import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
@@ -213,24 +214,29 @@ export const usePlaybackManager = ({
     const localItem = getDownloadedItemById(itemId);
 
     if (localItem) {
-      const runTimeTicks = localItem.item.RunTimeTicks ?? 0;
-      const playedPercentage =
-        runTimeTicks > 0 ? (positionTicks / runTimeTicks) * 100 : 0;
-
-      // Jellyfin thresholds
-      const MINIMUM_PERCENTAGE = 5; // 5% minimum to save progress
-      const PLAYED_THRESHOLD_PERCENTAGE = 90; // 90% to mark as played
-
-      const isItemConsideredPlayed =
-        playedPercentage > PLAYED_THRESHOLD_PERCENTAGE;
-      const meetsMinimumPercentage = playedPercentage >= MINIMUM_PERCENTAGE;
-
-      const shouldSaveProgress =
-        meetsMinimumPercentage && !isItemConsideredPlayed;
+      // Lands as the server would put it: Jellyfin never sees this progress.
+      const state = resolvePlayState(localItem.item, positionTicks);
+      const wasPlayed = localItem.item.UserData?.Played === true;
       // A watched download re-opened for a moment stays watched, as Jellyfin
-      // 12 keeps it: otherwise the offline sync would push Played=false and
-      // un-mark it everywhere.
-      if (localItem.item.UserData?.Played && !meetsMinimumPercentage) return;
+      // keeps it, and only loses its resume point: no new date to sync.
+      if (wasPlayed && !state.playedToCompletion && state.positionTicks === 0) {
+        if (localItem.item.UserData?.PlaybackPositionTicks) {
+          updateDownloadedItem(itemId, {
+            ...localItem,
+            item: {
+              ...localItem.item,
+              UserData: {
+                ...localItem.item.UserData,
+                PlaybackPositionTicks: 0,
+                PlayedPercentage: 0,
+              },
+            },
+          });
+          queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+        }
+        return;
+      }
+      const runTimeTicks = localItem.item.RunTimeTicks ?? 0;
       const lastPlayed = new Date().toISOString();
 
       updateDownloadedItem(itemId, {
@@ -242,16 +248,15 @@ export const usePlaybackManager = ({
             // a real key when present, and never send this default to Jellyfin.
             Key: "",
             ...localItem.item.UserData,
-            PlaybackPositionTicks:
-              isItemConsideredPlayed || !shouldSaveProgress
-                ? 0
-                : Math.floor(positionTicks),
-            Played: isItemConsideredPlayed,
+            PlaybackPositionTicks: Math.floor(state.positionTicks),
+            // Not kept from before, unlike Jellyfin: every account on the
+            // device shares this record, so it may be another account's.
+            Played: state.playedToCompletion,
             LastPlayedDate: lastPlayed,
             PlayedPercentage:
-              isItemConsideredPlayed || !shouldSaveProgress
-                ? 0
-                : playedPercentage,
+              state.positionTicks > 0
+                ? (state.positionTicks / runTimeTicks) * 100
+                : 0,
           },
         },
       });
