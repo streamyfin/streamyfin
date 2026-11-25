@@ -609,5 +609,6 @@ class GoogleCastTargetPortTest {
 
         assertNull(sdk.sessionWatches.last())
         assertNull(sdk.routeWatches.last())
+        assertNull(sdk.volumeWatches.last())
     }
 }
