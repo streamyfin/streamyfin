@@ -21,6 +21,7 @@ import {
 } from "@/test-utils/cast";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { JELLYFIN_CAST_NAMESPACE } from "@/utils/cast/jellyfinReceiver";
 import { isExpectedError } from "@/utils/errors";
 import { logAndCaptureError } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -1007,11 +1008,34 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(reports(STOPPED_URL)).toEqual([]);
 
     await run((p) => p.togglePlayPause());
+    expect(reports(STOPPED_URL)).toEqual([]);
+    await receiverLoads("t0");
 
     expect(reports(STOPPED_URL)).toEqual([
       expect.objectContaining({ ItemId: "t0", PlaySessionId: "session-t0" }),
     ]);
-    await receiverLoads("t0");
+  });
+
+  // A receiver that refuses the queue leaves it on the phone: its play session goes on, as the server still lists
+  // it, instead of a session the server heard stop that a play on the phone then resumes.
+  test("a queue the receiver refuses keeps the phone's play session", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await run((p) => p.pause());
+    await connectCast();
+    await settle();
+
+    await run((p) => p.togglePlayPause());
+    await act(async () => {
+      emitCastEvent(mockCast, "onReceiverMessage", {
+        namespace: JELLYFIN_CAST_NAMESPACE,
+        message: JSON.stringify({ type: "error", message: "refused" }),
+      });
+    });
+    await settle();
+
+    expect(playNows()).toHaveLength(1);
+    expect(reports(STOPPED_URL)).toEqual([]);
   });
 
   test("the queue the phone plays ends its play session on the server when a session connects", async () => {
@@ -1020,11 +1044,12 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     await connectCast();
     await settle();
+    expect(reports(STOPPED_URL)).toEqual([]);
+    await receiverLoads("t0");
 
     expect(reports(STOPPED_URL)).toEqual([
       expect.objectContaining({ ItemId: "t0", PlaySessionId: "session-t0" }),
     ]);
-    await receiverLoads("t0");
   });
 
   test("stopping the queue on the receiver does not end the phone's play session a second time", async () => {

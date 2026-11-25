@@ -1378,8 +1378,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // A connected Cast session plays the music on the receiver, and the phone
   // stops so that one place plays. The player shows the queue from the send.
+  // A hand-off ends the phone's play session once the receiver took the queue:
+  // one it refuses stays on the phone, in the session the server still lists.
   const castOnReceiver = useCallback(
-    async (queue: BaseItemDto[], startIndex: number, startSeconds = 0) => {
+    async (
+      queue: BaseItemDto[],
+      startIndex: number,
+      startSeconds = 0,
+      handOff = false,
+    ) => {
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
@@ -1399,8 +1406,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         isStale,
       });
       if (!started) endOnReceiver(sent);
+      else if (handOff) endPhoneSessionForReceiver();
     },
-    [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],
+    [
+      castQueue,
+      state.isPlaying,
+      beginOnReceiver,
+      endOnReceiver,
+      endPhoneSessionForReceiver,
+    ],
   );
 
   // Connecting while the phone plays moves the queue to the receiver. A queue
@@ -1416,12 +1430,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     if (!castReady || wasReady) return;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
-    endPhoneSessionForReceiver();
-    void castOnReceiver(state.queue, Math.max(index, 0));
+    void castOnReceiver(state.queue, Math.max(index, 0), 0, true);
   }, [
     castReady,
     castOnReceiver,
-    endPhoneSessionForReceiver,
     state.isPlaying,
     state.queue,
     state.currentTrack,
@@ -1576,8 +1588,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const index = state.queue.findIndex(
         (t) => t.Id === state.currentTrack?.Id,
       );
-      endPhoneSessionForReceiver();
-      void castOnReceiver(state.queue, Math.max(index, 0), state.progress);
+      void castOnReceiver(
+        state.queue,
+        Math.max(index, 0),
+        state.progress,
+        true,
+      );
       return;
     }
     if (!TrackPlayer) return;
@@ -1704,7 +1720,6 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     reportPlaybackStart,
     castConnected,
     castOnReceiver,
-    endPhoneSessionForReceiver,
   ]);
 
   const togglePlayPause = useCallback(async () => {
