@@ -357,7 +357,8 @@ class CastEngine(
         load.cancelTimer = schedule(CastEngineConstants.LOAD_TIMEOUT_MS) {
             if (pendingLoad === load) load.tracker.timeOut()?.let { settleLoad(load, it) }
         }
-        setLoading(true)
+        // A handler of the superseded load cast again: this load never goes out, and shows no loading.
+        if (pendingLoad === load) setLoading(true)
         // A handler of the superseded load, or of the loading, cast again: this load is no longer the
         // one asked, and the receiver must not get it after the newer one.
         if (pendingLoad !== load) {

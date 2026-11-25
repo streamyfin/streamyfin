@@ -1319,4 +1319,21 @@ class CastEngineTest {
         engine.reloadCurrentItem()
         assertEquals(listOf("a-1", "a-2"), itemsOf(port.sent.last().second))
     }
+
+    // The superseded load's handler cast again inside the newer load, and the channel refused that one
+    // at once: the newer load then showed loading for a load that never went out.
+    @Test
+    fun aLoadCastFromTheSupersededOnesHandlerAndRefusedLeavesNoLoading() {
+        val engine = engine()
+        var castAgain = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "a-1")))) {
+            if (castAgain) {
+                castAgain = false
+                port.sendError = "down"
+                engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+            }
+        }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        assertEquals(false, delegate.loadings.last())
+    }
 }
