@@ -1485,6 +1485,76 @@ class CastEngineTest {
         assertEquals(emptyList<String>(), delegate.errors)
     }
 
+    // A playlist of a thousand tracks and more: more than ten windows.
+    private val longQueue = 10 * CastEngineConstants.MAX_QUEUE_ITEMS + 1
+
+    // An enqueue on its way when a load the channel refused went out: the receiver kept its queue, yet the load
+    // had ended the enqueue, so the window it took stayed out of the engine's queue and the next one never went.
+    @Test
+    fun anEnqueueOnItsWayGoesOnWhenALoadIsRefused() {
+        val engine = playingOne()
+        val enqueued = (1..longQueue).map { "x-$it" }
+        port.holdResults = true
+        engine.enqueue(enqueued)
+        val refused = refuseALoad(engine)
+        assertEquals(listOf("t-1") + enqueued, receiverQueue(refused))
+        engine.reloadCurrentItem()
+        assertEquals(listOf("t-1") + enqueued, receiverQueue(refused))
+    }
+
+    // The same with a replay's tail: the receiver took the replay, then its first tail window, and the
+    // load refused meanwhile had ended the tail, so the second window never went.
+    @Test
+    fun aReplayTailOnItsWayGoesOnWhenALoadIsRefused() {
+        val queued = (1..longQueue).map { "t-$it" }
+        val engine = playingOne(queued.drop(1))
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        port.releaseResults()
+        val refused = refuseALoad(engine)
+        assertEquals(queued, receiverQueue(refused))
+        engine.reloadCurrentItem()
+        assertEquals(queued, receiverQueue(refused))
+    }
+
+    // A window the channel refused under a load it refused too: the enqueue ends on its error, as with no load.
+    @Test
+    fun aWindowRefusedUnderARefusedLoadReportsItsError() {
+        val engine = playingOne()
+        val enqueued = (1..longQueue).map { "x-$it" }
+        port.holdResults = true
+        engine.enqueue(enqueued)
+        // Five windows taken, the sixth refused.
+        repeat(4) { port.releaseResults() }
+        port.sendError = "down"
+        port.releaseResults()
+        val refusedWindow = port.sent.size - 1
+        val refused = refuseALoad(engine) + refusedWindow
+        assertEquals(listOf("down"), delegate.errors)
+        assertEquals(listOf("t-1") + enqueued.take(5 * CastEngineConstants.MAX_QUEUE_ITEMS), receiverQueue(refused))
+    }
+
+    // "t-1" playing, cast with [enqueued] after it.
+    private fun playingOne(enqueued: List<String> = emptyList()): CastEngine {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        if (enqueued.isNotEmpty()) engine.enqueue(enqueued)
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        return engine
+    }
+
+    // A load the channel refuses, sent while the results are held, then every result handed over: the index
+    // of its PlayNow in `port.sent`.
+    private fun refuseALoad(engine: CastEngine): Set<Int> {
+        val refused = setOf(port.sent.size)
+        port.sendError = "down"
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.sendError = null
+        port.holdResults = false
+        port.releaseResults()
+        return refused
+    }
+
     // What the receiver queues: the last PlayNow it took, then each PlayLast after it; [refused] holds
     // the indexes in `port.sent` of the sends the channel refused.
     private fun receiverQueue(refused: Set<Int> = emptySet()): List<String> {
