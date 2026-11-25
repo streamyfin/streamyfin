@@ -1776,6 +1776,18 @@ enum CastEngineTests {
       check("aSubtitleChangeWithNoStatusToReadReloads", commandsSent(on: bench.port) == ["PlayNow"])
     }
 
+    // An enqueue still sending its windows when the engine let go of the session: the rest went on to
+    // the receiver, or to the next one the engine bound to.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: (1...150).map { "t-\($0)" })
+      engine.shutdown()
+      bench.port.releaseResults()
+      check("anEnqueueStopsOnceTheEngineStops", commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count == 1)
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {

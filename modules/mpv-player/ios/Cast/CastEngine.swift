@@ -644,20 +644,21 @@ final class CastEngine: ChromeEngine {
     let windows = stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
       Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
     }
-    enqueueWindows(windows[...], generation: queueGeneration)
+    enqueueWindows(windows[...], generation: queueGeneration, binding: boundSessionId)
   }
 
   // Each window once the channel took the one before: the queue then holds them in the order the
   // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
-  // its PlayNow having replaced the queue the rest was for.
-  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int) {
+  // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
+  // sent on: the rest was for that receiver.
+  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int, binding: String?) {
     guard let window = windows.first else { return }
     sendMessage(
       "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
       sent: { [weak self] in
-        guard let self, generation == self.queueGeneration else { return }
+        guard let self, generation == self.queueGeneration, self.session != nil, self.boundSessionId == binding else { return }
         self.queue += window.map { ReceiverItem(id: $0) }
-        self.enqueueWindows(windows.dropFirst(), generation: generation)
+        self.enqueueWindows(windows.dropFirst(), generation: generation, binding: binding)
       },
       failed: reportFailure
     )
