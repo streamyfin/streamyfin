@@ -108,6 +108,9 @@ enum class OutputLayout { SHEET, POPOVER }
 
 fun outputLayout(widthDp: Int) = if (widthDp >= RemoteTargetConstants.REGULAR_WIDTH_DP) OutputLayout.POPOVER else OutputLayout.SHEET
 
+/** The popover's height cap: the window less a margin at each edge, so that a long list scrolls inside it. */
+fun popoverMaxHeightDp(windowHeightDp: Int) = (windowHeightDp - 2 * RemoteTargetConstants.POPOVER_MARGIN_DP).coerceAtLeast(0)
+
 /**
  * The receiver's media status as the sheet reads it. A suspended session loses its media client until it resumes,
  * and the resumed client reports nothing until the receiver sends: the last status heard stands in meanwhile, so the

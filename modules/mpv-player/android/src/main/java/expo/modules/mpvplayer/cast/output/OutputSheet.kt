@@ -91,6 +91,7 @@ fun OutputSheetHost(
         onDispose { controller.onState = null }
     }
     val widthDp = LocalConfiguration.current.screenWidthDp
+    val heightDp = LocalConfiguration.current.screenHeightDp
     val density = LocalDensity.current.density
 
     when (outputLayout(widthDp)) {
@@ -114,7 +115,9 @@ fun OutputSheetHost(
                     color = SheetColor,
                     contentColor = Color.White,
                     shadowElevation = 12.dp,
-                    modifier = Modifier.widthIn(max = RemoteTargetConstants.POPOVER_MAX_WIDTH_DP.dp),
+                    modifier = Modifier
+                        .widthIn(max = RemoteTargetConstants.POPOVER_MAX_WIDTH_DP.dp)
+                        .heightIn(max = popoverMaxHeightDp(heightDp).dp),
                 ) {
                     OutputSheetContent(state, strings, controller, Modifier.padding(vertical = 8.dp))
                 }
@@ -122,7 +125,10 @@ fun OutputSheetHost(
     }
 }
 
-/** Below the button, its right edges aligned, kept inside the window; centred with no button to point at. */
+/**
+ * Below the button, its right edges aligned, kept inside the window; above it without the room below, its bottom edge
+ * inside the window first. Centred with no button to point at.
+ */
 internal class AnchorPosition(private val anchor: IntRect?, private val density: Float) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
@@ -138,7 +144,10 @@ internal class AnchorPosition(private val anchor: IntRect?, private val density:
         val below = button.bottom + margin / 2
         val y =
             if (below + popupContentSize.height <= windowSize.height - margin) below
-            else (button.top - margin / 2 - popupContentSize.height).coerceAtLeast(margin)
+            else
+                (button.top - margin / 2 - popupContentSize.height)
+                    .coerceAtLeast(margin)
+                    .coerceAtMost(windowSize.height - margin - popupContentSize.height)
         return IntOffset(x, y)
     }
 }
