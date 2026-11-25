@@ -135,7 +135,7 @@
     "ignore": "7.0.14",
     "jest": "30.5.2",
     "jest-expo": "~58.0.14",
-    "lint-staged": "17.6.0",
+    "lint-staged": "17.6.2",
     "openapi-typescript": "7.13.0",
     "reassure": "1.6.1",
     "tsx": "4.23.15",
