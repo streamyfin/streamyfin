@@ -1,8 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
@@ -14,25 +14,50 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
+import {
+  Alert,
+  Platform,
+  Switch,
+  TouchableOpacity,
+  View,
+  type ViewProps,
+} from "react-native";
 import { toast } from "sonner-native";
 import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { SheetScrollView } from "@/components/common/SheetContent";
+import { DownloadModeToggle } from "@/components/downloads/DownloadModeToggle";
+import { DownloadOptionSelector } from "@/components/downloads/DownloadOptionSelector";
 import { Colors } from "@/constants/Colors";
+import { DOWNLOAD_VIDEO_CODECS } from "@/constants/Downloads";
+import {
+  AUDIO_TRANSCODE_MODE_LABEL_KEYS,
+  AUDIO_TRANSCODE_MODES,
+} from "@/constants/Playback";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
-import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
+import {
+  type DownloadChoices,
+  defaultBurnIn,
+  downloadDefaults,
+  downloadSubtitleIndexes,
+  lacksMediaSource,
+  offersAudioChoice,
+  subtitleStreams,
+  transcodeLosesTracks,
+  videoCodecLabel,
+} from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
-import { toDownloadBitrate } from "@/utils/bitrate";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import { defaultLabel as subtitleLabel } from "@/utils/subtitles/trackMenu";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "./BitrateSelector";
+import { BITRATES, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
 import {
   SingleItemDownloadedIcon,
@@ -43,7 +68,6 @@ import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
-import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
 
 /**
  * The progress ring is drawn well under `HEADER_ICON_SIZE`. A stroked circle
@@ -64,11 +88,13 @@ const PROGRESS_RING_SCALE = 0.79;
 const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
 const PROGRESS_RING_WIDTH = 2.5;
 
-export type SelectedOptions = {
-  bitrate: Bitrate;
+export type SelectedOptions = DownloadChoices & {
   mediaSource: MediaSourceInfo | undefined;
   audioIndex: number | undefined;
+  /** The preferred subtitle, which offline playback starts on. */
   subtitleIndex: number;
+  /** The subtitle a transcode burns into the picture. */
+  burnInIndex: number;
 };
 
 /** A track picked in the sheet, with the version it was picked on. */
@@ -171,27 +197,34 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const optionsItem =
     itemsNotDownloaded.length === 1 ? itemsNotDownloaded[0] : items[0];
 
-  const {
-    defaultAudioIndex,
-    defaultBitrate: defaultPlaybackBitrate,
-    defaultMediaSource,
-    defaultSubtitleIndex,
-  } = useDefaultPlaySettings(optionsItem, settings);
-  // The sheet offers no Auto: a download is made at Max instead.
-  const defaultBitrate = toDownloadBitrate(defaultPlaybackBitrate);
+  const { defaultAudioIndex, defaultMediaSource, defaultSubtitleIndex } =
+    useDefaultPlaySettings(optionsItem, settings);
+  const defaults = downloadDefaults(settings);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const isTranscode = selectedOptions?.mode === "transcode";
+  const burnInSubtitles = subtitleStreams(selectedOptions?.mediaSource);
+  const choose = (choice: Partial<SelectedOptions>) =>
+    setSelectedOptions((prev) => prev && { ...prev, ...choice });
 
   // Initialize selectedOptions with default values
   useEffect(() => {
     setSelectedOptions(() => ({
-      bitrate: defaultBitrate,
+      mode: defaults.mode,
+      bitrate: defaults.bitrate,
+      videoCodec: defaults.videoCodec,
+      audioMode: defaults.audioMode,
       mediaSource: defaultMediaSource ?? undefined,
-      subtitleIndex: defaultSubtitleIndex ?? -1,
+      subtitleIndex: defaultSubtitleIndex ?? SUBTITLES_OFF,
+      burnInIndex: defaultBurnIn(defaultMediaSource, defaultSubtitleIndex),
       audioIndex: defaultAudioIndex,
     }));
     setPicks({});
   }, [
+    defaults.mode,
+    defaults.bitrate,
+    defaults.videoCodec,
+    defaults.audioMode,
     defaultAudioIndex,
-    defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
   ]);
@@ -278,6 +311,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         toast.error(t("home.downloads.toasts.no_media_source_to_download"));
         return;
       }
+      const choices = selectedOptions ?? downloadDefaults(settings);
+      // An original is the file itself, whatever quality was last picked.
+      const downloadBitrate =
+        choices.mode === "transcode" ? choices.bitrate : BITRATES[0];
       const downloadDetailsPromises = items.map(async (item) => {
         // Ensure the snapshot we store offline carries the Chapters array.
         // Page-level fetches sometimes use a fields filter that omits it; the
@@ -308,6 +345,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 audioIndex: selectedOptions?.audioIndex,
                 subtitleIndex: selectedOptions?.subtitleIndex,
               };
+        const subtitles = downloadSubtitleIndexes({
+          mode: choices.mode,
+          mediaSource,
+          preferredIndex: subtitleIndex ?? SUBTITLES_OFF,
+          burnInIndex:
+            itemsNotDownloaded.length > 1
+              ? defaultBurnIn(mediaSource, subtitleIndex)
+              : (selectedOptions?.burnInIndex ?? SUBTITLES_OFF),
+        });
 
         // Awaited with Promise.all over a season: a throw would abort the batch.
         const downloadDetails = await getDownloadStreamUrl({
@@ -316,10 +362,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           userId: user.Id!,
           mediaSourceId: mediaSource?.Id,
           audioStreamIndex: audioIndex ?? -1,
-          subtitleStreamIndex: subtitleIndex ?? -1,
-          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
-            .value,
-          audioMode: settings?.audioTranscodeMode,
+          subtitleStreamIndex: subtitles.requested,
+          mode: choices.mode,
+          maxStreamingBitrate: downloadBitrate.value,
+          videoCodec: choices.videoCodec,
+          audioMode: choices.audioMode,
         }).catch((error) => {
           logAndCaptureError("Getting download stream URL failed", error, {
             itemType: itemForDownload.Type,
@@ -331,11 +378,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           url: downloadDetails?.url,
           item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
+          audioIndex,
+          subtitleIndex: subtitles.playedOffline,
         };
       });
 
       const downloadDetails = await Promise.all(downloadDetailsPromises);
-      for (const { url, item, mediaSource } of downloadDetails) {
+      for (const {
+        url,
+        item,
+        mediaSource,
+        audioIndex,
+        subtitleIndex,
+      } of downloadDetails) {
         if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
@@ -352,23 +407,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-        // Get the audio/subtitle indices that were used for this download
-        const downloadAudioIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).audioIndex
-            : selectedOptions?.audioIndex;
-        const downloadSubtitleIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).subtitleIndex
-            : selectedOptions?.subtitleIndex;
-
         await startBackgroundDownload(
           url,
           item,
           mediaSource,
-          selectedOptions?.bitrate || defaultBitrate,
-          downloadAudioIndex,
-          downloadSubtitleIndex,
+          downloadBitrate,
+          audioIndex,
+          subtitleIndex,
         );
       }
     },
@@ -378,7 +423,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       itemsNotDownloaded,
       selectedOptions,
       settings,
-      defaultBitrate,
       startBackgroundDownload,
     ],
   );
@@ -480,8 +524,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         keyboardBehavior='interactive'
         keyboardBlurBehavior='restore'
       >
-        <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+        {/* More options can outgrow a short screen. */}
+        <SheetScrollView>
+          <View className='flex flex-col space-y-4 pb-4'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
                 {title}
@@ -494,16 +539,25 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               </Text>
             </View>
             <View className='flex flex-col space-y-2 w-full'>
-              <View className='items-start'>
-                <BitrateSelector
-                  onChange={(val) =>
-                    setSelectedOptions(
-                      (prev) => prev && { ...prev, bitrate: val },
-                    )
-                  }
-                  selected={selectedOptions?.bitrate}
-                />
-              </View>
+              {selectedOptions && (
+                <View>
+                  <DownloadModeToggle
+                    value={selectedOptions.mode}
+                    onChange={(mode) => choose({ mode })}
+                  />
+                  {!isTranscode && (
+                    <Text className='text-neutral-400 text-xs mt-1'>
+                      {t("item_card.download.original_keeps_every_track")}
+                    </Text>
+                  )}
+                  {isTranscode &&
+                    transcodeLosesTracks(selectedOptions.mediaSource) && (
+                      <Text className='text-neutral-400 text-xs mt-1'>
+                        {t("item_card.download.transcode_keeps_one_track")}
+                      </Text>
+                    )}
+                </View>
+              )}
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>
@@ -515,68 +569,128 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
               {itemsNotDownloaded.length === 1 && (
                 <View>
-                  <View className='items-start'>
-                    <MediaSourceSelector
-                      item={optionsItem}
-                      onChange={(val) =>
-                        setSelectedOptions((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            mediaSource: val,
-                            ...tracksOnVersion(
-                              optionsItem,
-                              val,
-                              settings,
-                              picks,
-                            ),
-                          };
-                        })
-                      }
-                      selected={selectedOptions?.mediaSource}
-                    />
-                  </View>
-                  {selectedOptions?.mediaSource && (
-                    <View className='flex flex-col space-y-2 items-start'>
-                      <AudioTrackSelector
-                        source={selectedOptions.mediaSource}
-                        onChange={(val) => {
-                          setSelectedOptions(
-                            (prev) =>
-                              prev && {
-                                ...prev,
-                                audioIndex: val,
-                              },
+                  {(optionsItem?.MediaSources?.length ?? 0) > 1 && (
+                    <View className='items-start'>
+                      <MediaSourceSelector
+                        item={optionsItem}
+                        onChange={(mediaSource) => {
+                          // The burn-in pick does not move the subtitle offline
+                          // playback starts on, only the burn-in.
+                          const tracks = tracksOnVersion(
+                            optionsItem,
+                            mediaSource,
+                            settings,
+                            { audio: picks.audio },
                           );
-                          const source = selectedOptions.mediaSource;
-                          if (source) {
-                            setPicks((prev) => ({
-                              ...prev,
-                              audio: { source, index: val },
-                            }));
-                          }
+                          choose({
+                            mediaSource,
+                            audioIndex: tracks.audioIndex,
+                            subtitleIndex: tracks.subtitleIndex,
+                            burnInIndex: picks.subtitle
+                              ? tracksOnVersion(
+                                  optionsItem,
+                                  mediaSource,
+                                  settings,
+                                  picks,
+                                ).subtitleIndex
+                              : defaultBurnIn(
+                                  mediaSource,
+                                  tracks.subtitleIndex,
+                                ),
+                          });
                         }}
-                        selected={selectedOptions.audioIndex}
+                        selected={selectedOptions?.mediaSource}
                       />
-                      <SubtitleTrackSelector
-                        source={selectedOptions.mediaSource}
-                        onChange={(val) => {
-                          setSelectedOptions(
-                            (prev) =>
-                              prev && {
+                    </View>
+                  )}
+                  {/* An original keeps every track, so only a transcode has
+                      one to pick, and a subtitle to burn in. */}
+                  {isTranscode && selectedOptions?.mediaSource && (
+                    <View className='flex flex-col space-y-2 items-start'>
+                      {offersAudioChoice(selectedOptions.mediaSource) && (
+                        <AudioTrackSelector
+                          source={selectedOptions.mediaSource}
+                          onChange={(audioIndex) => {
+                            choose({ audioIndex });
+                            const source = selectedOptions.mediaSource;
+                            if (source) {
+                              setPicks((prev) => ({
                                 ...prev,
-                                subtitleIndex: val,
-                              },
-                          );
-                          const source = selectedOptions.mediaSource;
-                          if (source) {
-                            setPicks((prev) => ({
-                              ...prev,
-                              subtitle: { source, index: val },
-                            }));
-                          }
-                        }}
-                        selected={selectedOptions.subtitleIndex}
+                                audio: { source, index: audioIndex },
+                              }));
+                            }
+                          }}
+                          selected={selectedOptions.audioIndex}
+                        />
+                      )}
+                      {burnInSubtitles.length > 0 && (
+                        <DownloadOptionSelector
+                          title={t("item_card.download.burn_in_subtitle")}
+                          options={[
+                            {
+                              value: SUBTITLES_OFF,
+                              label: t("item_card.download.burn_in_none"),
+                            },
+                            ...burnInSubtitles.map((stream) => ({
+                              value: stream.Index,
+                              label: subtitleLabel(stream),
+                            })),
+                          ]}
+                          selected={selectedOptions.burnInIndex}
+                          onChange={(burnInIndex) => {
+                            choose({ burnInIndex });
+                            const source = selectedOptions.mediaSource;
+                            if (source) {
+                              setPicks((prev) => ({
+                                ...prev,
+                                subtitle: { source, index: burnInIndex },
+                              }));
+                            }
+                          }}
+                        />
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+              {isTranscode && selectedOptions && (
+                <View>
+                  <TouchableOpacity
+                    className='flex flex-row items-center py-2'
+                    onPress={() => setShowMoreOptions((shown) => !shown)}
+                  >
+                    <Text className='mr-1'>
+                      {t("item_card.download.more_options")}
+                    </Text>
+                    <Ionicons
+                      name={showMoreOptions ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color='white'
+                    />
+                  </TouchableOpacity>
+                  {showMoreOptions && (
+                    <View className='flex flex-col space-y-2 items-start'>
+                      <BitrateSelector
+                        onChange={(bitrate) => choose({ bitrate })}
+                        selected={selectedOptions.bitrate}
+                      />
+                      <DownloadOptionSelector
+                        title={t("item_card.download.video_codec")}
+                        options={DOWNLOAD_VIDEO_CODECS.map((codec) => ({
+                          value: codec,
+                          label: videoCodecLabel(codec, t),
+                        }))}
+                        selected={selectedOptions.videoCodec}
+                        onChange={(videoCodec) => choose({ videoCodec })}
+                      />
+                      <DownloadOptionSelector
+                        title={t("item_card.download.audio_channels")}
+                        options={AUDIO_TRANSCODE_MODES.map((mode) => ({
+                          value: mode,
+                          label: t(AUDIO_TRANSCODE_MODE_LABEL_KEYS[mode]),
+                        }))}
+                        selected={selectedOptions.audioMode}
+                        onChange={(audioMode) => choose({ audioMode })}
                       />
                     </View>
                   )}
@@ -588,7 +702,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               {t("item_card.download.download_button")}
             </Button>
           </View>
-        </BottomSheetView>
+        </SheetScrollView>
       </BottomSheetModal>
     </View>
   );

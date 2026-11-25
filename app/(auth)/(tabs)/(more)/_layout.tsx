@@ -233,6 +233,16 @@ export default function MoreLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/downloads/page'
+        options={{
+          title: t("home.settings.storage.download_defaults"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
         name='settings/notifications/page'
         options={{
           title: t("home.settings.notifications.title"),
