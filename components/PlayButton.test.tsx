@@ -37,7 +37,6 @@ const mockActionSheet = {
     onSelect: (index?: number) => void,
   ) => onSelect(mockChoice),
 };
-const mockTranslation = { t: (key: string) => key };
 
 jest.mock("@expo/react-native-action-sheet", () => ({
   useActionSheet: () => mockActionSheet,
@@ -49,12 +48,6 @@ jest.mock("@expo/vector-icons", () => {
   );
   return { Feather: Glyph, Ionicons: Glyph };
 });
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
-);
-jest.mock("react-i18next", () => ({
-  useTranslation: () => mockTranslation,
-}));
 jest.mock("@/modules/mpv-player/src/cast", () => {
   const { View } = jest.requireActual("react-native");
   return {
@@ -108,11 +101,6 @@ jest.mock("@/utils/cast/jellyfinReceiver", () => ({
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
   detectBitrate: (api: unknown, force?: unknown, options?: unknown) =>
     mockDetectBitrate(api, force, options),
-}));
-jest.mock("@/utils/log", () => ({
-  logAndCaptureError: jest.fn(),
-  writeErrorLog: jest.fn(),
-  writeToLog: jest.fn(),
 }));
 
 const MOVIE: BaseItemDto = {

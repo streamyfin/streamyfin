@@ -17,10 +17,6 @@ jest.mock("expo-router", () => ({
   useNavigation: () => ({ setOptions: () => {} }),
 }));
 jest.mock("expo-file-system", () => ({ File: class {}, Paths: {} }));
-jest.mock("sonner-native", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/components/filters/FilterButton", () => ({
   FilterButton: () => null,
 }));

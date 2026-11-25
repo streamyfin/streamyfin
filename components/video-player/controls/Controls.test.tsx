@@ -24,12 +24,6 @@ let mockDownloads: Record<string, unknown> = {};
 
 // The native-module doubles test-utils/perfSetup.ts registers for the perf
 // spec that renders Controls.
-jest.mock("expo-notifications", () => ({
-  scheduleNotificationAsync: jest.fn(),
-}));
-jest.mock("sonner-native", () => ({
-  toast: { error: jest.fn(), success: jest.fn(), info: jest.fn() },
-}));
 jest.mock(
   "react-native-safe-area-context",
   () => jest.requireActual("react-native-safe-area-context/jest/mock").default,
@@ -37,9 +31,6 @@ jest.mock(
 jest.mock(
   "react-native-reanimated",
   () => jest.requireActual("@/test-utils/reanimated").reanimatedModule,
-);
-jest.mock("@gorhom/bottom-sheet", () =>
-  jest.requireActual("@gorhom/bottom-sheet/mock"),
 );
 jest.mock(
   "@/providers/JellyfinProvider",
@@ -68,10 +59,6 @@ jest.mock("@/modules", () => {
     },
   };
 });
-jest.mock("react-i18next", () => ({
-  ...jest.requireActual("react-i18next"),
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock("expo-router", () => ({
   ...jest.requireActual("@/test-utils/expoRouter").expoRouterModule,
   useLocalSearchParams: () => mockParams,

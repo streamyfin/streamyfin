@@ -186,6 +186,7 @@ describe("load-outcomes.json", () => {
     const request: { items: BaseItemDto[] } = vector.request ?? file.request;
     let listener: ((status: unknown) => void) | undefined;
     const client = {
+      sessionId: mockCast.session?.id,
       getMediaStatus: async () =>
         vector.previous
           ? {

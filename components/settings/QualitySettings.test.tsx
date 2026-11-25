@@ -21,7 +21,6 @@ jest.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/providers/JellyfinProvider", () => {
   const { atom } = jest.requireActual("jotai");
   const { makeApi } = jest.requireActual("@/test-utils/jellyfinApi");
