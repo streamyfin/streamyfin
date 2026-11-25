@@ -109,14 +109,19 @@ final class CastEngine: ChromeEngine {
   // hands it over later) no longer describes the receiver's queue.
   private var queueGeneration = 0
 
-  // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
-  // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
+  // The queue each load on its way replaced, by generation, with the generation that queue came from:
+  // a send the channel refuses goes back to it, and so does the newer load sent over the refused one,
+  // the receiver never having taken it, whichever of the two the channel refuses first.
   private struct QueueState {
     let server: ReceiverServer
     let items: [ReceiverItem]
     let playingIndex: Int
+    let held: Int
   }
   private var replaced: [Int: QueueState] = [:]
+
+  // The generation whose queue the engine holds: a refusal gives an older one back.
+  private var heldGeneration = 0
 
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
@@ -351,7 +356,8 @@ final class CastEngine: ChromeEngine {
     }
     queueGeneration += 1
     let generation = queueGeneration
-    replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex)
+    replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex, held: heldGeneration)
+    heldGeneration = generation
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
     queue = receiverRequest.items
@@ -399,12 +405,12 @@ final class CastEngine: ChromeEngine {
   // which the receiver never took: what this one replaced is what that one goes back to.
   private func refused(_ generation: Int) {
     guard let previous = replaced.removeValue(forKey: generation) else { return }
-    if generation == queueGeneration {
+    for (newer, state) in replaced where state.held == generation { replaced[newer] = previous }
+    if heldGeneration == generation {
       server = previous.server
       queue = previous.items
       playingIndex = previous.playingIndex
-    } else if replaced[generation + 1] != nil {
-      replaced[generation + 1] = previous
+      heldGeneration = previous.held
     }
   }
 

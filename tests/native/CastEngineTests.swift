@@ -1860,6 +1860,25 @@ enum CastEngineTests {
       )
     }
 
+    // A load refused at once over an older one still on its way, then that one refused: the second
+    // refusal found no newer load to hand its queue to, and the engine kept a queue the receiver never
+    // took, the replay then casting the item alone.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["a-1", "a-2"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "a-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.sendError = "down"
+      bench.port.holdResults = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.port.holdResults = false
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      bench.port.releaseResults()
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      check("twoLoadsRefusedNewestFirstLeaveTheQueueTheReceiverTook", itemIds(bench.sentMessages().last) == ["a-1", "a-2"])
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
