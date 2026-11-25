@@ -390,6 +390,24 @@ const connectCast = () =>
     emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
   });
 
+/** The state read connected before the session has started, as on iOS. */
+const connectedBeforeSession = () =>
+  act(async () => {
+    mockCast.castState = "connected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** The session starting after that, which gives it its client. */
+const sessionStarts = () =>
+  act(async () => {
+    setCastSession(mockCast, "session-ios");
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "started",
+      sessionId: "session-ios",
+      error: null,
+    });
+  });
+
 /** The receiver loading an item, which settles the cast. */
 const receiverLoads = async (itemId: string) => {
   await act(async () => {
@@ -672,6 +690,32 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ]);
     expect(mockNative.playing).toBe(false);
     expect(player.isLoading).toBe(false);
+  });
+
+  // The tap spends the move: the queue the phone still plays, its pause in flight, must not replace the tap on the TV.
+  test("keeps a tap on the receiver over the queue the phone still plays", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectedBeforeSession();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 1));
+    await sessionStarts();
+    await settle();
+    let releasePause = () => {};
+    const paused = new Promise<void>((resolve) => {
+      releasePause = resolve;
+    });
+    mockNative.onPause = () => paused;
+
+    await run((p) => p.playQueue(ALBUM, 3));
+    await releaseStreams();
+    await act(async () => releasePause());
+    await settle();
+
+    expect(playNows().map((message) => message.options.startIndex)).toEqual([
+      3,
+    ]);
+    await receiverLoads("t3");
   });
 
   // The receiver is the player while it has the queue: the mini player and

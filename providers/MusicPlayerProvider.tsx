@@ -1364,10 +1364,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.currentTrack,
   ]);
 
-  // A tap cast to the receiver is a new start: one still loading on the phone
-  // stops there, and neither plays it nor reaches the move above.
+  // A tap cast to the receiver is the pick that counts: it spends the move
+  // above, and a start still loading on the phone stops there.
   const castTapped = useCallback(
     (queue: BaseItemDto[], startIndex: number) => {
+      wasCastReady.current = true;
       startSequenceRef.current += 1;
       void castOnReceiver(queue, startIndex);
     },
