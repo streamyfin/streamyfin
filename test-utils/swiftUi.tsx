@@ -19,7 +19,7 @@ const nothing = () => null;
  * `@expo/ui/swift-ui` for every unit spec, wired in `unitSetup.ts`. The SwiftUI
  * views are native. Each stands in as what it carries: the Host records its
  * props, a Menu is its label and its items and keeps the modifiers it was
- * given, a Button is a row, a stack is its children. Views that only draw
+ * given, a Button is a row, a stack or a scroll view is its children. Views that only draw
  * native pixels (an image, a spinner, a spacer, a text) draw nothing. The
  * modifiers stay real: `@expo/ui/swift-ui/modifiers` is plain JavaScript and
  * loads under jest-expo.
@@ -77,6 +77,7 @@ export const swiftUiModule = {
     );
   },
   HStack: Stack,
+  ScrollView: Stack,
   Spacer: nothing,
   Image: nothing,
   ProgressView: nothing,

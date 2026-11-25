@@ -4,6 +4,7 @@ import { stubReactNative } from "@/test-utils/reactNative";
 // the pure route helpers are under test here.
 stubReactNative({ isTV: true });
 
+import { tvTabGroups } from "@/utils/tvTabs";
 import { isAtTabRoot, isTabRoute } from "./useTVBackHandler";
 
 describe("isAtTabRoot", () => {
@@ -40,5 +41,13 @@ describe("isTabRoute", () => {
     expect(isTabRoute("(favorites)")).toBe(false);
     expect(isTabRoute("(settings)")).toBe(false);
     expect(isTabRoute("index")).toBe(false);
+  });
+
+  // The Android TV bar highlights and backs out of a tab only when its group
+  // is a tab route; a group missing here leaves its tab unrecognised.
+  test("matches every group the TV bar can show", () => {
+    for (const group of tvTabGroups({ watchlists: true, liveTV: true })) {
+      expect(isTabRoute(group)).toBe(true);
+    }
   });
 });
