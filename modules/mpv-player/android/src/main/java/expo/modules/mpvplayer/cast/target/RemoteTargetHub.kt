@@ -34,9 +34,9 @@ class RemoteTargetHub {
     @Volatile
     var disconnectedWithoutStop = false
         private set
-    // That disconnect's end has not come yet: a connection meanwhile leaves the mark to it, since the receiver may
-    // still play the session it ends.
-    private var endWithoutStopDue = false
+    // The receiver that disconnect left, until its end comes: a connection back to it meanwhile leaves the mark to
+    // that end, since the receiver may still play the session it ends; one to another receiver ends it with a stop.
+    private var endWithoutStopFrom: String? = null
 
     var log: (String) -> Unit = {}
 
@@ -64,7 +64,10 @@ class RemoteTargetHub {
     fun connect(deviceId: String): Boolean {
         val port = this.port ?: return false
         val device = port.devices().firstOrNull { it.id == deviceId } ?: return false
-        if (!endWithoutStopDue) disconnectedWithoutStop = false
+        if (endWithoutStopFrom != deviceId) {
+            disconnectedWithoutStop = false
+            endWithoutStopFrom = null
+        }
         val current = snapshot
         val held = current.target?.id == deviceId && (current.phase == TargetPhase.CONNECTING || current.phase == TargetPhase.CONNECTED)
         // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -80,7 +83,7 @@ class RemoteTargetHub {
     /** The state follows the port's events, ending then ended, not this call. */
     fun disconnect(stopPlayback: Boolean) {
         disconnectedWithoutStop = !stopPlayback
-        endWithoutStopDue = !stopPlayback
+        endWithoutStopFrom = if (stopPlayback) null else snapshot.target?.id
         machine.disconnectRequested()
         port?.disconnect(stopPlayback)
     }
@@ -122,9 +125,9 @@ class RemoteTargetHub {
             // kept, or one that came back, is no end of that disconnect any more.
             if (event == "starting" || event == "endRefused" || event == "resumed") {
                 disconnectedWithoutStop = false
-                endWithoutStopDue = false
+                endWithoutStopFrom = null
             }
-            if (event == "ended" || event == "startFailed") endWithoutStopDue = false
+            if (event == "ended" || event == "startFailed") endWithoutStopFrom = null
             if (machine.sessionEvent(event, device, error, code)) publish()
         }
 

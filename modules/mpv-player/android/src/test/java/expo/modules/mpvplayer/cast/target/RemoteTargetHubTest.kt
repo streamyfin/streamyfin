@@ -286,6 +286,20 @@ class RemoteTargetHubTest {
         assertFalse(hub.disconnectedWithoutStop)
     }
 
+    // A connection to another receiver before that end: the port ends the session with a stop on its way to it, and
+    // that end still carried the mark.
+    @Test
+    fun aConnectionToAnotherReceiverBeforeTheEndClearsTheMark() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.disconnect(stopPlayback = false)
+        hub.connect(bedroom.id)
+        port.emit("ended", livingRoom)
+
+        assertFalse(hub.disconnectedWithoutStop)
+    }
+
     @Test
     fun aStopLeavesNoMark() {
         val port = FakeTargetPort(known = listOf(livingRoom))
