@@ -117,6 +117,11 @@ class CastEngine(
     // back after a newer load no longer describes the receiver's queue.
     private var queueGeneration = 0L
 
+    // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
+    // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
+    private class QueueState(val server: ReceiverServer, val items: List<ReceiverItem>, val playingIndex: Int)
+    private val replaced = mutableMapOf<Long, QueueState>()
+
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
 
@@ -322,10 +327,8 @@ class CastEngine(
             onResult(CastLoadResult.NotSent(refused.message ?: CONTAINER_ERROR))
             return@runOnMain
         }
-        val previousServer = this.server
-        val previousQueue = queue
-        val previousIndex = playingIndex
         val generation = ++queueGeneration
+        replaced[generation] = QueueState(this.server, queue, playingIndex)
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
         queue = receiverRequest.items
@@ -346,24 +349,40 @@ class CastEngine(
             if (pendingLoad === load) load.tracker.timeOut()?.let { settleLoad(load, it) }
         }
         setLoading(true)
+        // A handler of the superseded load, or of the loading, cast again: this load is no longer the
+        // one asked, and the receiver must not get it after the newer one.
+        if (pendingLoad !== load) {
+            load.cancelTimer()
+            refused(generation)
+            return@runOnMain
+        }
         log("send PlayNow")
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
             if (error == null) {
+                replaced.remove(generation)
                 busClaimed = true
                 return@send
             }
-            // Never sent: the receiver keeps its queue, under its server.
-            if (generation == queueGeneration) {
-                this.server = previousServer
-                queue = previousQueue
-                playingIndex = previousIndex
-            }
+            refused(generation)
             if (pendingLoad !== load) return@send
             log("PlayNow not sent: $error")
             load.cancelTimer()
             pendingLoad = null
             setLoading(isBuffering())
             onResult(CastLoadResult.NotSent(error))
+        }
+    }
+
+    // Never sent: the receiver keeps its queue, under its server. A newer load replaced this one's queue,
+    // which the receiver never took: what this one replaced is what that one goes back to.
+    private fun refused(generation: Long) {
+        val previous = replaced.remove(generation) ?: return
+        if (generation == queueGeneration) {
+            server = previous.server
+            queue = previous.items
+            playingIndex = previous.playingIndex
+        } else if (generation + 1 in replaced) {
+            replaced[generation + 1] = previous
         }
     }
 

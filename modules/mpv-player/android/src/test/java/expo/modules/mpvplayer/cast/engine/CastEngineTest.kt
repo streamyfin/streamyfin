@@ -1187,4 +1187,41 @@ class CastEngineTest {
     }
 
     private fun playLasts() = port.sent.count { JSONObject(it.second).getString("command") == "PlayLast" }
+
+    // Two loads the channel refused in a row: the second went back to the first one's queue, which the
+    // receiver never took, and a reload then dropped the queue the receiver plays.
+    @Test
+    fun twoRefusedLoadsLeaveTheQueueTheReceiverTook() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("a-1", "a-2").map { ReceiverItem(id = it) })) {}
+        media.report(snapshot(customData = ours("itemId" to "a-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        port.sendError = "down"
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+        port.releaseResults()
+        port.holdResults = false
+        port.sendError = null
+        engine.reloadCurrentItem()
+        assertEquals(listOf("a-1", "a-2"), itemsOf(port.sent.last().second))
+    }
+    // A handler of the superseded load cast again inside the newer load: that load, no longer the one
+    // asked, still went out after it, and the receiver played it instead.
+    @Test
+    fun aLoadSupersededBeforeItsSendNeverGoesOut() {
+        val engine = engine()
+        var castAgain = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "a-1")))) {
+            if (castAgain) {
+                castAgain = false
+                engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+            }
+        }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        assertEquals(listOf("a-1", "c-1"), port.sent.map { itemsOf(it.second).single() })
+    }
+    private fun itemsOf(text: String): List<String> {
+        val items = JSONObject(text).getJSONObject("options").getJSONArray("items")
+        return (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
+    }
 }
