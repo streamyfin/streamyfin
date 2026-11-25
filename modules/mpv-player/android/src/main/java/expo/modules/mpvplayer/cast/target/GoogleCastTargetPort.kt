@@ -120,11 +120,12 @@ internal class GoogleCastTargetPort(
             return
         }
         afterLeaving = null
-        runningSession()?.device?.takeIf { it.id != device.id }?.let { leaving = it }
-        select(device)
+        select(device, from = runningSession()?.device?.takeIf { it.id != device.id })
     }
 
-    private fun select(device: TargetDevice) {
+    // [from] is the receiver a switch leaves: left only once this route can be selected, so a refused one leaves
+    // nothing behind for a Disconnect to take for a switch.
+    private fun select(device: TargetDevice, from: TargetDevice? = null) {
         val route = routes().firstOrNull { it.device.id == device.id }
         if (route == null) {
             events?.sessionEvent("startFailed", device, RECEIVER_GONE)
@@ -135,6 +136,7 @@ internal class GoogleCastTargetPort(
             events?.sessionEvent("startFailed", device, RECEIVER_BUSY)
             return
         }
+        from?.let { leaving = it }
         // Another receiver's route ends a session ended early: no stop is due once it is selected, and that session's
         // end still stays away from the hub. A refused route selects nothing, and the stop stays due.
         endedEarly?.takeIf { it.device.id != device.id }?.stopWhenUp = null

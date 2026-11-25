@@ -566,6 +566,24 @@ class GoogleCastTargetPortTest {
         assertEquals(listOf(true), sdk.ended)
     }
 
+    // A receiver whose route is refused during a launch, then a Disconnect: the launch's route was let go as if the
+    // switch had selected the other one, which ended the launch early and left the receiver app open on the TV.
+    @Test
+    fun aRefusedSwitchDuringALaunchLeavesTheStopDue() {
+        val sdk = Sdk()
+        val events = Events()
+        val port = launching(sdk, events)
+        sdk.disabled = setOf(bedroom.id)
+
+        port.connect(bedroom)
+        port.disconnect(stopPlayback = true)
+        sdk.running = RunningSession(livingRoom, connected = true)
+        sdk.report("started", livingRoom)
+
+        assertEquals(0, sdk.unselects)
+        assertEquals(listOf(true), sdk.ended)
+    }
+
     // A disconnect without stop keeps its word once the session is up: an app this launch started closes at the
     // session's end anyway, one it joined goes on playing.
     @Test
