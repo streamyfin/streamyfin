@@ -72,6 +72,13 @@ data class RemoteScreenModel(
             (reduced || (itemId != null && itemId == snapshot.itemId)) && sawPlayback(false, snapshot.phase)
 
         /**
+         * [sawPlayback] as the session follows the TV, for the screen of [itemId]: only that item playing counts
+         * ([sawPlaybackOnUpdate]). The item the TV played before it, which its load replaces, neither ends nor stops it.
+         */
+        fun sawPlayback(before: Boolean, itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+            before || sawPlaybackOnUpdate(itemId, snapshot, reduced)
+
+        /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
          * know, so there are no track menus. [canPlayHere] only counts with a [failure]. [sawPlayback]: see
          * [sawPlayback]; an end the screen never saw play neither closes it nor offers the next episode.

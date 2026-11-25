@@ -95,6 +95,8 @@ enum RemotePlayerProbe {
 		let metadata = MetadataRecord()
 		metadata.title = title
 		metadata.subtitle = "S1 E1, Bench"
+		// The item the TV holds, as every config of ours says: the screen counts only its own item's playback.
+		metadata.itemId = onSession?.currentItemId ?? (ending ? "fake-short" : FakeRemoteEngine.defaultItems.first?.id)
 		let defaults = UserDefaults.standard
 		metadata.artworkUri = defaults.string(forKey: artworkArgument)
 		config.metadata = metadata

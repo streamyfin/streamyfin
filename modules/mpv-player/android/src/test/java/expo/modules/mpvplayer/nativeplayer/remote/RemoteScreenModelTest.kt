@@ -167,6 +167,46 @@ class RemoteScreenModelTest {
         assertFalse(waiting.playShowsSpinner)
     }
 
+    // What the screen of [itemId] has seen once the TV went through [statuses], as the session follows them.
+    private fun seen(itemId: String?, vararg statuses: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+        statuses.fold(false) { before, status -> RemoteScreenModel.sawPlayback(before, itemId, status, reduced) }
+
+    // Only the screen's own item playing counts as it follows the TV, or anything with the reduced player; once seen
+    // it stays seen. The end of another item does not close the screen.
+    @Test
+    fun theScreenSeesOnlyItsOwnItemPlay() {
+        assertTrue(seen("episode-1", tv(RemotePhase.PLAYING)))
+        assertFalse(seen("episode-2", tv(RemotePhase.PLAYING), tv(RemotePhase.PAUSED)))
+        assertFalse(seen(null, tv(RemotePhase.PLAYING)))
+        assertTrue(seen(null, tv(RemotePhase.PAUSED), reduced = true))
+        assertTrue(seen("episode-1", tv(RemotePhase.PLAYING), tv(RemotePhase.ENDED)))
+        assertNull(model(tv(RemotePhase.ENDED), sawPlayback = seen("duel", tv(RemotePhase.PLAYING), tv(RemotePhase.ENDED))).closes)
+    }
+
+    // Another item sent while the TV plays one: the screen opens on the item before, the load replaces it and the
+    // receiver drops it as a Stop does. That stop is not this screen's: it stays for the failure and Play here (R1).
+    @Test
+    fun aFailedSendOverAnotherItemKeepsTheScreenForItsFailure() {
+        val dropped = tv(RemotePhase.STOPPED).copy(stopRequested = true)
+        val sawPlayback = seen("duel", tv(RemotePhase.PLAYING), tv(RemotePhase.LOADING), dropped)
+        val failed = model(dropped, failure = "Could not play there", canPlayHere = true, sawPlayback = sawPlayback)
+
+        assertNull(model(dropped, sawPlayback = sawPlayback).closes)
+        assertNull(failed.closes)
+        assertTrue(failed.canPlayHere)
+    }
+
+    // The same send, loaded: the screen stays on the new item, which a stop from the TV then closes.
+    @Test
+    fun aSendOverAnotherItemFollowsTheNewOne() {
+        val next = tv(RemotePhase.PLAYING).copy(itemId = "episode-2")
+        val sawPlayback = seen("episode-2", tv(RemotePhase.PLAYING), tv(RemotePhase.LOADING), next)
+        val stopped = next.copy(phase = RemotePhase.STOPPED, stopRequested = true)
+
+        assertNull(model(next, sawPlayback = sawPlayback).closes)
+        assertEquals(RemoteClose.REMOTE_STOPPED, model(stopped, sawPlayback = sawPlayback).closes)
+    }
+
     @Test
     fun aFinishedConnectionClosesThePlayer() {
         // Whatever the TV last said, and with a next episode known: the connection is over.

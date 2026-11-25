@@ -173,7 +173,7 @@ class RemotePlayerSession(
         val state = screenState ?: return
         if (closed) return
         val clears = RemoteScreenModel.failureClears(state.snapshot.phase, snapshot.phase)
-        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, snapshot.phase)
+        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, viewModel.metadata?.itemId, snapshot, state.reduced)
         state.snapshot = snapshot
         if (clears) clearFailure()
         val close = state.model.closes ?: return

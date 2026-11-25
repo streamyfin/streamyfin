@@ -167,7 +167,9 @@ final class RemotePlayerSession: PresentedPlayer {
 		guard !closed else { return }
 		// A failure goes once the TV loads or plays again.
 		let clears = RemoteScreenModel.failureClears(from: screen.snapshot.phase, to: snapshot.phase)
-		screen.sawPlayback = RemoteScreenModel.sawPlayback(before: screen.sawPlayback, phase: snapshot.phase)
+		screen.sawPlayback = RemoteScreenModel.sawPlayback(
+			before: screen.sawPlayback, itemId: viewModel.metadata?.itemId, snapshot: snapshot, reduced: screen.reduced
+		)
 		screen.snapshot = snapshot
 		if clears { clearFailure() }
 		guard let close = screen.model.closes else { return }

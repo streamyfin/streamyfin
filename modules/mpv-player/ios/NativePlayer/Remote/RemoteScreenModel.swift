@@ -69,6 +69,12 @@ struct RemoteScreenModel: Equatable {
 		(reduced || (itemId != nil && itemId == snapshot.itemId)) && sawPlayback(before: false, phase: snapshot.phase)
 	}
 
+	/// `sawPlayback` as the session follows the TV, for the screen of `itemId`: only that item playing counts
+	/// (`sawPlaybackOnUpdate`). The item the TV played before it, which its load replaces, neither ends nor stops it.
+	static func sawPlayback(before: Bool, itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Bool = false) -> Bool {
+		before || sawPlaybackOnUpdate(itemId: itemId, snapshot: snapshot, reduced: reduced)
+	}
+
 	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not
 	/// know, so there are no track menus. `canPlayHere` only counts with a `failure`. `sawPlayback`: see
 	/// `sawPlayback(before:phase:)`; an end the screen never saw play neither closes it nor offers the next episode.
