@@ -1,7 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { TVFocusGuideView, View, type ViewInstance } from "react-native";
+import {
+  Platform,
+  TVFocusGuideView,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVButton } from "@/components/tv/TVButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -62,6 +67,16 @@ export const TVLibraryToolbar: React.FC<Props> = ({
   const typography = useScaledTVTypography();
   const buttons = useRef<Record<string, ViewInstance | null>>({});
 
+  // A disabled Play all cannot take preferred focus while the movie grid loads;
+  // tvOS can then fall back to Home's native tab (docs/conventions/tv.md).
+  const preferredActionKey =
+    Platform.isTV && Platform.OS === "ios" && actions[0]?.key === "play"
+      ? (
+          actions.find((action) => action.key === "sort" && !action.disabled) ??
+          actions.find((action) => !action.disabled)
+        )?.key
+      : actions[0]?.key;
+
   useEffect(() => {
     if (!focusRequest) return;
     const timer = setTimeout(
@@ -101,13 +116,13 @@ export const TVLibraryToolbar: React.FC<Props> = ({
             gap: scaleSize(12),
           }}
         >
-          {actions.map(({ key, icon, label, onPress, disabled }, index) => (
+          {actions.map(({ key, icon, label, onPress, disabled }) => (
             <TVButton
               key={key}
               onPress={onPress}
               disabled={disabled}
               variant='glass'
-              hasTVPreferredFocus={index === 0}
+              hasTVPreferredFocus={key === preferredActionKey}
               refSetter={(ref) => {
                 buttons.current[key] = ref;
               }}

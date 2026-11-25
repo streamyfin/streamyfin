@@ -119,7 +119,6 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
             autoCorrect={false}
             textContentType='username'
             returnKeyType='next'
-            hasTVPreferredFocus
             disabled={isDisabled}
           />
         </View>
