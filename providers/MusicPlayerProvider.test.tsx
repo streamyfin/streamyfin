@@ -757,6 +757,22 @@ describe("MusicPlayerProvider and a Cast session", () => {
     },
   );
 
+  // With no start of its own in flight, the phone keeps loading its paused queue: it is what plays if the TV turns the tap down.
+  test("leaves the phone its whole queue when a tap goes to the receiver", async () => {
+    await mount();
+    holdStreams("t2");
+    await run((p) => p.playQueue(ALBUM, 0));
+    await run((p) => p.pause());
+    await connectCast();
+    await settle();
+
+    await run((p) => p.playQueue(ALBUM, 3));
+    await releaseStreams();
+
+    expect(nativeIds()).toEqual(ALBUM.map((item) => item.Id));
+    await receiverLoads("t3");
+  });
+
   // The receiver is the player while it has the queue: the mini player and
   // Now Playing show what it plays, not what the phone last played.
   test("shows the track the receiver plays, and where it is", async () => {

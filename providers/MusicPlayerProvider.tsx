@@ -1370,14 +1370,16 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   ]);
 
   // A tap cast to the receiver is the pick that counts: it spends the move
-  // above, and a start still loading on the phone stops there.
+  // above, and a start still loading on the phone stops there. With none in
+  // flight the phone's queue keeps loading: it is what plays if the TV turns
+  // the tap down.
   const castTapped = useCallback(
     (queue: BaseItemDto[], startIndex: number) => {
       wasCastReady.current = true;
-      startSequenceRef.current += 1;
+      if (state.isLoading) startSequenceRef.current += 1;
       void castOnReceiver(queue, startIndex);
     },
-    [castOnReceiver],
+    [castOnReceiver, state.isLoading],
   );
 
   const playTrack = useCallback(
