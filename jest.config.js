@@ -7,6 +7,8 @@ module.exports = {
     "./node_modules/react-native-gesture-handler/jestSetup.js",
   ],
   setupFilesAfterEnv: ["<rootDir>/test-utils/unitSetup.ts"],
+  // The native e2e backend clones and builds Seerr there, its own tests included.
+  modulePathIgnorePatterns: ["<rootDir>/e2e/suites/syncplay/.tools/"],
   moduleNameMapper: {
     "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
     "^expo-file-system$": "<rootDir>/test-utils/fileSystemModule.ts",

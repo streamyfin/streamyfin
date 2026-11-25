@@ -17,6 +17,7 @@
       "!e2e/bench/*.local.*",
       "!e2e/suites/syncplay/.state",
       "!e2e/suites/syncplay/artifacts",
+      "!e2e/suites/syncplay/.tools",
       "!e2e/syncplay/.state",
       "!e2e/syncplay/artifacts",
       "!docs/jellyfin-openapi-stable.json",
