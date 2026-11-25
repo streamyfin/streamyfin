@@ -30,9 +30,11 @@ all, on a server without the lab's tags for instance. The Markdown table lands i
 `e2e/reports/<date>/` and, with `--keep`, in the evidence folder of the configuration; the
 rows measured so far are saved whatever ends the run, Ctrl-C included.
 
-The receiver is restarted before the first case, since it keeps the name and the bitrate cap
-of the first sender that reached it, and it stops after every case, whatever happened, so the
-TV never keeps playing a case the run has already measured.
+The receiver is restarted before the first case, since it keeps the device name of the first
+sender that reached it, and it stops after every case, whatever happened, so the TV never
+keeps playing a case the run has already measured. Every message carries a bitrate cap, the
+uncapped 120 Mb/s the app sends when no cap is picked, so the receiver runs no bandwidth
+measurement of its own: a case that depends on the link, E10 say, plays under that cap.
 
 ## Flows (tier 1)
 
@@ -43,3 +45,17 @@ build only assembles it: `bun run build:android:local`, then
 `bun run e2e:smoke` (or `make e2e`). Both run on the one emulator or simulator running, never
 on a phone, since the flow clears the app's data: `make e2e DEVICE=<adb serial>`, or
 `--device` for `e2e/bench/maestro.py`, names another device.
+
+`flows/cast-item-on-receiver.yml` goes further than the smoke flow: from a signed-in app on
+the phone emulator it finds an item by name, connects to a receiver through the header Cast
+button, plays the item on it, then stops casting from the SDK's expanded controls. It needs
+the emulator (so the Mac) on the receiver's network, and two variables:
+
+```sh
+python3 e2e/bench/maestro.py --flow e2e/suites/cast/flows/cast-item-on-receiver.yml --device emulator-5554 \
+  --env "ITEM_NAME=H.264 Baseline 480p" --env "CAST_NAME=Living room"
+```
+
+Its taps by position are laid out for the bench's 1080x2400 phone emulator. What the server
+recorded for the receiver during the flow is read with `e2e/bench/sessions.py`, as for the
+matrix.

@@ -57,13 +57,14 @@ Navigation:
 
 UI and headers:
 - `macos-header-buttons-fix` | macOS Catalyst: use RNGH LegacyPressable, not RN TouchableOpacity or the new RNGH Pressable
-- `header-button-locations` | Defined in _layout.tsx, HeaderBackButton, Chromecast, RoundButton, etc.
+- `header-button-locations` | Defined in _layout.tsx, HeaderBackButton, OutputButton, RoundButton, etc.
 - `stack-screen-header-configuration` | Sub-pages need explicit Stack.Screen with headerTransparent + back button
 - `switch-pointerevents-ignored` | Switch ignores its own pointerEvents (Android); wrap in a View pointerEvents="none"
 - `nativewind-classname-arrives-as-style` | a className passed to one of our own components reaches it as `style`; forward that, reading `className` drops it silently
 - `bottom-sheet-dismiss-before-present` | dismiss() on a BottomSheetModal that is not on screen leaves it unable to present, silently; follow `open` with useSheetOpenState
 - `sheets-draw-under-the-android-nav-bar` | use `@/hooks/useActionSheet`; `showModal` content goes in `SheetView` / `SheetScrollView`, a sheet's FlatList takes `useSheetContentPadding()`
 - `swiftui-host-dead-while-keyboard-is-up` | an @expo/ui Host honors the keyboard safe area, so a small one draws but takes no taps while a keyboard is up; set ignoreSafeArea='keyboard'
+- `accessibility-value-undefined-clears-label` | on Android an accessibilityValue that turns undefined wipes the whole content description, label included; keep it an object with a text
 
 State and data:
 - `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
@@ -81,7 +82,7 @@ Native modules:
 - `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
 - `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
 - `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
-- `engine-agnostic-native-chrome` | The Android TV chrome consumes PlayerEngine; engine rides config.engine, resolvers split engine vs renderer
+- `engine-agnostic-native-chrome` | The native chrome consumes PlayerEngine (transport, rendering and queue faces, both platforms); on Android the engine rides config.engine, resolvers split engine vs renderer
 - `amlogic-dts-decoder-silent` | Amlogic's platform DTS decoder emits silence on DTS-HD without erroring; on bitstream-capable output DTS decode is steered to FFmpeg via dtsExcludingMediaCodecSelector (twin files)
 - `native-player-ignores-js-controls` | the iPhone/iPad default player is a presented native view controller; Controls.tsx and its hooks never mount there, so input (keyboard) needs a native counterpart
 - `mpv-view-first-progress-tick-is-zero` | the MPV renderer emits its position cache once the duration is known; load() seeds it from startPosition, and JS player reports read resolveSessionPositionTicks, never progress.get()
@@ -95,6 +96,8 @@ Native modules:
 - `native-player-presented-after-dismiss` | iOS keeps the player session until the cross-dissolve ends, so present() right after onDismiss is refused; a new player waits for the closing one, and a swap whose player closed is dropped unless its stream ended and another item was asked for
 - `android17-background-audio-needs-media-fgs` | Android 17 mutes an app with no visible activity and no foreground service (`AudioHardening ... level: partial` in logcat); mpv stalls on the muted sink. The player screen holds the mediaPlayback service from MediaPlaybackController while it is open, paused included; a start refused in the background leaves it without one until the next play in front
 - `mpv-surface-loss-drops-video-track-and-seeks` | a detached surface fails mpv's VO, the video track is dropped and the refresh seek can restart at byte 0 of an unindexed MKV (20 s+ stall at 2h in); detachSurface attaches an offscreen ImageReader sink instead, on Android 10 and later only
+- `cast-discovery-needs-no-mounted-button` | Android Cast discovery is a MediaRouter callback in the module with CALLBACK_FLAG_REQUEST_DISCOVERY and CALLBACK_FLAG_PERFORM_ACTIVE_SCAN, paused in the background; no hidden MediaRouteButton, which the library needed
+- `sdk-expanded-controller-cast-button-is-ours` | the SDK's ExpandedControllerActivity has an empty toolbar; the Cast button (the only "Stop casting" there) is a menu the subclass inflates and wires with CastButtonFactory
 
 TV platform:
 - `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
@@ -115,6 +118,7 @@ Build and tooling:
 - `expo-image-prebuilt-glide-logs` | Expo's prebuilt expo-image AAR ships with Glide logs on, every image URL (trickplay ApiKey included) reaches logcat; built from source instead
 - `repack-shrunk-resources-missing-attrs` | AGP 9's R8 resource shrinking leaves XML naming attributes it removed; apktool cannot relink them, so the Android repack declares them and builds again
 - `expo-prebuilt-modules-need-matching-rn` | the prebuilt ExpoModulesCore uses React core classes of the RN patch the SDK targets; expo-modules-core 58.0.30 on react-native-tvos 0.88.0-0 dies in dyld at every iOS launch while the build stays green
+- `new-swift-file-needs-pod-install` | a Swift file added to a local module joins its Pods target only after `pod install`; until then xcodebuild fails on the types it declares
 
 ## Project overview
 
@@ -184,8 +188,8 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
 | `plugins/` | Expo config plugins |
 | `patches/` | Patch package overrides |
 | `augmentations/` | Type augmentations |
-| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax |
-| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
+| `test-utils/` | Shared test doubles: Jellyfin API, MMKV, the file system, custom headers, React Native, Reanimated, @expo/ui, drax, the Cast module |
+| `tests/native/` | Standalone native checks (subtitle geometry, app container paths, the hero's Dynamic Type cap, the Cast mapping, the engine protocols, the receiver protocol), each run by its script in `scripts/ios/`, and subtitle playback fixtures |
 | `translations/` | i18n catalogues, `en.json` is the only source |
 | `scripts/` | Repo tooling run through bun |
 | `biome-plugins/` | Custom Biome (Grit) lint rules, wired up in `biome.json` |
@@ -278,7 +282,7 @@ PersistQueryClientProvider
 
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.
 
-**Native modules** in `modules/`: `mpv-player` (the native player, iOS and Android),
+**Native modules** in `modules/`: `mpv-player` (the native player and the Cast support, iOS and Android),
 `exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
 `notification-settings-link` (the iOS Settings link to the Notifications screen),
 `system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,

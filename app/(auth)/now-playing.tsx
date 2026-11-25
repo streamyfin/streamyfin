@@ -6,13 +6,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -23,7 +17,6 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
@@ -32,8 +25,8 @@ import {
   DraggableQueueList,
   type QueueRow,
 } from "@/components/common/DraggableQueueList";
-import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
@@ -41,6 +34,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
 import { useNowPlayingVolume } from "@/hooks/useNowPlayingVolume";
+import { CastButton } from "@/modules/mpv-player/src/cast";
 import { isSystemVolumeAvailable } from "@/modules/system-volume";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -77,11 +71,7 @@ export default function NowPlayingScreen() {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
 
-  const {
-    isConnected: isCastConnected,
-    castQueue,
-    castState,
-  } = useMusicCast({
+  const { isConnected: isCastConnected } = useMusicCast({
     api,
     userId: user?.Id,
   });
@@ -107,8 +97,8 @@ export default function NowPlayingScreen() {
     jumpToIndex,
     removeFromQueue,
     reorderQueue,
+    canEditQueue,
     stop,
-    pause,
   } = useMusicPlayer();
 
   const { isFavorite, toggleFavorite } = useFavorite(
@@ -126,21 +116,6 @@ export default function NowPlayingScreen() {
   useEffect(() => {
     sliderMax.value = duration > 0 ? duration : 1;
   }, [duration, sliderMax]);
-
-  // Auto-cast queue when Chromecast becomes connected and pause local playback
-  const prevCastState = useRef<CastState | null | undefined>(null);
-  useEffect(() => {
-    if (
-      castState === CastState.CONNECTED &&
-      prevCastState.current !== CastState.CONNECTED &&
-      queue.length > 0
-    ) {
-      // Just connected - pause local playback and cast the queue
-      pause();
-      castQueue({ queue, startIndex: queueIndex });
-    }
-    prevCastState.current = castState;
-  }, [castState, queue, queueIndex, castQueue, pause]);
 
   const imageUrl = useMemo(() => {
     if (!api || !currentTrack) return null;
@@ -308,6 +283,7 @@ export default function NowPlayingScreen() {
             onNext={next}
             onPrevious={previous}
             onCycleRepeat={cycleRepeatMode}
+            canShuffle={canEditQueue}
             onToggleShuffle={toggleShuffle}
             getRepeatIcon={getRepeatIcon}
             mediaSource={mediaSource}
@@ -323,6 +299,7 @@ export default function NowPlayingScreen() {
             queue={queue}
             queueIndex={queueIndex}
             onJumpToIndex={jumpToIndex}
+            editable={canEditQueue}
             onRemoveFromQueue={removeFromQueue}
             onReorderQueue={reorderQueue}
           />
@@ -370,6 +347,8 @@ interface PlayerViewProps {
   onNext: () => void;
   onPrevious: () => void;
   onCycleRepeat: () => void;
+  /** Off while a Cast receiver plays the queue: it cannot shuffle it. */
+  canShuffle: boolean;
   onToggleShuffle: () => void;
   getRepeatIcon: () => string;
   mediaSource: MediaSourceInfo | null;
@@ -399,6 +378,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onNext,
   onPrevious,
   onCycleRepeat,
+  canShuffle,
   onToggleShuffle,
   getRepeatIcon,
   mediaSource,
@@ -449,7 +429,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         }}
       >
         {imageUrl ? (
-          <Image
+          <ArtworkImage
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
@@ -567,7 +547,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
       {/* Main Controls with Shuffle & Repeat */}
       <View className='flex flex-row items-center justify-center mb-6'>
-        <TouchableOpacity onPress={onToggleShuffle} className='p-3'>
+        <TouchableOpacity
+          onPress={onToggleShuffle}
+          disabled={!canShuffle}
+          className='p-3'
+          style={{ opacity: canShuffle ? 1 : 0.3 }}
+        >
           <Ionicons
             name='shuffle'
             size={24}
@@ -671,10 +656,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
           {/* Chromecast */}
           <CastButton
+            tintColor={isCastConnected ? "#9334E9" : "#666"}
             style={{
               width: 24,
               height: 24,
-              tintColor: isCastConnected ? "#9334E9" : "#666",
               transform: [{ translateY: 1 }],
             }}
           />
@@ -689,6 +674,8 @@ interface QueueViewProps {
   queue: BaseItemDto[];
   queueIndex: number;
   onJumpToIndex: (index: number) => void;
+  /** Off while a Cast receiver plays the queue: it cannot move or remove a track. */
+  editable: boolean;
   onRemoveFromQueue: (index: number) => void;
   onReorderQueue: (newQueue: BaseItemDto[]) => void;
 }
@@ -698,6 +685,7 @@ const QueueView: React.FC<QueueViewProps> = ({
   queue,
   queueIndex,
   onJumpToIndex,
+  editable,
   onRemoveFromQueue,
   onReorderQueue,
 }) => {
@@ -737,6 +725,7 @@ const QueueView: React.FC<QueueViewProps> = ({
         queueIndex > 0 ? t("music.playing_from_queue") : t("music.up_next")
       }
       emptyText={t("music.queue_empty")}
+      editable={editable}
       onPressRow={onJumpToIndex}
       onRemoveRow={onRemoveFromQueue}
       onMoveRow={handleMove}

@@ -4,13 +4,6 @@ import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
-import CastContext, {
-  CastButton,
-  PlayServicesState,
-  useCastDevice,
-  useMediaStatus,
-  useRemoteMediaClient,
-} from "react-native-google-cast";
 import Animated, {
   Easing,
   interpolate,
@@ -22,12 +15,24 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SheetScrollView } from "@/components/common/SheetContent";
-import { AUTO_BITRATE_VALUE, RECEIVER_MAX_BITRATE } from "@/constants/Bitrate";
-import { RECEIVER_LOAD_TIMEOUT_MS } from "@/constants/Cast";
+import { AUTO_BITRATE_VALUE } from "@/constants/Bitrate";
+import {
+  RECEIVER_LOAD_TIMEOUT_MS,
+  RECEIVER_UNCAPPED_BITRATE,
+} from "@/constants/Cast";
 import { useActionSheet } from "@/hooks/useActionSheet";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { usePlayMedia } from "@/hooks/usePlayMedia";
+import {
+  PlayServicesState,
+  playServicesState,
+  showExpandedControls,
+  showPlayServicesErrorDialog,
+  useCastClient,
+  useCastDevice,
+  useCastMediaStatus,
+} from "@/modules/mpv-player/src/cast";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -69,9 +74,9 @@ export const PlayButton: React.FC<Props> = ({
 }: Props) => {
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
-  const client = useRemoteMediaClient();
+  const client = useCastClient();
   const castDevice = useCastDevice();
-  const mediaStatus = useMediaStatus();
+  const mediaStatus = useCastMediaStatus();
   const { t } = useTranslation();
   const { showModal, hideModal } = useGlobalModal();
 
@@ -128,9 +133,9 @@ export const PlayButton: React.FC<Props> = ({
 
           switch (selectedIndex) {
             case 0:
-              await CastContext.getPlayServicesState().then(async (state) => {
+              await Promise.resolve(playServicesState()).then(async (state) => {
                 if (state && state !== PlayServicesState.SUCCESS) {
-                  CastContext.showPlayServicesErrorDialog(state);
+                  showPlayServicesErrorDialog(state);
                 } else {
                   // Validate required parameters before casting
                   if (!api) {
@@ -193,7 +198,7 @@ export const PlayButton: React.FC<Props> = ({
                           quality === AUTO_BITRATE_VALUE
                             ? autoBitrateOn(bitrate, castDevice?.modelName)
                             : bitrate,
-                        )) ?? RECEIVER_MAX_BITRATE,
+                        )) ?? RECEIVER_UNCAPPED_BITRATE,
                     }))();
                     const outcome = await castToJellyfinReceiver(
                       client,
@@ -218,7 +223,7 @@ export const PlayButton: React.FC<Props> = ({
                       // state is already set when reopening current media, so skip it here.
                       !isOpeningCurrentlyPlayingMedia
                     ) {
-                      CastContext.showExpandedControls();
+                      showExpandedControls();
                     }
                   } catch (e) {
                     logAndCaptureError("Chromecast playback failed", e);
@@ -536,9 +541,8 @@ export const PlayButton: React.FC<Props> = ({
             <Ionicons name='play-circle' size={24} />
           </Animated.Text>
           {client && (
-            <Animated.Text style={animatedTextStyle}>
+            <Animated.Text testID='play-button-cast' style={animatedTextStyle}>
               <Feather name='cast' size={22} />
-              <CastButton tintColor='transparent' />
             </Animated.Text>
           )}
           {/* In a group this button plays for everyone in it. Downloads

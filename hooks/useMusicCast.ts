@@ -3,17 +3,20 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
-import CastContext, {
-  CastState,
-  PlayServicesState,
-  useCastDevice,
-  useCastState,
-  useRemoteMediaClient,
-} from "react-native-google-cast";
 import {
   RECEIVER_LOAD_TIMEOUT_MS,
   RECEIVER_MAX_QUEUE_ITEMS,
 } from "@/constants/Cast";
+import {
+  CastState,
+  PlayServicesState,
+  playServicesState,
+  showExpandedControls,
+  showPlayServicesErrorDialog,
+  useCastClient,
+  useCastDevice,
+  useCastState,
+} from "@/modules/mpv-player/src/cast";
 import {
   castToJellyfinReceiver,
   currentReceiverName,
@@ -31,6 +34,11 @@ interface UseMusicCastOptions {
 interface CastQueueOptions {
   queue: BaseItemDto[];
   startIndex: number;
+  /**
+   * True once the cast is out of date, the account switched say: checked
+   * after each wait, so a queue of the previous account is never sent.
+   */
+  isStale?: () => boolean;
 }
 
 /**
@@ -38,7 +46,7 @@ interface CastQueueOptions {
  */
 export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
   const { t } = useTranslation();
-  const client = useRemoteMediaClient();
+  const client = useCastClient();
   const castState = useCastState();
   const castDeviceName = receiverNameFor(useCastDevice());
 
@@ -49,7 +57,11 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
    * moves through it on its own.
    */
   const castQueue = useCallback(
-    async ({ queue, startIndex }: CastQueueOptions): Promise<boolean> => {
+    async ({
+      queue,
+      startIndex,
+      isStale,
+    }: CastQueueOptions): Promise<boolean> => {
       if (!client || !api || !userId) {
         console.warn("Cannot cast: missing client, api, or userId");
         return false;
@@ -57,9 +69,9 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
 
       try {
         // Check Play Services state (Android)
-        const state = await CastContext.getPlayServicesState();
+        const state = playServicesState();
         if (state && state !== PlayServicesState.SUCCESS) {
-          CastContext.showPlayServicesErrorDialog(state);
+          showPlayServicesErrorDialog(state);
           return false;
         }
 
@@ -75,12 +87,14 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         // Auto-cast fires on the render the session connects, before the
         // device hook has resolved, so the name is read from the session.
         const receiverName = (await currentReceiverName()) ?? castDeviceName;
+        if (isStale?.()) return false;
 
         const outcome = await castToJellyfinReceiver(
           client,
           { api, userId, receiverName },
           queueToSend,
           RECEIVER_LOAD_TIMEOUT_MS,
+          isStale,
         );
 
         const notStarted = castNotStartedMessage(t, outcome);
@@ -91,7 +105,7 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
         }
         if (outcome.status !== "loaded") return false;
 
-        CastContext.showExpandedControls();
+        showExpandedControls();
         return true;
       } catch (error) {
         logAndCaptureError("Casting music queue failed", error);
