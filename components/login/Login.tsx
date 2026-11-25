@@ -7,6 +7,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { HeaderButton } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
@@ -25,6 +27,7 @@ import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal"
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { CustomHeaderSheet } from "@/components/settings/CustomHeaderSheet";
 import { Colors } from "@/constants/Colors";
+import { QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS } from "@/constants/QuickConnect";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
@@ -37,7 +40,38 @@ import {
   checkJellyfinServer,
   ServerTooOldError,
 } from "@/utils/jellyfin/checkServer";
+import { quickConnectPairingUrl } from "@/utils/quickConnectPairing";
 import type { SavedServer } from "@/utils/secureCredentials";
+
+// TV has no browser; its login shows a QR code for the same page instead.
+const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
+
+// Subscribed before the browser opens, so the trip away is never missed.
+const appComesBack = () =>
+  new Promise<void>((resolve) => {
+    let left = false;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") left = true;
+      else if (left) {
+        subscription.remove();
+        resolve();
+      }
+    });
+  });
+
+// Resolves once the browser is gone, true when the user closed it. Android
+// answers "opened" right away, so there the app coming back to the front
+// stands in for the close, as in expo-web-browser's own auth session.
+const browserClosedByUser = async (url: string): Promise<boolean> => {
+  if (Platform.OS !== "android") {
+    const { type } = await WebBrowser.openBrowserAsync(url);
+    return type === "cancel";
+  }
+  const back = appComesBack();
+  await WebBrowser.openBrowserAsync(url);
+  await back;
+  return true;
+};
 
 export const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
@@ -101,8 +135,12 @@ export const Login: React.FC = () => {
 
   // Close the code sheet as soon as the session is authorized — the native
   // Alert used before had no programmatic dismiss and stayed open after login.
+  // Same for the browser it was approved in. Only iOS can close one, and it
+  // rejects when none is open, as after a password login.
   useEffect(() => {
-    if (user) setQuickConnectCode(null);
+    if (!user) return;
+    setQuickConnectCode(null);
+    WebBrowser?.dismissBrowser()?.catch(() => {});
   }, [user]);
 
   // Stop Quick Connect polling when leaving the login page (parity with TVLogin)
@@ -279,7 +317,34 @@ export const Login: React.FC = () => {
   const startingRef = useRef(false);
   const startRef = useRef(0);
 
-  const handleQuickConnect = async () => {
+  // The browser flow reads the status after awaits, so it needs the latest one.
+  const quickConnectStatusRef = useRef(quickConnectStatus);
+  quickConnectStatusRef.current = quickConnectStatus;
+
+  // Approve the code on the server's own web page, so whatever it signs in
+  // with (password, SSO, passkeys) works without the app knowing about it.
+  const approveInBrowser = async (code: string, reopen = true) => {
+    if (!api?.basePath) return;
+    const url = quickConnectPairingUrl(api.basePath, code);
+    if (!(await browserClosedByUser(url))) return;
+    await new Promise((resolve) =>
+      setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
+    );
+    if (quickConnectStatusRef.current !== "waiting") return;
+    // SSO plugins land on the home page after signing in, so the code page is
+    // gone by the time the browser is closed: it opens once more on its own,
+    // signed in by now. After that the user decides, so it never loops.
+    if (reopen) return approveInBrowser(code, false);
+    toast.info(t("login.browser_not_finished"), {
+      action: {
+        label: t("common.continue"),
+        onClick: () => approveInBrowser(code, false),
+      },
+    });
+  };
+
+  // "code" shows the code for another device, "browser" approves it here.
+  const handleQuickConnect = async (via: "code" | "browser" = "code") => {
     if (startingRef.current) return;
     startingRef.current = true;
     const start = ++startRef.current;
@@ -292,7 +357,8 @@ export const Login: React.FC = () => {
       }
       if (code) {
         setQuickConnectActive(true);
-        setQuickConnectCode(code);
+        if (via === "browser") await approveInBrowser(code);
+        else setQuickConnectCode(code);
       }
     } catch (error) {
       if (start !== startRef.current) return;
@@ -410,7 +476,7 @@ export const Login: React.FC = () => {
                     {t("login.login_button")}
                   </Button>
                   <TouchableOpacity
-                    onPress={handleQuickConnect}
+                    onPress={() => handleQuickConnect("code")}
                     className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
                   >
                     <MaterialCommunityIcons
@@ -420,6 +486,22 @@ export const Login: React.FC = () => {
                     />
                   </TouchableOpacity>
                 </View>
+                {WebBrowser && (
+                  <TouchableOpacity
+                    onPress={() => handleQuickConnect("browser")}
+                    className='flex flex-row items-center justify-center py-3 mr-14'
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name='web'
+                      size={18}
+                      color={Colors.primary}
+                    />
+                    <Text className='ml-2 text-purple-600'>
+                      {t("login.login_with_browser")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -522,7 +604,7 @@ export const Login: React.FC = () => {
         code={quickConnectCode}
         status={quickConnectStatus}
         serverName={serverName || api?.basePath || ""}
-        onNewCode={handleQuickConnect}
+        onNewCode={() => handleQuickConnect("code")}
         onClose={closeQuickConnectSheet}
       />
     </SafeAreaView>
