@@ -1371,10 +1371,53 @@ class CastEngineTest {
         assertEquals(listOf("t-1", "x-1"), itemsOf(port.sent.last().second))
     }
 
-    // What the receiver queues: the last PlayNow, then each PlayLast after it.
-    private fun receiverQueue(): List<String> {
-        val last = port.sent.indexOfLast { JSONObject(it.second).getString("command") == "PlayNow" }
-        return port.sent.drop(last).flatMap { itemsOf(it.second) }
+    // A replay the channel refused while an enqueue was on its way: the replay had stopped the enqueue,
+    // so the window the receiver took stayed out of the engine's queue and the next one never went.
+    @Test
+    fun anEnqueueOnItsWayGoesOnWhenTheReplayIsRefused() {
+        val engine = engine()
+        val enqueued = (1..CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "x-$it" }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.enqueue(enqueued)
+        val refused = setOf(port.sent.size)
+        port.sendError = "down"
+        engine.reloadCurrentItem()
+        port.sendError = null
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(listOf("t-1") + enqueued, receiverQueue(refused))
+        engine.reloadCurrentItem()
+        assertEquals(listOf("t-1") + enqueued, receiverQueue(refused))
+    }
+
+    // A replay the receiver took, then a newer one the channel refused: the first one's tail never went,
+    // and the receiver stopped after its window.
+    @Test
+    fun aTakenReplaySendsItsTailWhenTheNewerOneIsRefused() {
+        val engine = engine()
+        val ids = (1..2 * CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "t-$it" }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = ids[0])))) {}
+        engine.enqueue(ids.drop(1))
+        media.report(snapshot(customData = ours("itemId" to ids[0], "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        val refused = setOf(port.sent.size)
+        port.sendError = "down"
+        engine.reloadCurrentItem()
+        port.sendError = null
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(ids, receiverQueue(refused))
+    }
+
+    // What the receiver queues: the last PlayNow it took, then each PlayLast after it; [refused] holds
+    // the indexes in `port.sent` of the sends the channel refused.
+    private fun receiverQueue(refused: Set<Int> = emptySet()): List<String> {
+        val taken = port.sent.filterIndexed { index, _ -> index !in refused }
+        val last = taken.indexOfLast { JSONObject(it.second).getString("command") == "PlayNow" }
+        return taken.drop(last).flatMap { itemsOf(it.second) }
     }
 
     // A start offset past what ticks hold: the replay position went out clamped to Long.MAX_VALUE, where
