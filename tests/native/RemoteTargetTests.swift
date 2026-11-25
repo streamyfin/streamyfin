@@ -989,6 +989,38 @@ enum RemoteTargetTests {
       port.connect(streamer)
       check("aLostSessionResumedAfterItsReceiverWasAskedLastIsKept", kept.isEmpty && sdk.ended == [true])
     }
+    // The same, as the hub hears it: a wait armed by the request back failed it once the end wait ran out, though the
+    // session was back and the SDK had longer to end it by itself.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = lostWhileHeld(sdk, events)
+      port.connect(streamer)
+      port.connect(chromecast)
+      resumed(sdk)
+      sdk.clock.advance(RemoteTargetConstants.sessionEndWaitMs)
+      check(
+        "aLostSessionResumedAfterItsReceiverWasAskedLastFailsNothing",
+        !events.sessions.contains { $0.hasPrefix("startFailed") }
+      )
+    }
+    // Its own receiver asked twice while the session is lost: the second request dropped the restart the first one
+    // set, so the lost session's end reached the hub as a failure.
+    do {
+      let sdk = Sdk()
+      let events = PortEventsRecording()
+      let port = lostWhileHeld(sdk, events)
+      port.connect(chromecast)
+      port.connect(chromecast)
+      let heard = events.sessions
+      let starts = sdk.started.count
+      sdk.running = nil
+      sdk.sessionWatches.last??("ended", chromecast, nil, nil)
+      check(
+        "aLostSessionAskedTwiceStillRestartsItsReceiver",
+        events.sessions == heard && sdk.started.count == starts + 1 && sdk.started.last?.id == chromecast.id
+      )
+    }
 
     // A Disconnect while the connection back waits: nothing starts, and the lost session is left to the SDK.
     do {
