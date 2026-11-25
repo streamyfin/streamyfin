@@ -583,6 +583,97 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t1");
   });
 
+  // The same iOS window for a tap: the cast had no client to send with, the phone stopped, and the TV got nothing.
+  test.each<[string, (p: Player) => unknown]>([
+    ["a track", (p) => p.playTrack(ALBUM[1], ALBUM)],
+    ["a queue", (p) => p.playQueue(ALBUM, 1)],
+  ])(
+    "%s tapped before the session starts reaches the receiver once it does, as on iOS",
+    async (_, tap) => {
+      await mount();
+      await act(async () => {
+        mockCast.castState = "connected";
+        emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+      });
+      await settle();
+
+      await run(tap);
+      await act(async () => {
+        setCastSession(mockCast, "session-ios");
+        emitCastEvent(mockCast, "onSessionEvent", {
+          event: "started",
+          sessionId: "session-ios",
+          error: null,
+        });
+      });
+
+      await waitFor(() => expect(playNows()).toHaveLength(1));
+      expect(playNows()[0].options.startIndex).toBe(1);
+      await receiverLoads("t1");
+    },
+  );
+
+  // The session can start while the tapped track still loads on the phone: the move waits for it to play.
+  test("moves a tap to the receiver when the session starts before the phone plays it", async () => {
+    await mount();
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 1));
+    expect(player.isLoading).toBe(true);
+
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    await settle();
+    expect(playNows()).toHaveLength(0);
+
+    await releaseStreams();
+    await waitFor(() => expect(playNows()).toHaveLength(1));
+    expect(playNows()[0].options.startIndex).toBe(1);
+    expect(mockNative.playing).toBe(false);
+    await receiverLoads("t1");
+  });
+
+  // A tap cast to the receiver replaces a track still loading on the phone: that one plays neither there nor on the TV.
+  test("keeps a track cast once the session is ready over one still loading on the phone", async () => {
+    await mount();
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 1));
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    await settle();
+
+    await run((p) => p.playQueue(ALBUM, 3));
+    await receiverLoads("t3");
+    await releaseStreams();
+
+    expect(playNows().map((message) => message.options.startIndex)).toEqual([
+      3,
+    ]);
+    expect(mockNative.playing).toBe(false);
+    expect(player.isLoading).toBe(false);
+  });
+
   // The receiver is the player while it has the queue: the mini player and
   // Now Playing show what it plays, not what the phone last played.
   test("shows the track the receiver plays, and where it is", async () => {

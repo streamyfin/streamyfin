@@ -13,7 +13,6 @@ jest.mock(
   "react-native-drax",
   () => jest.requireActual("@/test-utils/drax").draxModule,
 );
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 // The double keeps the props each artwork is rendered with.
 const mockImageProps: Record<string, unknown>[] = [];
 jest.mock("@/components/common/ServerImage", () => ({

@@ -666,9 +666,13 @@ export const castToJellyfinReceiver = async (
   if ("status" in waited) return waited;
   const [ready, status] = waited.ready;
   const previous = receiverMediaData(status);
+  // The send goes to whatever session is current: another TV picked since
+  // the cast started gets nothing.
+  const movedOn = () =>
+    currentCastSession()?.id !== client.sessionId || !!isStale?.();
   // A cast started while this one got ready owns the TV now: sending this one
   // after it would replace it there.
-  if (cast !== castCount || isStale?.()) return { status: "superseded" };
+  if (cast !== castCount || movedOn()) return { status: "superseded" };
   const loadSession: JellyfinCastSession = {
     ...ready,
     maxBitrate: Math.min(
@@ -695,6 +699,9 @@ export const castToJellyfinReceiver = async (
 
   return new Promise<ReceiverLoadOutcome>((resolve, reject) => {
     let settled = false;
+    // Replaced or timed out, the load drops its send. Reported loaded or
+    // failed first, it still sends: the cast was asked for.
+    let abandoned = false;
     let stopWatchingErrors = () => {};
     let statusUpdates: { remove: () => void } | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -708,7 +715,12 @@ export const castToJellyfinReceiver = async (
       if (supersedeCurrentCast === supersede) supersedeCurrentCast = null;
       finish();
     };
-    const supersede = () => settle(() => resolve({ status: "superseded" }));
+    const abandon = (status: "superseded" | "timed_out") =>
+      settle(() => {
+        abandoned = true;
+        resolve({ status });
+      });
+    const supersede = () => abandon("superseded");
     supersedeCurrentCast = supersede;
 
     stopWatchingErrors = watchReceiverLoadErrors(
@@ -719,12 +731,11 @@ export const castToJellyfinReceiver = async (
     statusUpdates = client.onMediaStatusUpdated((status) => {
       if (isThisLoad(status)) settle(() => resolve({ status: "loaded" }));
     });
-    timer = setTimeout(
-      () => settle(() => resolve({ status: "timed_out" })),
-      timeoutMs,
-    );
+    timer = setTimeout(() => abandon("timed_out"), timeoutMs);
 
-    playOnJellyfinReceiver(loadSession, request, isStale)
+    // Opening the channel can outlast the load: replaced or timed out by then,
+    // it sends nothing.
+    playOnJellyfinReceiver(loadSession, request, () => abandoned || movedOn())
       .then((sent) => {
         if (!sent) settle(() => resolve({ status: "superseded" }));
       })

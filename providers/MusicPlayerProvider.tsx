@@ -1344,19 +1344,35 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const castReady = castConnected && !!castClient;
   const wasCastReady = useRef(castReady);
   useEffect(() => {
-    const wasReady = wasCastReady.current;
-    wasCastReady.current = castReady;
-    if (!castReady || wasReady) return;
+    if (!castReady) {
+      wasCastReady.current = false;
+      return;
+    }
+    // A track still loading on the phone, tapped before the session had its
+    // client, is judged once it plays: otherwise it would stay on the phone.
+    if (wasCastReady.current || state.isLoading) return;
+    wasCastReady.current = true;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
     void castOnReceiver(state.queue, Math.max(index, 0));
   }, [
     castReady,
     castOnReceiver,
+    state.isLoading,
     state.isPlaying,
     state.queue,
     state.currentTrack,
   ]);
+
+  // A tap cast to the receiver is a new start: one still loading on the phone
+  // stops there, and neither plays it nor reaches the move above.
+  const castTapped = useCallback(
+    (queue: BaseItemDto[], startIndex: number) => {
+      startSequenceRef.current += 1;
+      void castOnReceiver(queue, startIndex);
+    },
+    [castOnReceiver],
+  );
 
   const playTrack = useCallback(
     (track: BaseItemDto, queue?: BaseItemDto[]) => {
@@ -1370,8 +1386,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       const newQueue = queue || [track];
       const queueIndex = newQueue.findIndex((t) => t.Id === track.Id);
-      if (castConnected) {
-        void castOnReceiver(newQueue, Math.max(queueIndex, 0));
+      // Ready, not just connected: iOS reads connected before the session has
+      // a client, and a cast then sent nothing. The phone plays meanwhile, and
+      // the move above takes the queue to the receiver once it is ready.
+      if (castReady) {
+        castTapped(newQueue, Math.max(queueIndex, 0));
         return;
       }
       loadAndPlayQueue(newQueue, Math.max(queueIndex, 0));
@@ -1382,8 +1401,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.progress,
       reportPlaybackStopped,
       loadAndPlayQueue,
-      castConnected,
-      castOnReceiver,
+      castReady,
+      castTapped,
     ],
   );
 
@@ -1422,8 +1441,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         finalIndex = 0;
       }
 
-      if (castConnected) {
-        void castOnReceiver(finalQueue, finalIndex);
+      if (castReady) {
+        castTapped(finalQueue, finalIndex);
         return;
       }
       loadAndPlayQueue(finalQueue, finalIndex);
@@ -1436,8 +1455,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reportPlaybackStopped,
       loadAndPlayQueue,
       isOffline,
-      castConnected,
-      castOnReceiver,
+      castReady,
+      castTapped,
     ],
   );
 
