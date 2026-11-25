@@ -718,7 +718,8 @@ class CastEngine(
         }
         if (noCompatibleStreamFollows && error == ReceiverLoadError.PLAYBACK_FAILED) {
             noCompatibleStreamFollows = false
-            return
+            // Only a NoCompatibleStream is that failure's: another playbackerror is a failure of its own.
+            if ((message as? ReceiverMessage.Parsed)?.json?.optString("message") == NO_COMPATIBLE_STREAM) return
         }
         noCompatibleStreamFollows = error == ReceiverLoadError.PLAYBACK_INFO_FAILED
         delegate?.onError(error.wireName)
@@ -945,6 +946,7 @@ class CastEngine(
         const val PLAYBACK_ERROR = "The receiver stopped on a playback error"
         const val SESSION_REPLACED_ERROR = "The Cast session was replaced"
         private const val CONTAINER_ERROR = "Cannot cast a container"
+        private const val NO_COMPATIBLE_STREAM = "NoCompatibleStream"
 
         // CastMapping's names for the player state and the idle reason.
         private const val PLAYING = "playing"

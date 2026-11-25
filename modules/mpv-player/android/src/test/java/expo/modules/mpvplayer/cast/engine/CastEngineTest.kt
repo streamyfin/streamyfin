@@ -1272,4 +1272,14 @@ class CastEngineTest {
         engine.play()
         assertEquals(42.5, engine.currentPosition, 1e-9)
     }
+
+    // A connectionerror with no playbackerror after it, then the playbackerror of another failure: that
+    // one is no follow-up and reports.
+    @Test
+    fun aPlaybackErrorAfterALoneConnectionErrorReports() {
+        playing()
+        port.deliver("""{"type":"connectionerror","message":"Request failed"}""")
+        port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
+        assertEquals(listOf("playback_info_failed", "playback_failed"), delegate.errors)
+    }
 }
