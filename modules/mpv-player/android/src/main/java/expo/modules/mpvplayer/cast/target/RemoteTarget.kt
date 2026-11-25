@@ -141,7 +141,9 @@ class RemoteTargetMachine {
             // refused it at once, or that end never came, and the receiver holding the session stays, with the cause.
             switchingTo = null
             if (!held || snapshot.phase != TargetPhase.CONNECTING) {
-                return update(failed(snapshot.copy(error = error), error, code, RemoteTarget.cast(switching)))
+                // A session that said it was ending and never ended is still there.
+                val kept = if (held && snapshot.phase == TargetPhase.ENDING) snapshot.copy(phase = TargetPhase.CONNECTED) else snapshot
+                return update(failed(kept.copy(error = error), error, code, RemoteTarget.cast(switching)))
             }
             return update(failed(RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error), error, code, RemoteTarget.cast(switching)))
         }

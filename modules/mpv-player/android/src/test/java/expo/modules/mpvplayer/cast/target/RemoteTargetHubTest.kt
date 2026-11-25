@@ -204,6 +204,23 @@ class RemoteTargetHubTest {
         assertEquals("no end", hub.snapshot.error)
     }
 
+    // The same once the old session said it was ending: the state stayed on that end, with the cause, for a session
+    // that never ended.
+    @Test
+    fun aSwitchBackAfterItsEndingWhoseEndNeverCameKeepsTheSessionWithTheCause() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.connect(bedroom.id)
+        port.emit("ending", livingRoom)
+        hub.connect(livingRoom.id)
+        port.emit("startFailed", livingRoom, error = "no end")
+
+        assertEquals(TargetPhase.CONNECTED, hub.snapshot.phase)
+        assertEquals(livingRoom.id, hub.snapshot.target?.id)
+        assertEquals("no end", hub.snapshot.error)
+    }
+
     @Test
     fun aReplacedPortForgetsTheOldPortsDevices() {
         val hub = RemoteTargetHub()
