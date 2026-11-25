@@ -481,6 +481,25 @@ enum RemoteTargetTests {
     let chromecast = TargetDevice(id: "device-a", name: "Living room", model: "Chromecast")
     let streamer = TargetDevice(id: "device-b", name: "Bedroom", model: "Google TV Streamer")
 
+    // The virtual clock runs each timer at its own deadline, earliest first and in order at a tie: one advance does
+    // what its steps would.
+    do {
+      let clock = Clock()
+      var ran: [String] = []
+      _ = clock.schedule(20) { ran.append("20") }
+      _ = clock.schedule(10) {
+        ran.append("10")
+        _ = clock.schedule(5) { ran.append("15") }
+      }
+      _ = clock.schedule(10) { ran.append("10 too") }
+      let cancel = clock.schedule(1) { ran.append("cancelled") }
+      cancel()
+      clock.advance(20)
+      _ = clock.schedule(5) { ran.append("25") }
+      clock.advance(5)
+      check("theClockRunsTimersByDeadline", ran == ["10", "10 too", "15", "20", "25"])
+    }
+
     check(
       "aDeviceKeepsTheRecordDiscoveryPublishes",
       value(chromecast.toDictionary(), "deviceId") as? String == "device-a"
@@ -1209,12 +1228,16 @@ enum RemoteTargetTests {
       }
     }
 
+    // Earliest deadline first, insertion order at a tie, each run at its own time: what a timer schedules counts
+    // from there, as when the test moves time on step by step.
     func advance(_ ms: Double) {
-      now += ms
-      while let index = tasks.firstIndex(where: { $0.at <= now }) {
-        let task = tasks.remove(at: index)
+      let target = now + ms
+      while let task = tasks.filter({ $0.at <= target }).min(by: { ($0.at, $0.id) < ($1.at, $1.id) }) {
+        tasks.removeAll { $0.id == task.id }
+        now = task.at
         task.run()
       }
+      now = target
     }
   }
 
