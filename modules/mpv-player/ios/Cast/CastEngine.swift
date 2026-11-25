@@ -947,8 +947,9 @@ final class CastEngine: ChromeEngine {
   }
 
   // Outside a status: back to the formula of the last one, with the media channel's own estimate.
+  // Stopped, the SDK reports the stream at 0: the position stays where the item stopped.
   private func recomputePosition() {
-    guard hasMedia, let port = media, let status = port.status else {
+    guard hasMedia, playerState != State.idle, let port = media, let status = port.status else {
       setLoading(isBuffering())
       return
     }

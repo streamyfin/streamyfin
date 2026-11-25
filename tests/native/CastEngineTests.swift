@@ -1807,6 +1807,17 @@ enum CastEngineTests {
       )
     }
 
+    // A stopped item played again: the channel refused the PlayNow, and the position went to the 0 the
+    // SDK reports for a stopped stream, so the next Play started the item over.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(42.5)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "cancelled"), position: 0)
+      bench.port.sendError = "receiver busy"
+      engine.play()
+      check("aRefusedReplayOfAStoppedItemKeepsItsPosition", close(engine.getCurrentPosition(), 42.5))
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
