@@ -2201,6 +2201,21 @@ enum RemoteTargetTests {
     probeCases()
     fakeDeviceCases()
 
+    // Asked back while a switch waited for its session's end, which never came: the port gave up with a
+    // start failure, and the state claimed a new start the port no longer had.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      _ = hub.connect(deviceId: bedroom.id)
+      _ = hub.connect(deviceId: livingRoom.id)
+      port.emit("startFailed", livingRoom, error: "no end")
+      let state = hub.snapshot
+      check(
+        "aSwitchBackWhoseEndNeverCameKeepsTheSessionWithTheCause",
+        state.phase == .connected && state.target?.id == livingRoom.id && state.error == "no end"
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")
     } else {
