@@ -108,6 +108,32 @@ translations from the hook mocks `react-i18next` with `@/test-utils/realI18next`
 (`components/series/SeasonDropdown.test.tsx`). Packages that need app start-up
 configuration belong in global setup too.
 
+Quick reference — defaults already wired for every unit spec:
+
+| Where | What it provides |
+| --- | --- |
+| `jest.config.js` (`moduleNameMapper`) | `react-i18next` (identity `t`, stable `i18n.language` `en-US`), `@expo/vector-icons` (null `Ionicons`), `react-native-safe-area-context` (zero insets), `@gorhom/bottom-sheet` |
+| `test-utils/unitSetup.ts` | silent `@/utils/log`, the `@/components/common/ServerImage` view double, `expo-notifications`, `sonner-native` |
+
+Do not repeat these defaults in a spec. Keep a local override only when it
+changes behavior the test asserts (interpolation, nonzero insets, an icon's
+name, captured calls). Unmock with `jest.unmock` only the `jest.mock` defaults in
+`test-utils/unitSetup.ts` when the spec is about the module itself.
+
+<!-- A mapped package stays mapped after unmocking.
+     See https://jestjs.io/docs/configuration#modulenamemapper-objectstring-string--arraystring -->
+
+`jest.unmock` does not bypass `moduleNameMapper`: `jest.unmock("react-i18next")`
+still loads the double. To use the real `react-i18next` package in a unit spec,
+mock `react-i18next` with `@/test-utils/realI18next`, as
+`components/series/SeasonDropdown.test.tsx` does. Use a separate Jest
+configuration without package mappings only for scenarios that need the real
+packages by default, as `jest.perf.config.js` does. The perf config deliberately
+does not inherit these unit doubles, but that does not make every package real:
+`test-utils/perfSetup.ts` still mocks the native and boundary modules most
+scenarios need, `@gorhom/bottom-sheet` among them. Read it before assuming a perf
+spec measures a package's real implementation.
+
 ### The rules
 
 1. **Check what is already wired before writing a mock.** `jest.config.js`

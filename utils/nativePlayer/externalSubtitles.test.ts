@@ -6,17 +6,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { CACHE, fakeFiles } from "@/test-utils/fileSystem";
 
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 // The custom-header barrel touches MMKV and SecureStore; the shared double
 // keeps the pure helpers real.
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
-// The log module reaches Sentry and MMKV; the prefetch only writes its summary.
-jest.mock("@/utils/log", () => ({ writeInfoLog: jest.fn() }));
 
 const { File } = jest.requireActual("@/test-utils/fileSystem")
   .fileSystemModule as typeof import("@/test-utils/fileSystem")["fileSystemModule"];

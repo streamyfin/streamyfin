@@ -13,8 +13,6 @@ jest.mock(
   "react-native-drax",
   () => jest.requireActual("@/test-utils/drax").draxModule,
 );
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-jest.mock("@/components/common/ServerImage", () => ({ Image: () => null }));
 
 const rows: QueueRow[] = [
   { key: "a", title: "First" },

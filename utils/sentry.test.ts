@@ -10,6 +10,7 @@ jest.mock("@sentry/react-native", () => ({
   },
   close: () => Promise.resolve(),
   breadcrumbsIntegration: () => ({ name: "Breadcrumbs" }),
+  wrap: jest.fn((component: unknown) => component),
 }));
 jest.mock("@/utils/storedSettings", () => ({
   readStoredSettings: () => ({}),
@@ -47,6 +48,7 @@ jest.mock("expo-device", () => ({
 }));
 stubReactNative();
 
+import * as Sentry from "@sentry/react-native";
 import { AxiosError } from "axios";
 import { OFFICIAL_APPLICATION_IDS } from "@/constants/Sentry";
 import { describeHttpResponse, markExpectedError } from "./errors";
@@ -58,6 +60,7 @@ import {
   isUserInteractionBreadcrumb,
   reportsFromBuild,
   scrubDeep,
+  wrapRootIfSentryEnabled,
 } from "./sentry";
 
 describe("isUserInteractionBreadcrumb — no behaviour tracking, no titles", () => {
@@ -336,6 +339,50 @@ describe("dev builds do not report", () => {
     const options = initCalls[0] as Record<string, unknown>;
     expect(options.enableReportNonFullyBlockingAppHangs).toBe(false);
     expect(options).not.toHaveProperty("enableReportNonFullyBlockedAppHangs");
+  });
+});
+
+describe("wrapRootIfSentryEnabled — the root gets a profiler only with a client", () => {
+  const setDev = (value: boolean) => {
+    (globalThis as { __DEV__?: boolean }).__DEV__ = value;
+  };
+  const Root = () => null;
+
+  // Sentry's root profiler warns when it mounts without a client, and a dev
+  // build never initializes one: the root passes through untouched there.
+  test("an ordinary dev build returns the root unwrapped", () => {
+    setDev(true);
+    expect(wrapRootIfSentryEnabled(Root)).toBe(Root);
+    expect(jest.mocked(Sentry.wrap)).not.toHaveBeenCalled();
+  });
+
+  test("a release build wraps the root in the profiler", () => {
+    setDev(false);
+    wrapRootIfSentryEnabled(Root);
+    expect(jest.mocked(Sentry.wrap)).toHaveBeenCalledWith(Root);
+  });
+
+  // sentryDebugInDev reads EXPO_PUBLIC_SENTRY_DEBUG at module load, so the
+  // module under test loads again with it set, inside its own registry.
+  test("the debug override still wraps the root in a dev build", () => {
+    setDev(true);
+    const previous = process.env.EXPO_PUBLIC_SENTRY_DEBUG;
+    process.env.EXPO_PUBLIC_SENTRY_DEBUG = "1";
+    try {
+      jest.isolateModules(() => {
+        const sentry =
+          require("@sentry/react-native") as typeof import("@sentry/react-native");
+        const wrapped = (
+          require("./sentry") as typeof import("./sentry")
+        ).wrapRootIfSentryEnabled(Root);
+        expect(sentry.wrap).toHaveBeenCalledWith(Root);
+        expect(wrapped).toBe(Root);
+      });
+    } finally {
+      // Assigning undefined would store the string "undefined".
+      if (previous === undefined) delete process.env.EXPO_PUBLIC_SENTRY_DEBUG;
+      else process.env.EXPO_PUBLIC_SENTRY_DEBUG = previous;
+    }
   });
 });
 

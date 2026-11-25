@@ -4,10 +4,6 @@ import { PlaybackControlsSettings } from "./PlaybackControlsSettings";
 
 const mockUpdateSettings = jest.fn();
 
-jest.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("@/hooks/useAppRouter", () => ({
   __esModule: true,
   default: () => ({ push: jest.fn() }),
