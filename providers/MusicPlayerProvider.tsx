@@ -818,8 +818,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
   }, [state.progress, state.currentTrack]);
 
-  // Whether the server lists the phone playing, from a start it reported until a stop it reported, the queue leaving
-  // for the receiver among them. A downloaded track plays in such a session too, without a play session id.
+  // Whether the server lists the phone playing, from a start it reported until its session ends: a new queue, a stop,
+  // or the queue leaving for the receiver. A skip reports the track it leaves stopped, and the next one's heartbeats
+  // keep the session listed. A downloaded track plays in such a session too, without a play session id.
   const phoneSessionOpenRef = useRef(false);
   const reportPlaybackStart = useCallback(
     async (
@@ -934,8 +935,6 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       sessionId: string | null,
     ) => {
       if (!api || !user?.Id || !track.Id) return;
-      // The server ends the phone's session at the stop: a pause after it is no longer that session's.
-      phoneSessionOpenRef.current = false;
 
       try {
         await getSessionApi(api).reportPlaybackStopped({
@@ -1447,6 +1446,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const playTrack = useCallback(
     (track: BaseItemDto, queue?: BaseItemDto[]) => {
       if (state.currentTrack && state.playSessionId) {
+        // A new queue ends the phone's session: a pause after the stop is no longer that session's.
+        phoneSessionOpenRef.current = false;
         reportPlaybackStopped(
           state.currentTrack,
           state.progress * 10000000,
@@ -1478,6 +1479,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (queue.length === 0) return;
 
       if (state.currentTrack && state.playSessionId) {
+        // A new queue ends the phone's session: a pause after the stop is no longer that session's.
+        phoneSessionOpenRef.current = false;
         reportPlaybackStopped(
           state.currentTrack,
           state.progress * 10000000,
@@ -1893,6 +1896,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // the setup would play after the queue it stood for is gone.
     sessionGenerationRef.current += 1;
     if (state.currentTrack && state.playSessionId) {
+      // The phone's session ends here: a pause after the stop is no longer that session's.
+      phoneSessionOpenRef.current = false;
       reportPlaybackStopped(
         state.currentTrack,
         state.progress * 10000000,

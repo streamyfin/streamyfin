@@ -2494,6 +2494,29 @@ describe("MusicPlayerProvider and the server's reports of a play on the phone", 
     expect(reports(PROGRESS_URL)[before]).toMatchObject({ IsPaused: true });
   });
 
+  // A skip reports the track it leaves stopped, and the next one plays on with its heartbeats and no start of its
+  // own: the pauses of that one went unreported again (n° 14).
+  test.each([
+    ["next", (p: Player) => p.next(), "t1"],
+    ["previous", (p: Player) => p.previous(), "t4"],
+    ["a jump", (p: Player) => p.jumpToIndex(3), "t3"],
+  ])("a pause after %s is reported at once", async (_, skip, itemId) => {
+    storage.set("music_player_repeat_mode", "all");
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await run(skip);
+    expect(reports(STOPPED_URL)).toHaveLength(1);
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.togglePlayPause());
+
+    await waitFor(() => expect(reports(PROGRESS_URL)).toHaveLength(before + 1));
+    expect(reports(PROGRESS_URL)[before]).toMatchObject({
+      ItemId: itemId,
+      IsPaused: true,
+    });
+  });
+
   // The receiver's pause is the receiver's to report: the phone's session ended when the queue left it.
   test.each([
     ["streamed", null],
