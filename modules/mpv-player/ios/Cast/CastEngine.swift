@@ -123,10 +123,21 @@ final class CastEngine: ChromeEngine {
   // The generation whose queue the engine holds: a refusal gives an older one back.
   private var heldGeneration = 0
 
-  // The windows each enqueue still has to see taken, by enqueue in the order asked: a replay's PlayNow
-  // drops those on their way from the receiver, so it sends them again.
-  private var enqueues: [Int: [[String]]] = [:]
+  // An enqueue's windows still to go, the first one on its way unless `waiting`. A replay's PlayNow
+  // drops from the receiver the windows sent before it, so the replay sends them again and holds those
+  // enqueues until the channel settles it: a window taken meanwhile waits in `taken`, the next with it.
+  private struct Enqueue {
+    let generation: Int
+    let binding: String?
+    var windows: [[String]]
+    var waiting = false
+    var taken: [String] = []
+  }
+  private var enqueues: [Int: Enqueue] = [:]
   private var enqueueCount = 0
+
+  // The replays whose PlayNow the channel has not settled: each holds the enqueues asked before it.
+  private var replays: Set<Int> = []
 
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
@@ -257,6 +268,7 @@ final class CastEngine: ChromeEngine {
     if let load = pendingLoad, let outcome = load.tracker.supersede() { settleLoad(load, outcome) }
     endWait(false)
     enqueues = [:]
+    replays = []
     suspended = false
     media?.listener = nil
     media = nil
@@ -365,6 +377,7 @@ final class CastEngine: ChromeEngine {
     replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex, held: heldGeneration)
     heldGeneration = generation
     enqueues = [:]
+    replays = []
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
     queue = receiverRequest.items
@@ -615,8 +628,8 @@ final class CastEngine: ChromeEngine {
       ? playingIndex : queue.firstIndex { $0.id == data.itemId }
     // The windows of the enqueues on their way go out before this PlayNow, which drops them: they go
     // again after the queue, as does the tail of a replay before this one.
-    let unsent = index == nil ? [] : enqueues.keys.sorted().flatMap { enqueues[$0] ?? [] }
-    let items = index == nil ? [ReceiverItem(id: data.itemId)] : queue + unsent.joined().map { ReceiverItem(id: $0) }
+    let unsent = index == nil ? [] : enqueues.keys.sorted().flatMap { id in enqueues[id].map { $0.taken + $0.windows.joined() } ?? [] }
+    let items = index == nil ? [ReceiverItem(id: data.itemId)] : queue + unsent.map { ReceiverItem(id: $0) }
     let window = ReceiverProtocol.queueWindow(items, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems)
     // A start offset the receiver reported can put the position past what ticks hold.
     guard let startPositionTicks = Int64(exactly: (position * ReceiverProtocol.ticksPerSecond).rounded()) else {
@@ -639,23 +652,30 @@ final class CastEngine: ChromeEngine {
     // the items after it go again a window at a time.
     let generation = queueGeneration
     let tail = index.map { Array(items.dropFirst($0 - window.startIndex + window.items.count)).compactMap(\.id) } ?? []
-    // The enqueues on their way stop, their windows being this one's; until the PlayNow is taken, a
-    // newer replay sends them again, and a newer load or replay ends this one.
+    // Until the channel settles this PlayNow, it holds the enqueues on their way, their windows being its own.
     enqueueCount += 1
     let replay = enqueueCount
-    if index != nil {
-      enqueues = [replay: unsent]
-    }
+    if index != nil { replays.insert(replay) }
     startReload(target: position, data: data, undo: undo) { failed in
       self.sendMessage(
         "PlayNow", message,
         sent: { [weak self] in
-          guard let self, index != nil, generation == self.queueGeneration, self.enqueues[replay] != nil else { return }
+          guard let self, index != nil, generation == self.queueGeneration, self.replays.contains(replay) else { return }
+          // Taken: the receiver's queue is this window, an older replay is past, and the enqueues asked
+          // before this one go in its tail, itself held while a newer replay is on its way.
+          self.replays = self.replays.filter { $0 > replay }
+          self.enqueues = self.enqueues.filter { $0.key > replay }
           self.queue = window.items
           self.playingIndex = window.startIndex
-          self.enqueueWindows(Self.windows(of: tail)[...], generation: generation, binding: self.boundSessionId, id: replay)
+          let held = self.isHeld(replay)
+          self.enqueues[replay] = Enqueue(generation: generation, binding: self.boundSessionId, windows: Self.windows(of: tail), waiting: held)
+          if !held { self.sendWindow(replay) }
         },
-        failed: failed
+        failed: { [weak self] error in
+          // Refused: the receiver keeps the windows taken before it, and the enqueues go on.
+          if self?.replays.remove(replay) != nil { self?.resumeEnqueues() }
+          failed(error)
+        }
       )
     }
   }
@@ -693,7 +713,8 @@ final class CastEngine: ChromeEngine {
     onMain()
     guard session != nil else { return }
     enqueueCount += 1
-    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration, binding: boundSessionId, id: enqueueCount)
+    enqueues[enqueueCount] = Enqueue(generation: queueGeneration, binding: boundSessionId, windows: Self.windows(of: itemIds))
+    sendWindow(enqueueCount)
   }
 
   private static func windows(of itemIds: [String]) -> [[String]] {
@@ -706,29 +727,59 @@ final class CastEngine: ChromeEngine {
   // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
   // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
   // sent on: the rest was for that receiver.
-  // A replay ends it too, the windows left going in its PlayNow.
-  private func enqueueWindows(_ windows: ArraySlice<[String]>, generation: Int, binding: String?, id: Int) {
-    guard let window = windows.first else {
+  // A replay holds it: a window taken waits for the replay, which carries the rest once the receiver
+  // takes it, and lets the enqueue go on otherwise.
+  private func sendWindow(_ id: Int) {
+    guard let window = enqueues[id]?.windows.first else {
       enqueues[id] = nil
       return
     }
-    enqueues[id] = Array(windows)
     sendMessage(
       "PlayLast", ReceiverProtocol.playLast(server: server, itemIds: window),
       sent: { [weak self] in
-        guard let self else { return }
-        guard self.enqueues[id] != nil, generation == self.queueGeneration, self.session != nil, self.boundSessionId == binding else {
+        guard let self, var entry = self.enqueues[id] else { return }
+        guard self.isCurrent(entry) else {
           self.enqueues[id] = nil
           return
         }
+        entry.windows.removeFirst()
+        if self.isHeld(id) {
+          entry.waiting = true
+          entry.taken = window
+          self.enqueues[id] = entry
+          return
+        }
+        self.enqueues[id] = entry
         self.queue += window.map { ReceiverItem(id: $0) }
-        self.enqueueWindows(windows.dropFirst(), generation: generation, binding: binding, id: id)
+        self.sendWindow(id)
       },
       failed: { [weak self] error in
         self?.enqueues[id] = nil
         self?.reportFailure(error)
       }
     )
+  }
+
+  // A replay the channel refused: the enqueues no replay holds any more go on, from the window taken meanwhile.
+  private func resumeEnqueues() {
+    for id in enqueues.keys.sorted() {
+      guard var entry = enqueues[id], entry.waiting, !isHeld(id) else { continue }
+      guard isCurrent(entry) else {
+        enqueues[id] = nil
+        continue
+      }
+      queue += entry.taken.map { ReceiverItem(id: $0) }
+      entry.waiting = false
+      entry.taken = []
+      enqueues[id] = entry
+      sendWindow(id)
+    }
+  }
+
+  private func isHeld(_ id: Int) -> Bool { replays.contains { $0 > id } }
+
+  private func isCurrent(_ entry: Enqueue) -> Bool {
+    entry.generation == queueGeneration && session != nil && boundSessionId == entry.binding
   }
 
   var currentItemId: String? { read { $0.itemId } }
