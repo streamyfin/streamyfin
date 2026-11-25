@@ -268,6 +268,11 @@ func commandsSent(on port: FakeChannelPort) -> [String] {
   port.sent.compactMap { ((try? JSONSerialization.jsonObject(with: Data($0.text.utf8))) as? [String: Any])?["command"] as? String }
 }
 
+/// The ids of the items a sent message carries.
+func itemIds(_ message: [String: Any]?) -> [String] {
+  ((message?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
+}
+
 @main
 enum CastEngineTests {
   static var failures: [String] = []
@@ -1726,6 +1731,39 @@ enum CastEngineTests {
         active = probe.isActive
       }
       check("aScriptStartedInsideTheEngineStartRunsToItsEnd", active && !bench.logs.contains("item never played"))
+    }
+
+    // Two loads the channel refused in a row: the second went back to the first one's queue, which the
+    // receiver never took, and a reload then dropped the queue the receiver plays.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["a-1", "a-2"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "a-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      bench.port.sendError = "receiver busy"
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      bench.port.releaseResults()
+      bench.port.holdResults = false
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      check("twoRefusedLoadsLeaveTheQueueTheReceiverTook", itemIds(bench.sentMessages().last) == ["a-1", "a-2"])
+    }
+
+    // A handler of the superseded load cast again inside the newer load: that load, no longer the one
+    // asked, still went out after it, and the receiver played it instead.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var castAgain = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "a-1")])) { _ in
+        guard castAgain else { return }
+        castAgain = false
+        engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      check("aLoadSupersededBeforeItsSendNeverGoesOut", bench.sentMessages().map { itemIds($0) } == [["a-1"], ["c-1"]])
     }
 
     if failures.isEmpty {

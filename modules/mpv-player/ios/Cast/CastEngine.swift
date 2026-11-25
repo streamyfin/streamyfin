@@ -107,6 +107,15 @@ final class CastEngine: ChromeEngine {
   // hands it over later) no longer describes the receiver's queue.
   private var queueGeneration = 0
 
+  // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
+  // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
+  private struct QueueState {
+    let server: ReceiverServer
+    let items: [ReceiverItem]
+    let playingIndex: Int
+  }
+  private var replaced: [Int: QueueState] = [:]
+
   // Set once a load went out: the receiver sends its bus to the last sender that spoke, so after a
   // resume this engine speaks first to hear it again (spec §8, risk 6).
   private var busClaimed = false
@@ -334,11 +343,9 @@ final class CastEngine: ChromeEngine {
       completion(.notSent(String(describing: error)))
       return
     }
-    let previousServer = self.server
-    let previousQueue = queue
-    let previousIndex = playingIndex
     queueGeneration += 1
     let generation = queueGeneration
+    replaced[generation] = QueueState(server: self.server, items: queue, playingIndex: playingIndex)
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
     queue = receiverRequest.items
@@ -358,19 +365,40 @@ final class CastEngine: ChromeEngine {
       self.settleLoad(load, outcome)
     }
     setLoading(true)
-    sendMessage("PlayNow", message, sent: { [weak self] in self?.busClaimed = true }) { [weak self] error in
-      guard let self else { return }
-      // Never sent: the receiver keeps its queue, under its server.
-      if generation == self.queueGeneration {
-        self.server = previousServer
-        self.queue = previousQueue
-        self.playingIndex = previousIndex
+    // A handler of the superseded load, or of the loading, cast again: this load is no longer the one
+    // asked, and the receiver must not get it after the newer one.
+    guard pendingLoad === load else {
+      load.cancelTimer()
+      refused(generation)
+      return
+    }
+    sendMessage(
+      "PlayNow", message,
+      sent: { [weak self] in
+        self?.replaced[generation] = nil
+        self?.busClaimed = true
       }
+    ) { [weak self] error in
+      guard let self else { return }
+      self.refused(generation)
       guard self.pendingLoad === load else { return }
       load.cancelTimer()
       self.pendingLoad = nil
       self.setLoading(self.isBuffering())
       load.completion(.notSent(error))
+    }
+  }
+
+  // Never sent: the receiver keeps its queue, under its server. A newer load replaced this one's queue,
+  // which the receiver never took: what this one replaced is what that one goes back to.
+  private func refused(_ generation: Int) {
+    guard let previous = replaced.removeValue(forKey: generation) else { return }
+    if generation == queueGeneration {
+      server = previous.server
+      queue = previous.items
+      playingIndex = previous.playingIndex
+    } else if replaced[generation + 1] != nil {
+      replaced[generation + 1] = previous
     }
   }
 
