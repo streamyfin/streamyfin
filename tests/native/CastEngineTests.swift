@@ -752,8 +752,9 @@ enum CastEngineTests {
     do {
       let url = URL(fileURLWithPath: vectors).appendingPathComponent("load-outcomes.json")
       let file = (try? JSONSerialization.jsonObject(with: Data(contentsOf: url))) as? [String: Any] ?? [:]
-      var all = file["timeoutMs"] as? Double == CastEngineConstants.loadTimeoutMs
-      for outcomeCase in file["cases"] as? [[String: Any]] ?? [] {
+      let outcomeCases = file["cases"] as? [[String: Any]] ?? []
+      var all = !outcomeCases.isEmpty
+      for outcomeCase in outcomeCases {
         let name = outcomeCase["name"] as? String ?? "?"
         let sent = playRequest(outcomeCase["request"] as? [String: Any] ?? file["request"] as? [String: Any] ?? [:])
         let bench = Bench()
@@ -784,12 +785,14 @@ enum CastEngineTests {
         }
         var want = "settled \(expected["status"] as? String ?? "?")"
         if let error = expected["error"] as? String { want = "settled failed \(error)" }
-        let got = results.first.map(describe) ?? "nothing"
-        if got != want {
+        // Exactly once: a second completion after the expected one is a failure too.
+        let got = results.map(describe)
+        if got != [want] {
           all = false
           print("load-outcomes.json: \(name) gave \(got), expected \(want)")
         }
       }
+      check("loadOutcomesShareTheEngineDeadline", file["timeoutMs"] as? Double == CastEngineConstants.loadTimeoutMs)
       check("loadOutcomesThroughTheEngine", all)
     }
 
