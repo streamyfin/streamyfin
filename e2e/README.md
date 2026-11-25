@@ -60,7 +60,7 @@ the podspec stop the build. On iOS the define stays in the Pods configuration un
 phase `Refuse fake Cast receivers in an archive`: tier 1 runs on simulators, which never archive. A build that has them logs
 `Fake Cast receivers in place of the Cast SDK's: this is a tier 1 build` when the module
 starts. In a debug build, the remote target probe (`e2e/suites/cast/README.md`) shows which
-receivers it has: `--es device "Bench TV"` connects in a fake build, and ends with
+receivers it has: `--es device "'Bench TV'"` connects in a fake build, and ends with
 `failed: no device named "Bench TV"` in any other.
 
 ## Configuration

@@ -146,9 +146,12 @@ the whole one to show up, since iOS lists receivers one at a time:
 
 ```sh
 adb logcat -c
-adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device "<name>"
+adb shell am broadcast -n com.fredrikburmester.streamyfin/expo.modules.mpvplayer.cast.target.CastTargetProbeReceiver -a expo.modules.mpvplayer.CAST_TARGET_PROBE --es device "'<name>'"
 adb logcat -v time -s CastTargetProbe:I StreamyfinCast:W
 ```
+
+The name goes through two shells, the computer's then the phone's: the double quotes are the
+computer's, the single ones keep a name with a space whole on the phone.
 
 The log reads `armed for "<name>" state=none …`, `found <device>`, then one line per state,
 `state=<none|connecting|connected|ending> target=<device> reconnecting=<bool> error=<…>`:
