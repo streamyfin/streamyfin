@@ -761,20 +761,38 @@ describe("MusicPlayerProvider and a Cast session", () => {
   );
 
   // With no start of its own in flight, the phone keeps loading its paused queue: it is what plays if the TV turns the tap down.
-  test("leaves the phone its whole queue when a tap goes to the receiver", async () => {
-    await mount();
-    holdStreams("t2");
-    await run((p) => p.playQueue(ALBUM, 0));
-    await run((p) => p.pause());
-    await connectCast();
-    await settle();
+  // A jump to a track not loaded yet shows the same spinner as a start, and is not one.
+  test.each<[string, () => Promise<void>]>([
+    ["paused", async () => {}],
+    [
+      "jumping to a track it has not loaded yet",
+      async () => {
+        holdStreams("t4");
+        await act(async () => {
+          void player.jumpToIndex(4);
+        });
+        await settle();
+        expect(player.isLoading).toBe(true);
+      },
+    ],
+  ])(
+    "leaves the phone its whole queue when a tap goes to the receiver, %s",
+    async (_, beforeTap) => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+      await run((p) => p.pause());
+      await connectCast();
+      await settle();
+      await beforeTap();
 
-    await run((p) => p.playQueue(ALBUM, 3));
-    await releaseStreams();
+      await run((p) => p.playQueue(ALBUM, 3));
+      await releaseStreams();
 
-    expect(nativeIds()).toEqual(ALBUM.map((item) => item.Id));
-    await receiverLoads("t3");
-  });
+      expect(nativeIds()).toEqual(ALBUM.map((item) => item.Id));
+      await receiverLoads("t3");
+    },
+  );
 
   // The receiver is the player while it has the queue: the mini player and
   // Now Playing show what it plays, not what the phone last played.

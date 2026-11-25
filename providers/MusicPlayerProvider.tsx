@@ -570,6 +570,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Which start put the spinner up: two starts of the same track share its
   // loadingTrackId, so the id alone cannot tell them apart.
   const loadingStartSeqRef = useRef(0);
+  // The start still on its way to playing on the phone, if any: a jump shows
+  // the same spinner, so isLoading cannot tell them apart.
+  const phoneStartRef = useRef<number | null>(null);
 
   // Set once jumpToIndex has loaded a track ahead of the background load. From
   // then on that load can no longer append: it has to place each track, and
@@ -1170,6 +1173,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         return true;
       };
 
+      phoneStartRef.current = startSequence;
       try {
         // Wait for the setup before preparing, not after: the starts waiting
         // on it resume together, and the sequence check drops all but the
@@ -1258,6 +1262,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           isLoading: false,
           loadingTrackId: null,
         }));
+      } finally {
+        if (phoneStartRef.current === startSequence) {
+          phoneStartRef.current = null;
+        }
       }
     },
     [
@@ -1376,7 +1384,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const castTapped = useCallback(
     (queue: BaseItemDto[], startIndex: number) => {
       wasCastReady.current = true;
-      if (state.isLoading) {
+      if (phoneStartRef.current === startSequenceRef.current) {
         startSequenceRef.current += 1;
         setState((prev) => ({
           ...prev,
@@ -1386,7 +1394,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
       void castOnReceiver(queue, startIndex);
     },
-    [castOnReceiver, state.isLoading],
+    [castOnReceiver],
   );
 
   const playTrack = useCallback(
