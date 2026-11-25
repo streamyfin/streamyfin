@@ -1,13 +1,6 @@
 import { renderHook } from "@testing-library/react-native";
 import { useEpisodeAirLabels } from "./useEpisodeAirLabels";
 
-// A stable `t`, as react-i18next hands out: the labels must not depend on it
-// changing to notice that the day has.
-jest.mock("react-i18next", () => {
-  const t = (key: string) => key;
-  return { useTranslation: () => ({ t, i18n: { language: "en" } }) };
-});
-
 describe("useEpisodeAirLabels", () => {
   afterEach(() => {
     jest.useRealTimers();

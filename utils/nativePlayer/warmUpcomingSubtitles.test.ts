@@ -6,17 +6,11 @@ import type {
 import { CACHE, fakeFiles } from "@/test-utils/fileSystem";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 
-jest.mock(
-  "expo-file-system",
-  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
-);
 // The custom-header barrel touches MMKV and SecureStore; the shared double
 // keeps the pure helpers real.
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
-// The log module reaches Sentry and MMKV; the prefetch only writes its summary.
-jest.mock("@/utils/log", () => ({ writeInfoLog: jest.fn() }));
 // getStreamUrl negotiates over HTTP; the warm only needs its MediaSources.
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getStreamUrl: jest.fn(),

@@ -56,10 +56,6 @@ jest.mock("./useTwoWaySync", () => ({
 jest.mock("@/hooks/useNetworkAwareQueryClient", () => ({
   useNetworkAwareQueryClient: () => ({ invalidateQueries: mockInvalidate }),
 }));
-jest.mock("@/utils/log", () => ({
-  writeToLog: jest.fn(),
-  logAndCaptureError: jest.fn(),
-}));
 // The atoms stand in as tags; useAtomValue answers by tag.
 jest.mock("@/utils/atoms/api", () => ({ apiAtom: "api", userAtom: "user" }));
 jest.mock("jotai", () => ({
