@@ -11,10 +11,6 @@ jest.mock("@/utils/atoms/settings", () => ({
     updateSettings: () => undefined,
   }),
 }));
-jest.mock("react-i18next", () => ({
-  ...jest.requireActual("react-i18next"),
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // PlatformDropdown drags in @gorhom/bottom-sheet → reanimated → native
 // worklets, which has no jest surface. The dropdown's open behavior isn't
 // what this spec tests: rendering the trigger inline is faithful to it.

@@ -24,7 +24,6 @@ jest.mock("@/providers/DownloadProvider", () => ({
 jest.mock("./useNetworkStatus", () => ({
   useNetworkStatus: () => ({ isConnected: true }),
 }));
-jest.mock("@/utils/log", () => ({ logAndCaptureError: jest.fn() }));
 // The atoms stand in as tags; useAtomValue answers by tag.
 jest.mock("../providers/JellyfinProvider", () => ({
   apiAtom: "api",
