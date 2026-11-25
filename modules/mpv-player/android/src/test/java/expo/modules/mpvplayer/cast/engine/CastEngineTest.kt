@@ -1261,4 +1261,15 @@ class CastEngineTest {
         assertEquals(CastEngineConstants.MAX_QUEUE_ITEMS, itemsOf(port.sent[0].second).size)
         assertEquals(listOf("t-${CastEngineConstants.MAX_QUEUE_ITEMS + 1}"), itemsOf(port.sent[1].second))
     }
+
+    // A stopped item played again: the channel refused the PlayNow, and the position went to the 0 the
+    // SDK reports for a stopped stream, so the next Play started the item over.
+    @Test
+    fun aRefusedReplayOfAStoppedItemKeepsItsPosition() {
+        val engine = playing(42_500)
+        media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
+        port.sendError = "down"
+        engine.play()
+        assertEquals(42.5, engine.currentPosition, 1e-9)
+    }
 }

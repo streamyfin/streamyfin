@@ -858,9 +858,10 @@ class CastEngine(
     }
 
     // Outside a status: back to the formula of the last one, with the media channel's own estimate.
+    // Stopped, the SDK reports the stream at 0: the position stays where the item stopped.
     private fun recomputePosition() {
         val port = media
-        if (port == null || !hasMedia) {
+        if (port == null || !hasMedia || playerState == IDLE) {
             setLoading(isBuffering())
             return
         }
