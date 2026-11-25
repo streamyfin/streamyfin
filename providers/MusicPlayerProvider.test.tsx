@@ -1052,6 +1052,23 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ]);
   });
 
+  // A downloaded track plays in a phone session without a play session id: the hand-off ends that one too, or the
+  // server lists the phone next to the TV, paused by the hand-off.
+  test("a downloaded track the phone plays ends its play session on the server when a session connects", async () => {
+    mockLocalPaths.set("t0", "file:///music/t0.flac");
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+
+    expect(reports(STOPPED_URL)).toEqual([
+      expect.objectContaining({ ItemId: "t0" }),
+    ]);
+    expect(reports(STOPPED_URL)[0].PlaySessionId).toBeUndefined();
+  });
+
   test("stopping the queue on the receiver does not end the phone's play session a second time", async () => {
     await mount();
     await run((p) => p.playQueue(ALBUM, 0));

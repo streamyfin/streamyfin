@@ -1356,14 +1356,17 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // with it, or the server lists the phone playing next to the TV, from its
   // last report. Ended once: a later stop finds no session to report.
   const endPhoneSessionForReceiver = useCallback(() => {
+    // A downloaded track's session has no play session id, and ends all the same.
+    const open = phoneSessionOpenRef.current;
     phoneSessionOpenRef.current = false;
     const sessionId = state.playSessionId;
-    if (!state.currentTrack || !sessionId) return;
+    if (!state.currentTrack || (!sessionId && !open)) return;
     reportPlaybackStopped(
       state.currentTrack,
       state.progress * 10000000,
       sessionId,
     );
+    if (!sessionId) return;
     setState((prev) =>
       prev.playSessionId === sessionId
         ? { ...prev, playSessionId: null }
