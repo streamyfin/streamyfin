@@ -134,13 +134,15 @@ class RemoteTargetMachine {
         if (failure && switching != null && askedFailed) {
             val held = snapshot.target?.id == switching.id
             // Asked back while a switch ended its session: that end leads to it again.
-            if (held && snapshot.phase != TargetPhase.CONNECTING) {
+            if (held && snapshot.phase != TargetPhase.CONNECTING && event == "ended") {
                 return update(RemoteTargetSnapshot(TargetPhase.CONNECTING, RemoteTarget.cast(switching), reconnecting = false, error = null))
             }
             // The asked receiver failed. Once the old session ended it was the target; before that, the port
-            // refused it at once, and the receiver holding the session stays, with the cause.
+            // refused it at once, or that end never came, and the receiver holding the session stays, with the cause.
             switchingTo = null
-            if (!held) return update(failed(snapshot.copy(error = error), error, code, RemoteTarget.cast(switching)))
+            if (!held || snapshot.phase != TargetPhase.CONNECTING) {
+                return update(failed(snapshot.copy(error = error), error, code, RemoteTarget.cast(switching)))
+            }
             return update(failed(RemoteTargetSnapshot(TargetPhase.NONE, null, reconnecting = false, error = error), error, code, RemoteTarget.cast(switching)))
         }
         if (event in END_EVENTS && device != null && heldOtherThan(device)) return false

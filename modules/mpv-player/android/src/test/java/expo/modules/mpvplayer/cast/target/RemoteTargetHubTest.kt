@@ -188,6 +188,22 @@ class RemoteTargetHubTest {
         assertEquals(listOf(bedroom, livingRoom), port.connects)
     }
 
+    // Asked back while a switch waited for its session's end, which never came: the port gave up with a
+    // start failure, and the state claimed a new start the port no longer had.
+    @Test
+    fun aSwitchBackWhoseEndNeverCameKeepsTheSessionWithTheCause() {
+        val port = FakeTargetPort(known = listOf(livingRoom, bedroom))
+        val hub = connected(port)
+
+        hub.connect(bedroom.id)
+        hub.connect(livingRoom.id)
+        port.emit("startFailed", livingRoom, error = "no end")
+
+        assertEquals(TargetPhase.CONNECTED, hub.snapshot.phase)
+        assertEquals(livingRoom.id, hub.snapshot.target?.id)
+        assertEquals("no end", hub.snapshot.error)
+    }
+
     @Test
     fun aReplacedPortForgetsTheOldPortsDevices() {
         val hub = RemoteTargetHub()
