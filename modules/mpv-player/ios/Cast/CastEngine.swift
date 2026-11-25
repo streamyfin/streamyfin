@@ -22,6 +22,7 @@ final class CastEngine: ChromeEngine {
   static let urlLoadError = "The Cast engine plays Jellyfin items, not URLs"
   static let playbackError = "The receiver stopped on a playback error"
   static let sessionReplacedError = "The Cast session was replaced"
+  static let positionError = "The position is out of the receiver's range"
   private static let noCompatibleStream = "NoCompatibleStream"
 
   weak var delegate: PlayerEngineDelegate?
@@ -601,10 +602,17 @@ final class CastEngine: ChromeEngine {
     let window = ReceiverProtocol.queueWindow(
       index == nil ? [ReceiverItem(id: data.itemId)] : queue, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems
     )
+    // A start offset the receiver reported can put the position past what ticks hold.
+    guard let startPositionTicks = Int64(exactly: (position * ReceiverProtocol.ticksPerSecond).rounded()) else {
+      undo()
+      publishState()
+      delegate?.engine(self, didFailWithError: Self.positionError)
+      return
+    }
     let request = ReceiverPlayRequest(
       items: window.items,
       startIndex: window.startIndex > 0 ? window.startIndex : nil,
-      startPositionTicks: Int64((position * ReceiverProtocol.ticksPerSecond).rounded()),
+      startPositionTicks: startPositionTicks,
       mediaSourceId: data.mediaSourceId,
       audioStreamIndex: audio,
       subtitleStreamIndex: subtitle,

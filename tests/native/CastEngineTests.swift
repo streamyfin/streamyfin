@@ -1845,6 +1845,18 @@ enum CastEngineTests {
       check("aResumeOntoTheItemItsQueueWentOnToAfterAnEndWithoutMediaReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
     }
 
+    // A start offset past what ticks hold: the replay position did not fit an Int64, and converting it
+    // trapped before the PlayNow or its error. Refused, the subtitle goes back to what plays.
+    do {
+      let bench = Bench()
+      let engine = bench.playing(1, ["canClientSeek": false, "startPositionTicks": Int64.max], hasTextTracks: false)
+      engine.setSubtitleTrack(5)
+      check(
+        "aReplayPositionTicksCannotHoldIsRefused",
+        bench.port.sent.isEmpty && subtitle(engine) == 3 && bench.delegate.errors == [CastEngine.positionError]
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
