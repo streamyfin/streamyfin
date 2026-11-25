@@ -3,6 +3,7 @@ package expo.modules.mpvplayer.cast.engine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.lang.ref.Reference
 import java.lang.ref.WeakReference
 
 // A Cast session keeps the listeners added to it: one per session, all removed when the engine stops
@@ -41,6 +42,9 @@ class SessionListenersTest {
             }
         }
         assertNull(session.get())
+        // The map stays reachable to the end: collected with the session, it would let a listener that
+        // holds its session pass.
+        Reference.reachabilityFence(listeners)
     }
 
     // Out of the test's frame: a local there would hold the session itself.

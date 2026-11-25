@@ -1220,6 +1220,7 @@ class CastEngineTest {
         engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
         assertEquals(listOf("a-1", "c-1"), port.sent.map { itemsOf(it.second).single() })
     }
+
     private fun itemsOf(text: String): List<String> {
         val items = JSONObject(text).getJSONObject("options").getJSONArray("items")
         return (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
