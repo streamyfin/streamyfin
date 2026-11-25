@@ -38,6 +38,9 @@ const mockNative = {
   playing: false,
   /** Runs inside a pause, before it lands. */
   onPause: undefined as (() => Promise<void>) | undefined,
+  /** Run inside an add or a play, before it lands. */
+  onAdd: undefined as (() => Promise<void>) | undefined,
+  onPlay: undefined as (() => Promise<void>) | undefined,
   outOfBounds: () => new Error("The track index is out of bounds"),
   /**
    * Runs between the native side answering a queue read and the caller seeing
@@ -87,6 +90,7 @@ jest.mock(
       setVolume: async () => undefined,
       play: async () => {
         if (!mockNative.initialized) throw mockNative.notInitialized();
+        await mockNative.onPlay?.();
         mockNative.playing = true;
       },
       pause: async () => {
@@ -117,6 +121,7 @@ jest.mock(
       ) => {
         mockNative.calls.push("add");
         if (!mockNative.initialized) throw mockNative.notInitialized();
+        await mockNative.onAdd?.();
         const added = Array.isArray(tracks) ? tracks : [tracks];
         const count = mockNative.queue.length;
         const index = insertBeforeIndex === -1 ? count : insertBeforeIndex;
@@ -351,6 +356,8 @@ beforeEach(() => {
   mockNative.activeIndex = undefined;
   mockNative.playing = false;
   mockNative.onPause = undefined;
+  mockNative.onAdd = undefined;
+  mockNative.onPlay = undefined;
   mockNative.afterQueueRead = undefined;
   mockNetwork.isConnected = true;
   mockNetwork.serverConnected = true;
@@ -388,6 +395,24 @@ const connectCast = () =>
     mockCast.castState = "connected";
     setCastSession(mockCast, "session-1");
     emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** The state read connected before the session has started, as on iOS. */
+const connectedBeforeSession = () =>
+  act(async () => {
+    mockCast.castState = "connected";
+    emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+  });
+
+/** The session starting after that, which gives it its client. */
+const sessionStarts = () =>
+  act(async () => {
+    setCastSession(mockCast, "session-ios");
+    emitCastEvent(mockCast, "onSessionEvent", {
+      event: "started",
+      sessionId: "session-ios",
+      error: null,
+    });
   });
 
 /** The receiver loading an item, which settles the cast. */
@@ -665,6 +690,9 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     await run((p) => p.playQueue(ALBUM, 3));
     await receiverLoads("t3");
+    // The receiver has the tap: the player shows no load of the phone's.
+    expect(player.isLoading).toBe(false);
+    expect(player.loadingTrackId).toBeNull();
     await releaseStreams();
 
     expect(playNows().map((message) => message.options.startIndex)).toEqual([
@@ -673,6 +701,98 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(mockNative.playing).toBe(false);
     expect(player.isLoading).toBe(false);
   });
+
+  // The tap spends the move: the queue the phone still plays, its pause in flight, must not replace the tap on the TV.
+  test("keeps a tap on the receiver over the queue the phone still plays", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectedBeforeSession();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 1));
+    await sessionStarts();
+    await settle();
+    let releasePause = () => {};
+    const paused = new Promise<void>((resolve) => {
+      releasePause = resolve;
+    });
+    mockNative.onPause = () => paused;
+
+    await run((p) => p.playQueue(ALBUM, 3));
+    await releaseStreams();
+    await act(async () => releasePause());
+    await settle();
+
+    expect(playNows().map((message) => message.options.startIndex)).toEqual([
+      3,
+    ]);
+    await receiverLoads("t3");
+  });
+
+  // A tap while the phone's own start is in its last native calls: the phone stays silent beside the TV.
+  test.each([
+    ["add", "onAdd"],
+    ["play", "onPlay"],
+  ] as const)(
+    "keeps the phone silent when a tap reaches the receiver during its native %s",
+    async (_, hook) => {
+      await mount();
+      await connectedBeforeSession();
+      await settle();
+      let release = () => {};
+      mockNative[hook] = () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      await run((p) => p.playQueue(ALBUM, 1));
+      await sessionStarts();
+      await settle();
+
+      await run((p) => p.playQueue(ALBUM, 3));
+      mockNative[hook] = undefined;
+      await act(async () => release());
+      await settle();
+
+      expect(mockNative.playing).toBe(false);
+      expect(playNows().map((message) => message.options.startIndex)).toEqual([
+        3,
+      ]);
+      await receiverLoads("t3");
+    },
+  );
+
+  // With no start of its own in flight, the phone keeps loading its paused queue: it is what plays if the TV turns the tap down.
+  // A jump to a track not loaded yet shows the same spinner as a start, and is not one.
+  test.each<[string, () => Promise<void>]>([
+    ["paused", async () => {}],
+    [
+      "jumping to a track it has not loaded yet",
+      async () => {
+        holdStreams("t4");
+        await act(async () => {
+          void player.jumpToIndex(4);
+        });
+        await settle();
+        expect(player.isLoading).toBe(true);
+      },
+    ],
+  ])(
+    "leaves the phone its whole queue when a tap goes to the receiver, %s",
+    async (_, beforeTap) => {
+      await mount();
+      holdStreams("t2");
+      await run((p) => p.playQueue(ALBUM, 0));
+      await run((p) => p.pause());
+      await connectCast();
+      await settle();
+      await beforeTap();
+
+      await run((p) => p.playQueue(ALBUM, 3));
+      await releaseStreams();
+
+      expect(nativeIds()).toEqual(ALBUM.map((item) => item.Id));
+      await receiverLoads("t3");
+    },
+  );
 
   // The receiver is the player while it has the queue: the mini player and
   // Now Playing show what it plays, not what the phone last played.

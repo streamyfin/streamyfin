@@ -662,6 +662,35 @@ describe("castToJellyfinReceiver", () => {
       expect(playNowIds()).toEqual(["item-1"]);
     });
 
+    // Settled loaded does not keep the TV: a cast started after it is what
+    // the user picked last, so the older PlayNow must not replace it there.
+    test("sends nothing for a loaded cast a newer one followed", async () => {
+      const client = makeClient();
+      const release = holdChannelOpen();
+      const first = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [movie] },
+        1_000,
+      );
+      await sent();
+      client.emit(status("playing", "item-1", "session-a"));
+      expect(await first).toEqual({ status: "loaded" });
+      const second = castToJellyfinReceiver(
+        client as never,
+        session(),
+        { items: [{ Id: "item-2", Type: "Movie" }] },
+        1_000,
+      );
+
+      release();
+      await sent();
+
+      expect(playNowIds()).toEqual(["item-2"]);
+      client.emit(status("buffering", "item-2", "session-b"));
+      expect(await second).toEqual({ status: "loaded" });
+    });
+
     // A newer cast owns the TV once it starts: the older one, still waiting
     // on the channel, must not load its item there as well.
     test("sends nothing for a cast a newer one replaced", async () => {
