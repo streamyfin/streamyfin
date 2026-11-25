@@ -1246,4 +1246,19 @@ class CastEngineTest {
         port.releaseResults()
         assertEquals(1, playLasts())
     }
+
+    // A replay sends the window that fits one message, which becomes the receiver's whole queue: the
+    // items after it go again a window at a time, or the receiver stopped short of them.
+    @Test
+    fun aReplayOfALongQueueSendsItsTailAgain() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        engine.enqueue((2..CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "t-$it" })
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.sent.clear()
+        engine.reloadCurrentItem()
+        assertEquals(listOf("PlayNow", "PlayLast"), commands().map { it.first })
+        assertEquals(CastEngineConstants.MAX_QUEUE_ITEMS, itemsOf(port.sent[0].second).size)
+        assertEquals(listOf("t-${CastEngineConstants.MAX_QUEUE_ITEMS + 1}"), itemsOf(port.sent[1].second))
+    }
 }

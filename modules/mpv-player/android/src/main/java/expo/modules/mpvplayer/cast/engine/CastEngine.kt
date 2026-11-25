@@ -531,7 +531,18 @@ class CastEngine(
             subtitleStreamIndex = subtitle,
             liveStreamId = data.liveStreamId,
         )
-        startReload(position, null, data, undo) { failed -> sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) }
+        // Once the receiver took it, the window is its whole queue: the engine's queue is that window,
+        // and the items after it go again a window at a time.
+        val generation = queueGeneration
+        val tail = if (index < 0) emptyList() else items.drop(index - window.startIndex + window.items.size).mapNotNull { it.id }
+        startReload(position, null, data, undo) { failed ->
+            sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) {
+                if (index < 0 || generation != queueGeneration) return@sendMessage
+                queue = window.items
+                playingIndex = window.startIndex
+                enqueueWindows(tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), generation, boundSessionId)
+            }
+        }
     }
 
     // Local-only processing: the receiver has no such controls.
