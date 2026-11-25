@@ -1265,6 +1265,73 @@ describe("MusicPlayerProvider and a Cast session", () => {
     },
   );
 
+  // Play on the paused queue while a track tapped in that window still loads on the phone: the TV got the paused
+  // queue, then the load played on the phone and the move sent it to the TV too.
+  test("play while a tapped track still loads on the phone sends the paused queue to the receiver alone, as on iOS", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    holdStreams("t1");
+    await run((p) => p.playQueue(ALBUM, 1));
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    await settle();
+
+    await run((p) => p.togglePlayPause());
+    await receiverLoads("t2");
+    await releaseStreams();
+
+    expect(playNows().map((message) => message.options.startIndex)).toEqual([
+      2,
+    ]);
+    expect(mockNative.playing).toBe(false);
+    expect(player.isLoading).toBe(false);
+  });
+
+  // Play pressed again while the first Play still resumes on the phone: that resume landed and played next to the TV.
+  test("play pressed again while the phone still resumes leaves the phone silent once it lands, as on iOS", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    await act(async () => {
+      mockCast.castState = "connected";
+      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
+    });
+    await settle();
+    holdStreams("t2");
+    await act(async () => {
+      void player.togglePlayPause();
+    });
+    await settle();
+    await act(async () => {
+      setCastSession(mockCast, "session-ios");
+      emitCastEvent(mockCast, "onSessionEvent", {
+        event: "started",
+        sessionId: "session-ios",
+        error: null,
+      });
+    });
+    await settle();
+
+    await run((p) => p.togglePlayPause());
+    await receiverLoads("t2");
+    await releaseStreams();
+
+    await waitFor(() => expect(playNows()).toHaveLength(2));
+    expect(playNows()[1].options.startIndex).toBe(2);
+    expect(mockNative.playing).toBe(false);
+    await receiverLoads("t2");
+  });
+
   // Seen on an iPhone: the TV played the queue while the server still listed
   // the phone as playing it, from the last report before its pause.
   test("play on a paused queue while a session is connected ends the phone's play session on the server", async () => {

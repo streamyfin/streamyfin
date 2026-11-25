@@ -1471,7 +1471,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // with it. With none in flight the phone's queue keeps loading: it is what
   // plays if the TV turns the tap down.
   const castTapped = useCallback(
-    (queue: BaseItemDto[], startIndex: number) => {
+    (
+      queue: BaseItemDto[],
+      startIndex: number,
+      startSeconds = 0,
+      handOff = false,
+    ) => {
       wasCastReady.current = true;
       if (phoneStartRef.current === startSequenceRef.current) {
         startSequenceRef.current += 1;
@@ -1481,7 +1486,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           loadingTrackId: null,
         }));
       }
-      void castOnReceiver(queue, startIndex);
+      void castOnReceiver(queue, startIndex, startSeconds, handOff);
     },
     [castOnReceiver],
   );
@@ -1639,19 +1644,19 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // As on Spotify: a connected session takes the paused queue, from the
     // track and the place it paused on, and the phone stays silent. Ready, not
     // just connected, as for a tap: before that the phone plays it, and the
-    // move to the receiver takes it once the session has its client.
+    // move to the receiver takes it once the session has its client. A pick,
+    // as a tap is: a start still loading on the phone stops there.
     if (castReady && state.queue.length > 0) {
       // The index first: a queue can hold the same track twice.
       const index =
         state.queue[state.queueIndex]?.Id === state.currentTrack?.Id
           ? state.queueIndex
           : state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
-      void castOnReceiver(
-        state.queue,
-        Math.max(index, 0),
-        state.progress,
-        true,
-      );
+      // A resume still on its way on the phone, from a Play before the session
+      // had its client, is not stopped here: the move takes it once it lands.
+      const resuming = phoneResumesRef.current > 1;
+      castTapped(state.queue, Math.max(index, 0), state.progress, true);
+      if (resuming) wasCastReady.current = false;
       return;
     }
     if (!TrackPlayer) return;
@@ -1781,7 +1786,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     loadRemainingTracksInBackground,
     reportPlaybackStart,
     castReady,
-    castOnReceiver,
+    castTapped,
   ]);
 
   // Counted until it lands, so the move to the receiver judges the queue once
