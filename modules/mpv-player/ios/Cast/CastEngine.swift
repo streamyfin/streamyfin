@@ -123,7 +123,7 @@ final class CastEngine: ChromeEngine {
   // The generation whose queue the engine holds: a refusal gives an older one back.
   private var heldGeneration = 0
 
-  // An enqueue's windows still to go, the first one on its way unless `waiting`. A replay's PlayNow
+  // An enqueue's windows still to go, the first one on its way unless `waiting` its turn. A replay's PlayNow
   // drops from the receiver the windows sent before it, so the replay sends them again and holds those
   // enqueues until the channel settles it: a window taken meanwhile waits in `taken`, the next with it, and a
   // window refused leaves its `error` to the replay's outcome.
@@ -420,6 +420,7 @@ final class CastEngine: ChromeEngine {
         self.replaced[generation] = nil
         if let hold = self.loads.removeValue(forKey: generation) {
           self.enqueues = self.enqueues.filter { $0.key > hold }
+          self.resumeEnqueues()
         }
         self.busClaimed = true
       }
@@ -683,9 +684,8 @@ final class CastEngine: ChromeEngine {
           self.enqueues = self.enqueues.filter { $0.key > replay }
           self.queue = window.items
           self.playingIndex = window.startIndex
-          let held = self.isHeld(replay)
-          self.enqueues[replay] = Enqueue(generation: generation, binding: self.boundSessionId, windows: Self.windows(of: tail), waiting: held)
-          if !held { self.sendWindow(replay) }
+          self.enqueues[replay] = Enqueue(generation: generation, binding: self.boundSessionId, windows: Self.windows(of: tail), waiting: true)
+          self.resumeEnqueues()
         },
         failed: { [weak self] error in
           // Refused: the receiver keeps the windows taken before it, and the enqueues go on.
@@ -724,13 +724,13 @@ final class CastEngine: ChromeEngine {
     }
   }
 
-  // A Cast message holds 64 KB: the items go a window at a time.
+  // A Cast message holds 64 KB: the items go a window at a time, once the windows asked before them went.
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
     enqueueCount += 1
-    enqueues[enqueueCount] = Enqueue(generation: queueGeneration, binding: boundSessionId, windows: Self.windows(of: itemIds))
-    sendWindow(enqueueCount)
+    enqueues[enqueueCount] = Enqueue(generation: queueGeneration, binding: boundSessionId, windows: Self.windows(of: itemIds), waiting: true)
+    resumeEnqueues()
   }
 
   private static func windows(of itemIds: [String]) -> [[String]] {
@@ -748,6 +748,7 @@ final class CastEngine: ChromeEngine {
   private func sendWindow(_ id: Int) {
     guard let window = enqueues[id]?.windows.first else {
       enqueues[id] = nil
+      resumeEnqueues()
       return
     }
     sendMessage(
@@ -756,6 +757,7 @@ final class CastEngine: ChromeEngine {
         guard let self, var entry = self.enqueues[id] else { return }
         guard self.isCurrent(entry) || self.isHeld(id) else {
           self.enqueues[id] = nil
+          self.resumeEnqueues()
           return
         }
         entry.windows.removeFirst()
@@ -782,15 +784,18 @@ final class CastEngine: ChromeEngine {
         }
         self.enqueues[id] = nil
         self.reportFailure(error)
+        self.resumeEnqueues()
       }
     )
   }
 
-  // A replay or a load the channel refused: the enqueues nothing holds any more go on, from the window
-  // taken meanwhile.
+  // One enqueue at a time, in the order asked, so the receiver queues them in that order: the first one
+  // goes on once nothing holds it, from the window taken meanwhile, and after a replay on its way, whose
+  // tail goes before it.
   private func resumeEnqueues() {
     for id in enqueues.keys.sorted() {
-      guard var entry = enqueues[id], entry.waiting, !isHeld(id) else { continue }
+      guard var entry = enqueues[id] else { continue }
+      guard entry.waiting, !isHeld(id), !replays.contains(where: { $0 < id }) else { return }
       guard entry.error == nil, isCurrent(entry) else {
         enqueues[id] = nil
         if let error = entry.error { reportFailure(error) }
@@ -801,6 +806,7 @@ final class CastEngine: ChromeEngine {
       entry.taken = []
       enqueues[id] = entry
       sendWindow(id)
+      return
     }
   }
 

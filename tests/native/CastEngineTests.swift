@@ -2047,8 +2047,7 @@ enum CastEngineTests {
       engine.reloadCurrentItem()
       bench.port.holdResults = false
       bench.port.releaseResults()
-      let expected = Array(ids.prefix(max)) + Array(enqueued.prefix(max)) + Array(ids.dropFirst(max)) + Array(enqueued.dropFirst(max))
-      check("aReplayKeepsATailBeforeAnEnqueueAskedDuringItsReplay", receiverQueue(bench) == expected)
+      check("aReplayKeepsATailBeforeAnEnqueueAskedDuringItsReplay", receiverQueue(bench) == ids + enqueued)
     }
 
     // A window refused under a replay the channel refused too, while a Seek by reload had replaced that
@@ -2134,6 +2133,39 @@ enum CastEngineTests {
         bench.delegate.errors == ["down"]
           && receiverQueue(bench, refused: refused) == ["t-1"] + Array(enqueued.prefix(5 * CastEngineConstants.maxQueueItems))
       )
+    }
+
+    // An item added while a replay was on its way went out before the replay's tail, so the receiver played
+    // it after the replayed window instead of at the end.
+    do {
+      let bench = Bench()
+      let all = (1...longQueue).map { "t-\($0)" }
+      let engine = playingOne(bench, Array(all.dropFirst()))
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      engine.enqueue(itemIds: ["x-1"])
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      let queued = receiverQueue(bench)
+      engine.reloadCurrentItem()
+      check("anEnqueueAskedDuringAReplayGoesAfterItsTail", queued == all + ["x-1"] && receiverQueue(bench) == all + ["x-1"])
+    }
+
+    // An item added while a long enqueue still had windows to send went out between two of them.
+    do {
+      let bench = Bench()
+      let engine = playingOne(bench)
+      let enqueued = (1...longQueue).map { "x-\($0)" }
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: enqueued)
+      bench.port.releaseResults()
+      engine.enqueue(itemIds: ["y-1"])
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      let queued = receiverQueue(bench)
+      engine.reloadCurrentItem()
+      let expected = ["t-1"] + enqueued + ["y-1"]
+      check("anEnqueueAskedDuringALongOneGoesAfterIt", queued == expected && receiverQueue(bench) == expected)
     }
 
     if failures.isEmpty {
