@@ -690,6 +690,9 @@ describe("MusicPlayerProvider and a Cast session", () => {
 
     await run((p) => p.playQueue(ALBUM, 3));
     await receiverLoads("t3");
+    // The receiver has the tap: the player shows no load of the phone's.
+    expect(player.isLoading).toBe(false);
+    expect(player.loadingTrackId).toBeNull();
     await releaseStreams();
 
     expect(playNows().map((message) => message.options.startIndex)).toEqual([
