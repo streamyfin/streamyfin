@@ -125,13 +125,15 @@ final class CastEngine: ChromeEngine {
 
   // An enqueue's windows still to go, the first one on its way unless `waiting`. A replay's PlayNow
   // drops from the receiver the windows sent before it, so the replay sends them again and holds those
-  // enqueues until the channel settles it: a window taken meanwhile waits in `taken`, the next with it.
+  // enqueues until the channel settles it: a window taken meanwhile waits in `taken`, the next with it, and a
+  // window refused leaves its `error` to the replay's outcome.
   private struct Enqueue {
     let generation: Int
     let binding: String?
     var windows: [[String]]
     var waiting = false
     var taken: [String] = []
+    var error: String?
   }
   private var enqueues: [Int: Enqueue] = [:]
   private var enqueueCount = 0
@@ -754,10 +756,17 @@ final class CastEngine: ChromeEngine {
         self.sendWindow(id)
       },
       failed: { [weak self] error in
-        guard let self else { return }
+        // Ended meanwhile: a taken replay sent it again, or a load or the binding's end dropped what it was for.
+        guard let self, var entry = self.enqueues[id] else { return }
+        if self.isHeld(id) {
+          // The replay settles it: taken, it sent the window again; refused, the enqueue ends on this error.
+          entry.error = error
+          entry.waiting = true
+          self.enqueues[id] = entry
+          return
+        }
         self.enqueues[id] = nil
-        // Held, it goes in the replay's PlayNow: refused, that one reports.
-        if !self.isHeld(id) { self.reportFailure(error) }
+        self.reportFailure(error)
       }
     )
   }
@@ -766,8 +775,9 @@ final class CastEngine: ChromeEngine {
   private func resumeEnqueues() {
     for id in enqueues.keys.sorted() {
       guard var entry = enqueues[id], entry.waiting, !isHeld(id) else { continue }
-      guard isCurrent(entry) else {
+      guard entry.error == nil, isCurrent(entry) else {
         enqueues[id] = nil
+        if let error = entry.error { reportFailure(error) }
         continue
       }
       queue += entry.taken.map { ReceiverItem(id: $0) }
