@@ -572,9 +572,9 @@ final class CastEngine: ChromeEngine {
       guard let self, self.chosenSubtitle == index else { return }
       self.chosenSubtitle = previous
     }
-    if index >= 0, media?.status?.hasTextTracks == false {
-      // No text track loaded: the receiver would name the index in its reports and show nothing,
-      // so the item plays again where it is with that subtitle.
+    if index >= 0, media?.status?.hasTextTracks != true {
+      // No text track loaded, or no status to tell: the receiver would name the index in its reports
+      // and show nothing, so the item plays again where it is with that subtitle.
       let audio = read { $0.audio }
       playAgain(data, audio: audio >= 0 ? audio : nil, subtitle: index, undo: undo)
       return

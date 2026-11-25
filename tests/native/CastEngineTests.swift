@@ -1766,6 +1766,16 @@ enum CastEngineTests {
       check("aLoadSupersededBeforeItsSendNeverGoesOut", bench.sentMessages().map { itemIds($0) } == [["a-1"], ["c-1"]])
     }
 
+    // A status the media channel cannot read says nothing of the text tracks: the subtitle goes by a
+    // reload, as for an item without any, never by a command the receiver would answer with nothing.
+    do {
+      let bench = Bench()
+      let engine = bench.playing()
+      bench.media.status = nil
+      engine.setSubtitleTrack(3)
+      check("aSubtitleChangeWithNoStatusToReadReloads", commandsSent(on: bench.port) == ["PlayNow"])
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
