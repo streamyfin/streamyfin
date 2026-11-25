@@ -72,10 +72,13 @@ final class RemoteTargetHub {
 
   var snapshot: RemoteTargetSnapshot { locked { publishedSnapshot } }
   var devices: [TargetDevice] { locked { publishedDevices } }
-  /// True after a disconnect that asked to keep the receiver playing, until the next connection; the module
+  /// True after a disconnect that asked to keep the receiver playing, until a connection after its end; the module
   /// marks the end it brings. The receiver keeps playing only when this session joined it: the session that
   /// launched the receiver app stops it at its end whatever it asks, on both SDKs (bench, 04/11).
   private(set) var disconnectedWithoutStop = false
+  // That disconnect's end has not come yet: a connection meanwhile leaves the mark to it, since the receiver may
+  // still play the session it ends.
+  private var endWithoutStopDue = false
   var log: (String) -> Void = { _ in }
 
   /// The same port again does nothing, so every JS reload can install it.
@@ -103,7 +106,7 @@ final class RemoteTargetHub {
   /// False, with nothing changed, when the port does not know the device.
   func connect(deviceId: String) -> Bool {
     guard let port, let device = port.devices().first(where: { $0.id == deviceId }) else { return false }
-    disconnectedWithoutStop = false
+    if !endWithoutStopDue { disconnectedWithoutStop = false }
     let current = snapshot
     let held = current.target?.id == deviceId && (current.phase == .connecting || current.phase == .connected)
     // The receiver already there asks nothing, unless a switch is taking its session away.
@@ -119,6 +122,7 @@ final class RemoteTargetHub {
   /// The state follows the port's events, ending then ended, not this call.
   func disconnect(stopPlayback: Bool) {
     disconnectedWithoutStop = !stopPlayback
+    endWithoutStopDue = !stopPlayback
     machine.disconnectRequested()
     port?.disconnect(stopPlayback: stopPlayback)
   }
@@ -153,7 +157,11 @@ final class RemoteTargetHub {
     if let error { log("Cast session \(event): \(error)") }
     // A session the SDK starts on its own, from its dialog, is a new connection too; a session the SDK
     // kept, or one that came back, is no end of that disconnect any more.
-    if event == "starting" || event == "endRefused" || event == "resumed" { disconnectedWithoutStop = false }
+    if event == "starting" || event == "endRefused" || event == "resumed" {
+      disconnectedWithoutStop = false
+      endWithoutStopDue = false
+    }
+    if event == "ended" || event == "startFailed" { endWithoutStopDue = false }
     if machine.sessionEvent(event, device: device, error: error, code: code) { publish() }
   }
 

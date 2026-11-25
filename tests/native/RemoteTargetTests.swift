@@ -209,6 +209,19 @@ enum RemoteTargetTests {
       check("aKeptOrResumedSessionClearsTheMark", !afterTheRefusal && !hub.disconnectedWithoutStop)
     }
 
+    // A connection back before the end that disconnect asked for: that end still carries the mark, since the receiver
+    // may still play the session; the connection after it clears it.
+    do {
+      let port = FakeTargetPort(known: [livingRoom])
+      let hub = connectedHub(port)
+      hub.disconnect(stopPlayback: false)
+      _ = hub.connect(deviceId: livingRoom.id)
+      port.emit("ended", livingRoom)
+      let atTheEnd = hub.disconnectedWithoutStop
+      _ = hub.connect(deviceId: livingRoom.id)
+      check("aConnectionBeforeTheEndLeavesTheMarkToThatEnd", atTheEnd && !hub.disconnectedWithoutStop)
+    }
+
     // The Android SDK selects the asked route back; the iOS port starts it once its session has ended.
     do {
       let port = FakeTargetPort(known: [livingRoom, bedroom])
