@@ -1788,6 +1788,25 @@ enum CastEngineTests {
       check("anEnqueueStopsOnceTheEngineStops", commandsSent(on: bench.port).filter { $0 == "PlayLast" }.count == 1)
     }
 
+    // A replay sends the window that fits one message, which becomes the receiver's whole queue: the
+    // items after it go again a window at a time, or the receiver stopped short of them.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let last = CastEngineConstants.maxQueueItems + 1
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      engine.enqueue(itemIds: (2...last).map { "t-\($0)" })
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      let before = bench.port.sent.count
+      engine.reloadCurrentItem()
+      let replay = Array(bench.sentMessages().dropFirst(before))
+      check(
+        "aReplayOfALongQueueSendsItsTailAgain",
+        replay.map { $0["command"] as? String } == ["PlayNow", "PlayLast"]
+          && itemIds(replay.first).count == CastEngineConstants.maxQueueItems && itemIds(replay.last) == ["t-\(last)"]
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {

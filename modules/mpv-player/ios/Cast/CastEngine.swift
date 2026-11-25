@@ -606,7 +606,22 @@ final class CastEngine: ChromeEngine {
       liveStreamId: data.liveStreamId
     )
     guard let message = try? ReceiverProtocol.playNow(server: server, request: request) else { return }
-    startReload(target: position, data: data, undo: undo) { failed in self.sendMessage("PlayNow", message, failed: failed) }
+    // Once the receiver took it, the window is its whole queue: the engine's queue is that window, and
+    // the items after it go again a window at a time.
+    let generation = queueGeneration
+    let tail = index.map { Array(queue.dropFirst($0 - window.startIndex + window.items.count)).compactMap(\.id) } ?? []
+    startReload(target: position, data: data, undo: undo) { failed in
+      self.sendMessage(
+        "PlayNow", message,
+        sent: { [weak self] in
+          guard let self, index != nil, generation == self.queueGeneration else { return }
+          self.queue = window.items
+          self.playingIndex = window.startIndex
+          self.enqueueWindows(Self.windows(of: tail)[...], generation: generation, binding: self.boundSessionId)
+        },
+        failed: failed
+      )
+    }
   }
 
   // Local-only processing: the receiver has no such controls.
@@ -641,10 +656,13 @@ final class CastEngine: ChromeEngine {
   func enqueue(itemIds: [String]) {
     onMain()
     guard session != nil else { return }
-    let windows = stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
+    enqueueWindows(Self.windows(of: itemIds)[...], generation: queueGeneration, binding: boundSessionId)
+  }
+
+  private static func windows(of itemIds: [String]) -> [[String]] {
+    stride(from: 0, to: itemIds.count, by: CastEngineConstants.maxQueueItems).map { start in
       Array(itemIds[start..<min(start + CastEngineConstants.maxQueueItems, itemIds.count)])
     }
-    enqueueWindows(windows[...], generation: queueGeneration, binding: boundSessionId)
   }
 
   // Each window once the channel took the one before: the queue then holds them in the order the
