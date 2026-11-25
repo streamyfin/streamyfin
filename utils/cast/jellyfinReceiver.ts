@@ -666,9 +666,13 @@ export const castToJellyfinReceiver = async (
   if ("status" in waited) return waited;
   const [ready, status] = waited.ready;
   const previous = receiverMediaData(status);
+  // The send goes to whatever session is current: another TV picked since
+  // the cast started gets nothing.
+  const movedOn = () =>
+    currentCastSession()?.id !== client.sessionId || !!isStale?.();
   // A cast started while this one got ready owns the TV now: sending this one
   // after it would replace it there.
-  if (cast !== castCount || isStale?.()) return { status: "superseded" };
+  if (cast !== castCount || movedOn()) return { status: "superseded" };
   const loadSession: JellyfinCastSession = {
     ...ready,
     maxBitrate: Math.min(
@@ -731,11 +735,7 @@ export const castToJellyfinReceiver = async (
 
     // Opening the channel can outlast the load: replaced or timed out by then,
     // it sends nothing.
-    playOnJellyfinReceiver(
-      loadSession,
-      request,
-      () => abandoned || !!isStale?.(),
-    )
+    playOnJellyfinReceiver(loadSession, request, () => abandoned || movedOn())
       .then((sent) => {
         if (!sent) settle(() => resolve({ status: "superseded" }));
       })

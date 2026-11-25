@@ -550,6 +550,8 @@ describe("castToJellyfinReceiver", () => {
   const makeClient = (current: Status | null = null) => {
     let listener: ((status: Status | null) => void) | undefined;
     return {
+      // Bound to the session it was made on, as castClientFor binds one.
+      sessionId: mockCast.session?.id,
       getMediaStatus: jest.fn(async () => current),
       onMediaStatusUpdated: jest.fn((handler: typeof listener) => {
         listener = handler;
@@ -703,6 +705,26 @@ describe("castToJellyfinReceiver", () => {
       await sent();
 
       expect(playNowIds()).toEqual([]);
+    });
+
+    // The load watches the session it started on: another TV picked while
+    // the channel opened must not get the item.
+    test("sends nothing to the receiver the session switched to", async () => {
+      const release = holdChannelOpen();
+      const outcome = castToJellyfinReceiver(
+        makeClient() as never,
+        session(),
+        { items: [movie] },
+        50,
+      );
+      await sent();
+      setCastSession(mockCast, "tv-b");
+
+      release();
+      await sent();
+
+      expect(playNowIds()).toEqual([]);
+      expect(await outcome).toEqual({ status: "superseded" });
     });
   });
 
