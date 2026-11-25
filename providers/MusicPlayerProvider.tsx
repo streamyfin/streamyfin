@@ -1602,6 +1602,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         await TrackPlayer.play();
         // The service may have played on after the app went: where it stands is where this start is.
         const { position } = await TrackPlayer.getProgress();
+        if (isStale()) return;
         // The server has heard of no play of this queue since the restart: this is its start.
         void reportPlaybackStart(
           state.queue[liveIndex],

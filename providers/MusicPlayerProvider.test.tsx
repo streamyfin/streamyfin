@@ -51,6 +51,7 @@ const mockNative = {
    * the answer, which is when another caller's edit can slip in.
    */
   afterQueueRead: undefined as (() => Promise<void>) | undefined,
+  beforeProgress: undefined as (() => Promise<void>) | undefined,
   /** Whether setupPlayer has succeeded: the native side rejects most calls before. */
   initialized: false,
   /** Every native call that sets up or changes the queue, in order. */
@@ -101,11 +102,10 @@ jest.mock(
         mockNative.playing = false;
       },
       seekTo: async () => undefined,
-      getProgress: async () => ({
-        position: mockNative.position,
-        duration: 0,
-        buffered: 0,
-      }),
+      getProgress: async () => {
+        await mockNative.beforeProgress?.();
+        return { position: mockNative.position, duration: 0, buffered: 0 };
+      },
       getQueue: async () => {
         const answer = [...mockNative.queue];
         await mockNative.afterQueueRead?.();
@@ -365,6 +365,7 @@ beforeEach(() => {
   mockNative.position = 0;
   mockNative.onPause = undefined;
   mockNative.afterQueueRead = undefined;
+  mockNative.beforeProgress = undefined;
   mockNetwork.isConnected = true;
   mockNetwork.serverConnected = true;
   mockNative.initialized = false;
@@ -2301,6 +2302,24 @@ describe("MusicPlayerProvider native player setup", () => {
     expect(mockNative.calls).not.toContain("reset");
     expect(mockNative.calls).not.toContain("add");
     expect(player.isPlaying).toBe(true);
+  });
+
+  // A stop while that resume read where the service stands: the resume went on to report the start of a
+  // track the stop had just removed, and the server listed a play nobody had.
+  test("a stop during the resume's progress read reports no start", async () => {
+    persistQueue(ALBUM, 2);
+    await mount();
+    mockNative.queue = [{ id: "t2" }];
+    mockNative.activeIndex = 0;
+    mockNative.beforeProgress = async () => {
+      mockNative.beforeProgress = undefined;
+      await player.stop();
+    };
+
+    await run((p) => p.resume());
+    await settle();
+
+    expect(reports(START_URL)).toHaveLength(0);
   });
 
   // A start waiting on the setup would otherwise resume behind the reset a
