@@ -2005,6 +2005,61 @@ enum CastEngineTests {
       )
     }
 
+    // A replay's tail and an enqueue asked while that replay was on its way: a later replay must send the
+    // tail first, as the receiver holds them, on both platforms.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let max = CastEngineConstants.maxQueueItems
+      let ids = (1...(max + 2)).map { "t-\($0)" }
+      let enqueued = (1...(max + 1)).map { "x-\($0)" }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: ids[0])])) { _ in }
+      engine.enqueue(itemIds: Array(ids.dropFirst()))
+      bench.media.report(snapshot(customData: ours(["itemId": ids[0], "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      engine.enqueue(itemIds: enqueued)
+      bench.port.releaseResults()
+      engine.reloadCurrentItem()
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      let expected = Array(ids.prefix(max)) + Array(enqueued.prefix(max)) + Array(ids.dropFirst(max)) + Array(enqueued.dropFirst(max))
+      check("aReplayKeepsATailBeforeAnEnqueueAskedDuringItsReplay", receiverQueue(bench) == expected)
+    }
+
+    // A window refused under a replay the channel refused too, while a Seek by reload had replaced that
+    // replay's reload: neither refusal was reported, and the enqueued item was gone.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2", "canClientSeek": false])), position: 0)
+      bench.port.holdResults = true
+      bench.port.sendError = "down"
+      engine.enqueue(itemIds: ["x-1"])
+      engine.reloadCurrentItem()
+      bench.port.sendError = nil
+      engine.seekTo(position: 10)
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      check("aWindowRefusedUnderARefusedReplayIsReported", bench.delegate.errors == ["down"])
+    }
+
+    // A window refused after a load replaced its queue: the enqueue was for the queue the load dropped.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.port.holdResults = true
+      bench.port.sendError = "down"
+      engine.enqueue(itemIds: ["x-1"])
+      bench.port.sendError = nil
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      check("aWindowRefusedAfterALoadReportsNothing", bench.delegate.errors.isEmpty)
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {

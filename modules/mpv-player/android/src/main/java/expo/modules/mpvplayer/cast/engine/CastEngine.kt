@@ -128,11 +128,14 @@ class CastEngine(
 
     // An enqueue's windows still to go, the first one on its way unless [waiting]. A replay's PlayNow
     // drops from the receiver the windows sent before it, so the replay sends them again and holds those
-    // enqueues until the channel settles it: a window taken meanwhile waits in [taken], the next with it.
+    // enqueues until the channel settles it: a window taken meanwhile waits in [taken], the next with it, and
+    // a window refused leaves its [error] to the replay's outcome.
     private class Enqueue(val generation: Long, val binding: String?, var windows: List<List<String>>, var waiting: Boolean = false) {
         var taken: List<String> = emptyList()
+        var error: String? = null
     }
-    private val enqueues = linkedMapOf<Long, Enqueue>()
+    // By id, the order asked: a replay's tail, under the replay's id, goes before what was enqueued meanwhile.
+    private val enqueues = sortedMapOf<Long, Enqueue>()
     private var enqueueCount = 0L
 
     // The replays whose PlayNow the channel has not settled: each holds the enqueues asked before it.
@@ -665,9 +668,16 @@ class CastEngine(
             "PlayLast",
             ReceiverProtocol.playLast(server, window),
             failed = {
-                enqueues.remove(id)
-                // Held, it goes in the replay's PlayNow: refused, that one reports.
-                if (!isHeld(id)) delegate?.onError(it)
+                // Ended meanwhile: a taken replay sent it again, or a load or the binding's end dropped what it was for.
+                if (enqueues[id] !== entry) return@sendMessage
+                if (isHeld(id)) {
+                    // The replay settles it: taken, it sent the window again; refused, the enqueue ends on this error.
+                    entry.error = it
+                    entry.waiting = true
+                } else {
+                    enqueues.remove(id)
+                    delegate?.onError(it)
+                }
             },
             sent = {
                 if (enqueues[id] !== entry) return@sendMessage
@@ -691,8 +701,9 @@ class CastEngine(
     private fun resumeEnqueues() {
         for ((id, entry) in enqueues.entries.toList()) {
             if (!entry.waiting || isHeld(id)) continue
-            if (!isCurrent(entry)) {
+            if (entry.error != null || !isCurrent(entry)) {
                 enqueues.remove(id)
+                entry.error?.let { delegate?.onError(it) }
                 continue
             }
             queue = queue + entry.taken.map { ReceiverItem(id = it) }
