@@ -502,9 +502,9 @@ class CastEngine(
         chosenSubtitle = index
         updateTracks()
         val undo = { if (chosenSubtitle == index) chosenSubtitle = previous }
-        if (index >= 0 && media?.status?.hasTextTracks == false) {
-            // No text track loaded: the receiver would name the index in its reports and show
-            // nothing, so the item plays again where it is with that subtitle.
+        if (index >= 0 && media?.status?.hasTextTracks != true) {
+            // No text track loaded, or no status to tell: the receiver would name the index in its
+            // reports and show nothing, so the item plays again where it is with that subtitle.
             playAgain(data, currentAudio.takeIf { it >= 0 }, index, undo)
             return
         }

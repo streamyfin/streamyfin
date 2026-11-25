@@ -1224,4 +1224,14 @@ class CastEngineTest {
         val items = JSONObject(text).getJSONObject("options").getJSONArray("items")
         return (0 until items.length()).map { items.getJSONObject(it).getString("Id") }
     }
+
+    // A status the media channel cannot read says nothing of the text tracks: the subtitle goes by a
+    // reload, as for an item without any, never by a command the receiver would answer with nothing.
+    @Test
+    fun aSubtitleChangeWithNoStatusToReadReloads() {
+        val engine = playing()
+        media.status = null
+        engine.setSubtitleTrack(3)
+        assertEquals(listOf("PlayNow"), commands().map { it.first })
+    }
 }
