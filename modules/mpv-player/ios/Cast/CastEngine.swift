@@ -22,6 +22,7 @@ final class CastEngine: ChromeEngine {
   static let urlLoadError = "The Cast engine plays Jellyfin items, not URLs"
   static let playbackError = "The receiver stopped on a playback error"
   static let sessionReplacedError = "The Cast session was replaced"
+  private static let noCompatibleStream = "NoCompatibleStream"
 
   weak var delegate: PlayerEngineDelegate?
   weak var bindingListener: CastBindingListener?
@@ -812,7 +813,8 @@ final class CastEngine: ChromeEngine {
     }
     if noCompatibleStreamFollows, error == .playbackFailed {
       noCompatibleStreamFollows = false
-      return
+      // Only a NoCompatibleStream is that failure's: another playbackerror is a failure of its own.
+      if case .parsed(let json) = message, json["message"] as? String == Self.noCompatibleStream { return }
     }
     noCompatibleStreamFollows = error == .playbackInfoFailed
     delegate?.engine(self, didFailWithError: error.rawValue)

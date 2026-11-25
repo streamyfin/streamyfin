@@ -1818,6 +1818,16 @@ enum CastEngineTests {
       check("aRefusedReplayOfAStoppedItemKeepsItsPosition", close(engine.getCurrentPosition(), 42.5))
     }
 
+    // A connectionerror with no playbackerror after it, then the playbackerror of another failure: that
+    // one is no follow-up and reports.
+    do {
+      let bench = Bench()
+      _ = bench.playing()
+      bench.port.deliver("{\"type\":\"connectionerror\",\"message\":\"Request failed\"}")
+      bench.port.deliver("{\"type\":\"playbackerror\",\"message\":\"NotAllowed\"}")
+      check("aPlaybackErrorAfterALoneConnectionErrorReports", bench.delegate.errors == ["playback_info_failed", "playback_failed"])
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
