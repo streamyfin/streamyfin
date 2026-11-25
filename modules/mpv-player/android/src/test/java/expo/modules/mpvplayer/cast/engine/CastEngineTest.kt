@@ -1336,4 +1336,44 @@ class CastEngineTest {
         engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
         assertEquals(false, delegate.loadings.last())
     }
+
+    // Two replays of a long queue in a row: the first one's tail went on beside the second one's, and
+    // the receiver queued items twice or never got some.
+    @Test
+    fun aReplayOverTheTailOfAnotherSendsTheWholeQueueOnce() {
+        val engine = engine()
+        val ids = (1..2 * CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "t-$it" }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = ids[0])))) {}
+        engine.enqueue(ids.drop(1))
+        media.report(snapshot(customData = ours("itemId" to ids[0], "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        port.releaseResults()
+        engine.reloadCurrentItem()
+        repeat(4) { port.releaseResults() }
+        assertEquals(ids, receiverQueue())
+    }
+
+    // An item enqueued just before a replay: its PlayLast went out before the PlayNow, which dropped it
+    // from the receiver, and the engine dropped it too once the PlayNow was taken.
+    @Test
+    fun anItemEnqueuedJustBeforeAReplayGoesAgainWithIt() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.enqueue(listOf("x-1"))
+        engine.reloadCurrentItem()
+        repeat(2) { port.releaseResults() }
+        port.holdResults = false
+        assertEquals(listOf("t-1", "x-1"), receiverQueue())
+        engine.reloadCurrentItem()
+        assertEquals(listOf("t-1", "x-1"), itemsOf(port.sent.last().second))
+    }
+
+    // What the receiver queues: the last PlayNow, then each PlayLast after it.
+    private fun receiverQueue(): List<String> {
+        val last = port.sent.indexOfLast { JSONObject(it.second).getString("command") == "PlayNow" }
+        return port.sent.drop(last).flatMap { itemsOf(it.second) }
+    }
 }

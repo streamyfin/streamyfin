@@ -126,6 +126,11 @@ class CastEngine(
     // The generation whose queue the engine holds: a refusal gives an older one back.
     private var heldGeneration = 0L
 
+    // The windows each enqueue still has to see taken, in the order asked: a replay's PlayNow drops
+    // those on their way from the receiver, so it sends them again.
+    private val enqueues = linkedMapOf<Long, List<List<String>>>()
+    private var enqueueCount = 0L
+
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
 
@@ -250,6 +255,7 @@ class CastEngine(
         reload?.cancelTimer?.invoke()
         reload = null
         cancelEndWait()
+        enqueues.clear()
         suspended = false
         reclaimPending = false
         // What was reported was reported to this host: the next one starts from nothing.
@@ -338,6 +344,7 @@ class CastEngine(
         val generation = ++queueGeneration
         replaced[generation] = QueueState(this.server, queue, playingIndex, heldGeneration)
         heldGeneration = generation
+        enqueues.clear()
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
         queue = receiverRequest.items
@@ -530,7 +537,10 @@ class CastEngine(
     // someone else's.
     private fun playAgain(data: ReceiverCustomData, audio: Int?, subtitle: Int?, undo: () -> Unit = {}) {
         val index = if (queue.getOrNull(playingIndex)?.id == data.itemId) playingIndex else queue.indexOfFirst { it.id == data.itemId }
-        val items = if (index >= 0) queue else listOf(ReceiverItem(id = data.itemId))
+        // The windows of the enqueues on their way go out before this PlayNow, which drops them: they
+        // go again after the queue, as does the tail of a replay before this one.
+        val unsent = if (index >= 0) enqueues.values.flatten() else emptyList()
+        val items = if (index >= 0) queue + unsent.flatten().map { ReceiverItem(id = it) } else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
         val request = ReceiverPlayRequest(
             items = window.items,
@@ -545,12 +555,19 @@ class CastEngine(
         // and the items after it go again a window at a time.
         val generation = queueGeneration
         val tail = if (index < 0) emptyList() else items.drop(index - window.startIndex + window.items.size).mapNotNull { it.id }
+        // The enqueues on their way stop, their windows being this one's; until the PlayNow is taken,
+        // a newer replay sends them again, and a newer load or replay ends this one.
+        val replay = ++enqueueCount
+        if (index >= 0) {
+            enqueues.clear()
+            enqueues[replay] = unsent
+        }
         startReload(position, null, data, undo) { failed ->
             sendMessage("PlayNow", ReceiverProtocol.playNow(server, request), failed) {
-                if (index < 0 || generation != queueGeneration) return@sendMessage
+                if (index < 0 || generation != queueGeneration || replay !in enqueues) return@sendMessage
                 queue = window.items
                 playingIndex = window.startIndex
-                enqueueWindows(tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), generation, boundSessionId)
+                enqueueWindows(tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), generation, boundSessionId, replay)
             }
         }
     }
@@ -602,23 +619,34 @@ class CastEngine(
     // A Cast message holds 64 KB: the items go a window at a time.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
-        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration, boundSessionId)
+        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration, boundSessionId, ++enqueueCount)
     }
 
     // Each window once the channel took the one before: the queue then holds them in the order the
     // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
     // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
     // sent on: the rest was for that receiver.
-    private fun enqueueWindows(windows: List<List<String>>, generation: Long, binding: String?) {
-        val window = windows.firstOrNull() ?: return
+    // A replay ends it too, the windows left going in its PlayNow.
+    private fun enqueueWindows(windows: List<List<String>>, generation: Long, binding: String?, id: Long) {
+        val window = windows.firstOrNull()
+        if (window == null) {
+            enqueues.remove(id)
+            return
+        }
+        enqueues[id] = windows
         sendMessage(
             "PlayLast",
             ReceiverProtocol.playLast(server, window),
-            failed = { delegate?.onError(it) },
+            failed = {
+                enqueues.remove(id)
+                delegate?.onError(it)
+            },
             sent = {
-                if (generation == queueGeneration && session != null && boundSessionId == binding) {
+                if (id in enqueues && generation == queueGeneration && session != null && boundSessionId == binding) {
                     queue = queue + window.map { ReceiverItem(id = it) }
-                    enqueueWindows(windows.drop(1), generation, binding)
+                    enqueueWindows(windows.drop(1), generation, binding, id)
+                } else {
+                    enqueues.remove(id)
                 }
             },
         )
