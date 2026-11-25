@@ -173,9 +173,11 @@ final class GoogleCastTargetPort: TargetPort {
     }
     if let running = runningSession() {
       if running.device?.id == device.id {
-        // Asked back while a switch ends its session: start it again once that end comes.
+        // Asked back while a switch ends its session: start it again once that end comes. The end a deferred Stop
+        // asked has no wait of its own, so this start gives up if that end never comes.
         if switching {
           pendingSwitch = device
+          if cancelWait == nil { waitForEnd() }
           return
         }
         // A lost session is not on its way: after the receiver restarted it never came back, and the row stayed
