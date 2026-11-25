@@ -1282,4 +1282,21 @@ class CastEngineTest {
         port.deliver("""{"type":"playbackerror","message":"NotAllowed"}""")
         assertEquals(listOf("playback_info_failed", "playback_failed"), delegate.errors)
     }
+
+    // An end whose status carries no media still ends this engine's playback: the next item of its queue
+    // is its own, and a resume onto it reclaims the bus.
+    @Test
+    fun aResumeOntoTheItemItsQueueWentOnToAfterAnEndWithoutMediaReclaimsTheBus() {
+        val engine = engine()
+        val album = ReceiverPlayRequest(items = listOf("t-1", "t-2").map { ReceiverItem(id = it, type = "Audio") })
+        engine.load(SERVER, album) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-1")), 0)
+        media.report(snapshot(playerState = "idle", idleReason = "finished", customData = null, hasMedia = false), 0)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 0)
+        hub.suspend()
+        val port2 = FakeChannelPort()
+        hub.attach(port2)
+        media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 1_000)
+        assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
+    }
 }

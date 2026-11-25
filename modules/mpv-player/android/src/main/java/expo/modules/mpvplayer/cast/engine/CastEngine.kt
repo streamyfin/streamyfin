@@ -147,6 +147,10 @@ class CastEngine(
     // After IDLE + FINISHED the receiver fetches the next item before it buffers: the end waits.
     private var endWait: (() -> Unit)? = null
 
+    // The play session the end waits after, kept past a status without media: the next item is this
+    // engine's when that one was.
+    private var finishedPlaySession: String? = null
+
     // A failed PlaybackInfo comes as a connection error, then a NoCompatibleStream playbackerror that
     // belongs to the same failure.
     private var noCompatibleStreamFollows = false
@@ -647,7 +651,7 @@ class CastEngine(
         settled?.let { (pending, outcome) -> settleReload(pending, outcome, recompute = false) }
         data?.playSessionId?.let { playSession ->
             val ownLoad = loaded?.second == ReceiverLoadOutcome.Loaded || settled?.second == ReceiverLoadOutcome.Loaded
-            val ownQueueWentOn = wentOn && ownPlaySession != null && playSessionId == ownPlaySession &&
+            val ownQueueWentOn = wentOn && ownPlaySession != null && finishedPlaySession == ownPlaySession &&
                 queue.getOrNull(playingIndex)?.id == data.itemId
             if (ownLoad || ownQueueWentOn) ownPlaySession = playSession
         }
@@ -775,6 +779,7 @@ class CastEngine(
 
     private fun armEndWait() {
         cancelEndWait()
+        finishedPlaySession = playSessionId
         log("idle finished, waiting for the next item")
         endWait = schedule(CastEngineConstants.NEXT_ITEM_WAIT_MS) {
             endWait = null
