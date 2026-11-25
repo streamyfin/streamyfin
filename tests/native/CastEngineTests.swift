@@ -273,9 +273,10 @@ func itemIds(_ message: [String: Any]?) -> [String] {
   ((message?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
 }
 
-/// What the receiver queues: the last PlayNow, then each PlayLast after it.
-func receiverQueue(_ bench: Bench) -> [String] {
-  let messages = bench.sentMessages()
+/// What the receiver queues: the last PlayNow it took, then each PlayLast after it; `refused` holds the
+/// indexes in `port.sent` of the sends the channel refused.
+func receiverQueue(_ bench: Bench, refused: Set<Int> = []) -> [String] {
+  let messages = bench.sentMessages().enumerated().filter { !refused.contains($0.offset) }.map(\.element)
   guard let last = messages.lastIndex(where: { $0["command"] as? String == "PlayNow" }) else { return [] }
   return messages[last...].flatMap { itemIds($0) }
 }
@@ -1936,6 +1937,71 @@ enum CastEngineTests {
       check(
         "anItemEnqueuedJustBeforeAReplayGoesAgainWithIt",
         queued == ["t-1", "x-1"] && itemIds(bench.sentMessages().last) == ["t-1", "x-1"]
+      )
+    }
+
+    // A replay the channel refused while an enqueue was on its way: the replay had stopped the enqueue,
+    // so the window the receiver took stayed out of the engine's queue and the next one never went.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let enqueued = (1...(CastEngineConstants.maxQueueItems + 1)).map { "x-\($0)" }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: enqueued)
+      let refused: Set<Int> = [bench.port.sent.count]
+      bench.port.sendError = "down"
+      engine.reloadCurrentItem()
+      bench.port.sendError = nil
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      let queued = receiverQueue(bench, refused: refused)
+      engine.reloadCurrentItem()
+      check(
+        "anEnqueueOnItsWayGoesOnWhenTheReplayIsRefused",
+        queued == ["t-1"] + enqueued && receiverQueue(bench, refused: refused) == ["t-1"] + enqueued
+      )
+    }
+
+    // A replay the receiver took, then a newer one the channel refused: the first one's tail never went,
+    // and the receiver stopped after its window.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let ids = (1...(2 * CastEngineConstants.maxQueueItems + 1)).map { "t-\($0)" }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: ids[0])])) { _ in }
+      engine.enqueue(itemIds: Array(ids.dropFirst()))
+      bench.media.report(snapshot(customData: ours(["itemId": ids[0], "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      let refused: Set<Int> = [bench.port.sent.count]
+      bench.port.sendError = "down"
+      engine.reloadCurrentItem()
+      bench.port.sendError = nil
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      check("aTakenReplaySendsItsTailWhenTheNewerOneIsRefused", receiverQueue(bench, refused: refused) == ids)
+    }
+
+    // A window refused on its way while a replay carried it again: the replay sent it, yet the engine
+    // reported the refusal.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      bench.port.sendError = "down"
+      engine.enqueue(itemIds: ["x-1"])
+      let refused: Set<Int> = [bench.port.sent.count - 1]
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      check(
+        "aWindowRefusedUnderATakenReplayReportsNothing",
+        receiverQueue(bench, refused: refused) == ["t-1", "x-1"] && bench.delegate.errors.isEmpty
       )
     }
 
