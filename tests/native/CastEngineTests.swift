@@ -2005,6 +2005,28 @@ enum CastEngineTests {
       )
     }
 
+    // A replay's tail and an enqueue asked while that replay was on its way: a later replay must send the
+    // tail first, as the receiver holds them, on both platforms.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let max = CastEngineConstants.maxQueueItems
+      let ids = (1...(max + 2)).map { "t-\($0)" }
+      let enqueued = (1...(max + 1)).map { "x-\($0)" }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: ids[0])])) { _ in }
+      engine.enqueue(itemIds: Array(ids.dropFirst()))
+      bench.media.report(snapshot(customData: ours(["itemId": ids[0], "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      engine.enqueue(itemIds: enqueued)
+      bench.port.releaseResults()
+      engine.reloadCurrentItem()
+      bench.port.holdResults = false
+      bench.port.releaseResults()
+      let expected = Array(ids.prefix(max)) + Array(enqueued.prefix(max)) + Array(ids.dropFirst(max)) + Array(enqueued.dropFirst(max))
+      check("aReplayKeepsATailBeforeAnEnqueueAskedDuringItsReplay", receiverQueue(bench) == expected)
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
