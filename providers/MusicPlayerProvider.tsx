@@ -1593,9 +1593,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // As on Spotify: a connected session takes the paused queue, from the
     // track and the place it paused on, and the phone stays silent.
     if (castConnected && state.queue.length > 0) {
-      const index = state.queue.findIndex(
-        (t) => t.Id === state.currentTrack?.Id,
-      );
+      // The index first: a queue can hold the same track twice.
+      const index =
+        state.queue[state.queueIndex]?.Id === state.currentTrack?.Id
+          ? state.queueIndex
+          : state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
       void castOnReceiver(
         state.queue,
         Math.max(index, 0),

@@ -997,6 +997,21 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t2");
   });
 
+  // A queue that holds a track twice, paused on its second time: the receiver got the queue from the first one,
+  // and played again what came between.
+  test("play on a paused queue with a track twice sends it from the time it paused on", async () => {
+    persistQueue([track("t0"), track("t1"), track("t0")], 2);
+    await mount();
+    await connectCast();
+    await settle();
+
+    await run((p) => p.togglePlayPause());
+
+    const sent = playNows();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].options.startIndex).toBe(2);
+  });
+
   // Seen on an iPhone: the TV played the queue while the server still listed
   // the phone as playing it, from the last report before its pause.
   test("play on a paused queue while a session is connected ends the phone's play session on the server", async () => {
