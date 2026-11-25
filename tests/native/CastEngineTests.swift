@@ -273,6 +273,13 @@ func itemIds(_ message: [String: Any]?) -> [String] {
   ((message?["options"] as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["Id"] as? String }
 }
 
+/// What the receiver queues: the last PlayNow, then each PlayLast after it.
+func receiverQueue(_ bench: Bench) -> [String] {
+  let messages = bench.sentMessages()
+  guard let last = messages.lastIndex(where: { $0["command"] as? String == "PlayNow" }) else { return [] }
+  return messages[last...].flatMap { itemIds($0) }
+}
+
 @main
 enum CastEngineTests {
   static var failures: [String] = []
@@ -1857,6 +1864,78 @@ enum CastEngineTests {
       check(
         "aReplayPositionTicksCannotHoldIsRefused",
         bench.port.sent.isEmpty && subtitle(engine) == 3 && bench.delegate.errors == [CastEngine.positionError]
+      )
+    }
+
+    // A load refused at once over an older one still on its way, then that one refused: the second
+    // refusal found no newer load to hand its queue to, and the engine kept a queue the receiver never
+    // took, the replay then casting the item alone.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: ["a-1", "a-2"].map { ReceiverItem(id: $0) })) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "a-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.sendError = "down"
+      bench.port.holdResults = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.port.holdResults = false
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      bench.port.releaseResults()
+      bench.port.sendError = nil
+      engine.reloadCurrentItem()
+      check("twoLoadsRefusedNewestFirstLeaveTheQueueTheReceiverTook", itemIds(bench.sentMessages().last) == ["a-1", "a-2"])
+    }
+
+    // The superseded load's handler cast again inside the newer load, and the channel refused that one
+    // at once: the newer load then showed loading for a load that never went out.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      var castAgain = true
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "a-1")])) { _ in
+        guard castAgain else { return }
+        castAgain = false
+        bench.port.sendError = "down"
+        engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "c-1")])) { _ in }
+      }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      check("aLoadCastFromTheSupersededOnesHandlerAndRefusedLeavesNoLoading", bench.delegate.loadings.last == false)
+    }
+
+    // Two replays of a long queue in a row: the first one's tail went on beside the second one's, and
+    // the receiver queued items twice or never got some.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let ids = (1...(2 * CastEngineConstants.maxQueueItems + 1)).map { "t-\($0)" }
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: ids[0])])) { _ in }
+      engine.enqueue(itemIds: Array(ids.dropFirst()))
+      bench.media.report(snapshot(customData: ours(["itemId": ids[0], "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      bench.port.releaseResults()
+      engine.reloadCurrentItem()
+      for _ in 0..<4 { bench.port.releaseResults() }
+      check("aReplayOverTheTailOfAnotherSendsTheWholeQueueOnce", receiverQueue(bench) == ids)
+    }
+
+    // An item enqueued just before a replay: its PlayLast went out before the PlayNow, which dropped it
+    // from the receiver, and the engine dropped it too once the PlayNow was taken.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: ["x-1"])
+      engine.reloadCurrentItem()
+      for _ in 0..<2 { bench.port.releaseResults() }
+      bench.port.holdResults = false
+      let queued = receiverQueue(bench)
+      engine.reloadCurrentItem()
+      check(
+        "anItemEnqueuedJustBeforeAReplayGoesAgainWithIt",
+        queued == ["t-1", "x-1"] && itemIds(bench.sentMessages().last) == ["t-1", "x-1"]
       )
     }
 

@@ -1300,4 +1300,91 @@ class CastEngineTest {
         media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 1_000)
         assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
     }
+
+    // A load refused at once over an older one still on its way, then that one refused: the second
+    // refusal found no newer load to hand its queue to, and the engine kept a queue the receiver never
+    // took, the replay then casting the item alone.
+    @Test
+    fun twoLoadsRefusedNewestFirstLeaveTheQueueTheReceiverTook() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("a-1", "a-2").map { ReceiverItem(id = it) })) {}
+        media.report(snapshot(customData = ours("itemId" to "a-1", "playSessionId" to "ps-2")), 0)
+        port.sendError = "down"
+        port.holdResults = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.holdResults = false
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+        port.releaseResults()
+        port.sendError = null
+        engine.reloadCurrentItem()
+        assertEquals(listOf("a-1", "a-2"), itemsOf(port.sent.last().second))
+    }
+
+    // The superseded load's handler cast again inside the newer load, and the channel refused that one
+    // at once: the newer load then showed loading for a load that never went out.
+    @Test
+    fun aLoadCastFromTheSupersededOnesHandlerAndRefusedLeavesNoLoading() {
+        val engine = engine()
+        var castAgain = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "a-1")))) {
+            if (castAgain) {
+                castAgain = false
+                port.sendError = "down"
+                engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+            }
+        }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        assertEquals(false, delegate.loadings.last())
+    }
+
+    // Two replays of a long queue in a row: the first one's tail went on beside the second one's, and
+    // the receiver queued items twice or never got some.
+    @Test
+    fun aReplayOverTheTailOfAnotherSendsTheWholeQueueOnce() {
+        val engine = engine()
+        val ids = (1..2 * CastEngineConstants.MAX_QUEUE_ITEMS + 1).map { "t-$it" }
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = ids[0])))) {}
+        engine.enqueue(ids.drop(1))
+        media.report(snapshot(customData = ours("itemId" to ids[0], "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.reloadCurrentItem()
+        port.releaseResults()
+        engine.reloadCurrentItem()
+        repeat(4) { port.releaseResults() }
+        assertEquals(ids, receiverQueue())
+    }
+
+    // An item enqueued just before a replay: its PlayLast went out before the PlayNow, which dropped it
+    // from the receiver, and the engine dropped it too once the PlayNow was taken.
+    @Test
+    fun anItemEnqueuedJustBeforeAReplayGoesAgainWithIt() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        engine.enqueue(listOf("x-1"))
+        engine.reloadCurrentItem()
+        repeat(2) { port.releaseResults() }
+        port.holdResults = false
+        assertEquals(listOf("t-1", "x-1"), receiverQueue())
+        engine.reloadCurrentItem()
+        assertEquals(listOf("t-1", "x-1"), itemsOf(port.sent.last().second))
+    }
+
+    // What the receiver queues: the last PlayNow, then each PlayLast after it.
+    private fun receiverQueue(): List<String> {
+        val last = port.sent.indexOfLast { JSONObject(it.second).getString("command") == "PlayNow" }
+        return port.sent.drop(last).flatMap { itemsOf(it.second) }
+    }
+
+    // A start offset past what ticks hold: the replay position went out clamped to Long.MAX_VALUE, where
+    // iOS refuses it.
+    @Test
+    fun aReplayPositionTicksCannotHoldIsRefused() {
+        val engine = playing(1, "canClientSeek" to false, "startPositionTicks" to Long.MAX_VALUE, hasTextTracks = false)
+        engine.setSubtitleTrack(5)
+        assertTrue(port.sent.isEmpty())
+        assertEquals(3, engine.getCurrentSubtitleTrack())
+        assertEquals(listOf(CastEngine.POSITION_ERROR), delegate.errors)
+    }
 }
