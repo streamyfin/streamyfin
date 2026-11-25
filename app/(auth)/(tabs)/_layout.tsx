@@ -200,7 +200,9 @@ export default function TabLayout() {
           </NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf='list.star' />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name='(libraries)'>
+        {/* tvOS can reselect Library while a row opens, popping its new page back to root.
+            See https://docs.expo.dev/router/advanced/native-tabs/#dismiss-behavior. */}
+        <NativeTabs.Trigger name='(libraries)' disablePopToTop={Platform.isTV}>
           <NativeTabs.Trigger.Label>
             {t("tabs.library")}
           </NativeTabs.Trigger.Label>
