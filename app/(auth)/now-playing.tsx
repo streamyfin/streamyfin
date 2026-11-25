@@ -27,13 +27,13 @@ import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
-import { Badge } from "@/components/Badge";
 import {
   DraggableQueueList,
   type QueueRow,
 } from "@/components/common/DraggableQueueList";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
+import { AudioStats } from "@/components/music/AudioStats";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
@@ -48,21 +48,7 @@ import {
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
 import { squareArtworkSide } from "@/utils/artworkSize";
-import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
-
-const formatFileSize = (bytes?: number | null) => {
-  if (!bytes) return null;
-  const sizes = ["B", "KB", "MB", "GB"];
-  if (bytes === 0) return "0 B";
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${Math.round((bytes / 1024 ** i) * 100) / 100} ${sizes[i]}`;
-};
-
-const formatSampleRate = (sampleRate?: number | null) => {
-  if (!sampleRate) return null;
-  return `${(sampleRate / 1000).toFixed(1)} kHz`;
-};
 
 type ViewMode = "player" | "queue";
 
@@ -411,10 +397,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const windowSize = useWindowDimensions();
   // The square follows the window's short side, see utils/artworkSize.ts.
   const artworkSize = squareArtworkSide(windowSize, { inset: 80 });
-  const audioStream = useMemo(() => {
-    return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
-  }, [mediaSource]);
-
   // Volume slider state, covered by hooks/useNowPlayingVolume.test.ts
   const { volume: volumeProgress, setVolume: handleVolumeChange } =
     useNowPlayingVolume(isCastConnected);
@@ -422,14 +404,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const volumeMax = useSharedValue(1);
   const isTv = Platform.isTV;
 
-  const fileSize = formatFileSize(mediaSource?.Size);
-  const codec = audioStream?.Codec?.toUpperCase();
-  const bitrate = formatBitrate(audioStream?.BitRate);
-  const sampleRate = formatSampleRate(audioStream?.SampleRate);
-  const playbackMethod = isTranscoding ? "Transcoding" : "Direct";
-
-  const hasAudioStats =
-    mediaSource && (fileSize || codec || bitrate || sampleRate);
   return (
     <ScrollView className='flex-1 px-6' showsVerticalScrollIndicator={false}>
       {/* Album artwork */}
@@ -517,28 +491,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Audio Stats */}
-        {hasAudioStats && (
-          <View className='flex-row flex-wrap gap-1.5 mt-3'>
-            {fileSize && <Badge variant='gray' text={fileSize} />}
-            {codec && <Badge variant='gray' text={codec} />}
-            <Badge
-              variant='gray'
-              text={playbackMethod}
-              iconLeft={
-                <Ionicons
-                  name={isTranscoding ? "swap-horizontal" : "play"}
-                  size={12}
-                  color='white'
-                />
-              }
-            />
-            {bitrate && bitrate !== "N/A" && (
-              <Badge variant='gray' text={bitrate} />
-            )}
-            {sampleRate && <Badge variant='gray' text={sampleRate} />}
-          </View>
-        )}
+        <AudioStats mediaSource={mediaSource} isTranscoding={isTranscoding} />
       </View>
 
       {/* Progress slider */}

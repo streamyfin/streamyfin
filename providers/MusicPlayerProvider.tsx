@@ -29,9 +29,16 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
+  claimAudioOwner,
+  getAudioOwner,
+  onAudioOwnerChange,
+  releaseAudioOwner,
+} from "@/services/audioOwner";
+import {
   setMusicNormalizationMode,
   setMusicNormalizationTrack,
 } from "@/services/MusicNormalization";
+import { ensureTrackPlayerSetup } from "@/services/trackPlayerSetup";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { markExpectedError } from "@/utils/errors";
@@ -400,6 +407,38 @@ const filterQueueForOffline = (
   };
 };
 
+// The lock screen and notification buttons music offers. An audiobook sets
+// its own (jumps instead of skips), so these go back on whenever music takes
+// the native player over from one.
+const applyMusicPlayerOptions = () =>
+  TrackPlayer.updateOptions({
+    capabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+      Capability.SeekTo,
+      Capability.Stop,
+    ],
+    compactCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ],
+  });
+
+const toTrackPlayerRepeatMode = (mode: RepeatMode) => {
+  switch (mode) {
+    case "one":
+      return TPRepeatMode?.Track;
+    case "all":
+      return TPRepeatMode?.Queue;
+    default:
+      return TPRepeatMode?.Off;
+  }
+};
+
 // Convert BaseItemDto to TrackPlayer Track
 const itemToTrack = (
   item: BaseItemDto,
@@ -600,43 +639,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
     const setup = (async () => {
       await initAudioStorage();
-
-      try {
-        await TrackPlayer.setupPlayer({
-          minBuffer: 120, // Minimum 2 minutes buffer for network resilience
-          maxBuffer: 240, // Maximum 4 minutes buffer
-          playBuffer: 5, // Start playback after 5 seconds buffered
-          backBuffer: 30, // Keep 30 seconds behind for seeking
-        });
-      } catch (error) {
-        // A JS reload with the native module alive means the player exists.
-        // On an Android relaunch that finds `MusicService` still running, a new
-        // `MusicModule` instance gets a resolve from `onServiceConnected`, and
-        // only a surviving instance gets `player_already_initialized`. Both
-        // mean the player exists.
-        if (
-          (error as { code?: string } | null)?.code !==
-          "player_already_initialized"
-        ) {
-          throw error;
-        }
-      }
-      await TrackPlayer.updateOptions({
-        capabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-          Capability.SeekTo,
-          Capability.Stop,
-        ],
-        compactCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
-      });
+      // Shared with the audiobook player, see services/trackPlayerSetup.ts.
+      await ensureTrackPlayerSetup();
+      await applyMusicPlayerOptions();
       playerReadyRef.current = true;
       setIsPlayerReady(true);
     })().catch((error) => {
@@ -671,29 +676,32 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setMusicNormalizationMode(normalizationMode);
   }, [normalizationMode]);
 
-  // Sync repeat mode to TrackPlayer
+  // Sync repeat mode to TrackPlayer. Not while an audiobook has the player:
+  // a book's parts must never loop, and music sets it again on taking over.
   useEffect(() => {
     if (!TrackPlayer) return;
 
     const syncRepeatMode = async () => {
-      if (!isPlayerReady) return;
-
-      let tpRepeatMode: typeof TPRepeatMode;
-      switch (state.repeatMode) {
-        case "one":
-          tpRepeatMode = TPRepeatMode?.Track;
-          break;
-        case "all":
-          tpRepeatMode = TPRepeatMode?.Queue;
-          break;
-        default:
-          tpRepeatMode = TPRepeatMode?.Off;
-      }
-      await TrackPlayer.setRepeatMode(tpRepeatMode);
+      if (!isPlayerReady || getAudioOwner() === "audiobook") return;
+      await TrackPlayer.setRepeatMode(
+        toTrackPlayerRepeatMode(state.repeatMode),
+      );
     };
 
     syncRepeatMode();
   }, [state.repeatMode, isPlayerReady]);
+
+  // Taking the native player over from an audiobook: put music's buttons and
+  // repeat mode back, which the book replaced.
+  const repeatModeRef = useRef(state.repeatMode);
+  repeatModeRef.current = state.repeatMode;
+  const takeOverFromAudiobook = useCallback(async () => {
+    if (claimAudioOwner("music") !== "audiobook") return;
+    await applyMusicPlayerOptions();
+    await TrackPlayer.setRepeatMode(
+      toTrackPlayerRepeatMode(repeatModeRef.current),
+    );
+  }, []);
 
   // Restore queue on mount (when api is available)
   useEffect(() => {
@@ -770,6 +778,26 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       shuffleEnabled: prevState.shuffleEnabled,
     }));
   }, [sessionKey]);
+
+  // An audiobook took the native player: what music had is gone from it, so
+  // drop the queue here too, without touching the player the book now uses.
+  // Starts and edits still waiting check the generation and give up.
+  const reportStopForOwnerChangeRef = useRef<() => void>(() => {});
+  useEffect(
+    () =>
+      onAudioOwnerChange((next) => {
+        if (next !== "audiobook") return;
+        sessionGenerationRef.current += 1;
+        reportStopForOwnerChangeRef.current();
+        clearPersistedQueue();
+        setState((prevState) => ({
+          ...defaultState,
+          repeatMode: prevState.repeatMode,
+          shuffleEnabled: prevState.shuffleEnabled,
+        }));
+      }),
+    [],
+  );
 
   // Save queue whenever it changes.
   // The session teardown above clears storage and resets the state, but this
@@ -892,6 +920,15 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     },
     [api, user?.Id],
   );
+  reportStopForOwnerChangeRef.current = () => {
+    if (state.currentTrack && state.playSessionId) {
+      reportPlaybackStopped(
+        state.currentTrack,
+        state.progress * 10000000,
+        state.playSessionId,
+      );
+    }
+  };
 
   // Helper to prepare a single track - checks cache first, then fetches from server
   const prepareTrack = useCallback(
@@ -1141,12 +1178,24 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         return true;
       };
 
+      // Claimed before the first wait: an audiobook lets go of the native
+      // player at once, so nothing of it acts on this queue.
+      const tookOver = getAudioOwner() === "audiobook";
+      claimAudioOwner("music");
+
       try {
         // Wait for the setup before preparing, not after: the starts waiting
         // on it resume together, and the sequence check drops all but the
         // last of them.
         await ensurePlayerReady();
         if (bailIfStale()) return;
+        if (tookOver) {
+          await applyMusicPlayerOptions();
+          await TrackPlayer.setRepeatMode(
+            toTrackPlayerRepeatMode(repeatModeRef.current),
+          );
+          if (bailIfStale()) return;
+        }
 
         // PHASE 1: Prepare and play the target track immediately
         const targetTrackResult = await prepareTrack(targetItem, preferLocal);
@@ -1422,6 +1471,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         api,
         preferLocal,
       );
+      await takeOverFromAudiobook();
+      if (isStale()) return;
       loadedOutOfOrderRef.current = false;
       await TrackPlayer.reset();
       if (isStale()) return;
@@ -1465,6 +1516,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     settings?.preferLocalAudio,
     playerReadyForControl,
     loadRemainingTracksInBackground,
+    takeOverFromAudiobook,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -1640,13 +1692,21 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
     }
 
-    try {
-      if (playerReadyRef.current) await TrackPlayer.reset();
-      // A reattach still in flight ends with a live service: reset behind it.
-      else
-        playerSetupRef.current?.then(() => TrackPlayer.reset()).catch(() => {});
-    } finally {
-      // Even a failed reset must not leave a queue that restores on next launch.
+    // An audiobook holding the player is not this stop's to reset.
+    if (getAudioOwner() !== "audiobook") {
+      try {
+        if (playerReadyRef.current) await TrackPlayer.reset();
+        // A reattach still in flight ends with a live service: reset behind it.
+        else
+          playerSetupRef.current
+            ?.then(() => TrackPlayer.reset())
+            .catch(() => {});
+      } finally {
+        // Even a failed reset must not leave a queue that restores on next launch.
+        clearPersistedQueue();
+        releaseAudioOwner("music");
+      }
+    } else {
       clearPersistedQueue();
     }
 
@@ -1685,6 +1745,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
 
+      // The native queue holds a book's parts while one plays: queueing a song
+      // there would play it inside the book. It starts a queue of its own.
+      if (getAudioOwner() === "audiobook") {
+        loadAndPlayQueue(tracksArray, 0);
+        return;
+      }
+
       const generation = sessionGenerationRef.current;
       const startSequence = startSequenceRef.current;
       // A stop or account switch bumps the generation; a new queue start
@@ -1719,7 +1786,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         originalQueue: [...prev.originalQueue, ...tracksArray],
       }));
     },
-    [api, user?.Id, settings?.preferLocalAudio, playerReadyForControl],
+    [
+      api,
+      user?.Id,
+      settings?.preferLocalAudio,
+      playerReadyForControl,
+      loadAndPlayQueue,
+    ],
   );
 
   const playNext = useCallback(
@@ -1728,6 +1801,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
+
+      // See addToQueue: not into a book's queue.
+      if (getAudioOwner() === "audiobook") {
+        loadAndPlayQueue(tracksArray, 0);
+        return;
+      }
 
       const generation = sessionGenerationRef.current;
       const startSequence = startSequenceRef.current;
@@ -1783,7 +1862,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         };
       });
     },
-    [api, user?.Id, settings?.preferLocalAudio, playerReadyForControl],
+    [
+      api,
+      user?.Id,
+      settings?.preferLocalAudio,
+      playerReadyForControl,
+      loadAndPlayQueue,
+    ],
   );
 
   const removeFromQueue = useCallback(
@@ -2149,7 +2234,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Called by playback engine when track ends
   const onTrackEnd = useCallback(() => {
-    if (!TrackPlayer) return;
+    if (!TrackPlayer || getAudioOwner() === "audiobook") return;
     if (state.repeatMode === "one") {
       TrackPlayer.seekTo(0);
       TrackPlayer.play();

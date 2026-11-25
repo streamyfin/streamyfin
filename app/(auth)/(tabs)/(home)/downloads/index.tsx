@@ -6,12 +6,13 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useNavigation } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { DownloadedAudiobooksRow } from "@/components/audiobooks/DownloadedAudiobooksRow";
 import { Button } from "@/components/Button";
 import {
   buildDownloadedCards,
@@ -28,7 +29,9 @@ import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { userAtom } from "@/utils/atoms/api";
 import { queueAtom } from "@/utils/atoms/queue";
+import { getDownloadedBooks } from "@/utils/audiobooks/storage";
 import { writeToLog } from "@/utils/log";
 
 /** Room under each card for its two text lines and the file size. */
@@ -38,6 +41,7 @@ export default function DownloadsPage() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [_queue, _setQueue] = useAtom(queueAtom);
+  const user = useAtomValue(userAtom);
   const {
     downloadedItems,
     deleteFile,
@@ -282,6 +286,11 @@ export default function DownloadsPage() {
   const confirmBulkDelete = (title: string, onConfirm: () => void) => () =>
     confirmDelete({ title, onConfirm });
 
+  // Books are stored apart from video, in the audio storage music uses.
+  const downloadedBooks = Platform.isTV
+    ? []
+    : getDownloadedBooks(user?.ServerId).map((entry) => entry.book);
+
   return (
     <OfflineModeProvider isOffline={true}>
       <ScrollView
@@ -345,7 +354,13 @@ export default function DownloadsPage() {
             />
           )}
 
-          {downloadedFiles?.length === 0 && (
+          {/* Only mounted with books in it: Reassure measured the empty
+              row's hooks on every render of this page. */}
+          {downloadedBooks.length > 0 && (
+            <DownloadedAudiobooksRow books={downloadedBooks} />
+          )}
+
+          {downloadedFiles?.length === 0 && downloadedBooks.length === 0 && (
             <View className='flex px-4'>
               <Text className='opacity-50'>
                 {t("home.downloads.no_downloaded_items")}

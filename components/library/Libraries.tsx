@@ -35,11 +35,12 @@ export const Libraries: React.FC = () => {
     enabled: !!api && !!user?.Id,
   });
 
+  // A books library opens the audiobook screens, which TV does not have.
   const libraries = useMemo(
     () =>
       data
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "books") || [],
+        .filter((l) => !Platform.isTV || l.CollectionType !== "books") || [],
     [data, settings?.hiddenLibraries],
   );
 

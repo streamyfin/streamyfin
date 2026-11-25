@@ -43,6 +43,8 @@ const routes = [
   "music/album/[albumId]",
   "music/artist/[artistId]",
   "music/playlist/[playlistId]",
+  "audiobooks/book/[bookId]",
+  "audiobooks/author/[author]",
   "watchlists/[watchlistId]",
 ];
 

@@ -43,6 +43,7 @@ cadence meant knowing both existed, and nothing would have failed if only one ha
 | `constants/Logs.ts` | App log storage key and how many entries it keeps |
 | `constants/Privacy.ts` | What stands in for a secret in anything the app writes out (log, Sentry) |
 | `constants/Music.ts` | Music player policy: the volume normalization modes, their default, and the gain ceiling; the storage key of the stored tracks index |
+| `constants/Audiobooks.ts` | Audiobook player policy: the skip, speed and sleep timer choices and their defaults, the sleep fade, how far a resume rewinds after a pause of each length, when previous chapter restarts the one playing, how often progress is saved, the library page size and row length, the cap on caching the next part, and the storage keys of progress, session, downloads and bookmarks |
 | `constants/Streamystats.ts` | Streamystats server: how long a watchlists request waits for an answer, and how many times a refresh behind lists already shown is retried |
 | `constants/Search.ts` | Library search: results asked for per section, the person types the People section leaves out, a studio page's size |
 | `constants/Inactivity.ts` | The TV inactivity sign-out's storage key for the last activity |

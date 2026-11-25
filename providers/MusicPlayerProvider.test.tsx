@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { getDefaultStore } from "jotai";
 import { Text } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { resetTrackPlayerSetupForTests } from "@/services/trackPlayerSetup";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { clearMmkv } from "@/test-utils/mmkv";
 import { isExpectedError } from "@/utils/errors";
@@ -302,6 +303,8 @@ const startPlaying = async () => {
 
 beforeEach(() => {
   clearMmkv();
+  // Each test starts with a native player that was never set up.
+  resetTrackPlayerSetupForTests();
   mockHandlers.clear();
   mockHeldStreams.clear();
   mockNative.queue = [];
