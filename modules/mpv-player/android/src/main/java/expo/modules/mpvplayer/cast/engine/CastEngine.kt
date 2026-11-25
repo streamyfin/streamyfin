@@ -666,7 +666,8 @@ class CastEngine(
             ReceiverProtocol.playLast(server, window),
             failed = {
                 enqueues.remove(id)
-                delegate?.onError(it)
+                // Held, it goes in the replay's PlayNow: refused, that one reports.
+                if (!isHeld(id)) delegate?.onError(it)
             },
             sent = {
                 if (enqueues[id] !== entry) return@sendMessage

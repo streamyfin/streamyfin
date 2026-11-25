@@ -1412,6 +1412,25 @@ class CastEngineTest {
         assertEquals(ids, receiverQueue(refused))
     }
 
+    // A window refused on its way while a replay carried it again: the replay sent it, yet the engine
+    // reported the refusal.
+    @Test
+    fun aWindowRefusedUnderATakenReplayReportsNothing() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "t-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "t-1", "playSessionId" to "ps-2")), 0)
+        port.holdResults = true
+        port.sendError = "down"
+        engine.enqueue(listOf("x-1"))
+        val refused = setOf(port.sent.size - 1)
+        port.sendError = null
+        engine.reloadCurrentItem()
+        port.holdResults = false
+        port.releaseResults()
+        assertEquals(listOf("t-1", "x-1"), receiverQueue(refused))
+        assertEquals(emptyList<String>(), delegate.errors)
+    }
+
     // What the receiver queues: the last PlayNow it took, then each PlayLast after it; [refused] holds
     // the indexes in `port.sent` of the sends the channel refused.
     private fun receiverQueue(refused: Set<Int> = emptySet()): List<String> {
