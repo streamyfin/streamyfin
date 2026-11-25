@@ -281,6 +281,30 @@ func receiverQueue(_ bench: Bench, refused: Set<Int> = []) -> [String] {
   return messages[last...].flatMap { itemIds($0) }
 }
 
+/// A playlist of a thousand tracks and more: more than ten windows.
+let longQueue = 10 * CastEngineConstants.maxQueueItems + 1
+
+/// "t-1" playing, cast with `enqueued` after it.
+func playingOne(_ bench: Bench, _ enqueued: [String] = []) -> CastEngine {
+  let engine = bench.engine()
+  engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "t-1")])) { _ in }
+  if !enqueued.isEmpty { engine.enqueue(itemIds: enqueued) }
+  bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-2"])), position: 0)
+  return engine
+}
+
+/// A load the channel refuses, sent while the results are held, then every result handed over: the index
+/// of its PlayNow in `port.sent`.
+func refuseALoad(_ bench: Bench, _ engine: CastEngine) -> Set<Int> {
+  let refused: Set<Int> = [bench.port.sent.count]
+  bench.port.sendError = "down"
+  engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+  bench.port.sendError = nil
+  bench.port.holdResults = false
+  bench.port.releaseResults()
+  return refused
+}
+
 @main
 enum CastEngineTests {
   static var failures: [String] = []
@@ -2058,6 +2082,58 @@ enum CastEngineTests {
       bench.port.holdResults = false
       bench.port.releaseResults()
       check("aWindowRefusedAfterALoadReportsNothing", bench.delegate.errors.isEmpty)
+    }
+
+    // An enqueue on its way when a load the channel refused went out: the receiver kept its queue, yet the load
+    // had ended the enqueue, so the window it took stayed out of the engine's queue and the next one never went.
+    do {
+      let bench = Bench()
+      let engine = playingOne(bench)
+      let enqueued = (1...longQueue).map { "x-\($0)" }
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: enqueued)
+      let refused = refuseALoad(bench, engine)
+      let queued = receiverQueue(bench, refused: refused)
+      engine.reloadCurrentItem()
+      check(
+        "anEnqueueOnItsWayGoesOnWhenALoadIsRefused",
+        queued == ["t-1"] + enqueued && receiverQueue(bench, refused: refused) == ["t-1"] + enqueued
+      )
+    }
+
+    // The same with a replay's tail: the receiver took the replay, then its first tail window, and the
+    // load refused meanwhile had ended the tail, so the second window never went.
+    do {
+      let bench = Bench()
+      let all = (1...longQueue).map { "t-\($0)" }
+      let engine = playingOne(bench, Array(all.dropFirst()))
+      bench.port.holdResults = true
+      engine.reloadCurrentItem()
+      bench.port.releaseResults()
+      let refused = refuseALoad(bench, engine)
+      let queued = receiverQueue(bench, refused: refused)
+      engine.reloadCurrentItem()
+      check("aReplayTailOnItsWayGoesOnWhenALoadIsRefused", queued == all && receiverQueue(bench, refused: refused) == all)
+    }
+
+    // A window the channel refused under a load it refused too: the enqueue ends on its error, as with no load.
+    do {
+      let bench = Bench()
+      let engine = playingOne(bench)
+      let enqueued = (1...longQueue).map { "x-\($0)" }
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: enqueued)
+      // Five windows taken, the sixth refused.
+      for _ in 1...4 { bench.port.releaseResults() }
+      bench.port.sendError = "down"
+      bench.port.releaseResults()
+      let refusedWindow = bench.port.sent.count - 1
+      let refused = refuseALoad(bench, engine).union([refusedWindow])
+      check(
+        "aWindowRefusedUnderARefusedLoadReportsItsError",
+        bench.delegate.errors == ["down"]
+          && receiverQueue(bench, refused: refused) == ["t-1"] + Array(enqueued.prefix(5 * CastEngineConstants.maxQueueItems))
+      )
     }
 
     if failures.isEmpty {
