@@ -21,6 +21,9 @@ const mockHooks = {
   handlers: {} as Record<string, (event: unknown) => Promise<void>>,
   activeTrack: undefined as { id: string; url: string } | undefined,
   playWhenReady: true,
+  getPlayWhenReady: jest.fn(
+    async (): Promise<boolean> => mockHooks.playWhenReady,
+  ),
   play: jest.fn(async () => undefined),
 };
 
@@ -47,7 +50,7 @@ jest.mock(
         return { remove: () => undefined };
       },
       getActiveTrack: async () => mockHooks.activeTrack,
-      getPlayWhenReady: async () => mockHooks.playWhenReady,
+      getPlayWhenReady: () => mockHooks.getPlayWhenReady(),
       play: () => mockHooks.play(),
     },
   }),
@@ -171,5 +174,28 @@ describe("a playback error on a stream", () => {
     await failPlayback();
 
     expect(mockHooks.play).toHaveBeenCalledTimes(2);
+  });
+
+  // The error of a track can still be read when the next one loads, and play()
+  // acts on whatever track is loaded.
+  test("does not play the next track again for the error of the previous one", async () => {
+    let readPlayWhenReady: (value: boolean) => void = () => undefined;
+    mockHooks.getPlayWhenReady.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          readPlayWhenReady = resolve;
+        }),
+    );
+    const previousError = failPlayback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const next = { ...stream, id: "track-2" };
+    mockHooks.activeTrack = next;
+    await emit("playback-active-track-changed", { track: next });
+    await failPlayback();
+    readPlayWhenReady(true);
+    await previousError;
+
+    expect(mockHooks.play).toHaveBeenCalledTimes(1);
   });
 });

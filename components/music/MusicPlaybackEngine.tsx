@@ -76,8 +76,9 @@ const MusicPlaybackPolling: React.FC = () => {
 // or the first track change is missed.
 export const MusicPlaybackEngine: React.FC = () => {
   const { isPlayerReady, onTrackEnd, triggerLookahead } = useMusicPlayer();
-  // The stream played again after its error; each track load clears it.
-  const replayedTrackIdRef = useRef<string | null>(null);
+  // Each track load bumps it: a stream is played again once per load.
+  const trackLoadRef = useRef(0);
+  const replayedLoadRef = useRef(-1);
 
   // Listen for track changes (native -> JS)
   // This triggers look-ahead caching, checks for cached versions, and handles track end
@@ -86,7 +87,7 @@ export const MusicPlaybackEngine: React.FC = () => {
       TrackPlayer.addEventListener<PlaybackActiveTrackChangedEvent>(
         Event.PlaybackActiveTrackChanged,
         async (event) => {
-          replayedTrackIdRef.current = null;
+          trackLoadRef.current += 1;
           // Trigger look-ahead caching when a new track starts playing
           if (event.track) {
             triggerLookahead();
@@ -189,6 +190,7 @@ export const MusicPlaybackEngine: React.FC = () => {
     const subscription = TrackPlayer.addEventListener(
       Event.PlaybackError,
       async (event) => {
+        const load = trackLoadRef.current;
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack?.url) return;
 
@@ -202,10 +204,15 @@ export const MusicPlaybackEngine: React.FC = () => {
           });
           // A seek right after a load can fail the decoding (FLAC LOST_SYNC).
           // play() reloads a failed item at its position, as a second tap does;
-          // a paused track stays paused.
-          if (!playWhenReady || replayedTrackIdRef.current === activeTrack.id)
+          // a paused track stays paused, and a track loaded meanwhile is not
+          // this error's.
+          if (
+            !playWhenReady ||
+            load !== trackLoadRef.current ||
+            replayedLoadRef.current === load
+          )
             return;
-          replayedTrackIdRef.current = activeTrack.id;
+          replayedLoadRef.current = load;
           await TrackPlayer.play().catch((error) =>
             writeErrorLog(
               "[MusicPlayer] Replay after a playback error failed",
