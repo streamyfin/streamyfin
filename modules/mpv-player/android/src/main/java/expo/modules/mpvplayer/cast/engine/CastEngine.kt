@@ -117,10 +117,14 @@ class CastEngine(
     // back after a newer load no longer describes the receiver's queue.
     private var queueGeneration = 0L
 
-    // The queue each load on its way replaced, by generation: a send the channel refuses goes back to
-    // it, and so does the newer load sent meanwhile, the receiver never having taken the refused one.
-    private class QueueState(val server: ReceiverServer, val items: List<ReceiverItem>, val playingIndex: Int)
+    // The queue each load on its way replaced, by generation, with the generation that queue came from:
+    // a send the channel refuses goes back to it, and so does the newer load sent over the refused one,
+    // the receiver never having taken it, whichever of the two the channel refuses first.
+    private class QueueState(val server: ReceiverServer, val items: List<ReceiverItem>, val playingIndex: Int, val held: Long)
     private val replaced = mutableMapOf<Long, QueueState>()
+
+    // The generation whose queue the engine holds: a refusal gives an older one back.
+    private var heldGeneration = 0L
 
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
@@ -332,7 +336,8 @@ class CastEngine(
             return@runOnMain
         }
         val generation = ++queueGeneration
-        replaced[generation] = QueueState(this.server, queue, playingIndex)
+        replaced[generation] = QueueState(this.server, queue, playingIndex, heldGeneration)
+        heldGeneration = generation
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
         queue = receiverRequest.items
@@ -381,12 +386,12 @@ class CastEngine(
     // which the receiver never took: what this one replaced is what that one goes back to.
     private fun refused(generation: Long) {
         val previous = replaced.remove(generation) ?: return
-        if (generation == queueGeneration) {
+        for (entry in replaced.entries) if (entry.value.held == generation) entry.setValue(previous)
+        if (heldGeneration == generation) {
             server = previous.server
             queue = previous.items
             playingIndex = previous.playingIndex
-        } else if (generation + 1 in replaced) {
-            replaced[generation + 1] = previous
+            heldGeneration = previous.held
         }
     }
 

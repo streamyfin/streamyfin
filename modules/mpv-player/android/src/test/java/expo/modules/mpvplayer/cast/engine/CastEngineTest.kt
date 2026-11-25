@@ -1300,4 +1300,23 @@ class CastEngineTest {
         media.report(snapshot(customData = ours("itemId" to "t-2", "playSessionId" to "ps-2")), 1_000)
         assertEquals(listOf("SetVolume"), port2.sent.map { JSONObject(it.second).getString("command") })
     }
+
+    // A load refused at once over an older one still on its way, then that one refused: the second
+    // refusal found no newer load to hand its queue to, and the engine kept a queue the receiver never
+    // took, the replay then casting the item alone.
+    @Test
+    fun twoLoadsRefusedNewestFirstLeaveTheQueueTheReceiverTook() {
+        val engine = engine()
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf("a-1", "a-2").map { ReceiverItem(id = it) })) {}
+        media.report(snapshot(customData = ours("itemId" to "a-1", "playSessionId" to "ps-2")), 0)
+        port.sendError = "down"
+        port.holdResults = true
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        port.holdResults = false
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "c-1")))) {}
+        port.releaseResults()
+        port.sendError = null
+        engine.reloadCurrentItem()
+        assertEquals(listOf("a-1", "a-2"), itemsOf(port.sent.last().second))
+    }
 }
