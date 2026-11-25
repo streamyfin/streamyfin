@@ -50,7 +50,6 @@ class OutputPickerStrings(private val strings: Map<String, String> = emptyMap())
                 "network" to "The connection to this device was lost",
                 "failed" to "The connection failed",
                 "airPlay" to "AirPlay…",
-                "airPlayCaption" to "System picker",
             )
     }
 }

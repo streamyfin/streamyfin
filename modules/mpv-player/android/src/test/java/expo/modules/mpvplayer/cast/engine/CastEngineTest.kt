@@ -99,9 +99,11 @@ class CastEngineTest {
 
     @Test
     fun anIdleErrorReportsThePlaybackError() {
-        playing()
+        val engine = playing()
         media.report(snapshot(playerState = "idle", idleReason = "error"))
         assertEquals(listOf("The receiver stopped on a playback error"), delegate.errors)
+        assertEquals(RemotePhase.STOPPED, engine.phase)
+        assertFalse("an error is no stop asked for", engine.stopRequested)
     }
 
     // Nothing plays once the receiver stops: a stall it stopped on ends the loading.
@@ -1680,6 +1682,8 @@ class CastEngineTest {
         media.report(snapshot(playerState = "idle", idleReason = "cancelled", customData = null, hasMedia = false))
         assertFalse(engine.foreign)
         assertNull(engine.mediaTitle)
+        assertEquals(RemotePhase.NONE, engine.phase)
+        assertTrue("a stop that leaves nothing is a stop", engine.stopRequested)
     }
 
     // The receiver names its item even when another server sent it: the JS asks the server, and needs the title
@@ -1778,6 +1782,7 @@ class CastEngineTest {
         val changes = engine.countStateChanges()
         media.report(snapshot(playerState = "idle", idleReason = "cancelled"), 0)
         assertEquals(RemotePhase.STOPPED, engine.phase)
+        assertTrue(engine.stopRequested)
         assertEquals(1, changes())
         engine.play()
         val options = JSONObject(port.sent.single().second).getJSONObject("options")

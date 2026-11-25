@@ -22,6 +22,7 @@ final class RecordingRemoteEngine: RemoteEngine {
 		set { inner.onStateChanged = newValue }
 	}
 	var phase: RemotePhase { inner.phase }
+	var stopRequested: Bool { inner.stopRequested }
 	var reconnecting: Bool { inner.reconnecting }
 	var queueItemIds: [String] { inner.queueItemIds }
 	var playingIndex: Int { inner.playingIndex }
@@ -327,9 +328,12 @@ enum RemotePlaybackTests {
 			bench.clock.advance(2_000)
 			engine?.pause()
 			let last = bench.published.last
+			bench.made.last?.inner.simulateStoppedFromReceiver()
+			let stop = bench.published.last
 			check(
 				"theSnapshotFollowsTheEngineState",
 				playing && last?.phase == .paused && last?.positionSec == 2 && last?.durationSec == 60 && last?.connected == true
+					&& last?.stopRequested == false && stop?.phase == .stopped && stop?.stopRequested == true
 			)
 		}
 

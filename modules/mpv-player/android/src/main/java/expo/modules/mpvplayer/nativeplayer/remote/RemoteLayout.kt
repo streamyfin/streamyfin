@@ -97,6 +97,16 @@ object RemoteMetrics {
         return if (maxHeight * ratio > maxWidth) RemoteBox(maxWidth, maxWidth / ratio) else RemoteBox(maxHeight * ratio, maxHeight)
     }
 
+    /**
+     * The image itself in [box], scaled to fit: the failure and skip bands lie on it, never past it. An unknown or
+     * impossible [aspectRatio] fills the box; couched, the box has the image's shape already.
+     */
+    fun imageSize(box: RemoteBox, aspectRatio: Double?): RemoteBox {
+        val ratio = aspectRatio?.takeIf { it.isFinite() && it > 0 } ?: return box
+        // Narrower than the box's shape, the height binds; otherwise the width does.
+        return if (box.widthDp > box.heightDp * ratio) RemoteBox(box.heightDp * ratio, box.heightDp) else RemoteBox(box.widthDp, box.widthDp / ratio)
+    }
+
     /** The square artwork's side, upright and wide; couched, the height of the box [artworkBox] gives a square. */
     fun artworkHeight(layout: RemoteLayout, widthDp: Double, heightDp: Double, fontScale: Double): Double {
         val byWidth = when (layout) {

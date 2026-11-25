@@ -101,6 +101,7 @@ struct PlayerCenterControls: View {
 				controlButton(systemName: "backward.end.fill", iconSize: m.jumpIconSize, frame: m.sideButton) {
 					viewModel.playPreviousEpisode()
 				}
+				.accessibilityLabel(previousLabel)
 				.disabled(viewModel.isSyncPlayActive && viewModel.syncPlay?.hasPrevious != true)
 			}
 
@@ -143,6 +144,7 @@ struct PlayerCenterControls: View {
 				controlButton(systemName: "forward.end.fill", iconSize: m.jumpIconSize, frame: m.sideButton) {
 					viewModel.playNextEpisode()
 				}
+				.accessibilityLabel(nextLabel)
 				.opacity((viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext == true : viewModel.nextEpisode != nil) ? 1 : 0.35)
 				.disabled(viewModel.isSyncPlayActive ? viewModel.syncPlay?.hasNext != true : viewModel.nextEpisode == nil)
 			}
@@ -162,6 +164,7 @@ struct PlayerCenterControls: View {
 				controlButton(systemName: "backward.end.fill", iconSize: 22, frame: s.side) {
 					viewModel.remotePrevious()
 				}
+				.accessibilityLabel(previousLabel)
 			}
 
 			seekButton(prefix: "gobackward", seconds: viewModel.seekBackwardSec, iconSize: 28, frame: s.seek) {
@@ -193,6 +196,7 @@ struct PlayerCenterControls: View {
 				controlButton(systemName: "forward.end.fill", iconSize: 22, frame: s.side) {
 					viewModel.remoteNext()
 				}
+				.accessibilityLabel(nextLabel)
 				.opacity(neighbours.hasNext ? 1 : 0.35)
 				.disabled(!neighbours.hasNext)
 			}
@@ -213,6 +217,10 @@ struct PlayerCenterControls: View {
 				.contentShape(Rectangle())
 		}
 	}
+
+	// Without a label VoiceOver reads the symbols' names, "Go To End" and "Go To Start", not what the buttons do.
+	private var previousLabel: String { viewModel.str("previousEpisode", "Previous episode") }
+	private var nextLabel: String { viewModel.str("nextEpisode", "Next episode") }
 
 	private func controlButton(
 		systemName: String,

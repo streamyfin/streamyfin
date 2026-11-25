@@ -23,6 +23,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import expo.modules.mpvplayer.cast.output.OutputPickerPresenter
+import expo.modules.mpvplayer.cast.output.OutputPickerStrings
 import expo.modules.mpvplayer.cast.playback.RemotePlayback
 import expo.modules.mpvplayer.cast.playback.RemotePlaybackSnapshot
 import expo.modules.mpvplayer.cast.target.RemoteTargetHub
@@ -70,6 +71,7 @@ class RemotePlayerSession(
     private var unfollowPlayback: (() -> Unit)? = null
     private var unfollowVolume: (() -> Unit)? = null
     private var volumeIndicator: VolumeIndicatorModel? = null
+    private var openedSheet = false
 
     /** What the screen draws besides the view model; null until presented. */
     var screenState: RemoteScreenState? = null
@@ -90,6 +92,13 @@ class RemotePlayerSession(
         viewModel.apply(config.toPresentConfig())
         // The TV button says the session's state to TalkBack; willTeardown stops following it.
         viewModel.followCast(hub)
+        // It opens the Cast sheet over the screen, for Stop and the volume; Continue here is Play here, and Remote
+        // is this screen already.
+        viewModel.onOutputSheetRequested = { anchor ->
+            openedSheet = true
+            OutputPickerPresenter.strings = OutputPickerStrings(config.ui.outputPickerStrings)
+            OutputPickerPresenter.present(activity, anchor, playingHere = null, onPlayHere = ::playHere) {}
+        }
 
         val model = RemoteScreenState(config.targetName, config.imageHeaders, config.tint, viewModel, ::playHere, ::continueNextUp, config.reduced)
         // The screen composes as it is attached: it starts from the TV's state rather than from nothing, which a
@@ -158,13 +167,13 @@ class RemotePlayerSession(
     }
 
     // The holder publishes on the main thread. A failure goes once the TV loads or plays again. The film over with
-    // nothing after it, or the connection over: the screen closes, an end of playback reported first as the local
-    // player does.
+    // nothing after it, a stop from the TV, or the connection over: the screen closes, an end of playback reported
+    // first as the local player does.
     private fun follow(snapshot: RemotePlaybackSnapshot) {
         val state = screenState ?: return
         if (closed) return
         val clears = RemoteScreenModel.failureClears(state.snapshot.phase, snapshot.phase)
-        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, snapshot.phase)
+        state.sawPlayback = RemoteScreenModel.sawPlayback(state.sawPlayback, viewModel.metadata?.itemId, snapshot, state.reduced)
         state.snapshot = snapshot
         if (clears) clearFailure()
         val close = state.model.closes ?: return
@@ -258,6 +267,8 @@ class RemotePlayerSession(
         lifecycleObserver = null
         screen?.let { (it.parent as? ViewGroup)?.removeView(it) }
         screen = null
+        // The sheet the TV button opened is a view of its own on the activity: it goes with the screen.
+        if (openedSheet) OutputPickerPresenter.dismissForPlayer()
         accessibility.restore()
         unfollowPlayback?.invoke()
         unfollowPlayback = null

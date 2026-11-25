@@ -59,6 +59,7 @@ import expo.modules.mpvplayer.nativeplayer.NextEpisodeRecord
 import expo.modules.mpvplayer.nativeplayer.PlayerConstants
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteArrangement
+import expo.modules.mpvplayer.nativeplayer.remote.RemoteBox
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteGestures
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteLayout
 import expo.modules.mpvplayer.nativeplayer.remote.RemoteMetrics
@@ -212,8 +213,11 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                 RemoteLayout.WIDE -> Modifier
             },
         ) {
+            // On the image, not its square: a poster is narrower, a wide image shorter.
+            val box = RemoteBox(artwork.width.value.toDouble(), artwork.height.value.toDouble())
+            val image = RemoteMetrics.imageSize(box, viewModel.metadata?.artworkAspectRatio).let { DpSize(it.widthDp.dp, it.heightDp.dp) }
             // The artwork's double tap seeks like the bar, so it rests when the bar does.
-            RemoteArtwork(viewModel, artwork, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
+            RemoteArtwork(viewModel, artwork, image, screen.imageHeaders, if (model.seekEnabled) Modifier.seekOnDoubleTap(viewModel) else Modifier)
             // Over the image and never over the titles or the controls; the skip band and the seek pill are drawn
             // over it. Touches on the card stay on it.
             if (viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo) {
@@ -231,9 +235,17 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
                     )
                 }
             }
-            Box(Modifier.size(artwork).clip(RoundedCornerShape(8.dp))) {
-                // The segment skip rests with the bar too, as it did above it.
-                RemoteSkipBanner(viewModel, enabled = model.seekEnabled, modifier = Modifier.align(Alignment.BottomCenter))
+            Box(Modifier.size(image).clip(RoundedCornerShape(8.dp))) {
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    // A failure is said on the image, whatever the TV does, with Play here when it offers it.
+                    model.failure?.let { message ->
+                        val playHere = viewModel.strings.get("playHere", "Play on this device").takeIf { model.canPlayHere }
+                        // Within the artwork, however small it is and however long the message: the button stays whole.
+                        RemoteFailureCard(message, playHere, screen::playHere, Modifier.weight(1f, fill = false))
+                    }
+                    // The segment skip rests with the bar too, as it did above it, and waits while Play here is there.
+                    RemoteSkipBanner(viewModel, enabled = model.seekEnabled, allowed = model.showsSkip)
+                }
                 // The chrome's pill, on the half that was tapped.
                 viewModel.doubleTapSeekForward?.let { forward ->
                     Box(Modifier.matchParentSize(), contentAlignment = if (forward) Alignment.CenterEnd else Alignment.CenterStart) {
@@ -248,11 +260,6 @@ private fun Slot(slot: RemoteSlot, viewModel: PlayerViewModel, screen: RemoteScr
         // Couched, the title's capitals start level with the image's top.
         RemoteSlot.TITLES -> RemoteTitles(viewModel, capsAtTop = couched, modifier = Modifier.fillMaxWidth())
         RemoteSlot.BAR -> Column(Modifier.fillMaxWidth()) {
-            // A failure is said above the bar, whatever the TV does, with Play here when it offers it.
-            model.failure?.let { message ->
-                Text(text = message, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                if (model.canPlayHere) PillButton(viewModel.strings.get("playHere", "Play here"), screen::playHere)
-            }
             // The list the TV got is over and the phone knows what comes after it: offered, never counted down.
             viewModel.nextEpisode?.takeIf { model.nextUpVisible }?.let { next ->
                 NextUpCard(viewModel, next, screen.imageHeaders, screen::continueNextUp)
@@ -356,7 +363,7 @@ private fun NextUpCard(viewModel: PlayerViewModel, next: NextEpisodeRecord, imag
     PillButton(viewModel.strings.get("continueWatching", "Continue Watching"), onContinue)
 }
 
-/** A pill under a message: Play here under a failure, Continue under the next episode. */
+/** A pill under a message: Continue under the next episode. */
 @Composable
 private fun PillButton(label: String, onClick: () -> Unit) {
     Button(

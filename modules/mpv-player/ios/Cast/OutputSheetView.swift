@@ -11,6 +11,11 @@ private let rowColor = Color.white.opacity(0.05)
 private let selectedRowColor = Color.white.opacity(0.12)
 private let captionColor = Color.white.opacity(0.6)
 private let failureColor = Color(red: 1, green: 105 / 255, blue: 97 / 255)
+/// The line over the AirPlay button, and the button's outline.
+private let dividerColor = Color.white.opacity(0.1)
+private let airPlayOutline = Color.white.opacity(0.3)
+/// The AirPlay button's least height: the system's minimum tap target.
+private let airPlayButtonHeight: CGFloat = 44
 
 /// Side by side at the usual text sizes; one above the other at the accessibility ones, where a row has no
 /// width left for its texts.
@@ -37,25 +42,55 @@ struct OutputSheetView: View {
   @ObservedObject var store: OutputSheetStore
   let strings: OutputPickerStrings
   let controller: OutputSheetController
+  /// The height the sheet's content takes at the width it is drawn at, list or panel and the AirPlay button: the
+  /// compact sheet's detent.
+  var onContentHeight: (CGFloat) -> Void = { _ in }
+  @State private var scrolledHeight: CGFloat = 0
+  @State private var airPlayHeight: CGFloat = 0
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 10) {
-        switch store.state {
-        case let .list(rows):
-          OutputListView(rows: rows, strings: strings, controller: controller)
-        case let .connected(panel):
-          ConnectedPanelView(panel: panel, strings: strings, controller: controller)
+    VStack(spacing: 0) {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 10) {
+          switch store.state {
+          case let .list(rows):
+            OutputListView(rows: rows, strings: strings, controller: controller)
+          case let .connected(panel):
+            ConnectedPanelView(panel: panel, strings: strings, controller: controller)
+          }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+          scrolledHeight = height
+          onContentHeight(height + (airPlayRow == nil ? 0 : airPlayHeight))
         }
       }
-      .padding(.horizontal, 20)
-      .padding(.vertical, 16)
+      // Still while it fits, which it does but for a long list.
+      .scrollBounceBehavior(.basedOnSize)
+      // The one button at the bottom, under the receivers however many there are.
+      if case let .airPlay(activeRoute) = airPlayRow {
+        AirPlayButton(activeRoute: activeRoute, strings: strings)
+          .padding(.horizontal, 20)
+          .padding(.vertical, 12)
+          .overlay(alignment: .top) { Rectangle().fill(dividerColor).frame(height: 1) }
+          .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+            airPlayHeight = height
+            onContentHeight(scrolledHeight + height)
+          }
+      }
     }
-    // A popover takes the ideal width; a sheet, the window's.
+    // A popover and a sheet on a phone on its side take the ideal width; an upright sheet, the window's.
     .frame(idealWidth: RemoteTargetConstants.popoverWidth, maxWidth: .infinity)
     .background(sheetColor.ignoresSafeArea())
     .foregroundStyle(.white)
     .preferredColorScheme(.dark)
+  }
+
+  /// The list's AirPlay row, drawn as the bottom button; the connected panel has none.
+  private var airPlayRow: OutputRow? {
+    guard case let .list(rows) = store.state else { return nil }
+    return rows.first { if case .airPlay = $0 { return true } else { return false } }
   }
 }
 
@@ -69,7 +104,7 @@ private struct OutputListView: View {
       .font(.title3.weight(.bold))
       .padding(.bottom, 6)
       .accessibilityAddTraits(.isHeader)
-    // Keyed: a press stays with its receiver when discovery sorts another one before it, and AirPlay's button lives on.
+    // Keyed: a press stays with its receiver when discovery sorts another one before it.
     ForEach(rows, id: \.key) { row in
       switch row {
       case let .thisDevice(kind, playing, continueHere):
@@ -81,10 +116,9 @@ private struct OutputListView: View {
         )
       case let .device(_, name, videoOut, status):
         DeviceRowView(row: row, name: name, videoOut: videoOut, status: status, strings: strings, controller: controller)
-      case let .airPlay(activeRoute):
-        // The system picker's own button takes the tap: AirPlay routes are not listed by any API.
-        SheetRow(icon: "airplayvideo", title: strings.get("airPlay"), caption: activeRoute ?? strings.get("airPlayCaption"))
-          .overlay(AirPlayPickerButton())
+      case .airPlay:
+        // Drawn as the sheet's bottom button.
+        EmptyView()
       case let .status(status):
         StatusRowView(row: row, status: status, strings: strings, controller: controller)
       }
@@ -343,11 +377,38 @@ extension SheetRow where Trailing == EmptyView {
   }
 }
 
-/// The system AirPlay picker, over the AirPlay row: its own button answers the tap and lists the routes.
+/// AirPlay at the bottom of the list, with the route in use when there is one. The system picker's own button takes the
+/// tap: AirPlay routes are not listed by any API.
+private struct AirPlayButton: View {
+  let activeRoute: String?
+  let strings: OutputPickerStrings
+  @Environment(\.dynamicTypeSize) private var typeSize
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Image(systemName: "airplayvideo")
+      Text(strings.get("airPlay"))
+        .font(.body.weight(.medium))
+      if let activeRoute {
+        Text(activeRoute)
+          .font(.footnote)
+          .foregroundStyle(accent)
+      }
+    }
+    .lineLimit(nameLines(typeSize))
+    .padding(.horizontal, 16)
+    .padding(.vertical, 10)
+    .frame(maxWidth: .infinity, minHeight: airPlayButtonHeight)
+    .overlay(Capsule().stroke(airPlayOutline, lineWidth: 1))
+    .overlay(AirPlayPickerButton())
+  }
+}
+
+/// The system AirPlay picker, over the AirPlay button: its own button answers the tap and lists the routes.
 private struct AirPlayPickerButton: UIViewRepresentable {
   func makeUIView(context: Context) -> AVRoutePickerView {
     let picker = AVRoutePickerView()
-    // Invisible: the row draws the icon and the texts.
+    // Invisible: the button draws the icon and the texts.
     picker.tintColor = .clear
     picker.activeTintColor = .clear
     picker.prioritizesVideoDevices = true

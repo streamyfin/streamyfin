@@ -191,7 +191,7 @@ private fun OutputList(rows: List<OutputRow>, strings: OutputPickerStrings, cont
                     SheetRow(
                         icon = Icons.Filled.Tv,
                         title = strings.get("airPlay"),
-                        caption = row.activeRoute ?: strings.get("airPlayCaption"),
+                        caption = row.activeRoute,
                         onClick = { controller.tap(row) },
                     )
                 is OutputRow.Status -> StatusRow(row, strings, controller)

@@ -42,10 +42,12 @@ struct RemoteHeader: View {
 	}
 }
 
-/// The artwork, whole, in the box RemoteMetrics gives: a square, or couched the image's own shape.
+/// The artwork, whole, in the box RemoteMetrics gives (a square, or couched the image's own shape); the image at
+/// `image`, its own size in the box, with its own corners. Twin: RemoteArtwork in RemoteSlots.kt.
 struct RemoteArtwork: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let size: CGSize
+	let image: CGSize
 
 	var body: some View {
 		ZStack {
@@ -57,6 +59,8 @@ struct RemoteArtwork: View {
 					Color.white.opacity(0.08)
 				}
 				.scaledToFit()
+				.frame(width: image.width, height: image.height)
+				.clipShape(RoundedRectangle(cornerRadius: 8))
 			}
 		}
 		.frame(width: size.width, height: size.height)
@@ -67,41 +71,95 @@ struct RemoteArtwork: View {
 
 /// Skip the segment the TV is in, as a band across the bottom of the artwork: the artwork's whole width, so a long
 /// label in any language stays on one line (cut with an ellipsis past it; VoiceOver reads it whole). Hidden in auto
-/// mode, where the TV skips by itself. It fades in and out without moving anything, the artwork being there in every
-/// layout.
+/// mode, where the TV skips by itself, and while `allowed` is false. It fades in and out without moving the screen, the
+/// artwork being there in every layout; a failure said above it moves with it.
 struct RemoteSkipBanner: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	let allowed: Bool
 
 	var body: some View {
-		let segment = viewModel.activeSegment.flatMap { $0.skipMode == "auto" ? nil : $0 }
+		let segment = allowed ? viewModel.activeSegment.flatMap { $0.skipMode == "auto" ? nil : $0 } : nil
 		ZStack {
 			if let segment {
-				Button {
+				RemoteArtworkBand(label: viewModel.skipLabel(for: segment.type), icon: "forward.fill") {
 					viewModel.skipActiveSegment()
-				} label: {
-					HStack(spacing: 6) {
-						Text(viewModel.skipLabel(for: segment.type))
-							.font(.subheadline.weight(.semibold))
-							.lineLimit(1)
-							.truncationMode(.tail)
-						Image(systemName: "forward.fill")
-							.font(.system(size: 12, weight: .semibold))
-							.accessibilityHidden(true)
-					}
-					.foregroundStyle(.white)
-					.padding(.horizontal, 12)
-					.frame(maxWidth: .infinity, minHeight: PlayerConstants.remoteSkipBannerHeight)
-					// Smoked glass over the artwork: dark enough for white text on any image.
-					.background(Color.black.opacity(0.35))
-					.background(.ultraThinMaterial)
-					.environment(\.colorScheme, .dark)
-					.contentShape(Rectangle())
 				}
-				.buttonStyle(.plain)
 				.transition(.opacity)
 			}
 		}
 		.animation(.easeInOut(duration: 0.2), value: segment?.startSec)
+	}
+}
+
+/// A failure said on the artwork, its message over Play here when it offers it: the message stays with its button in
+/// every layout. Play here never rests with the bar: a failed send often leaves the TV stopped, the bar resting. The
+/// bands are laid out first and the message takes what height is left, cut with an ellipsis on a small artwork.
+struct RemoteFailureCard: View {
+	let message: String
+	let playHere: String?
+	let onPlayHere: () -> Void
+
+	var body: some View {
+		VStack(spacing: 0) {
+			Text(message)
+				.font(.subheadline)
+				.foregroundStyle(.white)
+				.truncationMode(.tail)
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.horizontal, 12)
+				.padding(.vertical, 8)
+				.remoteSmokedGlass()
+				.layoutPriority(-1)
+			if let playHere {
+				RemoteArtworkBand(
+					label: playHere, icon: nil, lines: PlayerConstants.remotePlayHereMaxLines, action: onPlayHere
+				)
+			}
+		}
+	}
+}
+
+/// A band across the artwork's width, the skip's and Play here's: `lines` lines, cut with an ellipsis past them.
+private struct RemoteArtworkBand: View {
+	let label: String
+	let icon: String?
+	var lines = 1
+	let action: () -> Void
+
+	var body: some View {
+		Button(action: action) {
+			HStack(spacing: 6) {
+				Text(label)
+					.font(.subheadline.weight(.semibold))
+					.lineLimit(lines)
+					.multilineTextAlignment(.center)
+					.truncationMode(.tail)
+				if let icon {
+					Image(systemName: icon)
+						.font(.system(size: 12, weight: .semibold))
+						.accessibilityHidden(true)
+				}
+			}
+			.foregroundStyle(.white)
+			.padding(.horizontal, 12)
+			// Wrapped, the lines keep the message's air above and below.
+			.padding(.vertical, lines > 1 ? 8 : 0)
+			.frame(maxWidth: .infinity, minHeight: PlayerConstants.remoteSkipBannerHeight)
+			.remoteSmokedGlass()
+			.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+		// Whole, whatever the message above it leaves.
+		.fixedSize(horizontal: false, vertical: true)
+	}
+}
+
+extension View {
+	/// Smoked glass over the artwork: dark enough for white text on any image.
+	fileprivate func remoteSmokedGlass() -> some View {
+		background(Color.black.opacity(0.35))
+			.background(.ultraThinMaterial)
+			.environment(\.colorScheme, .dark)
 	}
 }
 

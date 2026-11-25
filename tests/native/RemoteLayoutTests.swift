@@ -231,6 +231,21 @@ enum RemoteLayoutTests {
 		}
 	}
 
+	// The failure and skip bands lie on the image, not on the square it sits in: a poster is narrower than its square,
+	// a wide episode image shorter. Couched the box has the image's shape already; an unknown shape fills the box.
+	static func theBandsLieOnTheImageNotOnItsSquare() {
+		let name = "theBandsLieOnTheImageNotOnItsSquare"
+		let square = RemoteBox(width: 300, height: 300)
+		check(RemoteMetrics.imageSize(box: square, aspectRatio: 2.0 / 3.0) == RemoteBox(width: 200, height: 300), "\(name): poster")
+		check(RemoteMetrics.imageSize(box: square, aspectRatio: 16.0 / 9.0) == RemoteBox(width: 300, height: 168.75), "\(name): wide")
+		for bad in [nil, 0.0, -1, .nan, .infinity] as [Double?] {
+			check(RemoteMetrics.imageSize(box: square, aspectRatio: bad) == square, "\(name): shape \(String(describing: bad))")
+		}
+		let couched = RemoteMetrics.artworkBox(layout: .landscape, width: 914, height: 363, fontScale: 1, aspectRatio: 2.0 / 3.0)
+		let image = RemoteMetrics.imageSize(box: couched, aspectRatio: 2.0 / 3.0)
+		check(near(image.width, couched.width) && near(image.height, couched.height), "\(name): couched \(image)")
+	}
+
 	// The top bar's ink meets the margins, as measured on a couched iPhone 17 (19/11): the chevron's 44 box has 12.33
 	// of air on its left, the dots of "more" 12.67 on their right; SF Symbols are not Android's icons, so these are
 	// iOS's own. A track button's 22 icon keeps 11, not measured yet; the TV button's pill ends at its box.
@@ -265,6 +280,7 @@ enum RemoteLayoutTests {
 		couchedTheBandIsWhatTheMeasuredTopBarLeaves()
 		theTechnicalInfoCardIsAndroids()
 		uprightAndWideTheArtworkStaysASquare()
+		theBandsLieOnTheImageNotOnItsSquare()
 		couchedTheTopBarsInkMeetsTheMargins()
 		aTintFromJsGivesTheScreenItsColors()
 		aMissingOrUnreadableTintFallsBackToTheNeutral()

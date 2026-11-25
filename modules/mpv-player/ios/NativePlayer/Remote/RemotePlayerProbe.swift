@@ -95,6 +95,8 @@ enum RemotePlayerProbe {
 		let metadata = MetadataRecord()
 		metadata.title = title
 		metadata.subtitle = "S1 E1, Bench"
+		// The item the TV holds, as every config of ours says: the screen counts only its own item's playback.
+		metadata.itemId = onSession?.currentItemId ?? (ending ? "fake-short" : FakeRemoteEngine.defaultItems.first?.id)
 		let defaults = UserDefaults.standard
 		metadata.artworkUri = defaults.string(forKey: artworkArgument)
 		config.metadata = metadata
@@ -191,6 +193,7 @@ private final class LoggingRemoteEngine: RemoteEngine {
 		set { inner.onStateChanged = newValue }
 	}
 	var phase: RemotePhase { inner.phase }
+	var stopRequested: Bool { inner.stopRequested }
 	var reconnecting: Bool { inner.reconnecting }
 	var queueItemIds: [String] { inner.queueItemIds }
 	var playingIndex: Int { inner.playingIndex }

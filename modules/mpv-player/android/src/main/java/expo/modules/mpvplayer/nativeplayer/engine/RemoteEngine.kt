@@ -15,6 +15,12 @@ enum class RemotePhase { NONE, LOADING, PLAYING, PAUSED, BETWEEN, STOPPED, ENDED
 interface RemoteEngine : ChromeEngine {
     val phase: RemotePhase
 
+    /**
+     * Idle on a Stop, from the TV's remote or a sender, not on an error: [phase] is [RemotePhase.STOPPED], or
+     * [RemotePhase.NONE] once nothing is left (iOS drops a foreign item's media).
+     */
+    val stopRequested: Boolean
+
     /** True from a suspension of the session to its resume: what the engine holds may be stale. */
     val reconnecting: Boolean
 

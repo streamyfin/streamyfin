@@ -16,13 +16,16 @@ enum class RemoteClose(val reason: String) {
 
     /** The connection to the TV is over. */
     REMOTE_ENDED("remoteEnded"),
+
+    /** The TV was stopped, from its remote or a sender. */
+    REMOTE_STOPPED("remoteStopped"),
 }
 
 /**
  * What the remote screen shows for the state of the TV, the design's table of states: a loading TV spins in the
  * play button, a reconnecting one dims the controls and cuts the transport, between two items the bar and the
- * track menus rest, a TV stopped from its remote keeps the screen and play resumes, and the end of the film or of
- * the connection closes it. Pure. Twin: RemoteScreenModel.swift.
+ * track menus rest, a TV stopped on an error keeps the screen for its failure, and a stop from the TV's remote, the
+ * end of the film or of the connection closes it. Pure. Twin: RemoteScreenModel.swift.
  */
 data class RemoteScreenModel(
     val targetLabel: TargetLabel,
@@ -41,6 +44,8 @@ data class RemoteScreenModel(
     val failure: String?,
     /** The failure offers to play on the phone instead. */
     val canPlayHere: Boolean,
+    /** The segment skip band may show: not over Play here, the one way out the failure offers. */
+    val showsSkip: Boolean,
     val closes: RemoteClose?,
 ) {
     companion object {
@@ -67,6 +72,13 @@ data class RemoteScreenModel(
             (reduced || (itemId != null && itemId == snapshot.itemId)) && sawPlayback(false, snapshot.phase)
 
         /**
+         * [sawPlayback] as the session follows the TV, for the screen of [itemId]: only that item playing counts
+         * ([sawPlaybackOnUpdate]). The item the TV played before it, which its load replaces, neither ends nor stops it.
+         */
+        fun sawPlayback(before: Boolean, itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+            before || sawPlaybackOnUpdate(itemId, snapshot, reduced)
+
+        /**
          * [hasNext]: the phone knows an episode after this one. [reduced]: the TV plays media our server does not
          * know, so there are no track menus. [canPlayHere] only counts with a [failure]. [sawPlayback]: see
          * [sawPlayback]; an end the screen never saw play neither closes it nor offers the next episode.
@@ -86,6 +98,7 @@ data class RemoteScreenModel(
             val ended = snapshot.phase == RemotePhase.ENDED && sawPlayback
             // The reduced player knows nothing after what plays, nor how to play it on the phone.
             val next = hasNext && !reduced
+            val playHere = failure != null && canPlayHere && !reduced
             return RemoteScreenModel(
                 targetLabel = if (reconnecting) TargetLabel.Reconnecting else TargetLabel.Name(targetName),
                 controlsDimmed = reconnecting,
@@ -99,10 +112,13 @@ data class RemoteScreenModel(
                 playShowsSpinner = !reconnecting && (snapshot.phase == RemotePhase.LOADING || snapshot.phase == RemotePhase.BETWEEN),
                 nextUpVisible = snapshot.connected && ended && next,
                 failure = failure,
-                canPlayHere = failure != null && canPlayHere && !reduced,
+                canPlayHere = playHere,
+                showsSkip = !playHere,
                 closes = when {
                     !snapshot.connected -> RemoteClose.REMOTE_ENDED
                     ended && !next -> RemoteClose.PLAYBACK_ENDED
+                    // A Stop, not an error: an error waits for its failure from JS, and a failure shown stays.
+                    snapshot.stopRequested && !reconnecting && sawPlayback && failure == null -> RemoteClose.REMOTE_STOPPED
                     else -> null
                 },
             )

@@ -66,6 +66,7 @@ final class RemotePlayerSession: PresentedPlayer {
 	private var unfollowPlayback: (() -> Void)?
 	private var unfollowVolume: (() -> Void)?
 	private var volumeWatch: VolumeWatch?
+	private var openedSheet = false
 
 	init(
 		playback: RemotePlayback = .shared,
@@ -104,6 +105,17 @@ final class RemotePlayerSession: PresentedPlayer {
 		viewModel.apply(config: config.toPresentConfig())
 		// The TV button says the session's state to VoiceOver; willTeardown stops following it.
 		viewModel.followCast()
+		#if !targetEnvironment(macCatalyst)
+		// It opens the Cast sheet over the screen, for Stop and the volume; Continue here is Play here, and Remote
+		// is this screen already.
+		viewModel.onOutputSheetRequested = { [weak self, weak viewModel] anchor in
+			guard let viewModel else { return }
+			self?.openedSheet = true
+			let sheet = OutputPickerPresenter.shared
+			sheet.strings = OutputPickerStrings(viewModel.outputPickerStrings)
+			sheet.present(anchor: anchor, playingHere: nil, onPlayHere: { self?.playHere() }) {}
+		}
+		#endif
 		if let tint = config.tint { updateTint(tint) }
 		screen.targetName = config.targetName
 		screen.reduced = config.reduced
@@ -149,13 +161,15 @@ final class RemotePlayerSession: PresentedPlayer {
 		unfollowVolume = RemoteTargetHub.shared.addListener(watch)
 	}
 
-	// The holder publishes on the main thread. The film over with nothing after it, or the connection over: the
-	// screen closes, an end of playback reported first as the local player does.
+	// The holder publishes on the main thread. The film over with nothing after it, a stop from the TV, or the
+	// connection over: the screen closes, an end of playback reported first as the local player does.
 	private func follow(_ snapshot: RemotePlaybackSnapshot) {
 		guard !closed else { return }
 		// A failure goes once the TV loads or plays again.
 		let clears = RemoteScreenModel.failureClears(from: screen.snapshot.phase, to: snapshot.phase)
-		screen.sawPlayback = RemoteScreenModel.sawPlayback(before: screen.sawPlayback, phase: snapshot.phase)
+		screen.sawPlayback = RemoteScreenModel.sawPlayback(
+			before: screen.sawPlayback, itemId: viewModel.metadata?.itemId, snapshot: snapshot, reduced: screen.reduced
+		)
 		screen.snapshot = snapshot
 		if clears { clearFailure() }
 		guard let close = screen.model.closes else { return }
@@ -165,6 +179,8 @@ final class RemotePlayerSession: PresentedPlayer {
 			dismiss(reason: .playbackEnded)
 		case .remoteEnded:
 			dismiss(reason: .remoteEnded)
+		case .remoteStopped:
+			dismiss(reason: .remoteStopped)
 		}
 	}
 
@@ -265,6 +281,10 @@ final class RemotePlayerSession: PresentedPlayer {
 		playback.detachScreen(viewModel)
 		viewModel.engine = nil
 		viewController = nil
+		#if !targetEnvironment(macCatalyst)
+		// A sheet the TV button opened goes down with the screen, which UIKit does not report.
+		if openedSheet { OutputPickerPresenter.shared.releaseRemoteScreenSheet() }
+		#endif
 		onTornDown()
 	}
 }

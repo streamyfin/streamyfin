@@ -329,16 +329,12 @@ export const playOnRemote = async (
       settings,
       session?.device?.modelName,
     );
-    // A press made while Auto measured owns the screen now, or another TV took the session: this one sends nothing.
-    if (
-      isStale() ||
-      send !== sends ||
-      currentCastSession()?.id !== session?.id
-    ) {
-      return { status: "superseded" };
-    }
+    // A press made meanwhile owns the screen now, or another TV took the session: this one sends nothing.
+    const superseded = () =>
+      isStale() || send !== sends || currentCastSession()?.id !== session?.id;
+    if (superseded()) return { status: "superseded" };
     const listed = await listing;
-    if (isStale() || send !== sends) return { status: "superseded" };
+    if (superseded()) return { status: "superseded" };
     if (listed) {
       const nextUp = listed.episodes.find(
         ({ id }) => id === listed.queue.nextUpId,
@@ -351,6 +347,7 @@ export const playOnRemote = async (
         ),
         nextEpisode: remoteNextUp(deps.api, nextUp),
       });
+      if (superseded()) return { status: "superseded" };
     }
     const receiverName = receiverNameFor({ friendlyName: remote.name });
     const sent = toReceiverRequest({

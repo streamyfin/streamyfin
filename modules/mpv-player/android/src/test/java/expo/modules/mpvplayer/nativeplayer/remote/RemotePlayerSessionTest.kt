@@ -1,6 +1,7 @@
 package expo.modules.mpvplayer.nativeplayer.remote
 
 import android.content.pm.ActivityInfo
+import android.graphics.Rect
 import android.os.Looper.getMainLooper
 import android.os.SystemClock
 import android.view.InputDevice
@@ -110,7 +111,8 @@ class RemotePlayerSessionTest {
             screenContent = { _, _ -> },
         )
         session.present(on, RemotePlayerConfigRecord().also {
-            it.metadata = MetadataRecord().also { metadata -> metadata.title = "Bench episode" }
+            // The item the fake TV plays: every config of ours carries the id of what it sends.
+            it.metadata = MetadataRecord().also { metadata -> metadata.itemId = "film"; metadata.title = "Bench episode" }
             it.targetName = "Bench TV"
             configure(it)
         })
@@ -311,6 +313,37 @@ class RemotePlayerSessionTest {
         assertFalse(OutputPickerPresenter.isPresented)
     }
 
+    // The TV button opens the Cast sheet over the screen, in the app's language, for Stop and the volume. Its Remote
+    // row is this screen: it closes the sheet and opens no other.
+    @Test
+    fun theTvButtonOpensTheCastSheetOverTheScreen() {
+        val session = presented(idle = false) {
+            it.ui = UIOptionsRecord().also { ui -> ui.outputPickerStrings = mapOf("title" to "Diffuser") }
+        }
+
+        session.viewModel.openOutputSheet(Rect(0, 0, 40, 40))
+
+        assertTrue(OutputPickerPresenter.isPresented)
+        assertEquals("Diffuser", OutputPickerPresenter.strings.get("title"))
+        assertEquals(false, OutputPickerPresenter.presentedController?.environment?.handOff)
+        val emitted = events.size
+        OutputPickerPresenter.presentedController?.remote()
+        assertFalse(OutputPickerPresenter.isPresented)
+        assertTrue(hasScreen())
+        assertEquals(emitted, events.size)
+    }
+
+    // The sheet is a view of its own on the activity: left there, its rows would answer a closed screen.
+    @Test
+    fun theTvButtonsSheetGoesWithTheScreen() {
+        val session = presented(idle = false)
+        session.viewModel.openOutputSheet(Rect(0, 0, 40, 40))
+
+        session.dismiss("closeButton")
+
+        assertFalse(OutputPickerPresenter.isPresented)
+    }
+
     @Test
     fun aTintFromJsReachesTheScreen() {
         val session = presented()
@@ -489,17 +522,80 @@ class RemotePlayerSessionTest {
         assertFalse("$events", events.any { it.first == "onDismiss" })
     }
 
+    // Stopped from the TV's remote: the screen closes, and says no end of playback (the film is not over).
     @Test
-    fun aTvStoppedFromItsRemoteKeepsTheScreen() {
+    fun aTvStoppedFromItsRemoteClosesTheScreen() {
+        presented()
+
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+
+        assertEquals("remoteStopped", events.single { it.first == "onDismiss" }.second["reason"])
+        assertFalse("a stop is no end of playback: $events", events.any { it.first == "onPlaybackEnded" })
+        assertFalse(hasScreen())
+    }
+
+    // R1: the failure band and its Play here stay when the TV then stops, whatever a stop does to the screen.
+    @Test
+    fun aFailureOnScreenStaysWhenTheTvStops() {
         val session = presented()
+        session.showFailure(failure("The TV could not play this"))
 
         fake.simulateStoppedFromReceiver()
         shadowOf(getMainLooper()).idle()
 
         assertTrue(hasScreen())
         assertFalse(events.any { it.first == "onDismiss" })
-        assertFalse(session.screenState!!.model.seekEnabled)
-        assertTrue(session.screenState!!.model.transportEnabled)
+        assertEquals("The TV could not play this", session.screenState!!.model.failure)
+        assertTrue(session.screenState!!.model.canPlayHere)
+    }
+
+    // Another item sent while the TV plays one: the screen opens before the load leaves, and the receiver drops the
+    // item before as a Stop does. That stop is not this screen's: it stays for the failure and Play here (R1).
+    @Test
+    fun aFailedSendOverAnotherItemKeepsItsFailure() {
+        val session = presented(configure = { it.metadata!!.itemId = "duel" })
+
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+        session.showFailure(failure("The TV could not play this"))
+
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" })
+        assertEquals("The TV could not play this", session.screenState!!.model.failure)
+        assertTrue(session.screenState!!.model.canPlayHere)
+    }
+
+    // R1 on a TV at rest: the failure of what was sent shows with Play here.
+    @Test
+    fun aFailedSendOnAStoppedTvKeepsItsFailure() {
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+
+        val session = presented(configure = { it.metadata!!.itemId = "duel" })
+        session.showFailure(failure("The TV could not play this"))
+
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" })
+        assertTrue(session.screenState!!.model.canPlayHere)
+    }
+
+    // The same send, loaded: the screen stays on the new item, which a stop from the TV then closes.
+    @Test
+    fun aSendOverAnotherItemStaysOnTheNewOne() {
+        presented(configure = { it.metadata!!.itemId = "next-film" })
+
+        playback.load(server, ReceiverPlayRequest(listOf(ReceiverItem("next-film")))) {}
+        clock.advance(PlayerConstants.FAKE_REMOTE_LOAD_MS)
+        // Paused, as the fixture's film: a playing TV keeps the main looper busy.
+        engine.pause()
+        shadowOf(getMainLooper()).idle()
+        assertTrue(hasScreen())
+        assertFalse("$events", events.any { it.first == "onDismiss" })
+
+        fake.simulateStoppedFromReceiver()
+        shadowOf(getMainLooper()).idle()
+        assertEquals("remoteStopped", events.single { it.first == "onDismiss" }.second["reason"])
     }
 
     // Each config JS sends says whether the TV plays media our server does not know (PR 6): a full one after a

@@ -21,6 +21,8 @@ data class RemotePlaybackSnapshot(
     val imageUrl: String?,
     /** How the TV plays it, in the receiver's word; null unknown. */
     val playMethod: String? = null,
+    /** Idle on a Stop (TV remote or a sender), not on an error, which [RemotePhase.STOPPED] also covers. Native only. */
+    val stopRequested: Boolean = false,
 ) {
     fun toMap(): Map<String, Any?> = mapOf(
         "connected" to connected,

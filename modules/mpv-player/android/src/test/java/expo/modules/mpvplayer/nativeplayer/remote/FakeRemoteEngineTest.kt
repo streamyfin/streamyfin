@@ -198,6 +198,7 @@ class FakeRemoteEngineTest {
         tick(2)
         engine.simulateStoppedFromReceiver()
         assertEquals(RemotePhase.STOPPED, engine.phase)
+        assertTrue(engine.stopRequested)
         assertTrue(engine.isPausedState)
         tick(3)
         assertEquals(2.0, engine.currentPosition, 0.0)

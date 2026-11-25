@@ -139,14 +139,72 @@ class RemoteScreenModelTest {
         assertFalse(RemoteScreenModel.sawPlaybackOnUpdate(null, foreign.copy(phase = RemotePhase.LOADING), reduced = true))
     }
 
+    // Stopped from the TV's remote or by a sender, once the screen saw it play: the screen closes. Not on a stop it
+    // never saw play, nor over a failure, nor while the session comes back.
     @Test
-    fun aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
-        val screen = model(tv(RemotePhase.STOPPED))
+    fun aTvStoppedFromItsRemoteClosesThePlayer() {
+        val stop = tv(RemotePhase.STOPPED).copy(stopRequested = true)
 
-        assertNull(screen.closes)
-        assertTrue(screen.transportEnabled)
-        assertFalse(screen.seekEnabled)
-        assertFalse(screen.playShowsSpinner)
+        assertEquals(RemoteClose.REMOTE_STOPPED, model(stop).closes)
+        assertNull(model(stop, sawPlayback = false).closes)
+        assertNull(model(stop, failure = "Could not play there").closes)
+        assertNull(model(stop.copy(reconnecting = true)).closes)
+    }
+
+    // R1: a TV stopped on an error keeps the screen for the failure band JS sends after the phase, then shows it with
+    // Play here.
+    @Test
+    fun aTvStoppedOnAnErrorKeepsTheScreenForItsFailure() {
+        val waiting = model(tv(RemotePhase.STOPPED))
+        val failed = model(tv(RemotePhase.STOPPED), failure = "Could not play there", canPlayHere = true)
+
+        assertNull(waiting.closes)
+        assertNull(failed.closes)
+        assertEquals("Could not play there", failed.failure)
+        assertTrue(failed.canPlayHere)
+        assertTrue(waiting.transportEnabled)
+        assertFalse(waiting.seekEnabled)
+        assertFalse(waiting.playShowsSpinner)
+    }
+
+    // What the screen of [itemId] has seen once the TV went through [statuses], as the session follows them.
+    private fun seen(itemId: String?, vararg statuses: RemotePlaybackSnapshot, reduced: Boolean = false): Boolean =
+        statuses.fold(false) { before, status -> RemoteScreenModel.sawPlayback(before, itemId, status, reduced) }
+
+    // Only the screen's own item playing counts as it follows the TV, or anything with the reduced player; once seen
+    // it stays seen. The end of another item does not close the screen.
+    @Test
+    fun theScreenSeesOnlyItsOwnItemPlay() {
+        assertTrue(seen("episode-1", tv(RemotePhase.PLAYING)))
+        assertFalse(seen("episode-2", tv(RemotePhase.PLAYING), tv(RemotePhase.PAUSED)))
+        assertFalse(seen(null, tv(RemotePhase.PLAYING)))
+        assertTrue(seen(null, tv(RemotePhase.PAUSED), reduced = true))
+        assertTrue(seen("episode-1", tv(RemotePhase.PLAYING), tv(RemotePhase.ENDED)))
+        assertNull(model(tv(RemotePhase.ENDED), sawPlayback = seen("duel", tv(RemotePhase.PLAYING), tv(RemotePhase.ENDED))).closes)
+    }
+
+    // Another item sent while the TV plays one: the screen opens on the item before, the load replaces it and the
+    // receiver drops it as a Stop does. That stop is not this screen's: it stays for the failure and Play here (R1).
+    @Test
+    fun aFailedSendOverAnotherItemKeepsTheScreenForItsFailure() {
+        val dropped = tv(RemotePhase.STOPPED).copy(stopRequested = true)
+        val sawPlayback = seen("duel", tv(RemotePhase.PLAYING), tv(RemotePhase.LOADING), dropped)
+        val failed = model(dropped, failure = "Could not play there", canPlayHere = true, sawPlayback = sawPlayback)
+
+        assertNull(model(dropped, sawPlayback = sawPlayback).closes)
+        assertNull(failed.closes)
+        assertTrue(failed.canPlayHere)
+    }
+
+    // The same send, loaded: the screen stays on the new item, which a stop from the TV then closes.
+    @Test
+    fun aSendOverAnotherItemFollowsTheNewOne() {
+        val next = tv(RemotePhase.PLAYING).copy(itemId = "episode-2")
+        val sawPlayback = seen("episode-2", tv(RemotePhase.PLAYING), tv(RemotePhase.LOADING), next)
+        val stopped = next.copy(phase = RemotePhase.STOPPED, stopRequested = true)
+
+        assertNull(model(next, sawPlayback = sawPlayback).closes)
+        assertEquals(RemoteClose.REMOTE_STOPPED, model(stopped, sawPlayback = sawPlayback).closes)
     }
 
     @Test
@@ -208,6 +266,15 @@ class RemoteScreenModelTest {
         assertTrue(model(tv(RemotePhase.ENDED), hasNext = true).nextUpVisible)
     }
 
+    // Play here is the way out the failure offers: the segment skip waits while it is there, and is back with a
+    // failure that offers nothing, or with none.
+    @Test
+    fun theSkipWaitsWhilePlayHereIsOffered() {
+        assertFalse(model(tv(RemotePhase.PLAYING), failure = "Could not play there", canPlayHere = true).showsSkip)
+        assertTrue(model(tv(RemotePhase.PLAYING), failure = "Could not play there").showsSkip)
+        assertTrue(model(tv(RemotePhase.PLAYING)).showsSkip)
+    }
+
     // Play here goes with a failure that offers it, never alone.
     @Test
     fun aFailureOffersPlayHereOnlyWhenItSaysSo() {
@@ -235,5 +302,6 @@ class RemoteScreenModelTest {
     fun theReasonsAreTheJsOnes() {
         assertEquals("playbackEnded", RemoteClose.PLAYBACK_ENDED.reason)
         assertEquals("remoteEnded", RemoteClose.REMOTE_ENDED.reason)
+        assertEquals("remoteStopped", RemoteClose.REMOTE_STOPPED.reason)
     }
 }

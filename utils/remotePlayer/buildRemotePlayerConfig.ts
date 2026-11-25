@@ -27,6 +27,7 @@ import type {
 } from "@/modules/mpv-player/src/RemotePlayerPresentation.types";
 import type { Settings } from "@/utils/atoms/settings";
 import { type BitrateRequest, bitrateLabel } from "@/utils/bitrate";
+import { buildOutputPickerStrings } from "@/utils/cast/outputPickerStrings";
 import { getJellyfinHeadersForUrl, hasHeaders } from "@/utils/customHeaders";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
@@ -46,7 +47,7 @@ import { ticksToSeconds } from "@/utils/time";
 
 const remoteUi = (
   settings: Settings,
-  strings: ReturnType<typeof buildNativePlayerStrings>,
+  t: TFunction,
   subtitleSearch = false,
 ): RemotePlayerPresentConfig["ui"] => ({
   allowPip: false,
@@ -57,7 +58,9 @@ const remoteUi = (
   // The phone's own lookup adds a file to a local player, which there is none of here: the server's search only.
   subtitleSearchEnabled: subtitleSearch,
   ...subtitleSearchLanguageOptions(settings),
-  strings,
+  strings: buildNativePlayerStrings(t),
+  // The TV's button opens the Cast sheet over the screen.
+  outputPickerStrings: buildOutputPickerStrings(t),
 });
 
 /** The media source a play names, else the item's first: the one the TV plays. */
@@ -174,7 +177,6 @@ export const buildRemotePlayerConfig = (params: {
   bitrateValue?: BitrateRequest;
 }): RemotePlayerPresentConfig => {
   const { item, mediaSource, settings, api, t } = params;
-  const strings = buildNativePlayerStrings(t);
   return {
     metadata: remoteMetadata(item, api, settings),
     targetName: params.targetName,
@@ -202,7 +204,7 @@ export const buildRemotePlayerConfig = (params: {
           t,
         })
       : null,
-    ui: remoteUi(settings, strings, canSearchServerSubtitles(params.user)),
+    ui: remoteUi(settings, t, canSearchServerSubtitles(params.user)),
     tint: params.tint,
     // None at all when the user has none: native would send an empty set with every image.
     ...(hasHeaders(params.imageHeaders)
@@ -234,7 +236,7 @@ export const buildReducedRemotePlayerConfig = (params: {
   nextEpisode: null,
   episodeList: [],
   tracks: null,
-  ui: remoteUi(params.settings, buildNativePlayerStrings(params.t)),
+  ui: remoteUi(params.settings, params.t),
   tint: null,
   reduced: true,
 });

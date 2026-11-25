@@ -167,7 +167,12 @@ func outputSheetState(_ input: OutputSheetInput) -> OutputSheetState {
   let continueHere =
     !input.handOff && input.playingHere == nil && snapshot.phase == .connected && input.receiverPlaying
     && input.receiverGoesOnHere
-  var rows: [OutputRow] = [.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere)]
+  // This device's row is there when a tap does something, stop the receiver or take its video over: with no receiver
+  // it could only close the sheet.
+  var rows: [OutputRow] = []
+  if snapshot.phase != .none {
+    rows.append(.thisDevice(kind: input.thisDevice, playing: input.playingHere, continueHere: continueHere))
+  }
   switch input.playServices {
   case .missing:
     rows.append(.status(.playServicesMissing))

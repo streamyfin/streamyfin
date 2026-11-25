@@ -830,6 +830,8 @@ final class CastEngine: RemoteEngine {
     )
   }
 
+  var stopRequested: Bool { (phase == .stopped || phase == .none) && idleReason == Reason.cancelled }
+
   var reconnecting: Bool { suspended }
 
   // One entry per queued item, so `playingIndex` addresses it: an item without an id stays as "".

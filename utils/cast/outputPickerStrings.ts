@@ -41,6 +41,5 @@ export const buildOutputPickerStrings = (t: TFunction): OutputPickerStrings => {
     network: t("cast.output.network"),
     failed: t("cast.output.failed"),
     airPlay: t("cast.output.airplay"),
-    airPlayCaption: t("cast.output.airplay_caption"),
   };
 };

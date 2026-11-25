@@ -127,12 +127,70 @@ enum RemoteScreenModelTests {
 		check(!RemoteScreenModel.sawPlaybackOnUpdate(itemId: nil, snapshot: loading, reduced: true), "reduced: loading")
 	}
 
-	static func aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume() {
-		let screen = model(tv(.stopped))
-		check(screen.closes == nil, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: closes")
-		check(screen.transportEnabled, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: transport")
-		check(!screen.seekEnabled, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: seek")
-		check(!screen.playShowsSpinner, "aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume: spinner")
+	// Stopped from the TV's remote or by a sender, once the screen saw it play: the screen closes. Not on a stop it
+	// never saw play, nor over a failure, nor while the session comes back.
+	static func aTvStoppedFromItsRemoteClosesThePlayer() {
+		let what = "aTvStoppedFromItsRemoteClosesThePlayer"
+		var stop = tv(.stopped)
+		stop.stopRequested = true
+		check(model(stop).closes == .remoteStopped, "\(what): closes")
+		check(model(stop, sawPlayback: false).closes == nil, "\(what): never saw play")
+		check(model(stop, failure: "Could not play there").closes == nil, "\(what): over a failure")
+		stop.reconnecting = true
+		check(model(stop).closes == nil, "\(what): reconnecting")
+	}
+
+	// R1: a TV stopped on an error keeps the screen for the failure band JS sends after the phase, then shows it with
+	// Play here.
+	static func aTvStoppedOnAnErrorKeepsTheScreenForItsFailure() {
+		let what = "aTvStoppedOnAnErrorKeepsTheScreenForItsFailure"
+		let waiting = model(tv(.stopped))
+		let failed = model(tv(.stopped), failure: "Could not play there", canPlayHere: true)
+		check(waiting.closes == nil && failed.closes == nil, "\(what): closes")
+		check(failed.failure == "Could not play there" && failed.canPlayHere, "\(what): message and Play here")
+		check(waiting.transportEnabled && !waiting.seekEnabled && !waiting.playShowsSpinner, "\(what): transport")
+	}
+
+	// What the screen of `itemId` has seen once the TV went through `statuses`, as the session follows them.
+	static func seen(_ itemId: String?, _ statuses: RemotePlaybackSnapshot..., reduced: Bool = false) -> Bool {
+		statuses.reduce(false) { RemoteScreenModel.sawPlayback(before: $0, itemId: itemId, snapshot: $1, reduced: reduced) }
+	}
+
+	// Only the screen's own item playing counts as it follows the TV, or anything with the reduced player; once seen
+	// it stays seen. The end of another item does not close the screen.
+	static func theScreenSeesOnlyItsOwnItemPlay() {
+		let what = "theScreenSeesOnlyItsOwnItemPlay"
+		check(seen("episode-1", tv(.playing)), "\(what): its item")
+		check(!seen("episode-2", tv(.playing), tv(.paused)), "\(what): another item")
+		check(!seen(nil, tv(.playing)), "\(what): no item")
+		check(seen(nil, tv(.paused), reduced: true), "\(what): reduced")
+		check(seen("episode-1", tv(.playing), tv(.ended)), "\(what): kept")
+		let otherEnd = seen("duel", tv(.playing), tv(.ended))
+		check(model(tv(.ended), sawPlayback: otherEnd).closes == nil, "\(what): another item's end")
+	}
+
+	// Another item sent while the TV plays one: the screen opens on the item before, the load replaces it and the
+	// receiver drops it as a Stop does. That stop is not this screen's: it stays for the failure and Play here (R1).
+	static func aFailedSendOverAnotherItemKeepsTheScreenForItsFailure() {
+		let what = "aFailedSendOverAnotherItemKeepsTheScreenForItsFailure"
+		var dropped = tv(.stopped)
+		dropped.stopRequested = true
+		let sawPlayback = seen("duel", tv(.playing), tv(.loading), dropped)
+		let failed = model(dropped, failure: "Could not play there", canPlayHere: true, sawPlayback: sawPlayback)
+		check(model(dropped, sawPlayback: sawPlayback).closes == nil, "\(what): waits for its failure")
+		check(failed.closes == nil && failed.canPlayHere, "\(what): message and Play here")
+	}
+
+	// The same send, loaded: the screen stays on the new item, which a stop from the TV then closes.
+	static func aSendOverAnotherItemFollowsTheNewOne() {
+		let what = "aSendOverAnotherItemFollowsTheNewOne"
+		var next = tv(.playing)
+		next.itemId = "episode-2"
+		let sawPlayback = seen("episode-2", tv(.playing), tv(.loading), next)
+		check(model(next, sawPlayback: sawPlayback).closes == nil, "\(what): stays")
+		next.phase = .stopped
+		next.stopRequested = true
+		check(model(next, sawPlayback: sawPlayback).closes == .remoteStopped, "\(what): its stop closes")
 	}
 
 	static func aFinishedConnectionClosesThePlayer() {
@@ -200,6 +258,15 @@ enum RemoteScreenModelTests {
 		check(!model(tv(.stopped), canPlayHere: true).canPlayHere, "\(what): no failure")
 	}
 
+	// Play here is the way out the failure offers: the segment skip waits while it is there, and is back with a
+	// failure that offers nothing, or with none.
+	static func theSkipWaitsWhilePlayHereIsOffered() {
+		let what = "theSkipWaitsWhilePlayHereIsOffered"
+		check(!model(tv(.playing), failure: "Could not play there", canPlayHere: true).showsSkip, "\(what): offered")
+		check(model(tv(.playing), failure: "Could not play there").showsSkip, "\(what): not offered")
+		check(model(tv(.playing)).showsSkip, "\(what): no failure")
+	}
+
 	// A failure stays until the TV loads again or plays again: a change into loading or playing, not a TV that was
 	// already there when the failure came (a timed out load still loading).
 	static func aFailureClearsWhenTheTvLoadsOrPlaysAgain() {
@@ -218,6 +285,7 @@ enum RemoteScreenModelTests {
 	static func theReasonsAreTheJsOnes() {
 		check(RemoteClose.playbackEnded.reason == "playbackEnded", "theReasonsAreTheJsOnes: playbackEnded")
 		check(RemoteClose.remoteEnded.reason == "remoteEnded", "theReasonsAreTheJsOnes: remoteEnded")
+		check(RemoteClose.remoteStopped.reason == "remoteStopped", "theReasonsAreTheJsOnes: remoteStopped")
 	}
 
 	static func main() {
@@ -231,13 +299,18 @@ enum RemoteScreenModelTests {
 		theScreenSeesPlaybackOnceTheTvHoldsTheItem()
 		aNewConfigForTheItemTheTvPlaysHasSeenItPlay()
 		aReducedConfigHasSeenWhatTheTvPlays()
-		aTvStoppedFromItsRemoteKeepsThePlayerAndOffersToResume()
+		aTvStoppedFromItsRemoteClosesThePlayer()
+		aTvStoppedOnAnErrorKeepsTheScreenForItsFailure()
+		aFailedSendOverAnotherItemKeepsTheScreenForItsFailure()
+		aSendOverAnotherItemFollowsTheNewOne()
+		theScreenSeesOnlyItsOwnItemPlay()
 		aFinishedConnectionClosesThePlayer()
 		aFailureShowsItsMessage()
 		aReducedPlayerHasNoTrackMenus()
 		aFullPlayerShowsEverything()
 		aReducedPlayerShowsOnlyTransportBarAndVolume()
 		aFailureOffersPlayHereOnlyWhenItSaysSo()
+		theSkipWaitsWhilePlayHereIsOffered()
 		aFailureClearsWhenTheTvLoadsOrPlaysAgain()
 		theReasonsAreTheJsOnes()
 		print("PASS: remote screen model (\(cases) cases)")

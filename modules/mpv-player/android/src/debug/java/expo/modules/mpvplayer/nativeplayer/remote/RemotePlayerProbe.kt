@@ -84,7 +84,7 @@ object RemotePlayerProbe {
             screenContent = screenContent,
         )
         current = session
-        session.present(activity, config(look))
+        session.present(activity, config(look, FakeRemoteEngine.DEFAULT_ITEMS.first().id))
         log("presented: $TITLE on $TARGET")
 
         fun logPosition() {
@@ -117,7 +117,7 @@ object RemotePlayerProbe {
             screenContent = screenContent,
         )
         current = session
-        session.present(activity, config(look))
+        session.present(activity, config(look, holder.snapshot.itemId))
         log("presented: $TITLE on the session's engine")
 
         fun logPosition() {
@@ -148,8 +148,10 @@ object RemotePlayerProbe {
     )
 
     /** Every slot the screen draws from its config is filled, so the proof can hold each layout to the mockups. */
-    internal fun config(look: Look = Look()) = RemotePlayerConfigRecord().also {
+    internal fun config(look: Look = Look(), itemId: String? = null) = RemotePlayerConfigRecord().also {
         it.metadata = MetadataRecord().also { metadata ->
+            // The item the TV holds, as every config of ours says: the screen counts only its own item's playback.
+            metadata.itemId = itemId
             metadata.title = TITLE
             metadata.subtitle = SUBTITLE
             metadata.artworkUri = look.artwork

@@ -12,20 +12,23 @@ enum RemoteClose: Equatable {
 	case playbackEnded
 	/// The connection to the TV is over.
 	case remoteEnded
+	/// The TV was stopped, from its remote or a sender.
+	case remoteStopped
 
 	/// The dismiss reason JS gets.
 	var reason: String {
 		switch self {
 		case .playbackEnded: return "playbackEnded"
 		case .remoteEnded: return "remoteEnded"
+		case .remoteStopped: return "remoteStopped"
 		}
 	}
 }
 
 /// What the remote screen shows for the state of the TV, the design's table of states: a loading TV spins in
 /// the play button, a reconnecting one dims the controls and cuts the transport, between two items the bar and
-/// the track menus rest, a TV stopped from its remote keeps the screen and play resumes, and the end of the film
-/// or of the connection closes it. Pure. Twin: RemoteScreenModel.kt.
+/// the track menus rest, a TV stopped on an error keeps the screen for its failure, and a stop from the TV's remote,
+/// the end of the film or of the connection closes it. Pure. Twin: RemoteScreenModel.kt.
 struct RemoteScreenModel: Equatable {
 	var targetLabel: TargetLabel
 	var controlsDimmed: Bool
@@ -43,6 +46,8 @@ struct RemoteScreenModel: Equatable {
 	var failure: String?
 	/// The failure offers to play on the phone instead.
 	var canPlayHere: Bool
+	/// The segment skip band may show: not over Play here, the one way out the failure offers.
+	var showsSkip: Bool
 	var closes: RemoteClose?
 
 	/// Whether a failure shown while the TV was at `from` goes as it moves to `to`: the TV loads again or plays
@@ -64,6 +69,12 @@ struct RemoteScreenModel: Equatable {
 		(reduced || (itemId != nil && itemId == snapshot.itemId)) && sawPlayback(before: false, phase: snapshot.phase)
 	}
 
+	/// `sawPlayback` as the session follows the TV, for the screen of `itemId`: only that item playing counts
+	/// (`sawPlaybackOnUpdate`). The item the TV played before it, which its load replaces, neither ends nor stops it.
+	static func sawPlayback(before: Bool, itemId: String?, snapshot: RemotePlaybackSnapshot, reduced: Bool = false) -> Bool {
+		before || sawPlaybackOnUpdate(itemId: itemId, snapshot: snapshot, reduced: reduced)
+	}
+
 	/// `hasNext`: the phone knows an episode after this one. `reduced`: the TV plays media our server does not
 	/// know, so there are no track menus. `canPlayHere` only counts with a `failure`. `sawPlayback`: see
 	/// `sawPlayback(before:phase:)`; an end the screen never saw play neither closes it nor offers the next episode.
@@ -77,11 +88,15 @@ struct RemoteScreenModel: Equatable {
 		let ended = snapshot.phase == .ended && sawPlayback
 		// The reduced player knows nothing after what plays, nor how to play it on the phone.
 		let next = hasNext && !reduced
+		let playHere = failure != nil && canPlayHere && !reduced
 		let closes: RemoteClose?
 		if !snapshot.connected {
 			closes = .remoteEnded
 		} else if ended, !next {
 			closes = .playbackEnded
+		} else if snapshot.stopRequested, !reconnecting, sawPlayback, failure == nil {
+			// A Stop, not an error: an error waits for its failure from JS, and a failure shown stays.
+			closes = .remoteStopped
 		} else {
 			closes = nil
 		}
@@ -98,7 +113,8 @@ struct RemoteScreenModel: Equatable {
 			playShowsSpinner: !reconnecting && (snapshot.phase == .loading || snapshot.phase == .between),
 			nextUpVisible: snapshot.connected && ended && next,
 			failure: failure,
-			canPlayHere: failure != nil && canPlayHere && !reduced,
+			canPlayHere: playHere,
+			showsSkip: !playHere,
 			closes: closes
 		)
 	}

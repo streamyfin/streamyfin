@@ -127,6 +127,7 @@ export const buildNativePlayerStrings = (
   segmentSkippedCommercial: t(SEGMENT_SKIPPED_KEY.Commercial),
   segmentSkippedPreview: t(SEGMENT_SKIPPED_KEY.Preview),
   nextEpisode: t("player.next_episode"),
+  previousEpisode: t("player.previous_episode"),
   playNow: t("common.play"),
   cancel: t("common.cancel"),
   episodes: t("common.episodes"),

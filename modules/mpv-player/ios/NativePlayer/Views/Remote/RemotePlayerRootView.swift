@@ -38,11 +38,15 @@ struct RemotePlayerRootView: View {
 				aspectRatio: viewModel.metadata?.artworkAspectRatio, topBarHeight: topBarHeight
 			)
 			let artwork = CGSize(width: box.width, height: box.height)
+			let fitted = RemoteMetrics.imageSize(box: box, aspectRatio: viewModel.metadata?.artworkAspectRatio)
 			let beside = RemoteMetrics.besideWidth(layout: layout, width: width).map { CGFloat($0) }
 			let arrangement = RemoteArrangement.of(layout)
 			// The panel's room: couched the whole half, it centers on the image there; else the image.
 			let infoWidth = (layout == .landscape ? beside ?? 0 : artwork.width) - 2 * Self.infoInset
-			let slots = Slots(layout: layout, artwork: artwork, infoWidth: max(min(TechnicalInfoOverlay.compactMaxWidth, infoWidth), 0))
+			let slots = Slots(
+				layout: layout, artwork: artwork, image: CGSize(width: fitted.width, height: fitted.height),
+				infoWidth: max(min(TechnicalInfoOverlay.compactMaxWidth, infoWidth), 0)
+			)
 
 			VStack(spacing: 0) {
 				if !arrangement.topBar.isEmpty {
@@ -121,10 +125,12 @@ struct RemotePlayerRootView: View {
 
 	private var technicalInfoVisible: Bool { viewModel.showTechnicalInfo && viewModel.capabilities.technicalInfo }
 
-	/// What the slots are drawn at: the layout, the artwork's box, and the technical info card's width.
+	/// What the slots are drawn at: the layout, the artwork's box, the image within it, and the technical info card's
+	/// width.
 	private struct Slots {
 		let layout: RemoteLayout
 		let artwork: CGSize
+		let image: CGSize
 		let infoWidth: CGFloat
 	}
 
@@ -140,7 +146,7 @@ struct RemotePlayerRootView: View {
 		case .artwork:
 			ZStack {
 				// The artwork's double tap seeks like the bar, so it rests when the bar does.
-				RemoteArtwork(viewModel: viewModel, size: artwork)
+				RemoteArtwork(viewModel: viewModel, size: artwork, image: slots.image)
 					.overlay { if model.seekEnabled { artworkTaps } }
 				// Over the image and never over the titles or the controls; the skip band and the seek pill are drawn
 				// over it.
@@ -151,9 +157,25 @@ struct RemotePlayerRootView: View {
 				}
 				Color.clear
 					.overlay { if model.seekEnabled { seekPill } }
-					// The segment skip rests with the bar too, as it did above it.
-					.overlay(alignment: .bottom) { RemoteSkipBanner(viewModel: viewModel).remoteInert(!model.seekEnabled) }
-					.frame(width: artwork.width, height: artwork.height)
+					.overlay(alignment: .bottom) {
+						VStack(spacing: 0) {
+							// A failure is said on the image, whatever the TV does, with Play here when it offers it. Within
+							// the artwork however small it is and however long the message: the bands keep their height.
+							if let failure = model.failure {
+								RemoteFailureCard(
+									message: failure,
+									playHere: model.canPlayHere ? viewModel.str("playHere", "Play on this device") : nil,
+									onPlayHere: screen.playHere
+								)
+								.layoutPriority(-1)
+							}
+							// The segment skip rests with the bar too, as it did above it, and waits while Play here is there.
+							RemoteSkipBanner(viewModel: viewModel, allowed: model.showsSkip)
+								.remoteInert(!model.seekEnabled)
+						}
+					}
+					// On the image, not its square: a poster is narrower, a wide image shorter.
+					.frame(width: slots.image.width, height: slots.image.height)
 					.clipShape(RoundedRectangle(cornerRadius: 8))
 			}
 			// Couched, the whole half: the panel centers on the image within it, wider than a poster.
@@ -164,15 +186,6 @@ struct RemotePlayerRootView: View {
 				.frame(maxWidth: .infinity, alignment: .leading)
 		case .bar:
 			VStack(alignment: .leading, spacing: 8) {
-				// A failure is said above the bar, whatever the TV does, with Play here when it offers it.
-				if let failure = model.failure {
-					Text(failure)
-						.font(.subheadline)
-						.foregroundStyle(.white)
-					if model.canPlayHere {
-						RemotePillButton(label: viewModel.str("playHere", "Play here"), action: screen.playHere)
-					}
-				}
 				// The list the TV got is over and the phone knows what comes after it: offered, never counted down.
 				if model.nextUpVisible, let next = viewModel.nextEpisode {
 					RemoteNextUpCard(viewModel: viewModel, next: next, onContinue: screen.continueNextUp)
@@ -309,7 +322,7 @@ private struct RemoteNextUpCard: View {
 	}
 }
 
-/// A pill under a message: Play here under a failure, Continue under the next episode.
+/// A pill under a message: Continue under the next episode.
 private struct RemotePillButton: View {
 	let label: String
 	let action: () -> Void

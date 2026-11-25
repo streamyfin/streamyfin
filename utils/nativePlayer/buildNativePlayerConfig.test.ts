@@ -533,3 +533,21 @@ describe("the remote player's TV button", () => {
     );
   });
 });
+
+// VoiceOver read the symbols' names, "Go To End" on previous and "Go To Start" on next.
+describe("the previous and next buttons", () => {
+  test("have a name for VoiceOver", () => {
+    const english = i18next.createInstance();
+    english.init({
+      lng: "en",
+      resources: { en: { translation: en } },
+      initAsync: false,
+    });
+    const strings = buildNativePlayerStrings(english.t);
+
+    expect([strings.previousEpisode, strings.nextEpisode]).toEqual([
+      "Previous episode",
+      "Next episode",
+    ]);
+  });
+});

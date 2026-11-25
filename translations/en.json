@@ -949,10 +949,11 @@
     "chromecast_did_not_start": "The Chromecast did not start playing. Make sure it can reach your Jellyfin server.",
     "play_on": "Play on {{name}}",
     "connecting_to": "Connecting to {{name}}…",
-    "play_here": "Play here",
+    "play_here": "Play on this device",
     "download_plays_here": "Downloads play on this device",
     "message_from_server": "Message from server: {{message}}",
     "next_episode": "Next episode",
+    "previous_episode": "Previous episode",
     "up_next": "Up next",
     "continue_watching": "Continue watching",
     "go_back": "Go back",
@@ -1303,8 +1304,7 @@
       "receiver_unavailable": "The Jellyfin receiver could not start on this device",
       "network": "The connection to this device was lost",
       "failed": "The connection failed",
-      "airplay": "AirPlay…",
-      "airplay_caption": "System picker"
+      "airplay": "AirPlay…"
     }
   },
   "not_found": {

@@ -76,6 +76,8 @@ class FakeRemoteEngine(
             paused -> RemotePhase.PAUSED
             else -> RemotePhase.PLAYING
         }
+    // The fake TV stops from its remote only.
+    override val stopRequested: Boolean get() = phase == RemotePhase.STOPPED
     override val reconnecting: Boolean get() = suspended
     override val queueItemIds: List<String> get() = items.map { it.id }
     override val playingIndex: Int get() = if (loaded && current != null && foreignMedia == null) index else -1
