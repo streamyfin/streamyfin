@@ -1828,6 +1828,23 @@ enum CastEngineTests {
       check("aPlaybackErrorAfterALoneConnectionErrorReports", bench.delegate.errors == ["playback_info_failed", "playback_failed"])
     }
 
+    // An end whose status carries no media still ends this engine's playback: the next item of its queue
+    // is its own, and a resume onto it reclaims the bus.
+    do {
+      let bench = Bench()
+      let engine = bench.engine()
+      let album = ReceiverPlayRequest(items: ["t-1", "t-2"].map { ReceiverItem(id: $0, type: "Audio") })
+      engine.load(server: server, request: album) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "t-1", "playSessionId": "ps-1"])), position: 0)
+      bench.media.report(snapshot(playerState: "idle", idleReason: "finished", customData: nil, hasMedia: false), position: 0)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 0)
+      bench.hub.suspend()
+      let port2 = FakeChannelPort()
+      bench.hub.attach(port2)
+      bench.media.report(snapshot(customData: ours(["itemId": "t-2", "playSessionId": "ps-2"])), position: 1)
+      check("aResumeOntoTheItemItsQueueWentOnToAfterAnEndWithoutMediaReclaimsTheBus", commandsSent(on: port2) == ["SetVolume"])
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {
