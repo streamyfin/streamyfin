@@ -581,22 +581,23 @@ class CastEngine(
     // A Cast message holds 64 KB: the items go a window at a time.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
-        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration)
+        enqueueWindows(itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), queueGeneration, boundSessionId)
     }
 
     // Each window once the channel took the one before: the queue then holds them in the order the
     // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
-    // its PlayNow having replaced the queue the rest was for.
-    private fun enqueueWindows(windows: List<List<String>>, generation: Long) {
+    // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
+    // sent on: the rest was for that receiver.
+    private fun enqueueWindows(windows: List<List<String>>, generation: Long, binding: String?) {
         val window = windows.firstOrNull() ?: return
         sendMessage(
             "PlayLast",
             ReceiverProtocol.playLast(server, window),
             failed = { delegate?.onError(it) },
             sent = {
-                if (generation == queueGeneration) {
+                if (generation == queueGeneration && session != null && boundSessionId == binding) {
                     queue = queue + window.map { ReceiverItem(id = it) }
-                    enqueueWindows(windows.drop(1), generation)
+                    enqueueWindows(windows.drop(1), generation, binding)
                 }
             },
         )

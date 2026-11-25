@@ -1234,4 +1234,16 @@ class CastEngineTest {
         engine.setSubtitleTrack(3)
         assertEquals(listOf("PlayNow"), commands().map { it.first })
     }
+
+    // An enqueue still sending its windows when the engine let go of the session: the rest went on to
+    // the receiver, or to the next one the engine bound to.
+    @Test
+    fun anEnqueueStopsOnceTheEngineStops() {
+        val engine = playing()
+        port.holdResults = true
+        engine.enqueue((1..150).map { "t-$it" })
+        engine.stop()
+        port.releaseResults()
+        assertEquals(1, playLasts())
+    }
 }
