@@ -2,13 +2,15 @@
 
 import io
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from suites.syncplay import seerr
+from suites.syncplay import seerr, setup
 
 OWNED = {
     "SYNCPLAY_PROJECT": "streamyfin-syncplay-e2e",
@@ -61,7 +63,8 @@ class EnsureReadyTest(unittest.TestCase):
         ])
         opener.serve("PUT", "/api/v1/settings/jellyfin/library/fx1", {"id": "fx1", "enabled": True})
         opener.serve("POST", "/api/v1/settings/initialize", {"initialized": True})
-        with patched_opener(opener):
+        # A real developer .state/seerr/settings.json must not change what this sends.
+        with TemporaryDirectory() as directory, mock.patch.object(setup, "STATE", Path(directory)), patched_opener(opener):
             seerr.ensure_ready(OWNED, username="syncplay-host", password="pw")
         self.assertEqual(opener.calls, [
             ("GET", "/api/v1/settings/public", None),
@@ -75,6 +78,28 @@ class EnsureReadyTest(unittest.TestCase):
             ("POST", "/api/v1/settings/initialize", None),
             ("GET", "/api/v1/settings/public", None),
         ])
+
+    def test_retries_uninitialized_seerr_with_saved_jellyfin_without_hostname(self):
+        # A first run that died before initialize leaves settings.jellyfin.ip saved; the
+        # retry must not send a hostname — Seerr 500s on one once an ip is saved.
+        opener = FakeOpener()
+        opener.serve("GET", "/api/v1/settings/public", {"initialized": False}, {"initialized": True})
+        opener.serve("POST", "/api/v1/auth/jellyfin", {"id": 1})
+        opener.serve("POST", "/api/v1/settings/jellyfin/library/sync", [{"id": "fx1", "name": "SyncPlay Fixtures"}])
+        opener.serve("PUT", "/api/v1/settings/jellyfin/library/fx1", {"id": "fx1", "enabled": True})
+        opener.serve("POST", "/api/v1/settings/initialize", {"initialized": True})
+        with TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "seerr").mkdir()
+            (state / "seerr" / "settings.json").write_text(json.dumps({"jellyfin": {"ip": "jellyfin"}}))
+            with mock.patch.object(setup, "STATE", state), patched_opener(opener):
+                seerr.ensure_ready(OWNED, username="syncplay-host", password="pw")
+        self.assertEqual(
+            opener.calls[1],
+            ("POST", "/api/v1/auth/jellyfin", {"username": "syncplay-host", "password": "pw"}),
+        )
+        self.assertIn(("POST", "/api/v1/settings/jellyfin/library/sync", None), opener.calls)
+        self.assertIn(("POST", "/api/v1/settings/initialize", None), opener.calls)
 
     def test_an_initialized_seerr_only_reuses_the_owner_login(self):
         opener = FakeOpener()

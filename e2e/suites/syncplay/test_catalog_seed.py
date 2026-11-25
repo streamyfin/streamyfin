@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from suites.syncplay import catalog_seed, seed, setup
+from suites.syncplay import backend, catalog_seed, seed, setup
 
 
 class CatalogSeedTest(unittest.TestCase):
@@ -102,6 +102,9 @@ class CatalogSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
+                # seed calls setup.backend() for the media host path; a developer
+                # SYNCPLAY_BACKEND=native must not switch it to host processes.
+                mock.patch.object(setup, "backend", return_value=backend.DockerBackend()),
                 mock.patch.object(catalog_seed.subprocess, "run", side_effect=ffmpeg),
             ):
                 seed.seed(inventory_path=manifest)

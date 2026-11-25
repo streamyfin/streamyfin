@@ -1,6 +1,7 @@
 """The opt-in catalog must be visible to clients without altering SyncPlay fixtures."""
 
 import json
+import os
 from pathlib import Path
 from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
@@ -8,7 +9,7 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from suites.syncplay import catalog_seed, seed, setup
+from suites.syncplay import backend, catalog_seed, seed, seerr, setup
 
 
 class MovieSeedTest(unittest.TestCase):
@@ -68,6 +69,9 @@ class MovieSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
+                # seed calls setup.backend() for the media host path; a developer
+                # SYNCPLAY_BACKEND=native must not switch it to host processes.
+                mock.patch.object(setup, "backend", return_value=backend.DockerBackend()),
                 mock.patch.object(catalog_seed.subprocess, "run", side_effect=ffmpeg),
             ):
                 seed.seed(inventory_path=inventory_path)
@@ -131,6 +135,9 @@ class MovieSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
+                # seed calls setup.backend() for the media host path; a developer
+                # SYNCPLAY_BACKEND=native must not switch it to host processes.
+                mock.patch.object(setup, "backend", return_value=backend.DockerBackend()),
                 mock.patch.object(seed, "catalog_files", return_value=False),
                 mock.patch.object(catalog_seed, "generate", return_value=False),
             ):
@@ -182,6 +189,9 @@ class MovieSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
+                # seed calls setup.backend() for the media host path; a developer
+                # SYNCPLAY_BACKEND=native must not switch it to host processes.
+                mock.patch.object(setup, "backend", return_value=backend.DockerBackend()),
                 mock.patch.object(seed, "catalog_files", return_value=False),
                 mock.patch.object(catalog_seed, "generate", return_value=False),
                 mock.patch.object(seed.time, "sleep"),
@@ -238,6 +248,10 @@ class MovieSeedTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "ENV_FILE", state / ".env"),
+                # A developer SYNCPLAY_BACKEND=native must not swap in the native backend,
+                # and setup must never reach a real Seerr from a test.
+                mock.patch.dict(os.environ, {"SYNCPLAY_BACKEND": "docker"}, clear=True),
+                mock.patch.object(seerr, "ensure_ready"),
                 mock.patch.object(setup, "generate_media"),
                 mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
                 mock.patch.object(setup, "api", side_effect=api),

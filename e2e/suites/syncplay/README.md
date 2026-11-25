@@ -92,7 +92,12 @@ start when a container with that name was started by another checkout. In a seco
 worktree, give it its own names the first time:
 
 ```sh
-SYNCPLAY_PROJECT=streamyfin-maestro-local SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin SYNCPLAY_PORT=18117 bun run e2e:setup
+SYNCPLAY_PROJECT=streamyfin-maestro-local \
+SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin \
+SYNCPLAY_PORT=18117 \
+SYNCPLAY_SEERR_CONTAINER=streamyfin-maestro-local-seerr \
+SYNCPLAY_SEERR_PORT=15117 \
+bun run e2e:setup
 bun run e2e:seed
 ```
 

@@ -185,7 +185,8 @@ class SelectionTest(unittest.TestCase):
         opener.serve("POST", "/api/v1/settings/jellyfin/library/sync", [{"id": "fx1", "name": "SyncPlay Fixtures"}])
         opener.serve("PUT", "/api/v1/settings/jellyfin/library/fx1", {"id": "fx1", "enabled": True})
         opener.serve("POST", "/api/v1/settings/initialize", {"initialized": True})
-        with patched_opener(opener):
+        # An empty state keeps this on the fresh-run path regardless of a developer .state.
+        with TemporaryDirectory() as directory, mock.patch.object(setup, "STATE", Path(directory)), patched_opener(opener):
             seerr.ensure_ready(NATIVE, username="syncplay-host", password="pw")
         login = opener.calls[1][2]
         self.assertEqual((login["hostname"], login["port"]), ("127.0.0.1", 18096))

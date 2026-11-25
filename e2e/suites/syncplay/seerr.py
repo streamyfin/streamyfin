@@ -87,7 +87,14 @@ def ensure_ready(owned, username, password):
     if public.get("initialized"):
         login(opener, url, username, password)
         return
-    login(opener, url, username, password, jellyfin=setup.backend(owned).jellyfin_address_for_seerr(owned))
+    # Seerr saves settings.jellyfin.ip at first login, before initialize; a retry of an
+    # unfinished run must not send a hostname — the saved ip makes it a 500.
+    try:
+        configured_ip = json.loads((setup.STATE / "seerr" / "settings.json").read_text()).get("jellyfin", {}).get("ip")
+    except FileNotFoundError:
+        configured_ip = None
+    jellyfin = None if configured_ip else setup.backend(owned).jellyfin_address_for_seerr(owned)
+    login(opener, url, username, password, jellyfin=jellyfin)
     enable_named(opener, url, (FIXTURE_LIBRARY,))
     request(opener, url, "/api/v1/settings/initialize", "POST")
     if not request(opener, url, "/api/v1/settings/public").get("initialized"):

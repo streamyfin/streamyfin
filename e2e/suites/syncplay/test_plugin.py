@@ -3,6 +3,7 @@
 import hashlib
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -66,6 +67,8 @@ class PluginInstallTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "ENV_FILE", state / ".env"),
+                # A developer SYNCPLAY_BACKEND=native must not swap in the native backend.
+                mock.patch.dict(os.environ, {"SYNCPLAY_BACKEND": "docker"}, clear=True),
                 mock.patch.object(setup, "api", side_effect=api),
                 mock.patch.object(setup, "wait_for_server"),
                 mock.patch.object(plugin, "PLUGIN_SHA256", hashlib.sha256(payload).hexdigest()),
@@ -86,6 +89,8 @@ class PluginInstallTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "ENV_FILE", state / ".env"),
+                # A developer SYNCPLAY_BACKEND=native must not swap in the native backend.
+                mock.patch.dict(os.environ, {"SYNCPLAY_BACKEND": "docker"}, clear=True),
                 mock.patch.object(setup, "api", return_value=[]),
                 mock.patch.object(download.urllib.request, "urlopen", return_value=BytesIO(b"wrong file")) as urlopen,
                 mock.patch.object(backend.subprocess, "run") as restart,
