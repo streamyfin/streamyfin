@@ -94,13 +94,17 @@ def ensure(token):
         setup.api("/Streamyfin/config", token=token)
         return version
 
+    folder = setup.STATE / "config" / "plugins" / f"Streamyfin_{version}"
+    if not folder.exists():
+        extract_release(release, folder)
+    # Only now that the selected build is on disk, so a failed download keeps the old one.
     for plugin in installed:
         if plugin.get("Version") != version:
             # Jellyfin deletes a version uninstalled this way when it next starts.
             setup.api(f"/Plugins/{PLUGIN_ID}/{plugin['Version']}", "DELETE", token=token)
-    folder = setup.STATE / "config" / "plugins" / f"Streamyfin_{version}"
-    if not folder.exists():
-        extract_release(release, folder)
+        elif plugin.get("Status") != "Active":
+            # A restart does not re-enable a disabled version (Restart until the next start, then Disabled).
+            setup.api(f"/Plugins/{PLUGIN_ID}/{version}/Enable", "POST", token=token)
 
     owned = setup.identity()
     setup.backend(owned).restart_jellyfin(owned)

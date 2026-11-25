@@ -87,6 +87,7 @@ class PluginInstallTest(unittest.TestCase):
         self.installed = []
         self.requests = []
         self.restarted = []
+        self.status = "Active"
 
     def manifest_for(self, payload):
         return manifest(release("0.70.0.0", "10.11.9.0", checksum=hashlib.md5(payload).hexdigest()))
@@ -97,10 +98,13 @@ class PluginInstallTest(unittest.TestCase):
         self.assertEqual(token, "stored-host-token")
         self.requests.append((method, path))
         if path == "/Plugins":
-            return [{"Id": plugin.PLUGIN_ID.replace("-", ""), "Version": version, "Status": "Active"} for version in self.installed]
+            return [{"Id": plugin.PLUGIN_ID.replace("-", ""), "Version": version, "Status": self.status} for version in self.installed]
         if path == "/Streamyfin/config":
             return {"settings": {}}
         if method == "DELETE" and path.startswith(f"/Plugins/{plugin.PLUGIN_ID}/"):
+            return None
+        if method == "POST" and path == f"/Plugins/{plugin.PLUGIN_ID}/0.70.0.0/Enable":
+            self.status = "Active"
             return None
         raise AssertionError(path)
 
@@ -141,6 +145,7 @@ class PluginInstallTest(unittest.TestCase):
             mock.patch.dict(os.environ, {"SYNCPLAY_BACKEND": "docker"}, clear=True),
             mock.patch.object(setup, "api", side_effect=self.api),
             mock.patch.object(setup, "wait_for_server"),
+            mock.patch.object(plugin.time, "sleep"),
             mock.patch.object(plugin, "read_manifest", return_value=published),
             mock.patch.object(backend.subprocess, "check_output", side_effect=self.docker_output),
             mock.patch.object(backend.subprocess, "run", side_effect=self.docker_restart),
@@ -168,12 +173,25 @@ class PluginInstallTest(unittest.TestCase):
         self.assertIn(("DELETE", f"/Plugins/{plugin.PLUGIN_ID}/0.68.1.0"), self.requests)
         self.assertEqual(len(self.restarted), 1)
 
+    def test_enables_the_selected_version_when_it_was_disabled(self):
+        # Jellyfin reports Restart right after a disable, and Disabled after the next start.
+        for status in ("Restart", "Disabled"):
+            with self.subTest(status=status):
+                self.installed, self.status, self.requests, self.restarted = ["0.70.0.0"], status, [], []
+                with self.patched(self.manifest_for(self.payload), self.payload):
+                    self.assertEqual(plugin.ensure("stored-host-token"), "0.70.0.0")
+                self.assertIn(("POST", f"/Plugins/{plugin.PLUGIN_ID}/0.70.0.0/Enable"), self.requests)
+                self.assertEqual(len(self.restarted), 1)
+
     def test_rejects_tampered_archive_before_install_or_restart(self):
+        # The older build stays installed: nothing is uninstalled before the new one extracts.
+        self.installed = ["0.68.1.0"]
         with self.patched(self.manifest_for(self.payload), b"wrong file"):
             with self.assertRaisesRegex(RuntimeError, "^Streamyfin plugin 0.70.0.0 download checksum mismatch; nothing installed$"):
                 plugin.ensure("stored-host-token")
         self.assertFalse((self.state / "config/plugins/Streamyfin_0.70.0.0").exists())
         self.assertEqual(self.restarted, [])
+        self.assertNotIn("DELETE", [method for method, _ in self.requests])
 
 
 if __name__ == "__main__":

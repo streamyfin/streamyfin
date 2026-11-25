@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from suites.syncplay import enrich, plugin, setup
+from suites.syncplay import backend, enrich, plugin, setup
 
 
 class EnrichmentTest(unittest.TestCase):
@@ -115,6 +115,8 @@ class EnrichmentTest(unittest.TestCase):
             with (
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
+                # The fixture lists Docker container paths; a native SYNCPLAY_BACKEND must not remap them.
+                mock.patch.object(setup, "backend", return_value=backend.DockerBackend()),
                 mock.patch.object(enrich, "ROOT", state),
                 mock.patch.object(plugin, "ensure", return_value="0.70.0.0") as install,
             ):
