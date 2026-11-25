@@ -154,7 +154,12 @@ final class RemoteTargetMachine {
       // The asked receiver failed. Once the old session ended it was the target; before that, the port
       // refused it at once, or that end never came, and the receiver holding the session stays, with the cause.
       switchingTo = nil
-      guard held, snapshot.phase == .connecting else { return update(failed(snapshot.withError(error), error, code, .cast(switching))) }
+      guard held, snapshot.phase == .connecting else {
+        // A session that said it was ending and never ended is still there.
+        var kept = snapshot
+        if held && kept.phase == .ending { kept.phase = .connected }
+        return update(failed(kept.withError(error), error, code, .cast(switching)))
+      }
       let ended = RemoteTargetSnapshot(phase: .none, target: nil, reconnecting: false, error: error)
       return update(failed(ended, error, code, .cast(switching)))
     }

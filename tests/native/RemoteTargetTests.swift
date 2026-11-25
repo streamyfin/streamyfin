@@ -2354,6 +2354,22 @@ enum RemoteTargetTests {
       )
     }
 
+    // The same once the old session said it was ending: the state stayed on that end, with the cause, for a session
+    // that never ended.
+    do {
+      let port = FakeTargetPort(known: [livingRoom, bedroom])
+      let hub = connectedHub(port)
+      _ = hub.connect(deviceId: bedroom.id)
+      port.emit("ending", livingRoom)
+      _ = hub.connect(deviceId: livingRoom.id)
+      port.emit("startFailed", livingRoom, error: "no end")
+      let state = hub.snapshot
+      check(
+        "aSwitchBackAfterItsEndingWhoseEndNeverCameKeepsTheSessionWithTheCause",
+        state.phase == .connected && state.target?.id == livingRoom.id && state.error == "no end"
+      )
+    }
+
     if failures.isEmpty {
       print("PASS: remote target (" + String(cases) + " cases)")
     } else {
