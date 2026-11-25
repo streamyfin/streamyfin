@@ -34,6 +34,15 @@ class AnchorPositionTest {
         assertEquals(900 - 21 - 600, y(IntRect(2300, 900, 2380, 980), 600))
     }
 
+    // Taller than the window less a margin, when the height cap read a taller screen than the popup's window: its
+    // bottom inside the window put its top above the window, cut off.
+    @Test
+    fun aPopoverTallerThanTheWindowKeepsItsTopInside() {
+        val y = AnchorPosition(IntRect(2300, 40, 2380, 120), density = 2.625f)
+            .calculatePosition(IntRect.Zero, IntSize(2400, 1080), LayoutDirection.Ltr, IntSize(1000, 1060)).y
+        assertEquals(0, y)
+    }
+
     // A landscape phone is 360 to 410 dp high, under the 640 dp the list may take: the popover scrolls instead.
     @Test
     fun thePopoverIsNoTallerThanTheWindowLessItsMargins() {

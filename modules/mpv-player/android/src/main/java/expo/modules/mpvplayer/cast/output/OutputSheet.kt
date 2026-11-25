@@ -148,6 +148,8 @@ internal class AnchorPosition(private val anchor: IntRect?, private val density:
                 (button.top - margin / 2 - popupContentSize.height)
                     .coerceAtLeast(margin)
                     .coerceAtMost(windowSize.height - margin - popupContentSize.height)
+                    // Taller than the window, it keeps its top: the cap reads the screen, which can be taller.
+                    .coerceAtLeast(0)
         return IntOffset(x, y)
     }
 }
