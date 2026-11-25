@@ -1,4 +1,4 @@
-"""Download a pinned asset and verify its SHA-256 digest before returning its bytes."""
+"""Download a pinned asset and verify its digest before returning its bytes."""
 
 from __future__ import annotations
 
@@ -8,13 +8,18 @@ import urllib.request
 
 def fetch_verified(
     url: str,
-    sha256: str,
+    digest: str,
     name: str,
     timeout: float,
+    algorithm: str = "sha256",
 ) -> bytes:
-    """Fetch url within timeout seconds and return its body if its SHA-256 hex digest matches."""
+    """Fetch url within timeout seconds and return its body if its hex digest matches.
+
+    The digest is SHA-256 unless algorithm names another hashlib algorithm, such as the
+    MD5 a Jellyfin plugin manifest publishes.
+    """
     with urllib.request.urlopen(url, timeout=timeout) as response:
         payload = response.read()
-    if hashlib.sha256(payload).hexdigest() != sha256:
+    if hashlib.new(algorithm, payload).hexdigest() != digest:
         raise RuntimeError(f"{name} download checksum mismatch; nothing installed")
     return payload

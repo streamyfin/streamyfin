@@ -118,7 +118,7 @@ def run(limit=None, wait=True, timeout=WAIT_SECONDS):
     creds = seed.credentials()
     token = creds["host"]["token"]
     selected = libraries(token)
-    plugin.ensure(token)
+    plugin_version = plugin.ensure(token)
     inventory = json.loads((ROOT / "inventory.json").read_text())
     expected = catalog_seed.expected_items(inventory)
     configured = []
@@ -152,7 +152,7 @@ def run(limit=None, wait=True, timeout=WAIT_SECONDS):
             break
         time.sleep(POLL_SECONDS)
     result = {
-        "url": setup.URL, "plugin": f"Streamyfin {plugin.PLUGIN_VERSION}",
+        "url": setup.URL, "plugin": f"Streamyfin {plugin_version}",
         "configuredLibraries": configured, "queued": len(queued),
         "alreadyWithArtwork": available, "withoutProviderIds": without_ids,
     }

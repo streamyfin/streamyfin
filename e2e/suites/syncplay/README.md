@@ -130,8 +130,8 @@ bun run e2e:enrich
 ```
 
 The first invocation is a small trial batch; omit `--limit` to request missing
-artwork and descriptions for the whole catalog. This step installs the pinned
-Streamyfin Jellyfin plugin on this worktree's Jellyfin if missing, restarts
+artwork and descriptions for the whole catalog. This step installs the latest
+stable Streamyfin Jellyfin plugin on this worktree's Jellyfin if missing, restarts
 only that Jellyfin, enables available image and metadata fetchers on the
 three catalog libraries, and refreshes incomplete items without replacing
 existing images or metadata. The SyncPlay Fixtures library remains offline.
@@ -141,6 +141,17 @@ artwork or an overview. It exits 1 when `stillMissing` is not empty, for example
 because a provider has no image or `--timeout` (300 seconds by default) passed. Pass
 `--async` to queue the requests and return at once. Rerunning the command retries
 items that still lack artwork or a movie/series overview.
+The plugin comes from the stable manifest Jellyfin reads for it,
+`https://raw.githubusercontent.com/streamyfin/jellyfin-plugin-streamyfin/main/manifest.json`:
+the newest version whose build targets this Jellyfin or an older one, checked against the
+manifest's MD5. A rerun after a new plugin release replaces the installed version. To replay
+a run against one exact build, pin it:
+
+```sh
+STREAMYFIN_PLUGIN_VERSION=0.68.1.0 bun run e2e:enrich
+```
+
+The summary's `plugin` field names the version left active.
 Fetched posters may have copyright separate from the underlying film; keep
 Jellyfin's downloaded artwork in ignored `.state/`, not in the repository.
 This command requires internet access; `setup.py` and `e2e:seed` do not.

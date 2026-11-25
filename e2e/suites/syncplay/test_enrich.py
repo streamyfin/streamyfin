@@ -116,7 +116,7 @@ class EnrichmentTest(unittest.TestCase):
                 mock.patch.object(setup, "STATE", state),
                 mock.patch.object(setup, "api", side_effect=api),
                 mock.patch.object(enrich, "ROOT", state),
-                mock.patch.object(plugin, "ensure", return_value=False) as install,
+                mock.patch.object(plugin, "ensure", return_value="0.70.0.0") as install,
             ):
                 result = enrich.run()
                 self.assertEqual(result["queued"], 5)
@@ -170,7 +170,7 @@ class EnrichmentWaitTest(unittest.TestCase):
             mock.patch.object(enrich, "libraries", return_value={spec["name"]: {} for spec in enrich.seed.LIBRARIES}),
             mock.patch.object(enrich, "enable_fetchers", return_value=False),
             mock.patch.object(enrich, "incomplete_items", side_effect=lambda *args: next(remaining)),
-            mock.patch.object(plugin, "ensure", return_value=False),
+            mock.patch.object(plugin, "ensure", return_value="0.70.0.0"),
             mock.patch.object(setup, "api", side_effect=api),
             mock.patch.object(enrich.time, "sleep") as sleep,
             contextlib.redirect_stdout(io.StringIO()),
