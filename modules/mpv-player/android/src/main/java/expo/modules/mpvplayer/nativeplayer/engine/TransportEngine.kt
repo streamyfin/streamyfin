@@ -57,6 +57,8 @@ interface TransportEngine {
     }
     fun seekBy(seconds: Double)
     fun setSpeed(speed: Double)
+    /** False when the engine's target cannot change the playback rate: the chrome then offers none. */
+    val canChangeSpeed: Boolean get() = true
     fun getSpeed(): Double
     /** Engine mute, retained across reloads (volume left untouched). */
     fun setMute(muted: Boolean)

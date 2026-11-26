@@ -32,6 +32,24 @@ enum CastMapping {
     }
   }
 
+  /// GCKMediaPlayerIdleReason: none 0, finished 1, cancelled 2, interrupted 3, error 4. The engine
+  /// tells a natural end from a playback error by it.
+  static func idleReasonName(_ rawValue: Int) -> String {
+    switch rawValue {
+    case 1: return "finished"
+    case 2: return "cancelled"
+    case 3: return "interrupted"
+    case 4: return "error"
+    default: return "none"
+    }
+  }
+
+  /// GCKMediaTrackType text is 1. A subtitle change goes over the bus only when the media carries
+  /// text tracks; without any, the receiver has to reload the stream to burn the subtitles in.
+  static func hasTextTracks(_ trackTypes: [Int]) -> Bool {
+    trackTypes.contains(1)
+  }
+
   /// Nil only when the session ended without an error, which the SDK reports for a stop
   /// asked from this phone; that stop also closes the receiver app. Any other end may leave
   /// the TV playing, and the stop reporter checks on it.

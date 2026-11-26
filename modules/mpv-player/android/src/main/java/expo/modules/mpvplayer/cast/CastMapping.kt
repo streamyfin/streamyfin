@@ -2,6 +2,7 @@ package expo.modules.mpvplayer.cast
 
 import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.cast.MediaTrack
 import com.google.android.gms.cast.framework.CastReasonCodes
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.common.ConnectionResult
@@ -36,6 +37,21 @@ object CastMapping {
         MediaStatus.PLAYER_STATE_LOADING -> "loading"
         else -> "unknown"
     }
+
+    /** Why the receiver went idle; the engine tells a natural end from a playback error by it. */
+    fun idleReasonName(reason: Int): String = when (reason) {
+        MediaStatus.IDLE_REASON_FINISHED -> "finished"
+        MediaStatus.IDLE_REASON_CANCELED -> "cancelled"
+        MediaStatus.IDLE_REASON_INTERRUPTED -> "interrupted"
+        MediaStatus.IDLE_REASON_ERROR -> "error"
+        else -> "none"
+    }
+
+    /**
+     * A subtitle change goes over the bus only when the media carries text tracks; without any, the
+     * receiver has to reload the stream to burn the subtitles in.
+     */
+    fun hasTextTracks(trackTypes: List<Int>): Boolean = trackTypes.any { it == MediaTrack.TYPE_TEXT }
 
     /**
      * Null only when casting was stopped from this phone, which also closes the receiver app;

@@ -174,6 +174,10 @@ object ReceiverProtocol {
         return message("PlayNow", server, options)
     }
 
+    /** Items added at the end of the receiver's queue (PlayNext does the same); nothing starts if nothing plays. */
+    fun playLast(server: ReceiverServer, itemIds: List<String>): JSONObject =
+        message("PlayLast", server, JSONObject().put("items", JSONArray(itemIds.map { slim(ReceiverItem(id = it)) })))
+
     private fun slim(item: ReceiverItem) = JSONObject().apply {
         item.id?.let { put("Id", it) }
         item.name?.let { put("Name", it) }

@@ -56,7 +56,10 @@ class CastModule : Module() {
     // JS asked for discovery; it pauses while the app is in the background and resumes with it.
     private var discoveryWanted = false
     private var mediaClient: RemoteMediaClient? = null
-    private val channels = CastChannels()
+    // The hub holds the SDK registration of each namespace and outlives the module; the module only
+    // keeps what JS asked to hear, so that a reload or a session end lets go of exactly that.
+    private val hub = ReceiverChannelHub.shared
+    private val jsSubscriptions = mutableMapOf<String, ReceiverSubscription>()
 
     private val stateListener = CastStateListener { state -> updateState(state) }
 
@@ -98,8 +101,8 @@ class CastModule : Module() {
 
         override fun onSessionEnded(session: CastSession, error: Int) {
             detachMedia()
-            // The channels died with the session; the JS side opens new ones on the next command.
-            channels.clear()
+            // The JS side opens its channels again on the next session's first command.
+            removeJsSubscriptions()
             updateSession(null)
             emitSession("ended", session, endError(error))
         }
@@ -187,33 +190,27 @@ class CastModule : Module() {
             true
         }.runOnQueue(Queues.MAIN)
 
+        // The hub registers the namespace on every session it is given, a resume included, so the
+        // relay hears the receiver from the next session on as well.
         AsyncFunction("addChannel") { namespace: String ->
-            val session = currentSession() ?: return@AsyncFunction mapOf("namespace" to namespace, "connected" to false)
-            channels.register(namespace) {
-                session.setMessageReceivedCallbacks(namespace) { _: CastDevice, received: String, message: String ->
-                    sendEvent("onReceiverMessage", mapOf("namespace" to received, "message" to message))
-                }
-            }
-            mapOf("namespace" to namespace, "connected" to session.isConnected)
+            if (ensureContext() == null) return@AsyncFunction mapOf("namespace" to namespace, "connected" to false)
+            if (namespace !in jsSubscriptions) jsSubscriptions[namespace] = hub.subscribe(namespace, jsRelay(namespace))
+            mapOf("namespace" to namespace, "connected" to hub.isReady(namespace))
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("removeChannel") { namespace: String ->
-            if (channels.remove(namespace)) {
-                // The session may be gone already; its callbacks went with it.
-                runCatching { currentSession()?.removeMessageReceivedCallbacks(namespace) }
-            }
+            // Only JS stops hearing: the engine may still listen on the same registration.
+            jsSubscriptions.remove(namespace)?.remove()
             Unit
         }.runOnQueue(Queues.MAIN)
 
         AsyncFunction("sendMessage") { namespace: String, message: String, promise: Promise ->
-            val session = currentSession()
-            if (session == null) {
-                promise.reject("ERR_CAST_NO_SESSION", "No Cast session to send on", null)
+            if (currentSession() == null) {
+                promise.reject("ERR_CAST_NO_SESSION", ReceiverChannelHub.NO_SESSION_ERROR, null)
                 return@AsyncFunction
             }
-            session.sendMessage(namespace, message).setResultCallback { status ->
-                if (status.isSuccess) promise.resolve(null)
-                else promise.reject("ERR_CAST_SEND", status.statusMessage ?: "The receiver did not take the message", null)
+            hub.send(namespace, message) { error ->
+                if (error == null) promise.resolve(null) else promise.reject("ERR_CAST_SEND", error, null)
             }
         }.runOnQueue(Queues.MAIN)
 
@@ -255,6 +252,9 @@ class CastModule : Module() {
         castContext = cast
         cast.addCastStateListener(stateListener)
         updateState(cast.castState)
+        // Before the module's own listener and before a present session is announced: whatever JS
+        // sends on hearing of a session finds the hub attached to it.
+        GoogleCastChannelBinding.install(cast.sessionManager)
         cast.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         cast.sessionManager.currentCastSession?.let { session ->
             attachMedia(session)
@@ -311,16 +311,24 @@ class CastModule : Module() {
     private fun release() {
         stopDiscovery()
         detachMedia()
+        // The relays hold this instance and the hub outlives it: a live session would keep calling them.
+        removeJsSubscriptions()
         castContext?.let { cast ->
-            // The channel callbacks hold this instance too; a live session would keep calling it.
-            cast.sessionManager.currentCastSession?.let { session ->
-                channels.forEach { namespace -> runCatching { session.removeMessageReceivedCallbacks(namespace) } }
-            }
             cast.removeCastStateListener(stateListener)
             cast.sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
         }
-        channels.clear()
         castContext = null
+    }
+
+    private fun jsRelay(namespace: String) = object : ReceiverBusListener {
+        override fun onMessage(raw: String) {
+            sendEvent("onReceiverMessage", mapOf("namespace" to namespace, "message" to raw))
+        }
+    }
+
+    private fun removeJsSubscriptions() {
+        jsSubscriptions.values.forEach { it.remove() }
+        jsSubscriptions.clear()
     }
 
     private companion object {
