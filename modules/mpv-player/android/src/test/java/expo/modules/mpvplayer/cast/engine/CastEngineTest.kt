@@ -1566,6 +1566,33 @@ class CastEngineTest {
         assertEquals(listOf("t-1") + enqueued + "y-1", receiverQueue())
     }
 
+    // A replay on its way when a load the channel refused went out: the receiver took the replay, which
+    // carried the enqueues on their way, and those enqueues went on after it, so their items came twice.
+    @Test
+    fun aLoadRefusedUnderAReplaySendsNothingTwice() {
+        val engine = playingOne()
+        port.holdResults = true
+        engine.enqueue((1..50).map { "x-$it" })
+        engine.enqueue((1..CastEngineConstants.MAX_QUEUE_ITEMS).map { "y-$it" })
+        engine.reloadCurrentItem()
+        val queued = receiverQueue(refuseALoad(engine))
+        assertTrue(queued.isNotEmpty())
+        assertEquals(queued.distinct(), queued)
+    }
+
+    // A replay once the receiver reported a load the channel had not answered yet: it carried the
+    // enqueues that load held, items of the queue it replaced.
+    @Test
+    fun aReplayCarriesNothingOfTheQueueALoadReplaced() {
+        val engine = playingOne()
+        port.holdResults = true
+        engine.enqueue(listOf("x-1"))
+        engine.load(SERVER, ReceiverPlayRequest(items = listOf(ReceiverItem(id = "b-1")))) {}
+        media.report(snapshot(customData = ours("itemId" to "b-1", "playSessionId" to "ps-3")), 0)
+        engine.reloadCurrentItem()
+        assertEquals(listOf("b-1"), itemsOf(port.sent.last().second))
+    }
+
     // "t-1" playing, cast with [enqueued] after it.
     private fun playingOne(enqueued: List<String> = emptyList()): CastEngine {
         val engine = engine()

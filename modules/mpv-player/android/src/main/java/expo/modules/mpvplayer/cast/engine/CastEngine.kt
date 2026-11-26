@@ -361,6 +361,8 @@ class CastEngine(
         replaced[generation] = QueueState(this.server, queue, playingIndex, heldGeneration)
         heldGeneration = generation
         loads[generation] = ++enqueueCount
+        // The enqueues a replay on its way carries end with it: the receiver may take that replay, which holds them.
+        replays.maxOrNull()?.let { replay -> enqueues.keys.removeAll { it < replay } }
         replays.clear()
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
@@ -564,7 +566,8 @@ class CastEngine(
         val index = if (queue.getOrNull(playingIndex)?.id == data.itemId) playingIndex else queue.indexOfFirst { it.id == data.itemId }
         // The windows of the enqueues on their way go out before this PlayNow, which drops them: they
         // go again after the queue, as does the tail of a replay before this one.
-        val unsent = if (index >= 0) enqueues.values.flatMap { it.taken + it.windows.flatten() } else emptyList()
+        // Those a load on its way holds were for the queue it replaced.
+        val unsent = if (index >= 0) enqueues.filterKeys { !isHeldByALoad(it) }.values.flatMap { it.taken + it.windows.flatten() } else emptyList()
         val items = if (index >= 0) queue + unsent.map { ReceiverItem(id = it) } else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
         // A start offset the receiver reported can put the position past what ticks hold.
@@ -732,7 +735,9 @@ class CastEngine(
         }
     }
 
-    private fun isHeld(id: Long) = replays.any { it > id } || loads.values.any { it > id }
+    private fun isHeld(id: Long) = replays.any { it > id } || isHeldByALoad(id)
+
+    private fun isHeldByALoad(id: Long) = loads.values.any { it > id }
 
     private fun isCurrent(entry: Enqueue) = entry.generation == queueGeneration && session != null && boundSessionId == entry.binding
 
