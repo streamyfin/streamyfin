@@ -1444,6 +1444,9 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Resumes on their way on the phone: the session can get its client while
   // one still fetches the track, and the move then waits for it as for a load.
   const phoneResumesRef = useRef(0);
+  // Moved by a Play cast to the receiver: a resume still on its way on the
+  // phone stops there, and pauses a phone it already started.
+  const resumeSequenceRef = useRef(0);
   useEffect(() => {
     if (!castReady) {
       wasCastReady.current = false;
@@ -1653,19 +1656,23 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           ? state.queueIndex
           : state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
       // A resume still on its way on the phone, from a Play before the session
-      // had its client, is not stopped here: the move takes it once it lands.
-      const resuming = phoneResumesRef.current > 1;
+      // had its client, stops at its next check: the receiver takes the queue
+      // once, and a refusal leaves it paused on the phone.
+      resumeSequenceRef.current += 1;
       castTapped(state.queue, Math.max(index, 0), state.progress, true);
-      if (resuming) wasCastReady.current = false;
       return;
     }
     if (!TrackPlayer) return;
     const generation = sessionGenerationRef.current;
     const startSequence = startSequenceRef.current;
+    const resumeSequence = resumeSequenceRef.current;
     // A newer queue start supersedes this resume too, and keeps the player: only a session switch resets it here.
     const isSwitched = () => generation !== sessionGenerationRef.current;
+    const isCastTaken = () => resumeSequence !== resumeSequenceRef.current;
     const isStale = () =>
-      isSwitched() || startSequence !== startSequenceRef.current;
+      isSwitched() ||
+      isCastTaken() ||
+      startSequence !== startSequenceRef.current;
     if (!(await playerReadyForControl()) || isStale()) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
@@ -1690,7 +1697,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         await TrackPlayer.play();
         // The service may have played on after the app went: where it stands is where this start is.
         const { position } = await TrackPlayer.getProgress();
-        if (isStale()) return;
+        if (isStale()) {
+          if (isCastTaken()) await TrackPlayer.pause().catch(() => {});
+          return;
+        }
         // The server has heard of no play of this queue since the restart: this is its start.
         void reportPlaybackStart(
           state.queue[liveIndex],
@@ -1740,9 +1750,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // The ref, not the render's state: a seek during the waits above moved
       // the saved position this call has not seen.
       await TrackPlayer.seekTo(progressRef.current);
+      if (isCastTaken()) return;
       await TrackPlayer.play();
       if (isStale()) {
         if (isSwitched()) await TrackPlayer.reset().catch(() => {});
+        else if (isCastTaken()) await TrackPlayer.pause().catch(() => {});
         return;
       }
       setState((prev) => ({
@@ -1770,6 +1782,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
     } else {
       await TrackPlayer.play();
+      if (isCastTaken()) {
+        await TrackPlayer.pause().catch(() => {});
+        return;
+      }
       setState((prev) => ({ ...prev, isPlaying: true }));
     }
   }, [

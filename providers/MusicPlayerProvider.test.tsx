@@ -1298,39 +1298,55 @@ describe("MusicPlayerProvider and a Cast session", () => {
     expect(player.isLoading).toBe(false);
   });
 
-  // Play pressed again while the first Play still resumes on the phone: that resume landed and played next to the TV.
-  test("play pressed again while the phone still resumes leaves the phone silent once it lands, as on iOS", async () => {
-    persistQueue(ALBUM, 2);
-    await mount();
-    await act(async () => {
-      mockCast.castState = "connected";
-      emitCastEvent(mockCast, "onCastStateChanged", { state: "connected" });
-    });
-    await settle();
-    holdStreams("t2");
-    await act(async () => {
-      void player.togglePlayPause();
-    });
-    await settle();
-    await act(async () => {
-      setCastSession(mockCast, "session-ios");
-      emitCastEvent(mockCast, "onSessionEvent", {
-        event: "started",
-        sessionId: "session-ios",
-        error: null,
+  // Play pressed again while the first Play still resumes on the phone: that resume landed and played next to the TV,
+  // then the move sent the queue a second time, from the start of the track.
+  test.each([
+    ["fetches the stream", "stream"],
+    ["adds the track", "add"],
+    ["starts the phone", "play"],
+    ["plays a queue already loaded", "live"],
+  ] as const)(
+    "play pressed again while the phone still resumes, as it %s, sends the queue once and leaves the phone silent, as on iOS",
+    async (_, step) => {
+      if (step !== "live") persistQueue(ALBUM, 2);
+      await mount();
+      if (step === "live") {
+        await run((p) => p.playQueue(ALBUM, 2));
+        await run((p) => p.pause());
+      }
+      await connectedBeforeSession();
+      await settle();
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
       });
-    });
-    await settle();
+      if (step === "stream") holdStreams("t2");
+      if (step === "add") mockNative.onAdd = () => held;
+      if (step === "play" || step === "live") mockNative.onPlay = () => held;
+      await act(async () => {
+        void player.togglePlayPause();
+      });
+      await settle();
+      mockNative.onAdd = undefined;
+      await sessionStarts();
+      await settle();
 
-    await run((p) => p.togglePlayPause());
-    await receiverLoads("t2");
-    await releaseStreams();
+      await run((p) => p.togglePlayPause());
+      await receiverLoads("t2");
+      let phonePlays = 0;
+      mockNative.onPlay = async () => {
+        phonePlays += 1;
+      };
+      await act(async () => release());
+      await releaseStreams();
 
-    await waitFor(() => expect(playNows()).toHaveLength(2));
-    expect(playNows()[1].options.startIndex).toBe(2);
-    expect(mockNative.playing).toBe(false);
-    await receiverLoads("t2");
-  });
+      expect({
+        sends: playNows().map((message) => message.options.startIndex),
+        phonePlays,
+      }).toEqual({ sends: [2], phonePlays: 0 });
+      expect(mockNative.playing).toBe(false);
+    },
+  );
 
   // Seen on an iPhone: the TV played the queue while the server still listed
   // the phone as playing it, from the last report before its pause.
