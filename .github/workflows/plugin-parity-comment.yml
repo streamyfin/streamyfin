@@ -63,8 +63,17 @@ jobs:
             });
             require("node:fs").writeFileSync(`${process.env.RUNNER_TEMP}/report.zip`, Buffer.from(zip.data));
 
+      # The PR's run made the artifact and could put anything in it, links
+      # included, and unzip writes every entry: only the two files the report is
+      # made of come out, flat, and an artifact holding anything else stops here.
       - name: 📂 Unpack the report
-        run: unzip -o "$RUNNER_TEMP/report.zip" -d "$RUNNER_TEMP/report"
+        run: |
+          entries=$(unzip -Z1 "$RUNNER_TEMP/report.zip" | LC_ALL=C sort)
+          if [ "$entries" != "$(printf 'pr-number\nreport.json')" ]; then
+            echo "::error::The artifact holds something other than pr-number and report.json." >&2
+            exit 1
+          fi
+          unzip -o -j "$RUNNER_TEMP/report.zip" pr-number report.json -d "$RUNNER_TEMP/report"
 
       - name: 🔎 Check the report
         id: check

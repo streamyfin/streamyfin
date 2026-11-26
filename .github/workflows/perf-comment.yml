@@ -46,8 +46,17 @@ jobs:
             });
             require("node:fs").writeFileSync("reassure.zip", Buffer.from(zip.data));
 
+      # The PR's run made the artifact and could put anything in it, links
+      # included, and unzip writes every entry: only the two files this job reads
+      # come out, flat, and an artifact holding anything else stops here.
       - name: 📂 Unpack results
-        run: unzip -o reassure.zip -d reassure
+        run: |
+          entries=$(unzip -Z1 reassure.zip | LC_ALL=C sort)
+          if [ "$entries" != "$(printf 'comment.md\npr-number')" ]; then
+            echo "::error::The artifact holds something other than comment.md and pr-number." >&2
+            exit 1
+          fi
+          unzip -o -j reassure.zip comment.md pr-number -d reassure
 
       - name: 💬 Comment on the PR
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9

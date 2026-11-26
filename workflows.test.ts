@@ -374,6 +374,35 @@ describe.each(["native-tests.yml", "e2e-tier1-android.yml"])(
   },
 );
 
+// The two jobs that comment run on workflow_run, with a token that can write,
+// on an artifact the PR's own run made and could fill with anything, links
+// included. unzip writes every entry it is given, so each job lists the zip
+// first, stops on anything but the files it reads, and unpacks only those.
+describe.each([
+  ["plugin-parity-comment.yml", ["pr-number", "report.json"]],
+  ["perf-comment.yml", ["comment.md", "pr-number"]],
+])("%s", (name, files) => {
+  const unzips = withoutComments(readWorkflow(name))
+    .split("\n")
+    .map((line) => line.trim())
+    // Commands only: the scripts of the job mention unzip in their comments.
+    .filter((line) => /(^|\$\()unzip\s/.test(line));
+
+  test("refuses an artifact that holds anything but the files it reads", () => {
+    expect(unzips.some((line) => line.includes("unzip -Z1 "))).toBe(true);
+  });
+
+  test("unpacks only those files, flat", () => {
+    const extracts = unzips.filter((line) => !line.includes("unzip -Z1 "));
+
+    expect(extracts).toHaveLength(1);
+    // unzip -o -j <zip> <names> -d <dir>
+    const words = extracts[0].split(/\s+/);
+    expect(words.slice(0, 3)).toEqual(["unzip", "-o", "-j"]);
+    expect(words.slice(4, words.indexOf("-d"))).toEqual(files);
+  });
+});
+
 describe("linting.yml", () => {
   // CONTRIBUTING.md asks for `bun run test` before a pull request, and CI runs
   // the same commands as one job each. Both lists are kept by hand: CI gained
