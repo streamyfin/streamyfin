@@ -901,14 +901,14 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // state until the next heartbeat. A queue restored from storage has no
   // stream yet and was never reported as playing, so it stays quiet: a
   // progress report for it would make the server list a session that is not
-  // there.
+  // there. Nor does a queue whose session ended when it left for the receiver.
   const sendPlaybackProgressRef = useRef(sendPlaybackProgress);
   sendPlaybackProgressRef.current = sendPlaybackProgress;
   const hasLiveTrack = !!state.currentTrack && !!state.streamUrl;
   const hasLiveTrackRef = useRef(hasLiveTrack);
   hasLiveTrackRef.current = hasLiveTrack;
   useEffect(() => {
-    if (!hasLiveTrackRef.current) return;
+    if (!phoneSessionOpenRef.current || !hasLiveTrackRef.current) return;
     sendPlaybackProgressRef.current();
   }, [state.repeatMode, state.shuffleEnabled]);
 

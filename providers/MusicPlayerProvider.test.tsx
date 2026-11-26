@@ -1453,6 +1453,22 @@ describe("MusicPlayerProvider and a Cast session", () => {
     await receiverLoads("t0");
   });
 
+  // The hand-off ended the phone's session, and a repeat change then reported it playing again.
+  test("a repeat change after the hand-off reports nothing for the phone", async () => {
+    await mount();
+    await run((p) => p.playQueue(ALBUM, 0));
+    await connectCast();
+    await settle();
+    await receiverLoads("t0");
+    await receiverStatus("t0", "playing", 5);
+    const before = reports(PROGRESS_URL).length;
+
+    await run((p) => p.setRepeatMode("all"));
+
+    expect(player.repeatMode).toBe("all");
+    expect(reports(PROGRESS_URL).slice(before)).toEqual([]);
+  });
+
   // A film cast from its page replaces the music on the TV.
   test("the player lets go of a receiver that plays something else", async () => {
     await castAlbum();
