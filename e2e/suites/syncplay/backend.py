@@ -1,4 +1,4 @@
-"""Where this checkout's Jellyfin and Seerr run: Docker Compose, or host processes.
+"""Where this checkout's Jellyfin, Seerr and Radarr run: Docker Compose, or host processes.
 
 The fixture commands reach the servers only through these methods, so both backends
 serve them alike. `setup.backend()` picks one from SYNCPLAY_BACKEND.
@@ -9,10 +9,12 @@ import os
 from pathlib import Path
 import subprocess
 
-from suites.syncplay import native, setup
+from suites.syncplay import native, radarr, setup
 
 DOCKER_JELLYFIN_HOSTNAME = "jellyfin"  # the compose service name, reachable on the shared network
 DOCKER_JELLYFIN_PORT = 8096
+DOCKER_RADARR_HOSTNAME = "radarr"
+DOCKER_RADARR_MEDIA = "/radarr-media"  # where compose.yml mounts .state/radarr-media
 SEERR_CONTAINER_UID = 1000
 
 
@@ -49,12 +51,15 @@ class DockerBackend:
     def refuse_foreign(self, owned):
         setup.refuse_foreign_container(owned["SYNCPLAY_CONTAINER"])
         setup.refuse_foreign_container(owned["SYNCPLAY_SEERR_CONTAINER"])
+        setup.refuse_foreign_container(owned["SYNCPLAY_RADARR_CONTAINER"])
         setup.refuse_foreign_project(owned["SYNCPLAY_PROJECT"])
 
     def compose(self, owned, *arguments):
         subprocess.run(
             ["docker", "compose", "-p", owned["SYNCPLAY_PROJECT"], "-f", str(setup.ROOT / "compose.yml"), *arguments],
-            check=True, env={**os.environ, **owned},
+            # The linuxserver Radarr image re-owns /config to PUID:PGID, which compose.yml reads
+            # from these; any other uid leaves config.xml unreadable to setup on Linux.
+            check=True, env={**os.environ, **owned, "SYNCPLAY_UID": str(os.getuid()), "SYNCPLAY_GID": str(os.getgid())},
         )
 
     def up(self, owned):
@@ -83,6 +88,16 @@ class DockerBackend:
     def jellyfin_address_for_seerr(self, owned):
         return (DOCKER_JELLYFIN_HOSTNAME, DOCKER_JELLYFIN_PORT)
 
+    def radarr_listen(self, owned):
+        """Radarr listens on every interface inside the container; compose binds the host side."""
+        return ("*", radarr.CONTAINER_PORT)
+
+    def radarr_path(self, name):
+        return f"{DOCKER_RADARR_MEDIA}/{name}"
+
+    def radarr_address_for_seerr(self, owned):
+        return (DOCKER_RADARR_HOSTNAME, radarr.CONTAINER_PORT)
+
 
 class NativeBackend:
     name = "native"
@@ -106,6 +121,14 @@ class NativeBackend:
 
     def jellyfin_address_for_seerr(self, owned):
         return (native.LOOPBACK, int(owned["SYNCPLAY_PORT"]))
+
+    def radarr_listen(self, owned):
+        return (native.LOOPBACK, int(owned["SYNCPLAY_RADARR_PORT"]))
+
+    radarr_address_for_seerr = radarr_listen
+
+    def radarr_path(self, name):
+        return str(radarr.media_dir() / name)
 
 
 BACKENDS = {"docker": DockerBackend, "native": NativeBackend}

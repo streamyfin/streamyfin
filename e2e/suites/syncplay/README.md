@@ -39,7 +39,7 @@ SYNCPLAY_BACKEND=native bun run e2e:setup
 Requires macOS on Apple silicon, Node `^22.19.0` (Seerr's engine range), `git`, and the
 Python, FFmpeg and Bun listed above. `setup.py` refuses any other platform or Node version.
 
-It runs the same Jellyfin 10.11.11 and Seerr v3.5.0 as host processes on `127.0.0.1`, with
+It runs the same Jellyfin 10.11.11, Seerr v3.5.0 and Radarr 7.0.3.10918 as host processes on `127.0.0.1`, with
 the containers' ports, users, libraries and `.state/` layout. Jellyfin reads media through
 `/tmp/streamyfin-media-<tag>`, a link to `.state/` unique to this checkout, so `/media`
 becomes `/tmp/streamyfin-media-<tag>/media`. Jellyfin parses season and episode numbers
@@ -48,7 +48,8 @@ from the full media path, and the link keeps digits in the checkout path out of 
 
 The first setup downloads the pinned Jellyfin and jellyfin-ffmpeg tarballs (sha256
 checked before extraction), signs Jellyfin's Mach-O files ad hoc (Apple silicon kills
-unsigned arm64 code), and clones and builds Seerr at its pinned commit. Everything lands
+unsigned arm64 code), downloads the pinned Radarr tarball (sha256 checked, Mach-O files
+already signed), and clones and builds Seerr at its pinned commit. Everything lands
 in the ignored `e2e/suites/syncplay/.tools/` and is reused by later setups, so CI can
 cache it. Logs are in `.state/logs/`.
 
@@ -97,6 +98,8 @@ SYNCPLAY_CONTAINER=streamyfin-maestro-local-jellyfin \
 SYNCPLAY_PORT=18117 \
 SYNCPLAY_SEERR_CONTAINER=streamyfin-maestro-local-seerr \
 SYNCPLAY_SEERR_PORT=15117 \
+SYNCPLAY_RADARR_CONTAINER=streamyfin-maestro-local-radarr \
+SYNCPLAY_RADARR_PORT=17117 \
 bun run e2e:setup
 bun run e2e:seed
 ```
@@ -165,6 +168,27 @@ checkout's Jellyfin (`seerr.ensure_ready`) and enables
 the `SyncPlay Fixtures` library. The Seerr API key stays inside the fixture and is never
 logged.
 
+### Radarr service
+
+`compose.yml` also starts `lscr.io/linuxserver/radarr` 7.0.3.10918 as
+`streamyfin-syncplay-e2e-radarr` on `127.0.0.1:17878` (config in `.state/radarr/`); the
+native backend runs the same release there. The container runs as the setup user's UID and GID (`PUID`/`PGID`), because the image re-owns `/config` and setup must read `config.xml` back. Bump the image and `RADARR_VERSION` in
+`native.py` together: `test_radarr.py` fails when they differ. `setup.py` writes
+Radarr's `config.xml` with a random API key before the first start, then
+`radarr.ensure_ready` registers two root folders and adds Radarr to Seerr as the default
+movie server, with search on request turned off.
+
+- `movies` is a real folder. Radarr lists it with `freeSpace`.
+- `movies-offline` is registered, then its folder is deleted. Radarr lists it as
+  inaccessible and without `freeSpace`, and Seerr passes that through
+  `/api/v1/service/radarr/:id`. A client that reads `freeSpace` without a guard fails on
+  it.
+
+`movies-offline` is Seerr's default root folder, so every movie request modal opens on
+it. Setup refuses to finish if Radarr still reports `freeSpace` for it. A request
+submitted to it fails in Radarr; flows open the modal and never submit it. Both folders
+live in `.state/radarr-media/`, mounted at `/radarr-media` in the container.
+
 ## Controller against a live server
 
 ```sh
@@ -219,7 +243,7 @@ bun run e2e:down
 ```
 
 Stops and removes this checkout's containers and network, or under the native backend
-its own Jellyfin and Seerr processes, then deletes `.state/`, `artifacts/` and `.env`,
+its own Jellyfin, Seerr and Radarr processes, then deletes `.state/`, `artifacts/` and `.env`,
 so the next `setup.py` starts from onboarding. It refuses a container that another
 checkout started, and under the native backend a fixture port another process holds. On Linux, Docker may have written root-owned
 files into `.state/config`; remove those with `sudo` if the command reports a permission error.

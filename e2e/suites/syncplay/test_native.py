@@ -16,7 +16,7 @@ from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 from bench import download
-from suites.syncplay import backend, enrich, native, seed, seerr, setup
+from suites.syncplay import backend, enrich, native, radarr, seed, seerr, setup
 from suites.syncplay.test_seerr import OWNED, FakeOpener, patched_opener
 
 NATIVE = {**OWNED, "SYNCPLAY_BACKEND": "native"}
@@ -114,6 +114,7 @@ class SelectionTest(unittest.TestCase):
                 mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
                 mock.patch.object(setup, "api", side_effect=api),
                 mock.patch.object(seerr, "ensure_ready"),
+                mock.patch.object(radarr, "ensure_ready"),
                 mock.patch.object(backend.NativeBackend, "refuse_foreign") as refuse,
                 mock.patch.object(backend.NativeBackend, "up") as up,
                 mock.patch.object(setup.subprocess, "run", side_effect=AssertionError("no docker under native")),
@@ -178,6 +179,16 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(backend.DockerBackend().jellyfin_address_for_seerr(OWNED), ("jellyfin", 8096))
         self.assertEqual(backend.NativeBackend().jellyfin_address_for_seerr({**NATIVE, "SYNCPLAY_PORT": "18117"}), ("127.0.0.1", 18117))
 
+    def test_radarr_listens_and_is_reached_inside_the_container_or_on_loopback(self):
+        docker, local = backend.DockerBackend(), backend.NativeBackend()
+        self.assertEqual(docker.radarr_listen(OWNED), ("*", 7878))
+        self.assertEqual(docker.radarr_address_for_seerr(OWNED), ("radarr", 7878))
+        self.assertEqual(docker.radarr_path("movies-offline"), "/radarr-media/movies-offline")
+        self.assertEqual(local.radarr_listen(NATIVE), ("127.0.0.1", 17878))
+        self.assertEqual(local.radarr_address_for_seerr(NATIVE), ("127.0.0.1", 17878))
+        with mock.patch.object(setup, "STATE", Path("/checkout/.state")):
+            self.assertEqual(local.radarr_path("movies-offline"), "/checkout/.state/radarr-media/movies-offline")
+
     def test_native_seerr_onboarding_targets_the_loopback_jellyfin(self):
         opener = FakeOpener()
         opener.serve("GET", "/api/v1/settings/public", {"initialized": False}, {"initialized": True})
@@ -229,6 +240,9 @@ class OwnershipTest(unittest.TestCase):
                 processes = Processes({111: f"{native.jellyfin_executable()} --datadir x", 999: "docker-proxy"})
                 with processes.installed(lsof={"18096": [111], "15055": [999]}):
                     with self.assertRaisesRegex(RuntimeError, "15055.*999"):
+                        backend.NativeBackend().refuse_foreign(NATIVE)
+                with processes.installed(lsof={"18096": [111], "17878": [999]}):
+                    with self.assertRaisesRegex(RuntimeError, "17878.*999"):
                         backend.NativeBackend().refuse_foreign(NATIVE)
                 with processes.installed(lsof={"18096": [111]}):
                     backend.NativeBackend().refuse_foreign(NATIVE)
@@ -295,11 +309,15 @@ class OwnershipTest(unittest.TestCase):
                     mock.patch.object(native, "install_jellyfin"),
                     mock.patch.object(native, "install_ffmpeg"),
                     mock.patch.object(native, "install_seerr"),
+                    mock.patch.object(native, "install_radarr"),
                     mock.patch.object(native, "ffmpeg_executable", return_value=Path("/tools/ffmpeg")),
                     mock.patch.object(native.subprocess, "Popen", side_effect=popen),
                 ):
                     backend.NativeBackend().up(NATIVE)
-                self.assertEqual(len(started), 1)
+                self.assertEqual(len(started), 2)
+                command, kwargs = started[1]
+                self.assertEqual(command, [str(native.radarr_executable()), "-nobrowser", f"-data={root / '.state' / 'radarr'}"])
+                self.assertTrue(kwargs["start_new_session"])
                 command, kwargs = started[0]
                 self.assertEqual(command, ["node", str(native.seerr_dir() / "dist" / "index.js")])
                 self.assertTrue(kwargs["start_new_session"])
@@ -394,8 +412,10 @@ class MediaLinkTest(unittest.TestCase):
                     mock.patch.object(native, "install_jellyfin"),
                     mock.patch.object(native, "install_ffmpeg"),
                     mock.patch.object(native, "install_seerr"),
+                    mock.patch.object(native, "install_radarr"),
                     mock.patch.object(native, "start_jellyfin", side_effect=lambda owned: seen.append(native.media_link().is_symlink())),
                     mock.patch.object(native, "start_seerr"),
+                    mock.patch.object(native, "start_radarr"),
                 ):
                     backend.NativeBackend().up(NATIVE)
                 self.assertEqual(seen, [True])
@@ -435,7 +455,10 @@ class InstallTest(unittest.TestCase):
                     native.install_jellyfin()
                 with self.assertRaisesRegex(RuntimeError, f"^jellyfin-ffmpeg {native.FFMPEG_VERSION} download checksum mismatch; nothing installed$"):
                     native.install_ffmpeg()
-            self.assertEqual(timeouts, [native.DOWNLOAD_TIMEOUT_SECONDS, native.DOWNLOAD_TIMEOUT_SECONDS])
+                with self.assertRaisesRegex(RuntimeError, f"^Radarr {native.RADARR_VERSION} download checksum mismatch; nothing installed$"):
+                    native.install_radarr()
+            self.assertEqual(timeouts, [native.DOWNLOAD_TIMEOUT_SECONDS] * 3)
+            self.assertFalse((tools / f"radarr-{native.RADARR_VERSION}").exists())
             self.assertFalse((tools / f"jellyfin-{native.JELLYFIN_VERSION}").exists())
             self.assertFalse((tools / f"jellyfin-ffmpeg-{native.FFMPEG_VERSION}").exists())
 

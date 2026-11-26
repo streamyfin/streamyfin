@@ -18,6 +18,8 @@ OWNED = {
     "SYNCPLAY_PORT": "18096",
     "SYNCPLAY_SEERR_CONTAINER": "streamyfin-syncplay-e2e-seerr",
     "SYNCPLAY_SEERR_PORT": "15055",
+    "SYNCPLAY_RADARR_CONTAINER": "streamyfin-syncplay-e2e-radarr",
+    "SYNCPLAY_RADARR_PORT": "17878",
 }
 
 
@@ -134,6 +136,31 @@ class EnsureReadyTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "did not become ready"):
                 seerr.ensure_ready(OWNED, username="syncplay-host", password="pw")
         self.assertEqual(len(opener.calls), seerr.READY_ATTEMPTS)
+
+
+class EnsureRadarrTest(unittest.TestCase):
+    SERVER = {"name": "Radarr", "hostname": "radarr", "port": 7878, "activeDirectory": "/radarr-media/movies-offline"}
+
+    def test_adds_the_server_when_none_by_that_name_is_saved(self):
+        opener = FakeOpener()
+        opener.serve("POST", "/api/v1/auth/jellyfin", {"id": 1})
+        opener.serve("GET", "/api/v1/settings/radarr", [{"id": 0, "name": "Other"}])
+        opener.serve("POST", "/api/v1/settings/radarr", {"id": 1})
+        with patched_opener(opener):
+            seerr.ensure_radarr(OWNED, "syncplay-host", "pw", self.SERVER)
+        self.assertEqual(opener.calls, [
+            ("POST", "/api/v1/auth/jellyfin", {"username": "syncplay-host", "password": "pw"}),
+            ("GET", "/api/v1/settings/radarr", None),
+            ("POST", "/api/v1/settings/radarr", self.SERVER),
+        ])
+
+    def test_a_rerun_leaves_the_saved_server_alone(self):
+        opener = FakeOpener()
+        opener.serve("POST", "/api/v1/auth/jellyfin", {"id": 1})
+        opener.serve("GET", "/api/v1/settings/radarr", [{"id": 0, "name": "Radarr"}])
+        with patched_opener(opener):
+            seerr.ensure_radarr(OWNED, "syncplay-host", "pw", self.SERVER)
+        self.assertNotIn("POST", [method for method, path, _ in opener.calls if path == "/api/v1/settings/radarr"])
 
 
 if __name__ == "__main__":

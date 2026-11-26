@@ -76,6 +76,17 @@ def enable_named(opener, url, names):
     return libraries
 
 
+def ensure_radarr(owned, username, password, server):
+    """Add the Radarr server once, matched by name. A rerun leaves a saved one as it is."""
+    url = base_url(owned)
+    opener = new_session()
+    login(opener, url, username, password)
+    saved = request(opener, url, "/api/v1/settings/radarr")
+    if any(entry.get("name") == server["name"] for entry in saved):
+        return
+    request(opener, url, "/api/v1/settings/radarr", "POST", server)
+
+
 def ensure_ready(owned, username, password):
     """Idempotent onboarding: first run connects Jellyfin and enables the fixture library;
     a rerun just proves the owner login still works."""

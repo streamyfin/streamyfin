@@ -28,3 +28,18 @@ services:
     restart: "no"
     depends_on:
       - jellyfin
+  radarr:
+    # Keep in lockstep with RADARR_VERSION in native.py.
+    image: lscr.io/linuxserver/radarr:7.0.3.10918-ls328@sha256:044788f5508b7f67a3e0368cdd142c77c4d4cd5aec2efaba53e1a68b6b6231e7
+    container_name: ${SYNCPLAY_RADARR_CONTAINER:-streamyfin-syncplay-e2e-radarr}
+    ports:
+      - "${SYNCPLAY_BIND:-127.0.0.1}:${SYNCPLAY_RADARR_PORT:-17878}:7878"
+    volumes:
+      - ./.state/radarr:/config
+      - ./.state/radarr-media:/radarr-media
+    environment:
+      TZ: UTC
+      # The image re-owns /config to these; backend.py passes the setup user's ids.
+      PUID: ${SYNCPLAY_UID:-1000}
+      PGID: ${SYNCPLAY_GID:-1000}
+    restart: "no"

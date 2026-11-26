@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
 
-from suites.syncplay import maestro_env, seerr, setup, teardown
+from suites.syncplay import maestro_env, radarr, seerr, setup, teardown
 
 
 def inspected(label, returncode=0):
@@ -120,9 +120,11 @@ class IdentityTest(unittest.TestCase):
 class SetupTest(unittest.TestCase):
     def run_setup(self, root, docker, environ=None):
         calls = []
+        self.envs = []
 
         def recording(command, **kwargs):
             calls.append(command)
+            self.envs.append(kwargs.get("env"))
             return docker(command)
 
         with (
@@ -133,6 +135,7 @@ class SetupTest(unittest.TestCase):
             mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
             mock.patch.object(setup, "api", side_effect=setup_api),
             mock.patch.object(seerr, "ensure_ready"),
+            mock.patch.object(radarr, "ensure_ready"),
             mock.patch.object(setup.subprocess, "run", side_effect=recording),
             mock.patch.dict(os.environ, environ or {}, clear=True),
             contextlib.redirect_stdout(io.StringIO()),
@@ -150,6 +153,16 @@ class SetupTest(unittest.TestCase):
             up = [command for command in self.calls if "up" in command]
             self.assertEqual(len(up), 1)
             self.assertEqual(up[0][up[0].index("-p") + 1], "mine")
+
+    def test_up_runs_radarr_as_the_setup_user_so_it_can_read_config_xml_back(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.run_setup(root, docker_fake(str((root / "compose.yml").resolve())))
+            env = next(env for command, env in zip(self.calls, self.envs) if "up" in command)
+            self.assertEqual((env["SYNCPLAY_UID"], env["SYNCPLAY_GID"]), (str(os.getuid()), str(os.getgid())))
+            compose = (Path(setup.__file__).parent / "compose.yml").read_text()
+            self.assertIn("PUID: ${SYNCPLAY_UID:-1000}", compose)
+            self.assertIn("PGID: ${SYNCPLAY_GID:-1000}", compose)
 
     def test_an_unwritable_config_dir_is_refused_before_compose_up(self):
         with TemporaryDirectory() as directory:
@@ -185,6 +198,18 @@ class SetupTest(unittest.TestCase):
             docker = docker_fake(
                 str((root / "compose.yml").resolve()),
                 name_owner=lambda name: "/elsewhere/compose.yml" if "seerr" in name else "missing",
+            )
+            with self.assertRaisesRegex(RuntimeError, "not this checkout"):
+                self.run_setup(root, docker)
+            self.assertFalse((root / ".env").exists())
+            self.assertFalse([command for command in self.calls if "up" in command or "down" in command])
+
+    def test_a_foreign_radarr_container_is_refused_before_any_write_or_up(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            docker = docker_fake(
+                str((root / "compose.yml").resolve()),
+                name_owner=lambda name: "/elsewhere/compose.yml" if "radarr" in name else "missing",
             )
             with self.assertRaisesRegex(RuntimeError, "not this checkout"):
                 self.run_setup(root, docker)
