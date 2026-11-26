@@ -1456,13 +1456,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     wasCastReady.current = true;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
-    // From where the track plays, as a resume does: a ref, or every tick would rerun the move.
-    void castOnReceiver(
-      state.queue,
-      Math.max(index, 0),
-      progressRef.current,
-      true,
-    );
+    void castOnReceiver(state.queue, Math.max(index, 0), 0, true);
   }, [
     castReady,
     castOnReceiver,

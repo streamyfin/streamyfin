@@ -1438,21 +1438,6 @@ describe("MusicPlayerProvider and a Cast session", () => {
     ).toHaveLength(1);
   });
 
-  // The move took the track from its start, while a resume takes it from where it paused.
-  test("a session that connects while the phone plays takes the track from where it plays", async () => {
-    await mount();
-    await run((p) => p.playQueue(ALBUM, 0));
-    mockNative.position = 42;
-    await run((p) => p.seek(42));
-
-    await connectCast();
-    await settle();
-
-    expect(playNows()).toHaveLength(1);
-    expect(playNows()[0].options.startPositionTicks).toBe(42 * 10_000_000);
-    await receiverLoads("t0");
-  });
-
   // The hand-off ended the phone's session, and a repeat change then reported it playing again.
   test("a repeat change after the hand-off reports nothing for the phone", async () => {
     await mount();
