@@ -35,7 +35,8 @@ const TVNavBarTabItem: React.FC<{
     nativeEvent: { layout: { x: number; width: number } };
   }) => void;
   hasTVPreferredFocus: boolean;
-}> = ({ label, isActive, onSelect, onLayout, hasTVPreferredFocus }) => {
+  testID: string;
+}> = ({ label, isActive, onSelect, onLayout, hasTVPreferredFocus, testID }) => {
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
@@ -57,6 +58,7 @@ const TVNavBarTabItem: React.FC<{
 
   return (
     <Pressable
+      testID={testID}
       onPress={onSelect}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -148,6 +150,7 @@ export const TVNavBar: React.FC<TVNavBarProps> = ({
             onSelect={() => handleTabChange(tab.key)}
             onLayout={handleTabLayout(tab.key)}
             hasTVPreferredFocus={tab.key === activeTabKey}
+            testID={`tv-nav-${tab.key.replace(/[()]/g, "")}`}
           />
         ))}
       </ScrollView>

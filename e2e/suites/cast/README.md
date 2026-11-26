@@ -105,10 +105,16 @@ The broadcast needs the `DUMP` permission, which `adb shell` has. The log then r
 - `idle finished, waiting for the next item` at the end of a track with more to come.
 
 What the server recorded for the receiver is read with `sessions.py`, during V03 for a
-direct stream, and after `capped-reload` on MUSIC-FLAC for a transcode:
+direct stream:
 
 ```sh
 e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method DirectStream --expect-paused false --expect-active 1
+```
+
+and after `capped-reload` on MUSIC-FLAC for a transcode:
+
+```sh
+e2e/.venv/bin/python e2e/bench/sessions.py --server beta13 --device "Living room" --expect-play-method Transcode --expect-paused false --expect-active 1
 ```
 
 Stopping the cast from the Cast dialog logs `binding lost session=<id> error=null`,

@@ -126,11 +126,11 @@ class CastEngine(
     // The generation whose queue the engine holds: a refusal gives an older one back.
     private var heldGeneration = 0L
 
-    // An enqueue's windows still to go, the first one on its way unless [waiting]. A replay's PlayNow
+    // An enqueue's windows still to go, the first one on its way unless [waiting] its turn. A replay's PlayNow
     // drops from the receiver the windows sent before it, so the replay sends them again and holds those
     // enqueues until the channel settles it: a window taken meanwhile waits in [taken], the next with it, and
     // a window refused leaves its [error] to the replay's outcome.
-    private class Enqueue(val generation: Long, val binding: String?, var windows: List<List<String>>, var waiting: Boolean = false) {
+    private class Enqueue(var generation: Long, val binding: String?, var windows: List<List<String>>, var waiting: Boolean = false) {
         var taken: List<String> = emptyList()
         var error: String? = null
     }
@@ -140,6 +140,10 @@ class CastEngine(
 
     // The replays whose PlayNow the channel has not settled: each holds the enqueues asked before it.
     private val replays = mutableSetOf<Long>()
+
+    // The loads the channel has not settled, by generation, each with the id that holds the enqueues
+    // asked before it: taken, its PlayNow replaced what they were for; refused, they go on.
+    private val loads = mutableMapOf<Long, Long>()
 
     // Statuses seen so far: Play Services hands a seek's result over after the status that answered it.
     private var statusCount = 0L
@@ -267,6 +271,7 @@ class CastEngine(
         cancelEndWait()
         enqueues.clear()
         replays.clear()
+        loads.clear()
         suspended = false
         reclaimPending = false
         // What was reported was reported to this host: the next one starts from nothing.
@@ -355,7 +360,9 @@ class CastEngine(
         val generation = ++queueGeneration
         replaced[generation] = QueueState(this.server, queue, playingIndex, heldGeneration)
         heldGeneration = generation
-        enqueues.clear()
+        loads[generation] = ++enqueueCount
+        // The enqueues a replay on its way carries end with it: the receiver may take that replay, which holds them.
+        replays.maxOrNull()?.let { replay -> enqueues.keys.removeAll { it < replay } }
         replays.clear()
         val receiverRequest = ReceiverProtocol.toReceiverRequest(request)
         this.server = server
@@ -389,6 +396,10 @@ class CastEngine(
         hub.send(ReceiverProtocol.NAMESPACE, message.toString()) { error ->
             if (error == null) {
                 replaced.remove(generation)
+                loads.remove(generation)?.let { hold ->
+                    enqueues.keys.removeAll { it < hold }
+                    resumeEnqueues()
+                }
                 busClaimed = true
                 return@send
             }
@@ -404,7 +415,9 @@ class CastEngine(
 
     // Never sent: the receiver keeps its queue, under its server. A newer load replaced this one's queue,
     // which the receiver never took: what this one replaced is what that one goes back to.
+    // The enqueues it held go on in the queue given back, under the generation the engine is at.
     private fun refused(generation: Long) {
+        loads.remove(generation)
         val previous = replaced.remove(generation) ?: return
         for (entry in replaced.entries) if (entry.value.held == generation) entry.setValue(previous)
         if (heldGeneration == generation) {
@@ -412,7 +425,9 @@ class CastEngine(
             queue = previous.items
             playingIndex = previous.playingIndex
             heldGeneration = previous.held
+            for (entry in enqueues.values) entry.generation = queueGeneration
         }
+        resumeEnqueues()
     }
 
     // The item again where it is, with the tracks it plays.
@@ -551,7 +566,8 @@ class CastEngine(
         val index = if (queue.getOrNull(playingIndex)?.id == data.itemId) playingIndex else queue.indexOfFirst { it.id == data.itemId }
         // The windows of the enqueues on their way go out before this PlayNow, which drops them: they
         // go again after the queue, as does the tail of a replay before this one.
-        val unsent = if (index >= 0) enqueues.values.flatMap { it.taken + it.windows.flatten() } else emptyList()
+        // Those a load on its way holds were for the queue it replaced.
+        val unsent = if (index >= 0) enqueues.filterKeys { !isHeldByALoad(it) }.values.flatMap { it.taken + it.windows.flatten() } else emptyList()
         val items = if (index >= 0) queue + unsent.map { ReceiverItem(id = it) } else listOf(ReceiverItem(id = data.itemId))
         val window = ReceiverProtocol.queueWindow(items, index.coerceAtLeast(0), CastEngineConstants.MAX_QUEUE_ITEMS)
         // A start offset the receiver reported can put the position past what ticks hold.
@@ -592,9 +608,8 @@ class CastEngine(
                 enqueues.keys.removeAll { it < replay }
                 queue = window.items
                 playingIndex = window.startIndex
-                val held = isHeld(replay)
-                enqueues[replay] = Enqueue(generation, boundSessionId, tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = held)
-                if (!held) sendWindow(replay)
+                enqueues[replay] = Enqueue(generation, boundSessionId, tail.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = true)
+                resumeEnqueues()
             }
         }
     }
@@ -643,25 +658,26 @@ class CastEngine(
         }
     }
 
-    // A Cast message holds 64 KB: the items go a window at a time.
+    // A Cast message holds 64 KB: the items go a window at a time, once the windows asked before them went.
     override fun enqueue(itemIds: List<String>) = runOnMain {
         if (session == null) return@runOnMain
         val id = ++enqueueCount
-        enqueues[id] = Enqueue(queueGeneration, boundSessionId, itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS))
-        sendWindow(id)
+        enqueues[id] = Enqueue(queueGeneration, boundSessionId, itemIds.chunked(CastEngineConstants.MAX_QUEUE_ITEMS), waiting = true)
+        resumeEnqueues()
     }
 
     // Each window once the channel took the one before: the queue then holds them in the order the
-    // receiver does, a window refused ends the enqueue with no gap, and a load meanwhile ends it too,
-    // its PlayNow having replaced the queue the rest was for, and so does the end of the binding it was
-    // sent on: the rest was for that receiver.
+    // receiver does, a window refused ends the enqueue with no gap, and so does the end of the binding
+    // it was sent on: the rest was for that receiver.
     // A replay holds it: a window taken waits for the replay, which carries the rest once the receiver
-    // takes it, and lets the enqueue go on otherwise.
+    // takes it, and lets the enqueue go on otherwise. A load holds it the same way: taken, its PlayNow
+    // replaced the queue the rest was for, and the enqueue ends.
     private fun sendWindow(id: Long) {
         val entry = enqueues[id] ?: return
         val window = entry.windows.firstOrNull()
         if (window == null) {
             enqueues.remove(id)
+            resumeEnqueues()
             return
         }
         sendMessage(
@@ -671,18 +687,21 @@ class CastEngine(
                 // Ended meanwhile: a taken replay sent it again, or a load or the binding's end dropped what it was for.
                 if (enqueues[id] !== entry) return@sendMessage
                 if (isHeld(id)) {
-                    // The replay settles it: taken, it sent the window again; refused, the enqueue ends on this error.
+                    // The replay or the load settles it: taken, the window went again or its queue was replaced;
+                    // refused, the enqueue ends on this error.
                     entry.error = it
                     entry.waiting = true
                 } else {
                     enqueues.remove(id)
                     delegate?.onError(it)
+                    resumeEnqueues()
                 }
             },
             sent = {
                 if (enqueues[id] !== entry) return@sendMessage
-                if (!isCurrent(entry)) {
+                if (!isCurrent(entry) && !isHeld(id)) {
                     enqueues.remove(id)
+                    resumeEnqueues()
                     return@sendMessage
                 }
                 entry.windows = entry.windows.drop(1)
@@ -697,10 +716,12 @@ class CastEngine(
         )
     }
 
-    // A replay the channel refused: the enqueues no replay holds any more go on, from the window taken meanwhile.
+    // One enqueue at a time, in the order asked, so the receiver queues them in that order: the first one
+    // goes on once nothing holds it, from the window taken meanwhile, and after a replay on its way, whose
+    // tail goes before it.
     private fun resumeEnqueues() {
         for ((id, entry) in enqueues.entries.toList()) {
-            if (!entry.waiting || isHeld(id)) continue
+            if (!entry.waiting || isHeld(id) || replays.any { it < id }) return
             if (entry.error != null || !isCurrent(entry)) {
                 enqueues.remove(id)
                 entry.error?.let { delegate?.onError(it) }
@@ -710,10 +731,13 @@ class CastEngine(
             entry.waiting = false
             entry.taken = emptyList()
             sendWindow(id)
+            return
         }
     }
 
-    private fun isHeld(id: Long) = replays.any { it > id }
+    private fun isHeld(id: Long) = replays.any { it > id } || isHeldByALoad(id)
+
+    private fun isHeldByALoad(id: Long) = loads.values.any { it > id }
 
     private fun isCurrent(entry: Enqueue) = entry.generation == queueGeneration && session != null && boundSessionId == entry.binding
 
