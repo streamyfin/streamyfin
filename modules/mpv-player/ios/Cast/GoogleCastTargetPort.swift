@@ -1,0 +1,627 @@
+import Foundation
+
+/// A Cast receiver as the port uses it: the device it reaches, and how to start a session on it.
+struct CastTargetRoute {
+  let device: TargetDevice
+  /// False when the SDK would not start the session.
+  let startSession: () -> Bool
+}
+
+/// The SDK's current session: connected, launching, or suspended.
+struct RunningTargetSession {
+  let device: TargetDevice?
+  let connected: Bool
+  /// Lost and not being reconnected: the SDK tries it again only when the app comes back to the front or relaunches.
+  var suspended = false
+}
+
+/// The Cast SDK as the hub sees it. The SDK calls come in as closures so that the standalone check
+/// can stand in for the discovery and session managers, and `make()` wires the real ones. Like the
+/// module before it, the port hears the SDK's device list from the start, discovery or not. Main
+/// thread only.
+final class GoogleCastTargetPort: TargetPort {
+  static let receiverGone = "The receiver is no longer on the network"
+  static let startRefused = "The Cast SDK did not start the session"
+  static let endRefused = "The Cast SDK did not end the session a switch had to end"
+  static let disconnectRefused = "The Cast SDK did not end the session"
+  static let endNeverCame = "The Cast SDK never ended the session it was asked to end"
+
+  /// The receiver's level, or none for a fixed-volume session: a Google TV whose sound the TV sets through
+  /// HDMI-CEC reports 0 there, which is no level a sender can set.
+  static func reportedLevel(_ level: Double, muted: Bool, fixedVolume: Bool) -> (Double, Bool)? {
+    fixedVolume ? nil : (level, muted)
+  }
+
+  private let routes: () -> [CastTargetRoute]
+  private let runningSession: () -> RunningTargetSession?
+  /// Answers the SDK's endSessionAndStopCasting: false when it kept the session.
+  private let endSession: (_ stopPlayback: Bool) -> Bool
+  private let watchSessions: (((String, TargetDevice?, String?, Int?) -> Void)?) -> Void
+  private let watchDevices: ((() -> Void)?) -> Void
+  private let discovery: (_ on: Bool) -> Void
+  /// The current session's receiver volume and mute, nil without a session.
+  private let sessionVolume: () -> (Double, Bool)?
+  private let setSessionVolume: (Double) -> Void
+  private let setSessionMuted: (Bool) -> Void
+  private let watchVolume: (((Double, Bool) -> Void)?) -> Void
+  /// Main-queue timers, cancellable: the waits on the SDK below are bounded.
+  private let schedule: (Double, @escaping () -> Void) -> (() -> Void)
+  private var events: TargetPortEvents?
+  private var discovering = false
+  // The receiver a switch is waiting to start, once the SDK reports the end of the session before it.
+  private var pendingSwitch: TargetDevice?
+  // The receiver of a lost session asked again: the hub follows that session's resumption, but not its end, after
+  // which the receiver starts anew.
+  private var restarting: TargetDevice?
+  // A start that waited on an end, its receiver missing from the SDK's device list since.
+  private var awaitingRoute: TargetDevice?
+  // Bounds the wait for the end a start waits on, then for its receiver to show again: neither comes for sure.
+  private var cancelWait: (() -> Void)?
+  // Set from a suspension for as long as the SDK may end that lost session by itself (suspendedOwnEndMs).
+  private var cancelOwnEnd: (() -> Void)?
+  // A session ended before it was up, a launch or a suspended session reconnecting, which the hub was told ended at
+  // once. Ending it then reaches no receiver: a suspended session's Stop was lost, the TV went on playing and the app
+  // could not connect to it again (iPhone, Wi-Fi cut, 14/11), and a launch goes on and leaves the receiver app open
+  // (bench, 04/11, Android). The session is ended once it is up instead, as the Android port does. Its events stay
+  // away from the hub until that end.
+  private var endedEarly: EndedEarly?
+
+  /// `stopWhenUp` is the stop asked, nil once none is due: sent already, or a switch ends the session.
+  private struct EndedEarly {
+    let device: TargetDevice
+    var stopWhenUp: Bool?
+  }
+
+  init(
+    routes: @escaping () -> [CastTargetRoute],
+    runningSession: @escaping () -> RunningTargetSession?,
+    endSession: @escaping (_ stopPlayback: Bool) -> Bool,
+    watchSessions: @escaping (((String, TargetDevice?, String?, Int?) -> Void)?) -> Void,
+    watchDevices: @escaping ((() -> Void)?) -> Void,
+    discovery: @escaping (_ on: Bool) -> Void,
+    sessionVolume: @escaping () -> (Double, Bool)?,
+    setSessionVolume: @escaping (Double) -> Void,
+    setSessionMuted: @escaping (Bool) -> Void,
+    watchVolume: @escaping (((Double, Bool) -> Void)?) -> Void,
+    schedule: @escaping (Double, @escaping () -> Void) -> (() -> Void)
+  ) {
+    self.routes = routes
+    self.runningSession = runningSession
+    self.endSession = endSession
+    self.watchSessions = watchSessions
+    self.watchDevices = watchDevices
+    self.discovery = discovery
+    self.sessionVolume = sessionVolume
+    self.setSessionVolume = setSessionVolume
+    self.setSessionMuted = setSessionMuted
+    self.watchVolume = watchVolume
+    self.schedule = schedule
+  }
+
+  func start(events: TargetPortEvents) {
+    self.events = events
+    watchSessions { [weak self] event, device, error, code in
+      self?.sessionChanged(event, device: device, error: error, code: code)
+    }
+    watchDevices { [weak self] in
+      self?.reportDevices()
+      self?.startIfBack()
+    }
+    watchVolume { [weak self] level, muted in self?.events?.volumeChanged(level: level, muted: muted) }
+    reportDevices()
+    // A session that was there before the port (a JS reload, the SDK's own reconnection at launch).
+    if let session = runningSession() {
+      events.sessionEvent(session.connected ? "resumed" : "resuming", device: session.device, error: nil)
+      // A connected session has had its receiver's status; one still resuming reports it when it comes.
+      if session.connected { reportVolume() }
+    }
+  }
+
+  func stop() {
+    pendingSwitch = nil
+    restarting = nil
+    awaitingRoute = nil
+    endWait()
+    cancelOwnEnd?()
+    cancelOwnEnd = nil
+    endedEarly = nil
+    stopDiscovery()
+    watchSessions(nil)
+    watchDevices(nil)
+    watchVolume(nil)
+    events = nil
+  }
+
+  func setVolume(_ level: Double) { setSessionVolume(level) }
+
+  func setMuted(_ muted: Bool) { setSessionMuted(muted) }
+
+  private func reportVolume() {
+    guard let (level, muted) = sessionVolume() else { return }
+    events?.volumeChanged(level: level, muted: muted)
+  }
+
+  func devices() -> [TargetDevice] {
+    routes().map(\.device)
+  }
+
+  func startDiscovery() {
+    guard !discovering else { return }
+    discovering = true
+    discovery(true)
+  }
+
+  func stopDiscovery() {
+    guard discovering else { return }
+    discovering = false
+    discovery(false)
+  }
+
+  func connect(_ device: TargetDevice) {
+    var switching = pendingSwitch != nil
+    pendingSwitch = nil
+    restarting = nil
+    // A start waiting for its receiver to show again gives way to this request.
+    if awaitingRoute != nil {
+      awaitingRoute = nil
+      endWait()
+    }
+    if let early = endedEarly, early.device.id == device.id {
+      // Asked again before it was up, the session goes on and the hub follows it again; asked again while it is
+      // being ended, it starts again once that end comes, as for a switch back.
+      if early.stopWhenUp != nil { endedEarly = nil } else { switching = true }
+    }
+    if let running = runningSession() {
+      if running.device?.id == device.id {
+        // Asked back while a switch ends its session: start it again once that end comes. A lost session asked again
+        // keeps its restart, and the SDK its time to end it; the end a deferred Stop asked has no wait of its own, so
+        // this start gives up if that end never comes.
+        if switching {
+          pendingSwitch = device
+          if running.suspended { restarting = device }
+          if cancelWait == nil && cancelOwnEnd == nil { waitForEnd() }
+          return
+        }
+        // A lost session is not on its way: after the receiver restarted it never came back, and the row stayed
+        // Connecting (bench, 15/11). The receiver starts anew once that session is gone.
+        if running.suspended { waitForLostSession(then: device) }
+        // Otherwise that receiver's session is already there, or on its way.
+        return
+      }
+      // The end a switch asked for is under way: only the receiver that starts after it changes.
+      if switching {
+        pendingSwitch = device
+        return
+      }
+      if running.suspended {
+        waitForLostSession(then: device)
+        return
+      }
+      // The SDK starts no session while one is established (GCKSessionManager.startSession(with:)
+      // answers NO): end it, and start this receiver once the SDK reports the end.
+      pendingSwitch = device
+      askEnd(stopPlayback: true, then: device)
+      return
+    }
+    startSession(on: device)
+  }
+
+  func disconnect(stopPlayback: Bool) {
+    pendingSwitch = nil
+    restarting = nil
+    awaitingRoute = nil
+    endWait()
+    if let running = runningSession() {
+      // Not up: a launch, or a suspended session reconnecting.
+      if !running.connected, let device = running.device {
+        endedEarly = EndedEarly(device: device, stopWhenUp: stopPlayback)
+        events?.sessionEvent("ended", device: device, error: nil)
+        return
+      }
+      // The SDK kept the session: it stays, and the state says why.
+      if !endSession(stopPlayback) {
+        events?.sessionEvent("endRefused", device: running.device, error: Self.disconnectRefused)
+      }
+      return
+    }
+    // Asked before the SDK started a session: nothing would end, so the request ends here.
+    events?.sessionEvent("ended", device: nil, error: nil)
+  }
+
+  // The SDK ends a session it lost by itself, 26 to 28 s after the suspension. Asked to end it before then, it reported
+  // the end under way, suspended the session again and kept it, the row Connecting for 5 min with the TV back
+  // (Chromecast unplugged, 15/11). A request over a lost session waits for that end, or for its resumption, and asks
+  // the end itself only once the SDK had that time: after a receiver restart, the SDK kept one for minutes.
+  private func waitForLostSession(then device: TargetDevice) {
+    pendingSwitch = device
+    if runningSession()?.device?.id == device.id { restarting = device }
+    if cancelOwnEnd == nil { endLostSession() }
+  }
+
+  // The end a waiting start needs, once the SDK has had its time; the Stop only for another receiver.
+  private func endLostSession() {
+    guard let next = pendingSwitch, let running = runningSession() else { return }
+    askEnd(stopPlayback: running.device?.id != next.id, then: next)
+  }
+
+  private func askEnd(stopPlayback: Bool, then next: TargetDevice) {
+    // Armed first: the SDK can report the end, or the session suspended again, inside the call.
+    waitForEnd(stopDue: endedEarly?.stopWhenUp)
+    if !endSession(stopPlayback) {
+      // The SDK kept the session it was asked to end: this receiver cannot start.
+      endWait()
+      pendingSwitch = nil
+      restarting = nil
+      events?.sessionEvent("startFailed", device: next, error: Self.endRefused)
+      return
+    }
+    // The end asked ends a session ended early itself: no stop is due once it is up, unless that end never comes.
+    endedEarly?.stopWhenUp = nil
+  }
+
+  // `stopDue` is the Stop an early-ended session had due before this end: taking the end is no end yet, so the Stop
+  // is due again if the end never comes.
+  private func waitForEnd(stopDue: Bool? = nil) {
+    cancelWait?()
+    cancelWait = schedule(RemoteTargetConstants.sessionEndWaitMs) { [weak self] in
+      guard let self, let next = self.pendingSwitch else { return }
+      self.cancelWait = nil
+      self.pendingSwitch = nil
+      self.restarting = nil
+      if let stopDue { self.endedEarly?.stopWhenUp = stopDue }
+      self.events?.sessionEvent("startFailed", device: next, error: Self.endNeverCame)
+    }
+  }
+
+  private func endWait() {
+    cancelWait?()
+    cancelWait = nil
+  }
+
+  // A start that waited on an end: the SDK's device list can miss its receiver for a few seconds then, so the start
+  // waits for the list to show it again.
+  private func startAfterEnd(_ device: TargetDevice) {
+    guard !routes().contains(where: { $0.device.id == device.id }) else { return startSession(on: device) }
+    awaitingRoute = device
+    endWait()
+    cancelWait = schedule(RemoteTargetConstants.receiverBackWaitMs) { [weak self] in
+      guard let self, let missing = self.awaitingRoute else { return }
+      self.cancelWait = nil
+      self.awaitingRoute = nil
+      self.events?.sessionEvent("startFailed", device: missing, error: Self.receiverGone)
+    }
+  }
+
+  private func startIfBack() {
+    guard let device = awaitingRoute, routes().contains(where: { $0.device.id == device.id }) else { return }
+    awaitingRoute = nil
+    endWait()
+    startSession(on: device)
+  }
+
+  private func startSession(on device: TargetDevice) {
+    guard let route = routes().first(where: { $0.device.id == device.id }) else {
+      events?.sessionEvent("startFailed", device: device, error: Self.receiverGone)
+      return
+    }
+    if !route.startSession() {
+      events?.sessionEvent("startFailed", device: device, error: Self.startRefused)
+    }
+  }
+
+  private func sessionChanged(_ event: String, device: TargetDevice?, error: String?, code: Int?) {
+    let backBeforeItsOwnEnd = followOwnEnd(event)
+    let endedEarlyOwn = endedEarlyEvent(event, device: device)
+    let restartingOwn = restartingEvent(event, device: device)
+    if !endedEarlyOwn && !restartingOwn {
+      events?.sessionEvent(event, device: device, error: error, code: code)
+    }
+    // Back before the SDK ended it, the lost session holds the receiver a start waited on: it stays if it is the one
+    // asked last, otherwise the switch ends it as from a session that is up, bounded. After the hub heard it is back.
+    if backBeforeItsOwnEnd, !endedEarlyOwn, cancelWait == nil, let next = pendingSwitch {
+      if next.id == device?.id { pendingSwitch = nil } else { askEnd(stopPlayback: true, then: next) }
+      return
+    }
+    // No read here: a session that joins a receiver app starts before the receiver's first status, and its
+    // volume reads 0 until then (bench, 04/11). The level comes with didReceiveDeviceVolume.
+    // The session a switch ended is gone: the receiver asked for meanwhile can start now.
+    guard event == "ended" || event == "startFailed", let next = pendingSwitch else { return }
+    pendingSwitch = nil
+    endWait()
+    startAfterEnd(next)
+  }
+
+  // The time the SDK may end a lost session in by itself runs from its suspension, until that session is back or gone.
+  // True when the session came back within that time.
+  private func followOwnEnd(_ event: String) -> Bool {
+    let waitingOwnEnd = cancelOwnEnd != nil
+    switch event {
+    case "suspended":
+      // Suspended again by an end the port asked, the SDK keeps the session: it ends it by itself no more.
+      guard cancelOwnEnd == nil, cancelWait == nil else { return false }
+      cancelOwnEnd = schedule(RemoteTargetConstants.suspendedOwnEndMs) { [weak self] in
+        self?.cancelOwnEnd = nil
+        self?.endLostSession()
+      }
+    case "started", "resumed":
+      cancelOwnEnd?()
+      cancelOwnEnd = nil
+      return waitingOwnEnd
+    case "ended", "startFailed":
+      cancelOwnEnd?()
+      cancelOwnEnd = nil
+    default:
+      break
+    }
+    return false
+  }
+
+  // Whether the event is the lost session's a connection back to its receiver waits on, which the hub does not hear:
+  // its resumption is that connection, but its end would read as that connection's failure.
+  private func restartingEvent(_ event: String, device: TargetDevice?) -> Bool {
+    guard let restarting, device == nil || device?.id == restarting.id else { return false }
+    switch event {
+    case "resuming":
+      return false
+    case "started", "resumed":
+      self.restarting = nil
+      pendingSwitch = nil
+      endWait()
+      return false
+    case "ended", "startFailed":
+      self.restarting = nil
+      return true
+    default:
+      return true
+    }
+  }
+
+  // Whether the event is the early-ended session's, which the hub no longer follows; once that session is up, it is
+  // ended with the stop asked.
+  private func endedEarlyEvent(_ event: String, device: TargetDevice?) -> Bool {
+    guard let early = endedEarly else { return false }
+    if let device, device.id != early.device.id { return false }
+    switch event {
+    case "started", "resumed":
+      guard let stop = early.stopWhenUp else { break }
+      endedEarly?.stopWhenUp = nil
+      // The SDK kept the session: the hub follows it again, and the Stop can be asked again from there.
+      if !endSession(stop) {
+        endedEarly = nil
+        return false
+      }
+    case "ended", "startFailed":
+      endedEarly = nil
+    default:
+      break
+    }
+    return true
+  }
+
+  private func reportDevices() {
+    events?.devicesChanged(devices())
+  }
+}
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import GoogleCast
+import UIKit
+
+extension GoogleCastTargetPort {
+  static func targetDevice(_ device: GCKDevice?) -> TargetDevice? {
+    guard let device else { return nil }
+    return TargetDevice(
+      id: device.deviceID, name: device.friendlyName ?? "", model: device.modelName,
+      videoOut: device.hasCapabilities(.videoOut)
+    )
+  }
+
+  /// The shared context's discovery and session managers. The SDK holds its listeners weakly: the
+  /// closures keep them.
+  static func make() -> GoogleCastTargetPort {
+    let context = GCKCastContext.sharedInstance()
+    let discoveryManager = context.discoveryManager
+    let sessionManager = context.sessionManager
+    var sessionListener: TargetSessionListener?
+    var deviceListener: TargetDeviceListener?
+    var volumeRelay: ((Double, Bool) -> Void)?
+    return GoogleCastTargetPort(
+      routes: {
+        (0..<discoveryManager.deviceCount).compactMap { index in
+          let receiver = discoveryManager.device(at: index)
+          guard let device = targetDevice(receiver) else { return nil }
+          return CastTargetRoute(device: device) { sessionManager.startSession(with: receiver) }
+        }
+      },
+      runningSession: {
+        guard let session = sessionManager.currentCastSession else { return nil }
+        return RunningTargetSession(
+          device: targetDevice(session.device), connected: session.connectionState == .connected,
+          suspended: session.connectionState == .disconnected
+        )
+      },
+      endSession: { stopPlayback in sessionManager.endSessionAndStopCasting(stopPlayback) },
+      watchSessions: { relay in
+        if let sessionListener { sessionManager.remove(sessionListener) }
+        sessionListener = relay.map { report in
+          TargetSessionListener(report: report) { level, muted in volumeRelay?(level, muted) }
+        }
+        if let sessionListener { sessionManager.add(sessionListener) }
+      },
+      watchDevices: { onChange in
+        if let deviceListener { discoveryManager.remove(deviceListener) }
+        deviceListener = onChange.map(TargetDeviceListener.init)
+        if let deviceListener { discoveryManager.add(deviceListener) }
+      },
+      discovery: { on in on ? discoveryManager.startDiscovery() : discoveryManager.stopDiscovery() },
+      sessionVolume: {
+        guard let session = sessionManager.currentCastSession else { return nil }
+        return reportedLevel(
+          Double(session.currentDeviceVolume), muted: session.currentDeviceMuted,
+          fixedVolume: session.traits?.isFixedVolume() == true
+        )
+      },
+      setSessionVolume: { level in sessionManager.currentCastSession?.setDeviceVolume(Float(level)) },
+      setSessionMuted: { muted in sessionManager.currentCastSession?.setDeviceMuted(muted) },
+      // The volume comes through the session manager's listener, which watchSessions installs.
+      watchVolume: { relay in volumeRelay = relay },
+      schedule: mainQueueSchedule
+    )
+  }
+}
+
+/// Timers on the main queue, cancellable, for the fake receivers, the debug probe and the output sheet.
+let mainQueueSchedule: (Double, @escaping () -> Void) -> (() -> Void) = { delayMs, run in
+  let work = DispatchWorkItem(block: run)
+  DispatchQueue.main.asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+  return { work.cancel() }
+}
+
+extension RemoteTargets {
+  private static var installed = false
+
+  /// Once per process: every module instance and the debug probe come through here.
+  static func installDefault(hub: RemoteTargetHub = .shared) {
+    guard !installed else { return }
+    installed = true
+    hub.log = { Logger.shared.log($0, type: "RemoteTargets") }
+    hub.install(
+      portFor(fake: fakeDevices, real: { GoogleCastTargetPort.make() }, schedule: mainQueueSchedule) {
+        Logger.shared.log($0, type: "RemoteTargets")
+      }
+    )
+  }
+}
+
+#if DEBUG
+extension CastTargetProbe {
+  private static var current: CastTargetProbe?
+  private static var waitingForActive: NSObjectProtocol?
+
+  /// One probe at a time, on the app's hub, its timers on the main queue. Debug builds log through
+  /// Logger, which prints each line with its type: the console reads [CastTargetProbe]. `then` names a
+  /// second receiver, asked once the first one is connected: a switch inside one process, where every
+  /// relaunch would first meet the SDK resuming its session.
+  static func run(
+    deviceName: String, keep: Bool, holdMs: Double, then next: String? = nil, back: Bool = false, stop: Bool = true,
+    volume: Double? = nil, mute: Bool? = nil, sheet: Bool = false
+  ) {
+    let log: (String) -> Void = { Logger.shared.log($0, type: "CastTargetProbe") }
+    if current?.isActive == true { return log("already running") }
+    // The sheet needs a window on screen, which a launch has once its scene is active.
+    if sheet, UIApplication.shared.applicationState != .active {
+      waitingForActive = NotificationCenter.default.addObserver(
+        forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+      ) { _ in
+        if let token = waitingForActive { NotificationCenter.default.removeObserver(token) }
+        waitingForActive = nil
+        run(
+          deviceName: deviceName, keep: keep, holdMs: holdMs, then: next, back: back, stop: stop, volume: volume,
+          mute: mute, sheet: true
+        )
+      }
+      return
+    }
+    RemoteTargets.installDefault()
+    let first = CastTargetProbe.firstOfChain(keep: keep, then: next, back: back)
+    let probe = CastTargetProbe(
+      hub: .shared, deviceName: deviceName, keep: first.keep, holdMs: holdMs, back: first.back, stop: stop,
+      volume: volume, mute: mute, presentSheet: sheet ? { OutputPickerPresenter.shared.presentForProbe() } : nil,
+      schedule: mainQueueSchedule, log: log
+    )
+    if let next, !next.isEmpty {
+      probe.onFinish = { result in
+        guard result.hasPrefix("done") else { return }
+        let second = CastTargetProbe.secondOfChain(keep: keep, back: back)
+        DispatchQueue.main.async {
+          run(
+            deviceName: next, keep: second.keep, holdMs: holdMs, back: second.back, stop: stop, volume: volume,
+            mute: mute
+          )
+        }
+      }
+    }
+    current = probe
+    probe.start()
+  }
+}
+#endif
+
+/// The same event names and errors as the module's own listener, which onSessionEvent publishes; an
+/// error comes with the SDK's code. The receiver's volume reaches `volume`.
+private final class TargetSessionListener: NSObject, GCKSessionManagerListener {
+  private let report: (String, TargetDevice?, String?, Int?) -> Void
+  private let volume: (Double, Bool) -> Void
+
+  init(report: @escaping (String, TargetDevice?, String?, Int?) -> Void, volume: @escaping (Double, Bool) -> Void) {
+    self.report = report
+    self.volume = volume
+  }
+
+  private func failure(_ event: String, _ session: GCKSession, _ error: Error?) {
+    let message = CastMapping.sessionEndError(error)
+    report(event, device(session), message, message == nil ? nil : (error as NSError?)?.code)
+  }
+
+  func sessionManager(
+    _ sessionManager: GCKSessionManager, castSession session: GCKCastSession,
+    didReceiveDeviceVolume volume: Float, muted: Bool
+  ) {
+    // A report still queued from a session a switch left is not the current receiver's level.
+    guard session === sessionManager.currentCastSession,
+      let (level, muted) = GoogleCastTargetPort.reportedLevel(
+        Double(volume), muted: muted, fixedVolume: session.traits?.isFixedVolume() == true
+      )
+    else { return }
+    self.volume(level, muted)
+  }
+
+  private func device(_ session: GCKSession) -> TargetDevice? {
+    GoogleCastTargetPort.targetDevice(session.device)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, willStart session: GCKSession) {
+    report("starting", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
+    report("started", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error) {
+    failure("startFailed", session, error)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didSuspend session: GCKSession, with reason: GCKConnectionSuspendReason) {
+    report("suspended", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, willResumeSession session: GCKSession) {
+    report("resuming", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didResumeSession session: GCKSession) {
+    report("resumed", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, willEnd session: GCKSession) {
+    report("ending", device(session), nil, nil)
+  }
+
+  func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
+    failure("ended", session, error)
+  }
+}
+
+private final class TargetDeviceListener: NSObject, GCKDiscoveryManagerListener {
+  private let onChange: () -> Void
+
+  init(onChange: @escaping () -> Void) {
+    self.onChange = onChange
+  }
+
+  func didUpdateDeviceList() {
+    onChange()
+  }
+}
+#endif

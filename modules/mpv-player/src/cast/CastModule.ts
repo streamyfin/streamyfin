@@ -5,7 +5,9 @@ import type {
   CastNativeEvents,
   CastSessionInfo,
   CastStateValue,
+  OutputPickerOptions,
   PlayServicesStateValue,
+  RemoteTargetState,
 } from "./Cast.types";
 
 export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
@@ -19,8 +21,19 @@ export declare class CastNativeModule extends NativeModule<CastNativeEvents> {
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
   getCurrentSession(): CastSessionInfo | null;
+  getRemoteTarget(): RemoteTargetState;
+  /** False when discovery does not know the device; otherwise the state follows the session events. */
+  connectToDevice(deviceId: string): Promise<boolean>;
+  /** Ends the session, or a connection the SDK has not started yet. */
+  disconnect(stopPlayback: boolean): Promise<void>;
+  /** The connected receiver's own volume, 0 to 1; the state follows what the SDK reports back. */
+  setTargetVolume(level: number): Promise<void>;
+  setTargetMuted(muted: boolean): Promise<void>;
   showCastDialog(): Promise<boolean>;
   showExpandedControls(): Promise<boolean>;
+  /** The output sheet: true once on screen, false on a TV or a Mac, which have none. */
+  presentOutputPicker(options: OutputPickerOptions): Promise<boolean>;
+  dismissOutputPicker(): Promise<void>;
   addChannel(
     namespace: string,
   ): Promise<{ namespace: string; connected: boolean }>;

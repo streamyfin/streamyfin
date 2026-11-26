@@ -24,7 +24,7 @@ import {
   type MusicCastRemoteView,
   useMusicCastRemote,
 } from "@/hooks/useMusicCastRemote";
-import { CastState } from "@/modules/mpv-player/src/cast";
+import { CastState, useRemoteTarget } from "@/modules/mpv-player/src/cast";
 import {
   downloadTrack,
   getLocalPath,
@@ -821,15 +821,28 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
   }, [state.progress, state.currentTrack]);
 
+  // Whether the server lists the phone playing, from a start it reported until its session ends: a new queue, a stop,
+  // or the queue leaving for the receiver. A skip reports the track it leaves stopped, and the next one's heartbeats
+  // keep the session listed. A downloaded track plays in such a session too, without a play session id.
+  const phoneSessionOpenRef = useRef(false);
   const reportPlaybackStart = useCallback(
-    async (track: BaseItemDto, sessionId: string | null) => {
+    async (
+      track: BaseItemDto,
+      sessionId: string | null,
+      // A resume starts where the track stands, which the server shows until the next heartbeat, 10 s later.
+      positionSeconds?: number,
+    ) => {
       if (!api || !user?.Id || !track.Id) return;
+      phoneSessionOpenRef.current = true;
 
       try {
         await getSessionApi(api).reportPlaybackStart({
           playbackStartInfo: {
             ItemId: track.Id,
             PlaySessionId: sessionId || undefined,
+            ...(positionSeconds
+              ? { PositionTicks: Math.floor(positionSeconds * 10_000_000) }
+              : {}),
             CanSeek: true,
             IsPaused: false,
             IsMuted: false,
@@ -888,16 +901,35 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // state until the next heartbeat. A queue restored from storage has no
   // stream yet and was never reported as playing, so it stays quiet: a
   // progress report for it would make the server list a session that is not
-  // there.
+  // there. Nor does a queue whose session ended when it left for the receiver.
   const sendPlaybackProgressRef = useRef(sendPlaybackProgress);
   sendPlaybackProgressRef.current = sendPlaybackProgress;
   const hasLiveTrack = !!state.currentTrack && !!state.streamUrl;
   const hasLiveTrackRef = useRef(hasLiveTrack);
   hasLiveTrackRef.current = hasLiveTrack;
   useEffect(() => {
-    if (!hasLiveTrackRef.current) return;
+    if (!phoneSessionOpenRef.current || !hasLiveTrackRef.current) return;
     sendPlaybackProgressRef.current();
   }, [state.repeatMode, state.shuffleEnabled]);
+
+  // A pause or a play is reported at once, wherever it came from (the lock screen pauses the native player itself):
+  // the heartbeat counts seconds of playback, and a paused track plays none, so the server showed it playing (n° 14).
+  // Only within one phone play session: a start reports itself, and a queue on the receiver has no session here.
+  const playEdgeRef = useRef({
+    isPlaying: state.isPlaying,
+    playSessionId: state.playSessionId,
+  });
+  useEffect(() => {
+    const previous = playEdgeRef.current;
+    playEdgeRef.current = {
+      isPlaying: state.isPlaying,
+      playSessionId: state.playSessionId,
+    };
+    if (!phoneSessionOpenRef.current || !hasLiveTrackRef.current) return;
+    if (previous.playSessionId !== state.playSessionId) return;
+    if (previous.isPlaying === state.isPlaying) return;
+    sendPlaybackProgressRef.current();
+  }, [state.isPlaying, state.playSessionId]);
 
   const reportPlaybackStopped = useCallback(
     async (
@@ -1313,20 +1345,65 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }));
   }, []);
   // The receiver plays on through a drop of the phone's own network: only the
-  // end of the Cast session hands the queue back.
+  // end of the Cast session hands the queue back. iOS suspends the session
+  // while the app is in the background, and the state reads not connected
+  // until the SDK resumes it: a suspended session is still the receiver's.
+  // The state and the target come as separate events, the state first on an
+  // iPhone: a Cast target still connected holds the session until the target
+  // says what became of it.
+  const remoteTarget = useRemoteTarget();
+  const sessionHeld =
+    castState === CastState.CONNECTED ||
+    (remoteTarget.state === "connected" &&
+      remoteTarget.target?.kind === "cast") ||
+    (remoteTarget.state === "connecting" && remoteTarget.reconnecting);
   const remote = useMusicCastRemote({
     api,
     userId: user?.Id,
     ownerKey: sessionKey,
-    connected: castState === CastState.CONNECTED,
+    connected: sessionHeld,
     onHandBack: handBackFromReceiver,
   });
   const { begin: beginOnReceiver, end: endOnReceiver } = remote;
 
+  // The queue leaves the phone for the receiver: the phone's play session ends
+  // with it, or the server lists the phone playing next to the TV, from its
+  // last report. Ended once: a later stop finds no session to report.
+  const endPhoneSessionForReceiver = useCallback(() => {
+    // A downloaded track's session has no play session id, and ends all the same.
+    const open = phoneSessionOpenRef.current;
+    phoneSessionOpenRef.current = false;
+    const sessionId = state.playSessionId;
+    if (!state.currentTrack || (!sessionId && !open)) return;
+    reportPlaybackStopped(
+      state.currentTrack,
+      state.progress * 10000000,
+      sessionId,
+    );
+    if (!sessionId) return;
+    setState((prev) =>
+      prev.playSessionId === sessionId
+        ? { ...prev, playSessionId: null }
+        : prev,
+    );
+  }, [
+    state.currentTrack,
+    state.playSessionId,
+    state.progress,
+    reportPlaybackStopped,
+  ]);
+
   // A connected Cast session plays the music on the receiver, and the phone
   // stops so that one place plays. The player shows the queue from the send.
+  // A hand-off ends the phone's play session once the receiver took the queue:
+  // one it refuses stays on the phone, in the session the server still lists.
   const castOnReceiver = useCallback(
-    async (queue: BaseItemDto[], startIndex: number) => {
+    async (
+      queue: BaseItemDto[],
+      startIndex: number,
+      startSeconds = 0,
+      handOff = false,
+    ) => {
       // Read before the pause: the account can switch while the phone stops.
       const generation = sessionGenerationRef.current;
       const isStale = () => generation !== sessionGenerationRef.current;
@@ -1342,11 +1419,19 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const started = await castQueue({
         queue: part.items,
         startIndex: part.startIndex,
+        startPositionTicks: Math.round(startSeconds * 10000000),
         isStale,
       });
       if (!started) endOnReceiver(sent);
+      else if (handOff) endPhoneSessionForReceiver();
     },
-    [castQueue, state.isPlaying, beginOnReceiver, endOnReceiver],
+    [
+      castQueue,
+      state.isPlaying,
+      beginOnReceiver,
+      endOnReceiver,
+      endPhoneSessionForReceiver,
+    ],
   );
 
   // Connecting while the phone plays moves the queue to the receiver. A queue
@@ -1356,6 +1441,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // go through while the phone had already stopped (iPhone simulator, 15/11).
   const castReady = castConnected && !!castClient;
   const wasCastReady = useRef(castReady);
+  // Resumes on their way on the phone: the session can get its client while
+  // one still fetches the track, and the move then waits for it as for a load.
+  const phoneResumesRef = useRef(0);
+  // Moved by a Play cast to the receiver: a resume still on its way on the
+  // phone stops there, and pauses a phone it already started.
+  const resumeSequenceRef = useRef(0);
   useEffect(() => {
     if (!castReady) {
       wasCastReady.current = false;
@@ -1363,11 +1454,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     }
     // A track still loading on the phone, tapped before the session had its
     // client, is judged once it plays: otherwise it would stay on the phone.
-    if (wasCastReady.current || state.isLoading) return;
+    if (wasCastReady.current || state.isLoading || phoneResumesRef.current > 0)
+      return;
     wasCastReady.current = true;
     if (!state.isPlaying || state.queue.length === 0) return;
     const index = state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
-    void castOnReceiver(state.queue, Math.max(index, 0));
+    void castOnReceiver(state.queue, Math.max(index, 0), 0, true);
   }, [
     castReady,
     castOnReceiver,
@@ -1382,7 +1474,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // with it. With none in flight the phone's queue keeps loading: it is what
   // plays if the TV turns the tap down.
   const castTapped = useCallback(
-    (queue: BaseItemDto[], startIndex: number) => {
+    (
+      queue: BaseItemDto[],
+      startIndex: number,
+      startSeconds = 0,
+      handOff = false,
+    ) => {
       wasCastReady.current = true;
       if (phoneStartRef.current === startSequenceRef.current) {
         startSequenceRef.current += 1;
@@ -1392,7 +1489,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           loadingTrackId: null,
         }));
       }
-      void castOnReceiver(queue, startIndex);
+      void castOnReceiver(queue, startIndex, startSeconds, handOff);
     },
     [castOnReceiver],
   );
@@ -1400,6 +1497,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const playTrack = useCallback(
     (track: BaseItemDto, queue?: BaseItemDto[]) => {
       if (state.currentTrack && state.playSessionId) {
+        // A new queue ends the phone's session: a pause after the stop is no longer that session's.
+        phoneSessionOpenRef.current = false;
         reportPlaybackStopped(
           state.currentTrack,
           state.progress * 10000000,
@@ -1434,6 +1533,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (queue.length === 0) return;
 
       if (state.currentTrack && state.playSessionId) {
+        // A new queue ends the phone's session: a pause after the stop is no longer that session's.
+        phoneSessionOpenRef.current = false;
         reportPlaybackStopped(
           state.currentTrack,
           state.progress * 10000000,
@@ -1542,10 +1643,36 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setState((prev) => ({ ...prev, isPlaying: false }));
   }, [playerReadyForControl]);
 
-  const resume = useCallback(async () => {
+  const resumeQueue = useCallback(async () => {
+    // As on Spotify: a connected session takes the paused queue, from the
+    // track and the place it paused on, and the phone stays silent. Ready, not
+    // just connected, as for a tap: before that the phone plays it, and the
+    // move to the receiver takes it once the session has its client. A pick,
+    // as a tap is: a start still loading on the phone stops there.
+    if (castReady && state.queue.length > 0) {
+      // The index first: a queue can hold the same track twice.
+      const index =
+        state.queue[state.queueIndex]?.Id === state.currentTrack?.Id
+          ? state.queueIndex
+          : state.queue.findIndex((t) => t.Id === state.currentTrack?.Id);
+      // A resume still on its way on the phone, from a Play before the session
+      // had its client, stops at its next check: the receiver takes the queue
+      // once, and a refusal leaves it paused on the phone.
+      resumeSequenceRef.current += 1;
+      castTapped(state.queue, Math.max(index, 0), state.progress, true);
+      return;
+    }
     if (!TrackPlayer) return;
     const generation = sessionGenerationRef.current;
-    const isStale = () => generation !== sessionGenerationRef.current;
+    const startSequence = startSequenceRef.current;
+    const resumeSequence = resumeSequenceRef.current;
+    // A newer queue start supersedes this resume too, and keeps the player: only a session switch resets it here.
+    const isSwitched = () => generation !== sessionGenerationRef.current;
+    const isCastTaken = () => resumeSequence !== resumeSequenceRef.current;
+    const isStale = () =>
+      isSwitched() ||
+      isCastTaken() ||
+      startSequence !== startSequenceRef.current;
     if (!(await playerReadyForControl()) || isStale()) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
@@ -1568,6 +1695,20 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         : -1;
       if (liveIndex >= 0) {
         await TrackPlayer.play();
+        // The service may have played on after the app went: where it stands is where this start is.
+        const { position } = await TrackPlayer.getProgress();
+        if (isStale()) {
+          if (isCastTaken()) await TrackPlayer.pause().catch(() => {});
+          return;
+        }
+        // The server has heard of no play of this queue since the restart: this is its start.
+        void reportPlaybackStart(
+          state.queue[liveIndex],
+          activeTrack?.id === state.currentTrack?.Id
+            ? result.sessionId
+            : state.playSessionId,
+          position,
+        );
         setState((prev) => {
           // prev.queue is the queue now: a shuffle during the waits may have
           // reordered the one this render captured.
@@ -1609,9 +1750,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       // The ref, not the render's state: a seek during the waits above moved
       // the saved position this call has not seen.
       await TrackPlayer.seekTo(progressRef.current);
+      if (isCastTaken()) return;
       await TrackPlayer.play();
       if (isStale()) {
-        await TrackPlayer.reset().catch(() => {});
+        if (isSwitched()) await TrackPlayer.reset().catch(() => {});
+        else if (isCastTaken()) await TrackPlayer.pause().catch(() => {});
         return;
       }
       setState((prev) => ({
@@ -1620,6 +1763,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         playSessionId: result.sessionId,
         isPlaying: true,
       }));
+      // A queue restored at launch was never reported as playing: without a start the server only saw its heartbeats
+      // (iPhone simulator, 15/11).
+      void reportPlaybackStart(
+        state.currentTrack,
+        result.sessionId,
+        progressRef.current,
+      );
       // The native queue holds this one track: load the rest of the restored
       // queue behind it, as a fresh start does, or next, previous and the end
       // of the track find nothing after it.
@@ -1632,6 +1782,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
     } else {
       await TrackPlayer.play();
+      if (isCastTaken()) {
+        await TrackPlayer.pause().catch(() => {});
+        return;
+      }
       setState((prev) => ({ ...prev, isPlaying: true }));
     }
   }, [
@@ -1641,10 +1795,26 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     state.currentTrack,
     state.queue,
     state.queueIndex,
+    state.progress,
+    state.playSessionId,
     settings?.preferLocalAudio,
     playerReadyForControl,
     loadRemainingTracksInBackground,
+    reportPlaybackStart,
+    castReady,
+    castTapped,
   ]);
+
+  // Counted until it lands, so the move to the receiver judges the queue once
+  // it plays: the isPlaying it sets runs the move again.
+  const resume = useCallback(async () => {
+    phoneResumesRef.current += 1;
+    try {
+      await resumeQueue();
+    } finally {
+      phoneResumesRef.current -= 1;
+    }
+  }, [resumeQueue]);
 
   const togglePlayPause = useCallback(async () => {
     if (state.isPlaying) {
@@ -1812,6 +1982,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // the setup would play after the queue it stood for is gone.
     sessionGenerationRef.current += 1;
     if (state.currentTrack && state.playSessionId) {
+      // The phone's session ends here: a pause after the stop is no longer that session's.
+      phoneSessionOpenRef.current = false;
       reportPlaybackStopped(
         state.currentTrack,
         state.progress * 10000000,

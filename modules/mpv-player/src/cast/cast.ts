@@ -8,9 +8,13 @@ import type {
   CastSessionInfo,
   CastStateValue,
   CastSubscription,
+  OutputPickerAction,
+  OutputPickerOptions,
   PlayServicesStateValue,
   ReceiverMessage,
+  RemoteTargetState,
 } from "./Cast.types";
+import { NO_REMOTE_TARGET } from "./Cast.types";
 import { CastNative, type CastNativeModule } from "./CastModule";
 
 const UNAVAILABLE = "Cast is not available on this platform";
@@ -45,11 +49,62 @@ export const stopCastDiscovery = (): Promise<void> =>
 export const currentCastSession = (): CastSessionInfo | null =>
   native()?.getCurrentSession() ?? null;
 
+export const remoteTarget = (): RemoteTargetState =>
+  native()?.getRemoteTarget() ?? NO_REMOTE_TARGET;
+
+/**
+ * Asks for a connection to a device discovery lists, without the SDK's dialog.
+ * False when Cast is unavailable or the device is unknown; otherwise the
+ * outcome arrives through onRemoteTargetChanged.
+ */
+export const connectToCastDevice = (deviceId: string): Promise<boolean> =>
+  native()?.connectToDevice(deviceId) ?? Promise.resolve(false);
+
+/**
+ * Ends the session. `stopPlayback` (true unless set) also closes the receiver
+ * app. False keeps it playing only when this session joined a receiver app
+ * already running: the session that launched it stops it at its end on both
+ * platforms, whatever it asks. The `ended` that follows carries `withoutStop`.
+ */
+export const disconnectRemoteTarget = ({
+  stopPlayback = true,
+}: {
+  stopPlayback?: boolean;
+} = {}): Promise<void> =>
+  native()?.disconnect(stopPlayback) ?? Promise.resolve();
+
+/**
+ * Sets the connected receiver's own volume, 0 to 1, and does nothing without a
+ * connected target. The state's volume follows once the receiver reports it.
+ * Android sets it in the Cast route's steps, 20 on a Chromecast.
+ */
+export const setRemoteTargetVolume = (level: number): Promise<void> =>
+  native()?.setTargetVolume(level) ?? Promise.resolve();
+
+/**
+ * Mutes the connected receiver: the device on iOS, the playing stream on
+ * Android, where the device's mute through the session would stop it following
+ * the receiver. The stream's needs media loaded.
+ */
+export const setRemoteTargetMuted = (muted: boolean): Promise<void> =>
+  native()?.setTargetMuted(muted) ?? Promise.resolve();
+
 export const showCastDialog = (): Promise<boolean> =>
   native()?.showCastDialog() ?? Promise.resolve(false);
 
 export const showExpandedControls = (): Promise<boolean> =>
   native()?.showExpandedControls() ?? Promise.resolve(false);
+
+/**
+ * Opens the output sheet: this device, the Cast receivers, and AirPlay on iOS.
+ * True once it is on screen, false without the module, on a TV and on a Mac.
+ * The module itself, not native(): without Play Services the sheet is where
+ * Android says so and offers the fix.
+ */
+export const presentOutputPicker = (
+  options: OutputPickerOptions,
+): Promise<boolean> =>
+  CastNative?.presentOutputPicker(options) ?? Promise.resolve(false);
 
 type EventName = keyof CastNativeEvents;
 type Listener<K extends EventName> = CastNativeEvents[K];
@@ -60,6 +115,8 @@ const listeners: { [K in EventName]: Set<Listener<K>> } = {
   onSessionEvent: new Set(),
   onMediaStatusChanged: new Set(),
   onReceiverMessage: new Set(),
+  onRemoteTargetChanged: new Set(),
+  onOutputPickerAction: new Set(),
 };
 const nativeSubscriptions: Partial<Record<EventName, CastSubscription>> = {};
 
@@ -120,6 +177,17 @@ export const onCastMediaStatusChanged = (
   listener: (status: CastMediaStatus | null) => void,
 ): CastSubscription =>
   subscribe("onMediaStatusChanged", ({ status }) => listener(status));
+
+export const onRemoteTargetChanged = (
+  listener: (state: RemoteTargetState) => void,
+): CastSubscription =>
+  subscribe("onRemoteTargetChanged", (state) => listener(state));
+
+/** What the sheet's panel asked for; the sheet has closed by then. */
+export const onOutputPickerAction = (
+  listener: (action: OutputPickerAction) => void,
+): CastSubscription =>
+  subscribe("onOutputPickerAction", ({ action }) => listener(action));
 
 /**
  * Opens a custom channel on the current session and hands every message the

@@ -48,6 +48,22 @@ object CastMapping {
     }
 
     /**
+     * Something plays on the receiver, with a title or without. Not once it stopped: a stop from the TV keeps the
+     * idle media and its metadata, and the output sheet would offer to stop it again.
+     */
+    fun isPlaying(playerState: Int): Boolean = when (playerState) {
+        MediaStatus.PLAYER_STATE_PLAYING,
+        MediaStatus.PLAYER_STATE_PAUSED,
+        MediaStatus.PLAYER_STATE_BUFFERING,
+        MediaStatus.PLAYER_STATE_LOADING,
+        -> true
+        else -> false
+    }
+
+    /** The title of what the receiver plays, none once it stopped. */
+    fun playingTitle(playerState: Int, title: String?): String? = if (isPlaying(playerState)) title else null
+
+    /**
      * A subtitle change goes over the bus only when the media carries text tracks; without any, the
      * receiver has to reload the stream to burn the subtitles in.
      */

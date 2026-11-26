@@ -5,6 +5,7 @@ import type {
   CastMediaStatus,
   CastSessionInfo,
   CastStateValue,
+  RemoteTargetState,
 } from "./Cast.types";
 import {
   castClientFor,
@@ -14,6 +15,8 @@ import {
   onCastDevicesChanged,
   onCastSessionEvent,
   onCastStateChanged,
+  onRemoteTargetChanged,
+  remoteTarget,
 } from "./cast";
 
 export const useCastState = (): CastStateValue | null => {
@@ -81,6 +84,20 @@ export const useCastDevices = (): CastDevice[] => {
   }, []);
 
   return devices;
+};
+
+/** Where playback goes, as the module holds it. */
+export const useRemoteTarget = (): RemoteTargetState => {
+  const [state, setState] = useState<RemoteTargetState>(() => remoteTarget());
+
+  useEffect(() => {
+    // Listener first, then the read: a change landing in between would be missed.
+    const subscription = onRemoteTargetChanged(setState);
+    setState(remoteTarget());
+    return () => subscription.remove();
+  }, []);
+
+  return state;
 };
 
 /** One client object per session object, so effects keyed on it run once per session. */

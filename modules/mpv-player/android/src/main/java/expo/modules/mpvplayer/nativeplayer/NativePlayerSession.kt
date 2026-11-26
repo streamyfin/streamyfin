@@ -558,7 +558,8 @@ class NativePlayerSession(
     }
 
     private fun setupPiP(activity: Activity, allowPip: Boolean) {
-        if (!isPiPSupported()) return
+        // The capabilities, not the device alone: a remote engine has no picture to float.
+        if (!viewModel.capabilities.pictureInPicture) return
 
         registerPiPReceiver(activity)
 
@@ -636,7 +637,7 @@ class NativePlayerSession(
 
     fun enterPiP() {
         val activity = hostActivity ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && viewModel.capabilities.pictureInPicture) {
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))
@@ -652,7 +653,7 @@ class NativePlayerSession(
     private fun updatePiPParams(isPlaying: Boolean) {
         val activity = hostActivity ?: return
         pipActionsPlaying = isPlaying
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPiPSupported()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && viewModel.capabilities.pictureInPicture) {
             try {
                 val builder = PictureInPictureParams.Builder()
                     .setActions(PiPActions.buildActions(activity, isPlaying))

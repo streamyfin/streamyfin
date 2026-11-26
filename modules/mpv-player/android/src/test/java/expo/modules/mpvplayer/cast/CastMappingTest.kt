@@ -69,6 +69,28 @@ class CastMappingTest {
 
     // A subtitle change goes over the bus only when the media has text tracks; without any, it reloads.
     @Test
+    fun anIdleReceiverPlaysNothing() {
+        assertTrue(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_PLAYING))
+        assertTrue(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_PAUSED))
+        assertTrue(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_BUFFERING))
+        assertTrue(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_LOADING))
+        assertFalse(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_IDLE))
+        assertFalse(CastMapping.isPlaying(MediaStatus.PLAYER_STATE_UNKNOWN))
+    }
+
+    // A stop from the TV leaves the idle media with its metadata: the sheet must not offer to stop it again.
+    @Test
+    fun onlyAPlayingReceiverHasATitle() {
+        val title = "Big Buck Bunny"
+        assertEquals(title, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_PLAYING, title))
+        assertEquals(title, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_PAUSED, title))
+        assertEquals(title, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_BUFFERING, title))
+        assertEquals(title, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_LOADING, title))
+        assertEquals(null, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_IDLE, title))
+        assertEquals(null, CastMapping.playingTitle(MediaStatus.PLAYER_STATE_UNKNOWN, title))
+    }
+
+    @Test
     fun textTracksAreTheTracksOfTypeText() {
         assertTrue(CastMapping.hasTextTracks(listOf(MediaTrack.TYPE_AUDIO, MediaTrack.TYPE_TEXT)))
         assertFalse(CastMapping.hasTextTracks(listOf(MediaTrack.TYPE_AUDIO, MediaTrack.TYPE_VIDEO)))
