@@ -42,6 +42,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -186,23 +187,26 @@ private fun OutputList(rows: List<OutputRow>, strings: OutputPickerStrings, cont
         modifier = Modifier.padding(bottom = 6.dp),
     )
     rows.forEach { row ->
-        when (row) {
-            is OutputRow.ThisDevice ->
-                SheetRow(
-                    icon = if (row.kind == ThisDeviceKind.TABLET) Icons.Filled.TabletAndroid else Icons.Filled.PhoneAndroid,
-                    title = strings.get(if (row.kind == ThisDeviceKind.TABLET) "thisTablet" else "thisPhone"),
-                    caption = row.playing?.let { strings.get("playing") },
-                    onClick = { controller.tap(row) },
-                )
-            is OutputRow.Device -> DeviceRow(row, strings, controller)
-            is OutputRow.AirPlay ->
-                SheetRow(
-                    icon = Icons.Filled.Tv,
-                    title = strings.get("airPlay"),
-                    caption = row.activeRoute ?: strings.get("airPlayCaption"),
-                    onClick = { controller.tap(row) },
-                )
-            is OutputRow.Status -> StatusRow(row, strings, controller)
+        // Keyed as siblings, a receiver by its id: one found above the pressed row would otherwise take its place, and the tap.
+        key(if (row is OutputRow.Device) row.id else row::class) {
+            when (row) {
+                is OutputRow.ThisDevice ->
+                    SheetRow(
+                        icon = if (row.kind == ThisDeviceKind.TABLET) Icons.Filled.TabletAndroid else Icons.Filled.PhoneAndroid,
+                        title = strings.get(if (row.kind == ThisDeviceKind.TABLET) "thisTablet" else "thisPhone"),
+                        caption = row.playing?.let { strings.get("playing") },
+                        onClick = { controller.tap(row) },
+                    )
+                is OutputRow.Device -> DeviceRow(row, strings, controller)
+                is OutputRow.AirPlay ->
+                    SheetRow(
+                        icon = Icons.Filled.Tv,
+                        title = strings.get("airPlay"),
+                        caption = row.activeRoute ?: strings.get("airPlayCaption"),
+                        onClick = { controller.tap(row) },
+                    )
+                is OutputRow.Status -> StatusRow(row, strings, controller)
+            }
         }
     }
 }
