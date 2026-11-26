@@ -66,6 +66,7 @@ export const TVAutoQualitySettings: React.FC = () => {
             (ratio) => updateSettings({ autoBitrateRatio: ratio }),
           )
         }
+        disabledByAdmin={pluginSettings?.autoBitrateRatio?.locked}
       />
       <TVSettingsOptionButton
         label={remeasureAfter}
@@ -79,6 +80,7 @@ export const TVAutoQualitySettings: React.FC = () => {
             (minutes) => updateSettings({ autoBitrateTtlMinutes: minutes }),
           )
         }
+        disabledByAdmin={pluginSettings?.autoBitrateTtlMinutes?.locked}
       />
       <TVSettingsOptionButton
         label={floor}
@@ -92,6 +94,7 @@ export const TVAutoQualitySettings: React.FC = () => {
             (bitrate) => updateSettings({ autoBitrateInNetworkMin: bitrate }),
           )
         }
+        disabledByAdmin={pluginSettings?.autoBitrateInNetworkMin?.locked}
       />
       <TVSettingsToggle
         label={t("home.settings.quality.adapt")}

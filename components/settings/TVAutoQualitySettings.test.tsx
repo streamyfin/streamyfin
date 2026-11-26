@@ -47,11 +47,17 @@ jest.mock("@/components/tv", () => {
       label,
       value,
       onPress,
+      disabledByAdmin,
     }: {
       label: string;
       value: string;
       onPress: () => void;
-    }) => <Text onPress={onPress}>{`${label}: ${value}`}</Text>,
+      disabledByAdmin?: boolean;
+    }) => (
+      <Text onPress={onPress}>
+        {`${label}: ${value}${disabledByAdmin ? " (locked)" : ""}`}
+      </Text>
+    ),
     TVSettingsToggle: ({
       label,
       value,
@@ -78,6 +84,7 @@ type Options = {
 const opened = () => mockShowOptions.mock.calls.at(-1)?.[0] as Options;
 
 beforeEach(() => {
+  mockPluginSettings = undefined;
   mockUpdateSettings.mockClear();
   mockShowOptions.mockClear();
   mockMeasure.mockClear();
@@ -91,7 +98,25 @@ describe("the Auto quality settings on TV", () => {
     expect(
       screen.getByText("home.settings.quality.adapt: on (locked)"),
     ).toBeTruthy();
-    mockPluginSettings = undefined;
+  });
+
+  test.each([
+    ["autoBitrateRatio", "home.settings.quality.share: 70% (locked)"],
+    [
+      "autoBitrateTtlMinutes",
+      "home.settings.quality.remeasure_after: home.settings.security.inactivity_timeout.1_hour (locked)",
+    ],
+    [
+      "autoBitrateInNetworkMin",
+      "home.settings.quality.in_network_min: 140 Mb/s (locked)",
+    ],
+  ])("show the admin's lock on %s, and only there", async (key, row) => {
+    mockPluginSettings = { [key]: { locked: true } };
+    await render(<TVAutoQualitySettings />);
+
+    expect(
+      screen.getAllByText(/\(locked\)$/).map((locked) => locked.props.children),
+    ).toEqual([row]);
   });
 
   test("turn off adapting Auto during playback", async () => {
