@@ -53,26 +53,22 @@ public class NativePlayerModule: Module {
 		// MARK: - Lifecycle
 
 		AsyncFunction("presentPlayer") { (config: PlayerPresentConfigRecord, promise: Promise) in
-			switch PresentRefusal(
+			let kind: NativeEngineKind
+			switch PresentRefusal.check(
 				presented: self.session != nil,
 				streamIsValid: config.stream.toVideoLoadConfig() != nil,
 				engine: config.engine
 			) {
-			case .alreadyPresented:
+			case let .success(checkedKind):
+				kind = checkedKind
+			case .failure(.alreadyPresented):
 				promise.reject(PlayerAlreadyPresentedException())
 				return
-			case .invalidStream:
+			case .failure(.invalidStream):
 				promise.reject(InvalidStreamUrlException())
 				return
-			case let .unsupportedEngine(name):
+			case let .failure(.unsupportedEngine(name)):
 				promise.reject(UnsupportedEngineException(name))
-				return
-			case nil:
-				break
-			}
-			// The refusal above already turned every other name away: this only unwraps the kind.
-			guard let kind = NativeEngineKind(configName: config.engine) else {
-				promise.reject(UnsupportedEngineException(config.engine ?? ""))
 				return
 			}
 			let session = NativePlayerSession(

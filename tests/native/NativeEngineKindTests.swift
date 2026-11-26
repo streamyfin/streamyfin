@@ -22,18 +22,20 @@ enum NativeEngineKindTests {
 		expect("cast", nil)
 
 		// presentPlayer refuses before it builds a session, in this order: a player already up, a
-		// stream it cannot read, then an engine the chrome does not build.
-		func refuse(_ presented: Bool, _ streamIsValid: Bool, _ engine: String?, _ refusal: PresentRefusal?) {
+		// stream it cannot read, then an engine the chrome does not build. Past them, the check hands
+		// out the engine to build, so the module reads no name a second time.
+		func check(_ presented: Bool, _ streamIsValid: Bool, _ engine: String?, _ expected: Result<NativeEngineKind, PresentRefusal>) {
 			cases += 1
-			let read = PresentRefusal(presented: presented, streamIsValid: streamIsValid, engine: engine)
-			precondition(read == refusal, "\(presented) \(streamIsValid) \(engine ?? "nil") refused as \(String(describing: read))")
+			let read = PresentRefusal.check(presented: presented, streamIsValid: streamIsValid, engine: engine)
+			precondition(read == expected, "\(presented) \(streamIsValid) \(engine ?? "nil") read as \(read)")
 		}
-		refuse(false, true, "cast", .unsupportedEngine("cast"))
-		refuse(false, true, "exoplayer", .unsupportedEngine("exoplayer"))
-		refuse(false, true, "mpv", nil)
-		refuse(false, true, nil, nil)
-		refuse(true, false, "cast", .alreadyPresented)
-		refuse(false, false, "cast", .invalidStream)
+		check(false, true, "cast", .failure(.unsupportedEngine("cast")))
+		check(false, true, "exoplayer", .failure(.unsupportedEngine("exoplayer")))
+		check(false, true, "mpv", .success(.mpv))
+		check(false, true, "MPV", .success(.mpv))
+		check(false, true, nil, .success(.mpv))
+		check(true, false, "cast", .failure(.alreadyPresented))
+		check(false, false, "cast", .failure(.invalidStream))
 
 		print("PASS: native engine kind (\(cases) cases)")
 	}
