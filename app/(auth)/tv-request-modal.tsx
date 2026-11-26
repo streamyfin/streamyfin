@@ -22,6 +22,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useSeerr } from "@/hooks/useSeerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
 import { canRequestForOthers, requestTagIds } from "@/utils/seerr/requests";
+import { rootFolderLabel } from "@/utils/seerr/rootFolder";
 import type {
   MediaRequestBody,
   QualityProfile,
@@ -151,9 +152,6 @@ export default function TVRequestModalPage() {
     );
   }, [defaultServiceDetails]);
 
-  const pathTitleExtractor = (item: RootFolder) =>
-    `${item.path} (${item.freeSpace.bytesToReadable()})`;
-
   // Option builders
   const qualityProfileOptions: TVOptionItem<number>[] = useMemo(
     () =>
@@ -173,7 +171,7 @@ export default function TVRequestModalPage() {
   const rootFolderOptions: TVOptionItem<string>[] = useMemo(
     () =>
       defaultServiceDetails?.rootFolders.map((folder) => ({
-        label: pathTitleExtractor(folder),
+        label: rootFolderLabel(folder),
         value: folder.path,
         selected:
           (requestOverrides.rootFolder || defaultFolder?.path) === folder.path,
@@ -225,9 +223,9 @@ export default function TVRequestModalPage() {
       (f) => f.path === (requestOverrides.rootFolder || defaultFolder?.path),
     );
     return folder
-      ? pathTitleExtractor(folder)
+      ? rootFolderLabel(folder)
       : defaultFolder
-        ? pathTitleExtractor(defaultFolder)
+        ? rootFolderLabel(defaultFolder)
         : t("seerr.select");
   }, [
     defaultServiceDetails?.rootFolders,

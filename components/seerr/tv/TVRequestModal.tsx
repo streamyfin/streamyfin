@@ -23,6 +23,7 @@ import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useSeerr } from "@/hooks/useSeerr";
 import { requestTagIds } from "@/utils/seerr/requests";
+import { rootFolderLabel } from "@/utils/seerr/rootFolder";
 import type {
   MediaRequestBody,
   MediaType,
@@ -177,9 +178,6 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
     );
   }, [defaultServiceDetails]);
 
-  const pathTitleExtractor = (item: RootFolder) =>
-    `${item.path} (${item.freeSpace.bytesToReadable()})`;
-
   // Option builders
   const qualityProfileOptions: TVOptionItem<number>[] = useMemo(
     () =>
@@ -199,7 +197,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
   const rootFolderOptions: TVOptionItem<string>[] = useMemo(
     () =>
       defaultServiceDetails?.rootFolders.map((folder) => ({
-        label: pathTitleExtractor(folder),
+        label: rootFolderLabel(folder),
         value: folder.path,
         selected:
           (requestOverrides.rootFolder || defaultFolder?.path) === folder.path,
@@ -251,9 +249,9 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
       (f) => f.path === (requestOverrides.rootFolder || defaultFolder?.path),
     );
     return folder
-      ? pathTitleExtractor(folder)
+      ? rootFolderLabel(folder)
       : defaultFolder
-        ? pathTitleExtractor(defaultFolder)
+        ? rootFolderLabel(defaultFolder)
         : t("seerr.select");
   }, [
     defaultServiceDetails?.rootFolders,
