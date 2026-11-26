@@ -24,6 +24,9 @@ class FakeRadarr:
 
     def __init__(self, host_folder_of):
         self.host_folder_of = host_folder_of
+        # Listings that still report freeSpace for a deleted folder, as a VM-backed bind
+        # mount (Colima) shows a host-side delete about a second late.
+        self.stale_listings = 0
         self.registered = []
         self.calls = []
         self.addheaders = []
@@ -48,6 +51,9 @@ class FakeRadarr:
             listed = []
             for number, folder in enumerate(self.registered, 1):
                 entry = {"id": number, "path": folder, "accessible": self.host_folder_of(folder).is_dir()}
+                if not entry["accessible"] and self.stale_listings:
+                    self.stale_listings -= 1
+                    entry["accessible"] = True
                 if entry["accessible"]:
                     entry["freeSpace"] = 1
                 listed.append(entry)
@@ -91,6 +97,7 @@ class EnsureReadyTest(unittest.TestCase):
             mock.patch.object(setup, "STATE", state),
             mock.patch.object(radarr.urllib.request, "build_opener", return_value=fake),
             mock.patch.object(seerr, "ensure_radarr") as ensure_radarr,
+            mock.patch.object(radarr.time, "sleep"),
         ):
             radarr.ensure_ready(owned, servers, "syncplay-host", "pw")
         return ensure_radarr
@@ -140,6 +147,14 @@ class EnsureReadyTest(unittest.TestCase):
             fake = FakeRadarr(lambda path: state)
             with self.assertRaisesRegex(RuntimeError, "still reports freeSpace"):
                 self.run_ensure_ready(state, backend.DockerBackend(), fake)
+
+    def test_waits_for_a_deletion_the_bind_mount_shows_late(self):
+        with TemporaryDirectory() as directory:
+            state = Path(directory)
+            fake = FakeRadarr(docker_host_folder(state))
+            fake.stale_listings = 2
+            ensure_radarr = self.run_ensure_ready(state, backend.DockerBackend(), fake)
+            self.assertEqual(ensure_radarr.call_args.args[3]["activeDirectory"], "/radarr-media/movies-offline")
 
     def test_a_radarr_that_never_answers_is_refused_after_the_bound(self):
         with TemporaryDirectory() as directory:

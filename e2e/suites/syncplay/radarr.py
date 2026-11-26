@@ -19,6 +19,9 @@ from suites.syncplay import seerr, setup
 
 READY_ATTEMPTS = 90
 READY_DELAY_SECONDS = 2
+# A VM-backed bind mount (Colima) shows a host-side delete to Radarr about a second late.
+OFFLINE_ATTEMPTS = 20
+OFFLINE_DELAY_SECONDS = 0.5
 CONTAINER_PORT = 7878
 SCANNED_FOLDER = "movies"
 OFFLINE_FOLDER = "movies-offline"
@@ -104,9 +107,12 @@ def ensure_root_folders(opener, url, servers):
     offline = media_dir() / OFFLINE_FOLDER
     if offline.exists():
         shutil.rmtree(offline)
-    listed = {folder["path"]: folder for folder in seerr.request(opener, url, "/api/v3/rootfolder")}
-    if "freeSpace" in listed[paths[OFFLINE_FOLDER]]:
-        raise RuntimeError(f"Radarr still reports freeSpace for {paths[OFFLINE_FOLDER]!r} after its folder was deleted")
+    for _ in range(OFFLINE_ATTEMPTS):
+        listed = {folder["path"]: folder for folder in seerr.request(opener, url, "/api/v3/rootfolder")}
+        if "freeSpace" not in listed[paths[OFFLINE_FOLDER]]:
+            return
+        time.sleep(OFFLINE_DELAY_SECONDS)
+    raise RuntimeError(f"Radarr still reports freeSpace for {paths[OFFLINE_FOLDER]!r} after its folder was deleted")
 
 
 def quality_profile(opener, url):
