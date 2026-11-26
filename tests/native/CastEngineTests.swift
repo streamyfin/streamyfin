@@ -2168,6 +2168,32 @@ enum CastEngineTests {
       check("anEnqueueAskedDuringALongOneGoesAfterIt", queued == expected && receiverQueue(bench) == expected)
     }
 
+    // A replay on its way when a load the channel refused went out: the receiver took the replay, which
+    // carried the enqueues on their way, and those enqueues went on after it, so their items came twice.
+    do {
+      let bench = Bench()
+      let engine = playingOne(bench)
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: (1...50).map { "x-\($0)" })
+      engine.enqueue(itemIds: (1...CastEngineConstants.maxQueueItems).map { "y-\($0)" })
+      engine.reloadCurrentItem()
+      let queued = receiverQueue(bench, refused: refuseALoad(bench, engine))
+      check("aLoadRefusedUnderAReplaySendsNothingTwice", !queued.isEmpty && Set(queued).count == queued.count)
+    }
+
+    // A replay once the receiver reported a load the channel had not answered yet: it carried the
+    // enqueues that load held, items of the queue it replaced.
+    do {
+      let bench = Bench()
+      let engine = playingOne(bench)
+      bench.port.holdResults = true
+      engine.enqueue(itemIds: ["x-1"])
+      engine.load(server: server, request: ReceiverPlayRequest(items: [ReceiverItem(id: "b-1")])) { _ in }
+      bench.media.report(snapshot(customData: ours(["itemId": "b-1", "playSessionId": "ps-3"])), position: 0)
+      engine.reloadCurrentItem()
+      check("aReplayCarriesNothingOfTheQueueALoadReplaced", itemIds(bench.sentMessages().last) == ["b-1"])
+    }
+
     if failures.isEmpty {
       print("PASS: Cast engine (\(cases) cases)")
     } else {

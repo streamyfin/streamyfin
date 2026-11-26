@@ -385,6 +385,8 @@ final class CastEngine: ChromeEngine {
     heldGeneration = generation
     enqueueCount += 1
     loads[generation] = enqueueCount
+    // The enqueues a replay on its way carries end with it: the receiver may take that replay, which holds them.
+    if let replay = replays.max() { enqueues = enqueues.filter { $0.key > replay } }
     replays = []
     let receiverRequest = ReceiverProtocol.toReceiverRequest(request)
     self.server = server
@@ -645,7 +647,10 @@ final class CastEngine: ChromeEngine {
       ? playingIndex : queue.firstIndex { $0.id == data.itemId }
     // The windows of the enqueues on their way go out before this PlayNow, which drops them: they go
     // again after the queue, as does the tail of a replay before this one.
-    let unsent = index == nil ? [] : enqueues.keys.sorted().flatMap { id in enqueues[id].map { $0.taken + $0.windows.joined() } ?? [] }
+    // Those a load on its way holds were for the queue it replaced.
+    let unsent = index == nil ? [] : enqueues.keys.sorted().filter { !isHeldByALoad($0) }.flatMap { id in
+      enqueues[id].map { $0.taken + $0.windows.joined() } ?? []
+    }
     let items = index == nil ? [ReceiverItem(id: data.itemId)] : queue + unsent.map { ReceiverItem(id: $0) }
     let window = ReceiverProtocol.queueWindow(items, selectedIndex: index ?? 0, maxItems: CastEngineConstants.maxQueueItems)
     // A start offset the receiver reported can put the position past what ticks hold.
@@ -810,7 +815,9 @@ final class CastEngine: ChromeEngine {
     }
   }
 
-  private func isHeld(_ id: Int) -> Bool { replays.contains { $0 > id } || loads.values.contains { $0 > id } }
+  private func isHeld(_ id: Int) -> Bool { replays.contains { $0 > id } || isHeldByALoad(id) }
+
+  private func isHeldByALoad(_ id: Int) -> Bool { loads.values.contains { $0 > id } }
 
   private func isCurrent(_ entry: Enqueue) -> Bool {
     entry.generation == queueGeneration && session != nil && boundSessionId == entry.binding
