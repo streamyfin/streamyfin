@@ -1,4 +1,15 @@
-import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  type Dirent,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
 import ignore from "ignore";
 
@@ -396,6 +407,97 @@ describe.each(["native-tests.yml", "e2e-tier1-android.yml"])(
     });
   },
 );
+
+/** The script of the step named `name`, as bash is given it. */
+const runOf = (text: string, name: string) => {
+  const lines = text.split("\n");
+  const step = lines.findIndex((line) => line.trim() === `- name: ${name}`);
+  const run = lines.findIndex(
+    (line, i) => i > step && /^\s*run: \|$/.test(line),
+  );
+  const indent = lines[run].search(/\S/);
+  const body: string[] = [];
+  for (const line of lines.slice(run + 1)) {
+    if (line.trim() && line.search(/\S/) <= indent) break;
+    body.push(line.slice(indent + 2));
+  }
+  return body.join("\n");
+};
+
+// The two jobs that comment run on workflow_run, with a token that can write,
+// on an artifact the PR's own run made and could fill with anything, links
+// included. unzip writes every entry it is given, so each job lists the zip
+// first, stops on anything but the files it reads, and unpacks only those.
+describe.each([
+  [
+    "plugin-parity-comment.yml",
+    "📂 Unpack the report",
+    ["pr-number", "report.json"],
+  ],
+  ["perf-comment.yml", "📂 Unpack results", ["comment.md", "pr-number"]],
+])("%s", (name, step, files) => {
+  const script = runOf(readWorkflow(name), step);
+
+  // The step as GitHub runs it, with unzip standing in: -Z1 lists the entries
+  // given, and anything else it is asked is written to a log.
+  const unpack = (entries: string[]) => {
+    const dir = mkdtempSync(join(tmpdir(), "unpack-"));
+    try {
+      mkdirSync(join(dir, "bin"));
+      writeFileSync(
+        join(dir, "bin/unzip"),
+        '#!/bin/sh\nif [ "$1" = -Z1 ]; then printf "%s\\n" $ENTRIES; else echo "$*" >> "$LOG"; fi\n',
+        { mode: 0o755 },
+      );
+      const result = spawnSync("bash", ["-eo", "pipefail", "-c", script], {
+        cwd: dir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${join(dir, "bin")}:${process.env.PATH}`,
+          RUNNER_TEMP: dir,
+          ENTRIES: entries.join(" "),
+          LOG: join(dir, "log"),
+        },
+      });
+      const log = join(dir, "log");
+      return {
+        code: result.status,
+        asked: existsSync(log) ? readFileSync(log, "utf8").trim() : "",
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  test("unpacks the two files it reads, flat, in whatever order the zip has them", () => {
+    const { code, asked } = unpack([...files].reverse());
+
+    expect(code).toBe(0);
+    expect(asked.split(/\s+/)).toEqual([
+      "-o",
+      "-j",
+      expect.stringMatching(/\.zip$/),
+      ...files,
+      "-d",
+      expect.any(String),
+    ]);
+  });
+
+  test.each([
+    ["an extra entry", [...files, "node_modules/.bin/bun"]],
+    ["one of them missing", files.slice(0, 1)],
+    ["one of them twice", [...files, files[0]]],
+  ])(
+    "stops on an artifact with %s, before unpacking anything",
+    (_, entries) => {
+      const { code, asked } = unpack(entries);
+
+      expect(code).not.toBe(0);
+      expect(asked).toBe("");
+    },
+  );
+});
 
 describe("linting.yml", () => {
   // CONTRIBUTING.md asks for `bun run test` before a pull request, and CI runs

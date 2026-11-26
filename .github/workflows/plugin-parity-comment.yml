@@ -1,0 +1,196 @@
+name: 🧩 Plugin Parity Comment
+
+# Posts what plugin-parity.yml found on its PR, and puts or takes off the
+# "🧩 needs plugin PR" label. Split from it because a PR from a fork runs that
+# one with a read-only token. This one never checks out or runs PR code: the
+# comment is worded by scripts/plugin-parity.ts as it is on develop, from the
+# report the PR's run uploaded, once that report has been checked. The report
+# stays in the runner's temp folder, so nothing in it can stand in for a file
+# of the workspace, which only holds what comes from develop.
+
+on:
+  workflow_run:
+    workflows:
+      - "🧩 Plugin Parity"
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  comment:
+    name: 📝 Post plugin parity
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    # One at a time for each PR, or two runs could both find no comment and
+    # post one each. A fork's run carries no PR number, so its branch stands
+    # for it. Every run waits its turn: with one waiting at most, a re-run for
+    # an older commit could take the place of the current one, then post
+    # nothing at the commit check.
+    concurrency:
+      group: plugin-parity-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+      queue: max
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      # The report artifact of the run that ended.
+      actions: read
+      # Checkout of develop, for the script that words the comment.
+      contents: read
+      # Comments and labels on a PR.
+      pull-requests: write
+    steps:
+      - name: 📥 Download the report
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((a) => a.name === "plugin-parity");
+            if (!artifact) {
+              core.setFailed("No plugin-parity artifact on the run.");
+              return;
+            }
+            const zip = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: "zip",
+            });
+            require("node:fs").writeFileSync(`${process.env.RUNNER_TEMP}/report.zip`, Buffer.from(zip.data));
+
+      # The PR's run made the artifact and could put anything in it, links
+      # included, and unzip writes every entry: only the two files the report is
+      # made of come out, flat, and an artifact holding anything else stops here.
+      - name: 📂 Unpack the report
+        run: |
+          entries=$(unzip -Z1 "$RUNNER_TEMP/report.zip" | LC_ALL=C sort)
+          if [ "$entries" != "$(printf 'pr-number\nreport.json')" ]; then
+            echo "::error::The artifact holds something other than pr-number and report.json." >&2
+            exit 1
+          fi
+          unzip -o -j "$RUNNER_TEMP/report.zip" pr-number report.json -d "$RUNNER_TEMP/report"
+
+      - name: 🔎 Check the report
+        id: check
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const fs = require("node:fs");
+            // Both files were written by the PR's own run. unzip keeps symlinks
+            // and readFileSync follows them, so a link to /proc/self/environ
+            // would be read as the report: only a regular file is.
+            const dir = `${process.env.RUNNER_TEMP}/report`;
+            for (const name of ["pr-number", "report.json"]) {
+              const path = `${dir}/${name}`;
+              if (!fs.existsSync(path) || !fs.lstatSync(path).isFile()) {
+                core.setFailed(`${name} is missing or not a regular file.`);
+                return;
+              }
+            }
+            const number = Number(fs.readFileSync(`${dir}/pr-number`, "utf8").trim());
+            if (!Number.isInteger(number) || number <= 0) {
+              core.setFailed("The artifact names no PR.");
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: number,
+            });
+            // It has to be the PR this run checked, at the commit it checked:
+            // an older run that ends after a newer one has nothing left to say.
+            if (pr.head.sha !== context.payload.workflow_run.head_sha) {
+              core.notice(`PR #${number} is no longer at the commit this run checked.`);
+              return;
+            }
+            core.setOutput("number", number);
+
+      - name: 🛒 Checkout develop
+        if: steps.check.outputs.number
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          sparse-checkout: scripts/plugin-parity.ts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: 🍞 Setup Bun
+        if: steps.check.outputs.number
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.4.4"
+
+      # Refuses a report that is not one the generator could have written.
+      - name: ✍️ Word the comment
+        if: steps.check.outputs.number
+        run: bun trusted/scripts/plugin-parity.ts render "$RUNNER_TEMP/report/report.json" "$RUNNER_TEMP/rendered"
+
+      - name: 💬 Comment and label the PR
+        if: steps.check.outputs.number
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          LABEL: 🧩 needs plugin PR
+          NUMBER: ${{ steps.check.outputs.number }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const number = Number(process.env.NUMBER);
+            const rendered = `${process.env.RUNNER_TEMP}/rendered`;
+
+            const label = fs.readFileSync(`${rendered}/label`, "utf8");
+            // The generator could not read the base: nothing is known about
+            // this PR, so what an earlier run said stays.
+            if (label === "keep") {
+              core.notice("Nothing was compared, the PR is left as it is.");
+              return;
+            }
+
+            const marker = "<!-- plugin-parity -->";
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...repo,
+              issue_number: number,
+            });
+            // Anyone can post the marker, so only this workflow's own comment counts.
+            const previous = comments.find(
+              (c) => c.user?.login === "github-actions[bot]" && c.body?.startsWith(marker),
+            );
+            if (fs.existsSync(`${rendered}/comment.md`)) {
+              // Every value from the PR sits in a code span, with the lists and
+              // the error already cut. Cutting the markdown here could split a
+              // span and let what it holds out, so one too long is refused.
+              const report = fs.readFileSync(`${rendered}/comment.md`, "utf8");
+              const run = context.payload.workflow_run.html_url;
+              const body = `${marker}\n${report}\n[Details in the job summary](${run})`;
+              if (body.length > 65000) {
+                core.setFailed(`The comment is ${body.length} characters, over the limit.`);
+                return;
+              }
+              if (previous) {
+                await github.rest.issues.updateComment({ ...repo, comment_id: previous.id, body });
+              } else {
+                await github.rest.issues.createComment({ ...repo, issue_number: number, body });
+              }
+            } else if (previous) {
+              // The PR no longer changes a setting the plugin mirrors.
+              await github.rest.issues.deleteComment({ ...repo, comment_id: previous.id });
+            }
+
+            const { LABEL } = process.env;
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              ...repo,
+              issue_number: number,
+            });
+            const labelled = labels.some((l) => l.name === LABEL);
+            if (label === "add" && !labelled) {
+              await github.rest.issues.addLabels({ ...repo, issue_number: number, labels: [LABEL] });
+            } else if (label === "remove" && labelled) {
+              await github.rest.issues.removeLabel({ ...repo, issue_number: number, name: LABEL });
+            }
