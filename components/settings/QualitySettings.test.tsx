@@ -47,18 +47,23 @@ jest.mock("@/utils/jellyfin/bitrateTest", () => ({
   },
 }));
 // Each dropdown lists its choices under its title, in the order it offers
-// them.
+// them, and says whether it opens.
 jest.mock("@/components/PlatformDropdown", () => {
   const { Text, View } = jest.requireActual("react-native");
   return {
     PlatformDropdown: ({
       groups,
       title,
+      disabled,
     }: {
       groups: OptionGroup[];
       title: string;
+      disabled?: boolean;
     }) => (
-      <View testID={`dropdown-${title}`}>
+      <View
+        testID={`dropdown-${title}`}
+        accessibilityState={{ disabled: disabled === true }}
+      >
         {groups.flatMap((group) =>
           group.options.map((option) =>
             option.type === "radio" ? (
@@ -207,6 +212,32 @@ describe("the Auto settings of the quality group", () => {
 
 // Moved out of the "Other" group: everything that decides the bitrate is in
 // one place, as on TV.
+describe("a list the admin locked", () => {
+  const lists = [
+    ["defaultBitrate", "home.settings.other.default_quality"],
+    ["autoBitrateRatio", "home.settings.quality.share"],
+    ["autoBitrateTtlMinutes", "home.settings.quality.remeasure_after"],
+    ["autoBitrateInNetworkMin", "home.settings.quality.in_network_min"],
+  ] as const;
+
+  test.each(lists)(
+    "%s does not open, and the others do",
+    async (key, title) => {
+      mockPluginSettings = { [key]: { locked: true } };
+      await render(<QualitySettings />);
+
+      const closed = lists
+        .map(([, list]) => list)
+        .filter(
+          (list) =>
+            screen.getByTestId(`dropdown-${list}`).props.accessibilityState
+              .disabled,
+        );
+      expect(closed).toEqual([title]);
+    },
+  );
+});
+
 describe("the default quality setting", () => {
   test("offers Auto first, under its name in the app language", async () => {
     await render(<QualitySettings />);

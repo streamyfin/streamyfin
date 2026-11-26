@@ -83,6 +83,7 @@ export const QualitySettings: React.FC = () => {
         disabled={pluginSettings?.defaultBitrate?.locked}
       >
         <PlatformDropdown
+          disabled={pluginSettings?.defaultBitrate?.locked}
           groups={[
             {
               options: bitrateOptions(t, settings.defaultBitrate).map(
@@ -108,8 +109,12 @@ export const QualitySettings: React.FC = () => {
           title={defaultQuality}
         />
       </ListItem>
-      <ListItem title={share}>
+      <ListItem
+        title={share}
+        disabled={pluginSettings?.autoBitrateRatio?.locked}
+      >
         <PlatformDropdown
+          disabled={pluginSettings?.autoBitrateRatio?.locked}
           groups={choices(
             AUTO_BITRATE_RATIO_CHOICES,
             settings.autoBitrateRatio,
@@ -127,8 +132,12 @@ export const QualitySettings: React.FC = () => {
           title={share}
         />
       </ListItem>
-      <ListItem title={remeasureAfter}>
+      <ListItem
+        title={remeasureAfter}
+        disabled={pluginSettings?.autoBitrateTtlMinutes?.locked}
+      >
         <PlatformDropdown
+          disabled={pluginSettings?.autoBitrateTtlMinutes?.locked}
           groups={choices(
             AUTO_BITRATE_TTL_CHOICES,
             settings.autoBitrateTtlMinutes,
@@ -143,8 +152,12 @@ export const QualitySettings: React.FC = () => {
           title={remeasureAfter}
         />
       </ListItem>
-      <ListItem title={floor}>
+      <ListItem
+        title={floor}
+        disabled={pluginSettings?.autoBitrateInNetworkMin?.locked}
+      >
         <PlatformDropdown
+          disabled={pluginSettings?.autoBitrateInNetworkMin?.locked}
           groups={choices(
             AUTO_BITRATE_IN_NETWORK_MIN_CHOICES,
             settings.autoBitrateInNetworkMin,

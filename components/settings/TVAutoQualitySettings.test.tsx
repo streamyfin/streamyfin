@@ -39,19 +39,23 @@ jest.mock("@/utils/atoms/settings", () => ({
     pluginSettings: mockPluginSettings,
   }),
 }));
-// A row is its label and its value, and opens what it opens when pressed.
+// The real option row's font sizes and focus timer reach a setting and a
+// provider this spec has no part in.
+jest.mock("@/constants/TVTypography", () => ({
+  useScaledTVTypography: () => ({ body: 20, callout: 16 }),
+}));
+jest.mock("@/providers/InactivityProvider", () => ({
+  useInactivity: () => ({ resetInactivityTimer: () => {} }),
+}));
+// The option rows render for real, so a locked one is pressed as the remote
+// would: its lock is the button's, not this spec's. The toggle is its label and
+// its state, and flips when pressed.
 jest.mock("@/components/tv", () => {
   const { Text } = jest.requireActual("react-native");
   return {
-    TVSettingsOptionButton: ({
-      label,
-      value,
-      onPress,
-    }: {
-      label: string;
-      value: string;
-      onPress: () => void;
-    }) => <Text onPress={onPress}>{`${label}: ${value}`}</Text>,
+    TVSettingsOptionButton: jest.requireActual(
+      "@/components/tv/settings/TVSettingsOptionButton",
+    ).TVSettingsOptionButton,
     TVSettingsToggle: ({
       label,
       value,
@@ -78,6 +82,7 @@ type Options = {
 const opened = () => mockShowOptions.mock.calls.at(-1)?.[0] as Options;
 
 beforeEach(() => {
+  mockPluginSettings = undefined;
   mockUpdateSettings.mockClear();
   mockShowOptions.mockClear();
   mockMeasure.mockClear();
@@ -91,8 +96,32 @@ describe("the Auto quality settings on TV", () => {
     expect(
       screen.getByText("home.settings.quality.adapt: on (locked)"),
     ).toBeTruthy();
-    mockPluginSettings = undefined;
   });
+
+  const lists = [
+    ["autoBitrateRatio", "home.settings.quality.share"],
+    ["autoBitrateTtlMinutes", "home.settings.quality.remeasure_after"],
+    ["autoBitrateInNetworkMin", "home.settings.quality.in_network_min"],
+  ] as const;
+
+  test.each(lists)(
+    "say %s is locked and keep it closed, the others open",
+    async (key, label) => {
+      mockPluginSettings = { [key]: { locked: true } };
+      await render(<TVAutoQualitySettings />);
+
+      expect(
+        screen.getAllByText("home.settings.disabled_by_admin"),
+      ).toHaveLength(1);
+      await fireEvent.press(screen.getByText(label));
+      expect(mockShowOptions).not.toHaveBeenCalled();
+
+      for (const [, other] of lists.filter(([, list]) => list !== label)) {
+        await fireEvent.press(screen.getByText(other));
+      }
+      expect(mockShowOptions).toHaveBeenCalledTimes(2);
+    },
+  );
 
   test("turn off adapting Auto during playback", async () => {
     await render(<TVAutoQualitySettings />);
@@ -107,24 +136,24 @@ describe("the Auto quality settings on TV", () => {
   test("show each setting with what it is set to", async () => {
     await render(<TVAutoQualitySettings />);
 
-    expect(screen.getByText("home.settings.quality.share: 70%")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "home.settings.quality.remeasure_after: home.settings.security.inactivity_timeout.1_hour",
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("home.settings.quality.in_network_min: 140 Mb/s"),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("home.settings.quality.measure_now: 36.4 Mb/s"),
-    ).toBeTruthy();
+    for (const shown of [
+      "home.settings.quality.share",
+      "70%",
+      "home.settings.quality.remeasure_after",
+      "home.settings.security.inactivity_timeout.1_hour",
+      "home.settings.quality.in_network_min",
+      "140 Mb/s",
+      "home.settings.quality.measure_now",
+      "36.4 Mb/s",
+    ]) {
+      expect(screen.getByText(shown)).toBeTruthy();
+    }
   });
 
   test("offer the shares, the one set marked, and save the one picked", async () => {
     await render(<TVAutoQualitySettings />);
 
-    fireEvent.press(screen.getByText("home.settings.quality.share: 70%"));
+    await fireEvent.press(screen.getByText("home.settings.quality.share"));
 
     expect(opened().options.map((option) => option.label)).toEqual([
       "50%",
@@ -141,10 +170,8 @@ describe("the Auto quality settings on TV", () => {
   test("save how long a measure is used", async () => {
     await render(<TVAutoQualitySettings />);
 
-    fireEvent.press(
-      screen.getByText(
-        "home.settings.quality.remeasure_after: home.settings.security.inactivity_timeout.1_hour",
-      ),
+    await fireEvent.press(
+      screen.getByText("home.settings.quality.remeasure_after"),
     );
     opened().onSelect(240);
 
@@ -156,8 +183,8 @@ describe("the Auto quality settings on TV", () => {
   test("save the floor in the server's network", async () => {
     await render(<TVAutoQualitySettings />);
 
-    fireEvent.press(
-      screen.getByText("home.settings.quality.in_network_min: 140 Mb/s"),
+    await fireEvent.press(
+      screen.getByText("home.settings.quality.in_network_min"),
     );
     opened().onSelect(0);
 
@@ -169,8 +196,8 @@ describe("the Auto quality settings on TV", () => {
   test("measure the server on demand", async () => {
     await render(<TVAutoQualitySettings />);
 
-    fireEvent.press(
-      screen.getByText("home.settings.quality.measure_now: 36.4 Mb/s"),
+    await fireEvent.press(
+      screen.getByText("home.settings.quality.measure_now"),
     );
 
     await waitFor(() => expect(mockMeasure).toHaveBeenCalled());
