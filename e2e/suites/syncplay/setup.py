@@ -19,6 +19,8 @@ IDENTITY = {
     "SYNCPLAY_PORT": "18096",
     "SYNCPLAY_SEERR_CONTAINER": "streamyfin-syncplay-e2e-seerr",
     "SYNCPLAY_SEERR_PORT": "15055",
+    "SYNCPLAY_RADARR_CONTAINER": "streamyfin-syncplay-e2e-radarr",
+    "SYNCPLAY_RADARR_PORT": "17878",
     "SYNCPLAY_BACKEND": "docker",
 }
 BACKEND_NAMES = ("docker", "native")
@@ -167,7 +169,7 @@ def main():
     ENV_FILE.write_text("".join(f"{key}={value}\n" for key, value in owned.items()))
     generate_media()
     # Docker creates a missing bind source as root, which the seed then cannot write into on Linux.
-    for folder in ("config", "config/plugins", "cache", "catalog/movies", "catalog/shows", "catalog/music", "seerr"):
+    for folder in ("config", "config/plugins", "cache", "catalog/movies", "catalog/shows", "catalog/music", "seerr", "radarr", "radarr-media"):
         path = STATE / folder
         try:
             path.mkdir(parents=True, exist_ok=True)
@@ -175,6 +177,9 @@ def main():
             raise RuntimeError(f"Cannot create {path}; fix its parent's ownership or remove it first") from error
         if not os.access(path, os.W_OK):
             raise RuntimeError(f"{path} is not writable; fix its ownership or remove it first")
+    from suites.syncplay import radarr, seerr
+
+    radarr.write_config(*servers.radarr_listen(owned))
     servers.up(owned)
     info = wait_for_server()
     if not info.get("StartupWizardCompleted"):
@@ -224,9 +229,8 @@ def main():
         time.sleep(2)
     if len(items) != 3 or {item.get("Name") for item in items} != clip_names:
         raise RuntimeError(f"Expected the three SyncPlay clips in 'SyncPlay Fixtures', got {[item.get('Name') for item in items]}")
-    from suites.syncplay import seerr
-
     seerr.ensure_ready(owned, username="syncplay-host", password=PASSWORD)
+    radarr.ensure_ready(owned, servers, username="syncplay-host", password=PASSWORD)
     guest_auth = api("/Users/AuthenticateByName", "POST", {"Username": "syncplay-guest", "Pw": PASSWORD}, device_id="syncplay-guest-setup")
     credentials = {
         "url": URL, "serverVersion": info["Version"], "password": PASSWORD,

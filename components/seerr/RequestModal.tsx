@@ -29,6 +29,7 @@ import {
   requestTagIds,
   requestTagsLabel,
 } from "@/utils/seerr/requests";
+import { rootFolderLabel } from "@/utils/seerr/rootFolder";
 import type {
   MediaRequestBody,
   MediaType,
@@ -221,13 +222,9 @@ const RequestModal = forwardRef<
       });
     }, [requestBody?.seasons]);
 
-    // freeSpace is optional on a root folder the service hasn't scanned yet.
-    const pathTitleExtractor = (item: RootFolder) =>
-      `${item.path}${item.freeSpace ? ` (${item.freeSpace.bytesToReadable()})` : ""}`;
-
     // The service's active directory may not match any root folder (changed
     // or removed server-side), so `defaultFolder` — despite its type — can be
-    // undefined and must never be handed to pathTitleExtractor unchecked.
+    // undefined and must never be handed to rootFolderLabel unchecked.
     const selectedFolder: RootFolder | undefined = useMemo(
       () =>
         defaultServiceDetails?.rootFolders.find(
@@ -269,7 +266,7 @@ const RequestModal = forwardRef<
           options:
             defaultServiceDetails?.rootFolders.map((folder) => ({
               type: "radio" as const,
-              label: pathTitleExtractor(folder),
+              label: rootFolderLabel(folder),
               value: folder.id.toString(),
               selected:
                 (requestOverrides.rootFolder || defaultFolder?.path) ===
@@ -527,7 +524,7 @@ const RequestModal = forwardRef<
                         <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
                             {selectedFolder
-                              ? pathTitleExtractor(selectedFolder)
+                              ? rootFolderLabel(selectedFolder)
                               : "—"}
                           </Text>
                         </View>

@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
-from suites.syncplay import backend, catalog_seed, seed, seerr, setup
+from suites.syncplay import backend, catalog_seed, radarr, seed, seerr, setup
 
 
 class MovieSeedTest(unittest.TestCase):
@@ -252,6 +252,7 @@ class MovieSeedTest(unittest.TestCase):
                 # and setup must never reach a real Seerr from a test.
                 mock.patch.dict(os.environ, {"SYNCPLAY_BACKEND": "docker"}, clear=True),
                 mock.patch.object(seerr, "ensure_ready"),
+                mock.patch.object(radarr, "ensure_ready"),
                 mock.patch.object(setup, "generate_media"),
                 mock.patch.object(setup, "wait_for_server", return_value={"StartupWizardCompleted": True, "Version": "10.11.11"}),
                 mock.patch.object(setup, "api", side_effect=api),

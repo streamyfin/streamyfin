@@ -1,4 +1,4 @@
-"""Run this checkout's Jellyfin and Seerr as host processes, for Macs that cannot run Docker.
+"""Run this checkout's Jellyfin, Seerr and Radarr as host processes, for Macs that cannot run Docker.
 
 Standard Apple silicon GitHub runners have no nested virtualization, so Docker cannot run
 there. Every download is pinned by hash or commit and verified before it is used. Tools
@@ -17,7 +17,7 @@ from tempfile import TemporaryDirectory
 import time
 
 from bench.download import fetch_verified
-from suites.syncplay import setup
+from suites.syncplay import radarr, setup
 
 TOOLS = setup.ROOT / ".tools"
 
@@ -41,6 +41,13 @@ NODE_RANGE = "^22.19.0"
 NODE_MAJOR = 22
 NODE_MIN_MINOR = 19
 SEERR_BUILT_MARKER = ".streamyfin-built"
+# Keep in lockstep with the radarr image in compose.yml. Its Mach-O files ship signed.
+RADARR_VERSION = "7.0.3.10918"
+RADARR_URL = (
+    "https://github.com/Radarr/Radarr/releases/download/"
+    f"v{RADARR_VERSION}/Radarr.master.{RADARR_VERSION}.osx-core-arm64.tar.gz"
+)
+RADARR_SHA256 = "e77f93c2e29a94703c727dca3c1dd98bb26c5f53ba5737d3f89100f96ea08fac"
 
 # Jellyfin 10.11 parses season and episode numbers out of the full media path, so a digit
 # run such as `5b17-4d99` in a checkout path overrides every NFO. Jellyfin reads media
@@ -109,6 +116,14 @@ def seerr_entry():
     return seerr_dir() / "dist" / "index.js"
 
 
+def radarr_dir():
+    return TOOLS / f"radarr-{RADARR_VERSION}"
+
+
+def radarr_executable():
+    return radarr_dir() / "Radarr" / "Radarr"
+
+
 def download_verified(url, sha256, name):
     return fetch_verified(url, sha256, name, DOWNLOAD_TIMEOUT_SECONDS)
 
@@ -121,10 +136,11 @@ def install_archive(target, url, sha256, name, prepare=None):
     TOOLS.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=TOOLS) as temporary:
         work = Path(temporary)
-        (work / "archive.tar.xz").write_bytes(archive)
+        (work / "archive").write_bytes(archive)
         extracted = work / "extracted"
         extracted.mkdir()
-        subprocess.run(["tar", "-xJf", str(work / "archive.tar.xz"), "-C", str(extracted)], check=True)
+        # tar detects the compression itself: Jellyfin ships xz, Radarr gzip.
+        subprocess.run(["tar", "-xf", str(work / "archive"), "-C", str(extracted)], check=True)
         if prepare:
             prepare(extracted, work)
         extracted.rename(target)
@@ -162,6 +178,14 @@ def install_jellyfin():
 
 def install_ffmpeg():
     return install_archive(ffmpeg_dir(), FFMPEG_URL, FFMPEG_SHA256, f"jellyfin-ffmpeg {FFMPEG_VERSION}")
+
+
+def install_radarr():
+    def prepare(extracted, work):
+        if not (extracted / "Radarr" / "Radarr").is_file():
+            raise RuntimeError(f"Radarr {RADARR_VERSION} tarball lacks Radarr/Radarr")
+
+    return install_archive(radarr_dir(), RADARR_URL, RADARR_SHA256, f"Radarr {RADARR_VERSION}", prepare)
 
 
 def install_seerr():
@@ -241,7 +265,7 @@ def alive(pid):
 def command_marker(name):
     """The absolute path in the command line of this checkout's process. A PID file outlives a
     reboot, and the PID in it may then belong to an unrelated process."""
-    return str(jellyfin_executable() if name == "jellyfin" else seerr_entry())
+    return str({"jellyfin": jellyfin_executable, "seerr": seerr_entry, "radarr": radarr_executable}[name]())
 
 
 def owned_pid(name):
@@ -258,8 +282,8 @@ def owned_pid(name):
 def refuse_foreign(owned):
     """Refuse a fixture port that a process outside this checkout's PID files listens on."""
     require_platform()
-    ours = {pid for pid in (owned_pid("jellyfin"), owned_pid("seerr")) if pid is not None}
-    for key in ("SYNCPLAY_PORT", "SYNCPLAY_SEERR_PORT"):
+    ours = {pid for pid in map(owned_pid, ("jellyfin", "seerr", "radarr")) if pid is not None}
+    for key in ("SYNCPLAY_PORT", "SYNCPLAY_SEERR_PORT", "SYNCPLAY_RADARR_PORT"):
         port = owned[key]
         listing = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"], capture_output=True, text=True)
         foreign = sorted({int(pid) for pid in listing.stdout.split()} - ours)
@@ -335,18 +359,28 @@ def start_seerr(owned):
     }, cwd=seerr_dir())
 
 
+def start_radarr(owned):
+    """Radarr reads its port, bind and API key from the config.xml setup writes first."""
+    if owned_pid("radarr") is not None:
+        return
+    start("radarr", [str(radarr_executable()), "-nobrowser", f"-data={radarr.config_dir()}"], env={**os.environ, "TZ": "UTC"})
+
+
 def up(owned):
     require_platform()
     require_node()
     install_jellyfin()
     install_ffmpeg()
     install_seerr()
+    install_radarr()
     ensure_media_link()
     start_jellyfin(owned)
     start_seerr(owned)
+    start_radarr(owned)
 
 
 def down(owned):
+    stop("radarr")
     stop("seerr")
     stop("jellyfin")
     link = media_link()
