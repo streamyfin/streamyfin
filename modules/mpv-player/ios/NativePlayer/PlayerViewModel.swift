@@ -27,22 +27,28 @@ final class PlaybackTimeModel: ObservableObject {
 /// All engine callbacks arrive on the main thread (the engine dispatches
 /// them), and all UI intents come from SwiftUI — so no locking is needed.
 final class PlayerViewModel: NSObject, ObservableObject {
-	weak var engine: ChromeEngine?
+	/// Set once, by the session: the capabilities are taken from it here.
+	weak var engine: ChromeEngine? {
+		didSet {
+			capabilities = ChromeCapabilities.of(
+				isRemote: isRemoteEngine(engine),
+				pictureInPictureSupported: pictureInPictureSupported(by: engine),
+				canChangeSpeed: engine?.canChangeSpeed ?? true
+			)
+		}
+	}
 
 	/// The screen of a local engine; nil for one without, whose rendering calls
 	/// do nothing. Picture in picture is a rendering matter too: a remote engine
 	/// reads as never in it.
 	private var rendering: RenderingEngine? { engine as? RenderingEngine }
 
-	/// What the chrome offers for the engine it holds, read from it at each look: the PiP
-	/// button needs a screen that can float, and a remote engine drives nothing on this device.
-	var capabilities: ChromeCapabilities {
-		ChromeCapabilities.of(
-			isRemote: isRemoteEngine(engine),
-			pictureInPictureSupported: pictureInPictureSupported(by: engine),
-			canChangeSpeed: engine?.canChangeSpeed ?? true
-		)
-	}
+	/// What the chrome offers for the engine it holds, taken once when the engine is set, as on
+	/// Android, not at every SwiftUI read: the PiP button needs a screen that can float, and a
+	/// remote engine drives nothing on this device.
+	private(set) var capabilities = ChromeCapabilities.of(
+		isRemote: false, pictureInPictureSupported: false, canChangeSpeed: true
+	)
 
 	/// What the technical info overlay shows: empty for an engine without a screen.
 	func technicalInfo(completion: @escaping ([String: Any]) -> Void) {
