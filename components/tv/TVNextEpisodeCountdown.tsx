@@ -4,7 +4,6 @@ import { BlurView } from "expo-blur";
 import { type FC, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Image,
   Pressable,
   Animated as RNAnimated,
   StyleSheet,
@@ -20,6 +19,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
@@ -173,7 +173,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
                 <Image
                   source={{ uri: imageUrl }}
                   style={styles.thumbnail}
-                  resizeMode='cover'
+                  contentFit='cover'
                 />
               )}
 
