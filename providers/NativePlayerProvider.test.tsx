@@ -134,6 +134,10 @@ const mockNegotiation = {
 /** Seed values a test can set before opening the player. */
 const mockSeed = {
   subtitleIndex: -1,
+  /** Other subtitle streams the mocked media source carries. */
+  extraSubtitleIndices: [] as number[],
+  /** `file://` DeliveryUrls the mocked streams carry (sidecars on disk). */
+  subtitleDeliveryUrls: {} as Record<number, string>,
 };
 /** Undelivered sidecars the mocked config build reports. */
 const mockDeliveryPlan: { remoteUrls: Record<number, string> } = {
@@ -190,12 +194,16 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
             Id: `source-${req.itemId}`,
             ...(mockSeed.subtitleIndex !== -1 && {
               MediaStreams: [
-                {
-                  Type: "Subtitle",
-                  Index: mockSeed.subtitleIndex,
-                  DeliveryMethod: "External",
-                },
-              ],
+                mockSeed.subtitleIndex,
+                ...mockSeed.extraSubtitleIndices,
+              ].map((Index) => ({
+                Type: "Subtitle",
+                Index,
+                DeliveryMethod: "External",
+                ...(mockSeed.subtitleDeliveryUrls[Index]
+                  ? { DeliveryUrl: mockSeed.subtitleDeliveryUrls[Index] }
+                  : {}),
+              })),
             }),
             ...(mockNegotiation.live && {
               LiveStreamId:
@@ -539,6 +547,8 @@ beforeEach(() => {
   mockNegotiation.bitrate = undefined;
   mockNegotiation.failing.clear();
   mockSeed.subtitleIndex = -1;
+  mockSeed.extraSubtitleIndices = [];
+  mockSeed.subtitleDeliveryUrls = {};
   mockDeliveryPlan.remoteUrls = {};
   nativePlayerMock.nativePlayerAddExternalSubtitle.mockClear();
   nativePlayerMock.nativePlayerDisableSubtitles.mockClear();
@@ -1868,6 +1878,56 @@ describe("background sidecar delivery", () => {
     releaseFetch();
     await settle();
     expect(nativePlayerMock.nativePlayerDisableSubtitles).toHaveBeenCalled();
+  });
+
+  test("attaches a sidecar that landed while another subtitle was selected", async () => {
+    // The background fetch of 5 landed while 6 was on screen: the file is in
+    // the cache but was never side-loaded. Picking 5 must attach it, not
+    // reload the stream for a file that is already on disk.
+    mockSeed.subtitleIndex = 6;
+    mockSeed.extraSubtitleIndices = [5];
+    mockSeed.subtitleDeliveryUrls = { 5: SIDECAR_FILE };
+
+    await mount();
+    await open("item-1");
+    await act(async () => {
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "subtitle",
+        jellyfinIndex: 5,
+        positionSec: 0,
+      });
+    });
+    await settle();
+
+    expect(
+      nativePlayerMock.nativePlayerAddExternalSubtitle,
+    ).toHaveBeenCalledWith(SIDECAR_FILE);
+    expect(fetchExternalSubtitle).not.toHaveBeenCalled();
+    // No renegotiation: the stream was not reloaded.
+    expect(mockNative.loaded).toHaveLength(0);
+  });
+
+  test("fetches the session's subtitle before the others in the plan", async () => {
+    // The plan's integer keys enumerate ascending, so 2 would go first on its
+    // own; the session shows 8, which must not wait behind a lower index.
+    mockSeed.subtitleIndex = 8;
+    mockSeed.extraSubtitleIndices = [2];
+    mockDeliveryPlan.remoteUrls = {
+      2: "https://jf.example/Subtitles/2/Stream.srt",
+      8: "https://jf.example/Subtitles/8/Stream.srt",
+    };
+
+    await mount();
+    await open("item-1");
+
+    expect(
+      fetchExternalSubtitle.mock.calls.map(
+        (call) => (call[0] as { url: string }).url,
+      ),
+    ).toEqual([
+      "https://jf.example/Subtitles/8/Stream.srt",
+      "https://jf.example/Subtitles/2/Stream.srt",
+    ]);
   });
 
   test("a re-pick with no remembered URL renegotiates instead", async () => {

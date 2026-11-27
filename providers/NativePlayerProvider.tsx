@@ -1227,14 +1227,23 @@ const NativePlayerProviderInner: React.FC<{
    * already up. Sequential (first-time server extraction races with itself),
    * stopping as soon as the session is no longer the current one — a swap or
    * close abandons the loop and the cache files land for the next session's
-   * config-time link instead. mpv sessions carry no plan and skip the loop.
+   * config-time link instead. The session's own subtitle goes first: the
+   * plan's keys are integer-like, so its object order is ascending, not the
+   * order the config would have chosen. mpv sessions carry no plan and skip
+   * the loop.
    */
   const deliverPendingSubtitles = useCallback(
     async (session: NativeSession) => {
       const plan = session.subtitleDelivery?.remoteUrls ?? {};
-      for (const [index, remoteUrl] of Object.entries(plan)) {
+      const preferred = session.currentSubtitleIndex;
+      const indexes = Object.keys(plan)
+        .map(Number)
+        .sort(
+          (a, b) => Number(b === preferred) - Number(a === preferred) || a - b,
+        );
+      for (const index of indexes) {
         if (sessionRef.current !== session) return;
-        await deliverOneSubtitle(session, Number(index), remoteUrl);
+        await deliverOneSubtitle(session, index, plan[index]);
       }
     },
     [deliverOneSubtitle],
@@ -1889,8 +1898,10 @@ const NativePlayerProviderInner: React.FC<{
       // makes `session` the outgoing one.
       if (sessionRef.current !== session) return;
       if (result.kind === "notFound" || result.kind === "burnedIn") {
-        // A sidecar the config could not deliver has no track yet. If its
-        // remote URL is known (the delivery plan) or a fetch is already
+        // A sidecar the config could not deliver has no track yet. One that
+        // landed in the cache while another subtitle was selected is already
+        // on disk but was never side-loaded: attach it, no reload needed. If
+        // its remote URL is known (the delivery plan) or a fetch is already
         // running, keep the pick and let the delivery land — a reload would
         // re-buffer the stream for a file the background fetch is already
         // bringing. Otherwise fall back to renegotiating, which negotiates a
@@ -1898,20 +1909,33 @@ const NativePlayerProviderInner: React.FC<{
         if (
           result.kind === "notFound" &&
           !session.offline &&
-          target?.DeliveryMethod === "External" &&
-          !target.DeliveryUrl
+          target?.DeliveryMethod === "External"
         ) {
-          const remoteUrl =
-            session.subtitleDelivery?.remoteUrls?.[jellyfinIndex];
-          if (
-            remoteUrl ||
-            session.subtitleDeliveryInFlight.includes(jellyfinIndex)
-          ) {
-            if (remoteUrl) {
-              void deliverOneSubtitle(session, jellyfinIndex, remoteUrl);
+          if (target.DeliveryUrl?.startsWith("file://")) {
+            try {
+              await nativePlayerAddExternalSubtitle(target.DeliveryUrl);
+              if (sessionRef.current !== session) return;
+              pushTrackMenus(session);
+              return;
+            } catch {
+              // The cached file went away under us: treat the sidecar as
+              // undelivered and let the retry below fetch it again.
+              target.DeliveryUrl = undefined;
             }
-            pushTrackMenus(session);
-            return;
+          }
+          if (!target.DeliveryUrl) {
+            const remoteUrl =
+              session.subtitleDelivery?.remoteUrls?.[jellyfinIndex];
+            if (
+              remoteUrl ||
+              session.subtitleDeliveryInFlight.includes(jellyfinIndex)
+            ) {
+              if (remoteUrl) {
+                void deliverOneSubtitle(session, jellyfinIndex, remoteUrl);
+              }
+              pushTrackMenus(session);
+              return;
+            }
           }
         }
         await replaceStream(session, {

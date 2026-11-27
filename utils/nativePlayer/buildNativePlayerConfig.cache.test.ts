@@ -189,7 +189,7 @@ describe("the sidecar subtitle link pass", () => {
     linkCachedSubtitleDeliveryUrls.mockClear();
   });
 
-  test("runs for an ExoPlayer load, the session's subtitle first", async () => {
+  test("runs for an ExoPlayer load", async () => {
     await buildNativePlayerConfig({
       api: makeConfiguredApi(),
       userId: "user-1",
@@ -207,10 +207,11 @@ describe("the sidecar subtitle link pass", () => {
     });
 
     expect(linkCachedSubtitleDeliveryUrls).toHaveBeenCalledTimes(1);
+    // No priority here: the plan's integer keys enumerate ascending, so the
+    // coordinator puts the session's subtitle first when it fetches.
     expect(linkCachedSubtitleDeliveryUrls.mock.calls[0]?.[0]).toMatchObject({
       mediaSource: { Id: "ms-1" },
       item: { Id: "item-1" },
-      preferredIndex: 3,
     });
   });
 

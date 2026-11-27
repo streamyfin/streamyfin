@@ -564,7 +564,6 @@ export async function buildNativePlayerConfig(params: {
           mediaSource: res.mediaSource,
           item,
           api,
-          preferredIndex: subtitleIndex,
         });
       } catch (error) {
         // Subtitles are optional: an unexpected failure here plays the stream

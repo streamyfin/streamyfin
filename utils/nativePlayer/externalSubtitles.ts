@@ -353,14 +353,14 @@ export const prefetchExternalSubtitles = async (params: {
  * mpv needs none of this — it fetches sidecars on its own thread.
  *
  * Returns the delivery plan — stream index → remote URL — for the coordinator
- * to fetch in the background once the player is up.
+ * to fetch in the background once the player is up. Its keys are integer-like,
+ * so JavaScript enumerates them ascending, not in insertion order: the
+ * coordinator puts the subtitle the session shows first.
  */
 export const linkCachedSubtitleDeliveryUrls = (params: {
   mediaSource: MediaSourceInfo;
   item: BaseItemDto;
   api: Api;
-  /** The subtitle the session will show: fetched first by the plan. */
-  preferredIndex?: number | null;
 }): Record<number, string> => {
   const remoteUrls: Record<number, string> = {};
   const externals =
@@ -368,14 +368,6 @@ export const linkCachedSubtitleDeliveryUrls = (params: {
       (s) => s.Type === "Subtitle" && s.DeliveryMethod === "External",
     ) ?? [];
   if (externals.length === 0) return remoteUrls;
-  // The plan's insertion order is the background fetch order: the one on
-  // screen first, as the prefetch above orders its downloads.
-  const isPreferred = (sub: MediaStream) =>
-    params.preferredIndex != null && sub.Index === params.preferredIndex;
-  const ordered = [
-    ...externals.filter(isPreferred),
-    ...externals.filter((sub) => !isPreferred(sub)),
-  ];
 
   let cacheDir: Directory | null = null;
   try {
@@ -385,7 +377,7 @@ export const linkCachedSubtitleDeliveryUrls = (params: {
     cacheDir = null;
   }
 
-  for (const sub of ordered) {
+  for (const sub of externals) {
     const url = getExternalSubtitleUrl(sub, {
       offline: false,
       basePath: params.api.basePath,
@@ -451,15 +443,18 @@ export const fetchExternalSubtitle = async (params: {
   const destination = new File(cacheDir, fileName);
   const key = destination.uri;
   const timeoutMs = params.timeoutMs ?? SUBTITLE_BACKGROUND_PER_SUBTITLE_MS;
+  // One deadline for this call: a shared transfer that outlasts it must not
+  // extend it one chunk at a time.
+  const deadline = Date.now() + timeoutMs;
 
   // The warm or another retry may already be fetching this file: wait for it
   // instead of starting a second download beside it.
   let running = inFlight.get(key);
-  while (running) {
+  while (running && Date.now() < deadline) {
     try {
-      await withTimeout(running, timeoutMs);
+      await withTimeout(running, deadline - Date.now());
     } catch {
-      // Failed or out of budget either way; the cache check below decides.
+      // Failed or out of budget either way; the checks below decide.
     }
     running = inFlight.get(key);
   }
@@ -468,6 +463,10 @@ export const fetchExternalSubtitle = async (params: {
     params.sub.DeliveryUrl = destination.uri;
     return destination.uri;
   }
+  // The wait above can spend the rest of the budget; a download started now
+  // would be dispatched before its zero timeout aborts it, beside the one
+  // still running.
+  if (Date.now() >= deadline) return null;
 
   const pending = new File(cacheDir, stagingName(fileName));
   // The path, not the object: a File repoints at its destination once its
@@ -494,7 +493,7 @@ export const fetchExternalSubtitle = async (params: {
           pending,
           optionsWithOptionalHeaders({ signal: transfer.signal }, headers),
         ),
-        timeoutMs,
+        deadline - Date.now(),
       );
     } catch (error) {
       transfer.abort();
@@ -513,7 +512,7 @@ export const fetchExternalSubtitle = async (params: {
       // Handled by the await below.
     });
   try {
-    await task;
+    await withTimeout(task, deadline - Date.now());
     params.sub.DeliveryUrl = destination.uri;
     return destination.uri;
   } catch {

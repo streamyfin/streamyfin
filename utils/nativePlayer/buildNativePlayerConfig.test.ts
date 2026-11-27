@@ -586,7 +586,7 @@ describe("external sidecar subtitles", () => {
   test("does not wait for sidecar downloads — the build starts none", async () => {
     // Never settles: with the old inline prefetch this awaited the download
     // (and started it); the build must return with the sidecar stripped.
-    jest
+    const downloadSpy = jest
       .spyOn(File, "downloadFileAsync")
       .mockReturnValue(new Promise(() => undefined));
 
@@ -598,6 +598,9 @@ describe("external sidecar subtitles", () => {
       5: ABSOLUTE_URL,
     });
     expect(fakeFiles.downloads()).toEqual([]);
+    // The spy bypasses the fake file system's download log, so assert on it
+    // directly: a detached download would otherwise go unnoticed.
+    expect(downloadSpy).not.toHaveBeenCalled();
   });
 
   test("hands an already-cached sidecar straight to the engine", async () => {

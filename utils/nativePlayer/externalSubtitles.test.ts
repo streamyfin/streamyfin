@@ -299,6 +299,52 @@ describe("fetchExternalSubtitle", () => {
     expect(fakeFiles.downloads()).toEqual([]);
   });
 
+  test("a shared fetch that outlasts this caller's budget does not extend it", async () => {
+    // The warm started this file with a far longer budget. Waiting in chunks
+    // of this caller's own timeout would keep it pending for as long as the
+    // warm's transfer runs; the budget is one deadline, not one per wait.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const impl = (_url: string, destination: { uri: string }) =>
+      gate.then(() => destination);
+    jest
+      .spyOn(File, "downloadFileAsync")
+      .mockImplementation(impl as unknown as typeof File.downloadFileAsync);
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const prefetch = prefetchExternalSubtitles({
+      mediaSource,
+      item,
+      api,
+      budgetMs: 60_000,
+      perSubtitleMs: 60_000,
+    });
+    const started = Date.now();
+    const url = await fetchExternalSubtitle({
+      sub: streamsOf(mediaSource)[1]!,
+      item,
+      api,
+      mediaSourceId: MEDIA_SOURCE_ID,
+      url: REMOTE_URL,
+      timeoutMs: 25,
+    });
+    const elapsed = Date.now() - started;
+
+    try {
+      expect(url).toBeNull();
+      expect(elapsed).toBeLessThan(2_000);
+    } finally {
+      // The caller leaving does not cancel the warm's transfer: release it
+      // even when an assertion above failed, so the next test does not find
+      // its in-flight entry still set.
+      release();
+      await prefetch;
+    }
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
+  });
+
   test("waits for a prefetch of the same file instead of duplicating it", async () => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
