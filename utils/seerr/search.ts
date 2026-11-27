@@ -19,8 +19,9 @@ const EXTRA_ENCODES: [RegExp, string][] = [
  *
  * Seerr's API refuses a query that still holds a reserved character, and
  * axios writes a space as "+", which is one: "castlevania noct" came back
- * 400. A space goes out as %20 here. The apostrophe is reserved too, though
- * Seerr's own site sends it as it is: "it's always sunny" came back 400.
+ * 400. A space goes out as %20 here. The apostrophe is reserved too: Seerr's
+ * site code leaves it, but the browser encodes it on the wire, as OkHttp does
+ * on Android. iOS sends it as it is: "it's always sunny" came back 400.
  */
 export const seerrQueryString = (
   params: Record<string, string | number>,
