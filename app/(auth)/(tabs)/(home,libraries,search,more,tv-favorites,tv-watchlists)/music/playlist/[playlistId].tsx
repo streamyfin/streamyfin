@@ -123,10 +123,7 @@ export default function PlaylistDetailScreen() {
   }, [playlist?.Name, navigation]);
 
   const imageUrl = useMemo(
-    () =>
-      playlist
-        ? getItemImageUrl(api, playlist, "primary", { width: ARTWORK_SIZE })
-        : null,
+    () => getItemImageUrl(api, playlist, "primary", { width: ARTWORK_SIZE }),
     [api, playlist],
   );
 

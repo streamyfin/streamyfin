@@ -125,10 +125,7 @@ export default function ArtistDetailScreen() {
   }, [artist?.Name, navigation]);
 
   const imageUrl = useMemo(
-    () =>
-      artist
-        ? getItemImageUrl(api, artist, "primary", { width: artworkSize })
-        : null,
+    () => getItemImageUrl(api, artist, "primary", { width: artworkSize }),
     [api, artist, artworkSize],
   );
 

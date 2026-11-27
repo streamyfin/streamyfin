@@ -211,11 +211,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     const logoUrl = useMemo(
       () =>
-        item
-          ? getItemImageUrl(api, item, "logo", {
-              height: LOGO_HEIGHT,
-            })
-          : null,
+        getItemImageUrl(api, item, "logo", {
+          height: LOGO_HEIGHT,
+        }),
       [api, item],
     );
 
