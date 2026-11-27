@@ -190,7 +190,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
               }}
             />
           </View>
-          {settings?.libraryOptions?.showTitles && (
+          {/* Without artwork, the name is all that tells the card apart. */}
+          {(settings?.libraryOptions?.showTitles || !url) && (
             <Text className='font-bold text-lg text-start px-4'>
               {library.Name}
             </Text>

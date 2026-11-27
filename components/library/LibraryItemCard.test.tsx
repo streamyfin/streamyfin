@@ -139,4 +139,24 @@ describe("LibraryItemCard", () => {
       expect(screen.getByText("Movies")).toBeTruthy();
     });
   });
+
+  // With its titles off, a cover card is identified by its artwork alone; a
+  // library without an image drew an empty card.
+  test("names a library that has no image in the cover layout with titles off", async () => {
+    const options = useSettings().settings.libraryOptions;
+    const before = { ...options };
+    Object.assign(options, {
+      display: "list",
+      imageStyle: "cover",
+      showTitles: false,
+      showStats: false,
+    });
+    try {
+      await renderCard({ ...LIBRARY, ImageTags: {} });
+
+      expect(screen.getByText("Movies")).toBeTruthy();
+    } finally {
+      Object.assign(options, before);
+    }
+  });
 });
