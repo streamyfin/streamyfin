@@ -1,16 +1,18 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getShowApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { SyncPlayQueueButton } from "@/components/syncplay/SyncPlayQueueButton";
 import { useEpisodeAirLabels } from "@/hooks/useEpisodeAirLabels";
+import { useSeerrSeriesRequest } from "@/hooks/useSeerrSeriesRequest";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -52,6 +54,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
   const isOffline = useOfflineMode();
+  const requestMore = useSeerrSeriesRequest(item);
   const { getDownloadedItems, refreshKey } = useDownload();
 
   const seasonIndex = useMemo(
@@ -266,6 +269,22 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             <SyncPlayQueueButton items={episodes || []} variant='icon' />
           </View>
         ) : null}
+        {requestMore && (
+          <TouchableOpacity
+            onPress={requestMore}
+            accessibilityRole='button'
+            accessibilityLabel={t("seerr.request_more")}
+            className='ml-auto flex-row items-center'
+          >
+            <Image
+              source={require("@/assets/icons/seerr-logo.svg")}
+              style={{ width: 18, height: 18 }}
+            />
+            <Text className='ml-1.5 text-xs font-semibold'>
+              {t("seerr.request_more")}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View className='px-4 flex flex-col mt-4'>
         {episodeRow === "loading" ? (
