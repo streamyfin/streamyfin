@@ -132,8 +132,6 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     enabled: !!api,
   });
 
-  if (!url) return null;
-
   if (settings?.libraryOptions?.display === "row") {
     return (
       <TouchableItemRouter item={library} className='w-full px-4'>
@@ -171,14 +169,16 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
               overflow: "hidden",
             }}
           >
-            <Image
-              source={{ uri: url }}
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-              cachePolicy={"memory-disk"}
-            />
+            {url && (
+              <Image
+                source={{ uri: url }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                cachePolicy={"memory-disk"}
+              />
+            )}
             <View
               style={{
                 position: "absolute",
@@ -218,12 +218,14 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
             </Text>
           )}
         </View>
-        <View className='p-2'>
-          <Image
-            source={{ uri: url }}
-            className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
-          />
-        </View>
+        {url && (
+          <View className='p-2'>
+            <Image
+              source={{ uri: url }}
+              className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
+            />
+          </View>
+        )}
       </View>
     </TouchableItemRouter>
   );

@@ -187,8 +187,7 @@ const page: React.FC = () => {
     });
   }, [allEpisodes, isLoading, item, isOffline, startShuffle]);
 
-  // For offline mode, we can show the page even without backdropUrl
-  if (!item || (!isOffline && !backdropUrl)) return null;
+  if (!item) return null;
 
   // TV version
   if (Platform.isTV) {

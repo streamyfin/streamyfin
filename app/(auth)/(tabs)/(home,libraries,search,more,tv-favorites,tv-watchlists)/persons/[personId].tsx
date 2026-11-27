@@ -97,20 +97,30 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
       </View>
     );
 
-  if (!item?.Id || !backdropUrl) return null;
+  if (!item?.Id) return null;
 
   return (
     <ParallaxScrollView
       headerImage={
-        <Image
-          source={{
-            uri: backdropUrl,
-          }}
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        />
+        backdropUrl ? (
+          <Image
+            source={{
+              uri: backdropUrl,
+            }}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        ) : (
+          <View
+            style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: "#1a1a1a",
+            }}
+          />
+        )
       }
     >
       <View className='flex flex-col space-y-4 my-4'>
