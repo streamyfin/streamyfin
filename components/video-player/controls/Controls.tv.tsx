@@ -65,6 +65,7 @@ import {
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { isLiveTvItem } from "@/utils/jellyfin/media/isLiveTvItem";
+import { playerTitle } from "@/utils/jellyfin/media/trailers";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
 import { requestTVFocus } from "@/utils/requestTVFocus";
@@ -1191,7 +1192,7 @@ export const Controls: FC<Props> = ({
     onBack: handleBack,
     onWillExit: handleWillExit,
     onCancelExit: handleCancelExit,
-    videoTitle: item?.Name ?? undefined,
+    videoTitle: item ? playerTitle(t, item) : undefined,
   });
 
   const { handleControlsInteraction } = useControlsTimeout({
@@ -1511,7 +1512,7 @@ export const Controls: FC<Props> = ({
               <Text
                 style={[styles.titleText, { fontSize: typography.heading }]}
               >
-                {item?.Name}
+                {item && playerTitle(t, item)}
               </Text>
               {isLiveTV && (
                 <View style={styles.liveBadge}>

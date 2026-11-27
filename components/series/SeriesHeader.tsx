@@ -4,7 +4,6 @@ import { View } from "react-native";
 import { Text } from "../common/Text";
 import { ItemCredits } from "../item/ItemCredits";
 import { Ratings } from "../Ratings";
-import { ItemActions } from "./SeriesActions";
 
 interface Props {
   item: BaseItemDto;
@@ -66,12 +65,7 @@ export const SeriesHeader = ({ item }: Props) => {
           {yearString}
         </Text>
       )}
-      {/* Top-aligned: the actions are taller than the badges, and centring
-          them pulled the badge row up towards the year. */}
-      <View className='flex flex-row items-start justify-between mb-2'>
-        <Ratings item={item} className='flex-1 mr-2' />
-        <ItemActions item={item} />
-      </View>
+      <Ratings item={item} className='mb-2' />
       <Text>{item?.Overview}</Text>
       <ItemCredits people={item.People} className='mt-4' />
     </View>

@@ -18,6 +18,7 @@ import {
   hasChapterMarkers,
 } from "@/utils/chapters";
 import { episodeSubtitle } from "@/utils/episodeLabel";
+import { playerTitle } from "@/utils/jellyfin/media/trailers";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
@@ -151,7 +152,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
           {item?.Type === "Episode" && (
             <Text className='opacity-50'>{episodeSubtitle(t, item)}</Text>
           )}
-          <Text className='font-bold text-xl'>{item?.Name}</Text>
+          <Text className='font-bold text-xl'>
+            {item && playerTitle(t, item)}
+          </Text>
           {item?.Type === "Movie" && (
             <Text className='text-xs opacity-50'>{item?.ProductionYear}</Text>
           )}

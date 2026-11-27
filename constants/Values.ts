@@ -54,6 +54,13 @@ export const POSTER_IMAGE_TRANSITION_DURATION = 150;
  */
 export const BACKGROUND_IMAGE_TRANSITION_DURATION = 300;
 
+/**
+ * How long a TV page waits after a modal route closes before it asks for the
+ * focus back: long enough for the route to have left the screen. Android TV
+ * leaves nothing focused otherwise (android-tv-modal-close-loses-focus).
+ */
+export const TV_MODAL_FOCUS_RESTORE_MS = 300;
+
 // The fade plays when an image arrives from the network. One already cached
 // shows at once, so a page opened again or a card scrolled back into view does
 // not fade in a second time.

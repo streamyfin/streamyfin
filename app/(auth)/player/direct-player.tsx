@@ -92,6 +92,7 @@ import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate
 import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
+import { playerTitle } from "@/utils/jellyfin/media/trailers";
 import {
   getPlayMethod,
   type PlayMethod,
@@ -1063,7 +1064,7 @@ export default function DirectPlayerPage() {
     });
 
     return {
-      title: item.Name || "",
+      title: playerTitle(t, item) ?? "",
       artist:
         item.Type === "Episode"
           ? item.SeriesName || ""
@@ -1075,7 +1076,7 @@ export default function DirectPlayerPage() {
       artworkUri: artworkUri || undefined,
       artworkHeaders: getJellyfinHeadersForUrl(artworkUri, api.basePath),
     };
-  }, [item, api]);
+  }, [item, api, t]);
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {

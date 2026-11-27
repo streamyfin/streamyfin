@@ -382,7 +382,11 @@ export const buildTrackMenus = (options: {
   return { subtitles: subtitleItems, audio: audioItems, quality: qualityItems };
 };
 
-const buildMetadata = (item: BaseItemDto, api: Api | null) => {
+const buildMetadata = (
+  item: BaseItemDto,
+  api: Api | null,
+  itemTitle: (item: BaseItemDto) => string | undefined,
+) => {
   const isEpisode = item.Type === "Episode";
   let subtitle: string | undefined;
   if (isEpisode) {
@@ -399,7 +403,7 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
 
   return {
     itemId: item.Id ?? undefined,
-    title: item.Name ?? undefined,
+    title: itemTitle(item),
     subtitle: subtitle || undefined,
     artworkUri: artworkUri ?? undefined,
     // Fetched natively for the Control Center, so it needs the headers too.
@@ -427,6 +431,8 @@ export async function buildNativePlayerConfig(params: {
    * track labels are finished in JS, the native chrome never composes them.
    */
   originalLabel: string;
+  /** The title shown for an item; its name when left out. */
+  itemTitle?: (item: BaseItemDto) => string | undefined;
   /** The name of a quality, finished in JS for the same reason. */
   qualityLabel: (bitrate: Bitrate) => string;
   /** Skip the item refetch when the caller already has it (episode switch). */
@@ -650,7 +656,11 @@ export async function buildNativePlayerConfig(params: {
       Platform.OS === "android" && engine === "mpv"
         ? settings.mpvVoDriver
         : undefined,
-    metadata: buildMetadata(item, api),
+    metadata: buildMetadata(
+      item,
+      api,
+      params.itemTitle ?? ((i) => i.Name ?? undefined),
+    ),
     // Episode-list and next-episode thumbnails are fetched natively, so they
     // need the headers as well. Offline URLs are local and match nothing.
     imageHeaders: offline
