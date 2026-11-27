@@ -86,9 +86,33 @@ export const TVHomeBackdrop = React.memo(
     const layer1Opacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-      if (!backdropUrl) return;
-
       let isCancelled = false;
+
+      // An item with no image takes the previous item's backdrop away with
+      // it, as jellyfin-web clears its backdrop.
+      if (!backdropUrl) {
+        Animated.parallel([
+          Animated.timing(layer0Opacity, {
+            toValue: 0,
+            duration: TV_BACKDROP_CROSSFADE_MS,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(layer1Opacity, {
+            toValue: 0,
+            duration: TV_BACKDROP_CROSSFADE_MS,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          if (isCancelled) return;
+          setLayer0Url(null);
+          setLayer1Url(null);
+        });
+        return () => {
+          isCancelled = true;
+        };
+      }
 
       const performCrossfade = async () => {
         // Prefetch to disk only - the full-size 1920x1080 backdrop (~8MB

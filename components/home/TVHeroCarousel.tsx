@@ -246,9 +246,33 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
 
   // Crossfade effect for backdrop
   useEffect(() => {
-    if (!backdropUrl) return;
-
     let isCancelled = false;
+
+    // An item with no image takes the previous item's backdrop away with it,
+    // as jellyfin-web clears its backdrop.
+    if (!backdropUrl) {
+      Animated.parallel([
+        Animated.timing(layer0Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(layer1Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (isCancelled) return;
+        setLayer0Url(null);
+        setLayer1Url(null);
+      });
+      return () => {
+        isCancelled = true;
+      };
+    }
 
     const performCrossfade = async () => {
       // Disk-only prefetch: backdrops are ~8MB decoded ARGB; keeping them
