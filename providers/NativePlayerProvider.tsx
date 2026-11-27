@@ -279,6 +279,13 @@ interface NativeSession extends NativePlayerSessionSeed {
    * snapping off, and a second delivery request for it dedupes away.
    */
   subtitleDeliveryInFlight: number[];
+  /**
+   * Tail of this session's sidecar fetch queue. Jellyfin's first-time
+   * extraction races with itself under concurrent requests and can serve a
+   * corrupted file, so the background loop and a re-pick share one download
+   * at a time; a re-pick queues behind the one running.
+   */
+  subtitleDeliveryTail: Promise<void>;
 }
 
 interface NativePlayerContextValue {
@@ -1186,7 +1193,10 @@ const NativePlayerProviderInner: React.FC<{
 
   /**
    * Fetch one delivery-plan sidecar and settle it. Deduplicates against an
-   * identical fetch (background loop vs re-pick) via the in-flight list.
+   * identical fetch (background loop vs re-pick) via the in-flight list, and
+   * runs behind any other fetch of this session: the queue keeps the server's
+   * extraction from racing with itself, and a re-pick lands ahead of the
+   * loop's remaining items.
    */
   const deliverOneSubtitle = useCallback(
     async (
@@ -1201,7 +1211,7 @@ const NativePlayerProviderInner: React.FC<{
       const api = apiRef.current;
       if (!sub || !api) return;
       session.subtitleDeliveryInFlight.push(jellyfinIndex);
-      try {
+      const run = session.subtitleDeliveryTail.then(async () => {
         const fileUrl = await fetchExternalSubtitle({
           sub,
           item: session.item,
@@ -1212,6 +1222,11 @@ const NativePlayerProviderInner: React.FC<{
         });
         if (sessionRef.current !== session) return;
         await settleSubtitleDelivery(session, jellyfinIndex, fileUrl);
+      });
+      // A failed fetch must not wedge the queue for the rest of the session.
+      session.subtitleDeliveryTail = run.catch(() => undefined);
+      try {
+        await run;
       } finally {
         session.subtitleDeliveryInFlight =
           session.subtitleDeliveryInFlight.filter(
@@ -1372,6 +1387,7 @@ const NativePlayerProviderInner: React.FC<{
         autoSubtitle: INITIAL_AUTO_SUBTITLE_STATE,
         autoSubtitleWasMuted: false,
         subtitleDeliveryInFlight: [],
+        subtitleDeliveryTail: Promise.resolve(),
       };
 
       if (

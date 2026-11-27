@@ -1790,12 +1790,35 @@ describe("background sidecar delivery", () => {
   test("side-loads a sidecar whose fetch lands after the player is up", async () => {
     mockSeed.subtitleIndex = 5;
     mockDeliveryPlan.remoteUrls = { 5: SIDECAR_URL };
-    fetchExternalSubtitle.mockResolvedValueOnce(SIDECAR_FILE);
+    let releaseFetch: () => void = () => undefined;
+    const gate = new Promise<string | null>((resolve) => {
+      releaseFetch = () => resolve(SIDECAR_FILE);
+    });
+    fetchExternalSubtitle.mockImplementationOnce(() => gate);
 
     await mount();
-    await open("item-1");
+    // Playback starts without waiting for the sidecar: the player is up while
+    // the fetch is still pending.
+    await start(() => play("item-1"));
+    expect(mockNative.presented).toHaveLength(1);
 
-    expect(fetchExternalSubtitle).toHaveBeenCalled();
+    try {
+      await act(async () => {
+        mockNative.emit("onLoad", {
+          url: mockNative.presented[mockNative.presented.length - 1],
+        });
+      });
+      expect(fetchExternalSubtitle).toHaveBeenCalledTimes(1);
+      expect(
+        nativePlayerMock.nativePlayerAddExternalSubtitle,
+      ).not.toHaveBeenCalled();
+    } finally {
+      // Release even when an assertion failed, so the fetch does not outlive
+      // the test.
+      releaseFetch();
+    }
+    await settle();
+
     expect(
       nativePlayerMock.nativePlayerAddExternalSubtitle,
     ).toHaveBeenCalledWith(SIDECAR_FILE);
@@ -1878,6 +1901,51 @@ describe("background sidecar delivery", () => {
     releaseFetch();
     await settle();
     expect(nativePlayerMock.nativePlayerDisableSubtitles).toHaveBeenCalled();
+  });
+
+  test("queues a re-pick behind the download already running", async () => {
+    // Concurrent subtitle requests make Jellyfin's first-time extraction race
+    // with itself and can serve a corrupted file, so a re-pick waits for the
+    // background download in progress instead of starting a second one.
+    mockSeed.subtitleIndex = 8;
+    mockSeed.extraSubtitleIndices = [2];
+    mockDeliveryPlan.remoteUrls = {
+      2: "https://jf.example/Subtitles/2/Stream.srt",
+      8: "https://jf.example/Subtitles/8/Stream.srt",
+    };
+    let releaseFirst: () => void = () => undefined;
+    const first = new Promise<string | null>((resolve) => {
+      releaseFirst = () => resolve(null);
+    });
+    fetchExternalSubtitle.mockImplementationOnce(() => first);
+
+    await mount();
+    await open("item-1");
+    await act(async () => {
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "subtitle",
+        jellyfinIndex: 2,
+        positionSec: 0,
+      });
+    });
+    await settle();
+
+    try {
+      // Only the background download of 8 has started; 2 waits its turn.
+      expect(fetchExternalSubtitle).toHaveBeenCalledTimes(1);
+    } finally {
+      releaseFirst();
+    }
+    await settle();
+
+    expect(
+      fetchExternalSubtitle.mock.calls.map(
+        (call) => (call[0] as { url: string }).url,
+      ),
+    ).toEqual([
+      "https://jf.example/Subtitles/8/Stream.srt",
+      "https://jf.example/Subtitles/2/Stream.srt",
+    ]);
   });
 
   test("attaches a sidecar that landed while another subtitle was selected", async () => {
