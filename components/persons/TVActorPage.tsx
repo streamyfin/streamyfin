@@ -35,6 +35,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const HORIZONTAL_PADDING = 80;
@@ -214,10 +215,15 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   }, [backdropUrl, api?.basePath]);
 
   // Get actor image URL
-  const actorImageUrl = useMemo(() => {
-    if (!item?.Id || !api?.basePath) return null;
-    return `${api.basePath}/Items/${item.Id}/Images/Primary?fillWidth=${ACTOR_IMAGE_SIZE * 2}&fillHeight=${ACTOR_IMAGE_SIZE * 2}&quality=90`;
-  }, [api?.basePath, item?.Id]);
+  const actorImageUrl = useMemo(
+    () =>
+      getItemImageUrl(api, item, "primary", {
+        width: ACTOR_IMAGE_SIZE * 2,
+        height: ACTOR_IMAGE_SIZE * 2,
+        quality: 90,
+      }),
+    [api, item],
+  );
 
   // Handle filmography item press
   const handleItemPress = useCallback(
