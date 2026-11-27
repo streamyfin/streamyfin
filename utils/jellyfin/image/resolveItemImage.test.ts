@@ -24,6 +24,7 @@ const full = {
   ParentLogoItemId: "logo-owner",
   ParentLogoImageTag: "parent-logo",
   ParentId: "parent",
+  SeasonId: "season",
   ParentPrimaryImageTag: "parent-primary",
   AlbumId: "album",
   AlbumPrimaryImageTag: "album-primary",
@@ -66,6 +67,14 @@ describe("resolveItemImage steps", () => {
       itemId: "series",
       type: "Primary",
       tag: "series-primary",
+    });
+  });
+
+  test("seasonPrimary reads the season and the parent's Primary tag", () => {
+    expect(resolveItemImage(episode, "seasonPoster")).toEqual({
+      itemId: "season",
+      type: "Primary",
+      tag: "parent-primary",
     });
   });
 
@@ -144,6 +153,15 @@ describe("resolveItemImage half pairs", () => {
     },
   );
 
+  test.each([{ SeasonId: undefined }, { ParentPrimaryImageTag: undefined }])(
+    "an episode season poster skips the season step for %j",
+    (patch) => {
+      expect(
+        resolveItemImage({ ...episode, ...patch }, "seasonPoster")?.itemId,
+      ).toBe("series");
+    },
+  );
+
   test.each([
     { ParentThumbItemId: undefined },
     { ParentThumbImageTag: undefined },
@@ -195,6 +213,7 @@ describe("resolveItemImage kinds", () => {
         "poster",
         "primary",
         "screenshot",
+        "seasonPoster",
         "thumb",
         "wide",
       ].sort(),
@@ -215,6 +234,30 @@ describe("resolveItemImage kinds", () => {
     expect(
       typeAndOwner({ ...episode, SeriesPrimaryImageTag: undefined }, "poster"),
     ).toBe("item:Primary");
+  });
+
+  test("seasonPoster is the season's Primary, then the series', then the episode's own", () => {
+    expect(typeAndOwner(episode, "seasonPoster")).toBe("season:Primary");
+    expect(
+      typeAndOwner(
+        { ...episode, ParentPrimaryImageTag: undefined },
+        "seasonPoster",
+      ),
+    ).toBe("series:Primary");
+    expect(
+      typeAndOwner(
+        {
+          ...episode,
+          ParentPrimaryImageTag: undefined,
+          SeriesPrimaryImageTag: undefined,
+        },
+        "seasonPoster",
+      ),
+    ).toBe("item:Primary");
+  });
+
+  test("seasonPoster is the item's own Primary for an item that is no episode", () => {
+    expect(typeAndOwner(full, "seasonPoster")).toBe("item:Primary");
   });
 
   test("wide is Thumb then Primary for an item that is no episode", () => {

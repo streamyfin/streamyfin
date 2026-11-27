@@ -7,3 +7,13 @@
  * the OS keeps the socket open.
  */
 export const TOP_SHELF_PLAY_LOOKUP_TIMEOUT = 3000;
+
+/** The Top Shelf poster's size in pixels: 2:3, as Apple TV draws it. */
+export const TV_DISCOVERY_POSTER_WIDTH = 400;
+export const TV_DISCOVERY_POSTER_HEIGHT = 600;
+
+/** The height in pixels of the landscape tile Google TV's home screen draws. */
+export const TV_DISCOVERY_LANDSCAPE_HEIGHT = 1080;
+
+/** The JPEG quality asked for every TV home screen tile image. */
+export const TV_DISCOVERY_IMAGE_QUALITY = 90;

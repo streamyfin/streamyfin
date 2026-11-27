@@ -1,11 +1,12 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React from "react";
-import { Animated, Image, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface TVChannelCardProps {
   channel: BaseItemDto;
@@ -32,11 +33,9 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
       duration: 120,
     });
 
-  const imageUrl = getPrimaryImageUrl({
-    api,
-    item: channel,
-    quality: 80,
+  const imageUrl = getItemImageUrl(api, channel, "primary", {
     width: 200,
+    quality: 80,
   });
 
   return (
@@ -66,7 +65,7 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
             <Image
               source={{ uri: imageUrl }}
               style={styles.logo}
-              resizeMode='contain'
+              contentFit='contain'
             />
           ) : (
             <View

@@ -29,9 +29,8 @@ import {
 } from "@/utils/atoms/settings";
 import { heroCardMaxFontScale } from "@/utils/heroCardFontScale";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { getItemNavigation } from "../common/TouchableItemRouter";
@@ -245,35 +244,13 @@ const buildBackdropUrl = (
   return getBackdropUrl({ api, item, quality: 80, width, height });
 };
 
-const buildLogoUrl = (api: Api, item: BaseItemDto): string | null => {
-  // Handles the item's own logo and the Episode → parent logo case.
-  const own = getLogoImageUrlById({ api, item, height: 120 });
-  if (own) return own;
-  // Seasons carry the series logo only through the Parent* fields.
-  if (item.ParentLogoItemId && item.ParentLogoImageTag) {
-    const params = new URLSearchParams({
-      tag: item.ParentLogoImageTag,
-      quality: "90",
-      fillHeight: "120",
-    });
-    return `${api.basePath}/Items/${item.ParentLogoItemId}/Images/Logo?${params.toString()}`;
-  }
-  return null;
-};
+const buildLogoUrl = (api: Api, item: BaseItemDto): string | null =>
+  getItemImageUrl(api, item, "logo", { height: 120 });
 
-const buildPosterUrl = (api: Api, item: BaseItemDto): string | null => {
-  // An episode's Primary is a 16:9 still that crops badly in the portrait
-  // thumb slot; use the series poster instead.
-  if (item.Type === "Episode" && item.SeriesId && item.SeriesPrimaryImageTag) {
-    const params = new URLSearchParams({
-      tag: item.SeriesPrimaryImageTag,
-      quality: "90",
-      fillWidth: "240",
-    });
-    return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?${params.toString()}`;
-  }
-  return getPrimaryImageUrl({ api, item, width: 240 });
-};
+// An episode's Primary is a 16:9 still that crops badly in the portrait thumb
+// slot; the `poster` kind picks the series poster instead.
+const buildPosterUrl = (api: Api, item: BaseItemDto): string | null =>
+  getItemImageUrl(api, item, "poster", { width: 240 });
 
 const buildBadges = (item: BaseItemDto): string[] => {
   const badges: string[] = [];

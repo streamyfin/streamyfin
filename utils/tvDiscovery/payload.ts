@@ -1,7 +1,13 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import i18next from "i18next";
-import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import {
+  TV_DISCOVERY_IMAGE_QUALITY,
+  TV_DISCOVERY_LANDSCAPE_HEIGHT,
+  TV_DISCOVERY_POSTER_HEIGHT,
+  TV_DISCOVERY_POSTER_WIDTH,
+} from "@/constants/TVDiscovery";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 
 const TV_DISCOVERY_ITEM_LIMIT = 12;
@@ -48,74 +54,38 @@ function getTVDiscoveryImage(
   shape: TVDiscoveryImageShape,
   useEpisodeImages: boolean,
 ): { url: string } | undefined {
-  const baseUrl = api.basePath;
-
+  // Both shapes get null, never an untagged URL, when the item has no art the
+  // server can fulfill: no tile image instead of a broken one.
   if (shape === "landscape") {
-    // getWideImageUrl falls back to an untagged Primary URL, which the server
-    // 404s on when the item has no such image — a broken tile instead of no
-    // tile. Gate per item type on the source the helper will actually select,
-    // so we only hand the extension URLs the server can fulfill:
-    // - episode + useEpisodeImages → the episode's own Primary
-    // - episode (default)          → the parent (season/series) Thumb pair
-    // - everything else            → own Thumb, else own Primary
-    const hasArt =
-      item.Type === "Episode"
-        ? useEpisodeImages
-          ? Boolean(item.ImageTags?.Primary)
-          : Boolean(item.ParentThumbItemId && item.ParentThumbImageTag)
-        : Boolean(item.ImageTags?.Thumb || item.ImageTags?.Primary);
-    if (!hasArt) return undefined;
-
     // Google TV home tiles are landscape. Mirror the continue-watching cards'
-    // image selection (getWideImageUrl honors the useEpisodeImagesForNextUp
-    // setting) so home recommendations match the in-app rows: series/season
-    // Thumb by default, the episode's own still when the toggle is on.
-    const url = getWideImageUrl({
-      api,
-      item,
-      useEpisodePoster: useEpisodeImages,
-      fillHeight: 1080,
-      quality: 90,
+    // image selection (the `wide` kind honors the useEpisodeImagesForNextUp
+    // setting): series/season Thumb by default, the episode's own still when
+    // the toggle is on.
+    const url = getItemImageUrl(api, item, "wide", {
+      preferEpisodeImage: useEpisodeImages,
+      height: TV_DISCOVERY_LANDSCAPE_HEIGHT,
+      quality: TV_DISCOVERY_IMAGE_QUALITY,
     });
     return url ? { url } : undefined;
   }
 
   // Top Shelf items render in poster shape (portrait 2:3), so request the
   // matching Primary poster art. Requesting backdrops here would force the
-  // extension to crop them into a poster, which looked bad. Each URL is gated
-  // on its image tag so we never hand the extension a URL the server can't
-  // fulfill (which would render a broken/blank poster).
-  const posterParams = "?fillWidth=400" + "&fillHeight=600" + "&quality=90";
-
-  const posterUrl = (id: string, tag: string) =>
-    `${baseUrl}/Items/${id}/Images/Primary${posterParams}` +
-    `&tag=${encodeURIComponent(tag)}`;
-
-  // For episodes, prefer the season -> show poster over the episode's own
-  // primary: episode primary images are usually landscape stills that crop
-  // badly in poster shape, and since most episodes have one the season/show
-  // poster would otherwise never get used. When useEpisodeImagesForNextUp is
-  // on, respect the user's preference for the episode's own image instead.
-  if (item.Type === "Episode" && !useEpisodeImages) {
-    // Season poster — for an episode the immediate parent is the season, so
-    // ParentPrimaryImageTag is the season's primary tag.
-    if (item.SeasonId && item.ParentPrimaryImageTag) {
-      return { url: posterUrl(item.SeasonId, item.ParentPrimaryImageTag) };
-    }
-
-    // Show poster
-    if (item.SeriesId && item.SeriesPrimaryImageTag) {
-      return { url: posterUrl(item.SeriesId, item.SeriesPrimaryImageTag) };
-    }
-  }
-
-  // Item's own poster (movies, series, or an episode with no season/show art)
-  const primaryTag = item.ImageTags?.Primary;
-  if (item.Id && primaryTag) {
-    return { url: posterUrl(item.Id, primaryTag) };
-  }
-
-  return undefined;
+  // extension to crop them into a poster, which looked bad. For episodes the
+  // season -> show poster beats the episode's own primary, a landscape still
+  // that crops badly; useEpisodeImagesForNextUp keeps the user's preference
+  // for the episode's own image.
+  const url = getItemImageUrl(
+    api,
+    item,
+    useEpisodeImages ? "primary" : "seasonPoster",
+    {
+      width: TV_DISCOVERY_POSTER_WIDTH,
+      height: TV_DISCOVERY_POSTER_HEIGHT,
+      quality: TV_DISCOVERY_IMAGE_QUALITY,
+    },
+  );
+  return url ? { url } : undefined;
 }
 
 function formatEpisodeNumber(item: BaseItemDto): string | undefined {

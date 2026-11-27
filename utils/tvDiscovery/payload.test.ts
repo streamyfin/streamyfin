@@ -157,3 +157,89 @@ describe("buildTVDiscoveryPayload: the title of an episode's tile", () => {
     expect(byNumber.title).toBe("Doctor Who - Épisode 3");
   });
 });
+
+describe("buildTVDiscoveryPayload: the image of a tile", () => {
+  const BASE = "https://jellyfin.example/Items";
+  const POSTER =
+    "fillWidth=400&fillHeight=600&maxWidth=1920&maxHeight=1920&quality=90";
+
+  const episode: BaseItemDto = {
+    Id: "ep-1",
+    Name: "Pilot",
+    Type: "Episode",
+    ImageTags: { Primary: "ep-tag" },
+    SeasonId: "season-1",
+    ParentPrimaryImageTag: "season-tag",
+    SeriesId: "series-1",
+    SeriesPrimaryImageTag: "series-tag",
+    ParentThumbItemId: "series-1",
+    ParentThumbImageTag: "thumb-tag",
+  };
+
+  const imageOf = (
+    item: BaseItemDto,
+    options: {
+      imageShape?: "poster" | "landscape";
+      useEpisodeImages?: boolean;
+    },
+  ) =>
+    buildTVDiscoveryPayload({
+      api,
+      sections: [{ title: "Continue and Next Up", items: [item] }],
+      ...options,
+    })?.sections[0]?.items[0]?.imageUrl;
+
+  test("an episode poster is its season's", () => {
+    expect(imageOf(episode, {})).toBe(
+      `${BASE}/season-1/Images/Primary?${POSTER}&tag=season-tag`,
+    );
+  });
+
+  test("an episode poster falls to the series', then its own", () => {
+    expect(imageOf({ ...episode, SeasonId: undefined }, {})).toBe(
+      `${BASE}/series-1/Images/Primary?${POSTER}&tag=series-tag`,
+    );
+    expect(
+      imageOf(
+        { ...episode, SeasonId: undefined, SeriesPrimaryImageTag: undefined },
+        {},
+      ),
+    ).toBe(`${BASE}/ep-1/Images/Primary?${POSTER}&tag=ep-tag`);
+  });
+
+  test("useEpisodeImages keeps the episode's own poster", () => {
+    expect(imageOf(episode, { useEpisodeImages: true })).toBe(
+      `${BASE}/ep-1/Images/Primary?${POSTER}&tag=ep-tag`,
+    );
+  });
+
+  test("an item without art has no image rather than an untagged one", () => {
+    expect(
+      imageOf({ Id: "m", Name: "Heat", Type: "Movie" }, {}),
+    ).toBeUndefined();
+    expect(
+      imageOf(
+        { Id: "m", Name: "Heat", Type: "Movie" },
+        { imageShape: "landscape" },
+      ),
+    ).toBeUndefined();
+  });
+
+  test("a landscape tile is the parent Thumb of an episode, the Thumb of a movie", () => {
+    expect(imageOf(episode, { imageShape: "landscape" })).toBe(
+      `${BASE}/series-1/Images/Thumb?fillHeight=1080&quality=90&tag=thumb-tag`,
+    );
+    expect(
+      imageOf(
+        { Id: "m", Name: "Heat", Type: "Movie", ImageTags: { Thumb: "t" } },
+        { imageShape: "landscape" },
+      ),
+    ).toBe(`${BASE}/m/Images/Thumb?fillHeight=1080&quality=90&tag=t`);
+  });
+
+  test("a landscape tile prefers the episode's own still when asked", () => {
+    expect(
+      imageOf(episode, { imageShape: "landscape", useEpisodeImages: true }),
+    ).toBe(`${BASE}/ep-1/Images/Primary?fillHeight=1080&quality=90&tag=ep-tag`);
+  });
+});

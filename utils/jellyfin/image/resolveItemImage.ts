@@ -15,6 +15,7 @@ export type ImageRef = {
 export type ImageKind =
   | "primary"
   | "poster"
+  | "seasonPoster"
   | "wide"
   | "backdrop"
   | "heroBackdrop"
@@ -51,6 +52,9 @@ const STEPS = {
   logo: (i) => pair(i.Id, "Logo", i.ImageTags?.Logo),
   screenshot: (i) => pair(i.Id, "Screenshot", i.ImageTags?.Screenshot),
   seriesPrimary: (i) => pair(i.SeriesId, "Primary", i.SeriesPrimaryImageTag),
+  // For an episode the immediate parent is its season, so its
+  // ParentPrimaryImageTag is the season's Primary tag.
+  seasonPrimary: (i) => pair(i.SeasonId, "Primary", i.ParentPrimaryImageTag),
   // The Thumb and the Backdrop of a parent can belong to different items, so
   // each reads its own id: a Thumb tag asked of the backdrop's owner is a 404.
   parentThumb: (i) => pair(i.ParentThumbItemId, "Thumb", i.ParentThumbImageTag),
@@ -78,6 +82,10 @@ type KindSteps = {
 export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   primary: { default: ["primary"] },
   poster: { episode: ["seriesPrimary", "primary"], default: ["primary"] },
+  seasonPoster: {
+    episode: ["seasonPrimary", "seriesPrimary", "primary"],
+    default: ["primary"],
+  },
   wide: {
     episode: ["parentThumb", "parentBackdrop", "primary"],
     episodeOwnImage: ["primary", "parentThumb", "parentBackdrop"],
