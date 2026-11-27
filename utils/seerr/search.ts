@@ -4,22 +4,24 @@ import type { SeerrApi } from "@/hooks/useSeerr";
 
 type SearchResult = Awaited<ReturnType<SeerrApi["search"]>>["results"][number];
 
-// What Seerr's own site encodes on top of encodeURIComponent
-// (encodeURIExtraParams, in its useDiscover hook).
+// The reserved characters encodeURIComponent leaves as they are. Seerr's API
+// validator (express-openapi-validator) refuses a query value holding any.
 const EXTRA_ENCODES: [RegExp, string][] = [
   [/\(/g, "%28"],
   [/\)/g, "%29"],
   [/!/g, "%21"],
   [/\*/g, "%2A"],
+  [/'/g, "%27"],
 ];
 
 /**
- * A query string written the way Seerr's own site writes it.
+ * A query string Seerr's API accepts.
  *
  * Seerr's API refuses a query that still holds a reserved character, and
  * axios writes a space as "+", which is one: "castlevania noct" came back
- * 400. A space goes out as %20 here, and the apostrophe as it is, as on
- * Seerr's site.
+ * 400. A space goes out as %20 here. The apostrophe is reserved too: Seerr's
+ * site code leaves it, but the browser encodes it on the wire, as OkHttp does
+ * on Android. iOS sends it as it is: "it's always sunny" came back 400.
  */
 export const seerrQueryString = (
   params: Record<string, string | number>,

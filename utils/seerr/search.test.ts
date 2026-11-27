@@ -64,12 +64,30 @@ describe("seerrQueryString", () => {
     );
   });
 
-  test("encodes what Seerr's site encodes, and leaves the apostrophe", () => {
+  test("encodes what Seerr's site encodes", () => {
     expect(seerrQueryString({ query: "(500) days of summer!" })).toBe(
       "query=%28500%29%20days%20of%20summer%21",
     );
     expect(seerrQueryString({ query: "M*A*S*H" })).toBe("query=M%2AA%2AS%2AH");
-    expect(seerrQueryString({ query: "l'été" })).toBe("query=l'%C3%A9t%C3%A9");
+  });
+
+  // #2347: Seerr's request validator counts the apostrophe as reserved, so
+  // "it's always sunny" came back 400 and the search showed no result.
+  test("encodes the apostrophe, which Seerr refuses as it is", () => {
+    expect(seerrQueryString({ query: "it's always sunny", page: 1 })).toBe(
+      "query=it%27s%20always%20sunny&page=1",
+    );
+    expect(seerrQueryString({ query: "l'été" })).toBe(
+      "query=l%27%C3%A9t%C3%A9",
+    );
+  });
+
+  test("leaves no character Seerr's validator refuses", () => {
+    // RESERVED_CHARS in express-openapi-validator, which Seerr's API runs.
+    const reserved = /[:/?#[\]@!$&'()*+,;=]/;
+    const typed = "it's (500) days: a/b? #1 [x] @me! $5 & more * + , ; =";
+    const value = seerrQueryString({ query: typed }).replace(/^query=/, "");
+    expect(value).not.toMatch(reserved);
   });
 });
 
