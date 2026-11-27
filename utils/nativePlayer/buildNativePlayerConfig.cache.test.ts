@@ -37,10 +37,10 @@ jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),
 );
 
-// The prefetch downloads through expo-file-system (its own spec); here only
+// The sidecar pass reaches expo-file-system (its own spec); here only
 // whether the builder asks for it, and for which subtitle, matters.
 jest.mock("./externalSubtitles", () => ({
-  prefetchExternalSubtitles: jest.fn(async () => undefined),
+  linkCachedSubtitleDeliveryUrls: jest.fn(() => ({})),
 }));
 // Android TV: the only platform where ExoPlayer can be the engine, so the
 // only place the mpv-only cacheConfig split is observable.
@@ -54,8 +54,11 @@ const { buildNativePlayerStrings } =
   require("./buildNativePlayerConfig") as typeof import("./buildNativePlayerConfig");
 const { defaultValues, VideoPlayer } =
   require("@/utils/atoms/settings") as typeof import("@/utils/atoms/settings");
-const { prefetchExternalSubtitles }: { prefetchExternalSubtitles: jest.Mock } =
-  jest.requireMock("./externalSubtitles");
+const {
+  linkCachedSubtitleDeliveryUrls,
+}: { linkCachedSubtitleDeliveryUrls: jest.Mock } = jest.requireMock(
+  "./externalSubtitles",
+);
 
 const strings = buildNativePlayerStrings(
   ((key: string) => key) as unknown as TFunction,
@@ -177,15 +180,16 @@ describe("the video output driver", () => {
   });
 });
 
-// ExoPlayer wedges on a sidecar it must fetch over a slow path, so it gets
-// its sidecars on disk first; mpv opens each one on a thread of its own and
-// starts without that wait.
-describe("the sidecar subtitle prefetch", () => {
+// ExoPlayer wedges on a sidecar it must fetch over a slow path, so its config
+// links cached sidecars synchronously and strips the rest into a background
+// plan; mpv opens each one on a thread of its own and starts without any of
+// that.
+describe("the sidecar subtitle link pass", () => {
   beforeEach(() => {
-    prefetchExternalSubtitles.mockClear();
+    linkCachedSubtitleDeliveryUrls.mockClear();
   });
 
-  test("runs before an ExoPlayer load, the session's subtitle first", async () => {
+  test("runs for an ExoPlayer load", async () => {
     await buildNativePlayerConfig({
       api: makeConfiguredApi(),
       userId: "user-1",
@@ -202,18 +206,22 @@ describe("the sidecar subtitle prefetch", () => {
       qualityLabel: (bitrate: { key: string }) => bitrate.key,
     });
 
-    expect(prefetchExternalSubtitles).toHaveBeenCalledTimes(1);
-    expect(prefetchExternalSubtitles.mock.calls[0]?.[0]).toMatchObject({
+    expect(linkCachedSubtitleDeliveryUrls).toHaveBeenCalledTimes(1);
+    // No priority here: the plan's integer keys enumerate ascending, so the
+    // coordinator puts the session's subtitle first when it fetches.
+    expect(linkCachedSubtitleDeliveryUrls.mock.calls[0]?.[0]).toMatchObject({
       mediaSource: { Id: "ms-1" },
       item: { Id: "item-1" },
-      preferredIndex: 3,
     });
   });
 
-  // Subtitles are optional: a prefetch that throws must not keep the stream
-  // from playing.
-  test("a failing prefetch still builds the config", async () => {
-    prefetchExternalSubtitles.mockRejectedValueOnce(new Error("disk full"));
+  // Subtitles are optional: a link pass that throws must not keep the stream
+  // from playing. Sync throw: the pass is a sync function, its failure is
+  // caught inline, not through a promise.
+  test("a failing link pass still builds the config", async () => {
+    linkCachedSubtitleDeliveryUrls.mockImplementationOnce(() => {
+      throw new Error("disk full");
+    });
 
     const result = await buildNativePlayerConfig({
       api: makeConfiguredApi(),
@@ -232,6 +240,7 @@ describe("the sidecar subtitle prefetch", () => {
     });
 
     expect(result?.config.stream.url).toContain("/Videos/item-1/stream?");
+    expect(result?.seed.subtitleDelivery.remoteUrls).toEqual({});
   });
 
   test("is skipped for mpv, which fetches its sidecars itself", async () => {
@@ -252,6 +261,6 @@ describe("the sidecar subtitle prefetch", () => {
     });
 
     expect(result?.config.engine).toBe("mpv");
-    expect(prefetchExternalSubtitles).not.toHaveBeenCalled();
+    expect(linkCachedSubtitleDeliveryUrls).not.toHaveBeenCalled();
   });
 });

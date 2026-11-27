@@ -109,13 +109,13 @@ export const NATIVE_PLAYER_CLOSE_WAIT_MS = 2_000;
 export const NATIVE_PLAYER_CLOSE_POLL_MS = 50;
 
 /**
- * How long the native player may spend fetching an item's sidecar subtitles
- * onto disk before starting playback, in ms, and the cap for one subtitle.
- * A subtitle the engine fetches itself wedges the whole pipeline on a slow
- * path (ExoPlayer #8566), so the player prefetches them; these bound how long
- * that may delay the start and stop one dead sidecar starving the rest. The
- * session's subtitle keeps its remote URL when it misses the budget; any other
- * one is left out until picked, which renegotiates the stream.
+ * Default budgets, in ms, of `prefetchExternalSubtitles`: the whole run and
+ * the cap for one subtitle. A sidecar the engine fetches itself wedges the
+ * whole pipeline on a slow path (ExoPlayer #8566), so the app fetches them;
+ * these bound how long the warm may spend and stop one dead sidecar starving
+ * the rest. Nothing on the playback critical path waits on these — the config
+ * links cached sidecars synchronously and the rest fetch in the background
+ * (SUBTITLE_BACKGROUND_*).
  */
 export const SUBTITLE_PREFETCH_BUDGET_MS = 6_000;
 export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
@@ -127,6 +127,16 @@ export const SUBTITLE_PREFETCH_PER_SUBTITLE_MS = 3_000;
  */
 export const SUBTITLE_PREFETCH_CACHE_DIR = "subtitles";
 export const SUBTITLE_PREFETCH_LATE_SWEEP_MS = 60_000;
+
+/**
+ * Budgets, in ms, of the background sidecar fetch that runs after the player
+ * is already up. It delays nothing, so it can be generous: first-time
+ * server-side subtitle extraction can take seconds, and a fetch that lands
+ * late is side-loaded into the running session instead of delaying the start.
+ * The per-subtitle cap still stops one dead sidecar starving the rest.
+ */
+export const SUBTITLE_BACKGROUND_BUDGET_MS = 20_000;
+export const SUBTITLE_BACKGROUND_PER_SUBTITLE_MS = 10_000;
 
 /**
  * The query families that show watch progress, refetched after the server's

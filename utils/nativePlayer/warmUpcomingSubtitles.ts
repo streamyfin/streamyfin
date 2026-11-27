@@ -1,5 +1,9 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  SUBTITLE_BACKGROUND_BUDGET_MS,
+  SUBTITLE_BACKGROUND_PER_SUBTITLE_MS,
+} from "@/constants/Playback";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import type { generateDeviceProfile } from "@/utils/profiles/native";
 import { prefetchExternalSubtitles } from "./externalSubtitles";
@@ -7,16 +11,16 @@ import { prefetchExternalSubtitles } from "./externalSubtitles";
 /**
  * Fetch the sidecar subtitles of an item that is about to play — the next
  * episode of the queue — into the cache while something else is still on
- * screen. Resolves true when every sidecar landed on disk, false when the swap
- * would still have to fetch one (a failed negotiation, a budget miss), so the
- * caller can try again. The next-episode swap runs this same prefetch inline
- * (`buildNativePlayerConfig`), and on a slow path that wait is the delay
- * between one episode ending and the next one starting to load; warming
- * turns it into a cache hit.
+ * screen. Resolves true when every sidecar landed on disk, false when the
+ * swap's background delivery would still have to fetch one (a failed
+ * negotiation, a budget miss), so the caller can try again. The swap links
+ * cached sidecars synchronously and fetches the rest after the player is up,
+ * so a warm hit makes the subtitles available the moment the next episode
+ * starts instead of a few seconds into it.
  *
  * Best effort by design: a warm that fails or misses its budget costs
- * nothing — the swap fetches the subtitle itself, exactly as it would have
- * without the warm.
+ * nothing — the swap's background delivery fetches the subtitle itself,
+ * exactly as it would have without the warm.
  */
 export const warmUpcomingSubtitles = async (params: {
   api: Api;
@@ -55,11 +59,16 @@ export const warmUpcomingSubtitles = async (params: {
       autoOpenLiveStream: false,
     });
     if (!res?.mediaSource) return false;
+    // Background of the playing episode, so the generous budget applies: a
+    // first-time extraction can take seconds, and the warm is the best chance
+    // to spend them before the swap needs the file.
     const outcome = await prefetchExternalSubtitles({
       mediaSource: res.mediaSource,
       item: params.item,
       api: params.api,
       preferredIndex: params.subtitleStreamIndex,
+      budgetMs: SUBTITLE_BACKGROUND_BUDGET_MS,
+      perSubtitleMs: SUBTITLE_BACKGROUND_PER_SUBTITLE_MS,
     });
     return outcome.keptRemote.length === 0 && outcome.leftOut.length === 0;
   } catch {

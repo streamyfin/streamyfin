@@ -68,7 +68,7 @@ import {
 } from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo, trickplaySheetUrl } from "@/utils/trickplay";
-import { prefetchExternalSubtitles } from "./externalSubtitles";
+import { linkCachedSubtitleDeliveryUrls } from "./externalSubtitles";
 import type { PlayRequest } from "./playRequest";
 import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
@@ -104,6 +104,14 @@ export interface NativePlayerSessionSeed {
   subtitleIndex: number;
   startTicks: number;
   playMethod: PlayMethod;
+  /**
+   * ExoPlayer sidecars the config could not deliver, stream index → remote
+   * URL (empty for mpv and offline). The coordinator fetches them after the
+   * player is up and side-loads each into the running session; a retry after
+   * a miss needs the URL, which the config has stripped from the stream by
+   * then.
+   */
+  subtitleDelivery: { remoteUrls: Record<number, string> };
 }
 
 /** Localized labels for the native UI, built once per present. */
@@ -497,6 +505,9 @@ export async function buildNativePlayerConfig(params: {
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
   // mpv device profile — the native player renders through the MPV engine)
   let stream: NativePlayerStreamSeed;
+  // ExoPlayer sidecars the config could not deliver from the cache, index →
+  // remote URL. Empty for mpv, which fetches its own sidecars, and offline.
+  let subtitleRemoteUrls: Record<number, string> = {};
   let maxStreamingBitrate: number | undefined;
   if (offline && downloadedItem) {
     stream = {
@@ -536,25 +547,28 @@ export async function buildNativePlayerConfig(params: {
       requiredHttpHeaders: res.requiredHttpHeaders,
     };
 
-    // ExoPlayer only: prefetch the sidecar subtitles onto disk and point their
-    // DeliveryUrl at the local files before the config is built. A sidecar
-    // Exo fetches itself over a slow path wedges its pipeline, observed as a
-    // minutes-long next-episode stall behind a reverse proxy. mpv opens each
-    // sidecar on a thread of its own with its core unlocked (sub-add), so a
-    // slow one delays only that track: it keeps fetching them itself and
-    // starts without this wait. Budgeted, the session's subtitle first.
+    // ExoPlayer only: a sidecar it fetches itself over a slow path wedges its
+    // pipeline, observed as a minutes-long next-episode stall behind a reverse
+    // proxy. Link the sidecars already in the cache (the next-episode warm's
+    // carry) synchronously, strip every remote URL so none can reach the
+    // engine, and hand the rest to the coordinator as a background plan — it
+    // fetches after the player is up and side-loads each into the running
+    // session. This used to run the whole prefetch inline, which put up to the
+    // entire budget between the play tap and the player appearing. mpv opens
+    // each sidecar on a thread of its own with its core unlocked (sub-add), so
+    // a slow one delays only that track: it keeps fetching them itself and
+    // needs none of this.
     if (engine === "exoplayer") {
       try {
-        await prefetchExternalSubtitles({
+        subtitleRemoteUrls = linkCachedSubtitleDeliveryUrls({
           mediaSource: res.mediaSource,
           item,
           api,
-          preferredIndex: subtitleIndex,
         });
       } catch (error) {
         // Subtitles are optional: an unexpected failure here plays the stream
-        // with whatever URLs the sidecars have, rather than not at all.
-        logAndCaptureError("NativePlayer subtitle prefetch failed", error, {
+        // without sidecars, rather than not at all.
+        logAndCaptureError("NativePlayer subtitle linking failed", error, {
           itemId: item.Id,
         });
       }
@@ -755,6 +769,7 @@ export async function buildNativePlayerConfig(params: {
       subtitleIndex,
       startTicks,
       playMethod,
+      subtitleDelivery: { remoteUrls: subtitleRemoteUrls },
     },
   };
 }
