@@ -358,15 +358,13 @@ export const Login: React.FC = () => {
       toast.error(t("custom_links.could_not_open_link"));
       return;
     }
-    // Ask the server instead of trusting the last poll, whose answer may still
-    // be on its way: a browser reopened after the approval is one Android
-    // can't close. The wait lets iOS finish animating the old one away.
-    const [approved] = await Promise.all([
-      isQuickConnectApproved(),
-      new Promise((resolve) =>
-        setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
-      ),
-    ]);
+    // Let iOS finish animating the old browser away, then ask the server
+    // instead of trusting the last poll, whose answer may still be on its way:
+    // a browser reopened after the approval is one Android can't close.
+    await new Promise((resolve) =>
+      setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
+    );
+    const approved = await isQuickConnectApproved();
     if (approved || !stillWaiting(start)) return;
     // SSO plugins land on the home page after signing in, so the code page is
     // gone by the time the browser is closed: it opens once more on its own,
