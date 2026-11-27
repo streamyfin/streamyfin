@@ -14,7 +14,7 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends TouchableOpacityProps {
@@ -46,11 +46,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const { t } = useTranslation();
 
   const url = useMemo(
-    () =>
-      getPrimaryImageUrl({
-        api,
-        item: library,
-      }),
+    () => getItemImageUrl(api, library, "primary", { width: 400 }),
     [api, library],
   );
 

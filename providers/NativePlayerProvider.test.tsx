@@ -334,8 +334,8 @@ jest.mock("@/utils/jellyfin/getDefaultPlaySettings", () => ({
     mockDefaultPlaySettings(...args),
   getAdjacentStartTicks: () => undefined,
 }));
-jest.mock("@/utils/jellyfin/image/getPrimaryImageUrl", () => ({
-  getPrimaryImageUrl: () => null,
+jest.mock("@/utils/jellyfin/image/getItemImageUrl", () => ({
+  getItemImageUrl: () => null,
 }));
 jest.mock("@/utils/customHeaders", () =>
   jest.requireActual("@/test-utils/customHeaders").customHeadersModule(),

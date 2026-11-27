@@ -7,7 +7,7 @@ import type { ViewProps } from "react-native";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { getItemImageUrlById } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -27,7 +27,9 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
             {
               id: item.Id ?? "series",
               title: item.SeriesName ?? "",
-              imageUrl: getPrimaryImageUrlById({ api, id: item.ParentId }),
+              imageUrl: getItemImageUrlById(api, item.ParentId, "Primary", {
+                width: 500,
+              }),
             },
           ]
         : [],

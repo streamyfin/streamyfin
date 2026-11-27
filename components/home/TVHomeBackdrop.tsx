@@ -17,7 +17,7 @@ import {
   TV_BACKDROP_DEBOUNCE_MS,
 } from "@/constants/TVSizes";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 export interface TVHomeBackdropRef {
   handleItemFocus: (item: BaseItemDto) => void;
@@ -66,12 +66,7 @@ export const TVHomeBackdrop = React.memo(
     // Get backdrop URL from focused item
     const backdropUrl = useMemo(() => {
       if (!focusedItem) return null;
-      return getBackdropUrl({
-        api,
-        item: focusedItem,
-        quality: 90,
-        width: 1920,
-      });
+      return getItemImageUrl(api, focusedItem, "backdrop", { width: 1920 });
     }, [api, focusedItem]);
 
     // Crossfade animation for backdrop transitions. The layer shown is flipped

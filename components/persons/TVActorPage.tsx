@@ -34,7 +34,6 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
@@ -135,12 +134,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     // Use focused item if available, otherwise fall back to first movie or series
     const itemForBackdrop = focusedItem ?? movies[0] ?? series[0];
     if (!itemForBackdrop) return null;
-    return getBackdropUrl({
-      api,
-      item: itemForBackdrop,
-      quality: 90,
-      width: 1920,
-    });
+    return getItemImageUrl(api, itemForBackdrop, "backdrop", { width: 1920 });
   }, [api, focusedItem, movies, series]);
 
   // Crossfade animation for backdrop transitions

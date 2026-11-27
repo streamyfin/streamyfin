@@ -28,9 +28,7 @@ import {
   useSettings,
 } from "@/utils/atoms/settings";
 import { heroCardMaxFontScale } from "@/utils/heroCardFontScale";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { getItemNavigation } from "../common/TouchableItemRouter";
@@ -233,15 +231,15 @@ const buildBackdropUrl = (
     item.ParentBackdropItemId &&
     item.ParentBackdropImageTags?.length
   ) {
-    return getParentBackdropImageUrl({
-      api,
-      item,
-      quality: 80,
-      width,
-      height,
+    return getItemImageUrl(api, item, "parentBackdrop", {
+      width: width || 500,
+      height: height || undefined,
     });
   }
-  return getBackdropUrl({ api, item, quality: 80, width, height });
+  return getItemImageUrl(api, item, "backdrop", {
+    width: width || undefined,
+    height: height || undefined,
+  });
 };
 
 const buildLogoUrl = (api: Api, item: BaseItemDto): string | null =>

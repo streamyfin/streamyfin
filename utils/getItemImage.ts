@@ -17,40 +17,19 @@ interface Props {
    * request becomes "cover a `width` by `height` box" instead of a fixed width.
    */
   height?: number;
-  variant?:
-    | "Primary"
-    | "Backdrop"
-    | "ParentBackdrop"
-    | "ParentLogo"
-    | "Logo"
-    | "AlbumPrimary"
-    | "SeriesPrimary"
-    | "Screenshot"
-    | "Thumb";
+  kind?: ImageKind;
 }
-
-const KIND_OF_VARIANT: Record<NonNullable<Props["variant"]>, ImageKind> = {
-  Primary: "primary",
-  Backdrop: "backdrop",
-  Thumb: "thumb",
-  ParentBackdrop: "parentBackdrop",
-  ParentLogo: "logo",
-  Logo: "logo",
-  AlbumPrimary: "album",
-  SeriesPrimary: "poster",
-  Screenshot: "screenshot",
-};
 
 export const getItemImage = ({
   item,
   api,
-  variant = "Primary",
+  kind = "primary",
   width = 1000,
   height,
 }: Props) => {
   if (!api) return null;
 
-  const resolved = resolveItemImageUrl(api, item, KIND_OF_VARIANT[variant], {
+  const resolved = resolveItemImageUrl(api, item, kind, {
     width,
     height,
   });

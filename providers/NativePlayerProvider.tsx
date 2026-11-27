@@ -123,7 +123,7 @@ import {
   getAdjacentStartTicks,
   getDefaultPlaySettings,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { closeLiveStream } from "@/utils/jellyfin/media/closeLiveStream";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { subtitleSearchErrorMessage } from "@/utils/jellyfin/subtitleSearchAccess";
@@ -996,10 +996,7 @@ const NativePlayerProviderInner: React.FC<{
         title: next.Name ?? "",
         subtitle: [next.SeriesName, epNumber].filter(Boolean).join(" · "),
         imageUrl:
-          getPrimaryImageUrl({
-            api: apiRef.current,
-            item: next,
-            quality: 80,
+          getItemImageUrl(apiRef.current, next, "primary", {
             width: 300,
           }) ?? undefined,
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
@@ -1045,10 +1042,7 @@ const NativePlayerProviderInner: React.FC<{
             title: ep.Name ?? "",
             indexNumber: ep.IndexNumber ?? undefined,
             imageUrl:
-              getPrimaryImageUrl({
-                api: apiRef.current,
-                item: ep,
-                quality: 80,
+              getItemImageUrl(apiRef.current, ep, "primary", {
                 width: 300,
               }) ?? undefined,
             progressPercent: ep.UserData?.PlayedPercentage ?? 0,

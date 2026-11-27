@@ -23,6 +23,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
+import { LOGO_HEIGHT } from "@/constants/Images";
 import {
   type ScaledTVSizes,
   TV_BACKDROP_DEBOUNCE_MS,
@@ -35,9 +36,8 @@ import {
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -221,18 +221,15 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   // Get backdrop URL for active item
   const backdropUrl = useMemo(() => {
     if (!activeItem) return null;
-    return getBackdropUrl({
-      api,
-      item: activeItem,
-      quality: 90,
-      width: 1920,
-    });
+    return getItemImageUrl(api, activeItem, "backdrop", { width: 1920 });
   }, [api, activeItem]);
 
   // Get logo URL for active item
   const logoUrl = useMemo(() => {
     if (!activeItem) return null;
-    return getLogoImageUrlById({ api, item: activeItem });
+    return getItemImageUrl(api, activeItem, "logo", {
+      height: toImagePixels(LOGO_HEIGHT),
+    });
   }, [api, activeItem]);
 
   // Crossfade effect for backdrop

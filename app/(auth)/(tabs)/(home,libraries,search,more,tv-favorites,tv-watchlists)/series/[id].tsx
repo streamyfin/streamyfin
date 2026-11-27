@@ -32,8 +32,7 @@ import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
@@ -95,10 +94,7 @@ const page: React.FC = () => {
     if (isOffline && base64Image) {
       return `data:image/jpeg;base64,${base64Image}`;
     }
-    return getBackdropUrl({
-      api,
-      item,
-      quality: 90,
+    return getItemImageUrl(api, item, "backdrop", {
       width: toImagePixels(windowWidth),
       height: toImagePixels(HEADER_HEIGHT),
     });
@@ -108,9 +104,8 @@ const page: React.FC = () => {
     if (isOffline) {
       return null; // No logo in offline mode
     }
-    return getLogoImageUrlById({
-      api,
-      item,
+    return getItemImageUrl(api, item, "logo", {
+      height: toImagePixels(LOGO_HEIGHT),
     });
   }, [isOffline, api, item]);
 

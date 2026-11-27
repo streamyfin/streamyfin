@@ -400,7 +400,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         }}
       >
         <ItemImage
-          variant='Backdrop'
+          kind='backdrop'
           item={item}
           style={{ width: "100%", height: "100%" }}
         />
@@ -555,7 +555,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               }}
             >
               <ItemImage
-                variant='Primary'
+                kind='primary'
                 item={item}
                 style={{ width: "100%", height: "100%" }}
               />

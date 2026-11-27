@@ -32,7 +32,7 @@ import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { squareArtworkSide } from "@/utils/artworkSize";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 // Cast is off on TV.
@@ -112,7 +112,8 @@ export default function AlbumDetailScreen() {
   }, [album?.Name, navigation]);
 
   const imageUrl = useMemo(
-    () => (album ? getPrimaryImageUrl({ api, item: album }) : null),
+    () =>
+      album ? getItemImageUrl(api, album, "primary", { width: 400 }) : null,
     [api, album],
   );
 

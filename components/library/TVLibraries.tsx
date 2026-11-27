@@ -23,7 +23,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { logAndCaptureError } from "@/utils/log";
 import { scaleSize } from "@/utils/scaleSize";
 
@@ -86,17 +86,11 @@ const TVLibraryRow: React.FC<{
   const backdropUrl = useMemo(() => {
     // Try to get backdrop from library or first preview item
     if (library.previewItems?.[0]) {
-      return getBackdropUrl({
-        api,
-        item: library.previewItems[0],
+      return getItemImageUrl(api, library.previewItems[0], "backdrop", {
         width: 1920,
       });
     }
-    return getBackdropUrl({
-      api,
-      item: library,
-      width: 1920,
-    });
+    return getItemImageUrl(api, library, "backdrop", { width: 1920 });
   }, [api, library]);
 
   const iconName = icons[library.CollectionType!] || "folder";

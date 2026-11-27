@@ -22,7 +22,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -75,11 +75,8 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
 
   onFinishRef.current = onFinish;
 
-  const imageUrl = getPrimaryImageUrl({
-    api,
-    item: nextItem,
+  const imageUrl = getItemImageUrl(api, nextItem, "primary", {
     width: scaleSize(360),
-    quality: 80,
   });
 
   // Animated position based on controls visibility

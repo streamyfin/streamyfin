@@ -52,6 +52,7 @@ import {
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
+import { LOGO_HEIGHT } from "@/constants/Images";
 import {
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
@@ -77,9 +78,11 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { bitrateLabel, toBitrateRequest } from "@/utils/bitrate";
-import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import {
+  getItemImageUrl,
+  getItemImageUrlById,
+} from "@/utils/jellyfin/image/getItemImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
@@ -197,7 +200,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
-      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      () =>
+        item
+          ? getItemImageUrl(api, item, "logo", {
+              height: toImagePixels(LOGO_HEIGHT),
+            })
+          : null,
       [api, item],
     );
 
@@ -588,14 +596,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
       if (item?.Type !== "Episode" || !item.SeriesId) return null;
-      return getPrimaryImageUrlById({ api, id: item.SeriesId, width: 300 });
+      return getItemImageUrlById(api, item.SeriesId, "Primary", { width: 300 });
     }, [api, item?.Type, item?.SeriesId]);
 
     const seasonImageUrl = useMemo(() => {
       if (item?.Type !== "Episode") return null;
       const seasonId = item.SeasonId || item.ParentId;
       if (!seasonId) return null;
-      return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
+      return getItemImageUrlById(api, seasonId, "Primary", { width: 300 });
     }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
 
     // Episode thumbnail URL - episode's own primary image (16:9 for episodes)
@@ -1007,7 +1015,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   )
                 ) : (
                   <ItemImage
-                    variant='Primary'
+                    kind='primary'
                     item={item}
                     style={{
                       width: "100%",

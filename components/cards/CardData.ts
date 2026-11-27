@@ -5,8 +5,7 @@ import {
   CARD_IMAGE_WIDTH_STEP_PX,
   MAX_CARD_IMAGE_WIDTH_PX,
 } from "@/constants/Images";
-import { getPortraitImageUrl } from "@/utils/jellyfin/image/getPortraitImageUrl";
-import { getWideImageUrl } from "@/utils/jellyfin/image/getWideImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 
@@ -261,13 +260,11 @@ export function buildItemCards(
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
       kind === "portrait"
-        ? getPortraitImageUrl({ api, item, width: imageWidth })
-        : getWideImageUrl({
-            api,
-            item,
-            useEpisodePoster,
-            fillWidth: imageWidth,
-            fillHeight: imageHeight,
+        ? getItemImageUrl(api, item, "poster", { width: imageWidth || 500 })
+        : getItemImageUrl(api, item, "wide", {
+            preferEpisodeImage: useEpisodePoster,
+            width: imageWidth,
+            height: imageHeight,
           });
 
     const progress = itemProgressFraction(item);

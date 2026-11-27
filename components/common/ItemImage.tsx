@@ -8,19 +8,11 @@ import { Image } from "@/components/common/ServerImage";
 import { BACKGROUND_IMAGE_TRANSITION } from "@/constants/Values";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
+import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 
 interface Props extends ImageProps {
   item: BaseItemDto;
-  variant?:
-    | "Primary"
-    | "Backdrop"
-    | "ParentBackdrop"
-    | "ParentLogo"
-    | "Logo"
-    | "AlbumPrimary"
-    | "SeriesPrimary"
-    | "Screenshot"
-    | "Thumb";
+  kind?: ImageKind;
   quality?: number;
   /** Requested image width in physical pixels, not layout points. */
   width?: number;
@@ -34,7 +26,7 @@ interface Props extends ImageProps {
 
 export const ItemImage: FC<Props> = ({
   item,
-  variant = "Primary",
+  kind = "primary",
   quality = 90,
   width = 1000,
   height,
@@ -51,12 +43,12 @@ export const ItemImage: FC<Props> = ({
     return getItemImage({
       item,
       api,
-      variant,
+      kind,
       quality,
       width,
       height,
     });
-  }, [api, item, quality, variant, width, height]);
+  }, [api, item, quality, kind, width, height]);
 
   // return placeholder icon if no source
   if (!source?.uri)

@@ -63,7 +63,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { searchPeople, searchStudios } from "@/utils/jellyfin/search";
 import { logAndCaptureError } from "@/utils/log";
 import { isSeerrQuery } from "@/utils/seerr/queries";
@@ -897,7 +897,9 @@ export default function SearchPage() {
               items={artists}
               header={t("search.artists")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: 400,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -936,7 +938,9 @@ export default function SearchPage() {
               items={albums}
               header={t("search.albums")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: 400,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -978,7 +982,9 @@ export default function SearchPage() {
               items={songs}
               header={t("search.songs")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: 400,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -1020,7 +1026,9 @@ export default function SearchPage() {
               items={playlists}
               header={t("search.playlists")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: 400,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
