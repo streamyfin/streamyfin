@@ -59,7 +59,8 @@ class MpvPlayerModule : Module() {
                     cacheEnabled = cacheConfig?.get("enabled") as? String,
                     cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
                     demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),
-                    demuxerMaxBackBytes = (cacheConfig?.get("maxBackBytes") as? Number)?.toInt()
+                    demuxerMaxBackBytes = (cacheConfig?.get("maxBackBytes") as? Number)?.toInt(),
+                    audioOnlyWhenHidden = (source["audioOnlyWhenHidden"] as? Boolean) ?: false
                 )
                 
                 view.loadVideo(config)

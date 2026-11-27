@@ -39,6 +39,8 @@ export type NativePlayerStreamConfig = {
    * 60Hz panel and judders. Ignored by iOS.
    */
   contentFrameRate?: number;
+  /** Stop decoding video while the screen is off or the app hidden (Android only). */
+  audioOnlyWhenHidden?: boolean;
 };
 
 export type NativePlayerMetadata = {
