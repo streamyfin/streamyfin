@@ -1,9 +1,9 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { PixelRatio } from "react-native";
 import { getItemProgressPercentage } from "@/components/common/ProgressBar";
 import { MAX_CARD_IMAGE_WIDTH_PX } from "@/constants/Images";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 
 /** One card. Everything is prebuilt here; the card view is presentational. */
@@ -117,12 +117,12 @@ export const cardRowHeight = (kind: CardKind) => {
 };
 
 /**
- * The width, in points, to request artwork for: the card's own, held to the
- * widest card artwork the app asks for. The cap is in physical pixels, so it
- * is converted to the points that reach it on this screen.
+ * The width, in physical pixels, to request artwork for: the card's own, held
+ * to the widest card artwork the app asks for. Converted once per build, not
+ * once per card: a library grid rebuilds every card on every page it loads.
  */
 const cardImageWidth = (cardWidth: number) =>
-  Math.min(cardWidth, MAX_CARD_IMAGE_WIDTH_PX / PixelRatio.get());
+  Math.min(toImagePixels(cardWidth), MAX_CARD_IMAGE_WIDTH_PX);
 
 /**
  * The second line under a title: which episode this is, or when it came out.
@@ -253,11 +253,15 @@ export function buildItemCards(
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     const imageUrl =
       kind === "portrait"
-        ? getItemImageUrl(api, item, "poster", { width: imageWidth })
+        ? getItemImageUrl(api, item, "poster", {
+            width: imageWidth,
+            pixels: true,
+          })
         : getItemImageUrl(api, item, "wide", {
             preferEpisodeImage: useEpisodePoster,
             width: imageWidth,
             height: imageHeight,
+            pixels: true,
           });
 
     const progress = itemProgressFraction(item);

@@ -33,7 +33,8 @@ type ImageSize = {
   /**
    * `width` and `height` are physical pixels, not layout points. For an image
    * the app does not draw itself (lock screen artwork, a Top Shelf payload, a
-   * download), which has no layout box to convert. Still rounded up to the
+   * download), which has no layout box to convert, or for many images of one
+   * size the caller converted once (a card grid). Still rounded up to the
    * next `IMAGE_SIZE_STEP_PX`.
    */
   pixels?: boolean;
