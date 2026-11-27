@@ -30,6 +30,11 @@ import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+
+// Layout points, shared by the box and the image request sized from it.
+const ARTWORK_SIZE = 48;
 
 interface Props {
   open: boolean;
@@ -131,10 +136,12 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
     }, 300);
   }, [onCreateNew, setOpen]);
 
-  const getPlaylistImageUrl = useCallback(
+  const playlistImageUrl = useCallback(
     (playlist: BaseItemDto) => {
-      if (!api) return null;
-      return `${api.basePath}/Items/${playlist.Id}/Images/Primary?maxHeight=100&maxWidth=100`;
+      return getItemImageUrl(api, playlist, "primary", {
+        width: toImagePixels(ARTWORK_SIZE),
+        height: toImagePixels(ARTWORK_SIZE),
+      });
     },
     [api],
   );
@@ -211,22 +218,30 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
                 >
                   <View
                     style={{
-                      width: 48,
-                      height: 48,
+                      width: ARTWORK_SIZE,
+                      height: ARTWORK_SIZE,
                       borderRadius: 6,
                       overflow: "hidden",
                       backgroundColor: "#1a1a1a",
                       marginRight: 12,
                     }}
                   >
-                    <ArtworkImage
-                      source={{
-                        uri: getPlaylistImageUrl(playlist) || undefined,
-                      }}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit='cover'
-                      cachePolicy='memory-disk'
-                    />
+                    {playlistImageUrl(playlist) ? (
+                      <ArtworkImage
+                        source={{ uri: playlistImageUrl(playlist) as string }}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit='cover'
+                        cachePolicy='memory-disk'
+                      />
+                    ) : (
+                      <View className='flex-1 items-center justify-center bg-neutral-800'>
+                        <Ionicons
+                          name='musical-note'
+                          size={20}
+                          color='#737373'
+                        />
+                      </View>
+                    )}
                   </View>
                   <View className='flex-1'>
                     <Text numberOfLines={1} className='text-white text-base'>

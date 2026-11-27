@@ -44,6 +44,7 @@ import { queueWindow } from "@/utils/cast/jellyfinReceiver";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { markExpectedError } from "@/utils/errors";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import {
   type MusicRepeatMode,
   parsePlaybackModeCommand,
@@ -421,11 +422,13 @@ const itemToTrack = (
   api: Api,
   preferLocalAudio = true,
 ): Track => {
-  const albumId = item.AlbumId || item.ParentId;
-  const artworkId = albumId || item.Id;
-  const artwork = artworkId
-    ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=512&maxWidth=512&quality=90`
-    : undefined;
+  // Physical pixels, fixed: the lock screen and notification pick their own size.
+  const artwork =
+    getItemImageUrl(api, item, "album", {
+      width: 512,
+      height: 512,
+      quality: 90,
+    }) ?? undefined;
   const artworkHeaders = getJellyfinHeadersForUrl(artwork, api.basePath);
 
   // Check if track is cached locally (permanent downloads take precedence)
