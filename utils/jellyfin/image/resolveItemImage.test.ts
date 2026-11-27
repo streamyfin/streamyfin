@@ -12,7 +12,6 @@ const full = {
     Primary: "primary",
     Thumb: "thumb",
     Logo: "logo",
-    Screenshot: "shot",
   },
   BackdropImageTags: ["backdrop", "backdrop-2"],
   SeriesId: "series",
@@ -45,7 +44,6 @@ describe("resolveItemImage steps", () => {
     ["thumb", "thumb", "item", "Thumb", "thumb"],
     ["backdrop", "backdrop", "item", "Backdrop", "backdrop"],
     ["logo", "logo", "item", "Logo", "logo"],
-    ["screenshot", "screenshot", "item", "Screenshot", "shot"],
     [
       "parentBackdrop",
       "parentBackdrop",
@@ -149,8 +147,6 @@ describe("resolveItemImage half pairs", () => {
     ["thumb", { ImageTags: {} }],
     ["logo", { Id: undefined, ParentLogoItemId: undefined }],
     ["logo", { ImageTags: {}, ParentLogoImageTag: undefined }],
-    ["screenshot", { Id: undefined }],
-    ["screenshot", { ImageTags: {} }],
     ["parentBackdrop", { ParentBackdropItemId: undefined }],
     ["parentBackdrop", { ParentBackdropImageTags: [] }],
   ])("%s gives null for %j", (kind, patch) => {
@@ -259,7 +255,6 @@ describe("resolveItemImage kinds", () => {
         "parentBackdrop",
         "poster",
         "primary",
-        "screenshot",
         "seasonPoster",
         "thumb",
         "wide",
@@ -407,14 +402,11 @@ describe("resolveItemImage kinds", () => {
     ).toBe("thumb-owner:Thumb");
   });
 
-  test("parentBackdrop, thumb and screenshot have no fallback", () => {
+  test("parentBackdrop and thumb have no fallback", () => {
     const bare = { Id: "item", ImageTags: {}, BackdropImageTags: [] };
     expect(typeAndOwner(bare, "parentBackdrop")).toBeNull();
     expect(
       typeAndOwner({ ...bare, ImageTags: { Primary: "p" } }, "thumb"),
-    ).toBeNull();
-    expect(
-      typeAndOwner({ ...bare, ImageTags: { Primary: "p" } }, "screenshot"),
     ).toBeNull();
   });
 });

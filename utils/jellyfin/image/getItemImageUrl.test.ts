@@ -154,7 +154,6 @@ describe("getItemImageUrl nulls", () => {
     expect(
       getItemImageUrl(api, { Id: "x", ImageTags: {} }, "primary"),
     ).toBeNull();
-    expect(getItemImageUrl(api, movie, "screenshot")).toBeNull();
   });
 
   test("returns null for an item without an Id", () => {

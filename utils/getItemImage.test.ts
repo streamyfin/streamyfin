@@ -210,19 +210,4 @@ describe("getItemImage kinds", () => {
       `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary`,
     );
   });
-
-  test("screenshot is null without one and sized to the box with one", () => {
-    expect(getItemImage({ api, item: full, kind: "screenshot" })).toBeNull();
-    expect(
-      getItemImage({
-        api,
-        item: { ...full, ImageTags: { Screenshot: "shot" } },
-        kind: "screenshot",
-        width: 320,
-        height: 180,
-      })?.uri,
-    ).toBe(
-      `${base}/Items/movie-1/Images/Screenshot?fillWidth=700&fillHeight=400&maxWidth=1920&maxHeight=1920&quality=90&tag=shot`,
-    );
-  });
 });

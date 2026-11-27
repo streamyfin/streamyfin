@@ -21,8 +21,7 @@ export type ImageKind =
   | "parentBackdrop"
   | "thumb"
   | "logo"
-  | "album"
-  | "screenshot";
+  | "album";
 
 export type ResolveItemImageOptions = {
   /** `wide` only: prefer an episode's own still over its series' Thumb. */
@@ -49,7 +48,6 @@ const STEPS = {
   thumb: (i) => pair(i.Id, "Thumb", i.ImageTags?.Thumb),
   backdrop: (i) => pair(i.Id, "Backdrop", i.BackdropImageTags?.[0]),
   logo: (i) => pair(i.Id, "Logo", i.ImageTags?.Logo),
-  screenshot: (i) => pair(i.Id, "Screenshot", i.ImageTags?.Screenshot),
   seriesPrimary: (i) => pair(i.SeriesId, "Primary", i.SeriesPrimaryImageTag),
   seriesThumb: (i) => pair(i.SeriesId, "Thumb", i.SeriesThumbImageTag),
   // The Thumb and the Backdrop of a parent can belong to different items, so
@@ -104,7 +102,6 @@ export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   },
   logo: { default: ["logo", "parentLogo"] },
   album: { default: ["albumPrimary", "parentPrimary", "primary"] },
-  screenshot: { default: ["screenshot"] },
 };
 
 const stepsFor = (
