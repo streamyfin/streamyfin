@@ -9,7 +9,6 @@ jest.mock("@/providers/JellyfinProvider", () =>
 );
 
 jest.mock("@/components/WatchedIndicator", () => ({
-  UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,
 }));
 jest.mock("@/constants/TVPosterSizes", () => ({

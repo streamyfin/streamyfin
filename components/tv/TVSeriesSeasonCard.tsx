@@ -45,44 +45,6 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
       useNativeDriver: true,
     }).start();
 
-  const renderPoster = () => {
-    return (
-      <View
-        style={{
-          width: sizes.posters.poster,
-          aspectRatio: 10 / 15,
-          borderRadius: scaleSize(24),
-          overflow: "hidden",
-          backgroundColor: "rgba(255,255,255,0.1)",
-          borderWidth: scaleSize(2),
-          borderColor: focused ? "#FFFFFF" : "transparent",
-        }}
-      >
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={{ width: "100%", height: "100%" }}
-            contentFit='cover'
-          />
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons
-              name='film'
-              size={scaleSize(56)}
-              color='rgba(255,255,255,0.4)'
-            />
-          </View>
-        )}
-      </View>
-    );
-  };
-
   return (
     <View style={{ width: sizes.posters.poster }}>
       <Pressable
@@ -107,7 +69,39 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
             shadowRadius: focused ? 12 : 0,
           }}
         >
-          {renderPoster()}
+          <View
+            style={{
+              width: sizes.posters.poster,
+              aspectRatio: 10 / 15,
+              borderRadius: scaleSize(24),
+              overflow: "hidden",
+              backgroundColor: "rgba(255,255,255,0.1)",
+              borderWidth: scaleSize(2),
+              borderColor: focused ? "#FFFFFF" : "transparent",
+            }}
+          >
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+              />
+            ) : (
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name='film'
+                  size={scaleSize(56)}
+                  color='rgba(255,255,255,0.4)'
+                />
+              </View>
+            )}
+          </View>
         </Animated.View>
       </Pressable>
 

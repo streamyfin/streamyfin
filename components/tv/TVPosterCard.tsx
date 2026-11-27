@@ -91,7 +91,6 @@ export interface TVPosterCardProps {
  * Supports both portrait (10:15) and landscape (16:9) orientations.
  *
  * Features:
- * - Glass effect on tvOS 26+ with fallback
  * - Focus handling with scale animation and glow
  * - Progress bar and watched indicator
  * - Smart subtitle text based on item type
@@ -604,7 +603,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         <Animated.View
           style={{
             transform: [{ scale }],
-            shadowColor: shadowColor,
+            shadowColor,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.3 : 0,
             shadowRadius: focused ? scaleSize(12) : 0,
