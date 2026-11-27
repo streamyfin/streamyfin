@@ -9,9 +9,6 @@ export type {
 export { default as BackgroundDownloader } from "./background-downloader";
 // ExoPlayer (Android TV)
 export { ExoPlayerView } from "./exoplayer-player";
-// Glass Poster (tvOS 26+)
-export type { GlassPosterViewProps } from "./glass-poster";
-export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
 // Hero Carousel (iOS + Android home tab)
 export type {
   HeroCarouselFilterOption,

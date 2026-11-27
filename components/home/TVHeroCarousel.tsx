@@ -13,7 +13,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Platform,
   Pressable,
   useWindowDimensions,
   View,
@@ -30,10 +29,6 @@ import {
 } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import {
-  GlassPosterView,
-  isGlassEffectAvailable,
-} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -62,9 +57,6 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     const api = useAtomValue(apiAtom);
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
-
-    // Check if glass effect is available (tvOS 26+)
-    const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
 
     const posterUrl = useMemo(() => {
       if (!api) return null;
@@ -132,33 +124,6 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       onLongPress?.(item);
     }, [onLongPress, item]);
 
-    // Use glass poster for tvOS 26+
-    if (useGlass && posterUrl) {
-      const progress = item.UserData?.PlayedPercentage || 0;
-      return (
-        <Pressable
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          hasTVPreferredFocus={isFirst}
-          style={{ marginRight: sizes.gaps.item }}
-        >
-          <GlassPosterView
-            imageUrl={posterUrl}
-            aspectRatio={16 / 9}
-            cornerRadius={scaleSize(24)}
-            progress={progress}
-            showWatchedIndicator={false}
-            isFocused={focused}
-            width={sizes.posters.episode}
-            style={{ width: sizes.posters.episode }}
-          />
-        </Pressable>
-      );
-    }
-
-    // Fallback for non-tvOS or older tvOS
     return (
       <Pressable
         onPress={handlePress}

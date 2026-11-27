@@ -14,17 +14,10 @@ import {
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
-import {
-  UnplayedCountBadge,
-  WatchedIndicator,
-} from "@/components/WatchedIndicator";
+import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import {
-  GlassPosterView,
-  isGlassEffectAvailable,
-} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
@@ -98,7 +91,6 @@ export interface TVPosterCardProps {
  * Supports both portrait (10:15) and landscape (16:9) orientations.
  *
  * Features:
- * - Glass effect on tvOS 26+ with fallback
  * - Focus handling with scale animation and glow
  * - Progress bar and watched indicator
  * - Smart subtitle text based on item type
@@ -206,33 +198,11 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
     });
   }, [api, item, orientation, width, imageUrlGetter, preferEpisodeImage]);
 
-  // Progress calculation
-  const progress = useMemo(() => {
-    if (!showProgress) return 0;
-
-    if (item.Type === "Program") {
-      if (!item.StartDate || !item.EndDate) return 0;
-      const startDate = new Date(item.StartDate);
-      const endDate = new Date(item.EndDate);
-      const now = new Date();
-      const total = endDate.getTime() - startDate.getTime();
-      if (total <= 0) return 0;
-      const elapsed = now.getTime() - startDate.getTime();
-      return (elapsed / total) * 100;
-    }
-    return item.UserData?.PlayedPercentage || 0;
-  }, [item, showProgress]);
-
-  const isWatched = showWatchedIndicator && item.UserData?.Played === true;
-
   // Blurhash for placeholder
   const blurhash = useMemo(() => {
     const key = item.ImageTags?.Primary as string;
     return item.ImageBlurHashes?.Primary?.[key];
   }, [item]);
-
-  // Glass effect availability
-  const useGlass = isGlassEffectAvailable();
 
   // Focus animation
   const animateTo = useCallback(
@@ -256,20 +226,15 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
 
   const handleFocus = useCallback(() => {
     setFocused(true);
-    // Only animate scale when not using glass effect (glass handles its own focus visual)
-    if (!useGlass) {
-      animateTo(scaleAmount);
-    }
+    animateTo(scaleAmount);
     onFocusProp?.(item);
-  }, [animateTo, onFocusProp, item, scaleAmount, useGlass]);
+  }, [animateTo, onFocusProp, item, scaleAmount]);
 
   const handleBlur = useCallback(() => {
     setFocused(false);
-    if (!useGlass) {
-      animateTo(1);
-    }
+    animateTo(1);
     onBlurProp?.(item);
-  }, [animateTo, onBlurProp, item, useGlass]);
+  }, [animateTo, onBlurProp, item]);
 
   const shadowColor = glowColor === "white" ? "#ffffff" : "#a855f7";
 
@@ -520,35 +485,6 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
       );
     }
 
-    // Glass effect rendering (tvOS 26+)
-    if (useGlass) {
-      return (
-        <View style={{ position: "relative" }}>
-          <GlassPosterView
-            imageUrl={imageUrl}
-            aspectRatio={aspectRatio}
-            cornerRadius={scaleSize(24)}
-            progress={progress}
-            showWatchedIndicator={isWatched}
-            isFocused={focused}
-            width={width}
-            style={{ width }}
-          />
-          {PlayButtonOverlay}
-          {NowPlayingBadge}
-          {LiveBadge}
-          {overlay}
-          {/*
-            The glass view draws the watched checkmark natively but cannot show
-            an unplayed-episode count, so render it as an RN overlay on top.
-            Returns null when not applicable (non-series / fully watched).
-          */}
-          {showWatchedIndicator && <UnplayedCountBadge item={item} />}
-        </View>
-      );
-    }
-
-    // Fallback rendering for older tvOS versions
     return (
       <View
         style={{
@@ -579,7 +515,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         {LiveBadge}
         {overlay}
         {showWatchedIndicator && <WatchedIndicator item={item} />}
-        <ProgressBar item={item} />
+        {showProgress && <ProgressBar item={item} />}
       </View>
     );
   };
@@ -666,13 +602,11 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
       >
         <Animated.View
           style={{
-            // Only apply scale transform when not using glass effect
-            transform: useGlass ? undefined : [{ scale }],
-            // Only apply shadow glow when not using glass (glass has its own glow)
-            shadowColor: useGlass ? undefined : shadowColor,
-            shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
-            shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? scaleSize(12) : 0,
+            transform: [{ scale }],
+            shadowColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.3 : 0,
+            shadowRadius: focused ? scaleSize(12) : 0,
           }}
         >
           {renderPosterImage()}
