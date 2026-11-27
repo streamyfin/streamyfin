@@ -382,6 +382,17 @@ describe("resolveItemImage kinds", () => {
     ).toBe("item:Primary");
   });
 
+  // An episode's Thumb hangs on its series or season, as jellyfin-web's
+  // preferThumb chain reads it.
+  test("thumb is an episode's own, the series', then the parent's", () => {
+    expect(typeAndOwner(episode, "thumb")).toBe("item:Thumb");
+    const noOwn = { ...episode, ImageTags: {} };
+    expect(typeAndOwner(noOwn, "thumb")).toBe("series:Thumb");
+    expect(
+      typeAndOwner({ ...noOwn, SeriesThumbImageTag: undefined }, "thumb"),
+    ).toBe("thumb-owner:Thumb");
+  });
+
   test("parentBackdrop, thumb and screenshot have no fallback", () => {
     const bare = { Id: "item", ImageTags: {}, BackdropImageTags: [] };
     expect(typeAndOwner(bare, "parentBackdrop")).toBeNull();

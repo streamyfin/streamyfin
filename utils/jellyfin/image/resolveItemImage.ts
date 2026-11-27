@@ -98,7 +98,10 @@ export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   },
   backdrop: { default: ["backdrop", "parentBackdrop", "primary"] },
   parentBackdrop: { default: ["parentBackdrop"] },
-  thumb: { default: ["thumb"] },
+  thumb: {
+    episode: ["thumb", "seriesThumb", "parentThumb"],
+    default: ["thumb"],
+  },
   logo: { default: ["logo", "parentLogo"] },
   album: { default: ["albumPrimary", "parentPrimary", "primary"] },
   screenshot: { default: ["screenshot"] },
