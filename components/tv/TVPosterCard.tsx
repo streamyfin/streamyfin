@@ -579,7 +579,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         {LiveBadge}
         {overlay}
         {showWatchedIndicator && <WatchedIndicator item={item} />}
-        <ProgressBar item={item} />
+        {showProgress && <ProgressBar item={item} />}
       </View>
     );
   };
