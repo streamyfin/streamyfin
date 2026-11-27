@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
         with:
           fail-on-severity: high
           base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || 'develop' }}
@@ -53,7 +53,7 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # renovate: datasource=npm depName=bun
-          bun-version: "1.4.4"
+          bun-version: "1.4.5"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -97,7 +97,7 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # renovate: datasource=npm depName=bun
-          bun-version: "1.4.4"
+          bun-version: "1.4.5"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
