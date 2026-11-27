@@ -160,7 +160,11 @@ const items = (prefix: string, type: "Movie" | "Episode"): BaseItemDto[] =>
     Name: `${prefix} ${index}`,
     Type: type,
     SeriesName: type === "Episode" ? `${prefix} series ${index}` : undefined,
-    ImageTags: { Primary: `tag-${prefix}-${index}` },
+    // Web: 3 (a wide card of a movie falls to its Backdrop without a Thumb)
+    ImageTags: {
+      Primary: `tag-${prefix}-${index}`,
+      Thumb: `tag-own-thumb-${prefix}-${index}`,
+    },
     BackdropImageTags: [`backdrop-${prefix}-${index}`],
     ParentThumbItemId:
       type === "Episode" ? `thumb-${prefix}-${index}` : undefined,

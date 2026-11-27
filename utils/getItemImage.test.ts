@@ -23,8 +23,9 @@ describe("getItemImage", () => {
       height: 1500,
     });
 
+    // Web: 5
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=90&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=80&tag=backdrop-tag&imageIndex=0`,
     );
   });
 
@@ -44,8 +45,9 @@ describe("getItemImage", () => {
   test("leaves a width only request as it was", () => {
     const source = getItemImage({ api, item: movie, variant: "Backdrop" });
 
+    // Web: 5
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=90&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=80&tag=backdrop-tag&imageIndex=0`,
     );
   });
 });

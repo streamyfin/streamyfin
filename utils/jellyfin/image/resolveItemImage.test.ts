@@ -17,6 +17,7 @@ const full = {
   BackdropImageTags: ["backdrop", "backdrop-2"],
   SeriesId: "series",
   SeriesPrimaryImageTag: "series-primary",
+  SeriesThumbImageTag: "series-thumb",
   ParentThumbItemId: "thumb-owner",
   ParentThumbImageTag: "parent-thumb",
   ParentBackdropItemId: "backdrop-owner",
@@ -25,6 +26,7 @@ const full = {
   ParentLogoImageTag: "parent-logo",
   ParentId: "parent",
   SeasonId: "season",
+  ParentPrimaryImageItemId: "parent-primary-owner",
   ParentPrimaryImageTag: "parent-primary",
   AlbumId: "album",
   AlbumPrimaryImageTag: "album-primary",
@@ -41,7 +43,7 @@ describe("resolveItemImage steps", () => {
   test.each([
     ["primary", "primary", "item", "Primary", "primary"],
     ["thumb", "thumb", "item", "Thumb", "thumb"],
-    ["backdrop", "heroBackdrop", "item", "Backdrop", "backdrop"],
+    ["backdrop", "backdrop", "item", "Backdrop", "backdrop"],
     ["logo", "logo", "item", "Logo", "logo"],
     ["screenshot", "screenshot", "item", "Screenshot", "shot"],
     [
@@ -59,7 +61,7 @@ describe("resolveItemImage steps", () => {
   );
 
   test("the backdrop step takes the first of the tags", () => {
-    expect(resolveItemImage(full, "heroBackdrop")?.tag).toBe("backdrop");
+    expect(resolveItemImage(full, "backdrop")?.tag).toBe("backdrop");
   });
 
   test("seriesPrimary reads the series and its tag", () => {
@@ -70,16 +72,29 @@ describe("resolveItemImage steps", () => {
     });
   });
 
-  test("seasonPrimary reads the season and the parent's Primary tag", () => {
+  test("parentPrimary reads the owner of the parent's Primary tag", () => {
     expect(resolveItemImage(episode, "seasonPoster")).toEqual({
-      itemId: "season",
+      itemId: "parent-primary-owner",
       type: "Primary",
       tag: "parent-primary",
     });
   });
 
-  test("parentThumb reads the owner of the Thumb, not of the backdrop", () => {
+  test("seriesThumb reads the series and its Thumb tag", () => {
     expect(resolveItemImage({ ...episode, ImageTags: {} }, "wide")).toEqual({
+      itemId: "series",
+      type: "Thumb",
+      tag: "series-thumb",
+    });
+  });
+
+  test("parentThumb reads the owner of the Thumb, not of the backdrop", () => {
+    expect(
+      resolveItemImage(
+        { ...episode, ImageTags: {}, SeriesThumbImageTag: undefined },
+        "wide",
+      ),
+    ).toEqual({
       itemId: "thumb-owner",
       type: "Thumb",
       tag: "parent-thumb",
@@ -102,9 +117,9 @@ describe("resolveItemImage steps", () => {
     });
   });
 
-  test("parentPrimary reads ParentId and a plain string tag", () => {
+  test("parentPrimary reads ParentPrimaryImageItemId and a plain string tag", () => {
     expect(resolveItemImage({ ...full, AlbumId: undefined }, "album")).toEqual({
-      itemId: "parent",
+      itemId: "parent-primary-owner",
       type: "Primary",
       tag: "parent-primary",
     });
@@ -132,8 +147,6 @@ describe("resolveItemImage half pairs", () => {
     ["primary", { ImageTags: {} }],
     ["thumb", { Id: undefined }],
     ["thumb", { ImageTags: {} }],
-    ["heroBackdrop", { Id: undefined }],
-    ["heroBackdrop", { BackdropImageTags: [] }],
     ["logo", { Id: undefined, ParentLogoItemId: undefined }],
     ["logo", { ImageTags: {}, ParentLogoImageTag: undefined }],
     ["screenshot", { Id: undefined }],
@@ -153,42 +166,77 @@ describe("resolveItemImage half pairs", () => {
     },
   );
 
-  test.each([{ SeasonId: undefined }, { ParentPrimaryImageTag: undefined }])(
-    "an episode season poster skips the season step for %j",
+  test.each([
+    { ParentPrimaryImageItemId: undefined },
+    { ParentPrimaryImageTag: undefined },
+  ])("an episode season poster skips the parent step for %j", (patch) => {
+    expect(
+      resolveItemImage({ ...episode, ...patch }, "seasonPoster")?.itemId,
+    ).toBe("series");
+  });
+
+  test.each([{ SeriesId: undefined }, { SeriesThumbImageTag: undefined }])(
+    "an episode's wide image skips a half series Thumb pair for %j",
     (patch) => {
-      expect(
-        resolveItemImage({ ...episode, ...patch }, "seasonPoster")?.itemId,
-      ).toBe("series");
+      expect(resolveItemImage({ ...episode, ...patch }, "wide")).toEqual({
+        itemId: "thumb-owner",
+        type: "Thumb",
+        tag: "parent-thumb",
+      });
     },
   );
 
   test.each([
     { ParentThumbItemId: undefined },
     { ParentThumbImageTag: undefined },
-  ])("an episode's wide image skips a half Thumb pair for %j", (patch) => {
-    expect(resolveItemImage({ ...episode, ...patch }, "wide")).toEqual({
-      itemId: "backdrop-owner",
-      type: "Backdrop",
-      tag: "parent-backdrop",
-    });
-  });
+  ])(
+    "an episode's wide image skips a half parent Thumb pair for %j",
+    (patch) => {
+      expect(
+        resolveItemImage(
+          { ...episode, SeriesThumbImageTag: undefined, ...patch },
+          "wide",
+        ),
+      ).toEqual({
+        itemId: "backdrop-owner",
+        type: "Backdrop",
+        tag: "parent-backdrop",
+      });
+    },
+  );
 
   test.each([{ AlbumId: undefined }, { AlbumPrimaryImageTag: undefined }])(
     "an album skips a half album pair for %j",
     (patch) => {
       expect(resolveItemImage({ ...full, ...patch }, "album")?.itemId).toBe(
-        "parent",
+        "parent-primary-owner",
       );
     },
   );
 
-  test("an album skips a half ParentId pair", () => {
+  test.each([
+    { ParentPrimaryImageItemId: undefined },
+    { ParentPrimaryImageTag: undefined },
+  ])("an album skips a half parent Primary pair for %j", (patch) => {
+    expect(
+      resolveItemImage({ ...full, AlbumId: undefined, ...patch }, "album")
+        ?.itemId,
+    ).toBe("item");
+  });
+
+  test("parentPrimary never falls back to ParentId", () => {
+    // ParentId is set, but its tag is paired with ParentPrimaryImageItemId.
     expect(
       resolveItemImage(
-        { ...full, AlbumId: undefined, ParentPrimaryImageTag: undefined },
+        {
+          ...full,
+          AlbumId: undefined,
+          ParentPrimaryImageItemId: undefined,
+          ImageTags: {},
+        },
         "album",
-      )?.itemId,
-    ).toBe("item");
+      ),
+    ).toBeNull();
   });
 });
 
@@ -207,7 +255,6 @@ describe("resolveItemImage kinds", () => {
       [
         "album",
         "backdrop",
-        "heroBackdrop",
         "logo",
         "parentBackdrop",
         "poster",
@@ -236,8 +283,10 @@ describe("resolveItemImage kinds", () => {
     ).toBe("item:Primary");
   });
 
-  test("seasonPoster is the season's Primary, then the series', then the episode's own", () => {
-    expect(typeAndOwner(episode, "seasonPoster")).toBe("season:Primary");
+  test("seasonPoster is the parent's Primary, then the series', then the episode's own", () => {
+    expect(typeAndOwner(episode, "seasonPoster")).toBe(
+      "parent-primary-owner:Primary",
+    );
     expect(
       typeAndOwner(
         { ...episode, ParentPrimaryImageTag: undefined },
@@ -260,57 +309,57 @@ describe("resolveItemImage kinds", () => {
     expect(typeAndOwner(full, "seasonPoster")).toBe("item:Primary");
   });
 
-  test("wide is Thumb then Primary for an item that is no episode", () => {
-    expect(typeAndOwner(full, "wide")).toBe("item:Thumb");
+  test("wide is Thumb, backdrop, then Primary for an item that is no episode", () => {
     expect(typeAndOwner({ ...full, ImageTags: { Primary: "p" } }, "wide")).toBe(
-      "item:Primary",
+      "item:Backdrop",
     );
-  });
-
-  test("wide is parent Thumb, parent backdrop, then Primary for an episode", () => {
-    expect(typeAndOwner(episode, "wide")).toBe("thumb-owner:Thumb");
-    expect(
-      typeAndOwner({ ...episode, ParentThumbImageTag: undefined }, "wide"),
-    ).toBe("backdrop-owner:Backdrop");
     expect(
       typeAndOwner(
-        {
-          ...episode,
-          ParentThumbImageTag: undefined,
-          ParentBackdropImageTags: [],
-        },
+        { ...full, ImageTags: { Primary: "p" }, BackdropImageTags: [] },
         "wide",
       ),
     ).toBe("item:Primary");
   });
 
-  test("wide prefers the episode's own image when asked", () => {
+  test("wide is series Thumb, parent Thumb, parent backdrop, then Primary for an episode", () => {
+    expect(typeAndOwner(episode, "wide")).toBe("series:Thumb");
+    const noSeriesThumb = { ...episode, SeriesThumbImageTag: undefined };
+    expect(typeAndOwner(noSeriesThumb, "wide")).toBe("thumb-owner:Thumb");
+    const noThumbs = { ...noSeriesThumb, ParentThumbImageTag: undefined };
+    expect(typeAndOwner(noThumbs, "wide")).toBe("backdrop-owner:Backdrop");
+    expect(
+      typeAndOwner({ ...noThumbs, ParentBackdropImageTags: [] }, "wide"),
+    ).toBe("item:Primary");
+  });
+
+  test("wide with preferEpisodeImage is Primary, series Thumb, parent Thumb, parent backdrop", () => {
     expect(typeAndOwner(episode, "wide", true)).toBe("item:Primary");
-    expect(typeAndOwner({ ...episode, ImageTags: {} }, "wide", true)).toBe(
-      "thumb-owner:Thumb",
-    );
+    const own = { ...episode, ImageTags: {} };
+    expect(typeAndOwner(own, "wide", true)).toBe("series:Thumb");
+    const noSeriesThumb = { ...own, SeriesThumbImageTag: undefined };
+    expect(typeAndOwner(noSeriesThumb, "wide", true)).toBe("thumb-owner:Thumb");
+    expect(
+      typeAndOwner(
+        { ...noSeriesThumb, ParentThumbImageTag: undefined },
+        "wide",
+        true,
+      ),
+    ).toBe("backdrop-owner:Backdrop");
   });
 
   test("preferEpisodeImage changes nothing for an item that is no episode", () => {
     expect(typeAndOwner(full, "wide", true)).toBe("item:Thumb");
   });
 
-  test("backdrop is the item's backdrop then its Primary, an episode's Primary alone", () => {
-    expect(typeAndOwner(full, "backdrop")).toBe("item:Backdrop");
-    expect(typeAndOwner({ ...full, BackdropImageTags: [] }, "backdrop")).toBe(
-      "item:Primary",
-    );
-    expect(typeAndOwner(episode, "backdrop")).toBe("item:Primary");
-  });
-
-  test("heroBackdrop is the item's backdrop, an episode's parent backdrop", () => {
-    expect(typeAndOwner(full, "heroBackdrop")).toBe("item:Backdrop");
-    expect(typeAndOwner(episode, "heroBackdrop")).toBe(
-      "backdrop-owner:Backdrop",
-    );
-    expect(
-      typeAndOwner({ ...full, BackdropImageTags: [] }, "heroBackdrop"),
-    ).toBeNull();
+  test("backdrop is the item's backdrop, the parent's, then its Primary, episode or not", () => {
+    for (const item of [full, episode]) {
+      expect(typeAndOwner(item, "backdrop")).toBe("item:Backdrop");
+      const own = { ...item, BackdropImageTags: [] };
+      expect(typeAndOwner(own, "backdrop")).toBe("backdrop-owner:Backdrop");
+      expect(
+        typeAndOwner({ ...own, ParentBackdropImageTags: [] }, "backdrop"),
+      ).toBe("item:Primary");
+    }
   });
 
   test("logo is the item's own, then the parent's", () => {
@@ -323,11 +372,11 @@ describe("resolveItemImage kinds", () => {
   test("album is the album's Primary, the parent's, then the item's", () => {
     expect(typeAndOwner(full, "album")).toBe("album:Primary");
     expect(typeAndOwner({ ...full, AlbumId: undefined }, "album")).toBe(
-      "parent:Primary",
+      "parent-primary-owner:Primary",
     );
     expect(
       typeAndOwner(
-        { ...full, AlbumId: undefined, ParentId: undefined },
+        { ...full, AlbumId: undefined, ParentPrimaryImageItemId: undefined },
         "album",
       ),
     ).toBe("item:Primary");
@@ -360,9 +409,10 @@ describe("resolveItemImage blurhash", () => {
       resolveItemImage(
         {
           ...episode,
+          BackdropImageTags: [],
           ImageBlurHashes: { Backdrop: { "parent-backdrop": "parent-hash" } },
         },
-        "heroBackdrop",
+        "backdrop",
       )?.blurhash,
     ).toBe("parent-hash");
   });

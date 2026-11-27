@@ -38,15 +38,15 @@ export const CARD_IMAGE_WIDTH_STEP_PX = 100;
 export const MAX_CARD_IMAGE_WIDTH_PX = 800;
 
 /**
- * Quality asked for when a caller names none. 80 is where JPEG artwork stops
- * improving visibly for the bytes it costs, and every card, backdrop and
- * poster the app drew before the image builders shared one entry point used it.
+ * Quality of a Backdrop. Jellyfin's own API client (jellyfin-apiclient
+ * `normalizeImageOptions`) asks for 80 on a Backdrop, which is large and
+ * photographic, so the extra bytes of a higher setting buy nothing visible.
  */
-export const DEFAULT_IMAGE_QUALITY = 80;
+export const BACKDROP_IMAGE_QUALITY = 80;
 
 /**
- * Quality of a logo. A logo is flat shapes and thin edges on transparency,
- * where compression ringing shows at 80, so it is asked for sharper than the
- * artwork around it.
+ * Quality of every other image type: Primary, Thumb, Logo and the rest.
+ * Jellyfin's own API client (jellyfin-apiclient `normalizeImageOptions`) asks
+ * for 90 on all of them.
  */
-export const LOGO_IMAGE_QUALITY = 90;
+export const IMAGE_QUALITY = 90;

@@ -8,6 +8,7 @@ import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 interface Props {
   item: BaseItemDto;
   api: Api;
+  /** @deprecated Quality follows the image type; this is ignored. */
   quality?: number;
   /** Image width in physical pixels, not layout points. */
   width?: number;
@@ -30,7 +31,7 @@ interface Props {
 
 const KIND_OF_VARIANT: Record<NonNullable<Props["variant"]>, ImageKind> = {
   Primary: "primary",
-  Backdrop: "heroBackdrop",
+  Backdrop: "backdrop",
   Thumb: "thumb",
   ParentBackdrop: "parentBackdrop",
   ParentLogo: "logo",
@@ -44,14 +45,12 @@ export const getItemImage = ({
   item,
   api,
   variant = "Primary",
-  quality = 90,
   width = 1000,
   height,
 }: Props) => {
   if (!api) return null;
 
   const resolved = resolveItemImageUrl(api, item, KIND_OF_VARIANT[variant], {
-    quality,
     width,
     height,
   });

@@ -20,13 +20,13 @@ export const getWideImageUrl = ({
   useEpisodePoster = false,
   fillHeight,
   fillWidth,
-  quality = 80,
 }: {
   api?: Api | null;
   item?: BaseItemDto | null;
   useEpisodePoster?: boolean;
   fillHeight: number;
   fillWidth?: number;
+  /** @deprecated Quality follows the image type; this is ignored. */
   quality?: number;
 }): string | undefined => {
   return (
@@ -34,7 +34,6 @@ export const getWideImageUrl = ({
       preferEpisodeImage: useEpisodePoster,
       height: fillHeight,
       width: fillWidth,
-      quality,
     }) ?? undefined
   );
 };

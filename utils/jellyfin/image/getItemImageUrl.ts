@@ -5,8 +5,8 @@ import type {
   ImageType,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  DEFAULT_IMAGE_QUALITY,
-  LOGO_IMAGE_QUALITY,
+  BACKDROP_IMAGE_QUALITY,
+  IMAGE_QUALITY,
   MAX_LOGO_HEIGHT_PX,
 } from "@/constants/Images";
 import { fillHeightImageParams } from "./imagePixels";
@@ -22,7 +22,6 @@ type ImageSize = {
   width?: number;
   /** Physical pixels. With a width, the box the image has to cover. */
   height?: number;
-  quality?: number;
 };
 
 export type ItemImageOptions = ImageSize & {
@@ -48,6 +47,9 @@ const sizeParams = (
 
 const isBackdrop = (type: ImageType) => type === "Backdrop";
 
+const qualityOf = (type: ImageType) =>
+  isBackdrop(type) ? BACKDROP_IMAGE_QUALITY : IMAGE_QUALITY;
+
 /**
  * The URL of an item's image of a kind, and the image it came from, which
  * carries the blurhash. Null when the item has no such image.
@@ -65,8 +67,7 @@ export const resolveItemImageUrl = (
   const isLogo = kind === "logo";
   const url = itemImageUrl(api, ref.itemId, ref.type, {
     ...sizeParams(options, isLogo ? MAX_LOGO_HEIGHT_PX : undefined),
-    quality:
-      options.quality || (isLogo ? LOGO_IMAGE_QUALITY : DEFAULT_IMAGE_QUALITY),
+    quality: qualityOf(ref.type),
     tag: ref.tag,
     ...(isBackdrop(ref.type) ? { imageIndex: 0 } : null),
   });
@@ -98,7 +99,7 @@ export const getItemImageUrlById = (
   if (!api || !itemId) return null;
   return itemImageUrl(api, itemId, type, {
     ...sizeParams(options),
-    quality: options.quality || DEFAULT_IMAGE_QUALITY,
+    quality: qualityOf(type),
     ...(isBackdrop(type) ? { imageIndex: 0 } : null),
   });
 };

@@ -21,13 +21,14 @@ describe("getPrimaryImageUrl", () => {
   });
 
   test("asks for a person's image by its PrimaryImageTag", () => {
+    // Web: 5
     expect(
       getPrimaryImageUrl({
         api,
         item: { Id: "person-1", PrimaryImageTag: "person-tag" },
       }),
     ).toBe(
-      "https://jellyfin.example.com/Items/person-1/Images/Primary?fillWidth=400&quality=80&tag=person-tag",
+      "https://jellyfin.example.com/Items/person-1/Images/Primary?fillWidth=400&quality=90&tag=person-tag",
     );
   });
 

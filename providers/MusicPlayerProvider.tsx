@@ -427,7 +427,6 @@ const itemToTrack = (
     getItemImageUrl(api, item, "album", {
       width: 512,
       height: 512,
-      quality: 90,
     }) ?? undefined;
   const artworkHeaders = getJellyfinHeadersForUrl(artwork, api.basePath);
 

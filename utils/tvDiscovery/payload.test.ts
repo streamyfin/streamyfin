@@ -169,6 +169,8 @@ describe("buildTVDiscoveryPayload: the image of a tile", () => {
     Type: "Episode",
     ImageTags: { Primary: "ep-tag" },
     SeasonId: "season-1",
+    // Web: 1 (the Primary tag is paired with its own owner, not with ParentId)
+    ParentPrimaryImageItemId: "season-1",
     ParentPrimaryImageTag: "season-tag",
     SeriesId: "series-1",
     SeriesPrimaryImageTag: "series-tag",
@@ -196,12 +198,16 @@ describe("buildTVDiscoveryPayload: the image of a tile", () => {
   });
 
   test("an episode poster falls to the series', then its own", () => {
-    expect(imageOf({ ...episode, SeasonId: undefined }, {})).toBe(
-      `${BASE}/series-1/Images/Primary?${POSTER}&tag=series-tag`,
-    );
+    expect(
+      imageOf({ ...episode, ParentPrimaryImageItemId: undefined }, {}),
+    ).toBe(`${BASE}/series-1/Images/Primary?${POSTER}&tag=series-tag`);
     expect(
       imageOf(
-        { ...episode, SeasonId: undefined, SeriesPrimaryImageTag: undefined },
+        {
+          ...episode,
+          ParentPrimaryImageItemId: undefined,
+          SeriesPrimaryImageTag: undefined,
+        },
         {},
       ),
     ).toBe(`${BASE}/ep-1/Images/Primary?${POSTER}&tag=ep-tag`);

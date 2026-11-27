@@ -40,8 +40,9 @@ describe("getBackdropUrl", () => {
   test("leaves a width only request as it was", () => {
     const url = getBackdropUrl({ api, item: movie, quality: 90, width: 1920 });
 
+    // Web: 5
     expect(url).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1920&quality=90&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1920&quality=80&tag=backdrop-tag&imageIndex=0`,
     );
   });
 

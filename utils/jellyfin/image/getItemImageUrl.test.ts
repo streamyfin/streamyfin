@@ -10,26 +10,31 @@ const movie = {
   Type: "Movie",
   ImageTags: { Primary: "p", Logo: "l" },
   BackdropImageTags: ["b"],
+  ParentBackdropItemId: "series-1",
+  ParentBackdropImageTags: ["pb"],
 } satisfies BaseItemDto;
 
 describe("getItemImageUrl sizing", () => {
   test("a width alone asks for fillWidth", () => {
+    // Web: 5
     expect(getItemImageUrl(api, movie, "primary", { width: 300 })).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=80&tag=p`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=p`,
     );
   });
 
   test("a height alone asks for fillHeight", () => {
+    // Web: 5
     expect(getItemImageUrl(api, movie, "primary", { height: 200 })).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillHeight=200&quality=80&tag=p`,
+      `${base}/Items/movie-1/Images/Primary?fillHeight=200&quality=90&tag=p`,
     );
   });
 
   test("both sides cover the box and bound the result", () => {
+    // Web: 5
     expect(
       getItemImageUrl(api, movie, "primary", { width: 600, height: 900 }),
     ).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=80&tag=p`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=90&tag=p`,
     );
   });
 
@@ -40,33 +45,50 @@ describe("getItemImageUrl sizing", () => {
   });
 
   test("no size asks for none", () => {
+    // Web: 5
     expect(getItemImageUrl(api, movie, "primary")).toBe(
-      `${base}/Items/movie-1/Images/Primary?quality=80&tag=p`,
+      `${base}/Items/movie-1/Images/Primary?quality=90&tag=p`,
     );
   });
 });
 
 describe("getItemImageUrl quality", () => {
-  test("defaults to 80", () => {
-    expect(getItemImageUrl(api, movie, "primary")).toContain("quality=80");
+  // Web: jellyfin-apiclient sends 80 for a Backdrop and 90 for every other type
+  test.each([
+    ["primary", "Primary", 90],
+    ["thumb", "Thumb", 90],
+    ["logo", "Logo", 90],
+    ["parentBackdrop", "Backdrop", 80],
+  ] as const)("a %s request is %s quality %i", (kind, type, quality) => {
+    const item = {
+      ...movie,
+      ImageTags: { Primary: "p", Thumb: "t", Logo: "l" },
+    };
+    const url = getItemImageUrl(api, item, kind);
+    expect(url).toContain(`/Images/${type}?`);
+    expect(url).toContain(`quality=${quality}`);
   });
 
-  test("passes a given quality through", () => {
-    expect(getItemImageUrl(api, movie, "primary", { quality: 55 })).toContain(
-      "quality=55",
-    );
-  });
-
-  test("a logo defaults to 90", () => {
-    expect(getItemImageUrl(api, movie, "logo", { height: 100 })).toBe(
-      `${base}/Items/movie-1/Images/Logo?fillHeight=100&quality=90&tag=l`,
-    );
-  });
-
-  test("a logo takes a given quality", () => {
+  test("a backdrop kind that falls to the Primary is 90", () => {
     expect(
-      getItemImageUrl(api, movie, "logo", { height: 100, quality: 70 }),
-    ).toContain("quality=70");
+      getItemImageUrl(
+        api,
+        { ...movie, BackdropImageTags: [], ParentBackdropImageTags: [] },
+        "backdrop",
+      ),
+    ).toContain("quality=90");
+  });
+
+  test("a backdrop kind that resolves a Backdrop is 80", () => {
+    expect(getItemImageUrl(api, movie, "backdrop")).toContain("quality=80");
+  });
+
+  test("the caller cannot override it", () => {
+    expect(
+      getItemImageUrl(api, movie, "primary", {
+        quality: 55,
+      } as never),
+    ).toContain("quality=90");
   });
 });
 
@@ -86,14 +108,18 @@ describe("getItemImageUrl logo height", () => {
 
 describe("getItemImageUrl backdrops", () => {
   test("adds imageIndex 0 to a Backdrop image", () => {
-    expect(getItemImageUrl(api, movie, "heroBackdrop", { width: 800 })).toBe(
+    expect(getItemImageUrl(api, movie, "backdrop", { width: 800 })).toBe(
       `${base}/Items/movie-1/Images/Backdrop?fillWidth=800&quality=80&tag=b&imageIndex=0`,
     );
   });
 
   test("adds none to a Primary image of the backdrop kind", () => {
     expect(
-      getItemImageUrl(api, { ...movie, BackdropImageTags: [] }, "backdrop"),
+      getItemImageUrl(
+        api,
+        { ...movie, BackdropImageTags: [], ParentBackdropImageTags: [] },
+        "backdrop",
+      ),
     ).not.toContain("imageIndex");
   });
 });
@@ -127,6 +153,8 @@ describe("getItemImageUrl episodes", () => {
     Id: "episode-1",
     Type: "Episode",
     ImageTags: { Primary: "ep" },
+    SeriesId: "series-1",
+    SeriesThumbImageTag: "sth",
     ParentThumbItemId: "series-1",
     ParentThumbImageTag: "st",
   } satisfies BaseItemDto;
@@ -146,17 +174,30 @@ describe("getItemImageUrl episodes", () => {
 
 describe("getItemImageUrlById", () => {
   test("builds an untagged URL, sized like the entry point", () => {
+    // Web: 5
     expect(getItemImageUrlById(api, "movie-1", "Primary", { width: 250 })).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=250&quality=80`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=250&quality=90`,
     );
+    // Web: 5
     expect(
       getItemImageUrlById(api, "movie-1", "Primary", {
         width: 600,
         height: 900,
-        quality: 60,
       }),
     ).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=60`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=90`,
+    );
+  });
+
+  // Web: jellyfin-apiclient sends 80 for a Backdrop and 90 for every other type
+  test.each([
+    ["Primary", 90],
+    ["Thumb", 90],
+    ["Logo", 90],
+    ["Backdrop", 80],
+  ] as const)("a %s is quality %i", (type, quality) => {
+    expect(getItemImageUrlById(api, "movie-1", type)).toContain(
+      `quality=${quality}`,
     );
   });
 

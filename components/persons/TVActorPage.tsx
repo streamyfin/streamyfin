@@ -220,7 +220,6 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
       getItemImageUrl(api, item, "primary", {
         width: ACTOR_IMAGE_SIZE * 2,
         height: ACTOR_IMAGE_SIZE * 2,
-        quality: 90,
       }),
     [api, item],
   );

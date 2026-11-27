@@ -2,7 +2,6 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import i18next from "i18next";
 import {
-  TV_DISCOVERY_IMAGE_QUALITY,
   TV_DISCOVERY_LANDSCAPE_HEIGHT,
   TV_DISCOVERY_POSTER_HEIGHT,
   TV_DISCOVERY_POSTER_WIDTH,
@@ -64,7 +63,6 @@ function getTVDiscoveryImage(
     const url = getItemImageUrl(api, item, "wide", {
       preferEpisodeImage: useEpisodeImages,
       height: TV_DISCOVERY_LANDSCAPE_HEIGHT,
-      quality: TV_DISCOVERY_IMAGE_QUALITY,
     });
     return url ? { url } : undefined;
   }
@@ -82,7 +80,6 @@ function getTVDiscoveryImage(
     {
       width: TV_DISCOVERY_POSTER_WIDTH,
       height: TV_DISCOVERY_POSTER_HEIGHT,
-      quality: TV_DISCOVERY_IMAGE_QUALITY,
     },
   );
   return url ? { url } : undefined;

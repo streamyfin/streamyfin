@@ -18,7 +18,6 @@ export type ImageKind =
   | "seasonPoster"
   | "wide"
   | "backdrop"
-  | "heroBackdrop"
   | "parentBackdrop"
   | "thumb"
   | "logo"
@@ -52,16 +51,17 @@ const STEPS = {
   logo: (i) => pair(i.Id, "Logo", i.ImageTags?.Logo),
   screenshot: (i) => pair(i.Id, "Screenshot", i.ImageTags?.Screenshot),
   seriesPrimary: (i) => pair(i.SeriesId, "Primary", i.SeriesPrimaryImageTag),
-  // For an episode the immediate parent is its season, so its
-  // ParentPrimaryImageTag is the season's Primary tag.
-  seasonPrimary: (i) => pair(i.SeasonId, "Primary", i.ParentPrimaryImageTag),
+  seriesThumb: (i) => pair(i.SeriesId, "Thumb", i.SeriesThumbImageTag),
   // The Thumb and the Backdrop of a parent can belong to different items, so
   // each reads its own id: a Thumb tag asked of the backdrop's owner is a 404.
   parentThumb: (i) => pair(i.ParentThumbItemId, "Thumb", i.ParentThumbImageTag),
   parentBackdrop: (i) =>
     pair(i.ParentBackdropItemId, "Backdrop", i.ParentBackdropImageTags?.[0]),
   parentLogo: (i) => pair(i.ParentLogoItemId, "Logo", i.ParentLogoImageTag),
-  parentPrimary: (i) => pair(i.ParentId, "Primary", i.ParentPrimaryImageTag),
+  // ParentPrimaryImageTag belongs to ParentPrimaryImageItemId, which is not
+  // always ParentId.
+  parentPrimary: (i) =>
+    pair(i.ParentPrimaryImageItemId, "Primary", i.ParentPrimaryImageTag),
   albumPrimary: (i) => pair(i.AlbumId, "Primary", i.AlbumPrimaryImageTag),
 } satisfies Record<string, Step>;
 
@@ -83,16 +83,20 @@ export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   primary: { default: ["primary"] },
   poster: { episode: ["seriesPrimary", "primary"], default: ["primary"] },
   seasonPoster: {
-    episode: ["seasonPrimary", "seriesPrimary", "primary"],
+    episode: ["parentPrimary", "seriesPrimary", "primary"],
     default: ["primary"],
   },
   wide: {
-    episode: ["parentThumb", "parentBackdrop", "primary"],
-    episodeOwnImage: ["primary", "parentThumb", "parentBackdrop"],
-    default: ["thumb", "primary"],
+    episode: ["seriesThumb", "parentThumb", "parentBackdrop", "primary"],
+    episodeOwnImage: [
+      "primary",
+      "seriesThumb",
+      "parentThumb",
+      "parentBackdrop",
+    ],
+    default: ["thumb", "backdrop", "primary"],
   },
-  backdrop: { episode: ["primary"], default: ["backdrop", "primary"] },
-  heroBackdrop: { episode: ["parentBackdrop"], default: ["backdrop"] },
+  backdrop: { default: ["backdrop", "parentBackdrop", "primary"] },
   parentBackdrop: { default: ["parentBackdrop"] },
   thumb: { default: ["thumb"] },
   logo: { default: ["logo", "parentLogo"] },

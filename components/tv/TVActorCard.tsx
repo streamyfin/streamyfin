@@ -27,7 +27,6 @@ export const TVActorCard = React.forwardRef<ViewInstance, TVActorCardProps>(
     const imageUrl = getItemImageUrl(api, person, "primary", {
       width: 280,
       height: 280,
-      quality: 90,
     });
 
     return (

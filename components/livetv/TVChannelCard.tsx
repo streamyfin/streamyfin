@@ -35,7 +35,6 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
 
   const imageUrl = getItemImageUrl(api, channel, "primary", {
     width: 200,
-    quality: 80,
   });
 
   return (

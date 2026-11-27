@@ -63,8 +63,9 @@ describe("buildItemCards artwork size", () => {
   test("leaves the request as it was on a 2x screen", () => {
     onScreenDensity(2);
 
+    // Web: 5
     expect(imageUrlOf(movie, { kind: "portrait" })).toBe(
-      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=300&quality=80&tag=poster-tag`,
+      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=poster-tag`,
     );
   });
 
