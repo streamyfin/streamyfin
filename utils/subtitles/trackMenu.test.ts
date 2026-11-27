@@ -255,6 +255,50 @@ describe("buildAudioMenu", () => {
     expect(rows[0].label).toBe("Japanese - AAC - Stereo - Original");
   });
 
+  test("shows the language before a long track title", () => {
+    // A release name as the title pushed the language past the point where
+    // the native iOS menu truncates, so every row looked the same.
+    const title = "Show.S02E03.2160p.BluRay.REMUX";
+    const rows = buildAudioMenu(
+      [
+        audio(1, {
+          Title: title,
+          Language: "ger",
+          LocalizedLanguage: "German",
+          DisplayTitle: `${title} - German - DTS`,
+        }),
+      ],
+      { isTranscoding: false, originalLabel: "Original" },
+    );
+    expect(rows[0].label).toBe(`German - DTS - ${title}`);
+  });
+
+  test("hands a surface's own formatLabel the reordered DisplayTitle", () => {
+    // Each surface keeps its own fallback, so the reordering has to reach the
+    // DisplayTitle it reads, not only the default label.
+    const rows = buildAudioMenu(
+      [
+        audio(1, {
+          Title: "Main",
+          Language: "eng",
+          LocalizedLanguage: "English",
+          DisplayTitle: "Main - English - AAC",
+          IsOriginal: true,
+        }),
+        audio(2),
+      ],
+      {
+        isTranscoding: false,
+        originalLabel: "Original",
+        formatLabel: (s) => s.DisplayTitle || "Unknown",
+      },
+    );
+    expect(rows.map((r) => r.label)).toEqual([
+      "English - AAC - Main - Original",
+      "Unknown",
+    ]);
+  });
+
   test("tags the label a surface formats itself", () => {
     // Each surface keeps its own fallback format; the tag is applied after it,
     // so a custom formatLabel cannot drop the marker.

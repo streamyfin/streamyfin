@@ -15,6 +15,7 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import {
+  audioDisplayTitle,
   streamLanguageName,
   tagOriginalAudioTrack,
 } from "@/utils/jellyfin/trackLabel";
@@ -212,7 +213,13 @@ export const buildAudioMenu = (
     .filter((s) => !offlineTranscoded || s.Index === selectedIndex)
     .map((stream) => ({
       index: stream.Index,
-      label: tagOriginalAudioTrack(formatLabel(stream), stream, originalLabel),
+      // Every surface reads DisplayTitle in its own formatLabel, so the
+      // language-first version replaces it there rather than in one default.
+      label: tagOriginalAudioTrack(
+        formatLabel({ ...stream, DisplayTitle: audioDisplayTitle(stream) }),
+        stream,
+        originalLabel,
+      ),
       selected: stream.Index === selectedIndex,
       kind: "server" as const,
       language: stream.Language ?? undefined,
