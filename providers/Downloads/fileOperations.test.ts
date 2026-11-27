@@ -118,14 +118,18 @@ describe("deletePendingDownloadFiles", () => {
     expect(fakeFiles.remaining()).toEqual([]);
   });
 
-  // Android stages the transfer in `<name>.part` (OkHttpDownloadManager.kt). Native removes it
-  // on cancel and on error, but a process killed mid-transfer leaves it for this cleanup.
-  it("removes the staging file a killed Android transfer left behind", () => {
-    fakeFiles.add(`${VIDEO}.part`);
+  // Android stages the transfer in `<name>.part` (OkHttpDownloadManager.kt), with the
+  // validator a resume sends as If-Range beside it. A process killed mid-transfer, or a paused
+  // download that is dropped, leaves both for this cleanup; the validator used to stay behind.
+  it("removes the staging file and validator an Android transfer left behind", () => {
+    fakeFiles.add(`${VIDEO}.part`, `${VIDEO}.part.validator`);
 
     deletePendingDownloadFiles(makeRecord());
 
-    expect(fakeFiles.deleted()).toEqual([`${VIDEO}.part`]);
+    expect(fakeFiles.deleted()).toEqual([
+      `${VIDEO}.part`,
+      `${VIDEO}.part.validator`,
+    ]);
   });
 
   it("removes a video that landed at its final path", () => {

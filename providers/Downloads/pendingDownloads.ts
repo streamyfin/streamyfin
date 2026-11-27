@@ -25,8 +25,11 @@ import { isPlainFileName } from "./utils";
 export interface PendingDownload {
   /** Jellyfin item id; the record key, and how native events are correlated back. */
   itemId: string;
-  /** `queued` until the native started event fires, then `downloading`. */
-  status: "queued" | "downloading";
+  /**
+   * `queued` until the native started event fires, then `downloading`. `paused` while the user has
+   * it paused, with no task id: resuming starts a new task.
+   */
+  status: "queued" | "downloading" | "paused";
   enqueuedAt: string;
   /** Native task id, known once the download actually starts. */
   taskId?: number;
@@ -48,6 +51,16 @@ export interface PendingDownload {
   previewSegments?: MediaTimeSegment[];
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
+  /** Progress when paused, so the card can show it again after a relaunch. */
+  progress?: number;
+  bytesDownloaded?: number;
+  /** Size the server reported, so a relaunch shows it rather than a bitrate estimate. */
+  estimatedTotalSizeBytes?: number;
+  /**
+   * The task native paused itself after losing the connection. A resume that native started
+   * and then lost again before answering finds its own task id here and stays paused.
+   */
+  interruptedTaskId?: number;
   /** Metadata originally handed to native; reused when re-enqueueing after a relaunch. */
   activityMetadata?: DownloadActivityMetadata;
 }
