@@ -111,6 +111,7 @@ declare module "react-native-track-player" {
   export function skipToPrevious(): Promise<void>;
   export function play(): Promise<void>;
   export function pause(): Promise<void>;
+  export function getPlayWhenReady(): Promise<boolean>;
   export function stop(): Promise<void>;
   export function reset(): Promise<void>;
   export function seekTo(position: number): Promise<void>;
@@ -140,6 +141,7 @@ declare module "react-native-track-player" {
     skipToPrevious: typeof skipToPrevious;
     play: typeof play;
     pause: typeof pause;
+    getPlayWhenReady: typeof getPlayWhenReady;
     stop: typeof stop;
     reset: typeof reset;
     seekTo: typeof seekTo;
