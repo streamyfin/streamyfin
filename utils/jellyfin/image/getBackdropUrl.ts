@@ -1,8 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getPrimaryImageUrl } from "./getPrimaryImageUrl";
-import { fillHeightImageParams } from "./imagePixels";
-import { itemImageUrl } from "./itemImageUrl";
+import { getItemImageUrl } from "./getItemImageUrl";
 
 /**
  * Retrieves the backdrop image URL for a given item, falling back to its
@@ -28,25 +26,9 @@ export const getBackdropUrl = ({
   quality?: number;
   width?: number;
   height?: number;
-}) => {
-  if (!api || !item) {
-    return null;
-  }
-
-  const backdropImageTags = item.BackdropImageTags?.[0];
-
-  if (item.Type === "Episode") {
-    return getPrimaryImageUrl({ api, item, quality, width, height });
-  }
-
-  if (backdropImageTags) {
-    return itemImageUrl(api, item.Id!, "Backdrop", {
-      quality: quality || undefined,
-      fillWidth: width || undefined,
-      tag: backdropImageTags,
-      imageIndex: 0,
-      ...(height ? fillHeightImageParams(height) : null),
-    });
-  }
-  return getPrimaryImageUrl({ api, item, quality, width, height });
-};
+}) =>
+  getItemImageUrl(api, item, "backdrop", {
+    quality: quality || undefined,
+    width: width || undefined,
+    height: height || undefined,
+  });

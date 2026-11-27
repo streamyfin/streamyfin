@@ -2,8 +2,8 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { ImageSource } from "expo-image";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
-import { fillHeightImageParams } from "@/utils/jellyfin/image/imagePixels";
-import { itemImageUrl } from "@/utils/jellyfin/image/itemImageUrl";
+import { resolveItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 
 interface Props {
   item: BaseItemDto;
@@ -28,6 +28,18 @@ interface Props {
     | "Thumb";
 }
 
+const KIND_OF_VARIANT: Record<NonNullable<Props["variant"]>, ImageKind> = {
+  Primary: "primary",
+  Backdrop: "heroBackdrop",
+  Thumb: "thumb",
+  ParentBackdrop: "parentBackdrop",
+  ParentLogo: "logo",
+  Logo: "logo",
+  AlbumPrimary: "album",
+  SeriesPrimary: "poster",
+  Screenshot: "screenshot",
+};
+
 export const getItemImage = ({
   item,
   api,
@@ -38,90 +50,21 @@ export const getItemImage = ({
 }: Props) => {
   if (!api) return null;
 
-  const size = height
-    ? { fillWidth: Math.round(width), ...fillHeightImageParams(height) }
-    : { width };
+  const resolved = resolveItemImageUrl(api, item, KIND_OF_VARIANT[variant], {
+    quality,
+    width,
+    height,
+  });
+  if (!resolved) return null;
 
-  let tag: string | null | undefined;
-  let blurhash: string | undefined;
-  let src: ImageSource | null = null;
-
-  switch (variant) {
-    case "Backdrop":
-      if (item.Type === "Episode") {
-        tag = item.ParentBackdropImageTags?.[0];
-        if (!tag) break;
-        blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
-        src = {
-          uri: itemImageUrl(api, item.ParentBackdropItemId!, "Backdrop", {
-            quality,
-            tag,
-            ...size,
-            imageIndex: 0,
-          }),
-          blurhash,
-        };
-        break;
-      }
-
-      tag = item.BackdropImageTags?.[0];
-      if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Backdrop?.[tag] ?? undefined;
-      src = {
-        uri: itemImageUrl(api, item.Id!, "Backdrop", {
-          quality,
-          tag,
-          ...size,
-          imageIndex: 0,
-        }),
-        blurhash,
-      };
-      break;
-    case "Primary":
-      tag = item.ImageTags?.Primary;
-      if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Primary?.[tag] ?? undefined;
-
-      src = {
-        uri: itemImageUrl(api, item.Id!, "Primary", {
-          quality,
-          tag,
-          ...size,
-        }),
-        blurhash,
-      };
-      break;
-    case "Thumb":
-      tag = item.ImageTags?.Thumb;
-      if (!tag) break;
-      blurhash = item.ImageBlurHashes?.Thumb?.[tag] ?? undefined;
-
-      src = {
-        uri: itemImageUrl(api, item.Id!, "Backdrop", {
-          quality,
-          tag,
-          ...size,
-        }),
-        blurhash,
-      };
-      break;
-    default:
-      tag = item.ImageTags?.Primary;
-      src = {
-        uri: itemImageUrl(api, item.Id!, "Primary", {
-          quality,
-          tag: String(tag),
-          ...size,
-        }),
-      };
-      break;
-  }
-
-  if (!src?.uri) return null;
+  const src: ImageSource = {
+    uri: resolved.url,
+    blurhash: resolved.ref.blurhash,
+  };
 
   // The consumers pass this straight to expo-image or download it, so the
   // proxy auth headers have to travel with the source rather than be added by
   // the <Image> wrapper.
-  const headers = getJellyfinHeadersForUrl(src.uri, api.basePath);
+  const headers = getJellyfinHeadersForUrl(resolved.url, api.basePath);
   return headers ? { ...src, headers } : src;
 };

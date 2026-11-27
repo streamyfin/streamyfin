@@ -16,8 +16,9 @@ import { getWideImageUrl } from "./getWideImageUrl";
 
 // Characterization of every Jellyfin image URL builder as it behaves today.
 // The query parameter order is part of the image cache key, so each URL is
-// pinned in full. A case marked "Known:" pins a request that looks wrong, so
-// that changing it shows up as a deliberate edit to this file.
+// pinned in full. A case marked "Fixed:" pins a request that used to look wrong,
+// and one marked "Changed:" a request that moved with the shared selection and
+// sizing, so a later change shows up as a deliberate edit to this file.
 
 const api = makeApi();
 const base = api.basePath;
@@ -245,68 +246,58 @@ describe("getPrimaryImageUrl", () => {
     );
   });
 
-  test("borrows the backdrop tag when the item has no Primary tag", () => {
+  test("never borrows the backdrop tag when the item has no Primary tag", () => {
+    // Fixed: a Primary request no longer carries a Backdrop tag
     expect(
       getPrimaryImageUrl({
         api,
         item: { ...movie, ImageTags: {} },
       }),
-    ).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=400&quality=80&tag=movie-backdrop`,
-    );
+    ).toBe(null);
   });
 
-  test("borrows the parent backdrop tag of an episode without Primary tag", () => {
+  test("never borrows the parent backdrop tag of an episode without Primary tag", () => {
     expect(getPrimaryImageUrl({ api, item: episodeNoThumb })).toBe(
       `${base}/Items/episode-2/Images/Primary?fillWidth=400&quality=80&tag=episode-2-primary`,
     );
+    // Fixed: a Primary request no longer carries a Backdrop tag
     expect(
       getPrimaryImageUrl({ api, item: { ...episodeNoThumb, ImageTags: {} } }),
-    ).toBe(
-      `${base}/Items/episode-2/Images/Primary?fillWidth=400&quality=80&tag=series-backdrop`,
-    );
+    ).toBe(null);
   });
 
-  test("asks for an untagged image for an item with no image tags", () => {
-    // Known: untagged request, may 404
-    expect(getPrimaryImageUrl({ api, item: movieNoImages })).toBe(
-      `${base}/Items/movie-3/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for an item with no image tags", () => {
+    // Fixed: untagged request now returns null
+    expect(getPrimaryImageUrl({ api, item: movieNoImages })).toBe(null);
   });
 
-  test("asks for an untagged image for an episode with no tags", () => {
-    // Known: untagged request, may 404
-    expect(getPrimaryImageUrl({ api, item: episodeBare })).toBe(
-      `${base}/Items/episode-3/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for an episode with no tags", () => {
+    // Fixed: untagged request now returns null
+    expect(getPrimaryImageUrl({ api, item: episodeBare })).toBe(null);
   });
 
-  test("asks for an untagged image for a track with only an album", () => {
-    // Known: untagged request, may 404; the album's image is not used
-    expect(getPrimaryImageUrl({ api, item: track })).toBe(
-      `${base}/Items/track-1/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for a track with only an album", () => {
+    // Fixed: untagged request now returns null
+    expect(getPrimaryImageUrl({ api, item: track })).toBe(null);
   });
 
-  test("asks for an untagged image for a track with only a ParentId", () => {
-    // Known: untagged request, may 404
-    expect(getPrimaryImageUrl({ api, item: trackOnlyParent })).toBe(
-      `${base}/Items/track-2/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for a track with only a ParentId", () => {
+    // Fixed: untagged request now returns null
+    expect(getPrimaryImageUrl({ api, item: trackOnlyParent })).toBe(null);
   });
 
-  test("asks for an untagged image for a track with neither", () => {
-    // Known: untagged request, may 404
-    expect(getPrimaryImageUrl({ api, item: trackBare })).toBe(
-      `${base}/Items/track-3/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for a track with neither", () => {
+    // Fixed: untagged request now returns null
+    expect(getPrimaryImageUrl({ api, item: trackBare })).toBe(null);
   });
 
-  test("builds a bare URL for a person, ignoring width, quality and tag", () => {
-    // Known: untagged request, may 404; the person's PrimaryImageTag is unused
+  test("tags a person's request with its PrimaryImageTag and sizes it", () => {
+    // Fixed: a person uses PrimaryImageTag instead of a bare URL
     expect(
       getPrimaryImageUrl({ api, item: person, width: 300, quality: 70 }),
-    ).toBe(`${base}/Items/person-1/Images/Primary`);
+    ).toBe(
+      `${base}/Items/person-1/Images/Primary?fillWidth=300&quality=70&tag=person-primary`,
+    );
   });
 });
 
@@ -322,28 +313,28 @@ describe("getPrimaryImageUrlById", () => {
   });
 
   test("uses the defaults of fillWidth 500 and quality 90", () => {
-    // Known: untagged request, may 404
+    // Untagged by necessity: the caller has an id and no item
     expect(getPrimaryImageUrlById({ api, id: "movie-1" })).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=500&quality=90`,
     );
   });
 
   test("passes width and quality through", () => {
-    // Known: untagged request, may 404
+    // Untagged by necessity: the caller has an id and no item
     expect(
       getPrimaryImageUrlById({ api, id: "movie-1", width: 250, quality: 60 }),
     ).toBe(`${base}/Items/movie-1/Images/Primary?fillWidth=250&quality=60`);
   });
 
   test("falls back to fillWidth 500 and quality 90 for 0", () => {
-    // Known: untagged request, may 404
+    // Untagged by necessity: the caller has an id and no item
     expect(
       getPrimaryImageUrlById({ api, id: "movie-1", width: 0, quality: 0 }),
     ).toBe(`${base}/Items/movie-1/Images/Primary?fillWidth=500&quality=90`);
   });
 
   test("falls back to fillWidth 500 and quality 90 for null", () => {
-    // Known: untagged request, may 404
+    // Untagged by necessity: the caller has an id and no item
     expect(
       getPrimaryImageUrlById({
         api,
@@ -389,15 +380,17 @@ describe("getPortraitImageUrl", () => {
     );
   });
 
-  test("asks for an untagged series image for an episode without a series tag", () => {
-    // Known: untagged request, may 404
+  test("uses the episode's own image for an episode without a series tag", () => {
+    // Fixed: no untagged series request, the episode's own tagged Primary instead
     expect(
       getPortraitImageUrl({
         api,
         item: { ...episode, SeriesPrimaryImageTag: undefined },
         width: 300,
       }),
-    ).toBe(`${base}/Items/series-1/Images/Primary?fillWidth=300&quality=80`);
+    ).toBe(
+      `${base}/Items/episode-1/Images/Primary?fillWidth=300&quality=80&tag=episode-primary`,
+    );
   });
 
   test("uses the episode's own primary image when it has no SeriesId", () => {
@@ -410,31 +403,33 @@ describe("getPortraitImageUrl", () => {
     ).toBe(
       `${base}/Items/episode-1/Images/Primary?fillWidth=300&quality=80&tag=episode-primary`,
     );
+    // Fixed: untagged request now returns undefined
     expect(getPortraitImageUrl({ api, item: episodeBare, width: 300 })).toBe(
-      `${base}/Items/episode-3/Images/Primary?fillWidth=300&quality=80`,
+      undefined,
     );
   });
 
-  test("asks for an untagged image for a movie with no images", () => {
-    // Known: untagged request, may 404
+  test("returns undefined for a movie with no images", () => {
+    // Fixed: untagged request now returns undefined
     expect(getPortraitImageUrl({ api, item: movieNoImages, width: 300 })).toBe(
-      `${base}/Items/movie-3/Images/Primary?fillWidth=300&quality=80`,
+      undefined,
     );
   });
 
-  test("asks for an untagged image for a track", () => {
-    // Known: untagged request, may 404
+  test("returns undefined for a track", () => {
+    // Fixed: untagged request now returns undefined
     expect(getPortraitImageUrl({ api, item: track, width: 300 })).toBe(
-      `${base}/Items/track-1/Images/Primary?fillWidth=300&quality=80`,
+      undefined,
     );
     expect(
       getPortraitImageUrl({ api, item: trackOnlyParent, width: 300 }),
-    ).toBe(`${base}/Items/track-2/Images/Primary?fillWidth=300&quality=80`);
+    ).toBe(undefined);
   });
 
-  test("passes a width of 0 through for an episode, and falls back to 500 otherwise", () => {
+  test("falls back to a width of 500 for 0", () => {
+    // Changed: an episode used to send fillWidth=0
     expect(getPortraitImageUrl({ api, item: episode, width: 0 })).toBe(
-      `${base}/Items/series-1/Images/Primary?fillWidth=0&quality=80&tag=series-primary`,
+      `${base}/Items/series-1/Images/Primary?fillWidth=500&quality=80&tag=series-primary`,
     );
     expect(getPortraitImageUrl({ api, item: movie, width: 0 })).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=500&quality=80&tag=movie-primary`,
@@ -482,14 +477,17 @@ describe("getWideImageUrl", () => {
   });
 
   test("fails over to Primary for a movie without a Thumb", () => {
-    // Known: untagged request, may 404
+    // Fixed: the failover request now carries the Primary tag
     expect(
       getWideImageUrl({ api, item: movieOnlyPrimary, fillHeight: 200 }),
-    ).toBe(`${base}/Items/movie-2/Images/Primary?fillHeight=200&quality=80`);
+    ).toBe(
+      `${base}/Items/movie-2/Images/Primary?fillHeight=200&quality=80&tag=only-primary`,
+    );
   });
 
   test("covers the whole box for the Primary failover when given a width", () => {
-    // Known: untagged request, may 404
+    // Fixed: the failover request now carries the Primary tag
+    // Changed: both sides now add maxWidth and maxHeight
     expect(
       getWideImageUrl({
         api,
@@ -498,22 +496,23 @@ describe("getWideImageUrl", () => {
         fillWidth: 355,
       }),
     ).toBe(
-      `${base}/Items/movie-2/Images/Primary?fillWidth=355&fillHeight=200&quality=80`,
+      `${base}/Items/movie-2/Images/Primary?fillWidth=355&fillHeight=200&maxWidth=1920&maxHeight=1920&quality=80&tag=only-primary`,
     );
   });
 
-  test("ignores a width for a Thumb", () => {
+  test("sizes a Thumb by the box it covers", () => {
+    // Changed: a Thumb gets both sides like every other cover-fit image.
     expect(
       getWideImageUrl({ api, item: movie, fillHeight: 200, fillWidth: 355 }),
     ).toBe(
-      `${base}/Items/movie-1/Images/Thumb?fillHeight=200&quality=80&tag=movie-thumb`,
+      `${base}/Items/movie-1/Images/Thumb?fillWidth=355&fillHeight=200&maxWidth=1920&maxHeight=1920&quality=80&tag=movie-thumb`,
     );
   });
 
-  test("asks for an untagged Primary for a movie with no images", () => {
-    // Known: untagged request, may 404
+  test("returns undefined for a movie with no images", () => {
+    // Fixed: untagged request now returns undefined
     expect(getWideImageUrl({ api, item: movieNoImages, fillHeight: 200 })).toBe(
-      `${base}/Items/movie-3/Images/Primary?fillHeight=200&quality=80`,
+      undefined,
     );
   });
 
@@ -524,7 +523,8 @@ describe("getWideImageUrl", () => {
   });
 
   test("uses the episode's own still when asked to", () => {
-    // Known: untagged request, may 404
+    // Fixed: the request now carries the episode's Primary tag
+    // Changed: both sides now add maxWidth and maxHeight
     expect(
       getWideImageUrl({
         api,
@@ -534,49 +534,69 @@ describe("getWideImageUrl", () => {
         fillWidth: 355,
       }),
     ).toBe(
-      `${base}/Items/episode-1/Images/Primary?fillWidth=355&fillHeight=200&quality=80`,
+      `${base}/Items/episode-1/Images/Primary?fillWidth=355&fillHeight=200&maxWidth=1920&maxHeight=1920&quality=80&tag=episode-primary`,
     );
   });
 
-  test("falls back to the episode's Primary without a parent thumb pair", () => {
-    // Known: untagged request, may 404
+  test("falls back to the series backdrop without a parent thumb pair", () => {
+    // Fixed: the episode chain gains the parent backdrop step
     expect(
       getWideImageUrl({ api, item: episodeNoThumb, fillHeight: 200 }),
-    ).toBe(`${base}/Items/episode-2/Images/Primary?fillHeight=200&quality=80`);
+    ).toBe(
+      `${base}/Items/series-1/Images/Backdrop?fillHeight=200&quality=80&tag=series-backdrop&imageIndex=0`,
+    );
   });
 
-  test("falls back to the episode's Primary with half a parent thumb pair", () => {
-    // Known: untagged request, may 404
+  test("falls back to the series backdrop with half a parent thumb pair", () => {
+    // Fixed: the episode chain gains the parent backdrop step
     expect(
       getWideImageUrl({
         api,
         item: { ...episode, ParentThumbImageTag: undefined },
         fillHeight: 200,
       }),
-    ).toBe(`${base}/Items/episode-1/Images/Primary?fillHeight=200&quality=80`);
+    ).toBe(
+      `${base}/Items/series-1/Images/Backdrop?fillHeight=200&quality=80&tag=series-backdrop&imageIndex=0`,
+    );
     expect(
       getWideImageUrl({
         api,
         item: { ...episode, ParentThumbItemId: undefined },
         fillHeight: 200,
       }),
-    ).toBe(`${base}/Items/episode-1/Images/Primary?fillHeight=200&quality=80`);
+    ).toBe(
+      `${base}/Items/series-1/Images/Backdrop?fillHeight=200&quality=80&tag=series-backdrop&imageIndex=0`,
+    );
+    expect(
+      getWideImageUrl({
+        api,
+        item: {
+          ...episode,
+          ParentThumbImageTag: undefined,
+          ParentBackdropImageTags: [],
+        },
+        fillHeight: 200,
+      }),
+    ).toBe(
+      `${base}/Items/episode-1/Images/Primary?fillHeight=200&quality=80&tag=episode-primary`,
+    );
   });
 
-  test("asks for an untagged Primary for an episode with nothing", () => {
-    // Known: untagged request, may 404
+  test("returns undefined for an episode with nothing", () => {
+    // Fixed: untagged request now returns undefined
     expect(getWideImageUrl({ api, item: episodeBare, fillHeight: 200 })).toBe(
-      `${base}/Items/episode-3/Images/Primary?fillHeight=200&quality=80`,
+      undefined,
     );
   });
 
-  test("asks for an untagged Primary for a season and a track", () => {
-    // Known: untagged request, may 404
+  test("uses a season's tagged Primary, and nothing for a track", () => {
+    // Fixed: the season's request now carries its Primary tag
     expect(getWideImageUrl({ api, item: season, fillHeight: 200 })).toBe(
-      `${base}/Items/season-1/Images/Primary?fillHeight=200&quality=80`,
+      `${base}/Items/season-1/Images/Primary?fillHeight=200&quality=80&tag=season-primary`,
     );
+    // Fixed: untagged request now returns undefined
     expect(getWideImageUrl({ api, item: track, fillHeight: 200 })).toBe(
-      `${base}/Items/track-1/Images/Primary?fillHeight=200&quality=80`,
+      undefined,
     );
   });
 });
@@ -590,9 +610,10 @@ describe("getBackdropUrl", () => {
     expect(getBackdropUrl({ api, item: null })).toBe(null);
   });
 
-  test("builds a bare backdrop request for a movie without arguments", () => {
+  test("asks for the default quality only for a movie without arguments", () => {
+    // Changed: the default quality is now sent
     expect(getBackdropUrl({ api, item: movie })).toBe(
-      `${base}/Items/movie-1/Images/Backdrop?tag=movie-backdrop&imageIndex=0`,
+      `${base}/Items/movie-1/Images/Backdrop?quality=80&tag=movie-backdrop&imageIndex=0`,
     );
   });
 
@@ -602,9 +623,10 @@ describe("getBackdropUrl", () => {
     );
   });
 
-  test("drops a width and quality of 0", () => {
+  test("drops a width of 0 and uses the default quality for 0", () => {
+    // Changed: the default quality is now sent
     expect(getBackdropUrl({ api, item: movie, width: 0, quality: 0 })).toBe(
-      `${base}/Items/movie-1/Images/Backdrop?tag=movie-backdrop&imageIndex=0`,
+      `${base}/Items/movie-1/Images/Backdrop?quality=80&tag=movie-backdrop&imageIndex=0`,
     );
   });
 
@@ -623,51 +645,46 @@ describe("getBackdropUrl", () => {
   });
 
   test("uses the backdrop of a series", () => {
+    // Changed: the default quality is now sent
     expect(getBackdropUrl({ api, item: series, width: 800 })).toBe(
-      `${base}/Items/series-1/Images/Backdrop?fillWidth=800&tag=series-backdrop&imageIndex=0`,
+      `${base}/Items/series-1/Images/Backdrop?fillWidth=800&quality=80&tag=series-backdrop&imageIndex=0`,
     );
   });
 
   test("falls back to the primary image for a movie without a backdrop", () => {
+    // Changed: the fallback no longer defaults to fillWidth=400
     expect(getBackdropUrl({ api, item: movieOnlyPrimary })).toBe(
-      `${base}/Items/movie-2/Images/Primary?fillWidth=400&quality=80&tag=only-primary`,
+      `${base}/Items/movie-2/Images/Primary?quality=80&tag=only-primary`,
     );
     expect(getBackdropUrl({ api, item: movieOnlyPrimary, width: 800 })).toBe(
       `${base}/Items/movie-2/Images/Primary?fillWidth=800&quality=80&tag=only-primary`,
     );
   });
 
-  test("asks for an untagged primary image for a movie with no images", () => {
-    // Known: untagged request, may 404
-    expect(getBackdropUrl({ api, item: movieNoImages })).toBe(
-      `${base}/Items/movie-3/Images/Primary?fillWidth=400&quality=80`,
-    );
+  test("returns null for a movie with no images", () => {
+    // Fixed: untagged request now returns null
+    expect(getBackdropUrl({ api, item: movieNoImages })).toBe(null);
   });
 
   test("uses the primary image for an episode, never its backdrop", () => {
     expect(getBackdropUrl({ api, item: episode, width: 800 })).toBe(
       `${base}/Items/episode-1/Images/Primary?fillWidth=800&quality=80&tag=episode-primary`,
     );
-    expect(getBackdropUrl({ api, item: episodeBare, width: 800 })).toBe(
-      `${base}/Items/episode-3/Images/Primary?fillWidth=800&quality=80`,
-    );
+    // Fixed: untagged request now returns null
+    expect(getBackdropUrl({ api, item: episodeBare, width: 800 })).toBe(null);
   });
 
-  test("falls back to the primary image for a season and a track", () => {
-    // Known: untagged request, may 404
+  test("falls back to the primary image for a season, and nothing for a track", () => {
     expect(getBackdropUrl({ api, item: season, width: 800 })).toBe(
       `${base}/Items/season-1/Images/Primary?fillWidth=800&quality=80&tag=season-primary`,
     );
-    expect(getBackdropUrl({ api, item: track, width: 800 })).toBe(
-      `${base}/Items/track-1/Images/Primary?fillWidth=800&quality=80`,
-    );
+    // Fixed: untagged request now returns null
+    expect(getBackdropUrl({ api, item: track, width: 800 })).toBe(null);
   });
 
-  test("builds a path with undefined as the item id for a backdrop without an Id", () => {
-    // Known: missing parent id
-    expect(getBackdropUrl({ api, item: noId })).toBe(
-      `${base}/Items/undefined/Images/Backdrop?tag=movie-backdrop&imageIndex=0`,
-    );
+  test("returns null for a backdrop without an Id", () => {
+    // Fixed: no /Items/undefined/ path
+    expect(getBackdropUrl({ api, item: noId })).toBe(null);
   });
 });
 
@@ -745,26 +762,20 @@ describe("getParentBackdropImageUrl", () => {
     );
   });
 
-  test("sends an empty tag for an episode without a parent backdrop tag", () => {
-    // Known: untagged request, may 404; empty tag=
+  test("returns null for an episode without a parent backdrop tag", () => {
+    // Fixed: no empty tag=
     expect(
       getParentBackdropImageUrl({
         api,
         item: { ...episode, ParentBackdropImageTags: [] },
       }),
-    ).toBe(
-      `${base}/Items/series-1/Images/Backdrop?fillWidth=400&quality=80&tag=&imageIndex=0`,
-    );
+    ).toBe(null);
   });
 
-  test("builds a path with undefined as the item id for an item without a parent backdrop", () => {
-    // Known: missing parent id
-    expect(getParentBackdropImageUrl({ api, item: movie })).toBe(
-      `${base}/Items/undefined/Images/Backdrop?fillWidth=400&quality=80&tag=&imageIndex=0`,
-    );
-    expect(getParentBackdropImageUrl({ api, item: episodeBare })).toBe(
-      `${base}/Items/undefined/Images/Backdrop?fillWidth=400&quality=80&tag=&imageIndex=0`,
-    );
+  test("returns null for an item without a parent backdrop", () => {
+    // Fixed: no /Items/undefined/ path
+    expect(getParentBackdropImageUrl({ api, item: movie })).toBe(null);
+    expect(getParentBackdropImageUrl({ api, item: episodeBare })).toBe(null);
   });
 });
 
@@ -841,8 +852,11 @@ describe("getLogoImageUrlById", () => {
     expect(getLogoImageUrlById({ api, item: track })).toBe(null);
   });
 
-  test("does not use the parent logo pair of a season", () => {
-    expect(getLogoImageUrlById({ api, item: season })).toBe(null);
+  test("uses the parent logo pair of a season", () => {
+    // Changed: the logo kind falls back to the parent logo for any item type
+    expect(getLogoImageUrlById({ api, item: season })).toBe(
+      `${base}/Items/series-1/Images/Logo?fillHeight=260&quality=90&tag=series-logo`,
+    );
   });
 
   test("returns null for an item without an Id", () => {
@@ -928,7 +942,7 @@ describe("getItemImage", () => {
   describe("Primary (the default variant)", () => {
     test("uses the Primary tag and blurhash with the defaults", () => {
       expect(pick(getItemImage({ api, item: movie }))).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=1000&quality=90&tag=movie-primary`,
         blurhash: "movie-primary-hash",
       });
     });
@@ -937,7 +951,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, width: 300, quality: 70 })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?width=300&quality=70&tag=movie-primary`,
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=70&tag=movie-primary`,
         blurhash: "movie-primary-hash",
       });
     });
@@ -955,7 +969,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: { ...movie, ImageBlurHashes: {} } })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=1000&quality=90&tag=movie-primary`,
       });
     });
 
@@ -967,16 +981,14 @@ describe("getItemImage", () => {
 
     test("uses an episode's own Primary", () => {
       expect(pick(getItemImage({ api, item: episode }))).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
+        uri: `${base}/Items/episode-1/Images/Primary?fillWidth=1000&quality=90&tag=episode-primary`,
         blurhash: "episode-primary-hash",
       });
     });
 
-    test("asks for the path with undefined as the item id for an item without an Id", () => {
-      // Known: missing parent id
-      expect(pick(getItemImage({ api, item: noId }))).toEqual({
-        uri: `${base}/Items/undefined/Images/Primary?width=1000&quality=90&tag=movie-primary`,
-      });
+    test("returns null for an item without an Id", () => {
+      // Fixed: no /Items/undefined/ path
+      expect(getItemImage({ api, item: noId })).toBe(null);
     });
   });
 
@@ -985,7 +997,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=movie-backdrop&imageIndex=0`,
+        uri: `${base}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=90&tag=movie-backdrop&imageIndex=0`,
         blurhash: "movie-backdrop-hash",
       });
     });
@@ -1011,7 +1023,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episode, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?width=1000&quality=90&tag=series-backdrop&imageIndex=0`,
+        uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=1000&quality=90&tag=series-backdrop&imageIndex=0`,
         blurhash: "series-backdrop-hash",
       });
     });
@@ -1020,7 +1032,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episodeNoThumb, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?width=1000&quality=90&tag=series-backdrop&imageIndex=0`,
+        uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=1000&quality=90&tag=series-backdrop&imageIndex=0`,
       });
     });
 
@@ -1038,11 +1050,12 @@ describe("getItemImage", () => {
   });
 
   describe("Thumb", () => {
-    test("asks for the Thumb tag as a Backdrop image, with its blurhash", () => {
+    test("asks for the Thumb image, with its blurhash", () => {
+      // Fixed: the Thumb tag is asked of the Thumb endpoint, not Backdrop
       expect(
         pick(getItemImage({ api, item: movie, variant: "Thumb" })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=movie-thumb`,
+        uri: `${base}/Items/movie-1/Images/Thumb?fillWidth=1000&quality=90&tag=movie-thumb`,
         blurhash: "movie-thumb-hash",
       });
     });
@@ -1059,7 +1072,7 @@ describe("getItemImage", () => {
           }),
         ),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=500&fillHeight=281&maxWidth=1920&maxHeight=1920&quality=90&tag=series-thumb`,
+        uri: `${base}/Items/series-1/Images/Thumb?fillWidth=500&fillHeight=281&maxWidth=1920&maxHeight=1920&quality=90&tag=series-thumb`,
         blurhash: "series-thumb-hash",
       });
     });
@@ -1072,70 +1085,91 @@ describe("getItemImage", () => {
     });
   });
 
-  describe("variants that fall through to the item's Primary", () => {
-    test.each([
-      "ParentBackdrop",
-      "ParentLogo",
-      "Logo",
-      "AlbumPrimary",
-      "SeriesPrimary",
-      "Screenshot",
-    ] as const)(
-      "%s asks for the item's own Primary, without a blurhash",
+  describe("variants that used to fall through to the item's Primary", () => {
+    // Fixed: each variant resolves its own image instead of the item's Primary
+    test("ParentBackdrop returns null for a movie, which has no parent", () => {
+      expect(
+        getItemImage({ api, item: movie, variant: "ParentBackdrop" }),
+      ).toBe(null);
+    });
+
+    test("ParentBackdrop uses the parent backdrop of an episode", () => {
+      expect(
+        pick(getItemImage({ api, item: episode, variant: "ParentBackdrop" })),
+      ).toEqual({
+        uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=1000&quality=90&tag=series-backdrop&imageIndex=0`,
+        blurhash: "series-backdrop-hash",
+      });
+    });
+
+    test.each(["ParentLogo", "Logo"] as const)(
+      "%s uses the item's own logo",
       (variant) => {
         expect(pick(getItemImage({ api, item: movie, variant }))).toEqual({
-          uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
+          uri: `${base}/Items/movie-1/Images/Logo?fillWidth=1000&quality=90&tag=movie-logo`,
+          blurhash: "movie-logo-hash",
         });
       },
     );
 
-    test("asks for the string undefined as the tag for an item without a Primary tag", () => {
-      // Known: untagged request, may 404; tag=undefined
-      expect(
-        pick(getItemImage({ api, item: movieNoImages, variant: "Logo" })),
-      ).toEqual({
-        uri: `${base}/Items/movie-3/Images/Primary?width=1000&quality=90&tag=undefined`,
-      });
-    });
-
-    test("ignores the album of a track", () => {
-      // Known: untagged request, may 404; tag=undefined, the album is not used
-      expect(
-        pick(getItemImage({ api, item: track, variant: "AlbumPrimary" })),
-      ).toEqual({
-        uri: `${base}/Items/track-1/Images/Primary?width=1000&quality=90&tag=undefined`,
-      });
-    });
-
-    test("ignores the series of an episode", () => {
-      expect(
-        pick(getItemImage({ api, item: episode, variant: "SeriesPrimary" })),
-      ).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
-      });
-    });
-
-    test("ignores the parent logo of an episode", () => {
+    test("ParentLogo uses the parent logo of an episode", () => {
       expect(
         pick(getItemImage({ api, item: episode, variant: "ParentLogo" })),
       ).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
+        uri: `${base}/Items/series-1/Images/Logo?fillWidth=1000&quality=90&tag=series-logo`,
       });
     });
 
-    test("adds the box height params when given a height", () => {
+    test("returns null for a logo the item does not have", () => {
+      expect(getItemImage({ api, item: movieNoImages, variant: "Logo" })).toBe(
+        null,
+      );
+    });
+
+    test("AlbumPrimary uses the album of a track", () => {
+      expect(
+        pick(getItemImage({ api, item: track, variant: "AlbumPrimary" })),
+      ).toEqual({
+        uri: `${base}/Items/album-1/Images/Primary?fillWidth=1000&quality=90&tag=album-primary`,
+      });
+    });
+
+    test("SeriesPrimary uses the series of an episode", () => {
+      expect(
+        pick(getItemImage({ api, item: episode, variant: "SeriesPrimary" })),
+      ).toEqual({
+        uri: `${base}/Items/series-1/Images/Primary?fillWidth=1000&quality=90&tag=series-primary`,
+      });
+    });
+
+    test("SeriesPrimary uses the item's own Primary when it is no episode", () => {
+      expect(
+        pick(getItemImage({ api, item: movie, variant: "SeriesPrimary" })),
+      ).toEqual({
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=1000&quality=90&tag=movie-primary`,
+        blurhash: "movie-primary-hash",
+      });
+    });
+
+    test("Screenshot returns null for an item without one", () => {
+      expect(getItemImage({ api, item: movie, variant: "Screenshot" })).toBe(
+        null,
+      );
+    });
+
+    test("Screenshot uses the item's own Screenshot, with the box height params", () => {
       expect(
         pick(
           getItemImage({
             api,
-            item: movie,
+            item: { ...movie, ImageTags: { Screenshot: "shot" } },
             variant: "Screenshot",
             width: 640,
             height: 360,
           }),
         ),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-primary`,
+        uri: `${base}/Items/movie-1/Images/Screenshot?fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920&quality=90&tag=shot`,
       });
     });
   });

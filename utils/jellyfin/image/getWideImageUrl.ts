@@ -1,6 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { itemImageUrl } from "./itemImageUrl";
+import { getItemImageUrl } from "./getItemImageUrl";
 
 /**
  * Landscape (16:9-ish) image for an item, as used by the continue-watching
@@ -29,34 +29,12 @@ export const getWideImageUrl = ({
   fillWidth?: number;
   quality?: number;
 }): string | undefined => {
-  if (!api || !item?.Id) return undefined;
-
-  // With both sides the server returns the smallest image that fills the box,
-  // whichever side binds. A Thumb is as wide as the card, so its height is
-  // enough; a Primary image is whatever shape the item's artwork has.
-  const primary = itemImageUrl(api, item.Id, "Primary", {
-    fillWidth,
-    fillHeight,
-    quality,
-  });
-  const thumb = (itemId: string, tag: string) =>
-    itemImageUrl(api, itemId, "Thumb", { fillHeight, quality, tag });
-
-  if (item.Type === "Episode") {
-    if (useEpisodePoster) return primary;
-
-    // Matched pair: the parent that owns the Thumb (ParentThumbItemId), not the
-    // backdrop owner — otherwise the Thumb tag is requested on the wrong item → black.
-    if (item.ParentThumbItemId && item.ParentThumbImageTag) {
-      return thumb(item.ParentThumbItemId, item.ParentThumbImageTag);
-    }
-
-    return primary;
-  }
-
-  if (item.ImageTags?.Thumb) {
-    return thumb(item.Id, item.ImageTags.Thumb);
-  }
-
-  return primary;
+  return (
+    getItemImageUrl(api, item, "wide", {
+      preferEpisodeImage: useEpisodePoster,
+      height: fillHeight,
+      width: fillWidth,
+      quality,
+    }) ?? undefined
+  );
 };

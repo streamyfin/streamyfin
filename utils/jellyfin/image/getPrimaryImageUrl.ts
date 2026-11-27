@@ -3,9 +3,7 @@ import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { isBaseItemDto } from "../jellyfin";
-import { fillHeightImageParams } from "./imagePixels";
-import { itemImageUrl } from "./itemImageUrl";
+import { getItemImageUrl } from "./getItemImageUrl";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -30,26 +28,9 @@ export const getPrimaryImageUrl = ({
   quality?: number | null;
   width?: number | null;
   height?: number | null;
-}) => {
-  // Every URL below is built from the item's Id: without one there is no
-  // image to ask for, whatever was handed over (an answer that is not an
-  // item, restored from an older cache, is a string).
-  if (!api || !item?.Id) {
-    return null;
-  }
-
-  if (!isBaseItemDto(item)) {
-    return itemImageUrl(api, item.Id, "Primary");
-  }
-
-  const primaryTag = item.ImageTags?.Primary;
-  const backdropTag = item.BackdropImageTags?.[0];
-  const parentBackdropTag = item.ParentBackdropImageTags?.[0];
-
-  return itemImageUrl(api, item.Id, "Primary", {
-    fillWidth: width || 500,
+}) =>
+  getItemImageUrl(api, item, "primary", {
+    width: width || 500,
     quality: quality || 80,
-    tag: primaryTag || backdropTag || parentBackdropTag || undefined,
-    ...(height ? fillHeightImageParams(height) : null),
+    height: height || undefined,
   });
-};

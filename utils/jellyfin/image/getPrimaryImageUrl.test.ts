@@ -20,10 +20,19 @@ describe("getPrimaryImageUrl", () => {
     expect(new URL(url ?? "").searchParams.get("tag")).toBe("primary-tag");
   });
 
-  test("asks for a person's image by its id", () => {
-    expect(getPrimaryImageUrl({ api, item: { Id: "person-1" } })).toBe(
-      "https://jellyfin.example.com/Items/person-1/Images/Primary",
+  test("asks for a person's image by its PrimaryImageTag", () => {
+    expect(
+      getPrimaryImageUrl({
+        api,
+        item: { Id: "person-1", PrimaryImageTag: "person-tag" },
+      }),
+    ).toBe(
+      "https://jellyfin.example.com/Items/person-1/Images/Primary?fillWidth=400&quality=80&tag=person-tag",
     );
+  });
+
+  test("gives no image for an item without a Primary tag", () => {
+    expect(getPrimaryImageUrl({ api, item: { Id: "person-1" } })).toBeNull();
   });
 
   // REACT-NATIVE-NY: a text answer reached the series page as its item, and

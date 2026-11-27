@@ -1,5 +1,5 @@
 import type { Api } from "@jellyfin/sdk";
-import { itemImageUrl } from "./itemImageUrl";
+import { getItemImageUrlById } from "./getItemImageUrl";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -18,13 +18,8 @@ export const getPrimaryImageUrlById = ({
   id?: string | null;
   quality?: number | null;
   width?: number | null;
-}) => {
-  if (!id || !api) {
-    return null;
-  }
-
-  return itemImageUrl(api, id, "Primary", {
-    fillWidth: width || 500,
+}) =>
+  getItemImageUrlById(api, id, "Primary", {
+    width: width || 500,
     quality: quality || 90,
   });
-};

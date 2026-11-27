@@ -120,13 +120,13 @@ describe("buildItemCards artwork size", () => {
     // 200 by 112.5 points. The fixed 389 pixels fell short from 3.5x up.
     onScreenDensity(3.75);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
-      fillWidth: null,
+      fillWidth: "800",
       fillHeight: "450",
     });
 
     onScreenDensity(2);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
-      fillWidth: null,
+      fillWidth: "400",
       fillHeight: "225",
     });
   });
@@ -164,7 +164,7 @@ describe("buildItemCards artwork size", () => {
 
     // 128 by 72 points.
     expect(sizeOf(imageUrlOf(movie, { kind: "rowWide" }))).toEqual({
-      fillWidth: null,
+      fillWidth: "400",
       fillHeight: "225",
     });
   });

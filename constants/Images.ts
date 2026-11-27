@@ -36,3 +36,17 @@ export const CARD_IMAGE_WIDTH_STEP_PX = 100;
  * planned for: a poster this wide already decodes to almost 4 MB.
  */
 export const MAX_CARD_IMAGE_WIDTH_PX = 800;
+
+/**
+ * Quality asked for when a caller names none. 80 is where JPEG artwork stops
+ * improving visibly for the bytes it costs, and every card, backdrop and
+ * poster the app drew before the image builders shared one entry point used it.
+ */
+export const DEFAULT_IMAGE_QUALITY = 80;
+
+/**
+ * Quality of a logo. A logo is flat shapes and thin edges on transparency,
+ * where compression ringing shows at 80, so it is asked for sharper than the
+ * artwork around it.
+ */
+export const LOGO_IMAGE_QUALITY = 90;

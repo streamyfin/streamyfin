@@ -45,7 +45,7 @@ describe("getItemImage", () => {
     const source = getItemImage({ api, item: movie, variant: "Backdrop" });
 
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=90&tag=backdrop-tag&imageIndex=0`,
     );
   });
 });
