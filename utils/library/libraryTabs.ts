@@ -1,11 +1,13 @@
 import type { LibraryApiGetItemsRequest } from "@jellyfin/sdk/lib/generated-client/api/library-api";
 import type {
   BaseItemDto,
-  BaseItemKind,
   MediaType,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { supportsLibraryCollectionsAndPlaylists } from "@/utils/jellyfin/serverVersion";
-import { ITEM_TYPE_BY_COLLECTION } from "@/utils/library/libraryItemsQuery";
+import {
+  getLibraryItemTypeQuery,
+  type LibraryItemTypeQuery,
+} from "@/utils/library/libraryItemsQuery";
 
 export type LibraryTab = "items" | "collections" | "playlists";
 
@@ -78,22 +80,16 @@ export const getLibraryTabQuery = (
   tab: LibraryTab,
   library: Library,
   isTV: boolean,
-): { includeItemTypes?: BaseItemKind[]; mediaTypes?: MediaType[] } => {
-  // The items tab asks for one type when the library has one: the underlying
-  // directory sometimes holds other types, and they should not show.
-  const itemType: BaseItemKind | undefined =
-    tab === "collections"
-      ? "BoxSet"
-      : tab === "playlists"
-        ? "Playlist"
-        : library.CollectionType
-          ? ITEM_TYPE_BY_COLLECTION[library.CollectionType]
-          : undefined;
+): LibraryItemTypeQuery & Pick<LibraryApiGetItemsRequest, "mediaTypes"> => {
+  const itemTypes: LibraryItemTypeQuery =
+    tab === "items"
+      ? getLibraryItemTypeQuery(library)
+      : { includeItemTypes: [tab === "collections" ? "BoxSet" : "Playlist"] };
 
   return {
-    includeItemTypes: itemType ? [itemType] : undefined,
+    ...itemTypes,
     // TV has no music playback, so it only lists video playlists.
-    ...(isTV && itemType === "Playlist"
+    ...(isTV && itemTypes.includeItemTypes?.[0] === "Playlist"
       ? { mediaTypes: ["Video"] as MediaType[] }
       : {}),
   };

@@ -96,9 +96,32 @@ describe("the request behind a tab", () => {
     });
   });
 
-  test("the items tab of a mixed library asks for every type", () => {
-    expect(getLibraryTabQuery("items", library(), false)).toEqual({
-      includeItemTypes: undefined,
+  test.each([false, true])(
+    "keeps nested show entries and backing folders out of mixed items (isTV=%s)",
+    (isTV) => {
+      for (const mixed of [library(), library("unknown")]) {
+        expect(getLibraryTabQuery("items", mixed, isTV)).toEqual({
+          excludeItemTypes: ["Season", "Episode", "Folder"],
+        });
+      }
+    },
+  );
+
+  test("opening a folder or playlist can still show its episodes", () => {
+    for (const type of ["Folder", "Playlist"] as const) {
+      expect(getLibraryTabQuery("items", { Type: type }, true)).toEqual({
+        includeItemTypes: undefined,
+      });
+    }
+  });
+
+  test("the dedicated tabs of a mixed library keep their own types", () => {
+    expect(getLibraryTabQuery("collections", library(), false)).toEqual({
+      includeItemTypes: ["BoxSet"],
+    });
+    expect(getLibraryTabQuery("playlists", library(), true)).toEqual({
+      includeItemTypes: ["Playlist"],
+      mediaTypes: ["Video"],
     });
   });
 

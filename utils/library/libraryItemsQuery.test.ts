@@ -74,6 +74,44 @@ describe("library items query", () => {
     expect(queue.officialRatings).toEqual(["R", "NC-17"]);
   });
 
+  test.each([false, true])(
+    "omits hidden mixed-library items from the queue (shuffle=%s)",
+    async (shuffle) => {
+      const api = makeApi({ Items: [] });
+      const query = buildLibraryQueueQuery(
+        {
+          ...horrorMovies,
+          libraryType: "CollectionFolder",
+          collectionType: undefined,
+        },
+        { shuffle },
+      );
+
+      await getLibraryApi(api).getItems(query);
+
+      const url = new URL(api.mock.history.get[0].url ?? "");
+      expect(url.searchParams.get("recursive")).toBe("true");
+      expect(url.searchParams.getAll("excludeItemTypes")).toEqual([
+        "Season",
+        "Episode",
+        "Folder",
+      ]);
+      expect(url.searchParams.getAll("mediaTypes")).toEqual(["Video"]);
+    },
+  );
+
+  test.each(["Folder", "Playlist"] as const)(
+    "leaves episodes eligible when the queue opens a %s directly",
+    (libraryType) => {
+      const queue = buildLibraryQueueQuery(
+        { ...horrorMovies, libraryType, collectionType: undefined },
+        { shuffle: false },
+      );
+
+      expect(queue.excludeItemTypes).toBeUndefined();
+    },
+  );
+
   // The screen passes an empty list when nothing is picked: the request that
   // leaves the SDK must not carry the parameter at all.
   test("leaves the ratings out of the request when none are selected", async () => {
