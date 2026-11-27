@@ -49,6 +49,33 @@ describe("the artwork a card requests", () => {
 
   const images = () => screen.queryAllByTestId(/^image /);
 
+  // The placeholder read the episode's own Primary hash whatever the card
+  // drew, so a series Thumb faded in over the blur of an unrelated still.
+  test("the placeholder is the blurhash of the image the card draws", async () => {
+    await render(
+      <TVPosterCard
+        item={{
+          Id: "e1",
+          Name: "Pilot",
+          Type: "Episode",
+          ParentThumbItemId: "series-1",
+          ParentThumbImageTag: "thumb-tag",
+          ImageTags: { Primary: "ep-tag" },
+          ImageBlurHashes: {
+            Primary: { "ep-tag": "still-hash" },
+            Thumb: { "thumb-tag": "thumb-hash" },
+          },
+        }}
+        orientation='horizontal'
+        onPress={() => {}}
+      />,
+    );
+
+    const [image] = images();
+    expect(image.props.testID).toContain("/Items/series-1/Images/Thumb?");
+    expect(image.props.placeholder).toEqual({ blurhash: "thumb-hash" });
+  });
+
   // An episode of a series that has no Thumb used to fall through to a request
   // for the series' Thumb without a tag, which the server answers with a 404.
   test("a horizontal episode without a parent Thumb shows the series backdrop", async () => {

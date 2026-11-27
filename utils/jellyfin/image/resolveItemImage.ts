@@ -94,7 +94,7 @@ export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
       "parentThumb",
       "parentBackdrop",
     ],
-    default: ["thumb", "backdrop", "primary"],
+    default: ["thumb", "seriesThumb", "backdrop", "primary"],
   },
   backdrop: { default: ["backdrop", "parentBackdrop", "primary"] },
   parentBackdrop: { default: ["parentBackdrop"] },

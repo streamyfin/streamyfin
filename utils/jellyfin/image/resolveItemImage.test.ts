@@ -310,15 +310,29 @@ describe("resolveItemImage kinds", () => {
   });
 
   test("wide is Thumb, backdrop, then Primary for an item that is no episode", () => {
-    expect(typeAndOwner({ ...full, ImageTags: { Primary: "p" } }, "wide")).toBe(
-      "item:Backdrop",
+    const noThumbs = {
+      ...full,
+      ImageTags: { Primary: "p" },
+      SeriesThumbImageTag: undefined,
+    };
+    expect(typeAndOwner(noThumbs, "wide")).toBe("item:Backdrop");
+    expect(typeAndOwner({ ...noThumbs, BackdropImageTags: [] }, "wide")).toBe(
+      "item:Primary",
     );
+  });
+
+  // A season carries its series' Thumb, and jellyfin-web draws it before any
+  // backdrop.
+  test("wide is the series Thumb before a backdrop for an item that is no episode", () => {
+    const season = {
+      ...full,
+      Type: "Season",
+      ImageTags: { Primary: "p" },
+    } satisfies BaseItemDto;
+    expect(typeAndOwner(season, "wide")).toBe("series:Thumb");
     expect(
-      typeAndOwner(
-        { ...full, ImageTags: { Primary: "p" }, BackdropImageTags: [] },
-        "wide",
-      ),
-    ).toBe("item:Primary");
+      typeAndOwner({ ...season, SeriesThumbImageTag: undefined }, "wide"),
+    ).toBe("item:Backdrop");
   });
 
   test("wide is series Thumb, parent Thumb, parent backdrop, then Primary for an episode", () => {

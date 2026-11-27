@@ -26,7 +26,7 @@ import {
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+import { resolveItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
@@ -148,24 +148,22 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
 
   const aspectRatio = orientation === "horizontal" ? 16 / 9 : 10 / 15;
 
-  // Smart image URL selection
-  const imageUrl = useMemo(() => {
-    // Use custom getter if provided
+  // The image the card draws, with the blurhash of that same image.
+  const image = useMemo(() => {
+    // A custom getter supplies a URL whose image the card cannot know.
     if (imageUrlGetter) {
-      return imageUrlGetter(item) ?? null;
+      return { url: imageUrlGetter(item) ?? null, blurhash: undefined };
     }
 
-    if (orientation === "horizontal") {
-      return getItemImageUrl(api, item, "wide", {
-        width,
-        height: width / aspectRatio,
-        preferEpisodeImage,
-      });
-    }
-
-    return getItemImageUrl(api, item, "poster", {
-      width,
-    });
+    const resolved =
+      orientation === "horizontal"
+        ? resolveItemImageUrl(api, item, "wide", {
+            width,
+            height: width / aspectRatio,
+            preferEpisodeImage,
+          })
+        : resolveItemImageUrl(api, item, "poster", { width });
+    return { url: resolved?.url ?? null, blurhash: resolved?.ref.blurhash };
   }, [
     api,
     item,
@@ -175,6 +173,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
     imageUrlGetter,
     preferEpisodeImage,
   ]);
+  const imageUrl = image.url;
 
   // Progress calculation
   const progress = useMemo(() => {
@@ -194,12 +193,6 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
   }, [item, showProgress]);
 
   const isWatched = showWatchedIndicator && item.UserData?.Played === true;
-
-  // Blurhash for placeholder
-  const blurhash = useMemo(() => {
-    const key = item.ImageTags?.Primary as string;
-    return item.ImageBlurHashes?.Primary?.[key];
-  }, [item]);
 
   // Glass effect availability
   const useGlass = isGlassEffectAvailable();
@@ -533,7 +526,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         }}
       >
         <Image
-          placeholder={{ blurhash: blurhash ?? undefined }}
+          placeholder={{ blurhash: image.blurhash }}
           key={item.Id}
           source={{ uri: imageUrl }}
           recyclingKey={item.Id}

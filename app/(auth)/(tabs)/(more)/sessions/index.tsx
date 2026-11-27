@@ -178,7 +178,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
         <View className='w-20 pr-4'>
           <Poster
             id={session.NowPlayingItem?.Id}
-            url={getItemImageUrl(api, session.NowPlayingItem, "primary", {
+            url={getItemImageUrl(api, session.NowPlayingItem, "poster", {
               width: SESSION_POSTER_WIDTH,
             })}
           />
