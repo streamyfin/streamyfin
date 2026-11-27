@@ -1797,12 +1797,12 @@ describe("background sidecar delivery", () => {
     fetchExternalSubtitle.mockImplementationOnce(() => gate);
 
     await mount();
-    // Playback starts without waiting for the sidecar: the player is up while
-    // the fetch is still pending.
-    await start(() => play("item-1"));
-    expect(mockNative.presented).toHaveLength(1);
-
     try {
+      // Playback starts without waiting for the sidecar: the player is up
+      // while the fetch is still pending.
+      await start(() => play("item-1"));
+      expect(mockNative.presented).toHaveLength(1);
+
       await act(async () => {
         mockNative.emit("onLoad", {
           url: mockNative.presented[mockNative.presented.length - 1],
@@ -1813,8 +1813,8 @@ describe("background sidecar delivery", () => {
         nativePlayerMock.nativePlayerAddExternalSubtitle,
       ).not.toHaveBeenCalled();
     } finally {
-      // Release even when an assertion failed, so the fetch does not outlive
-      // the test.
+      // Release even when an assertion above failed, so a fetch that did
+      // start does not outlive the test.
       releaseFetch();
     }
     await settle();
