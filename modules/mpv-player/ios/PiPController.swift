@@ -6,6 +6,9 @@ protocol PiPControllerDelegate: AnyObject {
     func pipController(_ controller: PiPController, didStartPictureInPicture: Bool)
     func pipController(_ controller: PiPController, willStopPictureInPicture: Bool)
     func pipController(_ controller: PiPController, didStopPictureInPicture: Bool)
+    #if os(iOS)
+    func pipController(_ controller: PiPController, didChangeVisibility visible: Bool)
+    #endif
     func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void)
     func pipControllerPlay(_ controller: PiPController)
     func pipControllerPause(_ controller: PiPController)
@@ -19,6 +22,9 @@ final class PiPController: NSObject {
     private static weak var automaticStartOwner: PiPController?
 
     private var pipController: AVPictureInPictureController?
+    #if os(iOS)
+    private var visibilityObservation: NSKeyValueObservation?
+    #endif
     private weak var sampleBufferDisplayLayer: AVSampleBufferDisplayLayer?
     
     weak var delegate: PiPControllerDelegate?
@@ -80,6 +86,17 @@ final class PiPController: NSObject {
         pipController = AVPictureInPictureController(contentSource: contentSource)
         pipController?.delegate = self
         pipController?.requiresLinearPlayback = false
+        #if os(iOS)
+        // Visibility can return without a protected-data notification.
+        visibilityObservation = pipController?.observe(\.isPictureInPictureActive, options: [.old, .new]) {
+            [weak self] _, change in
+            guard let visible = change.newValue, visible != change.oldValue else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.isPictureInPictureActive == visible else { return }
+                self.delegate?.pipController(self, didChangeVisibility: visible)
+            }
+        }
+        #endif
         Logger.shared.log(
             "PiP: controller created (possible=\(pipController?.isPictureInPicturePossible ?? false))",
             type: "Info")

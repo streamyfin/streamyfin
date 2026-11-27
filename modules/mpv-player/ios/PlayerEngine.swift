@@ -81,6 +81,12 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleDidBecomeActive),
 			name: UIApplication.didBecomeActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleWillResignActive),
+			name: UIApplication.willResignActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleProtectedDataDidBecomeAvailable),
+			name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
 		#endif
 
 		// tvOS has no windowed/minimized state: leaving the app backgrounds it
@@ -98,8 +104,26 @@ final class MPVPlayerEngine: NSObject, PlayerEngine {
 
 	#if os(iOS)
 	@objc private func handleDidBecomeActive() {
-		guard !isShutDown, !isPictureInPictureActive() else { return }
-		renderer?.restoreSubtitlesAfterForeground()
+		guard !isShutDown else { return }
+		renderer?.retryVideoToolboxAfterWake(.foreground)
+		if !isPictureInPictureActive() {
+			renderer?.restoreSubtitlesAfterForeground()
+		}
+	}
+
+	@objc private func handleWillResignActive() {
+		renderer?.cancelVideoToolboxWakeRetry(.foreground)
+	}
+
+	@objc private func handleProtectedDataDidBecomeAvailable() {
+		retryVideoToolboxInBackgroundPiP()
+	}
+
+	private func retryVideoToolboxInBackgroundPiP() {
+		guard !isShutDown, isPictureInPictureActive(),
+		      UIApplication.shared.applicationState != .active
+		else { return }
+		renderer?.retryVideoToolboxAfterWake(.pictureInPicture)
 	}
 	#endif
 
@@ -851,8 +875,22 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		completionHandler(true)
 	}
 
+	#if os(iOS)
+	func pipController(_ controller: PiPController, didChangeVisibility visible: Bool) {
+		guard controller === pipController else { return }
+		if visible {
+			retryVideoToolboxInBackgroundPiP()
+		} else {
+			renderer?.cancelVideoToolboxWakeRetry(.pictureInPicture)
+		}
+	}
+	#endif
+
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
+		#if os(iOS)
+		retryVideoToolboxInBackgroundPiP()
+		#endif
 		requestPlaying(true)
 	}
 

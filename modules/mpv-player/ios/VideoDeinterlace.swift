@@ -52,6 +52,11 @@ enum VideoDeinterlace {
         return plan
     }
 
+    /// An installed software filter cannot accept zero-copy frames during a restart.
+    static func hwdecForReset(_ mode: String, filterOn: Bool) -> String {
+        filterOn && mode == zeroCopyHwdec ? copyHwdec : mode
+    }
+
     /// The decoder mode to restore before a new file loads, or nil to leave it.
     ///
     /// `requested` is the renderer's `hwdec` property, not the decoder in use. Only
