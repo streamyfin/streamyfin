@@ -22,6 +22,10 @@ import {
   yearFilterAtom,
   yearPreferenceAtom,
 } from "@/utils/atoms/filters";
+import {
+  effectiveSelection,
+  type LibraryKind,
+} from "@/utils/library/libraryFilterSets";
 
 /**
  * Single source of truth for the library filter bar's reset action and its
@@ -34,7 +38,7 @@ import {
  * otherwise the stored preference resurfaces when the screen's focus effect
  * re-applies it the next time the screen gains focus.
  */
-export const useFilterReset = (libraryId: string) => {
+export const useFilterReset = (libraryId: string, kind: LibraryKind) => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedOfficialRatings, setSelectedOfficialRatings] = useAtom(
     officialRatingFilterAtom,
@@ -63,16 +67,28 @@ export const useFilterReset = (libraryId: string) => {
   );
 
   // SortName / Ascending is the baseline a library opens with (the mount-effect
-  // fallback), so any other value counts as an active, resettable sort.
+  // fallback), so any other value counts as an active, resettable sort. What
+  // this kind hides, or a sort it does not offer, is not on screen and cannot
+  // light the button; the reset still forgets it.
+  const shown = effectiveSelection(kind, {
+    genres: selectedGenres,
+    officialRatings: selectedOfficialRatings,
+    years: selectedYears,
+    tags: selectedTags,
+    audioLanguages: selectedAudioLanguages,
+    subtitleLanguages: selectedSubtitleLanguages,
+    filterBy,
+    sortBy,
+  });
   const hasActiveFilters =
-    selectedGenres.length > 0 ||
-    selectedOfficialRatings.length > 0 ||
-    selectedYears.length > 0 ||
-    selectedTags.length > 0 ||
-    selectedAudioLanguages.length > 0 ||
-    selectedSubtitleLanguages.length > 0 ||
-    filterBy.length > 0 ||
-    sortBy[0] !== SortByOption.SortName ||
+    shown.genres.length > 0 ||
+    shown.officialRatings.length > 0 ||
+    shown.years.length > 0 ||
+    shown.tags.length > 0 ||
+    shown.audioLanguages.length > 0 ||
+    shown.subtitleLanguages.length > 0 ||
+    shown.filterBy.length > 0 ||
+    shown.sortBy[0] !== SortByOption.SortName ||
     sortOrder[0] !== SortOrderOption.Ascending;
 
   const resetAllFilters = useCallback(() => {
