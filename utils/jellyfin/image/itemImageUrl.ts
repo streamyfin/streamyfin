@@ -6,6 +6,20 @@ type ImageUrlParams = Record<
   string | number | boolean | null | undefined
 >;
 
+// The query order is part of the image cache key. A fixed order gives one key
+// per image, whatever order the caller's object lists its params in.
+const CANONICAL_PARAM_ORDER = [
+  "fillWidth",
+  "fillHeight",
+  "maxWidth",
+  "maxHeight",
+  "width",
+  "height",
+  "quality",
+  "tag",
+  "imageIndex",
+];
+
 // axios encodes a query value this way (helpers/buildURL.js).
 const encode = (value: string) =>
   encodeURIComponent(value)
@@ -27,7 +41,13 @@ export const itemImageUrl = (
   imageType: ImageType | `${ImageType}`,
   params: ImageUrlParams = {},
 ): string => {
-  const query = Object.entries(params)
+  const known = CANONICAL_PARAM_ORDER.filter((key) => key in params).map(
+    (key) => [key, params[key]] as const,
+  );
+  const others = Object.entries(params).filter(
+    ([key]) => !CANONICAL_PARAM_ORDER.includes(key),
+  );
+  const query = [...known, ...others]
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([key, value]) => `${encode(key)}=${encode(String(value))}`)
     .join("&");

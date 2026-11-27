@@ -24,7 +24,7 @@ describe("getItemImage", () => {
     });
 
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?quality=90&tag=backdrop-tag&fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=90&tag=backdrop-tag&imageIndex=0`,
     );
   });
 
@@ -37,7 +37,7 @@ describe("getItemImage", () => {
     });
 
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Primary?quality=90&tag=primary-tag&fillWidth=1233&fillHeight=1050&maxWidth=1920&maxHeight=1920`,
+      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=1233&fillHeight=1050&maxWidth=1920&maxHeight=1920&quality=90&tag=primary-tag`,
     );
   });
 
@@ -45,7 +45,7 @@ describe("getItemImage", () => {
     const source = getItemImage({ api, item: movie, variant: "Backdrop" });
 
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?quality=90&tag=backdrop-tag&width=1000&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=backdrop-tag&imageIndex=0`,
     );
   });
 });

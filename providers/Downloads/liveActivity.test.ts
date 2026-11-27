@@ -43,7 +43,7 @@ describe("the poster staged for the download Live Activity", () => {
 
     expect(fakeFiles.downloads()).toEqual([
       {
-        url: `https://jellyfin.example.com/Items/${id}/Images/Primary?quality=90&tag=tag-1&width=300`,
+        url: `https://jellyfin.example.com/Items/${id}/Images/Primary?width=300&quality=90&tag=tag-1`,
         destination: `file:///app-group/LiveActivity/${id}.jpg`,
       },
     ]);

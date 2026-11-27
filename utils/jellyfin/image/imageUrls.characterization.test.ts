@@ -211,7 +211,7 @@ describe("getPrimaryImageUrl", () => {
     expect(
       getPrimaryImageUrl({ api, item: movie, width: 600, height: 900 }),
     ).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=600&quality=80&tag=movie-primary&fillHeight=900&maxWidth=1920&maxHeight=1920`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=80&tag=movie-primary`,
     );
   });
 
@@ -223,7 +223,7 @@ describe("getPrimaryImageUrl", () => {
 
   test("rounds a fractional height", () => {
     expect(getPrimaryImageUrl({ api, item: movie, height: 899.6 })).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=400&quality=80&tag=movie-primary&fillHeight=900&maxWidth=1920&maxHeight=1920`,
+      `${base}/Items/movie-1/Images/Primary?fillWidth=400&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=80&tag=movie-primary`,
     );
   });
 
@@ -598,7 +598,7 @@ describe("getBackdropUrl", () => {
 
   test("passes width and quality through", () => {
     expect(getBackdropUrl({ api, item: movie, width: 800, quality: 70 })).toBe(
-      `${base}/Items/movie-1/Images/Backdrop?quality=70&fillWidth=800&tag=movie-backdrop&imageIndex=0`,
+      `${base}/Items/movie-1/Images/Backdrop?fillWidth=800&quality=70&tag=movie-backdrop&imageIndex=0`,
     );
   });
 
@@ -618,7 +618,7 @@ describe("getBackdropUrl", () => {
         height: 450,
       }),
     ).toBe(
-      `${base}/Items/movie-1/Images/Backdrop?quality=70&fillWidth=800&tag=movie-backdrop&imageIndex=0&fillHeight=450&maxWidth=1920&maxHeight=1920`,
+      `${base}/Items/movie-1/Images/Backdrop?fillWidth=800&fillHeight=450&maxWidth=1920&maxHeight=1920&quality=70&tag=movie-backdrop&imageIndex=0`,
     );
   });
 
@@ -735,7 +735,7 @@ describe("getParentBackdropImageUrl", () => {
         height: 360,
       }),
     ).toBe(
-      `${base}/Items/series-1/Images/Backdrop?fillWidth=640&quality=80&tag=series-backdrop&imageIndex=0&fillHeight=360&maxWidth=1920&maxHeight=1920`,
+      `${base}/Items/series-1/Images/Backdrop?fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920&quality=80&tag=series-backdrop&imageIndex=0`,
     );
   });
 
@@ -779,43 +779,43 @@ describe("getLogoImageUrlById", () => {
 
   test("uses the logo slot height by default", () => {
     expect(getLogoImageUrlById({ api, item: movie })).toBe(
-      `${base}/Items/movie-1/Images/Logo?quality=90&fillHeight=260&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?fillHeight=260&quality=90&tag=movie-logo`,
     );
   });
 
   test("uses the logo of a series", () => {
     expect(getLogoImageUrlById({ api, item: series })).toBe(
-      `${base}/Items/series-1/Images/Logo?quality=90&fillHeight=260&tag=series-logo`,
+      `${base}/Items/series-1/Images/Logo?fillHeight=260&quality=90&tag=series-logo`,
     );
   });
 
   test("passes a height through", () => {
     expect(getLogoImageUrlById({ api, item: movie, height: 200 })).toBe(
-      `${base}/Items/movie-1/Images/Logo?quality=90&fillHeight=200&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?fillHeight=200&quality=90&tag=movie-logo`,
     );
   });
 
   test("rounds a fractional height", () => {
     expect(getLogoImageUrlById({ api, item: movie, height: 200.6 })).toBe(
-      `${base}/Items/movie-1/Images/Logo?quality=90&fillHeight=201&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?fillHeight=201&quality=90&tag=movie-logo`,
     );
   });
 
   test("caps the height at the tallest logo the app asks for", () => {
     expect(getLogoImageUrlById({ api, item: movie, height: 2000 })).toBe(
-      `${base}/Items/movie-1/Images/Logo?quality=90&fillHeight=600&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?fillHeight=600&quality=90&tag=movie-logo`,
     );
   });
 
   test("asks for a height of 0 as given", () => {
     expect(getLogoImageUrlById({ api, item: movie, height: 0 })).toBe(
-      `${base}/Items/movie-1/Images/Logo?quality=90&fillHeight=0&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?fillHeight=0&quality=90&tag=movie-logo`,
     );
   });
 
   test("uses the series logo of an episode, through its parent pair", () => {
     expect(getLogoImageUrlById({ api, item: episode })).toBe(
-      `${base}/Items/series-1/Images/Logo?quality=90&fillHeight=260&tag=series-logo`,
+      `${base}/Items/series-1/Images/Logo?fillHeight=260&quality=90&tag=series-logo`,
     );
   });
 
@@ -928,7 +928,7 @@ describe("getItemImage", () => {
   describe("Primary (the default variant)", () => {
     test("uses the Primary tag and blurhash with the defaults", () => {
       expect(pick(getItemImage({ api, item: movie }))).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary&width=1000`,
+        uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
         blurhash: "movie-primary-hash",
       });
     });
@@ -937,7 +937,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, width: 300, quality: 70 })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?quality=70&tag=movie-primary&width=300`,
+        uri: `${base}/Items/movie-1/Images/Primary?width=300&quality=70&tag=movie-primary`,
         blurhash: "movie-primary-hash",
       });
     });
@@ -946,7 +946,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, width: 600.4, height: 900 })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary&fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920`,
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-primary`,
         blurhash: "movie-primary-hash",
       });
     });
@@ -955,7 +955,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: { ...movie, ImageBlurHashes: {} } })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary&width=1000`,
+        uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
       });
     });
 
@@ -967,7 +967,7 @@ describe("getItemImage", () => {
 
     test("uses an episode's own Primary", () => {
       expect(pick(getItemImage({ api, item: episode }))).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?quality=90&tag=episode-primary&width=1000`,
+        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
         blurhash: "episode-primary-hash",
       });
     });
@@ -975,7 +975,7 @@ describe("getItemImage", () => {
     test("asks for the path with undefined as the item id for an item without an Id", () => {
       // Known: missing parent id
       expect(pick(getItemImage({ api, item: noId }))).toEqual({
-        uri: `${base}/Items/undefined/Images/Primary?quality=90&tag=movie-primary&width=1000`,
+        uri: `${base}/Items/undefined/Images/Primary?width=1000&quality=90&tag=movie-primary`,
       });
     });
   });
@@ -985,7 +985,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Backdrop?quality=90&tag=movie-backdrop&width=1000&imageIndex=0`,
+        uri: `${base}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=movie-backdrop&imageIndex=0`,
         blurhash: "movie-backdrop-hash",
       });
     });
@@ -1002,7 +1002,7 @@ describe("getItemImage", () => {
           }),
         ),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Backdrop?quality=90&tag=movie-backdrop&fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&imageIndex=0`,
+        uri: `${base}/Items/movie-1/Images/Backdrop?fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-backdrop&imageIndex=0`,
         blurhash: "movie-backdrop-hash",
       });
     });
@@ -1011,7 +1011,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episode, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?quality=90&tag=series-backdrop&width=1000&imageIndex=0`,
+        uri: `${base}/Items/series-1/Images/Backdrop?width=1000&quality=90&tag=series-backdrop&imageIndex=0`,
         blurhash: "series-backdrop-hash",
       });
     });
@@ -1020,7 +1020,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episodeNoThumb, variant: "Backdrop" })),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?quality=90&tag=series-backdrop&width=1000&imageIndex=0`,
+        uri: `${base}/Items/series-1/Images/Backdrop?width=1000&quality=90&tag=series-backdrop&imageIndex=0`,
       });
     });
 
@@ -1042,7 +1042,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movie, variant: "Thumb" })),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Backdrop?quality=90&tag=movie-thumb&width=1000`,
+        uri: `${base}/Items/movie-1/Images/Backdrop?width=1000&quality=90&tag=movie-thumb`,
         blurhash: "movie-thumb-hash",
       });
     });
@@ -1059,7 +1059,7 @@ describe("getItemImage", () => {
           }),
         ),
       ).toEqual({
-        uri: `${base}/Items/series-1/Images/Backdrop?quality=90&tag=series-thumb&fillWidth=500&fillHeight=281&maxWidth=1920&maxHeight=1920`,
+        uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=500&fillHeight=281&maxWidth=1920&maxHeight=1920&quality=90&tag=series-thumb`,
         blurhash: "series-thumb-hash",
       });
     });
@@ -1084,7 +1084,7 @@ describe("getItemImage", () => {
       "%s asks for the item's own Primary, without a blurhash",
       (variant) => {
         expect(pick(getItemImage({ api, item: movie, variant }))).toEqual({
-          uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary&width=1000`,
+          uri: `${base}/Items/movie-1/Images/Primary?width=1000&quality=90&tag=movie-primary`,
         });
       },
     );
@@ -1094,7 +1094,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: movieNoImages, variant: "Logo" })),
       ).toEqual({
-        uri: `${base}/Items/movie-3/Images/Primary?quality=90&tag=undefined&width=1000`,
+        uri: `${base}/Items/movie-3/Images/Primary?width=1000&quality=90&tag=undefined`,
       });
     });
 
@@ -1103,7 +1103,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: track, variant: "AlbumPrimary" })),
       ).toEqual({
-        uri: `${base}/Items/track-1/Images/Primary?quality=90&tag=undefined&width=1000`,
+        uri: `${base}/Items/track-1/Images/Primary?width=1000&quality=90&tag=undefined`,
       });
     });
 
@@ -1111,7 +1111,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episode, variant: "SeriesPrimary" })),
       ).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?quality=90&tag=episode-primary&width=1000`,
+        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
       });
     });
 
@@ -1119,7 +1119,7 @@ describe("getItemImage", () => {
       expect(
         pick(getItemImage({ api, item: episode, variant: "ParentLogo" })),
       ).toEqual({
-        uri: `${base}/Items/episode-1/Images/Primary?quality=90&tag=episode-primary&width=1000`,
+        uri: `${base}/Items/episode-1/Images/Primary?width=1000&quality=90&tag=episode-primary`,
       });
     });
 
@@ -1135,7 +1135,7 @@ describe("getItemImage", () => {
           }),
         ),
       ).toEqual({
-        uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary&fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920`,
+        uri: `${base}/Items/movie-1/Images/Primary?fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-primary`,
       });
     });
   });

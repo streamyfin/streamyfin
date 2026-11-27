@@ -23,7 +23,7 @@ describe("itemImageUrl", () => {
       { fillHeight: 338, quality: 90, tag: "c0ffee" },
     ],
     ["an image index of 0", { quality: 80, tag: "c0ffee", imageIndex: 0 }],
-    ["missing values", { tag: undefined, maxWidth: null, quality: 90 }],
+    ["missing values", { maxWidth: null, quality: 90, tag: undefined }],
     ["characters to encode", { tag: "a b:c,d$e/f&g=h?i" }],
     ["a boolean", { addPlayedIndicator: true }],
   ])("matches the SDK's URL with %s", (_name, params) => {
@@ -46,6 +46,39 @@ describe("itemImageUrl", () => {
       getImageApi(api).getItemImageUrlById("item-1", "Primary", {
         tag: "c0ffee",
       }),
+    );
+  });
+
+  test("emits the canonical order whatever order the caller passes", () => {
+    const api = jellyfin.createApi("https://media.example.com", "TOKEN");
+    expect(
+      itemImageUrl(api, "item-1", "Primary", {
+        imageIndex: 0,
+        tag: "c0ffee",
+        quality: 90,
+        height: 20,
+        width: 10,
+        maxHeight: 40,
+        maxWidth: 30,
+        fillHeight: 60,
+        fillWidth: 50,
+      }),
+    ).toBe(
+      "https://media.example.com/Items/item-1/Images/Primary?fillWidth=50&fillHeight=60&maxWidth=30&maxHeight=40&width=10&height=20&quality=90&tag=c0ffee&imageIndex=0",
+    );
+  });
+
+  test("puts an unknown key after the known ones, in the caller's order", () => {
+    const api = jellyfin.createApi("https://media.example.com", "TOKEN");
+    expect(
+      itemImageUrl(api, "item-1", "Primary", {
+        zeta: 1,
+        tag: "c0ffee",
+        alpha: 2,
+        quality: 90,
+      }),
+    ).toBe(
+      "https://media.example.com/Items/item-1/Images/Primary?quality=90&tag=c0ffee&zeta=1&alpha=2",
     );
   });
 });
