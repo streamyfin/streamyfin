@@ -1,4 +1,5 @@
 import { act, render, waitFor } from "@testing-library/react-native";
+import { PLAYER_AUDIO_INDEX_BASE } from "@/constants/Playback";
 import type { NativePlayerEvents } from "@/modules/mpv-player";
 import type { makeApi } from "@/test-utils/jellyfinApi";
 import { stubReactNative } from "@/test-utils/reactNative";
@@ -31,6 +32,17 @@ const mockNative = {
   /** Keeps presentPlayer pending, as the presentation animation does. */
   holdPresentation: false,
   pendingPresentations: [] as Array<() => void>,
+  /** The audio tracks mpv reports for the file. */
+  audioTracks: [] as Array<{ lang?: string }>,
+  /** Keeps setAudioTrack pending, as the hop to mpv's queue does. */
+  holdAudioSwitch: false,
+  pendingAudioSwitches: [] as Array<() => void>,
+  /** How many times the track menus were pushed to the player. */
+  menuPushes: 0,
+  /** The rows of the last audio menu pushed to the player. */
+  audioMenu: [] as number[],
+  /** The mpv id of every audio switch. */
+  audioSwitches: [] as number[],
   /** load rejects with the player still up, as a native throw mid-swap does. */
   refuseLoad: false,
   emit<K extends keyof NativePlayerEvents>(
@@ -94,7 +106,15 @@ jest.mock("@/modules/mpv-player", () => {
     nativePlayerPause: done,
     nativePlayerPlay: done,
     nativePlayerSeekTo: done,
-    nativePlayerSetAudioTrack: done,
+    nativePlayerGetAudioTracks: async () => mockNative.audioTracks,
+    nativePlayerSetAudioTrack: async (id: number) => {
+      mockNative.audioSwitches.push(id);
+      if (mockNative.holdAudioSwitch) {
+        await new Promise<void>((resolve) =>
+          mockNative.pendingAudioSwitches.push(resolve),
+        );
+      }
+    },
     nativePlayerSetSpeed: done,
     nativePlayerSetSubtitleTrack: done,
     nativePlayerShowNotice: done,
@@ -104,7 +124,12 @@ jest.mock("@/modules/mpv-player", () => {
     updateNativePlayerSegments: done,
     updateNativePlayerSubtitleSearch: done,
     updateNativePlayerSyncPlay: done,
-    updateNativePlayerTrackMenus: done,
+    updateNativePlayerTrackMenus: async (menus: {
+      audio: Array<{ jellyfinIndex: number }>;
+    }) => {
+      mockNative.menuPushes += 1;
+      mockNative.audioMenu = menus.audio.map((row) => row.jellyfinIndex);
+    },
   };
 });
 
@@ -115,6 +140,7 @@ const mockNegotiation = {
   count: 0,
   /** What each build was asked for, in order. */
   params: [] as Array<{
+    req: { audioIndex?: number };
     maxStreamingBitrate?: { value?: number };
     linkInUse?: boolean;
   }>,
@@ -129,6 +155,12 @@ const mockNegotiation = {
   bitrate: undefined as number | undefined,
   /** Items whose stream negotiation fails. */
   failing: new Set<string>(),
+  /** Each stream negotiated from now on is a transcode. */
+  transcoding: false,
+  /** The streams the server lists for each negotiated source. */
+  streams: undefined as object[] | undefined,
+  /** The audio index each negotiated session starts on. */
+  audioIndex: undefined as number | undefined,
 };
 
 // The warm negotiates the next episode in the background; its import chain
@@ -143,9 +175,12 @@ jest.mock("@/utils/nativePlayer/externalSubtitles", () => ({
 }));
 jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
   buildNativePlayerStrings: () => ({}),
-  buildTrackMenus: () => ({}),
+  // The rows the player is handed, as built for the session's track list.
+  buildTrackMenus: jest.requireActual(
+    "@/utils/nativePlayer/buildNativePlayerConfig",
+  ).buildTrackMenus,
   buildNativePlayerConfig: async (params: {
-    req: { itemId: string; bitrateValue?: number };
+    req: { itemId: string; bitrateValue?: number; audioIndex?: number };
     item?: object;
     maxStreamingBitrate?: { value?: number };
   }) => {
@@ -185,10 +220,17 @@ jest.mock("@/utils/nativePlayer/buildNativePlayerConfig", () => ({
             ...(mockNegotiation.bitrate && {
               Bitrate: mockNegotiation.bitrate,
             }),
+            ...(mockNegotiation.streams && {
+              MediaStreams: mockNegotiation.streams,
+            }),
+            ...(mockNegotiation.transcoding && {
+              TranscodingUrl: `/videos/${req.itemId}/master.m3u8`,
+            }),
           },
         },
         mediaSourceId: `source-${req.itemId}`,
         bitrateValue: req.bitrateValue,
+        audioIndex: mockNegotiation.audioIndex,
         // The cap a swap asked for; otherwise a fixed quality caps the
         // stream at itself, and 12 Mb/s stands for what Auto, the default,
         // measures.
@@ -502,6 +544,12 @@ beforeEach(() => {
   mockNative.loaded = [];
   mockNative.holdPresentation = false;
   mockNative.pendingPresentations = [];
+  mockNative.audioTracks = [];
+  mockNative.holdAudioSwitch = false;
+  mockNative.pendingAudioSwitches = [];
+  mockNative.menuPushes = 0;
+  mockNative.audioMenu = [];
+  mockNative.audioSwitches = [];
   mockNative.refuseLoad = false;
   mockNegotiation.held = false;
   mockNegotiation.waiting = [];
@@ -512,6 +560,9 @@ beforeEach(() => {
   mockRemoteProgress.held = null;
   mockNegotiation.bitrate = undefined;
   mockNegotiation.failing.clear();
+  mockNegotiation.streams = undefined;
+  mockNegotiation.audioIndex = undefined;
+  mockNegotiation.transcoding = false;
   api.mock.reset();
   api.mock.onAny().reply(200, {});
   log.logAndCaptureError.mockClear();
@@ -693,6 +744,364 @@ describe("a swap whose stream ended under it", () => {
     expect(mockNative.presented).toHaveLength(1);
     expect(mockNative.loaded).toHaveLength(0);
     expect(log.logAndCaptureError).not.toHaveBeenCalled();
+  });
+});
+
+// A server that names tracks from the file name lists one audio stream; mpv
+// finds two. Putting mpv back on the selected track waits on mpv's queue, and
+// another play can take the player meanwhile.
+describe("audio tracks only mpv found", () => {
+  test("are offered in the audio menu once mpv lists them, and selecting one switches mpv to it", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    const pushes = mockNative.menuPushes;
+
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.menuPushes).toBeGreaterThan(pushes);
+    expect(mockNative.audioMenu).toEqual([1, PLAYER_AUDIO_INDEX_BASE + 1]);
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    expect(mockNative.audioSwitches).toEqual([2]);
+  });
+
+  // A transcode carries only the track the server encoded into it.
+  test("fall back to the server's default track once a quality change brings a transcode", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    const changeQuality = async (bitrateValue: number) => {
+      await act(async () =>
+        mockNative.emit("onQualitySelected", { bitrateValue, positionSec: 30 }),
+      );
+      await settle();
+      await act(async () =>
+        mockNative.emit("onLoad", {
+          url: mockNative.loaded[mockNative.loaded.length - 1],
+        }),
+      );
+      await act(async () => mockNative.emit("onTracksReady", {}));
+      await settle();
+    };
+    mockNegotiation.transcoding = true;
+    await changeQuality(4_000_000);
+    mockNegotiation.transcoding = false;
+    await changeQuality(8_000_000);
+
+    // Both qualities were negotiated and loaded, each without an audio index,
+    // so the server encoded and sent its default track.
+    expect(mockNative.loaded).toHaveLength(2);
+    expect(mockNegotiation.params.map((p) => p.req.audioIndex)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    // Back on a direct stream, mpv is not put back on the dropped track.
+    expect(mockNative.audioSwitches).toEqual([2]);
+  });
+
+  // The quality change asked for the track selected when it started; a pick
+  // made while it negotiates is the one to keep.
+  test("keep one picked while a quality change negotiates", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    const pick = async (jellyfinIndex: number) => {
+      await act(async () =>
+        mockNative.emit("onTrackSelectionRequested", {
+          kind: "audio",
+          jellyfinIndex,
+          positionSec: 0,
+        }),
+      );
+      await settle();
+    };
+
+    holdNegotiations();
+    const swap = await start(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await pick(PLAYER_AUDIO_INDEX_BASE + 1);
+    await releaseNegotiations();
+    await act(async () => {
+      await swap.done;
+    });
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches.at(-1)).toBe(2);
+  });
+
+  // The old session takes picks until its stop report is in and the new
+  // stream is handed the player.
+  test("keep one picked while the replaced stream's stop report is pending", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    const stops: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            stops.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+    expect(stops).toHaveLength(1);
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+    await act(async () => {
+      for (const release of stops.splice(0)) release();
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches[mockNative.audioSwitches.length - 1]).toBe(
+      2,
+    );
+  });
+
+  test("give way to a listed track picked while the replaced stream's stop report is pending", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    const stops: Array<() => void> = [];
+    api.mock.resetHandlers();
+    api.mock
+      .onPost("https://jellyfin.example.com/Sessions/Playing/Stopped")
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            stops.push(() => resolve([200, {}]));
+          }),
+      );
+    api.mock.onAny().reply(200, {});
+    await act(async () =>
+      mockNative.emit("onQualitySelected", {
+        bitrateValue: 4_000_000,
+        positionSec: 30,
+      }),
+    );
+    await settle();
+    expect(stops).toHaveLength(1);
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+    await act(async () => {
+      for (const release of stops.splice(0)) release();
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches[mockNative.audioSwitches.length - 1]).toBe(
+      1,
+    );
+  });
+
+  // A remote Play command for the item on screen names its own track.
+  test("give way to the audio track a new play of the same item asks for", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNative.audioTracks = [{ lang: "fre" }, { lang: "eng" }];
+    await mount();
+    await open("item-1");
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    mockNegotiation.audioIndex = 1;
+    await act(async () => {
+      await player.presentFromRequest({
+        itemId: "item-1",
+        offline: false,
+        audioIndex: 1,
+      });
+    });
+    await settle();
+    await act(async () =>
+      mockNative.emit("onLoad", {
+        url: mockNative.loaded[mockNative.loaded.length - 1],
+      }),
+    );
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+
+    expect(mockNative.loaded).toHaveLength(1);
+    expect(mockNative.audioSwitches).toEqual([2, 1]);
+  });
+
+  // A tap on the menu of an earlier stream can arrive once a transcode,
+  // whose menu has no such row, has replaced it.
+  test("ignore a selection of one on a transcode instead of asking the server for it", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.transcoding = true;
+    await mount();
+    await open("item-1");
+
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: PLAYER_AUDIO_INDEX_BASE + 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+
+    expect(mockNegotiation.params).toHaveLength(1);
+  });
+
+  test("leave the next session's menus alone when it takes the player during a switch picked from the menu", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    await mount();
+    await open("item-1");
+
+    mockNative.holdAudioSwitch = true;
+    await act(async () =>
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "audio",
+        jellyfinIndex: 1,
+        positionSec: 0,
+      }),
+    );
+    await settle();
+    expect(mockNative.pendingAudioSwitches).toHaveLength(1);
+
+    mockNative.holdAudioSwitch = false;
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(true);
+    });
+    await settle();
+    const pushes = mockNative.menuPushes;
+    await act(async () => {
+      for (const release of mockNative.pendingAudioSwitches.splice(0)) {
+        release();
+      }
+    });
+    await settle();
+
+    expect(mockNative.menuPushes).toBe(pushes);
+  });
+
+  test("leave the next session's menus alone when it takes the player during the switch to the selected track", async () => {
+    mockNegotiation.streams = [{ Type: "Audio", Index: 1, Language: "fre" }];
+    mockNegotiation.audioIndex = 1;
+    mockNative.audioTracks = [{ lang: "eng" }, { lang: "fre" }];
+    await mount();
+    await open("item-1");
+
+    mockNative.holdAudioSwitch = true;
+    await act(async () => mockNative.emit("onTracksReady", {}));
+    await settle();
+    expect(mockNative.pendingAudioSwitches).toHaveLength(1);
+
+    mockNative.holdAudioSwitch = false;
+    await act(async () => {
+      await expect(play("item-3")).resolves.toBe(true);
+    });
+    await settle();
+    const pushes = mockNative.menuPushes;
+    await act(async () => {
+      for (const release of mockNative.pendingAudioSwitches.splice(0)) {
+        release();
+      }
+    });
+    await settle();
+
+    expect(mockNative.menuPushes).toBe(pushes);
   });
 });
 
