@@ -1,8 +1,12 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaStream,
+} from "@jellyfin/sdk/lib/generated-client";
 import i18next from "i18next";
 import type { NativePlayerStrings } from "@/modules/mpv-player";
 import { setJellyfinHeaders } from "@/test-utils/customHeaders";
+import { CACHE, fakeFiles } from "@/test-utils/fileSystem";
 import type { Settings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { buildNativePlayerConfig } from "./buildNativePlayerConfig";
@@ -17,8 +21,14 @@ jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
 // The settings module drags the settings UI in behind it, and none of it has
 // a say in the headers.
 jest.mock("@/utils/atoms/settings", () => ({
-  getActivePlayerType: () => "mpv",
+  getActivePlayerType: jest.fn(() => "mpv"),
 }));
+// The sidecar cache, faked so the external-subtitle pass can be exercised
+// hermetically (same double as externalSubtitles.test.ts).
+jest.mock(
+  "expo-file-system",
+  () => jest.requireActual("@/test-utils/fileSystem").fileSystemModule,
+);
 jest.mock("@/utils/jellyfin/bitrateTest", () => ({
   detectBitrate: (...args: unknown[]) => mockDetectBitrate(...args),
 }));
@@ -34,6 +44,13 @@ const mockDetectBitrate = jest.fn(async (..._args: unknown[]) => 12_000_000);
 const SERVER = "https://jellyfin.example";
 const api = { basePath: SERVER, accessToken: "token" } as Api;
 const item: BaseItemDto = { Id: "item-1", Name: "Movie", Type: "Movie" };
+
+const { File } = jest.requireActual("@/test-utils/fileSystem")
+  .fileSystemModule as typeof import("@/test-utils/fileSystem")["fileSystemModule"];
+const { localSubtitleFileName } =
+  require("./externalSubtitles") as typeof import("./externalSubtitles");
+const getActivePlayerType = jest.requireMock("@/utils/atoms/settings")
+  .getActivePlayerType as jest.Mock;
 
 /** The stream headers the native player is handed for one negotiated stream. */
 const streamHeaders = async (stream: {
@@ -499,5 +516,106 @@ describe("the native player's swipe gestures", () => {
       brightnessSwipeEnabled: true,
       volumeSwipeEnabled: true,
     });
+  });
+});
+
+// External sidecar subtitles: the config build used to download them inline
+// (ExoPlayer), spending up to the whole prefetch budget between the play tap
+// and the player appearing on a slow path. It now links cached files
+// synchronously, strips the rest and hands them to the coordinator as a
+// background plan.
+describe("external sidecar subtitles", () => {
+  const DELIVERY_URL = "/Videos/item-1/source-1/Subtitles/5/0/Stream.srt";
+  const ABSOLUTE_URL = `${SERVER}${DELIVERY_URL}`;
+  // Fresh per build: the ExoPlayer pass mutates DeliveryUrl on the streams it
+  // strips, and one test's stripped stream must not leak into the next.
+  const sidecar = (): MediaStream =>
+    ({
+      Type: "Subtitle",
+      Index: 5,
+      Codec: "subrip",
+      DisplayTitle: "English (SRT)",
+      DeliveryMethod: "External",
+      DeliveryUrl: DELIVERY_URL,
+    }) as MediaStream;
+  const FINAL_URI = `${CACHE}/subtitles/${localSubtitleFileName(
+    item,
+    "source-1",
+    sidecar(),
+    ABSOLUTE_URL,
+    SERVER,
+  )}`;
+
+  const buildWithSidecar = async () => {
+    jest.mocked(getStreamUrl).mockResolvedValue({
+      url: `${SERVER}/Videos/item-1/stream?static=true`,
+      sessionId: "session-1",
+      mediaSource: {
+        Id: "source-1",
+        MediaStreams: [{ Type: "Video", Index: 0 }, sidecar()],
+      },
+    } as Awaited<ReturnType<typeof getStreamUrl>>);
+
+    return buildNativePlayerConfig({
+      api,
+      userId: "user-1",
+      settings: {
+        playbackSpeedPerShow: {},
+        playbackSpeedPerMedia: {},
+      } as Settings,
+      req: { itemId: "item-1", offline: false },
+      getDownloadedItemById: () => undefined,
+      strings: {} as NativePlayerStrings,
+      originalLabel: "Original",
+      qualityLabel: (bitrate: { key: string }) =>
+        bitrate.key === "Auto" ? "Auto" : bitrate.key,
+      item,
+    });
+  };
+
+  beforeEach(() => {
+    fakeFiles.clear();
+    // Only ExoPlayer gets the sidecar pass; mpv fetches its own sidecars.
+    getActivePlayerType.mockReturnValue("exoplayer");
+  });
+
+  afterEach(() => {
+    getActivePlayerType.mockReturnValue("mpv");
+  });
+
+  test("does not wait for sidecar downloads — the build starts none", async () => {
+    // Never settles: with the old inline prefetch this awaited the download
+    // (and started it); the build must return with the sidecar stripped.
+    jest
+      .spyOn(File, "downloadFileAsync")
+      .mockReturnValue(new Promise(() => undefined));
+
+    const built = await buildWithSidecar();
+
+    expect(built?.config.stream.externalSubtitles).toBeUndefined();
+    // The coordinator gets the remote URL to fetch after the player is up.
+    expect(built?.seed.subtitleDelivery.remoteUrls).toEqual({
+      5: ABSOLUTE_URL,
+    });
+    expect(fakeFiles.downloads()).toEqual([]);
+  });
+
+  test("hands an already-cached sidecar straight to the engine", async () => {
+    fakeFiles.add(FINAL_URI);
+
+    const built = await buildWithSidecar();
+
+    expect(built?.config.stream.externalSubtitles).toEqual([FINAL_URI]);
+    expect(built?.seed.subtitleDelivery.remoteUrls).toEqual({});
+    expect(fakeFiles.downloads()).toEqual([]);
+  });
+
+  test("mpv keeps its remote sidecar URLs — it fetches them itself", async () => {
+    getActivePlayerType.mockReturnValue("mpv");
+
+    const built = await buildWithSidecar();
+
+    expect(built?.config.stream.externalSubtitles).toEqual([ABSOLUTE_URL]);
+    expect(built?.seed.subtitleDelivery.remoteUrls).toEqual({});
   });
 });

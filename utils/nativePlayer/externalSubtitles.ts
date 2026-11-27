@@ -6,6 +6,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Directory, File, Paths } from "expo-file-system";
 import {
+  SUBTITLE_BACKGROUND_PER_SUBTITLE_MS,
   SUBTITLE_PREFETCH_BUDGET_MS,
   SUBTITLE_PREFETCH_CACHE_DIR,
   SUBTITLE_PREFETCH_LATE_SWEEP_MS,
@@ -19,15 +20,19 @@ import {
 import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
 import { writeInfoLog } from "@/utils/log";
 
-// Sidecar subtitles are fetched onto disk before the stream is handed to the
-// ExoPlayer engine: a sidecar it must fetch itself over a slow path wedges the
+// Sidecar subtitles are fetched onto disk and handed to the ExoPlayer engine
+// as local files: a sidecar it must fetch itself over a slow path wedges the
 // whole pipeline (observed as a minutes-long next-episode stall behind a
-// reverse proxy). Hard budget for the whole prefetch, plus a per-subtitle cap
-// so one dead sidecar cannot starve the rest. The subtitle the session shows
-// goes first and is never dropped: one the budget misses keeps its remote URL
-// and the engine fetches it, as before this prefetch existed. Any other one it
-// misses is left out for the session; picking it renegotiates the stream,
-// which prefetches it again with a fresh budget.
+// reverse proxy). Three entry points share one cache and one in-flight map:
+// `linkCachedSubtitleDeliveryUrls` runs synchronously at config time and never
+// downloads — cached sidecars are linked, the rest are stripped from the
+// config and returned as a plan the coordinator fetches in the background
+// once the player is up; `prefetchExternalSubtitles` downloads a whole media
+// source under a budget (the next-episode warm, the session's subtitle
+// first); `fetchExternalSubtitle` delivers one planned sidecar into the
+// running session. A subtitle that cannot be fetched is undelivered —
+// playback without it beats a stalled stream, and picking it retries from the
+// plan's remembered URL.
 
 // Attempt-unique staging name: an abandoned transfer keeps writing its
 // `.part` after the timeout, so a later attempt must not reuse — or be swept
@@ -337,4 +342,191 @@ export const prefetchExternalSubtitles = async (params: {
     { itemId: params.item.Id, onDisk, keptRemote, leftOut },
   );
   return { onDisk, keptRemote, leftOut };
+};
+
+/**
+ * Sync pass over a media source's external sidecars at config time, before
+ * the engine config is built — the ExoPlayer counterpart of the blocking
+ * prefetch above: a sidecar already in the cache (the next-episode warm's
+ * carry) is linked to its local file, every remote `DeliveryUrl` is stripped
+ * so the engine can never start one of the pipeline-wedging fetches itself.
+ * mpv needs none of this — it fetches sidecars on its own thread.
+ *
+ * Returns the delivery plan — stream index → remote URL — for the coordinator
+ * to fetch in the background once the player is up.
+ */
+export const linkCachedSubtitleDeliveryUrls = (params: {
+  mediaSource: MediaSourceInfo;
+  item: BaseItemDto;
+  api: Api;
+  /** The subtitle the session will show: fetched first by the plan. */
+  preferredIndex?: number | null;
+}): Record<number, string> => {
+  const remoteUrls: Record<number, string> = {};
+  const externals =
+    params.mediaSource.MediaStreams?.filter(
+      (s) => s.Type === "Subtitle" && s.DeliveryMethod === "External",
+    ) ?? [];
+  if (externals.length === 0) return remoteUrls;
+  // The plan's insertion order is the background fetch order: the one on
+  // screen first, as the prefetch above orders its downloads.
+  const isPreferred = (sub: MediaStream) =>
+    params.preferredIndex != null && sub.Index === params.preferredIndex;
+  const ordered = [
+    ...externals.filter(isPreferred),
+    ...externals.filter((sub) => !isPreferred(sub)),
+  ];
+
+  let cacheDir: Directory | null = null;
+  try {
+    cacheDir = new Directory(Paths.cache, SUBTITLE_PREFETCH_CACHE_DIR);
+    if (!cacheDir.exists) cacheDir.create();
+  } catch {
+    cacheDir = null;
+  }
+
+  for (const sub of ordered) {
+    const url = getExternalSubtitleUrl(sub, {
+      offline: false,
+      basePath: params.api.basePath,
+    });
+    // Already local (a third-party path or a previous pass): keep as is.
+    if (!url || url.startsWith("file://")) continue;
+
+    const destination = cacheDir
+      ? new File(
+          cacheDir,
+          localSubtitleFileName(
+            params.item,
+            params.mediaSource.Id,
+            sub,
+            url,
+            params.api.basePath,
+          ),
+        )
+      : null;
+    if (destination?.exists) {
+      sub.DeliveryUrl = destination.uri;
+    } else {
+      sub.DeliveryUrl = undefined;
+      remoteUrls[sub.Index ?? -1] = url;
+    }
+  }
+  return remoteUrls;
+};
+
+/**
+ * Fetch one planned sidecar into the cache and mark its stream delivered —
+ * the background delivery into the running session, and a re-pick retry.
+ * Same staging, abort and dedupe as the prefetch above, so a fetch that races
+ * the warm waits instead of duplicating the transfer. Returns the local
+ * `file://` URI, or null when it could not be fetched in time — the caller
+ * treats that as "undelivered".
+ */
+export const fetchExternalSubtitle = async (params: {
+  sub: MediaStream;
+  item: BaseItemDto;
+  api: Api;
+  /** Media source id; part of the cache file name. */
+  mediaSourceId: string | null | undefined;
+  /** The remote URL to fetch (the delivery plan's remembered one). */
+  url: string;
+  timeoutMs?: number;
+}): Promise<string | null> => {
+  let cacheDir: Directory | null = null;
+  try {
+    cacheDir = new Directory(Paths.cache, SUBTITLE_PREFETCH_CACHE_DIR);
+    if (!cacheDir.exists) cacheDir.create();
+  } catch {
+    return null;
+  }
+
+  const fileName = localSubtitleFileName(
+    params.item,
+    params.mediaSourceId,
+    params.sub,
+    params.url,
+    params.api.basePath,
+  );
+  const destination = new File(cacheDir, fileName);
+  const key = destination.uri;
+  const timeoutMs = params.timeoutMs ?? SUBTITLE_BACKGROUND_PER_SUBTITLE_MS;
+
+  // The warm or another retry may already be fetching this file: wait for it
+  // instead of starting a second download beside it.
+  let running = inFlight.get(key);
+  while (running) {
+    try {
+      await withTimeout(running, timeoutMs);
+    } catch {
+      // Failed or out of budget either way; the cache check below decides.
+    }
+    running = inFlight.get(key);
+  }
+  // Cached already — by the warm, or a retry that landed since.
+  if (destination.exists) {
+    params.sub.DeliveryUrl = destination.uri;
+    return destination.uri;
+  }
+
+  const pending = new File(cacheDir, stagingName(fileName));
+  // The path, not the object: a File repoints at its destination once its
+  // move succeeds, and a cleanup through it would delete the final file.
+  const stagingUri = pending.uri;
+  const proxyHeaders = getJellyfinHeadersForUrl(
+    params.url,
+    params.api.basePath,
+  );
+  const headers = params.sub.IsExternalUrl
+    ? proxyHeaders
+    : {
+        ...proxyHeaders,
+        ...(params.api.accessToken
+          ? { Authorization: `MediaBrowser Token="${params.api.accessToken}"` }
+          : {}),
+      };
+  const transfer = new AbortController();
+  const task: Promise<void> = (async () => {
+    try {
+      await withTimeout(
+        File.downloadFileAsync(
+          params.url,
+          pending,
+          optionsWithOptionalHeaders({ signal: transfer.signal }, headers),
+        ),
+        timeoutMs,
+      );
+    } catch (error) {
+      transfer.abort();
+      throw error;
+    }
+    // The move must be awaited: the URL below may only be exposed once the
+    // final file exists at that path.
+    await pending.move(destination);
+  })();
+  inFlight.set(key, task);
+  void task
+    .finally(() => {
+      if (inFlight.get(key) === task) inFlight.delete(key);
+    })
+    .catch(() => {
+      // Handled by the await below.
+    });
+  try {
+    await task;
+    params.sub.DeliveryUrl = destination.uri;
+    return destination.uri;
+  } catch {
+    transfer.abort();
+    // Undeliver, so the matcher and the off-logic agree the sidecar is not
+    // available, whatever the caller passed in.
+    params.sub.DeliveryUrl = undefined;
+    removeStaging(new File(stagingUri));
+    const sweep = setTimeout(
+      () => removeStaging(new File(stagingUri)),
+      SUBTITLE_PREFETCH_LATE_SWEEP_MS,
+    );
+    (sweep as { unref?: () => void }).unref?.();
+    return null;
+  }
 };

@@ -18,6 +18,8 @@ const {
   clearSubtitlePrefetchCache,
   localSubtitleFileName,
   prefetchExternalSubtitles,
+  linkCachedSubtitleDeliveryUrls,
+  fetchExternalSubtitle,
 } = require("./externalSubtitles") as typeof import("./externalSubtitles");
 const { writeInfoLog }: { writeInfoLog: jest.Mock } =
   jest.requireMock("@/utils/log");
@@ -205,6 +207,125 @@ test("a concurrent prefetch awaits the in-flight download instead of duplicating
   await Promise.all([first, second]);
   expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
   expect(fakeFiles.remaining()).toContain(FINAL_URI);
+});
+
+// The config-time pass: never downloads, links what the cache already has,
+// strips the rest and remembers their remote URLs for the background plan.
+describe("linkCachedSubtitleDeliveryUrls", () => {
+  test("links a cached sidecar and records nothing", () => {
+    fakeFiles.add(FINAL_URI);
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const remoteUrls = linkCachedSubtitleDeliveryUrls({
+      mediaSource,
+      item,
+      api,
+    });
+
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
+    expect(remoteUrls).toEqual({});
+  });
+
+  test("strips an uncached sidecar and remembers its remote url", () => {
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const remoteUrls = linkCachedSubtitleDeliveryUrls({
+      mediaSource,
+      item,
+      api,
+    });
+
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBeUndefined();
+    expect(remoteUrls).toEqual({ 3: REMOTE_URL });
+  });
+
+  test("leaves an already-local sidecar untouched", () => {
+    const mediaSource = mediaSourceWith([
+      externalSub({ IsExternalUrl: true, DeliveryUrl: "file:///subs/x.srt" }),
+    ]);
+
+    const remoteUrls = linkCachedSubtitleDeliveryUrls({
+      mediaSource,
+      item,
+      api,
+    });
+
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe("file:///subs/x.srt");
+    expect(remoteUrls).toEqual({});
+  });
+});
+
+// The background delivery into the running session, and the re-pick retry.
+describe("fetchExternalSubtitle", () => {
+  const fetchSub = (mediaSource: MediaSourceInfo) =>
+    fetchExternalSubtitle({
+      sub: streamsOf(mediaSource)[1]!,
+      item,
+      api,
+      mediaSourceId: MEDIA_SOURCE_ID,
+      url: REMOTE_URL,
+    });
+
+  test("downloads into the cache and marks the stream delivered", async () => {
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const url = await fetchSub(mediaSource);
+
+    expect(url).toBe(FINAL_URI);
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
+  });
+
+  test("returns null when the download fails and leaves nothing behind", async () => {
+    jest
+      .spyOn(File, "downloadFileAsync")
+      .mockRejectedValueOnce(new Error("wedged path"));
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const url = await fetchSub(mediaSource);
+
+    expect(url).toBeNull();
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBeUndefined();
+    expect(fakeFiles.remaining()).not.toContain(FINAL_URI);
+    expect(fakeFiles.remaining().some(isStagingOf)).toBe(false);
+  });
+
+  test("reuses a cache file left by the warm or a crashed attempt", async () => {
+    fakeFiles.add(FINAL_URI);
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const url = await fetchSub(mediaSource);
+
+    expect(url).toBe(FINAL_URI);
+    expect(fakeFiles.downloads()).toEqual([]);
+  });
+
+  test("waits for a prefetch of the same file instead of duplicating it", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const destinations: string[] = [];
+    const impl = (_url: string, destination: { uri: string }) => {
+      destinations.push(destination.uri);
+      return gate.then(() => destination);
+    };
+    jest
+      .spyOn(File, "downloadFileAsync")
+      .mockImplementation(impl as unknown as typeof File.downloadFileAsync);
+    const mediaSource = mediaSourceWith([externalSub()]);
+
+    const _prefetch = prefetchExternalSubtitles({ mediaSource, item, api });
+    await Promise.resolve();
+    const fetched = fetchSub(mediaSource);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(destinations).toHaveLength(1);
+
+    release();
+    await expect(fetched).resolves.toBe(FINAL_URI);
+    expect(streamsOf(mediaSource)[1]!.DeliveryUrl).toBe(FINAL_URI);
+  });
 });
 
 describe("localSubtitleFileName", () => {

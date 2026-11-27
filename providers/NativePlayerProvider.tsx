@@ -39,6 +39,7 @@ import {
   NATIVE_PLAYER_CLOSE_WAIT_MS,
   NEXT_EPISODE_COUNTDOWN_MS,
   PROGRESS_REPORT_INTERVAL,
+  SUBTITLE_BACKGROUND_PER_SUBTITLE_MS,
 } from "@/constants/Playback";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -145,7 +146,10 @@ import {
   buildTrackMenus,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
-import { clearSubtitlePrefetchCache } from "@/utils/nativePlayer/externalSubtitles";
+import {
+  clearSubtitlePrefetchCache,
+  fetchExternalSubtitle,
+} from "@/utils/nativePlayer/externalSubtitles";
 import { parseRemotePlayCommand } from "@/utils/nativePlayer/parseRemotePlayCommand";
 import { NativePlaybackReportQueue } from "@/utils/nativePlayer/playbackReportQueue";
 import {
@@ -268,6 +272,13 @@ interface NativeSession extends NativePlayerSessionSeed {
   autoSubtitle: AutoSubtitleState;
   /** Mute value the policy last acted on; mirror of the JS hook's wasMutedRef. */
   autoSubtitleWasMuted: boolean;
+  /**
+   * Sidecar fetches in flight for this session, by Jellyfin stream index:
+   * the background delivery of the config's undelivered externals, plus any
+   * re-pick retries. While an index is here its selection stays instead of
+   * snapping off, and a second delivery request for it dedupes away.
+   */
+  subtitleDeliveryInFlight: number[];
 }
 
 interface NativePlayerContextValue {
@@ -1085,6 +1096,150 @@ const NativePlayerProviderInner: React.FC<{
     syncPlay.enabled,
   ]);
 
+  // MARK: - Track selection
+
+  const applySubtitleSelection = useCallback(
+    async (session: NativeSession, jellyfinIndex: number) => {
+      const subtitleStreams = session.stream.mediaSource.MediaStreams?.filter(
+        (s) => s.Type === "Subtitle",
+      );
+      return applyMpvSubtitleSelection(nativePlayerSubtitleFacade, {
+        subtitleStreams,
+        jellyfinSubtitleIndex: jellyfinIndex,
+        getExpectedExternalUrl: (s) =>
+          getExternalSubtitleUrl(s, {
+            offline: session.offline,
+            basePath: apiRef.current?.basePath,
+          }),
+      });
+    },
+    [],
+  );
+
+  const pushTrackMenus = useCallback(
+    (session: NativeSession) => {
+      void updateNativePlayerTrackMenus(
+        buildTrackMenus({
+          mediaSource: session.stream.mediaSource,
+          audioIndex: session.currentAudioIndex,
+          // While the local sidecar is active no server stream (nor "Off")
+          // may show a checkmark — a sidecar index matches no server row.
+          subtitleIndex: session.localSubtitle?.active
+            ? localSubtitleIndex(0)
+            : session.currentSubtitleIndex,
+          offline: session.offline,
+          downloadedItem: session.downloadedItem,
+          offLabel: buildNativePlayerStrings(t).off ?? "None",
+          originalLabel: t("common.original_audio"),
+          qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
+          bitrateValue: session.bitrateValue,
+          localSubtitle: session.localSubtitle
+            ? {
+                label: session.localSubtitle.label,
+                selected: session.localSubtitle.active,
+              }
+            : undefined,
+        }),
+      );
+    },
+    [t],
+  );
+
+  // MARK: - Background sidecar delivery
+
+  /**
+   * Apply the outcome of one sidecar fetch. A landing is side-loaded into the
+   * running session and selected (onTracksReady re-runs the identity
+   * resolution against it); a miss turns the selection off — the row stays in
+   * the menu, unchecked, and a later re-pick retries the fetch. A selection
+   * the user already moved away from keeps its file in the cache and changes
+   * nothing.
+   */
+  const settleSubtitleDelivery = useCallback(
+    async (
+      session: NativeSession,
+      jellyfinIndex: number,
+      fileUrl: string | null,
+    ) => {
+      if (sessionRef.current !== session) return;
+      if (
+        session.localSubtitle?.active ||
+        session.currentSubtitleIndex !== jellyfinIndex
+      ) {
+        return;
+      }
+      if (fileUrl) {
+        await nativePlayerAddExternalSubtitle(fileUrl);
+        return;
+      }
+      const target = session.stream.mediaSource.MediaStreams?.find(
+        (s) => s.Index === jellyfinIndex,
+      );
+      if (target?.DeliveryMethod === "External" && !target.DeliveryUrl) {
+        session.currentSubtitleIndex = SUBTITLES_OFF;
+        await applySubtitleSelection(session, SUBTITLES_OFF);
+        pushTrackMenus(session);
+      }
+    },
+    [applySubtitleSelection, pushTrackMenus],
+  );
+
+  /**
+   * Fetch one delivery-plan sidecar and settle it. Deduplicates against an
+   * identical fetch (background loop vs re-pick) via the in-flight list.
+   */
+  const deliverOneSubtitle = useCallback(
+    async (
+      session: NativeSession,
+      jellyfinIndex: number,
+      remoteUrl: string,
+    ) => {
+      if (session.subtitleDeliveryInFlight.includes(jellyfinIndex)) return;
+      const sub = session.stream.mediaSource.MediaStreams?.find(
+        (s) => s.Type === "Subtitle" && s.Index === jellyfinIndex,
+      );
+      const api = apiRef.current;
+      if (!sub || !api) return;
+      session.subtitleDeliveryInFlight.push(jellyfinIndex);
+      try {
+        const fileUrl = await fetchExternalSubtitle({
+          sub,
+          item: session.item,
+          api,
+          mediaSourceId: session.stream.mediaSource.Id,
+          url: remoteUrl,
+          timeoutMs: SUBTITLE_BACKGROUND_PER_SUBTITLE_MS,
+        });
+        if (sessionRef.current !== session) return;
+        await settleSubtitleDelivery(session, jellyfinIndex, fileUrl);
+      } finally {
+        session.subtitleDeliveryInFlight =
+          session.subtitleDeliveryInFlight.filter(
+            (index) => index !== jellyfinIndex,
+          );
+      }
+    },
+    [settleSubtitleDelivery],
+  );
+
+  /**
+   * Fetch every sidecar the config could not deliver, after the player is
+   * already up. Sequential (first-time server extraction races with itself),
+   * stopping as soon as the session is no longer the current one — a swap or
+   * close abandons the loop and the cache files land for the next session's
+   * config-time link instead. mpv sessions carry no plan and skip the loop.
+   */
+  const deliverPendingSubtitles = useCallback(
+    async (session: NativeSession) => {
+      const plan = session.subtitleDelivery?.remoteUrls ?? {};
+      for (const [index, remoteUrl] of Object.entries(plan)) {
+        if (sessionRef.current !== session) return;
+        await deliverOneSubtitle(session, Number(index), remoteUrl);
+      }
+    },
+    [deliverOneSubtitle],
+  );
+
   // MARK: - Present / load
 
   const beginSession = useCallback(
@@ -1207,6 +1362,7 @@ const NativePlayerProviderInner: React.FC<{
         isMuted: false,
         autoSubtitle: INITIAL_AUTO_SUBTITLE_STATE,
         autoSubtitleWasMuted: false,
+        subtitleDeliveryInFlight: [],
       };
 
       if (
@@ -1417,6 +1573,17 @@ const NativePlayerProviderInner: React.FC<{
       reportPlaybackStart(session);
       void pushSegments(session);
       void pushEpisodeList(session);
+      // Sidecars the config could not deliver fetch here, after the player is
+      // up and the session owns it, and land via addSubtitleFile — the config
+      // never blocks on them. The loop stops on its own once a swap or a
+      // close has taken sessionRef; mpv sessions carry no plan.
+      if (
+        !session.offline &&
+        apiRef.current &&
+        Object.keys(built.seed.subtitleDelivery?.remoteUrls ?? {}).length > 0
+      ) {
+        void deliverPendingSubtitles(session);
+      }
       // A stream swap of the same episode reloads native, which drops the
       // next-episode payload, and nextItem does not change to push it again.
       const next = nextItemRef.current;
@@ -1441,6 +1608,7 @@ const NativePlayerProviderInner: React.FC<{
       pushEpisodeList,
       buildNextEpisodePayload,
       syncBufferingReporter,
+      deliverPendingSubtitles,
     ],
   );
 
@@ -1607,55 +1775,6 @@ const NativePlayerProviderInner: React.FC<{
     ],
   );
 
-  // MARK: - Track selection
-
-  const applySubtitleSelection = useCallback(
-    async (session: NativeSession, jellyfinIndex: number) => {
-      const subtitleStreams = session.stream.mediaSource.MediaStreams?.filter(
-        (s) => s.Type === "Subtitle",
-      );
-      return applyMpvSubtitleSelection(nativePlayerSubtitleFacade, {
-        subtitleStreams,
-        jellyfinSubtitleIndex: jellyfinIndex,
-        getExpectedExternalUrl: (s) =>
-          getExternalSubtitleUrl(s, {
-            offline: session.offline,
-            basePath: apiRef.current?.basePath,
-          }),
-      });
-    },
-    [],
-  );
-
-  const pushTrackMenus = useCallback(
-    (session: NativeSession) => {
-      void updateNativePlayerTrackMenus(
-        buildTrackMenus({
-          mediaSource: session.stream.mediaSource,
-          audioIndex: session.currentAudioIndex,
-          // While the local sidecar is active no server stream (nor "Off")
-          // may show a checkmark — a sidecar index matches no server row.
-          subtitleIndex: session.localSubtitle?.active
-            ? localSubtitleIndex(0)
-            : session.currentSubtitleIndex,
-          offline: session.offline,
-          downloadedItem: session.downloadedItem,
-          offLabel: buildNativePlayerStrings(t).off ?? "None",
-          originalLabel: t("common.original_audio"),
-          qualityLabel: (bitrate) => bitrateLabel(t, bitrate),
-          bitrateValue: session.bitrateValue,
-          localSubtitle: session.localSubtitle
-            ? {
-                label: session.localSubtitle.label,
-                selected: session.localSubtitle.active,
-              }
-            : undefined,
-        }),
-      );
-    },
-    [t],
-  );
-
   /** Select the client-side downloaded sidecar on the mpv handle by filename. */
   const applyLocalSubtitleSelection = useCallback(
     async (session: NativeSession) => {
@@ -1770,9 +1889,31 @@ const NativePlayerProviderInner: React.FC<{
       // makes `session` the outgoing one.
       if (sessionRef.current !== session) return;
       if (result.kind === "notFound" || result.kind === "burnedIn") {
-        // A sidecar the prefetch left out has no track yet: renegotiating
-        // prefetches it again, first and with a fresh budget, and keeps its
-        // remote URL if the budget runs out, so the pick is never lost.
+        // A sidecar the config could not deliver has no track yet. If its
+        // remote URL is known (the delivery plan) or a fetch is already
+        // running, keep the pick and let the delivery land — a reload would
+        // re-buffer the stream for a file the background fetch is already
+        // bringing. Otherwise fall back to renegotiating, which negotiates a
+        // fresh delivery plan for it.
+        if (
+          result.kind === "notFound" &&
+          !session.offline &&
+          target?.DeliveryMethod === "External" &&
+          !target.DeliveryUrl
+        ) {
+          const remoteUrl =
+            session.subtitleDelivery?.remoteUrls?.[jellyfinIndex];
+          if (
+            remoteUrl ||
+            session.subtitleDeliveryInFlight.includes(jellyfinIndex)
+          ) {
+            if (remoteUrl) {
+              void deliverOneSubtitle(session, jellyfinIndex, remoteUrl);
+            }
+            pushTrackMenus(session);
+            return;
+          }
+        }
         await replaceStream(session, {
           subtitleIndex: jellyfinIndex,
           positionTicks: msToTicks(positionSec * 1000),
@@ -1786,6 +1927,7 @@ const NativePlayerProviderInner: React.FC<{
       applyLocalSubtitleSelection,
       replaceStream,
       pushTrackMenus,
+      deliverOneSubtitle,
     ],
   );
 
@@ -2312,8 +2454,10 @@ const NativePlayerProviderInner: React.FC<{
           // Jellyfin-index resolver knows nothing about.
           void applyLocalSubtitleSelection(session);
         } else {
-          // The session's subtitle is the prefetch's preferred one, never left
-          // without a URL, so it always resolves to a track here.
+          // Re-apply the current selection: a sidecar the config could not
+          // deliver resolves to notFound until the background fetch lands
+          // (its addSubtitleFile fires this again), and one that never lands
+          // is turned off by the delivery's own settle.
           void applySubtitleSelection(session, session.currentSubtitleIndex);
         }
         // Mirror of the JS player, which waits for tracksReady before letting
