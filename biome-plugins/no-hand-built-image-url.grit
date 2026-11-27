@@ -1,0 +1,16 @@
+language js
+
+or {
+  or {
+    `getImageApi($_)`,
+    `new ImageUrlsApi($_)`,
+    JsStringLiteralExpression() as $str where { $str <: r".*/Images/.*" },
+    JsTemplateChunkElement() as $str where { $str <: r".*/Images/.*" }
+  } as $hit where {
+    register_diagnostic(span=$hit, message="Never hand-build a Jellyfin image URL. Use getItemImageUrl() from @/utils/jellyfin/image/getItemImageUrl and pick a kind from IMAGE_KINDS in resolveItemImage.ts.", severity="error")
+  },
+  `import { $names } from "react-native"` as $import where {
+    $names <: contains `Image`,
+    register_diagnostic(span=$import, message="Import Image from @/components/common/ServerImage, not react-native: only it attaches the user's custom proxy auth headers. For a bundled asset API such as resolveAssetSource, import it as `Image as NativeImage`.", severity="error")
+  }
+}

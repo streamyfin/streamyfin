@@ -33,6 +33,7 @@ Read the relevant one before writing code in that area.
 | --- | --- |
 | [docs/conventions/constants.md](docs/conventions/constants.md) | Adding a threshold, interval, ratio, storage key, or any value used twice |
 | [docs/conventions/contributing-flow.md](docs/conventions/contributing-flow.md) | Opening, describing, or reviewing a PR |
+| [docs/conventions/images.md](docs/conventions/images.md) | Building or rendering a Jellyfin item image |
 | [docs/conventions/performance.md](docs/conventions/performance.md) | Claiming a change is faster, or writing a Reassure scenario |
 | [docs/conventions/testing.md](docs/conventions/testing.md) | Writing or changing any test, adding or unmocking a `jest.mock`, and before claiming a fix works |
 | [docs/conventions/tv.md](docs/conventions/tv.md) | Touching anything that renders on Apple TV or Android TV |
@@ -232,7 +233,8 @@ bun run ios:install-metal-toolchain   # Fixes "missing Metal Toolchain" build er
   `put` / `delete`.
 - Native images, players and downloads need URLs rather than response bodies.
   Use SDK URL helpers where available, retaining server-supplied streaming URLs
-  and protocol-specific playback parameters.
+  and protocol-specific playback parameters. Item images are the exception: they
+  come from `getItemImageUrl`, never `getImageApi` or a hand-built `/Images/` path.
 
 **Navigation**
 - File based routing under `app/`.
@@ -322,7 +324,8 @@ import { apiAtom } from "@/utils/atoms/api";
 - **Server images**: for images hosted by Jellyfin or Seerr, import `Image` from
   `@/components/common/ServerImage` rather than `expo-image`, so the user's custom proxy
   auth headers are attached. Bundled assets and data URIs can use `expo-image` directly.
-  See [docs/custom-headers.md](docs/custom-headers.md).
+  See [docs/custom-headers.md](docs/custom-headers.md). Build the URL with
+  `getItemImageUrl`, see [docs/conventions/images.md](docs/conventions/images.md).
 - Conventional Commits for commits and PR titles: `feat(scope):`, `fix(scope):`,
   `chore(scope):`. CI validates the PR title.
 
