@@ -3,7 +3,6 @@ import React, { useRef, useState } from "react";
 import {
   Animated,
   Easing,
-  Platform,
   Pressable,
   View,
   type ViewInstance,
@@ -12,10 +11,6 @@ import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import {
-  GlassPosterView,
-  isGlassEffectAvailable,
-} from "@/modules/glass-poster";
 import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVSeriesSeasonCardProps {
@@ -40,10 +35,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
   const sizes = useScaledTVSizes();
   const [focused, setFocused] = useState(false);
 
-  // Check if glass effect is available (tvOS 26+)
-  const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
-
-  // Scale animation for focus (only used when NOT using glass effect)
+  // Scale animation for focus
   const scale = useRef(new Animated.Value(1)).current;
   const animateTo = (value: number) =>
     Animated.timing(scale, {
@@ -54,21 +46,6 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
     }).start();
 
   const renderPoster = () => {
-    if (useGlass) {
-      return (
-        <GlassPosterView
-          imageUrl={imageUrl}
-          aspectRatio={10 / 15}
-          cornerRadius={24}
-          progress={0}
-          showWatchedIndicator={false}
-          isFocused={focused}
-          width={sizes.posters.poster}
-          style={{ width: sizes.posters.poster }}
-        />
-      );
-    }
-
     return (
       <View
         style={{
@@ -113,28 +90,21 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         onPress={onPress}
         onFocus={() => {
           setFocused(true);
-          // Only animate scale when not using glass effect (glass handles its own focus visual)
-          if (!useGlass) {
-            animateTo(1.05);
-          }
+          animateTo(1.05);
         }}
         onBlur={() => {
           setFocused(false);
-          if (!useGlass) {
-            animateTo(1);
-          }
+          animateTo(1);
         }}
         hasTVPreferredFocus={hasTVPreferredFocus}
       >
         <Animated.View
           style={{
-            // Only apply scale transform when not using glass effect
-            transform: useGlass ? undefined : [{ scale }],
-            // Only apply shadow glow when not using glass (glass has its own glow)
-            shadowColor: useGlass ? undefined : "#ffffff",
-            shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
-            shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? 12 : 0,
+            transform: [{ scale }],
+            shadowColor: "#ffffff",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.3 : 0,
+            shadowRadius: focused ? 12 : 0,
           }}
         >
           {renderPoster()}

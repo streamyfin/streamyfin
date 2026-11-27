@@ -290,10 +290,9 @@ PersistQueryClientProvider
 `JotaiProvider` and `ActionSheetProvider` wrap the tree higher up, at the root layout.
 
 **Native modules** in `modules/`: `mpv-player` (the native player and the Cast support, iOS and Android),
-`exoplayer-player`, `background-downloader`, `glass-poster`, `hero-carousel`,
-`notification-settings-link` (the iOS Settings link to the Notifications screen),
-`system-volume`, `top-shelf-cache`, `tv-recommendations`, `tv-search`, `tv-user-profile`,
-`wifi-ssid`.
+`exoplayer-player`, `background-downloader`, `hero-carousel`, `notification-settings-link`
+(the iOS Settings link to the Notifications screen), `system-volume`, `top-shelf-cache`,
+`tv-recommendations`, `tv-search`, `tv-user-profile`, `wifi-ssid`.
 
 **Path aliases**: `@/` maps to the repo root.
 

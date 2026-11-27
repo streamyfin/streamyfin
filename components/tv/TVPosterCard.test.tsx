@@ -12,10 +12,6 @@ jest.mock("@/components/WatchedIndicator", () => ({
   UnplayedCountBadge: () => null,
   WatchedIndicator: () => null,
 }));
-jest.mock("@/modules/glass-poster", () => ({
-  GlassPosterView: () => null,
-  isGlassEffectAvailable: () => false,
-}));
 jest.mock("@/constants/TVPosterSizes", () => ({
   useScaledTVPosterSizes: () => ({ poster: 200, episode: 300 }),
 }));
