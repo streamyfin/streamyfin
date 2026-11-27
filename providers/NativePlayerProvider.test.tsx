@@ -1948,6 +1948,39 @@ describe("background sidecar delivery", () => {
     ]);
   });
 
+  test("drops a queued fetch once its session is gone", async () => {
+    mockSeed.subtitleIndex = 8;
+    mockSeed.extraSubtitleIndices = [2];
+    mockDeliveryPlan.remoteUrls = {
+      2: "https://jf.example/Subtitles/2/Stream.srt",
+      8: "https://jf.example/Subtitles/8/Stream.srt",
+    };
+    let releaseFirst: () => void = () => undefined;
+    const first = new Promise<string | null>((resolve) => {
+      releaseFirst = () => resolve(null);
+    });
+    fetchExternalSubtitle.mockImplementationOnce(() => first);
+
+    await mount();
+    await open("item-1");
+    await act(async () => {
+      mockNative.emit("onTrackSelectionRequested", {
+        kind: "subtitle",
+        jellyfinIndex: 2,
+        positionSec: 0,
+      });
+    });
+    await settle();
+    // The player closes while 2 waits behind 8's download.
+    await startClosing();
+
+    releaseFirst();
+    await settle();
+
+    // 2 never starts: the session it was picked for is gone.
+    expect(fetchExternalSubtitle).toHaveBeenCalledTimes(1);
+  });
+
   test("attaches a sidecar that landed while another subtitle was selected", async () => {
     // The background fetch of 5 landed while 6 was on screen: the file is in
     // the cache but was never side-loaded. Picking 5 must attach it, not

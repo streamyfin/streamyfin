@@ -1212,6 +1212,10 @@ const NativePlayerProviderInner: React.FC<{
       if (!sub || !api) return;
       session.subtitleDeliveryInFlight.push(jellyfinIndex);
       const run = session.subtitleDeliveryTail.then(async () => {
+        // A close or swap while this fetch waited its turn abandons it: the
+        // session it was picked for is gone, so the download would buy
+        // nothing.
+        if (sessionRef.current !== session) return;
         const fileUrl = await fetchExternalSubtitle({
           sub,
           item: session.item,
