@@ -140,6 +140,7 @@ interface JellyfinContextValue {
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
   stopQuickConnectPolling: () => void;
+  isQuickConnectApproved: () => Promise<boolean | undefined>;
   quickConnectStatus: QuickConnectStatus;
   loginWithSavedCredential: (
     serverUrl: string,
@@ -342,23 +343,27 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [deviceId]);
 
-  const { initiateQuickConnect, stopQuickConnectPolling, quickConnectStatus } =
-    useQuickConnect({
-      api: deviceId && jellyfin ? api : null,
-      headers,
-      onAuthenticated: async ({ AccessToken, User }, sourceApi) => {
-        if (!jellyfin) return;
-        setUser(User);
-        setApi(
-          createApiWithCustomHeaders(jellyfin, sourceApi.basePath, AccessToken),
-        );
-        storage.set("token", AccessToken);
-        storage.set("user", JSON.stringify(User));
-        // As every other sign-in does: without it the plugin's locks and
-        // Seerr address waited for the next return to the foreground.
-        await refreshStreamyfinPluginSettings();
-      },
-    });
+  const {
+    initiateQuickConnect,
+    stopQuickConnectPolling,
+    isQuickConnectApproved,
+    quickConnectStatus,
+  } = useQuickConnect({
+    api: deviceId && jellyfin ? api : null,
+    headers,
+    onAuthenticated: async ({ AccessToken, User }, sourceApi) => {
+      if (!jellyfin) return;
+      setUser(User);
+      setApi(
+        createApiWithCustomHeaders(jellyfin, sourceApi.basePath, AccessToken),
+      );
+      storage.set("token", AccessToken);
+      storage.set("user", JSON.stringify(User));
+      // As every other sign-in does: without it the plugin's locks and
+      // Seerr address waited for the next return to the foreground.
+      await refreshStreamyfinPluginSettings();
+    },
+  });
 
   useEffect(() => {
     (async () => {
@@ -1129,6 +1134,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
     stopQuickConnectPolling,
+    isQuickConnectApproved,
     quickConnectStatus,
     loginWithSavedCredential: (serverUrl, userId) =>
       loginWithSavedCredentialMutation.mutateAsync({ serverUrl, userId }),

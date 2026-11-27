@@ -3,8 +3,15 @@ import { AxiosError, type AxiosResponse } from "axios";
 import { getDefaultStore } from "jotai";
 import type React from "react";
 import { Alert } from "react-native";
+import { type ToastAction, toast } from "sonner-native";
+import { QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS } from "@/constants/QuickConnect";
 import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { pendingAccountSaveAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  appStateRemovalCount,
+  emitAppState,
+  stubReactNative,
+} from "@/test-utils/reactNative";
 import { Login } from "./Login";
 
 const mockStopPolling = jest.fn();
@@ -13,6 +20,7 @@ const mockJellyfin = {
   login: jest.fn(),
   removeServer: jest.fn(),
   initiateQuickConnect: jest.fn(async () => "123456"),
+  isQuickConnectApproved: jest.fn<Promise<boolean | undefined>, []>(),
   // As the provider does: stopping resets the status.
   stopQuickConnectPolling: () => {
     mockJellyfin.quickConnectStatus = "idle";
@@ -103,6 +111,14 @@ jest.mock("@/providers/GlobalModalProvider", () => ({
 jest.mock("@/utils/jellyfin/checkServer", () => ({
   checkJellyfinServer: jest.fn(),
   ServerTooOldError: class extends Error {},
+}));
+const mockOpenBrowser = jest.fn(
+  async (_url: string): Promise<{ type: string }> => ({ type: "cancel" }),
+);
+const mockDismissBrowser = jest.fn(async () => ({ type: "dismiss" }));
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (url: string) => mockOpenBrowser(url),
+  dismissBrowser: () => mockDismissBrowser(),
 }));
 
 describe("Login Quick Connect", () => {
@@ -208,6 +224,225 @@ describe("Login Quick Connect", () => {
       "companion_login.error_quick_connect_disabled",
     );
     alert.mockRestore();
+  });
+});
+
+describe("Login with browser", () => {
+  const codePage = "https://media.example.com/web/#/quickconnect?code=123456";
+  const pressLoginWithBrowser = () =>
+    act(async () => {
+      fireEvent.press(screen.getByText("login.login_with_browser"));
+    });
+  const waitBeforeReopening = () =>
+    act(async () => {
+      jest.advanceTimersByTime(QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS);
+    });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockJellyfin.quickConnectStatus = "waiting";
+    mockJellyfin.isQuickConnectApproved.mockResolvedValue(false);
+    mockOpenBrowser.mockResolvedValue({ type: "cancel" });
+    getDefaultStore().set(userAtom as never, null as never);
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  test("opens the server's Quick Connect page with the code filled in", async () => {
+    mockOpenBrowser.mockResolvedValueOnce({ type: "dismiss" });
+    await render(<Login />);
+
+    await pressLoginWithBrowser();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+    expect(mockOpenBrowser).toHaveBeenCalledWith(codePage);
+    // The code is approved in the browser, so no sheet shows it.
+    expect(screen.queryByText("close code")).toBeNull();
+  });
+
+  // SSO plugins land on Jellyfin's home page after signing in, so the code
+  // page is gone by the time the browser is closed.
+  test("opens the code page once more when it is closed before the approval", async () => {
+    mockOpenBrowser
+      .mockResolvedValueOnce({ type: "cancel" })
+      .mockResolvedValueOnce({ type: "dismiss" });
+    await render(<Login />);
+    await pressLoginWithBrowser();
+
+    // Not right away: iOS reports the close while the browser is still
+    // animating away, and one presented then never shows.
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+    await waitBeforeReopening();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
+    expect(mockOpenBrowser).toHaveBeenLastCalledWith(codePage);
+  });
+
+  // Closed again, the user may have given up, so it must not loop.
+  test("asks before opening it again a second time", async () => {
+    await render(<Login />);
+    await pressLoginWithBrowser();
+    await waitBeforeReopening();
+    await waitBeforeReopening();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
+    const [message, options] = jest.mocked(toast.info).mock.calls[0];
+    expect(message).toBe("login.browser_not_finished");
+    const action = options?.action as ToastAction;
+
+    await act(async () => {
+      action.onClick();
+    });
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(3);
+    expect(mockOpenBrowser).toHaveBeenLastCalledWith(codePage);
+  });
+
+  test("does not open it again when the code goes through during the wait", async () => {
+    const view = await render(<Login />);
+    await pressLoginWithBrowser();
+
+    mockJellyfin.quickConnectStatus = "signed-in";
+    await view.rerender(<Login />);
+    await waitBeforeReopening();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not open it again after leaving the login screen", async () => {
+    const view = await render(<Login />);
+    await pressLoginWithBrowser();
+
+    await view.unmount();
+    await waitBeforeReopening();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not continue with a code that is no longer waiting", async () => {
+    const view = await render(<Login />);
+    await pressLoginWithBrowser();
+    await waitBeforeReopening();
+    await waitBeforeReopening();
+    const [, options] = jest.mocked(toast.info).mock.calls[0];
+    const action = options?.action as ToastAction;
+
+    mockJellyfin.quickConnectStatus = "expired";
+    await view.rerender(<Login />);
+    await act(async () => {
+      action.onClick();
+    });
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
+  });
+
+  test("closes the browser once the code signed the user in", async () => {
+    mockOpenBrowser.mockReturnValueOnce(new Promise(() => {}));
+    await render(<Login />);
+    await pressLoginWithBrowser();
+
+    await act(async () => {
+      getDefaultStore().set(userAtom as never, { Id: "user-1" } as never);
+    });
+
+    expect(mockDismissBrowser).toHaveBeenCalledTimes(1);
+  });
+
+  // Android's browser call returns right away, so the app coming back to the
+  // front stands in for the browser closing.
+  describe("on Android", () => {
+    const leaveAndComeBack = () =>
+      act(async () => {
+        emitAppState("background");
+        emitAppState("active");
+      });
+
+    beforeEach(() => {
+      stubReactNative({ OS: "android" });
+      mockOpenBrowser.mockResolvedValue({ type: "opened" });
+    });
+
+    afterEach(() => {
+      stubReactNative();
+    });
+
+    test("opens the code page again when the app comes back before the approval", async () => {
+      await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+
+      expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
+      expect(mockOpenBrowser).toHaveBeenLastCalledWith(codePage);
+    });
+
+    // A poll can take far longer than the wait, so its answer may still be on
+    // its way: the server is asked again, and a late approval keeps it closed.
+    test("does not open it again when the server approves late", async () => {
+      let answer!: (approved: boolean) => void;
+      mockJellyfin.isQuickConnectApproved.mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      await act(async () => answer(true));
+
+      expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+    });
+
+    test("reports a browser that fails to open from Continue", async () => {
+      await render(<Login />);
+      await pressLoginWithBrowser();
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      const [, options] = jest.mocked(toast.info).mock.calls[0];
+      const action = options?.action as ToastAction;
+
+      mockOpenBrowser.mockRejectedValueOnce(new Error("No browser"));
+      await act(async () => {
+        action.onClick();
+      });
+
+      expect(toast.error).toHaveBeenCalledWith(
+        "custom_links.could_not_open_link",
+      );
+      // Each of the three opens let go of its wait for the app to come back.
+      expect(appStateRemovalCount()).toBe(3);
+    });
+
+    test("stops waiting for the app to come back once login is left", async () => {
+      const view = await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await view.unmount();
+
+      expect(appStateRemovalCount()).toBe(1);
+    });
+
+    // Timers pause while the app is in the background, so the approval is
+    // seen only after coming back, during the wait.
+    test("does not open it again when the app comes back after the approval", async () => {
+      const view = await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await leaveAndComeBack();
+      mockJellyfin.quickConnectStatus = "authenticating";
+      await view.rerender(<Login />);
+      await waitBeforeReopening();
+
+      expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

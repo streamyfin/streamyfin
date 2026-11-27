@@ -109,3 +109,7 @@ them.
   waiting in the native queue is cancelled and re-queued with its headers. A
   transfer that native already restarted keeps the request URLSession stored
   for it, so it is unaffected.
+- **The system browser sends none.** *Log in with SSO / Passkey* opens
+  Jellyfin Web in it, so behind a gateway that needs headers Quick Connect
+  starts but the page answers `403`. Log in with a password there, or enter the
+  Quick Connect code on a device that is already signed in.

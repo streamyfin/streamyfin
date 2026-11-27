@@ -17,6 +17,8 @@
     "password_placeholder": "Password",
     "login_button": "Log in",
     "quick_connect": "Quick Connect",
+    "login_with_browser": "Log in with SSO / Passkey",
+    "browser_not_finished": "Not signed in yet? Continue in the browser",
     "quick_connect_instructions": "Enter this code on a signed-in device. You'll be logged in automatically.",
     "tap_code_to_copy": "Tap the code to copy it",
     "code_copied": "Code copied",
