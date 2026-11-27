@@ -10,6 +10,7 @@ import {
   AppState,
   Keyboard,
   KeyboardAvoidingView,
+  type NativeEventSubscription,
   Platform,
   Switch,
   TouchableOpacity,
@@ -46,30 +47,36 @@ import type { SavedServer } from "@/utils/secureCredentials";
 // TV has no browser; its login shows a QR code for the same page instead.
 const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 
-// Subscribed before the browser opens, so the trip away is never missed.
-const appComesBack = () =>
-  new Promise<void>((resolve) => {
-    let left = false;
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state !== "active") left = true;
-      else if (left) {
-        subscription.remove();
-        resolve();
-      }
-    });
-  });
-
 // Resolves once the browser is gone, true when the user closed it. Android
 // answers "opened" right away, so there the app coming back to the front
-// stands in for the close, as in expo-web-browser's own auth session.
-const browserClosedByUser = async (url: string): Promise<boolean> => {
+// stands in for the close, as in expo-web-browser's own auth session. The
+// signal drops that wait when the login screen goes away.
+const browserClosedByUser = async (
+  url: string,
+  signal: AbortSignal,
+): Promise<boolean> => {
   if (Platform.OS !== "android") {
     const { type } = await WebBrowser.openBrowserAsync(url);
     return type === "cancel";
   }
-  const back = appComesBack();
-  await WebBrowser.openBrowserAsync(url);
-  await back;
+  // Subscribed before the browser opens, so the trip away is never missed.
+  let left = false;
+  let subscription!: NativeEventSubscription;
+  const back = new Promise<void>((resolve) => {
+    subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") left = true;
+      else if (left) resolve();
+    });
+  });
+  const stop = () => subscription.remove();
+  signal.addEventListener("abort", stop);
+  try {
+    await WebBrowser.openBrowserAsync(url);
+    await back;
+  } finally {
+    stop();
+    signal.removeEventListener("abort", stop);
+  }
   return true;
 };
 
@@ -83,6 +90,7 @@ export const Login: React.FC = () => {
     login,
     removeServer,
     initiateQuickConnect,
+    isQuickConnectApproved,
     quickConnectStatus,
     stopQuickConnectPolling,
     loginWithSavedCredential,
@@ -318,12 +326,11 @@ export const Login: React.FC = () => {
   const startRef = useRef(0);
 
   // Once the login screen is gone, the browser must not open over the next one.
-  const leftRef = useRef(false);
+  const leftRef = useRef(new AbortController());
   useEffect(() => {
-    leftRef.current = false;
-    return () => {
-      leftRef.current = true;
-    };
+    const left = new AbortController();
+    leftRef.current = left;
+    return () => left.abort();
   }, []);
 
   // The browser flow reads the status after awaits, so it needs the latest one.
@@ -331,7 +338,7 @@ export const Login: React.FC = () => {
   quickConnectStatusRef.current = quickConnectStatus;
   // Only the latest start may open the browser, and only while its code waits.
   const stillWaiting = (start: number) =>
-    !leftRef.current &&
+    !leftRef.current.signal.aborted &&
     start === startRef.current &&
     quickConnectStatusRef.current === "waiting";
 
@@ -342,22 +349,36 @@ export const Login: React.FC = () => {
     start: number,
     reopen = true,
   ) => {
-    if (!api?.basePath || leftRef.current) return;
+    const left = leftRef.current.signal;
+    if (!api?.basePath || left.aborted) return;
     const url = quickConnectPairingUrl(api.basePath, code);
-    if (!(await browserClosedByUser(url))) return;
-    await new Promise((resolve) =>
-      setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
-    );
-    if (!stillWaiting(start)) return;
+    try {
+      if (!(await browserClosedByUser(url, left))) return;
+    } catch {
+      toast.error(t("custom_links.could_not_open_link"));
+      return;
+    }
+    // Ask the server instead of trusting the last poll, whose answer may still
+    // be on its way: a browser reopened after the approval is one Android
+    // can't close. The wait lets iOS finish animating the old one away.
+    const [approved] = await Promise.all([
+      isQuickConnectApproved(),
+      new Promise((resolve) =>
+        setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
+      ),
+    ]);
+    if (approved || !stillWaiting(start)) return;
     // SSO plugins land on the home page after signing in, so the code page is
     // gone by the time the browser is closed: it opens once more on its own,
-    // signed in by now. After that the user decides, so it never loops.
-    if (reopen) return approveInBrowser(code, start, false);
+    // signed in by now. After that, or when the server can't say, the user
+    // decides, so it never loops.
+    if (reopen && approved === false)
+      return approveInBrowser(code, start, false);
     toast.info(t("login.browser_not_finished"), {
       action: {
         label: t("common.continue"),
         onClick: () => {
-          if (stillWaiting(start)) approveInBrowser(code, start, false);
+          if (stillWaiting(start)) void approveInBrowser(code, start, false);
         },
       },
     });

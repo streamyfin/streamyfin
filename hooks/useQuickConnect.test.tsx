@@ -393,6 +393,24 @@ describe("useQuickConnect", () => {
     expect(api.mock.history.get).toHaveLength(2);
   });
 
+  test("asks the server on demand whether the waiting code was approved", async () => {
+    const api = makeApi();
+    api.mock.onPost(INITIATE).reply(200, code);
+    api.mock
+      .onGet(CONNECT)
+      .replyOnce(200, { Authenticated: true })
+      .onGet(CONNECT)
+      .networkErrorOnce();
+    const { result } = await renderQuickConnect(api);
+    // No code yet, so nothing can have been approved.
+    expect(await result.current.isQuickConnectApproved()).toBe(false);
+
+    await initiate(result);
+    expect(await result.current.isQuickConnectApproved()).toBe(true);
+    expect(api.mock.history.get[0].url).toContain("Secret=secret-1");
+    expect(await result.current.isQuickConnectApproved()).toBeUndefined();
+  });
+
   test("stops a waiting request when the code screen closes", async () => {
     const { result, api } = await renderQuickConnect();
     await initiate(result);

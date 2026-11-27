@@ -11,8 +11,7 @@ export const QUICK_CONNECT_POLL_INTERVAL_MS = 1000;
 /**
  * Wait after the browser closed before the login screen opens it again. iOS
  * reports the close while the browser is still animating away, when a new one
- * would never show, and Android, whose timers pause in the background, needs
- * a poll to see an approval before reopening for nothing.
+ * would never show.
  */
 export const QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS = 1500;
 

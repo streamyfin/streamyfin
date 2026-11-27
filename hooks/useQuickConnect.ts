@@ -34,6 +34,7 @@ interface Options {
 
 interface Attempt {
   api: Api;
+  secret?: string;
   timer?: ReturnType<typeof setTimeout>;
   /** When the server stops honouring the code. */
   endsAt?: number;
@@ -120,6 +121,7 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
       ) {
         throw new Error("Failed to initiate quick connect");
       }
+      attempt.secret = Secret;
       attempt.endsAt = Date.now() + QUICK_CONNECT_CODE_LIFETIME_MS;
       setStatus("waiting");
 
@@ -228,5 +230,28 @@ export function useQuickConnect({ api, headers, onAuthenticated }: Options) {
     }
   }, [api, headers, cancelAttempt, isCurrent]);
 
-  return { initiateQuickConnect, stopQuickConnectPolling, quickConnectStatus };
+  /**
+   * Asks the server right now whether the waiting code was approved, for a
+   * caller that cannot wait for the next poll. Undefined when it can't tell.
+   */
+  const isQuickConnectApproved = useCallback(async () => {
+    const attempt = attemptRef.current;
+    if (!attempt?.secret) return false;
+    try {
+      const response = await attempt.api.axiosInstance.get(
+        `${attempt.api.basePath}/QuickConnect/Connect?Secret=${encodeURIComponent(attempt.secret)}`,
+        { timeout: QUICK_CONNECT_REQUEST_TIMEOUT_MS },
+      );
+      return response.data?.Authenticated === true;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  return {
+    initiateQuickConnect,
+    stopQuickConnectPolling,
+    isQuickConnectApproved,
+    quickConnectStatus,
+  };
 }

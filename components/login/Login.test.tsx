@@ -7,7 +7,11 @@ import { type ToastAction, toast } from "sonner-native";
 import { QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS } from "@/constants/QuickConnect";
 import type { QuickConnectStatus } from "@/hooks/useQuickConnect";
 import { pendingAccountSaveAtom, userAtom } from "@/providers/JellyfinProvider";
-import { emitAppState, stubReactNative } from "@/test-utils/reactNative";
+import {
+  appStateRemovalCount,
+  emitAppState,
+  stubReactNative,
+} from "@/test-utils/reactNative";
 import { Login } from "./Login";
 
 const mockStopPolling = jest.fn();
@@ -16,6 +20,7 @@ const mockJellyfin = {
   login: jest.fn(),
   removeServer: jest.fn(),
   initiateQuickConnect: jest.fn(async () => "123456"),
+  isQuickConnectApproved: jest.fn<Promise<boolean | undefined>, []>(),
   // As the provider does: stopping resets the status.
   stopQuickConnectPolling: () => {
     mockJellyfin.quickConnectStatus = "idle";
@@ -236,6 +241,7 @@ describe("Login with browser", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockJellyfin.quickConnectStatus = "waiting";
+    mockJellyfin.isQuickConnectApproved.mockResolvedValue(false);
     mockOpenBrowser.mockResolvedValue({ type: "cancel" });
     getDefaultStore().set(userAtom as never, null as never);
   });
@@ -372,6 +378,56 @@ describe("Login with browser", () => {
 
       expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
       expect(mockOpenBrowser).toHaveBeenLastCalledWith(codePage);
+    });
+
+    // A poll can take far longer than the wait, so its answer may still be on
+    // its way: the server is asked again, and a late approval keeps it closed.
+    test("does not open it again when the server approves late", async () => {
+      let answer!: (approved: boolean) => void;
+      mockJellyfin.isQuickConnectApproved.mockReturnValueOnce(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      await act(async () => answer(true));
+
+      expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+    });
+
+    test("reports a browser that fails to open from Continue", async () => {
+      await render(<Login />);
+      await pressLoginWithBrowser();
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      await leaveAndComeBack();
+      await waitBeforeReopening();
+      const [, options] = jest.mocked(toast.info).mock.calls[0];
+      const action = options?.action as ToastAction;
+
+      mockOpenBrowser.mockRejectedValueOnce(new Error("No browser"));
+      await act(async () => {
+        action.onClick();
+      });
+
+      expect(toast.error).toHaveBeenCalledWith(
+        "custom_links.could_not_open_link",
+      );
+      // Each of the three opens let go of its wait for the app to come back.
+      expect(appStateRemovalCount()).toBe(3);
+    });
+
+    test("stops waiting for the app to come back once login is left", async () => {
+      const view = await render(<Login />);
+      await pressLoginWithBrowser();
+
+      await view.unmount();
+
+      expect(appStateRemovalCount()).toBe(1);
     });
 
     // Timers pause while the app is in the background, so the approval is
