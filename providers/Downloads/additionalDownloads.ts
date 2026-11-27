@@ -162,7 +162,6 @@ export async function downloadCoverImage(
       item,
       api,
       kind: "primary",
-      quality: 90,
       width: 500,
       pixels: true,
     });

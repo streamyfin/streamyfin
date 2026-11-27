@@ -8,8 +8,6 @@ import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 interface Props {
   item: BaseItemDto;
   api: Api;
-  /** @deprecated Quality follows the image type; this is ignored. */
-  quality?: number;
   /** Width of the box the image is drawn in, in layout points. */
   width?: number;
   /**
@@ -33,8 +31,6 @@ export const getItemImage = ({
   height,
   pixels,
 }: Props) => {
-  if (!api) return null;
-
   const resolved = resolveItemImageUrl(api, item, kind, {
     width,
     height,

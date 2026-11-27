@@ -620,33 +620,26 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       });
     }, [api, item?.Type, item?.SeasonId, item?.ParentId, sizes.posters.poster]);
 
-    // Episode thumbnail URL - episode's own primary image (16:9 for episodes)
-    const episodeThumbnailUrl = useMemo(
+    // An episode's own still, or with showSeriesPosterOnEpisode its series'
+    // landscape art; the wide chain ends in the still when the series has none.
+    const episodeImageUrl = useMemo(
       () =>
         item?.Type === "Episode"
-          ? getItemImageUrl(api, item, "primary", {
-              width: detailImageWidth,
-              height: detailImageHeight,
-            })
+          ? getItemImageUrl(
+              api,
+              item,
+              settings.showSeriesPosterOnEpisode ? "wide" : "primary",
+              { width: detailImageWidth, height: detailImageHeight },
+            )
           : null,
-      [api, item, detailImageWidth, detailImageHeight],
+      [
+        api,
+        item,
+        settings.showSeriesPosterOnEpisode,
+        detailImageWidth,
+        detailImageHeight,
+      ],
     );
-
-    // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
-    const seriesThumbUrl = useMemo(
-      () =>
-        item?.Type === "Episode"
-          ? getItemImageUrl(api, item, "wide", {
-              width: detailImageWidth,
-              height: detailImageHeight,
-            })
-          : null,
-      [api, item, detailImageWidth, detailImageHeight],
-    );
-
-    const episodeImageUrl =
-      (settings.showSeriesPosterOnEpisode ? seriesThumbUrl : null) ??
-      episodeThumbnailUrl;
 
     // Navigation handlers
     const handleActorPress = useCallback(

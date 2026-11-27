@@ -13,7 +13,6 @@ import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 interface Props extends ImageProps {
   item: BaseItemDto;
   kind?: ImageKind;
-  quality?: number;
   /** Width of the box the image is drawn in, in layout points. */
   width?: number;
   /**
@@ -27,7 +26,6 @@ interface Props extends ImageProps {
 export const ItemImage: FC<Props> = ({
   item,
   kind = "primary",
-  quality = 90,
   width,
   height,
   onError,
@@ -44,11 +42,10 @@ export const ItemImage: FC<Props> = ({
       item,
       api,
       kind,
-      quality,
       width,
       height,
     });
-  }, [api, item, quality, kind, width, height]);
+  }, [api, item, kind, width, height]);
 
   // return placeholder icon if no source
   if (!source?.uri)

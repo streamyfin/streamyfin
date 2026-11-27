@@ -62,7 +62,6 @@ export const useImageColorsReturn = ({
         item,
         api,
         kind: "primary",
-        quality: 80,
         width: 300,
         pixels: true,
       });

@@ -132,14 +132,6 @@ describe("getItemImage kinds", () => {
     });
   });
 
-  test("ignores a quality passed in", () => {
-    expect(
-      getItemImage({ api, item: full, width: 150, quality: 70 })?.uri,
-    ).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=movie-primary`,
-    );
-  });
-
   test("an item without the image has no source, an item without an Id too", () => {
     expect(getItemImage({ api, item: bare })).toBeNull();
     expect(getItemImage({ api, item: track })).toBeNull();
