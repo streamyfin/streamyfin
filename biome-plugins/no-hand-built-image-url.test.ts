@@ -1,8 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { pluginLines } from "./lintProbes";
+import { pluginLines, pluginScope } from "./lintProbes";
 
-const ROOT = path.resolve(__dirname, "..");
 const PLUGIN = "./biome-plugins/no-hand-built-image-url.grit";
 
 const CASES = `export const template = \`\${base}/Items/\${id}/Images/Primary\`;
@@ -64,18 +61,10 @@ describe("no-hand-built-image-url", () => {
 
   // Read from the config, since a probe cannot go in app/.
   it("covers every listed folder and excludes the builders", () => {
-    const config = JSON.parse(
-      fs.readFileSync(path.join(ROOT, "biome.json"), "utf8"),
+    const { files, entry } = pluginScope(PLUGIN);
+    expect(files).toContain(
+      "{app,components,hooks,providers,utils,services}/**/*.{ts,tsx}",
     );
-    const override = config.overrides.find((entry: { plugins?: string[] }) =>
-      entry.plugins?.includes(PLUGIN),
-    );
-    expect(override.includes).toContain("!utils/jellyfin/image/**");
-    expect(override.includes).toEqual(
-      expect.arrayContaining(["utils/**/*.ts", "services/**/*.ts"]),
-    );
-    expect(override.includes).toEqual(
-      expect.arrayContaining(["app/**/*.ts", "app/**/*.tsx"]),
-    );
+    expect(entry.includes).toEqual(["**", "!utils/jellyfin/image/**"]);
   });
 });

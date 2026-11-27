@@ -74,3 +74,22 @@ export const pluginLines = (
     }
   }
 };
+
+type PluginEntry = { path: string; includes: string[] };
+
+/**
+ * The biome.json override that loads a plugin, and the plugin's own entry in
+ * it, for the folders a probe cannot go in.
+ */
+export const pluginScope = (plugin: string) => {
+  const config = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "biome.json"), "utf8"),
+  );
+  for (const override of config.overrides) {
+    const entry = override.plugins?.find(
+      (item: PluginEntry) => item.path === plugin,
+    );
+    if (entry) return { files: override.includes as string[], entry };
+  }
+  throw new Error(`no biome.json override loads ${plugin}`);
+};
