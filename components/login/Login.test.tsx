@@ -306,6 +306,33 @@ describe("Login with browser", () => {
     expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
   });
 
+  test("does not open it again after leaving the login screen", async () => {
+    const view = await render(<Login />);
+    await pressLoginWithBrowser();
+
+    await view.unmount();
+    await waitBeforeReopening();
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not continue with a code that is no longer waiting", async () => {
+    const view = await render(<Login />);
+    await pressLoginWithBrowser();
+    await waitBeforeReopening();
+    await waitBeforeReopening();
+    const [, options] = jest.mocked(toast.info).mock.calls[0];
+    const action = options?.action as ToastAction;
+
+    mockJellyfin.quickConnectStatus = "expired";
+    await view.rerender(<Login />);
+    await act(async () => {
+      action.onClick();
+    });
+
+    expect(mockOpenBrowser).toHaveBeenCalledTimes(2);
+  });
+
   test("closes the browser once the code signed the user in", async () => {
     mockOpenBrowser.mockReturnValueOnce(new Promise(() => {}));
     await render(<Login />);

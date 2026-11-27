@@ -317,28 +317,45 @@ export const Login: React.FC = () => {
   const startingRef = useRef(false);
   const startRef = useRef(0);
 
+  // Leaving the login screen leaves a pending browser start behind too.
+  useEffect(
+    () => () => {
+      startRef.current++;
+    },
+    [],
+  );
+
   // The browser flow reads the status after awaits, so it needs the latest one.
   const quickConnectStatusRef = useRef(quickConnectStatus);
   quickConnectStatusRef.current = quickConnectStatus;
+  // Only the latest start may open the browser, and only while its code waits.
+  const stillWaiting = (start: number) =>
+    start === startRef.current && quickConnectStatusRef.current === "waiting";
 
   // Approve the code on the server's own web page, so whatever it signs in
   // with (password, SSO, passkeys) works without the app knowing about it.
-  const approveInBrowser = async (code: string, reopen = true) => {
+  const approveInBrowser = async (
+    code: string,
+    start: number,
+    reopen = true,
+  ) => {
     if (!api?.basePath) return;
     const url = quickConnectPairingUrl(api.basePath, code);
     if (!(await browserClosedByUser(url))) return;
     await new Promise((resolve) =>
       setTimeout(resolve, QUICK_CONNECT_BROWSER_REOPEN_DELAY_MS),
     );
-    if (quickConnectStatusRef.current !== "waiting") return;
+    if (!stillWaiting(start)) return;
     // SSO plugins land on the home page after signing in, so the code page is
     // gone by the time the browser is closed: it opens once more on its own,
     // signed in by now. After that the user decides, so it never loops.
-    if (reopen) return approveInBrowser(code, false);
+    if (reopen) return approveInBrowser(code, start, false);
     toast.info(t("login.browser_not_finished"), {
       action: {
         label: t("common.continue"),
-        onClick: () => approveInBrowser(code, false),
+        onClick: () => {
+          if (stillWaiting(start)) approveInBrowser(code, start, false);
+        },
       },
     });
   };
@@ -357,7 +374,7 @@ export const Login: React.FC = () => {
       }
       if (code) {
         setQuickConnectActive(true);
-        if (via === "browser") await approveInBrowser(code);
+        if (via === "browser") await approveInBrowser(code, start);
         else setQuickConnectCode(code);
       }
     } catch (error) {
