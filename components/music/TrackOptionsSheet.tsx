@@ -40,7 +40,6 @@ import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 
 // Layout points, shared by the box and the image request sized from it.
 const ARTWORK_SIZE = 56;
@@ -114,8 +113,8 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   const imageUrl = useMemo(
     () =>
       getItemImageUrl(api, track, "album", {
-        width: toImagePixels(ARTWORK_SIZE),
-        height: toImagePixels(ARTWORK_SIZE),
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
       }),
     [api, track],
   );

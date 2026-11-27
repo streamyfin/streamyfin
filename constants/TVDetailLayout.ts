@@ -5,3 +5,7 @@
 export const TV_DETAIL_POSTER_WIDTH_RATIO = 0.22;
 export const TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO = 0.45;
 export const TV_DETAIL_HEADER_MIN_HEIGHT_RATIO = 0.45;
+
+// An episode's page has a 16:9 still in place of the poster, this share of the
+// window's width.
+export const TV_DETAIL_EPISODE_WIDTH_RATIO = 0.35;

@@ -63,6 +63,7 @@ function getTVDiscoveryImage(
     const url = getItemImageUrl(api, item, "wide", {
       preferEpisodeImage: useEpisodeImages,
       height: TV_DISCOVERY_LANDSCAPE_HEIGHT,
+      pixels: true,
     });
     return url ? { url } : undefined;
   }
@@ -80,6 +81,7 @@ function getTVDiscoveryImage(
     {
       width: TV_DISCOVERY_POSTER_WIDTH,
       height: TV_DISCOVERY_POSTER_HEIGHT,
+      pixels: true,
     },
   );
   return url ? { url } : undefined;

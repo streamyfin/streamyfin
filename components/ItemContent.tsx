@@ -38,7 +38,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import {
   canPlayInRemoteSession,
   isPlayableItem,
@@ -146,7 +145,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     () =>
       item
         ? getItemImageUrl(api, item, "logo", {
-            height: toImagePixels(LOGO_HEIGHT),
+            height: LOGO_HEIGHT,
           })
         : null,
     [api, item],
@@ -262,8 +261,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
             <ItemImage
               kind={item.Type === "Movie" && logoUrl ? "backdrop" : "primary"}
               item={item}
-              width={toImagePixels(windowWidth)}
-              height={toImagePixels(headerImageHeight)}
+              width={windowWidth}
+              height={headerImageHeight}
               style={{
                 width: "100%",
                 height: "100%",

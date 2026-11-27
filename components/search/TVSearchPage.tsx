@@ -176,14 +176,16 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
-  // Image URL getter for music items
+  // Image URL getter for music items, drawn in a poster card
   const getImageUrl = useMemo(() => {
     return (item: BaseItemDto): string | undefined => {
       if (!api) return undefined;
-      const url = getItemImageUrl(api, item, "primary", { width: 400 });
+      const url = getItemImageUrl(api, item, "primary", {
+        width: sizes.posters.poster,
+      });
       return url ?? undefined;
     };
-  }, [api]);
+  }, [api, sizes.posters.poster]);
 
   // Determine which section should have initial focus
   const sections = useMemo(() => {

@@ -31,7 +31,6 @@ import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 
 // Layout points, shared by the box and the image request sized from it.
 const ARTWORK_SIZE = 48;
@@ -139,8 +138,8 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
   const playlistImageUrl = useCallback(
     (playlist: BaseItemDto) => {
       return getItemImageUrl(api, playlist, "primary", {
-        width: toImagePixels(ARTWORK_SIZE),
-        height: toImagePixels(ARTWORK_SIZE),
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
       });
     },
     [api],

@@ -113,8 +113,10 @@ export default function AlbumDetailScreen() {
 
   const imageUrl = useMemo(
     () =>
-      album ? getItemImageUrl(api, album, "primary", { width: 400 }) : null,
-    [api, album],
+      album
+        ? getItemImageUrl(api, album, "primary", { width: artworkSize })
+        : null,
+    [api, album, artworkSize],
   );
 
   const totalDuration = useMemo(() => {

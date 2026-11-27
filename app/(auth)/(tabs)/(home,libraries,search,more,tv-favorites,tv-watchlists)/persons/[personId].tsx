@@ -18,7 +18,6 @@ import {
 import { TVActorPage } from "@/components/persons/TVActorPage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const PAGE_SIZE = 16;
@@ -85,8 +84,8 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
     () =>
       getItemImageUrl(api, item, "backdrop", {
         // The image covers the header, which spans the window.
-        width: toImagePixels(windowWidth),
-        height: toImagePixels(PARALLAX_HEADER_HEIGHT),
+        width: windowWidth,
+        height: PARALLAX_HEADER_HEIGHT,
       }),
     [api, item, windowWidth],
   );

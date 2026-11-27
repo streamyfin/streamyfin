@@ -126,8 +126,10 @@ export default function ArtistDetailScreen() {
 
   const imageUrl = useMemo(
     () =>
-      artist ? getItemImageUrl(api, artist, "primary", { width: 400 }) : null,
-    [api, artist],
+      artist
+        ? getItemImageUrl(api, artist, "primary", { width: artworkSize })
+        : null,
+    [api, artist, artworkSize],
   );
 
   const handlePlayAllTracks = useCallback(() => {

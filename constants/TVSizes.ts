@@ -29,12 +29,6 @@ export const TVPosterSizes = {
 } as const;
 
 /**
- * Height, in pixels, a TV card or detail page asks the server for when it
- * shows an item's landscape art (a Thumb, a series backdrop, an episode still).
- */
-export const TV_WIDE_IMAGE_HEIGHT_PX = 700;
-
-/**
  * How close to the end of a TV grid that grows as it is scrolled, in points
  * at 1080p, the next page is asked for.
  */

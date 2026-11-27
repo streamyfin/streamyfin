@@ -2,11 +2,24 @@ import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { PixelRatio } from "react-native";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { getItemImageUrl, getItemImageUrlById } from "./getItemImageUrl";
 
 const api = makeApi();
 const base = api.basePath;
+
+const onScreenDensity = (density: number) =>
+  jest.spyOn(PixelRatio, "get").mockReturnValue(density);
+
+// Sizes are layout points: pin the density the expectations are written for.
+beforeEach(() => {
+  onScreenDensity(2);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 const movie = {
   Id: "movie-1",
@@ -20,14 +33,14 @@ const movie = {
 describe("getItemImageUrl sizing", () => {
   test("a width alone asks for fillWidth", () => {
     // Web: 5
-    expect(getItemImageUrl(api, movie, "primary", { width: 300 })).toBe(
+    expect(getItemImageUrl(api, movie, "primary", { width: 150 })).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=p`,
     );
   });
 
   test("a height alone asks for fillHeight", () => {
     // Web: 5
-    expect(getItemImageUrl(api, movie, "primary", { height: 200 })).toBe(
+    expect(getItemImageUrl(api, movie, "primary", { height: 100 })).toBe(
       `${base}/Items/movie-1/Images/Primary?fillHeight=200&quality=90&tag=p`,
     );
   });
@@ -35,16 +48,16 @@ describe("getItemImageUrl sizing", () => {
   test("both sides cover the box and bound the result", () => {
     // Web: 5
     expect(
-      getItemImageUrl(api, movie, "primary", { width: 600, height: 900 }),
+      getItemImageUrl(api, movie, "primary", { width: 300, height: 450 }),
     ).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=90&tag=p`,
     );
   });
 
-  test("sizes are rounded to whole pixels", () => {
+  test("sizes are rounded up to the next step of 100 pixels", () => {
     expect(
-      getItemImageUrl(api, movie, "primary", { width: 599.6, height: 899.4 }),
-    ).toContain("fillWidth=600&fillHeight=899&");
+      getItemImageUrl(api, movie, "primary", { width: 151, height: 401 }),
+    ).toContain("fillWidth=400&fillHeight=900&");
   });
 
   test("no size asks for none", () => {
@@ -103,7 +116,7 @@ describe("getItemImageUrl logo height", () => {
   });
 
   test("leaves the height of another kind alone", () => {
-    expect(getItemImageUrl(api, movie, "primary", { height: 2000 })).toContain(
+    expect(getItemImageUrl(api, movie, "primary", { height: 1000 })).toContain(
       "fillHeight=2000&",
     );
   });
@@ -111,7 +124,7 @@ describe("getItemImageUrl logo height", () => {
 
 describe("getItemImageUrl backdrops", () => {
   test("adds imageIndex 0 to a Backdrop image", () => {
-    expect(getItemImageUrl(api, movie, "backdrop", { width: 800 })).toBe(
+    expect(getItemImageUrl(api, movie, "backdrop", { width: 400 })).toBe(
       `${base}/Items/movie-1/Images/Backdrop?fillWidth=800&quality=80&tag=b&imageIndex=0`,
     );
   });
@@ -191,13 +204,13 @@ describe("getItemImageUrl covering a box", () => {
   // the header and was scaled up to cover it.
   test("a backdrop covers the whole box when given its height", () => {
     const url = getItemImageUrl(api, movie, "backdrop", {
-      width: 1233,
-      height: 1500,
+      width: 600,
+      height: 750,
     });
 
     expect(url).toContain("/Items/movie-1/Images/Backdrop?");
     expect(sizeOf(url)).toEqual({
-      fillWidth: "1233",
+      fillWidth: "1200",
       fillHeight: "1500",
       maxWidth: "1920",
       maxHeight: "1920",
@@ -214,13 +227,13 @@ describe("getItemImageUrl covering a box", () => {
         BackdropImageTags: [],
       },
       "backdrop",
-      { width: 1017, height: 1170 },
+      { width: 500, height: 585 },
     );
 
     expect(url).toContain("/Items/episode-1/Images/Primary?");
     expect(sizeOf(url)).toEqual({
-      fillWidth: "1017",
-      fillHeight: "1170",
+      fillWidth: "1000",
+      fillHeight: "1200",
       maxWidth: "1920",
       maxHeight: "1920",
     });
@@ -235,21 +248,21 @@ describe("getItemImageUrl covering a box", () => {
     } satisfies BaseItemDto;
 
     const box = getItemImageUrl(api, episode, "parentBackdrop", {
-      width: 1017,
-      height: 1170,
+      width: 500,
+      height: 585,
     });
     expect(box).toContain("/Items/series-1/Images/Backdrop?");
     expect(sizeOf(box)).toEqual({
-      fillWidth: "1017",
-      fillHeight: "1170",
+      fillWidth: "1000",
+      fillHeight: "1200",
       maxWidth: "1920",
       maxHeight: "1920",
     });
     // Web: 5
     expect(
-      getItemImageUrl(api, episode, "parentBackdrop", { width: 678 }),
+      getItemImageUrl(api, episode, "parentBackdrop", { width: 339 }),
     ).toBe(
-      `${base}/Items/series-1/Images/Backdrop?fillWidth=678&quality=80&tag=series-backdrop-tag&imageIndex=0`,
+      `${base}/Items/series-1/Images/Backdrop?fillWidth=700&quality=80&tag=series-backdrop-tag&imageIndex=0`,
     );
   });
 });
@@ -265,18 +278,18 @@ describe("getItemImageUrl logos", () => {
         ParentLogoImageTag: "series-logo-tag",
       },
       "logo",
-      { height: 260 },
+      { height: 130 },
     );
 
     expect(url).toContain("/Items/series-1/Images/Logo?");
     expect(new URL(url ?? "").searchParams.get("tag")).toBe("series-logo-tag");
-    expect(sizeOf(url).fillHeight).toBe("260");
+    expect(sizeOf(url).fillHeight).toBe("300");
   });
 
-  test("a fractional height rounds to whole pixels", () => {
+  test("a fractional height rounds up to the next step", () => {
     expect(
-      sizeOf(getItemImageUrl(api, movie, "logo", { height: 340.6 })).fillHeight,
-    ).toBe("341");
+      sizeOf(getItemImageUrl(api, movie, "logo", { height: 170.3 })).fillHeight,
+    ).toBe("400");
   });
 
   test("a height of 0 is asked for as given", () => {
@@ -300,7 +313,7 @@ describe("getItemImageUrl people and answers that are not items", () => {
     } satisfies BaseItemPerson;
 
     // Web: 5
-    expect(getItemImageUrl(api, person, "primary", { width: 400 })).toBe(
+    expect(getItemImageUrl(api, person, "primary", { width: 200 })).toBe(
       `${base}/Items/person-1/Images/Primary?fillWidth=400&quality=90&tag=person-tag`,
     );
   });
@@ -332,14 +345,14 @@ describe("getItemImageUrl people and answers that are not items", () => {
 describe("getItemImageUrlById", () => {
   test("builds an untagged URL, sized like the entry point", () => {
     // Web: 5
-    expect(getItemImageUrlById(api, "movie-1", "Primary", { width: 250 })).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=250&quality=90`,
+    expect(getItemImageUrlById(api, "movie-1", "Primary", { width: 125 })).toBe(
+      `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=90`,
     );
     // Web: 5
     expect(
       getItemImageUrlById(api, "movie-1", "Primary", {
-        width: 600,
-        height: 900,
+        width: 300,
+        height: 450,
       }),
     ).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=600&fillHeight=900&maxWidth=1920&maxHeight=1920&quality=90`,
@@ -368,5 +381,132 @@ describe("getItemImageUrlById", () => {
     expect(getItemImageUrlById(null, "movie-1", "Primary")).toBeNull();
     expect(getItemImageUrlById(api, null, "Primary")).toBeNull();
     expect(getItemImageUrlById(api, "", "Primary")).toBeNull();
+  });
+});
+
+describe("getItemImageUrl layout points", () => {
+  // jellyfin-apiclient normalizeImageOptions multiplies the drawn size by the
+  // device pixel ratio; here the entry point does it for every caller.
+  test.each([
+    [2, 118, "300"],
+    [3, 118, "400"],
+    [3, 100, "300"],
+    [2, 100, "200"],
+  ])(
+    "a %ix screen asks for the pixels of a box %i points wide",
+    (density, points, fillWidth) => {
+      onScreenDensity(density);
+
+      expect(
+        sizeOf(getItemImageUrl(api, movie, "primary", { width: points })),
+      ).toMatchObject({ fillWidth });
+    },
+  );
+
+  test("boxes a few points apart share one request", () => {
+    onScreenDensity(3);
+
+    expect(getItemImageUrl(api, movie, "primary", { width: 113 })).toBe(
+      getItemImageUrl(api, movie, "primary", { width: 126 }),
+    );
+  });
+
+  test("converts both sides of a box, each to its own step", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(
+        getItemImageUrl(api, movie, "primary", { width: 118, height: 66 }),
+      ),
+    ).toMatchObject({ fillWidth: "400", fillHeight: "200" });
+  });
+
+  test("caps the logo height after converting and rounding", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(getItemImageUrl(api, movie, "logo", { height: 130 })).fillHeight,
+    ).toBe("400");
+    expect(
+      sizeOf(getItemImageUrl(api, movie, "logo", { height: 300 })).fillHeight,
+    ).toBe("600");
+  });
+
+  test("bounds a cover fit request at the longest side in pixels", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(
+        getItemImageUrl(api, movie, "backdrop", { width: 400, height: 800 }),
+      ),
+    ).toEqual({
+      fillWidth: "1200",
+      fillHeight: "2400",
+      maxWidth: "1920",
+      maxHeight: "1920",
+    });
+  });
+
+  test("the id entry point converts the same way", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(getItemImageUrlById(api, "movie-1", "Primary", { width: 118 })),
+    ).toMatchObject({ fillWidth: "400" });
+  });
+});
+
+describe("getItemImageUrl pixels", () => {
+  test("takes the sizes as physical pixels, converting nothing", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(
+        getItemImageUrl(api, movie, "primary", { width: 500, pixels: true }),
+      ),
+    ).toMatchObject({ fillWidth: "500" });
+  });
+
+  test("still rounds up to the next step", () => {
+    onScreenDensity(3);
+
+    expect(
+      sizeOf(
+        getItemImageUrl(api, movie, "primary", {
+          width: 512,
+          height: 512,
+          pixels: true,
+        }),
+      ),
+    ).toMatchObject({ fillWidth: "600", fillHeight: "600" });
+    expect(
+      sizeOf(
+        getItemImageUrlById(api, "movie-1", "Primary", {
+          width: 500,
+          pixels: true,
+        }),
+      ),
+    ).toMatchObject({ fillWidth: "500" });
+  });
+
+  test("keeps the logo cap", () => {
+    expect(
+      sizeOf(
+        getItemImageUrl(api, movie, "logo", { height: 2000, pixels: true }),
+      ).fillHeight,
+    ).toBe("600");
+  });
+});
+
+describe("getItemImageUrl without a size", () => {
+  test("sends no size params, whatever the density", () => {
+    onScreenDensity(3);
+
+    expect(getItemImageUrl(api, movie, "primary")).toBe(
+      `${base}/Items/movie-1/Images/Primary?quality=90&tag=p`,
+    );
+    expect(getItemImageUrl(api, movie, "primary", { pixels: true })).toBe(
+      `${base}/Items/movie-1/Images/Primary?quality=90&tag=p`,
+    );
   });
 });

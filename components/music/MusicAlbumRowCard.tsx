@@ -20,7 +20,7 @@ export const MusicAlbumRowCard: React.FC<Props> = ({ album }) => {
   const router = useRouter();
 
   const imageUrl = useMemo(
-    () => getItemImageUrl(api, album, "primary", { width: 400 }),
+    () => getItemImageUrl(api, album, "primary", { width: IMAGE_SIZE }),
     [api, album],
   );
 

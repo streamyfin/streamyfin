@@ -38,7 +38,7 @@ describe("TVChannelCard", () => {
 
     // Web: 5
     expect(imageIds(root)).toEqual([
-      "image https://jellyfin.example/Items/channel-1/Images/Primary?fillWidth=200&quality=90&tag=logo-tag",
+      "image https://jellyfin.example/Items/channel-1/Images/Primary?fillWidth=200&fillHeight=200&maxWidth=1920&maxHeight=1920&quality=90&tag=logo-tag",
     ]);
   });
 

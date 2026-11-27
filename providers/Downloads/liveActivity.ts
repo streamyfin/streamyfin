@@ -81,6 +81,7 @@ async function stagePoster(
       kind: item.Type === "Episode" ? "poster" : "primary",
       quality: 90,
       width: 300,
+      pixels: true,
     });
     if (!image?.uri) return undefined;
 

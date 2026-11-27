@@ -76,7 +76,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   onFinishRef.current = onFinish;
 
   const imageUrl = getItemImageUrl(api, nextItem, "primary", {
-    width: scaleSize(360),
+    width: scaleSize(180),
   });
 
   // Animated position based on controls visibility

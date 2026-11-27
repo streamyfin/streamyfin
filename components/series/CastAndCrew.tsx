@@ -5,6 +5,7 @@ import type React from "react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { CARD_LAYOUTS } from "@/components/cards/CardData";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { useCastCrew } from "@/hooks/useCastCrew";
@@ -33,7 +34,9 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         id: person.Id,
         title: person.Name ?? "",
         subtitle: person.Role ?? null,
-        imageUrl: getItemImageUrl(api, person, "primary", { width: 400 }),
+        imageUrl: getItemImageUrl(api, person, "primary", {
+          width: CARD_LAYOUTS.portrait.cardWidth,
+        }),
       })),
     [api, distinctPeople],
   );

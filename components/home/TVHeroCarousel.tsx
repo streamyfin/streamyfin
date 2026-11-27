@@ -23,7 +23,6 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { LOGO_HEIGHT } from "@/constants/Images";
 import {
   type ScaledTVSizes,
   TV_BACKDROP_DEBOUNCE_MS,
@@ -37,7 +36,6 @@ import {
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -68,8 +66,12 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
 
     const posterUrl = useMemo(
-      () => getItemImageUrl(api, item, "wide", { height: 400 }),
-      [api, item],
+      () =>
+        getItemImageUrl(api, item, "wide", {
+          width: sizes.posters.episode,
+          height: (sizes.posters.episode * 9) / 16,
+        }),
+      [api, item, sizes.posters.episode],
     );
 
     const animateTo = useCallback(
@@ -218,19 +220,29 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   const layer0Opacity = useRef(new Animated.Value(0)).current;
   const layer1Opacity = useRef(new Animated.Value(0)).current;
 
+  // Extra top padding for tvOS to clear the menu bar
+  const tvosTopPadding = scaleSize(145);
+  const heroHeight = windowHeight * sizes.padding.heroHeight;
+  // The backdrop fills the whole hero, padding included.
+  const heroBoxHeight = heroHeight + insets.top + tvosTopPadding;
+  const logoHeight = scaleSize(100);
+
   // Get backdrop URL for active item
   const backdropUrl = useMemo(() => {
     if (!activeItem) return null;
-    return getItemImageUrl(api, activeItem, "backdrop", { width: 1920 });
-  }, [api, activeItem]);
+    return getItemImageUrl(api, activeItem, "backdrop", {
+      width: windowWidth,
+      height: heroBoxHeight,
+    });
+  }, [api, activeItem, windowWidth, heroBoxHeight]);
 
   // Get logo URL for active item
   const logoUrl = useMemo(() => {
     if (!activeItem) return null;
     return getItemImageUrl(api, activeItem, "logo", {
-      height: toImagePixels(LOGO_HEIGHT),
+      height: logoHeight,
     });
-  }, [api, activeItem]);
+  }, [api, activeItem, logoHeight]);
 
   // Crossfade effect for backdrop
   useEffect(() => {
@@ -370,14 +382,10 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
 
   if (items.length === 0) return null;
 
-  // Extra top padding for tvOS to clear the menu bar
-  const tvosTopPadding = scaleSize(145);
-  const heroHeight = windowHeight * sizes.padding.heroHeight;
-
   return (
     <View
       style={{
-        height: heroHeight + insets.top + tvosTopPadding,
+        height: heroBoxHeight,
         width: "100%",
         paddingTop: insets.top + tvosTopPadding,
       }}
@@ -484,7 +492,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
           <Image
             source={{ uri: logoUrl }}
             style={{
-              height: scaleSize(100),
+              height: logoHeight,
               width: windowWidth * 0.35,
               marginBottom: scaleSize(16),
             }}

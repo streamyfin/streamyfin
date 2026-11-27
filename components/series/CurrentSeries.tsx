@@ -4,6 +4,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { CARD_LAYOUTS } from "@/components/cards/CardData";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -28,7 +29,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
               id: item.Id ?? "series",
               title: item.SeriesName ?? "",
               imageUrl: getItemImageUrlById(api, item.ParentId, "Primary", {
-                width: 500,
+                width: CARD_LAYOUTS.portrait.cardWidth,
               }),
             },
           ]

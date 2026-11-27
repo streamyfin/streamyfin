@@ -18,8 +18,8 @@ export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
   const router = useRouter();
 
   const imageUrl = useMemo(
-    () => getItemImageUrl(api, album, "primary", { width: 400 }),
-    [api, album],
+    () => getItemImageUrl(api, album, "primary", { width }),
+    [api, album, width],
   );
 
   const handlePress = useCallback(() => {

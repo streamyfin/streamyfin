@@ -998,6 +998,7 @@ const NativePlayerProviderInner: React.FC<{
         imageUrl:
           getItemImageUrl(apiRef.current, next, "primary", {
             width: 300,
+            pixels: true,
           }) ?? undefined,
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
         // Autoplay would have run but the session is long enough to ask:
@@ -1044,6 +1045,7 @@ const NativePlayerProviderInner: React.FC<{
             imageUrl:
               getItemImageUrl(apiRef.current, ep, "primary", {
                 width: 300,
+                pixels: true,
               }) ?? undefined,
             progressPercent: ep.UserData?.PlayedPercentage ?? 0,
             isCurrent: ep.Id === item.Id,

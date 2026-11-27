@@ -10,13 +10,18 @@ interface Props {
   api: Api;
   /** @deprecated Quality follows the image type; this is ignored. */
   quality?: number;
-  /** Image width in physical pixels, not layout points. */
+  /** Width of the box the image is drawn in, in layout points. */
   width?: number;
   /**
-   * Height of the box the image has to cover, in physical pixels. With it the
+   * Height of the box the image is drawn in, in layout points. With it the
    * request becomes "cover a `width` by `height` box" instead of a fixed width.
    */
   height?: number;
+  /**
+   * `width` and `height` are physical pixels, for an image the app does not
+   * draw itself: a download, a notification, a palette source.
+   */
+  pixels?: boolean;
   kind?: ImageKind;
 }
 
@@ -24,14 +29,16 @@ export const getItemImage = ({
   item,
   api,
   kind = "primary",
-  width = 1000,
+  width,
   height,
+  pixels,
 }: Props) => {
   if (!api) return null;
 
   const resolved = resolveItemImageUrl(api, item, kind, {
     width,
     height,
+    pixels,
   });
   if (!resolved) return null;
 

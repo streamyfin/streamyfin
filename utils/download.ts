@@ -17,7 +17,10 @@ const useDownloadHelper = () => {
     ) {
       await saveImage(
         item.SeriesId,
-        getItemImageUrlById(api, item.SeriesId, "Primary", { width: 500 }),
+        getItemImageUrlById(api, item.SeriesId, "Primary", {
+          width: 500,
+          pixels: true,
+        }),
       );
     }
   };

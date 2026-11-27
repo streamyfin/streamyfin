@@ -49,7 +49,7 @@ interface TVActorPageProps {
 export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
@@ -134,8 +134,12 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     // Use focused item if available, otherwise fall back to first movie or series
     const itemForBackdrop = focusedItem ?? movies[0] ?? series[0];
     if (!itemForBackdrop) return null;
-    return getItemImageUrl(api, itemForBackdrop, "backdrop", { width: 1920 });
-  }, [api, focusedItem, movies, series]);
+    // The backdrop fills the window.
+    return getItemImageUrl(api, itemForBackdrop, "backdrop", {
+      width: windowWidth,
+      height: windowHeight,
+    });
+  }, [api, focusedItem, movies, series, windowWidth, windowHeight]);
 
   // Crossfade animation for backdrop transitions
   // Use two alternating layers for smooth crossfade
@@ -212,8 +216,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const actorImageUrl = useMemo(
     () =>
       getItemImageUrl(api, item, "primary", {
-        width: ACTOR_IMAGE_SIZE * 2,
-        height: ACTOR_IMAGE_SIZE * 2,
+        width: ACTOR_IMAGE_SIZE,
+        height: ACTOR_IMAGE_SIZE,
       }),
     [api, item],
   );

@@ -70,7 +70,7 @@ describe("the artwork a card requests", () => {
     const [image] = images();
     expect(image.props.testID).toContain("/Items/series-1/Images/Backdrop?");
     expect(image.props.testID).toContain("tag=bd-tag");
-    expect(image.props.testID).toContain("fillHeight=700");
+    expect(image.props.testID).toContain("fillWidth=600&fillHeight=400&");
   });
 
   test("a horizontal episode that prefers its own image shows its still", async () => {
@@ -92,7 +92,7 @@ describe("the artwork a card requests", () => {
 
     const [image] = images();
     expect(image.props.testID).toContain("/Items/e1/Images/Primary?");
-    expect(image.props.testID).toContain("fillHeight=700");
+    expect(image.props.testID).toContain("fillWidth=600&fillHeight=400&");
   });
 
   test.each(["horizontal", "vertical"] as const)(

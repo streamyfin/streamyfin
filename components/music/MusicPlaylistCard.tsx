@@ -25,7 +25,7 @@ export const MusicPlaylistCard: React.FC<Props> = ({ playlist }) => {
   const router = useRouter();
 
   const imageUrl = useMemo(
-    () => getItemImageUrl(api, playlist, "primary", { width: 400 }),
+    () => getItemImageUrl(api, playlist, "primary", { width: IMAGE_SIZE }),
     [api, playlist],
   );
 

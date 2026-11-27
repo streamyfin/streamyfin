@@ -18,7 +18,6 @@ import {
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { formatDuration } from "@/utils/time";
 
 const ARTWORK_SIZE = 44;
@@ -47,8 +46,8 @@ export const MusicTrackItem: React.FC<Props> = ({
   const imageUrl = useMemo(
     () =>
       getItemImageUrl(api, track, "album", {
-        width: toImagePixels(ARTWORK_SIZE),
-        height: toImagePixels(ARTWORK_SIZE),
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
       }),
     [api, track],
   );

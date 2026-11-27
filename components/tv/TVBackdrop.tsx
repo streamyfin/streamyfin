@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { ItemImage } from "@/components/common/ItemImage";
 
 export interface TVBackdropProps {
@@ -9,6 +9,7 @@ export interface TVBackdropProps {
 }
 
 export const TVBackdrop: React.FC<TVBackdropProps> = React.memo(({ item }) => {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   return (
     <View
       style={{
@@ -22,6 +23,8 @@ export const TVBackdrop: React.FC<TVBackdropProps> = React.memo(({ item }) => {
       <ItemImage
         kind='backdrop'
         item={item}
+        width={windowWidth}
+        height={windowHeight}
         style={{
           width: "100%",
           height: "100%",

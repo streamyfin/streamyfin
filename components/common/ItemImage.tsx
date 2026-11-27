@@ -14,10 +14,10 @@ interface Props extends ImageProps {
   item: BaseItemDto;
   kind?: ImageKind;
   quality?: number;
-  /** Requested image width in physical pixels, not layout points. */
+  /** Width of the box the image is drawn in, in layout points. */
   width?: number;
   /**
-   * Height of the box the image covers, in physical pixels. Pass it with
+   * Height of the box the image is drawn in, in layout points. Pass it with
    * `width` for a cover fit image, so the request is sized to the box.
    */
   height?: number;
@@ -28,7 +28,7 @@ export const ItemImage: FC<Props> = ({
   item,
   kind = "primary",
   quality = 90,
-  width = 1000,
+  width,
   height,
   onError,
   ...props

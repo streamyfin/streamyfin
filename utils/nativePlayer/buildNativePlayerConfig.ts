@@ -395,7 +395,10 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
     subtitle = String(item.ProductionYear);
   }
 
-  const artworkUri = getItemImageUrl(api, item, "primary", { width: 500 });
+  const artworkUri = getItemImageUrl(api, item, "primary", {
+    width: 500,
+    pixels: true,
+  });
 
   return {
     itemId: item.Id ?? undefined,

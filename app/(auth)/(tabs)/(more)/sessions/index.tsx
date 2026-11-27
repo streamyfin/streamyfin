@@ -62,6 +62,9 @@ interface SessionCardProps {
   session: SessionInfoDto;
 }
 
+/** Width of the poster on a session card (`w-20`), in points. */
+const SESSION_POSTER_WIDTH = 80;
+
 const SessionCard = ({ session }: SessionCardProps) => {
   const api = useAtomValue(apiAtom);
   const [remainingTicks, setRemainingTicks] = useState<number>(0);
@@ -176,7 +179,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
           <Poster
             id={session.NowPlayingItem?.Id}
             url={getItemImageUrl(api, session.NowPlayingItem, "primary", {
-              width: 400,
+              width: SESSION_POSTER_WIDTH,
             })}
           />
         </View>

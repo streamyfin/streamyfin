@@ -14,7 +14,6 @@ import { TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO } from "@/constants/TVDetailLayout";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVSeriesHeaderProps {
@@ -29,7 +28,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
   const logoUrl = useMemo(() => {
     if (!api || !item) return null;
     return getItemImageUrl(api, item, "logo", {
-      height: toImagePixels(LOGO_HEIGHT),
+      height: LOGO_HEIGHT,
     });
   }, [api, item]);
 

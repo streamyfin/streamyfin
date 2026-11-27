@@ -233,19 +233,19 @@ describe("buildTVDiscoveryPayload: the image of a tile", () => {
 
   test("a landscape tile is the parent Thumb of an episode, the Thumb of a movie", () => {
     expect(imageOf(episode, { imageShape: "landscape" })).toBe(
-      `${BASE}/series-1/Images/Thumb?fillHeight=1080&quality=90&tag=thumb-tag`,
+      `${BASE}/series-1/Images/Thumb?fillHeight=1100&quality=90&tag=thumb-tag`,
     );
     expect(
       imageOf(
         { Id: "m", Name: "Heat", Type: "Movie", ImageTags: { Thumb: "t" } },
         { imageShape: "landscape" },
       ),
-    ).toBe(`${BASE}/m/Images/Thumb?fillHeight=1080&quality=90&tag=t`);
+    ).toBe(`${BASE}/m/Images/Thumb?fillHeight=1100&quality=90&tag=t`);
   });
 
   test("a landscape tile prefers the episode's own still when asked", () => {
     expect(
       imageOf(episode, { imageShape: "landscape", useEpisodeImages: true }),
-    ).toBe(`${BASE}/ep-1/Images/Primary?fillHeight=1080&quality=90&tag=ep-tag`);
+    ).toBe(`${BASE}/ep-1/Images/Primary?fillHeight=1100&quality=90&tag=ep-tag`);
   });
 });

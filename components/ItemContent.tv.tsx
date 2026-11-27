@@ -54,11 +54,12 @@ import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
 import { LOGO_HEIGHT } from "@/constants/Images";
 import {
+  TV_DETAIL_EPISODE_WIDTH_RATIO,
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
   TV_DETAIL_POSTER_WIDTH_RATIO,
 } from "@/constants/TVDetailLayout";
-import { TV_WIDE_IMAGE_HEIGHT_PX } from "@/constants/TVSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -82,7 +83,6 @@ import {
   getItemImageUrl,
   getItemImageUrlById,
 } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
@@ -117,7 +117,17 @@ interface ItemContentTVProps {
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
+    const sizes = useScaledTVSizes();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    // The box the page draws the item's picture in, see the right-hand column.
+    const detailImageWidth =
+      item?.Type === "Episode"
+        ? windowWidth * TV_DETAIL_EPISODE_WIDTH_RATIO
+        : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO;
+    const detailImageHeight =
+      item?.Type === "Episode"
+        ? (detailImageWidth * 9) / 16
+        : (detailImageWidth * 3) / 2;
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -203,7 +213,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       () =>
         item
           ? getItemImageUrl(api, item, "logo", {
-              height: toImagePixels(LOGO_HEIGHT),
+              height: LOGO_HEIGHT,
             })
           : null,
       [api, item],
@@ -596,25 +606,30 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
       if (item?.Type !== "Episode" || !item.SeriesId) return null;
-      return getItemImageUrlById(api, item.SeriesId, "Primary", { width: 300 });
-    }, [api, item?.Type, item?.SeriesId]);
+      return getItemImageUrlById(api, item.SeriesId, "Primary", {
+        width: sizes.posters.poster,
+      });
+    }, [api, item?.Type, item?.SeriesId, sizes.posters.poster]);
 
     const seasonImageUrl = useMemo(() => {
       if (item?.Type !== "Episode") return null;
       const seasonId = item.SeasonId || item.ParentId;
       if (!seasonId) return null;
-      return getItemImageUrlById(api, seasonId, "Primary", { width: 300 });
-    }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
+      return getItemImageUrlById(api, seasonId, "Primary", {
+        width: sizes.posters.poster,
+      });
+    }, [api, item?.Type, item?.SeasonId, item?.ParentId, sizes.posters.poster]);
 
     // Episode thumbnail URL - episode's own primary image (16:9 for episodes)
     const episodeThumbnailUrl = useMemo(
       () =>
         item?.Type === "Episode"
           ? getItemImageUrl(api, item, "primary", {
-              height: TV_WIDE_IMAGE_HEIGHT_PX,
+              width: detailImageWidth,
+              height: detailImageHeight,
             })
           : null,
-      [api, item],
+      [api, item, detailImageWidth, detailImageHeight],
     );
 
     // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
@@ -622,10 +637,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       () =>
         item?.Type === "Episode"
           ? getItemImageUrl(api, item, "wide", {
-              height: TV_WIDE_IMAGE_HEIGHT_PX,
+              width: detailImageWidth,
+              height: detailImageHeight,
             })
           : null,
-      [api, item],
+      [api, item, detailImageWidth, detailImageHeight],
     );
 
     const episodeImageUrl =
@@ -979,10 +995,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             {/* Right side - Poster */}
             <View
               style={{
-                width:
-                  item.Type === "Episode"
-                    ? windowWidth * 0.35
-                    : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
+                width: detailImageWidth,
                 marginLeft: scaleSize(50),
               }}
             >
@@ -1017,6 +1030,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   <ItemImage
                     kind='primary'
                     item={item}
+                    width={detailImageWidth}
+                    height={detailImageHeight}
                     style={{
                       width: "100%",
                       height: "100%",

@@ -24,9 +24,10 @@ export const TVActorCard = React.forwardRef<ViewInstance, TVActorCardProps>(
       useTVFocusAnimation();
 
     const api = useAtomValue(apiAtom);
+    const photoSize = scaleSize(140);
     const imageUrl = getItemImageUrl(api, person, "primary", {
-      width: 280,
-      height: 280,
+      width: photoSize,
+      height: photoSize,
     });
 
     return (
@@ -52,8 +53,8 @@ export const TVActorCard = React.forwardRef<ViewInstance, TVActorCardProps>(
         >
           <View
             style={{
-              width: scaleSize(140),
-              height: scaleSize(140),
+              width: photoSize,
+              height: photoSize,
               borderRadius: scaleSize(70),
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",

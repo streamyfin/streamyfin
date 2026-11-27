@@ -44,7 +44,6 @@ import {
 import { squareArtworkSide } from "@/utils/artworkSize";
 import { formatBitrate } from "@/utils/bitrate";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { formatDuration } from "@/utils/time";
 
 const formatFileSize = (bytes?: number | null) => {
@@ -122,7 +121,7 @@ export default function NowPlayingScreen() {
   const windowSize = useWindowDimensions();
   const imageUrl = useMemo(() => {
     // The same square PlayerView draws.
-    const side = toImagePixels(squareArtworkSide(windowSize, { inset: 80 }));
+    const side = squareArtworkSide(windowSize, { inset: 80 });
     return getItemImageUrl(api, currentTrack, "album", {
       width: side,
       height: side,
@@ -703,8 +702,8 @@ const QueueView: React.FC<QueueViewProps> = ({
         title: item.Name ?? "",
         subtitle: item.Artists?.join(", ") || item.AlbumArtist || undefined,
         imageUrl: getItemImageUrl(api, item, "album", {
-          width: toImagePixels(QUEUE_ARTWORK_SIZE),
-          height: toImagePixels(QUEUE_ARTWORK_SIZE),
+          width: QUEUE_ARTWORK_SIZE,
+          height: QUEUE_ARTWORK_SIZE,
         }),
       })),
     [api, queue],

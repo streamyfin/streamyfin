@@ -811,7 +811,7 @@ const LibraryPage = () => {
       // Special rendering for Playlist items (square thumbnails)
       if (item.Type === "Playlist") {
         const playlistImageUrl = getItemImageUrl(api, item, "primary", {
-          width: TV_PLAYLIST_SQUARE_SIZE * 2,
+          width: TV_PLAYLIST_SQUARE_SIZE,
         });
 
         return (

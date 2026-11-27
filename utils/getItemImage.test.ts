@@ -13,19 +13,19 @@ const movie = {
 
 describe("getItemImage", () => {
   // Issue #2166: the detail page header asked for a 1000 pixel wide backdrop
-  // and covered a 1233 by 1500 pixel box with it.
+  // and covered a 1200 by 1500 pixel box with it.
   test("asks for an image that covers the whole box when given its height", () => {
     const source = getItemImage({
       api,
       item: movie,
       kind: "backdrop",
-      width: 1233,
-      height: 1500,
+      width: 600,
+      height: 750,
     });
 
     // Web: 5
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1233&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=80&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1200&fillHeight=1500&maxWidth=1920&maxHeight=1920&quality=80&tag=backdrop-tag&imageIndex=0`,
     );
   });
 
@@ -33,21 +33,37 @@ describe("getItemImage", () => {
     const source = getItemImage({
       api,
       item: movie,
-      width: 1233,
-      height: 1050,
+      width: 600,
+      height: 525,
     });
 
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=1233&fillHeight=1050&maxWidth=1920&maxHeight=1920&quality=90&tag=primary-tag`,
+      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=1200&fillHeight=1100&maxWidth=1920&maxHeight=1920&quality=90&tag=primary-tag`,
     );
   });
 
-  test("leaves a width only request as it was", () => {
+  test("sends no size when it is given none", () => {
     const source = getItemImage({ api, item: movie, kind: "backdrop" });
 
     // Web: 5
     expect(source?.uri).toBe(
-      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=80&tag=backdrop-tag&imageIndex=0`,
+      `${api.basePath}/Items/movie-1/Images/Backdrop?quality=80&tag=backdrop-tag&imageIndex=0`,
+    );
+  });
+});
+
+describe("getItemImage pixels", () => {
+  test("takes the sizes as physical pixels for an image the app does not draw", () => {
+    expect(
+      getItemImage({
+        api,
+        item: movie,
+        kind: "backdrop",
+        width: 500,
+        pixels: true,
+      })?.uri,
+    ).toBe(
+      `${api.basePath}/Items/movie-1/Images/Backdrop?fillWidth=500&quality=80&tag=backdrop-tag&imageIndex=0`,
     );
   });
 });
@@ -109,16 +125,16 @@ describe("getItemImage kinds", () => {
     expect(getItemImage({ api: null as never, item: full })).toBeNull();
   });
 
-  test("primary is the default, with its blurhash and a width of 1000", () => {
+  test("primary is the default, with its blurhash and no size", () => {
     expect(pick(getItemImage({ api, item: full }))).toEqual({
-      uri: `${base}/Items/movie-1/Images/Primary?fillWidth=1000&quality=90&tag=movie-primary`,
+      uri: `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary`,
       blurhash: "movie-primary-hash",
     });
   });
 
   test("ignores a quality passed in", () => {
     expect(
-      getItemImage({ api, item: full, width: 300, quality: 70 })?.uri,
+      getItemImage({ api, item: full, width: 150, quality: 70 })?.uri,
     ).toBe(
       `${base}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=movie-primary`,
     );
@@ -133,7 +149,7 @@ describe("getItemImage kinds", () => {
   test("backdrop carries the blurhash of the item's backdrop", () => {
     // Web: 5
     expect(pick(getItemImage({ api, item: full, kind: "backdrop" }))).toEqual({
-      uri: `${base}/Items/movie-1/Images/Backdrop?fillWidth=1000&quality=80&tag=movie-backdrop&imageIndex=0`,
+      uri: `${base}/Items/movie-1/Images/Backdrop?quality=80&tag=movie-backdrop&imageIndex=0`,
       blurhash: "movie-backdrop-hash",
     });
   });
@@ -143,7 +159,7 @@ describe("getItemImage kinds", () => {
     expect(
       pick(getItemImage({ api, item: episode, kind: "backdrop" })),
     ).toEqual({
-      uri: `${base}/Items/series-1/Images/Backdrop?fillWidth=1000&quality=80&tag=series-backdrop&imageIndex=0`,
+      uri: `${base}/Items/series-1/Images/Backdrop?quality=80&tag=series-backdrop&imageIndex=0`,
       blurhash: "series-backdrop-hash",
     });
     expect(getItemImage({ api, item: track, kind: "backdrop" })).toBeNull();
@@ -156,12 +172,12 @@ describe("getItemImage kinds", () => {
           api,
           item: full,
           kind: "thumb",
-          width: 500,
-          height: 281,
+          width: 250,
+          height: 140,
         }),
       ),
     ).toEqual({
-      uri: `${base}/Items/movie-1/Images/Thumb?fillWidth=500&fillHeight=281&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-thumb`,
+      uri: `${base}/Items/movie-1/Images/Thumb?fillWidth=500&fillHeight=300&maxWidth=1920&maxHeight=1920&quality=90&tag=movie-thumb`,
       blurhash: "movie-thumb-hash",
     });
     expect(getItemImage({ api, item: episode, kind: "thumb" })).toBeNull();
@@ -174,32 +190,32 @@ describe("getItemImage kinds", () => {
     expect(
       getItemImage({ api, item: episode, kind: "parentBackdrop" })?.uri,
     ).toBe(
-      `${base}/Items/series-1/Images/Backdrop?fillWidth=1000&quality=80&tag=series-backdrop&imageIndex=0`,
+      `${base}/Items/series-1/Images/Backdrop?quality=80&tag=series-backdrop&imageIndex=0`,
     );
   });
 
   test("logo is the item's own, then the parent's, else null", () => {
     expect(getItemImage({ api, item: full, kind: "logo" })?.uri).toBe(
-      `${base}/Items/movie-1/Images/Logo?fillWidth=1000&quality=90&tag=movie-logo`,
+      `${base}/Items/movie-1/Images/Logo?quality=90&tag=movie-logo`,
     );
     expect(getItemImage({ api, item: episode, kind: "logo" })?.uri).toBe(
-      `${base}/Items/series-1/Images/Logo?fillWidth=1000&quality=90&tag=series-logo`,
+      `${base}/Items/series-1/Images/Logo?quality=90&tag=series-logo`,
     );
     expect(getItemImage({ api, item: bare, kind: "logo" })).toBeNull();
   });
 
   test("album is the album's Primary of a track", () => {
     expect(getItemImage({ api, item: track, kind: "album" })?.uri).toBe(
-      `${base}/Items/album-1/Images/Primary?fillWidth=1000&quality=90&tag=album-primary`,
+      `${base}/Items/album-1/Images/Primary?quality=90&tag=album-primary`,
     );
   });
 
   test("poster is the series' Primary of an episode, the item's own otherwise", () => {
     expect(getItemImage({ api, item: episode, kind: "poster" })?.uri).toBe(
-      `${base}/Items/series-1/Images/Primary?fillWidth=1000&quality=90&tag=series-primary`,
+      `${base}/Items/series-1/Images/Primary?quality=90&tag=series-primary`,
     );
     expect(getItemImage({ api, item: full, kind: "poster" })?.uri).toBe(
-      `${base}/Items/movie-1/Images/Primary?fillWidth=1000&quality=90&tag=movie-primary`,
+      `${base}/Items/movie-1/Images/Primary?quality=90&tag=movie-primary`,
     );
   });
 
@@ -210,11 +226,11 @@ describe("getItemImage kinds", () => {
         api,
         item: { ...full, ImageTags: { Screenshot: "shot" } },
         kind: "screenshot",
-        width: 640,
-        height: 360,
+        width: 320,
+        height: 180,
       })?.uri,
     ).toBe(
-      `${base}/Items/movie-1/Images/Screenshot?fillWidth=640&fillHeight=360&maxWidth=1920&maxHeight=1920&quality=90&tag=shot`,
+      `${base}/Items/movie-1/Images/Screenshot?fillWidth=700&fillHeight=400&maxWidth=1920&maxHeight=1920&quality=90&tag=shot`,
     );
   });
 });

@@ -125,7 +125,7 @@ export default function PlaylistDetailScreen() {
   const imageUrl = useMemo(
     () =>
       playlist
-        ? getItemImageUrl(api, playlist, "primary", { width: 400 })
+        ? getItemImageUrl(api, playlist, "primary", { width: ARTWORK_SIZE })
         : null,
     [api, playlist],
   );

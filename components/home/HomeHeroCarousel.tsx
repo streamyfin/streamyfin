@@ -29,7 +29,6 @@ import {
 } from "@/utils/atoms/settings";
 import { heroCardMaxFontScale } from "@/utils/heroCardFontScale";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { getItemNavigation } from "../common/TouchableItemRouter";
 
@@ -47,11 +46,17 @@ const heroMetrics = (windowWidth: number) => {
   return {
     cardHeight,
     // The backdrop covers the whole card, which on a phone is taller than
-    // 16:9: the request has to carry both sides, in physical pixels.
-    backdropWidth: toImagePixels(cardWidth),
-    backdropHeight: toImagePixels(cardHeight),
+    // 16:9: the request has to carry both sides.
+    backdropWidth: cardWidth,
+    backdropHeight: cardHeight,
   };
 };
+
+/** Height of the title logo in the native card's info panel, in points. */
+const HERO_LOGO_HEIGHT = 32;
+
+/** Width of the poster in the native card's info panel, in points. */
+const HERO_POSTER_WIDTH = 62;
 
 const IMAGE_TYPES = ["Primary", "Backdrop", "Logo", "Thumb"] as const;
 
@@ -232,7 +237,7 @@ const buildBackdropUrl = (
     item.ParentBackdropImageTags?.length
   ) {
     return getItemImageUrl(api, item, "parentBackdrop", {
-      width: width || 500,
+      width: width || undefined,
       height: height || undefined,
     });
   }
@@ -243,12 +248,12 @@ const buildBackdropUrl = (
 };
 
 const buildLogoUrl = (api: Api, item: BaseItemDto): string | null =>
-  getItemImageUrl(api, item, "logo", { height: 120 });
+  getItemImageUrl(api, item, "logo", { height: HERO_LOGO_HEIGHT });
 
 // An episode's Primary is a 16:9 still that crops badly in the portrait thumb
 // slot; the `poster` kind picks the series poster instead.
 const buildPosterUrl = (api: Api, item: BaseItemDto): string | null =>
-  getItemImageUrl(api, item, "poster", { width: 240 });
+  getItemImageUrl(api, item, "poster", { width: HERO_POSTER_WIDTH });
 
 const buildBadges = (item: BaseItemDto): string[] => {
   const badges: string[] = [];

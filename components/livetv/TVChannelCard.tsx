@@ -18,6 +18,8 @@ interface TVChannelCardProps {
 
 const CARD_WIDTH = 200;
 const CARD_HEIGHT = 160;
+const LOGO_WIDTH = 80;
+const LOGO_HEIGHT = 60;
 
 export const TVChannelCard: React.FC<TVChannelCardProps> = ({
   channel,
@@ -34,7 +36,8 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
     });
 
   const imageUrl = getItemImageUrl(api, channel, "primary", {
-    width: 200,
+    width: LOGO_WIDTH,
+    height: LOGO_HEIGHT,
   });
 
   return (
@@ -148,8 +151,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   logoContainer: {
-    width: 80,
-    height: 60,
+    width: LOGO_WIDTH,
+    height: LOGO_HEIGHT,
     marginBottom: 8,
     justifyContent: "center",
     alignItems: "center",

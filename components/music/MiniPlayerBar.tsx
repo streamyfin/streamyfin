@@ -26,7 +26,6 @@ import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 
 const HORIZONTAL_MARGIN = Platform.OS === "android" ? 12 : 20;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
@@ -68,8 +67,8 @@ export const MiniPlayerBar: React.FC = () => {
   const imageUrl = useMemo(
     () =>
       getItemImageUrl(api, currentTrack, "album", {
-        width: toImagePixels(ARTWORK_SIZE),
-        height: toImagePixels(ARTWORK_SIZE),
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
       }),
     [api, currentTrack],
   );

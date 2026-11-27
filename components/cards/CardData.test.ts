@@ -122,13 +122,13 @@ describe("buildItemCards artwork size", () => {
     onScreenDensity(3.75);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
       fillWidth: "800",
-      fillHeight: "450",
+      fillHeight: "500",
     });
 
     onScreenDensity(2);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
       fillWidth: "400",
-      fillHeight: "225",
+      fillHeight: "300",
     });
   });
 
@@ -144,7 +144,7 @@ describe("buildItemCards artwork size", () => {
     );
 
     expect(url).toContain("/Items/movie-1/Images/Primary?");
-    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "338" });
+    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "400" });
   });
 
   test("covers the whole wide card with an episode's own still", () => {
@@ -157,7 +157,7 @@ describe("buildItemCards artwork size", () => {
     );
 
     expect(url).toContain("/Items/episode-1/Images/Primary?");
-    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "338" });
+    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "400" });
   });
 
   test("asks for less for the small artwork of a list row", () => {
@@ -166,7 +166,7 @@ describe("buildItemCards artwork size", () => {
     // 128 by 72 points.
     expect(sizeOf(imageUrlOf(movie, { kind: "rowWide" }))).toEqual({
       fillWidth: "400",
-      fillHeight: "225",
+      fillHeight: "300",
     });
   });
 });

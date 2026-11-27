@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Easing, View } from "react-native";
+import { Animated, Easing, useWindowDimensions, View } from "react-native";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import {
   TV_BACKDROP_CROSSFADE_MS,
@@ -31,6 +31,7 @@ export interface TVHomeBackdropRef {
 export const TVHomeBackdrop = React.memo(
   forwardRef<TVHomeBackdropRef>((_props, ref) => {
     const api = useAtomValue(apiAtom);
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     // Dynamic backdrop state with debounce
     const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
@@ -66,8 +67,12 @@ export const TVHomeBackdrop = React.memo(
     // Get backdrop URL from focused item
     const backdropUrl = useMemo(() => {
       if (!focusedItem) return null;
-      return getItemImageUrl(api, focusedItem, "backdrop", { width: 1920 });
-    }, [api, focusedItem]);
+      // The backdrop fills the window.
+      return getItemImageUrl(api, focusedItem, "backdrop", {
+        width: windowWidth,
+        height: windowHeight,
+      });
+    }, [api, focusedItem, windowWidth, windowHeight]);
 
     // Crossfade animation for backdrop transitions. The layer shown is flipped
     // when the fade starts, not when it ends: an image that arrives mid-fade

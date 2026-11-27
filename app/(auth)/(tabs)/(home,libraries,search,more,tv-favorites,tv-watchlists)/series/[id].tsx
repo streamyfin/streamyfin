@@ -33,7 +33,6 @@ import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -95,8 +94,8 @@ const page: React.FC = () => {
       return `data:image/jpeg;base64,${base64Image}`;
     }
     return getItemImageUrl(api, item, "backdrop", {
-      width: toImagePixels(windowWidth),
-      height: toImagePixels(HEADER_HEIGHT),
+      width: windowWidth,
+      height: HEADER_HEIGHT,
     });
   }, [isOffline, base64Image, api, item, windowWidth]);
 
@@ -105,7 +104,7 @@ const page: React.FC = () => {
       return null; // No logo in offline mode
     }
     return getItemImageUrl(api, item, "logo", {
-      height: toImagePixels(LOGO_HEIGHT),
+      height: LOGO_HEIGHT,
     });
   }, [isOffline, api, item]);
 

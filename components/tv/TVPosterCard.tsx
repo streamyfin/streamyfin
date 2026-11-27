@@ -20,7 +20,6 @@ import {
 } from "@/components/WatchedIndicator";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
-import { TV_WIDE_IMAGE_HEIGHT_PX } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
   GlassPosterView,
@@ -158,15 +157,24 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
 
     if (orientation === "horizontal") {
       return getItemImageUrl(api, item, "wide", {
-        height: TV_WIDE_IMAGE_HEIGHT_PX,
+        width,
+        height: width / aspectRatio,
         preferEpisodeImage,
       });
     }
 
     return getItemImageUrl(api, item, "poster", {
-      width: width * 2, // 2x for quality on large screens
+      width,
     });
-  }, [api, item, orientation, width, imageUrlGetter, preferEpisodeImage]);
+  }, [
+    api,
+    item,
+    orientation,
+    width,
+    aspectRatio,
+    imageUrlGetter,
+    preferEpisodeImage,
+  ]);
 
   // Progress calculation
   const progress = useMemo(() => {

@@ -1055,7 +1055,10 @@ export default function DirectPlayerPage() {
   const nowPlayingMetadata = useMemo(() => {
     if (!item || !api) return undefined;
 
-    const artworkUri = getItemImageUrl(api, item, "primary", { width: 500 });
+    const artworkUri = getItemImageUrl(api, item, "primary", {
+      width: 500,
+      pixels: true,
+    });
 
     return {
       title: item.Name || "",

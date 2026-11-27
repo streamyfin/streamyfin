@@ -7,9 +7,10 @@ import type {
 import {
   BACKDROP_IMAGE_QUALITY,
   IMAGE_QUALITY,
+  IMAGE_SIZE_STEP_PX,
   MAX_LOGO_HEIGHT_PX,
 } from "@/constants/Images";
-import { fillHeightImageParams } from "./imagePixels";
+import { fillHeightImageParams, toImagePixels } from "./imagePixels";
 import { itemImageUrl } from "./itemImageUrl";
 import {
   type ImageKind,
@@ -18,10 +19,24 @@ import {
 } from "./resolveItemImage";
 
 type ImageSize = {
-  /** Physical pixels, not layout points: convert with `toImagePixels`. */
+  /**
+   * Width of the box the image is drawn in, in layout points. The request is
+   * that many physical pixels on this screen, rounded up to the next
+   * `IMAGE_SIZE_STEP_PX`. With `pixels`, it is physical pixels already.
+   */
   width?: number;
-  /** Physical pixels. With a width, the box the image has to cover. */
+  /**
+   * Height of the box the image is drawn in, in layout points, converted and
+   * rounded like `width`. With a width, the box the image has to cover.
+   */
   height?: number;
+  /**
+   * `width` and `height` are physical pixels, not layout points. For an image
+   * the app does not draw itself (lock screen artwork, a Top Shelf payload, a
+   * download), which has no layout box to convert. Still rounded up to the
+   * next `IMAGE_SIZE_STEP_PX`.
+   */
+  pixels?: boolean;
 };
 
 export type ItemImageOptions = ImageSize & {
@@ -29,18 +44,33 @@ export type ItemImageOptions = ImageSize & {
   preferEpisodeImage?: boolean;
 };
 
+/**
+ * The size to request for one side: the drawn size in physical pixels,
+ * rounded up to the next step so near-identical boxes share one cached image
+ * (jellyfin-apiclient `normalizeImageOptions` converts the drawn size with the
+ * device pixel ratio the same way).
+ */
+const requestPixels = (size: number, pixels: boolean | undefined) =>
+  Math.ceil(
+    Math.round(pixels ? size : toImagePixels(size)) / IMAGE_SIZE_STEP_PX,
+  ) * IMAGE_SIZE_STEP_PX;
+
 const sizeParams = (
-  { width, height }: ImageSize,
+  { width, height, pixels }: ImageSize,
   maxHeight?: number,
 ): Record<string, number> => {
+  const w = width === undefined ? undefined : requestPixels(width, pixels);
   const h =
     height === undefined
       ? undefined
-      : Math.min(Math.round(height), maxHeight ?? Number.POSITIVE_INFINITY);
-  if (width !== undefined && h !== undefined) {
-    return { fillWidth: Math.round(width), ...fillHeightImageParams(h) };
+      : Math.min(
+          requestPixels(height, pixels),
+          maxHeight ?? Number.POSITIVE_INFINITY,
+        );
+  if (w !== undefined && h !== undefined) {
+    return { fillWidth: w, ...fillHeightImageParams(h) };
   }
-  if (width !== undefined) return { fillWidth: Math.round(width) };
+  if (w !== undefined) return { fillWidth: w };
   if (h !== undefined) return { fillHeight: h };
   return {};
 };

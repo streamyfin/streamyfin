@@ -9,7 +9,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { type TouchableOpacityProps, View } from "react-native";
+import {
+  type TouchableOpacityProps,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -38,16 +42,31 @@ const icons: Record<CollectionType, IconName> = {
   trailers: "videocam",
   unknown: "help-circle",
 } as const;
+
+/** The card's height (`h-20`), in points. */
+const CARD_HEIGHT = 80;
+
+/** The thumbnail beside the title: the card less its `p-2`, at 2:1. */
+const THUMBNAIL_BOX = { width: 128, height: 64 };
+
 export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { settings } = useSettings();
+  const { width: windowWidth } = useWindowDimensions();
+  const isCover = settings?.libraryOptions?.imageStyle === "cover";
 
   const { t } = useTranslation();
 
   const url = useMemo(
-    () => getItemImageUrl(api, library, "primary", { width: 400 }),
-    [api, library],
+    () =>
+      getItemImageUrl(
+        api,
+        library,
+        "primary",
+        isCover ? { width: windowWidth, height: CARD_HEIGHT } : THUMBNAIL_BOX,
+      ),
+    [api, library, isCover, windowWidth],
   );
 
   const itemType = useMemo(() => {
@@ -137,7 +156,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     );
   }
 
-  if (settings?.libraryOptions?.imageStyle === "cover") {
+  if (isCover) {
     return (
       <TouchableItemRouter item={library} className='w-full'>
         <View className='flex justify-center rounded-xl w-full relative border border-neutral-900 h-20 '>

@@ -146,6 +146,8 @@ export default function LiveTvGuidePage() {
                 }}
                 contentFit='contain'
                 item={c}
+                width={64}
+                height={64}
               />
             </View>
           ))}

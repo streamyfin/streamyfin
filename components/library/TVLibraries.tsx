@@ -14,7 +14,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Easing, FlatList, Pressable, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  FlatList,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
@@ -60,6 +67,7 @@ const TVLibraryRow: React.FC<{
   onPress: () => void;
 }> = ({ library, onPress }) => {
   const [api] = useAtom(apiAtom);
+  const { width: windowWidth } = useWindowDimensions();
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
@@ -84,14 +92,17 @@ const TVLibraryRow: React.FC<{
   };
 
   const backdropUrl = useMemo(() => {
+    // The row spans the window between its horizontal paddings.
+    const box = {
+      width: windowWidth - HORIZONTAL_PADDING * 2,
+      height: CARD_HEIGHT,
+    };
     // Try to get backdrop from library or first preview item
     if (library.previewItems?.[0]) {
-      return getItemImageUrl(api, library.previewItems[0], "backdrop", {
-        width: 1920,
-      });
+      return getItemImageUrl(api, library.previewItems[0], "backdrop", box);
     }
-    return getItemImageUrl(api, library, "backdrop", { width: 1920 });
-  }, [api, library]);
+    return getItemImageUrl(api, library, "backdrop", box);
+  }, [api, library, windowWidth]);
 
   const iconName = icons[library.CollectionType!] || "folder";
 
