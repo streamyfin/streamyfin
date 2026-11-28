@@ -1,8 +1,16 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render as renderScreen,
+  screen,
+} from "@testing-library/react-native";
+import type { ReactElement } from "react";
 import { toast } from "sonner-native";
 import { clearMmkv } from "@/test-utils/mmkv";
+import { QueryWrapper } from "@/test-utils/queryWrapper";
 import type { Settings } from "@/utils/atoms/settings";
+import { getDownloadDecision } from "@/utils/jellyfin/media/downloadDecision";
 import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
@@ -40,6 +48,41 @@ jest.mock("@/utils/atoms/settings", () => ({
 jest.mock("@/utils/jellyfin/media/getStreamUrl", () => ({
   getDownloadStreamUrl: jest.fn(),
 }));
+jest.mock("@/utils/jellyfin/media/downloadDecision");
+// The header button, as something a spec can press to open the sheet.
+jest.mock("./RoundButton", () => {
+  const { Text, View } = jest.requireActual("react-native");
+  return {
+    RoundButton: ({
+      onPress,
+      children,
+    }: {
+      onPress: () => void;
+      children?: React.ReactNode;
+    }) => (
+      <View>
+        <Text onPress={onPress}>open-download-sheet</Text>
+        {children}
+      </View>
+    ),
+  };
+});
+// The library's modal never reports being dismissed; keep its props so a spec
+// can close it the way a swipe or the backdrop does.
+let mockSheetProps: { onDismiss?: () => void } = {};
+jest.mock("@gorhom/bottom-sheet", () => {
+  const actual = jest.requireActual("@/test-utils/bottomSheetModule");
+  const { forwardRef, createElement } = jest.requireActual("react");
+  return {
+    ...actual,
+    BottomSheetModal: forwardRef(
+      (props: { onDismiss?: () => void }, ref: unknown) => {
+        mockSheetProps = props;
+        return createElement(actual.BottomSheetModal, { ...props, ref });
+      },
+    ),
+  };
+});
 jest.mock("@/components/common/HeaderIcon", () => ({
   HeaderIcon: ({ name }: { name: string }) => {
     const { useEffect } = jest.requireActual("react");
@@ -79,6 +122,15 @@ jest.mock("./PlatformDropdown", () => {
 });
 
 const MEDIA_SOURCE = { Id: "source-1", MediaStreams: [] };
+
+/** The sheet asks React Query whether each download will be transcoded. */
+const render = (ui: ReactElement) =>
+  renderScreen(ui, { wrapper: QueryWrapper });
+
+/** Opens the sheet the way the header button does. */
+const openSheet = async () => {
+  await fireEvent.press(screen.getByText("open-download-sheet"));
+};
 
 // Chapters are present so the download does not go and fetch the item again.
 const MOVIE: BaseItemDto = {
@@ -151,6 +203,8 @@ beforeEach(() => {
   // Clearing keeps a stubbed answer, and it must not outlive its test.
   // Resetting every mock instead would also wipe the ones jest-expo sets up.
   jest.mocked(getDownloadStreamUrl).mockReset();
+  jest.mocked(getDownloadDecision).mockReset();
+  jest.mocked(getDownloadDecision).mockResolvedValue({ kind: "direct" });
   mockDownloadedItems = [];
   mockSettings = null;
   mockProcesses = [];
@@ -976,5 +1030,104 @@ describe("DownloadItems, sending one episode of a season", () => {
         subtitleStreamIndex: 12,
       }),
     );
+  });
+});
+
+describe("direct or transcode", () => {
+  test("shows the decision for a single item before downloading", async () => {
+    jest.mocked(getDownloadDecision).mockResolvedValue({
+      kind: "transcode",
+      reasons: ["SubtitleCodecNotSupported"],
+    });
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await openSheet();
+
+    expect(
+      await screen.findByText("item_card.download.decision_transcode"),
+    ).toBeTruthy();
+    expect(getDownloadDecision).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaSourceId: "source-1" }),
+      expect.anything(),
+    );
+  });
+
+  test("asks nothing before the sheet opens", async () => {
+    await render(<DownloadSingleItem item={MOVIE} />);
+
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+
+    expect(getDownloadDecision).not.toHaveBeenCalled();
+  });
+
+  test("checks only the unwatched episodes when the sheet is set to", async () => {
+    const watched = {
+      ...episode(1),
+      UserData: { Played: true },
+    } as BaseItemDto;
+    await renderSeasonDownload([watched, episode(2), episode(3)]);
+    await openSheet();
+    await screen.findByText("item_card.download.decisions_summary");
+    expect(getDownloadDecision).toHaveBeenCalledTimes(3);
+    jest.mocked(getDownloadDecision).mockClear();
+
+    await fireEvent(screen.getByRole("switch"), "valueChange", true);
+    await screen.findByText("item_card.download.decisions_summary");
+
+    // Episodes 2 and 3 were answered already; the toggle only shrinks the set.
+    const asked = jest
+      .mocked(getDownloadDecision)
+      .mock.calls.map(([request]) => request.item?.Id);
+    expect(asked).not.toContain("episode-1");
+  });
+
+  test("lets the user download while checks are still running", async () => {
+    jest.mocked(getDownloadDecision).mockReturnValue(new Promise(() => {}));
+    jest.mocked(getDownloadStreamUrl).mockResolvedValue({
+      url: "http://server/download",
+      sessionId: null,
+      mediaSource: MEDIA_SOURCE,
+    });
+    await render(<DownloadSingleItem item={MOVIE} />);
+    await openSheet();
+
+    await confirmDownload();
+
+    expect(mockStartBackgroundDownload).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not check an item with no media source", async () => {
+    await render(<DownloadSingleItem item={FOLDER} />);
+
+    await openSheet();
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+
+    expect(getDownloadDecision).not.toHaveBeenCalled();
+  });
+
+  test("stops checking when the sheet closes", async () => {
+    let signal: AbortSignal | undefined;
+    jest
+      .mocked(getDownloadDecision)
+      .mockImplementation((_request, querySignal) => {
+        signal = querySignal;
+        return new Promise(() => {});
+      });
+    await render(<DownloadSingleItem item={MOVIE} />);
+    await openSheet();
+    await act(async () => {
+      await jest.runOnlyPendingTimersAsync();
+    });
+    expect(signal?.aborted).toBe(false);
+
+    await act(async () => {
+      mockSheetProps.onDismiss?.();
+    });
+
+    expect(signal?.aborted).toBe(true);
   });
 });

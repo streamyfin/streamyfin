@@ -9,6 +9,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
@@ -21,8 +22,17 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import {
+  DOWNLOAD_DECISION_QUERY_KEY,
+  useDownloadDecisions,
+} from "@/hooks/useDownloadDecisions";
 import { useDownload } from "@/providers/DownloadProvider";
-import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
+import {
+  buildDownloadRequest,
+  downloadTracksFor,
+  lacksMediaSource,
+  type SelectedOptions,
+} from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
@@ -32,13 +42,14 @@ import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "./BitrateSelector";
+import { BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
 import {
   SingleItemDownloadedIcon,
   SingleItemDownloadIcon,
 } from "./common/DownloadIcons";
 import { Text } from "./common/Text";
+import { DownloadDecisionSummary } from "./downloads/DownloadDecisionSummary";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
@@ -64,12 +75,7 @@ const PROGRESS_RING_SCALE = 0.79;
 const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
 const PROGRESS_RING_WIDTH = 2.5;
 
-export type SelectedOptions = {
-  bitrate: Bitrate;
-  mediaSource: MediaSourceInfo | undefined;
-  audioIndex: number | undefined;
-  subtitleIndex: number;
-};
+export type { SelectedOptions };
 
 /** A track picked in the sheet, with the version it was picked on. */
 interface TrackPick {
@@ -145,7 +151,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
+  // The direct-or-transcode checks run only while the sheet is open.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const handlePresentModalPress = useCallback(() => {
+    setSheetOpen(true);
     bottomSheetModalRef.current?.present();
   }, []);
 
@@ -202,6 +213,46 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
     return itemsNotDownloaded;
   }, [itemsNotDownloaded, downloadUnwatchedOnly]);
+
+  const decisionRequests = useMemo(() => {
+    // Closed, a season's download buttons subscribe to nothing: every
+    // episode that finishes would otherwise cost each of them a commit.
+    if (!sheetOpen) return [];
+    if (!api || !user?.Id || !selectedOptions) return [];
+    // Turned down when confirmed, so there is nothing to ask the server about.
+    if (
+      lacksMediaSource(itemsNotDownloaded.length, selectedOptions.mediaSource)
+    ) {
+      return [];
+    }
+    return itemsToDownload.map((item) =>
+      buildDownloadRequest({
+        api,
+        userId: user.Id!,
+        item,
+        batch: itemsNotDownloaded.length > 1,
+        selected: selectedOptions,
+        defaultBitrate,
+        settings,
+      }),
+    );
+  }, [
+    sheetOpen,
+    api,
+    user?.Id,
+    selectedOptions,
+    itemsNotDownloaded.length,
+    itemsToDownload,
+    defaultBitrate,
+    settings,
+  ]);
+  const decisions = useDownloadDecisions(decisionRequests, sheetOpen);
+
+  // Swipe, backdrop or Download: whatever closed it, nothing more is asked.
+  const handleSheetDismiss = useCallback(() => {
+    setSheetOpen(false);
+    queryClient.cancelQueries({ queryKey: [DOWNLOAD_DECISION_QUERY_KEY] });
+  }, [queryClient]);
 
   const allItemsDownloaded = useMemo(() => {
     if (items.length === 0) return false;
@@ -300,42 +351,47 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           }
         }
 
-        const { mediaSource, audioIndex, subtitleIndex } =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(itemForDownload, settings!)
-            : {
-                mediaSource: selectedOptions?.mediaSource,
-                audioIndex: selectedOptions?.audioIndex,
-                subtitleIndex: selectedOptions?.subtitleIndex,
-              };
+        const choice = {
+          item: itemForDownload,
+          batch: itemsNotDownloaded.length > 1,
+          selected: selectedOptions,
+          settings,
+        };
+        const request = buildDownloadRequest({
+          ...choice,
+          api,
+          userId: user.Id!,
+          defaultBitrate,
+        });
+        const { audioIndex, subtitleIndex } = downloadTracksFor(choice);
 
         // Awaited with Promise.all over a season: a throw would abort the batch.
-        const downloadDetails = await getDownloadStreamUrl({
-          api,
-          item: itemForDownload,
-          userId: user.Id!,
-          mediaSourceId: mediaSource?.Id,
-          audioStreamIndex: audioIndex ?? -1,
-          subtitleStreamIndex: subtitleIndex ?? -1,
-          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
-            .value,
-          audioMode: settings?.audioTranscodeMode,
-        }).catch((error) => {
-          logAndCaptureError("Getting download stream URL failed", error, {
-            itemType: itemForDownload.Type,
-          });
-          return null;
-        });
+        const downloadDetails = await getDownloadStreamUrl(request).catch(
+          (error) => {
+            logAndCaptureError("Getting download stream URL failed", error, {
+              itemType: itemForDownload.Type,
+            });
+            return null;
+          },
+        );
 
         return {
           url: downloadDetails?.url,
           item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
+          audioIndex,
+          subtitleIndex,
         };
       });
 
       const downloadDetails = await Promise.all(downloadDetailsPromises);
-      for (const { url, item, mediaSource } of downloadDetails) {
+      for (const {
+        url,
+        item,
+        mediaSource,
+        audioIndex,
+        subtitleIndex,
+      } of downloadDetails) {
         if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
@@ -352,23 +408,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-        // Get the audio/subtitle indices that were used for this download
-        const downloadAudioIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).audioIndex
-            : selectedOptions?.audioIndex;
-        const downloadSubtitleIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).subtitleIndex
-            : selectedOptions?.subtitleIndex;
-
         await startBackgroundDownload(
           url,
           item,
           mediaSource,
           selectedOptions?.bitrate || defaultBitrate,
-          downloadAudioIndex,
-          downloadSubtitleIndex,
+          audioIndex,
+          subtitleIndex,
         );
       }
     },
@@ -473,6 +519,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
+        onDismiss={handleSheetDismiss}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
         enableDismissOnClose
@@ -583,6 +630,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 </View>
               )}
             </View>
+
+            <DownloadDecisionSummary decisions={decisions} />
 
             <Button onPress={acceptDownloadOptions} color='purple'>
               {t("item_card.download.download_button")}
