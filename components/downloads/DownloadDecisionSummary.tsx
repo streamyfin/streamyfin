@@ -2,7 +2,12 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import {
+  type StyleProp,
+  TouchableOpacity,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import type {
   DownloadDecisions,
@@ -32,8 +37,11 @@ const reasonsOf = (t: TFunction, decision: ItemDecision) =>
  */
 export function DownloadDecisionSummary({
   decisions,
+  style,
 }: {
   decisions: DownloadDecisions;
+  // The sheet's space-y column spaces its children through this.
+  style?: StyleProp<ViewStyle>;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -44,42 +52,52 @@ export function DownloadDecisionSummary({
     const only = decisions.items[0];
     if (only.status === "failed") {
       return (
-        <Text className='text-sm text-neutral-400'>
-          {t("item_card.download.decision_failed")}
-        </Text>
+        <View style={style}>
+          <Text className='text-sm text-neutral-400'>
+            {t("item_card.download.decision_failed")}
+          </Text>
+        </View>
       );
     }
     if (only.decision?.kind === "direct") {
       return (
-        <Text className='text-sm text-green-400'>
-          {t("item_card.download.decision_direct")}
-        </Text>
+        <View style={style}>
+          <Text className='text-sm text-green-400'>
+            {t("item_card.download.decision_direct")}
+          </Text>
+        </View>
       );
     }
     if (only.decision?.kind === "transcode") {
       return (
-        <Text className='text-sm text-yellow-400'>
-          {t("item_card.download.decision_transcode", {
-            reasons: reasonsOf(t, only),
-          })}
-        </Text>
+        <View style={style}>
+          <Text className='text-sm text-yellow-400'>
+            {t("item_card.download.decision_transcode", {
+              reasons: reasonsOf(t, only),
+            })}
+          </Text>
+        </View>
       );
     }
     return (
-      <Text className='text-sm text-neutral-400'>
-        {t("item_card.download.decision_checking")}
-      </Text>
+      <View style={style}>
+        <Text className='text-sm text-neutral-400'>
+          {t("item_card.download.decision_checking")}
+        </Text>
+      </View>
     );
   }
 
   if (decisions.checked < decisions.total) {
     return (
-      <Text className='text-sm text-neutral-400'>
-        {t("item_card.download.decisions_progress", {
-          checked: decisions.checked,
-          total: decisions.total,
-        })}
-      </Text>
+      <View style={style}>
+        <Text className='text-sm text-neutral-400'>
+          {t("item_card.download.decisions_progress", {
+            checked: decisions.checked,
+            total: decisions.total,
+          })}
+        </Text>
+      </View>
     );
   }
 
@@ -88,7 +106,7 @@ export function DownloadDecisionSummary({
   );
 
   return (
-    <View>
+    <View style={style}>
       <TouchableOpacity
         disabled={notDirect.length === 0}
         onPress={() => setExpanded((open) => !open)}

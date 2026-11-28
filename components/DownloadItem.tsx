@@ -9,6 +9,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
@@ -21,6 +22,10 @@ import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import {
+  DOWNLOAD_DECISION_QUERY_KEY,
+  useDownloadDecisions,
+} from "@/hooks/useDownloadDecisions";
 import { useDownload } from "@/providers/DownloadProvider";
 import {
   buildDownloadRequest,
@@ -44,6 +49,7 @@ import {
   SingleItemDownloadIcon,
 } from "./common/DownloadIcons";
 import { Text } from "./common/Text";
+import { DownloadDecisionSummary } from "./downloads/DownloadDecisionSummary";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
@@ -145,7 +151,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
+  // The direct-or-transcode checks run only while the sheet is open.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const handlePresentModalPress = useCallback(() => {
+    setSheetOpen(true);
     bottomSheetModalRef.current?.present();
   }, []);
 
@@ -202,6 +213,42 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
     return itemsNotDownloaded;
   }, [itemsNotDownloaded, downloadUnwatchedOnly]);
+
+  const decisionRequests = useMemo(() => {
+    if (!api || !user?.Id || !selectedOptions) return [];
+    // Turned down when confirmed, so there is nothing to ask the server about.
+    if (
+      lacksMediaSource(itemsNotDownloaded.length, selectedOptions.mediaSource)
+    ) {
+      return [];
+    }
+    return itemsToDownload.map((item) =>
+      buildDownloadRequest({
+        api,
+        userId: user.Id!,
+        item,
+        batch: itemsNotDownloaded.length > 1,
+        selected: selectedOptions,
+        defaultBitrate,
+        settings,
+      }),
+    );
+  }, [
+    api,
+    user?.Id,
+    selectedOptions,
+    itemsNotDownloaded.length,
+    itemsToDownload,
+    defaultBitrate,
+    settings,
+  ]);
+  const decisions = useDownloadDecisions(decisionRequests, sheetOpen);
+
+  // Swipe, backdrop or Download: whatever closed it, nothing more is asked.
+  const handleSheetDismiss = useCallback(() => {
+    setSheetOpen(false);
+    queryClient.cancelQueries({ queryKey: [DOWNLOAD_DECISION_QUERY_KEY] });
+  }, [queryClient]);
 
   const allItemsDownloaded = useMemo(() => {
     if (items.length === 0) return false;
@@ -468,6 +515,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
+        onDismiss={handleSheetDismiss}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
         enableDismissOnClose
@@ -578,6 +626,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 </View>
               )}
             </View>
+
+            <DownloadDecisionSummary decisions={decisions} />
 
             <Button onPress={acceptDownloadOptions} color='purple'>
               {t("item_card.download.download_button")}
