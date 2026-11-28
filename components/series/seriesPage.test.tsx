@@ -29,10 +29,6 @@ jest.mock("@/hooks/useShuffleQueue", () => ({
   playableQueueItems: () => [],
   useShuffleQueue: () => ({ startShuffle: () => {} }),
 }));
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
 jest.mock("@/components/ParallaxPage", () => {
   const { View: MockView } = jest.requireActual("react-native");
   return {

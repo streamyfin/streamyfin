@@ -13,7 +13,6 @@ jest.mock(
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
 );
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
-jest.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 jest.mock("@/hooks/useAppRouter", () => () => ({ push: () => {} }));
 jest.mock(
   "@/hooks/useTVItemActionModal",

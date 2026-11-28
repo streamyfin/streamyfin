@@ -145,12 +145,15 @@ spec measures a package's real implementation.
 
 ### The rules
 
-1. **Check what is already wired before writing a mock.** `jest.config.js`
-   (`moduleNameMapper`) maps packages to doubles in `test-utils/`. `test-utils/unitSetup.ts`
-   mocks the boundary app modules. `jest-expo` mocks the native Expo modules. Most specs need
-   no `jest.mock` at all.
-2. **Wire every boundary double globally.** Put it in `test-utils/` and add it to the config
-   or `unitSetup.ts`. Delete the per-spec copies it replaces.
+1. **Before adding `jest.mock` to a unit spec, find the default.** Check
+   `moduleNameMapper` in `jest.config.js` and the mocks in `test-utils/unitSetup.ts`.
+   Check the resolved module too: a relative import and an `@/` import can point to
+   the same mock. If the default does what the spec needs, use it without redeclaring it.
+2. **Wire a missing boundary double globally on its first use.** If the mock only
+   replaces native rendering or suppresses an external side effect, put it in
+   `test-utils/` and wire it in the unit config. Delete the per-spec copies it replaces.
+   Keep app-logic doubles and scenario-specific overrides local. For each override,
+   identify the assertion that needs a different result or behavior.
 3. **Never wire a double of app logic globally.** A spec that needs one adds one line that
    uses a shared double, so the reader sees what was replaced:
 

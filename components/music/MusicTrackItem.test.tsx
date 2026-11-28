@@ -27,10 +27,6 @@ jest.mock(
   "@/hooks/useNetworkStatus",
   () => jest.requireActual("@/test-utils/appProviders").networkStatusModule,
 );
-jest.mock(
-  "@/hooks/useHaptic",
-  () => jest.requireActual("@/test-utils/haptic").silentHapticModule,
-);
 jest.mock("@/providers/AudioStorage", () => ({
   getLocalPath: () => null,
   isCached: () => false,

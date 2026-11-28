@@ -19,10 +19,6 @@ jest.mock(
 jest.mock("@/utils/jellyfin/user-library/getUserItemData", () => ({
   getUserItemData: async () => mockItem.current,
 }));
-jest.mock(
-  "@/components/common/ServerImage",
-  () => jest.requireActual("@/test-utils/serverImage").serverImageModule,
-);
 jest.mock("@/components/ParallaxPage", () => {
   const { View: MockView } = jest.requireActual("react-native");
   return {

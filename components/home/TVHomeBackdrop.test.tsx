@@ -14,7 +14,6 @@ jest.mock(
   () =>
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
 );
-jest.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 // TVSizes reads the typography scale from the settings, which pull in the
 // whole settings UI; the backdrop only needs its timings.
 

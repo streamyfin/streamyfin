@@ -12,6 +12,7 @@ module.exports = {
   moduleNameMapper: {
     "^tsx/cjs$": "<rootDir>/test-utils/tsxRequireHook.ts",
     "^expo-file-system$": "<rootDir>/test-utils/fileSystemModule.ts",
+    "^expo-linear-gradient$": "<rootDir>/test-utils/linearGradientModule.ts",
     "^expo-router$": "<rootDir>/test-utils/expoRouterModule.ts",
     "^@expo/vector-icons$": "<rootDir>/test-utils/vectorIconsModule.ts",
     "^react-native-mmkv$": "<rootDir>/test-utils/mmkvModule.ts",
