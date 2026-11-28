@@ -119,7 +119,7 @@ export const getItemImageUrl = (
 /**
  * An image of an item known only by its id. Untagged by necessity, so the
  * server cannot tell a changed image from the cached one: use it only where
- * the caller has no item.
+ * the caller has no DTO or usable image metadata for the target item.
  */
 export const getItemImageUrlById = (
   api: Api | null | undefined,
@@ -134,3 +134,19 @@ export const getItemImageUrlById = (
     ...(isBackdrop(type) ? { imageIndex: 0 } : null),
   });
 };
+
+/** A related item's poster. If the DTO only identifies that item by ID, the
+ * older untagged request still targets that item, never the episode still. */
+export const getRelatedPosterUrl = (
+  api: Api | null | undefined,
+  item: BaseItemDto,
+  kind: "seriesPrimary" | "seasonPrimary",
+  options: ImageSize = {},
+): string | null =>
+  getItemImageUrl(api, item, kind, options) ??
+  getItemImageUrlById(
+    api,
+    kind === "seriesPrimary" ? item.SeriesId : (item.SeasonId ?? item.ParentId),
+    "Primary",
+    options,
+  );

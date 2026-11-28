@@ -4,7 +4,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { PixelRatio } from "react-native";
 import { makeApi } from "@/test-utils/jellyfinApi";
-import { getItemImageUrl, getItemImageUrlById } from "./getItemImageUrl";
+import {
+  getItemImageUrl,
+  getItemImageUrlById,
+  getRelatedPosterUrl,
+} from "./getItemImageUrl";
 
 const api = makeApi();
 const base = api.basePath;
@@ -185,6 +189,23 @@ describe("getItemImageUrl episodes", () => {
       }),
     ).toContain("/Items/episode-1/Images/Primary?");
   });
+
+  test("wide keeps an episode's own backdrop before its still", () => {
+    expect(
+      getItemImageUrl(
+        api,
+        {
+          Id: "ep",
+          Type: "Episode",
+          ImageTags: { Primary: "still" },
+          BackdropImageTags: ["backdrop"],
+        },
+        "wide",
+      ),
+    ).toBe(
+      `${base}/Items/ep/Images/Backdrop?quality=80&tag=backdrop&imageIndex=0`,
+    );
+  });
 });
 
 const sizeOf = (url: string | null) => {
@@ -338,6 +359,84 @@ describe("getItemImageUrl people and answers that are not items", () => {
         }),
       ).toBeNull();
     }
+  });
+});
+
+describe("getRelatedPosterUrl", () => {
+  const episode = {
+    Id: "episode",
+    Type: "Episode",
+    ImageTags: { Primary: "still" },
+    ParentId: "parent",
+    SeasonId: "season",
+    SeriesId: "series",
+    SeriesPrimaryImageTag: "series-v1",
+    ParentPrimaryImageItemId: "season",
+    ParentPrimaryImageTag: "season-tag",
+  } satisfies BaseItemDto;
+
+  test("a series poster's URL changes when its tag changes", () => {
+    expect(getRelatedPosterUrl(api, episode, "seriesPrimary")).toBe(
+      `${base}/Items/series/Images/Primary?quality=90&tag=series-v1`,
+    );
+    expect(
+      getRelatedPosterUrl(
+        api,
+        { ...episode, SeriesPrimaryImageTag: "series-v2" },
+        "seriesPrimary",
+      ),
+    ).toBe(`${base}/Items/series/Images/Primary?quality=90&tag=series-v2`);
+  });
+
+  test("a season poster is tagged when the parent Primary belongs to the season", () => {
+    expect(getRelatedPosterUrl(api, episode, "seasonPrimary")).toBe(
+      `${base}/Items/season/Images/Primary?quality=90&tag=season-tag`,
+    );
+  });
+
+  // The untagged by-id request still targets the season itself — never the
+  // episode still and never with another item's tag.
+  test("a parent Primary owned by the series leaves the season poster untagged", () => {
+    expect(
+      getRelatedPosterUrl(
+        api,
+        { ...episode, ParentPrimaryImageItemId: "series" },
+        "seasonPrimary",
+      ),
+    ).toBe(`${base}/Items/season/Images/Primary?quality=90`);
+  });
+
+  test("a series missing its tag still targets the series, untagged", () => {
+    expect(
+      getRelatedPosterUrl(
+        api,
+        { ...episode, SeriesPrimaryImageTag: undefined },
+        "seriesPrimary",
+      ),
+    ).toBe(`${base}/Items/series/Images/Primary?quality=90`);
+  });
+
+  test("a related item the DTO does not identify has no URL", () => {
+    expect(
+      getRelatedPosterUrl(
+        api,
+        { ...episode, SeriesId: undefined, SeriesPrimaryImageTag: undefined },
+        "seriesPrimary",
+      ),
+    ).toBeNull();
+    expect(
+      getRelatedPosterUrl(
+        api,
+        {
+          ...episode,
+          SeasonId: undefined,
+          ParentId: undefined,
+          ParentPrimaryImageItemId: undefined,
+          ParentPrimaryImageTag: undefined,
+        },
+        "seasonPrimary",
+      ),
+    ).toBeNull();
   });
 });
 

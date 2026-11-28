@@ -1,16 +1,24 @@
 # Jellyfin item images
 
-Every Jellyfin item image URL comes from `getItemImageUrl` in
-`utils/jellyfin/image/getItemImageUrl.ts`. Never build one by hand. The lint rule
-`biome-plugins/no-hand-built-image-url.grit` rejects a `/Images/` path and the SDK's
-`getImageApi(` and `new ImageUrlsApi(` outside `utils/jellyfin/image/`.
+Build every Jellyfin item image URL through `utils/jellyfin/image/getItemImageUrl.ts`.
+Never build one by hand. The lint rule
+`biome-plugins/no-hand-built-image-url.grit` is a heuristic, not a guarantee: it
+matches literal `/Images/` substrings — including third-party URLs — the direct SDK
+builder calls `getImageApi(` and `new ImageUrlsApi(`, and an unaliased `Image` import
+from `react-native`. Remote image use it cannot see (an alias, `expo-image`) gets no
+diagnostic, but this page's rules still apply to it.
 
 ```typescript
 const url = getItemImageUrl(api, item, "poster", { width: 120, height: 180 });
 ```
 
-Use `getItemImageUrlById` only when the caller has no item. Its URL is untagged, so the
-server cannot tell a changed image from the cached one.
+Use `getItemImageUrlById` only when the caller has no DTO or usable image metadata
+for the target item. Its URL is untagged, so the server cannot tell a changed image
+from the cached one. For a related item's poster — the series or season an episode
+belongs to — call `getRelatedPosterUrl` instead. Its `seriesPrimary` and
+`seasonPrimary` kinds are strict: a tag is used only when the DTO pairs it with that
+item, never a mismatched parent tag. When the DTO identifies the item only by id, it
+falls back to the untagged by-id request, which still names the right item.
 
 ## Pick a kind
 
@@ -38,6 +46,8 @@ near-identical boxes share one cached image.
 
 A null return means the item has no such image. Render a placeholder. Never build an
 untagged URL as a fallback: a placeholder beats a 404 and a stale cached picture.
+For related navigation cards and offline series art, `getRelatedPosterUrl` keeps
+the untagged request for a known target ID when no matching tag is available.
 
 ## Quality
 
@@ -56,17 +66,22 @@ fallback, and a half pair (an id without its tag).
 Render with `ItemImage` from `@/components/common/ItemImage`, or with `Image` from
 `@/components/common/ServerImage` for a URL you already have. Both attach the user's
 custom proxy auth headers. `Image` from `react-native` and `expo-image` do not. See
-[custom-headers.md](../custom-headers.md).
+[custom-headers.md](../custom-headers.md). For a bundled asset API such as
+`resolveAssetSource`, never a server image, import it as `Image as NativeImage`.
 
 User avatars come from `getUserImageUrl` in `utils/jellyfin/image/getUserImageUrl.ts`.
 
 ## Where this differs from jellyfin-web
 
-The chains follow jellyfin-web's `cardbuilder/utils/url.ts`. Two differences are on
-purpose:
+The chains follow jellyfin-web's
+[`cardbuilder/utils/url.ts`](https://github.com/jellyfin/jellyfin-web/blob/master/src/components/cardbuilder/utils/url.ts).
+The differences are on purpose:
 
 - **Size caps.** A cover-fit request is capped at `MAX_IMAGE_SIDE_PX`, and a logo at
   `MAX_LOGO_HEIGHT_PX`, so a large box on a 3x phone does not decode to an oversized
   bitmap.
 - **The `album` kind.** It tries the album's image before the track's own, so every
   track of an album shares one cache entry.
+- **Episode landscape art.** `wide` prefers the series' and parents' landscape art,
+  then the episode's own Thumb or backdrop, and only then its still — series-first
+  for an episode is app policy. `preferEpisodeImage` opts back into the still.

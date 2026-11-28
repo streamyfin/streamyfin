@@ -219,6 +219,21 @@ describe("buildTVDiscoveryPayload: the image of a tile", () => {
     );
   });
 
+  test("a season poster is its series'", () => {
+    expect(
+      imageOf(
+        {
+          Id: "season-1",
+          Name: "Season 1",
+          Type: "Season",
+          SeriesId: "series-1",
+          SeriesPrimaryImageTag: "series-tag",
+        },
+        {},
+      ),
+    ).toBe(`${BASE}/series-1/Images/Primary?${POSTER}&tag=series-tag`);
+  });
+
   test("an item without art has no image rather than an untagged one", () => {
     expect(
       imageOf({ Id: "m", Name: "Heat", Type: "Movie" }, {}),

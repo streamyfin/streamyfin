@@ -21,7 +21,9 @@ export type ImageKind =
   | "parentBackdrop"
   | "thumb"
   | "logo"
-  | "album";
+  | "album"
+  | "seriesPrimary"
+  | "seasonPrimary";
 
 export type ResolveItemImageOptions = {
   /** `wide` only: prefer an episode's own still over its series' Thumb. */
@@ -60,6 +62,13 @@ const STEPS = {
   // always ParentId.
   parentPrimary: (i) =>
     pair(i.ParentPrimaryImageItemId, "Primary", i.ParentPrimaryImageTag),
+  seasonPrimary: (i) => {
+    const seasonId = i.SeasonId ?? i.ParentId;
+    // Parent primary can belong to the series rather than the season.
+    return i.ParentPrimaryImageItemId === seasonId
+      ? pair(seasonId, "Primary", i.ParentPrimaryImageTag)
+      : null;
+  },
   albumPrimary: (i) => pair(i.AlbumId, "Primary", i.AlbumPrimaryImageTag),
 } satisfies Record<string, Step>;
 
@@ -70,6 +79,7 @@ type StepList = readonly StepName[];
 type KindSteps = {
   episode?: StepList;
   episodeOwnImage?: StepList;
+  season?: StepList;
   default: StepList;
 };
 
@@ -79,18 +89,34 @@ type KindSteps = {
  */
 export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   primary: { default: ["primary"] },
-  poster: { episode: ["seriesPrimary", "primary"], default: ["primary"] },
+  poster: {
+    episode: ["seriesPrimary", "primary"],
+    season: ["primary", "seriesPrimary"],
+    default: ["primary"],
+  },
   seasonPoster: {
     episode: ["parentPrimary", "seriesPrimary", "primary"],
+    season: ["primary", "seriesPrimary"],
     default: ["primary"],
   },
   wide: {
-    episode: ["seriesThumb", "parentThumb", "parentBackdrop", "primary"],
+    // Series-first is app policy; the episode can still have its own
+    // landscape art.
+    episode: [
+      "seriesThumb",
+      "parentThumb",
+      "parentBackdrop",
+      "thumb",
+      "backdrop",
+      "primary",
+    ],
     episodeOwnImage: [
       "primary",
       "seriesThumb",
       "parentThumb",
       "parentBackdrop",
+      "thumb",
+      "backdrop",
     ],
     default: ["thumb", "seriesThumb", "backdrop", "primary"],
   },
@@ -102,6 +128,8 @@ export const IMAGE_KINDS: Record<ImageKind, KindSteps> = {
   },
   logo: { default: ["logo", "parentLogo"] },
   album: { default: ["albumPrimary", "parentPrimary", "primary"] },
+  seriesPrimary: { default: ["seriesPrimary"] },
+  seasonPrimary: { default: ["seasonPrimary"] },
 };
 
 const stepsFor = (
@@ -110,7 +138,9 @@ const stepsFor = (
   options: ResolveItemImageOptions,
 ): StepList => {
   const kindSteps = IMAGE_KINDS[kind];
-  if ((item as BaseItemDto).Type !== "Episode") return kindSteps.default;
+  const type = (item as BaseItemDto).Type;
+  if (type === "Season") return kindSteps.season ?? kindSteps.default;
+  if (type !== "Episode") return kindSteps.default;
   if (options.preferEpisodeImage && kindSteps.episodeOwnImage) {
     return kindSteps.episodeOwnImage;
   }

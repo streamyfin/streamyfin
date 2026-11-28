@@ -81,7 +81,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { bitrateLabel, toBitrateRequest } from "@/utils/bitrate";
 import {
   getItemImageUrl,
-  getItemImageUrlById,
+  getRelatedPosterUrl,
 } from "@/utils/jellyfin/image/getItemImageUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
@@ -602,24 +602,28 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { cards: fullCast, castInText } = useTVCast(item);
 
     // Series/Season image URLs for episodes
-    const seriesImageUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !item.SeriesId) return null;
-      return getItemImageUrlById(api, item.SeriesId, "Primary", {
-        width: sizes.posters.poster,
-      });
-    }, [api, item?.Type, item?.SeriesId, sizes.posters.poster]);
+    const seriesImageUrl = useMemo(
+      () =>
+        item?.Type === "Episode"
+          ? getRelatedPosterUrl(api, item, "seriesPrimary", {
+              width: sizes.posters.poster,
+            })
+          : null,
+      [api, item, sizes.posters.poster],
+    );
 
-    const seasonImageUrl = useMemo(() => {
-      if (item?.Type !== "Episode") return null;
-      const seasonId = item.SeasonId || item.ParentId;
-      if (!seasonId) return null;
-      return getItemImageUrlById(api, seasonId, "Primary", {
-        width: sizes.posters.poster,
-      });
-    }, [api, item?.Type, item?.SeasonId, item?.ParentId, sizes.posters.poster]);
+    const seasonImageUrl = useMemo(
+      () =>
+        item?.Type === "Episode"
+          ? getRelatedPosterUrl(api, item, "seasonPrimary", {
+              width: sizes.posters.poster,
+            })
+          : null,
+      [api, item, sizes.posters.poster],
+    );
 
-    // An episode's own still, or with showSeriesPosterOnEpisode its series'
-    // landscape art; the wide chain ends in the still when the series has none.
+    // Prefer the episode's still unless showSeriesPosterOnEpisode selects the
+    // series-first landscape chain.
     const episodeImageUrl = useMemo(
       () =>
         item?.Type === "Episode"

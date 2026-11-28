@@ -256,6 +256,8 @@ describe("resolveItemImage kinds", () => {
         "poster",
         "primary",
         "seasonPoster",
+        "seasonPrimary",
+        "seriesPrimary",
         "thumb",
         "wide",
       ].sort(),
@@ -304,6 +306,52 @@ describe("resolveItemImage kinds", () => {
     expect(typeAndOwner(full, "seasonPoster")).toBe("item:Primary");
   });
 
+  test.each(["poster", "seasonPoster"] as const)(
+    "%s of a season is its own Primary, else the series'",
+    (kind) => {
+      const season = {
+        Id: "season",
+        Type: "Season",
+        ImageTags: { Primary: "season-p" },
+        SeriesId: "series",
+        SeriesPrimaryImageTag: "series-tag",
+      } satisfies BaseItemDto;
+      const noOwn = { ...season, ImageTags: {} };
+
+      expect(resolveItemImage(season, kind)).toEqual({
+        itemId: "season",
+        type: "Primary",
+        tag: "season-p",
+      });
+      expect(resolveItemImage(noOwn, kind)).toEqual({
+        itemId: "series",
+        type: "Primary",
+        tag: "series-tag",
+      });
+      expect(
+        resolveItemImage({ ...noOwn, SeriesId: undefined }, kind),
+      ).toBeNull();
+      expect(
+        resolveItemImage({ ...noOwn, SeriesPrimaryImageTag: undefined }, kind),
+      ).toBeNull();
+    },
+  );
+
+  test("primary of a season without its own is null, not the series'", () => {
+    expect(
+      resolveItemImage(
+        {
+          Id: "season",
+          Type: "Season",
+          ImageTags: {},
+          SeriesId: "series",
+          SeriesPrimaryImageTag: "series-tag",
+        },
+        "primary",
+      ),
+    ).toBeNull();
+  });
+
   test("wide is Thumb, backdrop, then Primary for an item that is no episode", () => {
     const noThumbs = {
       ...full,
@@ -330,30 +378,98 @@ describe("resolveItemImage kinds", () => {
     ).toBe("item:Backdrop");
   });
 
-  test("wide is series Thumb, parent Thumb, parent backdrop, then Primary for an episode", () => {
+  test("wide is series Thumb, parent Thumb, parent backdrop, then the episode's own landscape art and still", () => {
     expect(typeAndOwner(episode, "wide")).toBe("series:Thumb");
     const noSeriesThumb = { ...episode, SeriesThumbImageTag: undefined };
     expect(typeAndOwner(noSeriesThumb, "wide")).toBe("thumb-owner:Thumb");
     const noThumbs = { ...noSeriesThumb, ParentThumbImageTag: undefined };
     expect(typeAndOwner(noThumbs, "wide")).toBe("backdrop-owner:Backdrop");
+    const noInherited = { ...noThumbs, ParentBackdropImageTags: [] };
+    expect(typeAndOwner(noInherited, "wide")).toBe("item:Thumb");
     expect(
-      typeAndOwner({ ...noThumbs, ParentBackdropImageTags: [] }, "wide"),
+      typeAndOwner({ ...noInherited, ImageTags: { Primary: "p" } }, "wide"),
+    ).toBe("item:Backdrop");
+    expect(
+      typeAndOwner(
+        {
+          ...noInherited,
+          ImageTags: { Primary: "p" },
+          BackdropImageTags: [],
+        },
+        "wide",
+      ),
     ).toBe("item:Primary");
   });
 
-  test("wide with preferEpisodeImage is Primary, series Thumb, parent Thumb, parent backdrop", () => {
+  // A landscape card never picks an episode still while the episode has real
+  // landscape art — inherited or its own. Series-first is app policy.
+  test("wide keeps an episode's own landscape art before its still", () => {
+    const withThumb = {
+      Id: "ep",
+      Type: "Episode",
+      ImageTags: { Thumb: "thumb" },
+    } satisfies BaseItemDto;
+    const withBackdrop = {
+      Id: "ep",
+      Type: "Episode",
+      BackdropImageTags: ["backdrop"],
+    } satisfies BaseItemDto;
+
+    for (const preferEpisodeImage of [false, true]) {
+      expect(
+        resolveItemImage(withThumb, "wide", { preferEpisodeImage }),
+      ).toEqual({ itemId: "ep", type: "Thumb", tag: "thumb" });
+      expect(
+        resolveItemImage(withBackdrop, "wide", { preferEpisodeImage }),
+      ).toEqual({ itemId: "ep", type: "Backdrop", tag: "backdrop" });
+    }
+  });
+
+  test("wide takes an episode's still over its landscape art only with preferEpisodeImage", () => {
+    const withThumb = {
+      Id: "ep",
+      Type: "Episode",
+      ImageTags: { Primary: "still", Thumb: "thumb" },
+    } satisfies BaseItemDto;
+    const withBackdrop = {
+      Id: "ep",
+      Type: "Episode",
+      ImageTags: { Primary: "still" },
+      BackdropImageTags: ["backdrop"],
+    } satisfies BaseItemDto;
+
+    expect(resolveItemImage(withThumb, "wide")).toEqual({
+      itemId: "ep",
+      type: "Thumb",
+      tag: "thumb",
+    });
+    expect(resolveItemImage(withBackdrop, "wide")).toEqual({
+      itemId: "ep",
+      type: "Backdrop",
+      tag: "backdrop",
+    });
+    for (const ep of [withThumb, withBackdrop]) {
+      expect(
+        resolveItemImage(ep, "wide", { preferEpisodeImage: true }),
+      ).toEqual({ itemId: "ep", type: "Primary", tag: "still" });
+    }
+  });
+
+  test("wide with preferEpisodeImage is the still, inherited landscape art, then the episode's own", () => {
     expect(typeAndOwner(episode, "wide", true)).toBe("item:Primary");
     const own = { ...episode, ImageTags: {} };
     expect(typeAndOwner(own, "wide", true)).toBe("series:Thumb");
     const noSeriesThumb = { ...own, SeriesThumbImageTag: undefined };
     expect(typeAndOwner(noSeriesThumb, "wide", true)).toBe("thumb-owner:Thumb");
+    const noThumbs = { ...noSeriesThumb, ParentThumbImageTag: undefined };
+    expect(typeAndOwner(noThumbs, "wide", true)).toBe(
+      "backdrop-owner:Backdrop",
+    );
+    const noInherited = { ...noThumbs, ParentBackdropImageTags: [] };
+    expect(typeAndOwner(noInherited, "wide", true)).toBe("item:Backdrop");
     expect(
-      typeAndOwner(
-        { ...noSeriesThumb, ParentThumbImageTag: undefined },
-        "wide",
-        true,
-      ),
-    ).toBe("backdrop-owner:Backdrop");
+      typeAndOwner({ ...noInherited, BackdropImageTags: [] }, "wide", true),
+    ).toBeNull();
   });
 
   test("preferEpisodeImage changes nothing for an item that is no episode", () => {
@@ -408,6 +524,82 @@ describe("resolveItemImage kinds", () => {
     expect(
       typeAndOwner({ ...bare, ImageTags: { Primary: "p" } }, "thumb"),
     ).toBeNull();
+  });
+});
+
+describe("resolveItemImage related posters", () => {
+  const related = {
+    Id: "episode",
+    Type: "Episode",
+    ImageTags: { Primary: "still" },
+    ParentId: "parent",
+    SeasonId: "season",
+    SeriesId: "series",
+    SeriesPrimaryImageTag: "series-v1",
+    ParentPrimaryImageItemId: "season",
+    ParentPrimaryImageTag: "season-tag",
+  } satisfies BaseItemDto;
+
+  test("seriesPrimary is the series' own tagged Primary", () => {
+    expect(resolveItemImage(related, "seriesPrimary")).toEqual({
+      itemId: "series",
+      type: "Primary",
+      tag: "series-v1",
+    });
+  });
+
+  test.each([{ SeriesId: undefined }, { SeriesPrimaryImageTag: undefined }])(
+    "seriesPrimary has no fallback for half a pair: %j",
+    (patch) => {
+      // The episode still is not the series poster.
+      expect(
+        resolveItemImage({ ...related, ...patch }, "seriesPrimary"),
+      ).toBeNull();
+    },
+  );
+
+  test("seasonPrimary is the season's Primary when the parent tag belongs to it", () => {
+    expect(resolveItemImage(related, "seasonPrimary")).toEqual({
+      itemId: "season",
+      type: "Primary",
+      tag: "season-tag",
+    });
+  });
+
+  // The ParentPrimary pair can point at the series or the parent rather than
+  // the season; reusing its tag for the season would serve the wrong picture.
+  test.each(["series", "parent", undefined] as const)(
+    "seasonPrimary is null when the parent Primary's owner is %s",
+    (owner) => {
+      expect(
+        resolveItemImage(
+          { ...related, ParentPrimaryImageItemId: owner },
+          "seasonPrimary",
+        ),
+      ).toBeNull();
+    },
+  );
+
+  test("seasonPrimary is null without the tag", () => {
+    expect(
+      resolveItemImage(
+        { ...related, ParentPrimaryImageTag: undefined },
+        "seasonPrimary",
+      ),
+    ).toBeNull();
+  });
+
+  test("seasonPrimary reads ParentId as the season id when SeasonId is missing", () => {
+    expect(
+      resolveItemImage(
+        {
+          ...related,
+          SeasonId: undefined,
+          ParentPrimaryImageItemId: "parent",
+        },
+        "seasonPrimary",
+      ),
+    ).toEqual({ itemId: "parent", type: "Primary", tag: "season-tag" });
   });
 });
 
