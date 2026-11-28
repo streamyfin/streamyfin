@@ -215,6 +215,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, [itemsNotDownloaded, downloadUnwatchedOnly]);
 
   const decisionRequests = useMemo(() => {
+    // Closed, a season's download buttons subscribe to nothing: every
+    // episode that finishes would otherwise cost each of them a commit.
+    if (!sheetOpen) return [];
     if (!api || !user?.Id || !selectedOptions) return [];
     // Turned down when confirmed, so there is nothing to ask the server about.
     if (
@@ -234,6 +237,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       }),
     );
   }, [
+    sheetOpen,
     api,
     user?.Id,
     selectedOptions,
