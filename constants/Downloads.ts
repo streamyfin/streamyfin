@@ -26,3 +26,7 @@ export const OFFLINE_PROGRESS_PENDING_KEY = "offlineProgressPending";
 // How long one offline progress sync may run before it is released, in ms: a request that never
 // settles would otherwise keep the sync off until the app restarts (hooks/useOfflineProgressSync.ts).
 export const OFFLINE_PROGRESS_SYNC_TIMEOUT_MS = 60_000;
+
+// How many direct-or-transcode checks the download sheet sends at once: enough to finish a season
+// in seconds without queueing a burst of PlaybackInfo requests on the server.
+export const DOWNLOAD_DECISION_CONCURRENCY = 3;
