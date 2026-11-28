@@ -22,7 +22,12 @@ import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
-import { lacksMediaSource } from "@/providers/Downloads/downloadRequest";
+import {
+  buildDownloadRequest,
+  downloadTracksFor,
+  lacksMediaSource,
+  type SelectedOptions,
+} from "@/providers/Downloads/downloadRequest";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
@@ -32,7 +37,7 @@ import { getDownloadStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { logAndCaptureError, writeToLog } from "@/utils/log";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "./BitrateSelector";
+import { BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
 import {
   SingleItemDownloadedIcon,
@@ -64,12 +69,7 @@ const PROGRESS_RING_SCALE = 0.79;
 const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
 const PROGRESS_RING_WIDTH = 2.5;
 
-export type SelectedOptions = {
-  bitrate: Bitrate;
-  mediaSource: MediaSourceInfo | undefined;
-  audioIndex: number | undefined;
-  subtitleIndex: number;
-};
+export type { SelectedOptions };
 
 /** A track picked in the sheet, with the version it was picked on. */
 interface TrackPick {
@@ -300,42 +300,47 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           }
         }
 
-        const { mediaSource, audioIndex, subtitleIndex } =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(itemForDownload, settings!)
-            : {
-                mediaSource: selectedOptions?.mediaSource,
-                audioIndex: selectedOptions?.audioIndex,
-                subtitleIndex: selectedOptions?.subtitleIndex,
-              };
+        const choice = {
+          item: itemForDownload,
+          batch: itemsNotDownloaded.length > 1,
+          selected: selectedOptions,
+          settings,
+        };
+        const request = buildDownloadRequest({
+          ...choice,
+          api,
+          userId: user.Id!,
+          defaultBitrate,
+        });
+        const { audioIndex, subtitleIndex } = downloadTracksFor(choice);
 
         // Awaited with Promise.all over a season: a throw would abort the batch.
-        const downloadDetails = await getDownloadStreamUrl({
-          api,
-          item: itemForDownload,
-          userId: user.Id!,
-          mediaSourceId: mediaSource?.Id,
-          audioStreamIndex: audioIndex ?? -1,
-          subtitleStreamIndex: subtitleIndex ?? -1,
-          maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)
-            .value,
-          audioMode: settings?.audioTranscodeMode,
-        }).catch((error) => {
-          logAndCaptureError("Getting download stream URL failed", error, {
-            itemType: itemForDownload.Type,
-          });
-          return null;
-        });
+        const downloadDetails = await getDownloadStreamUrl(request).catch(
+          (error) => {
+            logAndCaptureError("Getting download stream URL failed", error, {
+              itemType: itemForDownload.Type,
+            });
+            return null;
+          },
+        );
 
         return {
           url: downloadDetails?.url,
           item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
+          audioIndex,
+          subtitleIndex,
         };
       });
 
       const downloadDetails = await Promise.all(downloadDetailsPromises);
-      for (const { url, item, mediaSource } of downloadDetails) {
+      for (const {
+        url,
+        item,
+        mediaSource,
+        audioIndex,
+        subtitleIndex,
+      } of downloadDetails) {
         if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
@@ -352,23 +357,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-        // Get the audio/subtitle indices that were used for this download
-        const downloadAudioIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).audioIndex
-            : selectedOptions?.audioIndex;
-        const downloadSubtitleIndex =
-          itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!).subtitleIndex
-            : selectedOptions?.subtitleIndex;
-
         await startBackgroundDownload(
           url,
           item,
           mediaSource,
           selectedOptions?.bitrate || defaultBitrate,
-          downloadAudioIndex,
-          downloadSubtitleIndex,
+          audioIndex,
+          subtitleIndex,
         );
       }
     },
