@@ -6,6 +6,13 @@ import type {
 } from "@/hooks/useDownloadDecisions";
 import { DownloadDecisionSummary } from "./DownloadDecisionSummary";
 
+// The list scrolls through gesture handler's ScrollView, which the sheet's own
+// pan defers to; here a plain one stands in for it.
+jest.mock("react-native-gesture-handler", () => ({
+  ...jest.requireActual("@/test-utils/gestureHandler").gestureHandlerModule,
+  ScrollView: jest.requireActual("react-native").ScrollView,
+}));
+
 const episode = (season: number, number: number): BaseItemDto => ({
   Id: `s${season}e${number}`,
   Type: "Episode",
@@ -98,5 +105,22 @@ describe("DownloadDecisionSummary", () => {
 
     expect(screen.getByText(/S01E03/)).toBeTruthy();
     expect(screen.queryByText(/S01E04/)).toBeNull();
+  });
+
+  // A series lists every transcoded episode; on the phone 19 rows already
+  // pushed the sheet to the top, and more would push Download off screen.
+  it("scrolls a long list instead of growing the sheet", async () => {
+    const items = Array.from({ length: 40 }, (_, index) =>
+      transcode(episode(1, index + 1), ["SubtitleCodecNotSupported"]),
+    );
+    await render(<DownloadDecisionSummary decisions={decisionsOf(items)} />);
+
+    await fireEvent.press(
+      screen.getByText("item_card.download.decisions_summary"),
+    );
+
+    expect(screen.getByTestId("download-decisions-list")).toHaveStyle({
+      maxHeight: expect.any(Number),
+    });
   });
 });

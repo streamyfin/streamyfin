@@ -8,12 +8,17 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { Text } from "@/components/common/Text";
 import type {
   DownloadDecisions,
   ItemDecision,
 } from "@/hooks/useDownloadDecisions";
 import { transcodeReasonLabel } from "@/utils/jellyfin/transcodeReasonLabel";
+
+// About eight rows: a series can list dozens, and the sheet must keep
+// Download on screen.
+const LIST_MAX_HEIGHT = 200;
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
@@ -134,19 +139,26 @@ export function DownloadDecisionSummary({
           </Text>
         )}
       </TouchableOpacity>
-      {expanded &&
-        notDirect.map((item) => (
-          <Text
-            key={item.item.Id ?? itemLabel(item.item)}
-            className='text-xs text-neutral-300 mt-1'
-          >
-            {`${itemLabel(item.item)}  ${
-              item.status === "failed"
-                ? t("item_card.download.decision_failed")
-                : reasonsOf(t, item)
-            }`}
-          </Text>
-        ))}
+      {expanded && (
+        <ScrollView
+          testID='download-decisions-list'
+          style={{ maxHeight: LIST_MAX_HEIGHT }}
+          nestedScrollEnabled
+        >
+          {notDirect.map((item) => (
+            <Text
+              key={item.item.Id ?? itemLabel(item.item)}
+              className='text-xs text-neutral-300 mt-1'
+            >
+              {`${itemLabel(item.item)}  ${
+                item.status === "failed"
+                  ? t("item_card.download.decision_failed")
+                  : reasonsOf(t, item)
+              }`}
+            </Text>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
