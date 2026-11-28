@@ -36,7 +36,7 @@ import type { JobStatus } from "../types";
 import { filePathToUri, getDownloadToastId } from "../utils";
 import {
   addSpeedDataPoint,
-  calculateWeightedSpeed,
+  calculateSpeed,
   clearSpeedData,
 } from "./useDownloadSpeedCalculator";
 
@@ -127,7 +127,7 @@ export function useDownloadEventHandlers({
 
         // Add data point and calculate speed (validation happens inside)
         addSpeedDataPoint(processId, event.bytesWritten);
-        const speed = calculateWeightedSpeed(processId);
+        const speed = calculateSpeed(processId);
 
         // Determine if transcoding based on whether server provides total size
         const isTranscoding = !(
