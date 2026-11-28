@@ -80,7 +80,8 @@ export function useDownloadDecisions(
   const items: ItemDecision[] = results.map((result, index) => ({
     item: requests[index].item ?? {},
     status: result.isError ? "failed" : result.data ? "done" : "checking",
-    decision: result.data,
+    // A failed refetch keeps the stale answer; the item is failed, not both.
+    decision: result.isError ? undefined : result.data,
   }));
   const count = (test: (item: ItemDecision) => boolean) =>
     items.filter(test).length;

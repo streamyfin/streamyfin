@@ -4,7 +4,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
@@ -131,6 +131,34 @@ describe("useDownloadDecisions", () => {
       expect.any(String),
       expect.anything(),
     );
+    client.clear();
+  });
+
+  // A stale answer whose refetch fails keeps its data in React Query; counted
+  // as both, the totals came to more than the items (CodeRabbit on #2568).
+  it("counts an item whose re-check failed as failed only", async () => {
+    jest.mocked(getDownloadDecision).mockResolvedValue({ kind: "direct" });
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      },
+    });
+    const AppClient = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = await renderHook(
+      () => useDownloadDecisions([request("a")], true),
+      { wrapper: AppClient },
+    );
+    await waitFor(() => expect(result.current.direct).toBe(1));
+
+    jest.mocked(getDownloadDecision).mockRejectedValue(new Error("500"));
+    await act(async () => {
+      await client.refetchQueries();
+    });
+
+    await waitFor(() => expect(result.current.failed).toBe(1));
+    expect(result.current).toMatchObject({ direct: 0, checked: 1 });
     client.clear();
   });
 });
