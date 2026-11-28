@@ -1,11 +1,13 @@
-import { DOWNLOAD_SPEED_WINDOW_MS } from "@/constants/Downloads";
+import {
+  DOWNLOAD_SPEED_MIN_ELAPSED_MS,
+  DOWNLOAD_SPEED_WINDOW_MS,
+} from "@/constants/Downloads";
 
 interface SpeedDataPoint {
   timestamp: number;
   bytesDownloaded: number;
 }
 
-const MIN_DATA_POINTS = 5; // Need at least 5 points for accurate speed
 const MAX_REASONABLE_SPEED = 1024 * 1024 * 1024; // 1 GB/s sanity check
 const EMA_ALPHA = 0.2; // Smoothing factor for EMA (lower = smoother, 0-1 range)
 
@@ -77,7 +79,9 @@ export function addSpeedDataPoint(
 export function calculateSpeed(processId: string): number | undefined {
   const points = dataPoints.get(processId);
 
-  if (!points || points.length < MIN_DATA_POINTS) {
+  // Two points give a rate; how far apart they are decides whether it can be trusted. A count
+  // of events would not: native reports only when bytes arrive, so a slow transcode sends few.
+  if (!points || points.length < 2) {
     return undefined;
   }
 
@@ -98,9 +102,7 @@ export function calculateSpeed(processId: string): number | undefined {
   const timeDelta = (newest.timestamp - oldest.timestamp) / 1000; // seconds
   const bytesDelta = newest.bytesDownloaded - oldest.bytesDownloaded;
 
-  // Validate calculations
-  if (timeDelta < 0.5) {
-    // Not enough time has passed
+  if (timeDelta * 1000 < DOWNLOAD_SPEED_MIN_ELAPSED_MS) {
     return undefined;
   }
 

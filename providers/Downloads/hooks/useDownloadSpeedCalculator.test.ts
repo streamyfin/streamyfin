@@ -86,6 +86,18 @@ describe("download speed", () => {
     expect(eta).toBeLessThan(60);
   });
 
+  it("reads a slow transcode whose events arrive seconds apart", () => {
+    // Native reports only when bytes arrive, so a slow transcode put fewer than five events in
+    // the window and the card showed no speed at all while it downloaded (The Hobbit at ~0.3 MB/s).
+    let bytes = 0;
+    for (let i = 0; i < 10; i++) {
+      bytes += MB;
+      report(4000, bytes);
+    }
+
+    expect(calculateSpeed(ID)! / MB).toBeCloseTo(0.25, 2);
+  });
+
   it("has no speed until there are enough samples to trust", () => {
     report(500, MB);
     report(500, 2 * MB);

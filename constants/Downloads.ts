@@ -30,6 +30,9 @@ export const OFFLINE_PROGRESS_SYNC_TIMEOUT_MS = 60_000;
 // What the speed on a download card is averaged over. Progress comes in bursts, so a window much
 // shorter than this reads a lull as a collapse, and a longer one is slow to show a real change.
 export const DOWNLOAD_SPEED_WINDOW_MS = 15_000;
+// The least time the window must span before the card shows a speed: one burst read over half a
+// second would show a rate the download never keeps.
+export const DOWNLOAD_SPEED_MIN_ELAPSED_MS = 2_000;
 // How long a running download goes without progress before its card says so instead of keeping
 // the last speed on screen.
 export const DOWNLOAD_STALL_AFTER_MS = 15_000;
