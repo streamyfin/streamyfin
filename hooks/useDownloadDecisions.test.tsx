@@ -1,8 +1,17 @@
+import * as Sentry from "@sentry/react-native";
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react-native";
+import type { ReactNode } from "react";
 import { makeApi } from "@/test-utils/jellyfinApi";
 import { QueryWrapper } from "@/test-utils/queryWrapper";
 import { getDownloadDecision } from "@/utils/jellyfin/media/downloadDecision";
 import type { DownloadRequestParams } from "@/utils/jellyfin/media/getStreamUrl";
+import { writeToLog } from "@/utils/log";
+import { reportDataError } from "@/utils/reportDataError";
 import { useDownloadDecisions } from "./useDownloadDecisions";
 
 jest.mock("@/utils/jellyfin/media/downloadDecision");
@@ -88,5 +97,40 @@ describe("useDownloadDecisions", () => {
 
     expect(getDownloadDecision).not.toHaveBeenCalled();
     expect(result.current.checked).toBe(0);
+  });
+
+  // The app reports every failed query (app/_layout.tsx). A check the server
+  // could not answer is shown as unchecked; it is not a defect of the app.
+  it("keeps a failed check out of Sentry and in the local log", async () => {
+    jest
+      .mocked(getDownloadDecision)
+      .mockRejectedValue(new Error("No media source offered for download"));
+    const client = new QueryClient({
+      queryCache: new QueryCache({
+        onError: (error, query) =>
+          reportDataError("query", query.queryKey, error),
+      }),
+      // No garbage collection timer: it would keep Jest from exiting.
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      },
+    });
+    const AppClient = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    const { result } = await renderHook(
+      () => useDownloadDecisions([request("a")], true),
+      { wrapper: AppClient },
+    );
+
+    await waitFor(() => expect(result.current.failed).toBe(1));
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(writeToLog).toHaveBeenCalledWith(
+      "WARN",
+      expect.any(String),
+      expect.anything(),
+    );
+    client.clear();
   });
 });

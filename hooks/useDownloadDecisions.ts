@@ -1,15 +1,18 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueries } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import {
   DOWNLOAD_DECISION_CONCURRENCY,
   DOWNLOAD_DECISION_STALE_MS,
 } from "@/constants/Downloads";
+import { markExpectedError } from "@/utils/errors";
 import {
   type DownloadDecision,
   getDownloadDecision,
 } from "@/utils/jellyfin/media/downloadDecision";
 import type { DownloadRequestParams } from "@/utils/jellyfin/media/getStreamUrl";
 import { createLimiter } from "@/utils/limitConcurrency";
+import { writeToLog } from "@/utils/log";
 
 // Not in the persisted families (utils/queryPersistence.ts): an answer is only
 // worth keeping while the user is choosing.
@@ -54,7 +57,20 @@ export function useDownloadDecisions(
         request.audioMode,
       ],
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        limit(() => getDownloadDecision(request, signal), signal),
+        limit(() => getDownloadDecision(request, signal), signal).catch(
+          (error: unknown) => {
+            // Shown as unchecked, and the download still works: an outcome
+            // of the server, not an app defect for the global reporting.
+            if (!signal.aborted) {
+              writeToLog("WARN", "Download decision check failed", {
+                status: isAxiosError(error)
+                  ? error.response?.status
+                  : undefined,
+              });
+            }
+            throw markExpectedError(error);
+          },
+        ),
       enabled,
       retry: false,
       staleTime: DOWNLOAD_DECISION_STALE_MS,
