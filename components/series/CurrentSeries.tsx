@@ -4,10 +4,11 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { CARD_LAYOUTS } from "@/components/cards/CardData";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { getRelatedPosterUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -18,8 +19,8 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
   const { t } = useTranslation();
   const router = useRouter();
 
-  // The card shows the series this episode belongs to, so it is built by hand
-  // rather than from the episode item.
+  // The prebuilt card describes the series this episode belongs to — its
+  // name and poster — not the episode itself.
   const cards = useMemo(
     () =>
       item
@@ -27,7 +28,9 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
             {
               id: item.Id ?? "series",
               title: item.SeriesName ?? "",
-              imageUrl: getPrimaryImageUrlById({ api, id: item.ParentId }),
+              imageUrl: getRelatedPosterUrl(api, item, "seriesPrimary", {
+                width: CARD_LAYOUTS.portrait.cardWidth,
+              }),
             },
           ]
         : [],

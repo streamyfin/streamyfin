@@ -34,7 +34,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const HORIZONTAL_PADDING = 80;
@@ -49,7 +49,7 @@ interface TVActorPageProps {
 export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
@@ -134,13 +134,12 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     // Use focused item if available, otherwise fall back to first movie or series
     const itemForBackdrop = focusedItem ?? movies[0] ?? series[0];
     if (!itemForBackdrop) return null;
-    return getBackdropUrl({
-      api,
-      item: itemForBackdrop,
-      quality: 90,
-      width: 1920,
+    // The backdrop fills the window.
+    return getItemImageUrl(api, itemForBackdrop, "backdrop", {
+      width: windowWidth,
+      height: windowHeight,
     });
-  }, [api, focusedItem, movies, series]);
+  }, [api, focusedItem, movies, series, windowWidth, windowHeight]);
 
   // Crossfade animation for backdrop transitions
   // Use two alternating layers for smooth crossfade
@@ -151,9 +150,33 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const layer1Opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!backdropUrl) return;
-
     let isCancelled = false;
+
+    // A film with no image takes the previous film's backdrop away with it,
+    // as jellyfin-web clears its backdrop.
+    if (!backdropUrl) {
+      Animated.parallel([
+        Animated.timing(layer0Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(layer1Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (isCancelled) return;
+        setLayer0Url(null);
+        setLayer1Url(null);
+      });
+      return () => {
+        isCancelled = true;
+      };
+    }
 
     const performCrossfade = async () => {
       // Disk-only prefetch to avoid pinning large backdrops in memory cache.
@@ -214,10 +237,14 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   }, [backdropUrl, api?.basePath]);
 
   // Get actor image URL
-  const actorImageUrl = useMemo(() => {
-    if (!item?.Id || !api?.basePath) return null;
-    return `${api.basePath}/Items/${item.Id}/Images/Primary?fillWidth=${ACTOR_IMAGE_SIZE * 2}&fillHeight=${ACTOR_IMAGE_SIZE * 2}&quality=90`;
-  }, [api?.basePath, item?.Id]);
+  const actorImageUrl = useMemo(
+    () =>
+      getItemImageUrl(api, item, "primary", {
+        width: ACTOR_IMAGE_SIZE,
+        height: ACTOR_IMAGE_SIZE,
+      }),
+    [api, item],
+  );
 
   // Handle filmography item press
   const handleItemPress = useCallback(

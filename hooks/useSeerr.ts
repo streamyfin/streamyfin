@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom, useAtom, useAtomValue } from "jotai";
 import inRange from "lodash/inRange";
-import { Image } from "react-native";
+import { Image as NativeImage } from "react-native";
 import {
   SEERR_COOKIES_STORAGE_KEY,
   SEERR_PUBLIC_SETTINGS_STALE_MS,
@@ -77,7 +77,7 @@ interface SearchResults {
 // resolveAssetSource only answers undefined for a source it cannot read, and
 // a bundled require() always resolves.
 const POSTER_PLACEHOLDER =
-  Image.resolveAssetSource(
+  NativeImage.resolveAssetSource(
     require("@/assets/images/seerr-poster-placeholder.png"),
   )?.uri ?? "";
 

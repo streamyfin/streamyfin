@@ -14,7 +14,6 @@ import { TVActorCard } from "./TVActorCard";
 
 export interface TVCastSectionProps {
   cast: CastCrewPerson[];
-  apiBasePath?: string;
   onActorPress: (personId: string) => void;
   /** Setter function for the first actor card ref (for focus guide) */
   firstActorRefSetter?: (ref: ViewInstance | null) => void;
@@ -27,7 +26,6 @@ export interface TVCastSectionProps {
 export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
   ({
     cast,
-    apiBasePath,
     onActorPress,
     firstActorRefSetter,
     upwardFocusDestination,
@@ -75,7 +73,6 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
               key={person.Id}
               ref={index === 0 ? firstActorRefSetter : undefined}
               person={person}
-              apiBasePath={apiBasePath}
               onPress={() => onActorPress(person.Id)}
             />
           ))}

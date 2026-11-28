@@ -61,9 +61,9 @@ export const useImageColorsReturn = ({
       return getItemImage({
         item,
         api,
-        variant: "Primary",
-        quality: 80,
+        kind: "primary",
         width: 300,
+        pixels: true,
       });
     return null;
   }, [api, item, url]);

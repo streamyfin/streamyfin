@@ -33,7 +33,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const ARTWORK_SIZE = 120;
@@ -123,7 +123,7 @@ export default function PlaylistDetailScreen() {
   }, [playlist?.Name, navigation]);
 
   const imageUrl = useMemo(
-    () => (playlist ? getPrimaryImageUrl({ api, item: playlist }) : null),
+    () => getItemImageUrl(api, playlist, "primary", { width: ARTWORK_SIZE }),
     [api, playlist],
   );
 

@@ -1,32 +1,34 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemPerson } from "@jellyfin/sdk/lib/generated-client/models";
+import { useAtomValue } from "jotai";
 import React from "react";
 import { Animated, Pressable, View, type ViewInstance } from "react-native";
 import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVActorCardProps {
-  person: {
-    Id?: string | null;
-    Name?: string | null;
-    Role?: string | null;
-  };
-  apiBasePath?: string;
+  person: Pick<BaseItemPerson, "Id" | "Name" | "Role" | "PrimaryImageTag">;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
 }
 
 export const TVActorCard = React.forwardRef<ViewInstance, TVActorCardProps>(
-  ({ person, apiBasePath, onPress, hasTVPreferredFocus }, ref) => {
+  ({ person, onPress, hasTVPreferredFocus }, ref) => {
     const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation();
 
-    const imageUrl = person.Id
-      ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=280&fillHeight=280&quality=90`
-      : null;
+    const api = useAtomValue(apiAtom);
+    const photoSize = scaleSize(140);
+    const imageUrl = getItemImageUrl(api, person, "primary", {
+      width: photoSize,
+      height: photoSize,
+    });
 
     return (
       <Pressable
@@ -51,8 +53,8 @@ export const TVActorCard = React.forwardRef<ViewInstance, TVActorCardProps>(
         >
           <View
             style={{
-              width: scaleSize(140),
-              height: scaleSize(140),
+              width: photoSize,
+              height: photoSize,
               borderRadius: scaleSize(70),
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",

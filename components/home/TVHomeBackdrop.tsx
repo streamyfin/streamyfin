@@ -10,14 +10,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Easing, View } from "react-native";
+import { Animated, Easing, useWindowDimensions, View } from "react-native";
 import { Image, prefetchServerImage } from "@/components/common/ServerImage";
 import {
   TV_BACKDROP_CROSSFADE_MS,
   TV_BACKDROP_DEBOUNCE_MS,
 } from "@/constants/TVSizes";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 export interface TVHomeBackdropRef {
   handleItemFocus: (item: BaseItemDto) => void;
@@ -31,6 +31,7 @@ export interface TVHomeBackdropRef {
 export const TVHomeBackdrop = React.memo(
   forwardRef<TVHomeBackdropRef>((_props, ref) => {
     const api = useAtomValue(apiAtom);
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     // Dynamic backdrop state with debounce
     const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
@@ -66,13 +67,12 @@ export const TVHomeBackdrop = React.memo(
     // Get backdrop URL from focused item
     const backdropUrl = useMemo(() => {
       if (!focusedItem) return null;
-      return getBackdropUrl({
-        api,
-        item: focusedItem,
-        quality: 90,
-        width: 1920,
+      // The backdrop fills the window.
+      return getItemImageUrl(api, focusedItem, "backdrop", {
+        width: windowWidth,
+        height: windowHeight,
       });
-    }, [api, focusedItem]);
+    }, [api, focusedItem, windowWidth, windowHeight]);
 
     // Crossfade animation for backdrop transitions. The layer shown is flipped
     // when the fade starts, not when it ends: an image that arrives mid-fade
@@ -86,9 +86,33 @@ export const TVHomeBackdrop = React.memo(
     const layer1Opacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-      if (!backdropUrl) return;
-
       let isCancelled = false;
+
+      // An item with no image takes the previous item's backdrop away with
+      // it, as jellyfin-web clears its backdrop.
+      if (!backdropUrl) {
+        Animated.parallel([
+          Animated.timing(layer0Opacity, {
+            toValue: 0,
+            duration: TV_BACKDROP_CROSSFADE_MS,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(layer1Opacity, {
+            toValue: 0,
+            duration: TV_BACKDROP_CROSSFADE_MS,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          if (isCancelled) return;
+          setLayer0Url(null);
+          setLayer1Url(null);
+        });
+        return () => {
+          isCancelled = true;
+        };
+      }
 
       const performCrossfade = async () => {
         // Prefetch to disk only - the full-size 1920x1080 backdrop (~8MB

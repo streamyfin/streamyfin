@@ -27,7 +27,7 @@ import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { squareArtworkSide } from "@/utils/artworkSize";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 // Cast is off on TV.
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
@@ -125,8 +125,8 @@ export default function ArtistDetailScreen() {
   }, [artist?.Name, navigation]);
 
   const imageUrl = useMemo(
-    () => (artist ? getPrimaryImageUrl({ api, item: artist }) : null),
-    [api, artist],
+    () => getItemImageUrl(api, artist, "primary", { width: artworkSize }),
+    [api, artist, artworkSize],
   );
 
   const handlePlayAllTracks = useCallback(() => {

@@ -10,7 +10,7 @@ import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { getLocalPath } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface Props {
   playlist: BaseItemDto;
@@ -25,7 +25,7 @@ export const MusicPlaylistCard: React.FC<Props> = ({ playlist }) => {
   const router = useRouter();
 
   const imageUrl = useMemo(
-    () => getPrimaryImageUrl({ api, item: playlist }),
+    () => getItemImageUrl(api, playlist, "primary", { width: IMAGE_SIZE }),
     [api, playlist],
   );
 

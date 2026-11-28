@@ -43,6 +43,7 @@ import {
 } from "@/providers/MusicPlayerProvider";
 import { squareArtworkSide } from "@/utils/artworkSize";
 import { formatBitrate } from "@/utils/bitrate";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { formatDuration } from "@/utils/time";
 
 const formatFileSize = (bytes?: number | null) => {
@@ -117,14 +118,15 @@ export default function NowPlayingScreen() {
     sliderMax.value = duration > 0 ? duration : 1;
   }, [duration, sliderMax]);
 
+  const windowSize = useWindowDimensions();
   const imageUrl = useMemo(() => {
-    if (!api || !currentTrack) return null;
-    const albumId = currentTrack.AlbumId || currentTrack.ParentId;
-    if (albumId) {
-      return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=600&maxWidth=600`;
-    }
-    return `${api.basePath}/Items/${currentTrack.Id}/Images/Primary?maxHeight=600&maxWidth=600`;
-  }, [api, currentTrack]);
+    // The same square PlayerView draws.
+    const side = squareArtworkSide(windowSize, { inset: 80 });
+    return getItemImageUrl(api, currentTrack, "album", {
+      width: side,
+      height: side,
+    });
+  }, [api, currentTrack, windowSize]);
 
   const progressText = useMemo(() => {
     const progressTicks = progress * 10000000;
@@ -680,6 +682,9 @@ interface QueueViewProps {
   onReorderQueue: (newQueue: BaseItemDto[]) => void;
 }
 
+// Layout points of DraggableQueueList's square row artwork (w-12).
+const QUEUE_ARTWORK_SIZE = 48;
+
 const QueueView: React.FC<QueueViewProps> = ({
   api,
   queue,
@@ -692,17 +697,15 @@ const QueueView: React.FC<QueueViewProps> = ({
   const { t } = useTranslation();
   const rows = useMemo<QueueRow[]>(
     () =>
-      queue.map((item, index) => {
-        const albumId = item.AlbumId || item.ParentId;
-        return {
-          key: `${item.Id}-${index}`,
-          title: item.Name ?? "",
-          subtitle: item.Artists?.join(", ") || item.AlbumArtist || undefined,
-          imageUrl: api
-            ? `${api.basePath}/Items/${albumId || item.Id}/Images/Primary?maxHeight=80&maxWidth=80`
-            : null,
-        };
-      }),
+      queue.map((item, index) => ({
+        key: `${item.Id}-${index}`,
+        title: item.Name ?? "",
+        subtitle: item.Artists?.join(", ") || item.AlbumArtist || undefined,
+        imageUrl: getItemImageUrl(api, item, "album", {
+          width: QUEUE_ARTWORK_SIZE,
+          height: QUEUE_ARTWORK_SIZE,
+        }),
+      })),
     [api, queue],
   );
 

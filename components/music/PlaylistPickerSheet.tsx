@@ -30,6 +30,10 @@ import { ArtworkImage } from "@/components/music/ArtworkImage";
 import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { useSheetOpenState } from "@/hooks/useSheetOpenState";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+
+// Layout points, shared by the box and the image request sized from it.
+const ARTWORK_SIZE = 48;
 
 interface Props {
   open: boolean;
@@ -131,14 +135,6 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
     }, 300);
   }, [onCreateNew, setOpen]);
 
-  const getPlaylistImageUrl = useCallback(
-    (playlist: BaseItemDto) => {
-      if (!api) return null;
-      return `${api.basePath}/Items/${playlist.Id}/Images/Primary?maxHeight=100&maxWidth=100`;
-    },
-    [api],
-  );
-
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
@@ -202,49 +198,63 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
           </View>
         ) : (
           <View className='rounded-xl overflow-hidden bg-neutral-800'>
-            {filteredPlaylists.map((playlist, index) => (
-              <View key={playlist.Id}>
-                <TouchableOpacity
-                  onPress={() => handleSelectPlaylist(playlist)}
-                  className='flex-row items-center px-4 py-3'
-                  disabled={addToPlaylist.isPending}
-                >
-                  <View
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 6,
-                      overflow: "hidden",
-                      backgroundColor: "#1a1a1a",
-                      marginRight: 12,
-                    }}
+            {filteredPlaylists.map((playlist, index) => {
+              const imageUrl = getItemImageUrl(api, playlist, "primary", {
+                width: ARTWORK_SIZE,
+                height: ARTWORK_SIZE,
+              });
+              return (
+                <View key={playlist.Id}>
+                  <TouchableOpacity
+                    onPress={() => handleSelectPlaylist(playlist)}
+                    className='flex-row items-center px-4 py-3'
+                    disabled={addToPlaylist.isPending}
                   >
-                    <ArtworkImage
-                      source={{
-                        uri: getPlaylistImageUrl(playlist) || undefined,
+                    <View
+                      style={{
+                        width: ARTWORK_SIZE,
+                        height: ARTWORK_SIZE,
+                        borderRadius: 6,
+                        overflow: "hidden",
+                        backgroundColor: "#1a1a1a",
+                        marginRight: 12,
                       }}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit='cover'
-                      cachePolicy='memory-disk'
-                    />
-                  </View>
-                  <View className='flex-1'>
-                    <Text numberOfLines={1} className='text-white text-base'>
-                      {playlist.Name}
-                    </Text>
-                    <Text className='text-neutral-500 text-sm'>
-                      {playlist.ChildCount} {t("music.tabs.tracks")}
-                    </Text>
-                  </View>
-                  {addToPlaylist.isPending && (
-                    <ActivityIndicator size='small' color='#9334E9' />
+                    >
+                      {imageUrl ? (
+                        <ArtworkImage
+                          source={{ uri: imageUrl }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit='cover'
+                          cachePolicy='memory-disk'
+                        />
+                      ) : (
+                        <View className='flex-1 items-center justify-center bg-neutral-800'>
+                          <Ionicons
+                            name='musical-note'
+                            size={20}
+                            color='#737373'
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <View className='flex-1'>
+                      <Text numberOfLines={1} className='text-white text-base'>
+                        {playlist.Name}
+                      </Text>
+                      <Text className='text-neutral-500 text-sm'>
+                        {playlist.ChildCount} {t("music.tabs.tracks")}
+                      </Text>
+                    </View>
+                    {addToPlaylist.isPending && (
+                      <ActivityIndicator size='small' color='#9334E9' />
+                    )}
+                  </TouchableOpacity>
+                  {index < filteredPlaylists.length - 1 && (
+                    <View style={styles.separator} />
                   )}
-                </TouchableOpacity>
-                {index < filteredPlaylists.length - 1 && (
-                  <View style={styles.separator} />
-                )}
-              </View>
-            ))}
+                </View>
+              );
+            })}
           </View>
         )}
       </BottomSheetScrollView>

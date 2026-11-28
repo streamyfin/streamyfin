@@ -8,24 +8,15 @@ import { Image } from "@/components/common/ServerImage";
 import { BACKGROUND_IMAGE_TRANSITION } from "@/constants/Values";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
+import type { ImageKind } from "@/utils/jellyfin/image/resolveItemImage";
 
 interface Props extends ImageProps {
   item: BaseItemDto;
-  variant?:
-    | "Primary"
-    | "Backdrop"
-    | "ParentBackdrop"
-    | "ParentLogo"
-    | "Logo"
-    | "AlbumPrimary"
-    | "SeriesPrimary"
-    | "Screenshot"
-    | "Thumb";
-  quality?: number;
-  /** Requested image width in physical pixels, not layout points. */
+  kind?: ImageKind;
+  /** Width of the box the image is drawn in, in layout points. */
   width?: number;
   /**
-   * Height of the box the image covers, in physical pixels. Pass it with
+   * Height of the box the image is drawn in, in layout points. Pass it with
    * `width` for a cover fit image, so the request is sized to the box.
    */
   height?: number;
@@ -34,9 +25,8 @@ interface Props extends ImageProps {
 
 export const ItemImage: FC<Props> = ({
   item,
-  variant = "Primary",
-  quality = 90,
-  width = 1000,
+  kind = "primary",
+  width,
   height,
   onError,
   ...props
@@ -51,12 +41,11 @@ export const ItemImage: FC<Props> = ({
     return getItemImage({
       item,
       api,
-      variant,
-      quality,
+      kind,
       width,
       height,
     });
-  }, [api, item, quality, variant, width, height]);
+  }, [api, item, kind, width, height]);
 
   // return placeholder icon if no source
   if (!source?.uri)

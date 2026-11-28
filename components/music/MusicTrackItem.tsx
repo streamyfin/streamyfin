@@ -17,8 +17,10 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { formatDuration } from "@/utils/time";
+
+const ARTWORK_SIZE = 44;
 
 interface Props {
   track: BaseItemDto;
@@ -41,13 +43,14 @@ export const MusicTrackItem: React.FC<Props> = ({
   const { isConnected, serverConnected } = useNetworkStatus();
   const haptic = useHaptic("light");
 
-  const imageUrl = useMemo(() => {
-    const albumId = track.AlbumId || track.ParentId;
-    if (albumId) {
-      return `${api?.basePath}/Items/${albumId}/Images/Primary?maxHeight=100&maxWidth=100`;
-    }
-    return getPrimaryImageUrl({ api, item: track });
-  }, [api, track]);
+  const imageUrl = useMemo(
+    () =>
+      getItemImageUrl(api, track, "album", {
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
+      }),
+    [api, track],
+  );
 
   const isCurrentTrack = currentTrack?.Id === track.Id;
   const isTrackLoading = loadingTrackId === track.Id;
@@ -136,8 +139,8 @@ export const MusicTrackItem: React.FC<Props> = ({
       {showArtwork && (
         <View
           style={{
-            width: 44,
-            height: 44,
+            width: ARTWORK_SIZE,
+            height: ARTWORK_SIZE,
             borderRadius: 4,
             overflow: "hidden",
             backgroundColor: "#1a1a1a",

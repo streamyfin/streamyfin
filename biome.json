@@ -79,19 +79,20 @@
     },
     {
       "includes": [
-        "app/**/*.ts",
-        "app/**/*.tsx",
-        "components/**/*.ts",
-        "components/**/*.tsx",
-        "hooks/**/*.ts",
-        "hooks/**/*.tsx",
-        "providers/**/*.ts",
-        "providers/**/*.tsx",
-        "!**/*.test.ts",
-        "!**/*.test.tsx",
+        "{app,components,hooks,providers,utils,services}/**/*.{ts,tsx}",
+        "!**/*.test.{ts,tsx}",
         "!**/*.perf-test.tsx"
       ],
-      "plugins": ["./biome-plugins/no-dimensions-window-in-ui.grit"]
+      "plugins": [
+        {
+          "path": "./biome-plugins/no-dimensions-window-in-ui.grit",
+          "includes": ["{app,components,hooks,providers}/**"]
+        },
+        {
+          "path": "./biome-plugins/no-hand-built-image-url.grit",
+          "includes": ["**", "!utils/jellyfin/image/**"]
+        }
+      ]
     },
     {
       "includes": [

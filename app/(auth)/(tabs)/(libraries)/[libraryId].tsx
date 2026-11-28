@@ -110,7 +110,7 @@ import {
 } from "@/utils/atoms/tvLibrarySheet";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { ALPHABET, alphabetJumpParams } from "@/utils/jellyfin/alphabetJump";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { describeValueShape, isJellyfinId } from "@/utils/jellyfin/itemId";
 import {
   getLanguageFilterLabel,
@@ -810,10 +810,8 @@ const LibraryPage = () => {
 
       // Special rendering for Playlist items (square thumbnails)
       if (item.Type === "Playlist") {
-        const playlistImageUrl = getPrimaryImageUrl({
-          api,
-          item,
-          width: TV_PLAYLIST_SQUARE_SIZE * 2,
+        const playlistImageUrl = getItemImageUrl(api, item, "primary", {
+          width: TV_PLAYLIST_SQUARE_SIZE,
         });
 
         return (

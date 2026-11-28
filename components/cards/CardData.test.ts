@@ -63,8 +63,9 @@ describe("buildItemCards artwork size", () => {
   test("leaves the request as it was on a 2x screen", () => {
     onScreenDensity(2);
 
+    // Web: 5
     expect(imageUrlOf(movie, { kind: "portrait" })).toBe(
-      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=300&quality=80&tag=poster-tag`,
+      `${api.basePath}/Items/movie-1/Images/Primary?fillWidth=300&quality=90&tag=poster-tag`,
     );
   });
 
@@ -120,14 +121,14 @@ describe("buildItemCards artwork size", () => {
     // 200 by 112.5 points. The fixed 389 pixels fell short from 3.5x up.
     onScreenDensity(3.75);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
-      fillWidth: null,
-      fillHeight: "450",
+      fillWidth: "800",
+      fillHeight: "500",
     });
 
     onScreenDensity(2);
     expect(sizeOf(imageUrlOf(movie, { kind: "wide" }))).toEqual({
-      fillWidth: null,
-      fillHeight: "225",
+      fillWidth: "400",
+      fillHeight: "300",
     });
   });
 
@@ -143,7 +144,7 @@ describe("buildItemCards artwork size", () => {
     );
 
     expect(url).toContain("/Items/movie-1/Images/Primary?");
-    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "338" });
+    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "400" });
   });
 
   test("covers the whole wide card with an episode's own still", () => {
@@ -156,7 +157,7 @@ describe("buildItemCards artwork size", () => {
     );
 
     expect(url).toContain("/Items/episode-1/Images/Primary?");
-    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "338" });
+    expect(sizeOf(url)).toEqual({ fillWidth: "600", fillHeight: "400" });
   });
 
   test("asks for less for the small artwork of a list row", () => {
@@ -164,8 +165,8 @@ describe("buildItemCards artwork size", () => {
 
     // 128 by 72 points.
     expect(sizeOf(imageUrlOf(movie, { kind: "rowWide" }))).toEqual({
-      fillWidth: null,
-      fillHeight: "225",
+      fillWidth: "400",
+      fillHeight: "300",
     });
   });
 });

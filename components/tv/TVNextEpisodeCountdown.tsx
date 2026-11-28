@@ -4,7 +4,6 @@ import { BlurView } from "expo-blur";
 import { type FC, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Image,
   Pressable,
   Animated as RNAnimated,
   StyleSheet,
@@ -20,9 +19,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -75,11 +75,8 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
 
   onFinishRef.current = onFinish;
 
-  const imageUrl = getPrimaryImageUrl({
-    api,
-    item: nextItem,
-    width: scaleSize(360),
-    quality: 80,
+  const imageUrl = getItemImageUrl(api, nextItem, "primary", {
+    width: scaleSize(180),
   });
 
   // Animated position based on controls visibility
@@ -176,7 +173,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
                 <Image
                   source={{ uri: imageUrl }}
                   style={styles.thumbnail}
-                  resizeMode='cover'
+                  contentFit='cover'
                 />
               )}
 

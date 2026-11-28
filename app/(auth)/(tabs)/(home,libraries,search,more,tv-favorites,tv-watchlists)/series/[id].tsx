@@ -32,9 +32,7 @@ import { useLeaveWhenGone } from "@/hooks/useLeaveWhenGone";
 import { playableQueueItems, useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { storage } from "@/utils/mmkv";
 import { getSeriesPlaybackTarget } from "@/utils/seriesPlaybackTarget";
 
@@ -95,12 +93,9 @@ const page: React.FC = () => {
     if (isOffline && base64Image) {
       return `data:image/jpeg;base64,${base64Image}`;
     }
-    return getBackdropUrl({
-      api,
-      item,
-      quality: 90,
-      width: toImagePixels(windowWidth),
-      height: toImagePixels(HEADER_HEIGHT),
+    return getItemImageUrl(api, item, "backdrop", {
+      width: windowWidth,
+      height: HEADER_HEIGHT,
     });
   }, [isOffline, base64Image, api, item, windowWidth]);
 
@@ -108,9 +103,8 @@ const page: React.FC = () => {
     if (isOffline) {
       return null; // No logo in offline mode
     }
-    return getLogoImageUrlById({
-      api,
-      item,
+    return getItemImageUrl(api, item, "logo", {
+      height: LOGO_HEIGHT,
     });
   }, [isOffline, api, item]);
 
@@ -193,8 +187,7 @@ const page: React.FC = () => {
     });
   }, [allEpisodes, isLoading, item, isOffline, startShuffle]);
 
-  // For offline mode, we can show the page even without backdropUrl
-  if (!item || (!isOffline && !backdropUrl)) return null;
+  if (!item) return null;
 
   // TV version
   if (Platform.isTV) {

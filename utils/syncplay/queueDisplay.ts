@@ -1,8 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { SYNCPLAY_QUEUE_POSTER_WIDTH } from "@/constants/SyncPlay";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 const episodeNumber = (item: BaseItemDto) =>
   item.ParentIndexNumber != null && item.IndexNumber != null
@@ -22,9 +21,6 @@ export const syncPlayQueuePosterUrl = (
   api: Api | null | undefined,
   item: BaseItemDto | undefined,
 ): string | null =>
-  getPrimaryImageUrl({
-    api,
-    item:
-      item?.Type === "Episode" && item.SeriesId ? { Id: item.SeriesId } : item,
-    width: toImagePixels(SYNCPLAY_QUEUE_POSTER_WIDTH),
+  getItemImageUrl(api, item, "poster", {
+    width: SYNCPLAY_QUEUE_POSTER_WIDTH,
   });

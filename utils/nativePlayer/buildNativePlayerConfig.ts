@@ -38,7 +38,7 @@ import {
 } from "@/utils/customHeaders";
 import { withAcceptLanguageForUrl } from "@/utils/jellyfin/acceptLanguage";
 import { autoBitrateOptions } from "@/utils/jellyfin/autoBitrateOptions";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { resolveMaxStreamingBitrate } from "@/utils/jellyfin/maxStreamingBitrate";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -395,7 +395,10 @@ const buildMetadata = (item: BaseItemDto, api: Api | null) => {
     subtitle = String(item.ProductionYear);
   }
 
-  const artworkUri = getPrimaryImageUrl({ api, item, quality: 90, width: 500 });
+  const artworkUri = getItemImageUrl(api, item, "primary", {
+    width: 500,
+    pixels: true,
+  });
 
   return {
     itemId: item.Id ?? undefined,

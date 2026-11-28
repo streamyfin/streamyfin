@@ -11,7 +11,7 @@ import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import type {
   DiscoverSlider,
@@ -176,14 +176,16 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
-  // Image URL getter for music items
+  // Image URL getter for music items, drawn in a poster card
   const getImageUrl = useMemo(() => {
     return (item: BaseItemDto): string | undefined => {
       if (!api) return undefined;
-      const url = getPrimaryImageUrl({ api, item });
+      const url = getItemImageUrl(api, item, "primary", {
+        width: sizes.posters.poster,
+      });
       return url ?? undefined;
     };
-  }, [api]);
+  }, [api, sizes.posters.poster]);
 
   // Determine which section should have initial focus
   const sections = useMemo(() => {

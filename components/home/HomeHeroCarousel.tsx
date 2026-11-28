@@ -28,11 +28,7 @@ import {
   useSettings,
 } from "@/utils/atoms/settings";
 import { heroCardMaxFontScale } from "@/utils/heroCardFontScale";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { getItemNavigation } from "../common/TouchableItemRouter";
 
@@ -50,11 +46,17 @@ const heroMetrics = (windowWidth: number) => {
   return {
     cardHeight,
     // The backdrop covers the whole card, which on a phone is taller than
-    // 16:9: the request has to carry both sides, in physical pixels.
-    backdropWidth: toImagePixels(cardWidth),
-    backdropHeight: toImagePixels(cardHeight),
+    // 16:9: the request has to carry both sides.
+    backdropWidth: cardWidth,
+    backdropHeight: cardHeight,
   };
 };
+
+/** Height of the title logo in the native card's info panel, in points. */
+const HERO_LOGO_HEIGHT = 32;
+
+/** Width of the poster in the native card's info panel, in points. */
+const HERO_POSTER_WIDTH = 62;
 
 const IMAGE_TYPES = ["Primary", "Backdrop", "Logo", "Thumb"] as const;
 
@@ -234,46 +236,24 @@ const buildBackdropUrl = (
     item.ParentBackdropItemId &&
     item.ParentBackdropImageTags?.length
   ) {
-    return getParentBackdropImageUrl({
-      api,
-      item,
-      quality: 80,
-      width,
-      height,
+    return getItemImageUrl(api, item, "parentBackdrop", {
+      width: width || undefined,
+      height: height || undefined,
     });
   }
-  return getBackdropUrl({ api, item, quality: 80, width, height });
+  return getItemImageUrl(api, item, "backdrop", {
+    width: width || undefined,
+    height: height || undefined,
+  });
 };
 
-const buildLogoUrl = (api: Api, item: BaseItemDto): string | null => {
-  // Handles the item's own logo and the Episode → parent logo case.
-  const own = getLogoImageUrlById({ api, item, height: 120 });
-  if (own) return own;
-  // Seasons carry the series logo only through the Parent* fields.
-  if (item.ParentLogoItemId && item.ParentLogoImageTag) {
-    const params = new URLSearchParams({
-      tag: item.ParentLogoImageTag,
-      quality: "90",
-      fillHeight: "120",
-    });
-    return `${api.basePath}/Items/${item.ParentLogoItemId}/Images/Logo?${params.toString()}`;
-  }
-  return null;
-};
+const buildLogoUrl = (api: Api, item: BaseItemDto): string | null =>
+  getItemImageUrl(api, item, "logo", { height: HERO_LOGO_HEIGHT });
 
-const buildPosterUrl = (api: Api, item: BaseItemDto): string | null => {
-  // An episode's Primary is a 16:9 still that crops badly in the portrait
-  // thumb slot; use the series poster instead.
-  if (item.Type === "Episode" && item.SeriesId && item.SeriesPrimaryImageTag) {
-    const params = new URLSearchParams({
-      tag: item.SeriesPrimaryImageTag,
-      quality: "90",
-      fillWidth: "240",
-    });
-    return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?${params.toString()}`;
-  }
-  return getPrimaryImageUrl({ api, item, width: 240 });
-};
+// An episode's Primary is a 16:9 still that crops badly in the portrait thumb
+// slot; the `poster` kind picks the series poster instead.
+const buildPosterUrl = (api: Api, item: BaseItemDto): string | null =>
+  getItemImageUrl(api, item, "poster", { width: HERO_POSTER_WIDTH });
 
 const buildBadges = (item: BaseItemDto): string[] => {
   const badges: string[] = [];

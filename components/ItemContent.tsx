@@ -37,8 +37,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import {
   canPlayInRemoteSession,
   isPlayableItem,
@@ -143,7 +142,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
   const logoUrl = useMemo(
-    () => (item ? getLogoImageUrlById({ api, item }) : null),
+    () =>
+      getItemImageUrl(api, item, "logo", {
+        height: LOGO_HEIGHT,
+      }),
     [api, item],
   );
 
@@ -255,12 +257,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         headerImage={
           <View style={[{ flex: 1 }]}>
             <ItemImage
-              variant={
-                item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
-              }
+              kind={item.Type === "Movie" && logoUrl ? "backdrop" : "primary"}
               item={item}
-              width={toImagePixels(windowWidth)}
-              height={toImagePixels(headerImageHeight)}
+              width={windowWidth}
+              height={headerImageHeight}
               style={{
                 width: "100%",
                 height: "100%",

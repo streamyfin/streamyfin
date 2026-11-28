@@ -39,7 +39,10 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getJellyfinHeadersForUrl } from "@/utils/customHeaders";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
+
+// Layout points, shared by the box and the image request sized from it.
+const ARTWORK_SIZE = 56;
 
 interface Props {
   open: boolean;
@@ -107,14 +110,14 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     [track?.Id, storageUpdateCounter],
   );
 
-  const imageUrl = useMemo(() => {
-    if (!track) return null;
-    const albumId = track.AlbumId || track.ParentId;
-    if (albumId) {
-      return `${api?.basePath}/Items/${albumId}/Images/Primary?maxHeight=200&maxWidth=200`;
-    }
-    return getPrimaryImageUrl({ api, item: track });
-  }, [api, track]);
+  const imageUrl = useMemo(
+    () =>
+      getItemImageUrl(api, track, "album", {
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
+      }),
+    [api, track],
+  );
 
   const handleDismissed = useSheetOpenState(bottomSheetModalRef, open);
 
@@ -254,8 +257,8 @@ export const TrackOptionsSheet: React.FC<Props> = ({
         <View className='flex-row items-center mb-6 px-2'>
           <View
             style={{
-              width: 56,
-              height: 56,
+              width: ARTWORK_SIZE,
+              height: ARTWORK_SIZE,
               borderRadius: 6,
               overflow: "hidden",
               backgroundColor: "#1a1a1a",

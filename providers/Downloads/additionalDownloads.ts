@@ -161,9 +161,9 @@ export async function downloadCoverImage(
     const itemImage = getItemImage({
       item,
       api,
-      variant: "Primary",
-      quality: 90,
+      kind: "primary",
       width: 500,
+      pixels: true,
     });
 
     if (!itemImage?.uri) {

@@ -63,7 +63,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { isAbortLikeError } from "@/utils/errors";
 import { eventBus } from "@/utils/eventBus";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { searchPeople, searchStudios } from "@/utils/jellyfin/search";
 import { logAndCaptureError } from "@/utils/log";
 import { isSeerrQuery } from "@/utils/seerr/queries";
@@ -84,6 +84,12 @@ const exampleSearches = [
 
 // The people and studio requests are covered by utils/jellyfin/search.test.ts,
 // the TV's studio section by components/search/TVSearchPage.test.tsx.
+/** Side of an artist's round photo in the search results, in points. */
+const SEARCH_ARTIST_ARTWORK_SIZE = 80;
+
+/** Side of an album, song or playlist cover in the search results, in points. */
+const SEARCH_ARTWORK_SIZE = 112;
+
 export default function SearchPage() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -897,7 +903,9 @@ export default function SearchPage() {
               items={artists}
               header={t("search.artists")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: SEARCH_ARTIST_ARTWORK_SIZE,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -906,9 +914,9 @@ export default function SearchPage() {
                   >
                     <View
                       style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
+                        width: SEARCH_ARTIST_ARTWORK_SIZE,
+                        height: SEARCH_ARTIST_ARTWORK_SIZE,
+                        borderRadius: SEARCH_ARTIST_ARTWORK_SIZE / 2,
                         overflow: "hidden",
                         backgroundColor: "#1a1a1a",
                       }}
@@ -936,7 +944,9 @@ export default function SearchPage() {
               items={albums}
               header={t("search.albums")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: SEARCH_ARTWORK_SIZE,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -945,8 +955,8 @@ export default function SearchPage() {
                   >
                     <View
                       style={{
-                        width: 112,
-                        height: 112,
+                        width: SEARCH_ARTWORK_SIZE,
+                        height: SEARCH_ARTWORK_SIZE,
                         borderRadius: 8,
                         overflow: "hidden",
                         backgroundColor: "#1a1a1a",
@@ -978,7 +988,9 @@ export default function SearchPage() {
               items={songs}
               header={t("search.songs")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: SEARCH_ARTWORK_SIZE,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -987,8 +999,8 @@ export default function SearchPage() {
                   >
                     <View
                       style={{
-                        width: 112,
-                        height: 112,
+                        width: SEARCH_ARTWORK_SIZE,
+                        height: SEARCH_ARTWORK_SIZE,
                         borderRadius: 8,
                         overflow: "hidden",
                         backgroundColor: "#1a1a1a",
@@ -1020,7 +1032,9 @@ export default function SearchPage() {
               items={playlists}
               header={t("search.playlists")}
               renderItem={(item: BaseItemDto) => {
-                const imageUrl = getPrimaryImageUrl({ api, item });
+                const imageUrl = getItemImageUrl(api, item, "primary", {
+                  width: SEARCH_ARTWORK_SIZE,
+                });
                 return (
                   <TouchableItemRouter
                     item={item}
@@ -1029,8 +1043,8 @@ export default function SearchPage() {
                   >
                     <View
                       style={{
-                        width: 112,
-                        height: 112,
+                        width: SEARCH_ARTWORK_SIZE,
+                        height: SEARCH_ARTWORK_SIZE,
                         borderRadius: 8,
                         overflow: "hidden",
                         backgroundColor: "#1a1a1a",

@@ -26,7 +26,7 @@ import {
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { resolveItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { isLiveBroadcast } from "@/utils/jellyfin/media/isLiveBroadcast";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
@@ -148,63 +148,32 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
 
   const aspectRatio = orientation === "horizontal" ? 16 / 9 : 10 / 15;
 
-  // Smart image URL selection
-  const imageUrl = useMemo(() => {
-    // Use custom getter if provided
+  // The image the card draws, with the blurhash of that same image.
+  const image = useMemo(() => {
+    // A custom getter supplies a URL whose image the card cannot know.
     if (imageUrlGetter) {
-      return imageUrlGetter(item) ?? null;
+      return { url: imageUrlGetter(item) ?? null, blurhash: undefined };
     }
 
-    if (!api) return null;
-
-    // Horizontal orientation: prefer thumbs/backdrops for landscape images
-    if (orientation === "horizontal") {
-      // Episode: prefer series thumb image for consistent look (like hero section)
-      if (item.Type === "Episode") {
-        // Opt-in: use the episode's own image instead of the series thumb.
-        if (preferEpisodeImage && item.ImageTags?.Primary) {
-          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
-        }
-        // First try parent/series thumb (horizontal series artwork).
-        // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
-        if (item.ParentThumbItemId && item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
-        }
-        const parentBackdropTag = item.ParentBackdropImageTags?.[0];
-        if (item.ParentBackdropItemId && parentBackdropTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${parentBackdropTag}`;
-        }
-        // Fall back to episode's own primary image
-        if (item.ImageTags?.Primary) {
-          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
-        }
-        // Last resort: try primary without tag
-        return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
-      }
-
-      // Movie/Series/Program: prefer thumb over primary
-      if (item.ImageTags?.Thumb) {
-        return `${api.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ImageTags.Thumb}`;
-      }
-      return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
-    }
-
-    // Vertical orientation: use primary image
-    // For episodes, get the series primary image
-    if (
-      item.Type === "Episode" &&
-      item.SeriesId &&
-      item.SeriesPrimaryImageTag
-    ) {
-      return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=${width * 3}&quality=80&tag=${item.SeriesPrimaryImageTag}`;
-    }
-
-    return getPrimaryImageUrl({
-      api,
-      item,
-      width: width * 2, // 2x for quality on large screens
-    });
-  }, [api, item, orientation, width, imageUrlGetter, preferEpisodeImage]);
+    const resolved =
+      orientation === "horizontal"
+        ? resolveItemImageUrl(api, item, "wide", {
+            width,
+            height: width / aspectRatio,
+            preferEpisodeImage,
+          })
+        : resolveItemImageUrl(api, item, "poster", { width });
+    return { url: resolved?.url ?? null, blurhash: resolved?.ref.blurhash };
+  }, [
+    api,
+    item,
+    orientation,
+    width,
+    aspectRatio,
+    imageUrlGetter,
+    preferEpisodeImage,
+  ]);
+  const imageUrl = image.url;
 
   // Progress calculation
   const progress = useMemo(() => {
@@ -224,12 +193,6 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
   }, [item, showProgress]);
 
   const isWatched = showWatchedIndicator && item.UserData?.Played === true;
-
-  // Blurhash for placeholder
-  const blurhash = useMemo(() => {
-    const key = item.ImageTags?.Primary as string;
-    return item.ImageBlurHashes?.Primary?.[key];
-  }, [item]);
 
   // Glass effect availability
   const useGlass = isGlassEffectAvailable();
@@ -563,7 +526,7 @@ const TVPosterCardComponent: React.FC<TVPosterCardProps> = ({
         }}
       >
         <Image
-          placeholder={{ blurhash: blurhash ?? undefined }}
+          placeholder={{ blurhash: image.blurhash }}
           key={item.Id}
           source={{ uri: imageUrl }}
           recyclingKey={item.Id}

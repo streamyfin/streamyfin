@@ -43,6 +43,7 @@ export default function LiveTvChannelsPage() {
                   borderRadius: 8,
                 }}
                 item={item}
+                width={60}
               />
             </View>
             <Text className='font-bold'>{item.Name}</Text>

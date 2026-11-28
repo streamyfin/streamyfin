@@ -8,6 +8,7 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { makeApi } from "@/test-utils/jellyfinApi";
+import { useSettings } from "@/utils/atoms/settings";
 import { LibraryItemCard } from "./LibraryItemCard";
 
 jest.mock("@/providers/JellyfinProvider", () =>
@@ -20,7 +21,7 @@ jest.mock("@/utils/atoms/settings", () =>
     libraryOptions: { display: "row", showStats: true },
   }),
 );
-// The row layout these specs render draws no image.
+// The row layout most of these specs render draws no image.
 // Navigation is not what is under test; the card shows up as its content.
 jest.mock("../common/TouchableItemRouter", () => ({
   TouchableItemRouter: ({ children }: { children: React.ReactNode }) =>
@@ -117,5 +118,45 @@ describe("LibraryItemCard", () => {
       addCurrentProgram: "false",
     });
     expect(errors).toEqual([]);
+  });
+
+  // getItemImageUrl answers null for a library without a Primary image, where
+  // the old helper built an untagged URL; the card hid itself on that null and
+  // the library dropped out of the list, in every layout.
+  describe.each([
+    ["row", { display: "row" }],
+    ["cover", { display: "list", imageStyle: "cover", showTitles: true }],
+    ["thumbnail", { display: "list", imageStyle: "poster" }],
+  ])("in the %s layout", (_layout, libraryOptions) => {
+    const options = useSettings().settings.libraryOptions;
+    const before = { ...options };
+    beforeEach(() => Object.assign(options, libraryOptions));
+    afterEach(() => Object.assign(options, before));
+
+    test("shows a library that has no image", async () => {
+      await renderCard({ ...LIBRARY, ImageTags: {} });
+
+      expect(screen.getByText("Movies")).toBeTruthy();
+    });
+  });
+
+  // With its titles off, a cover card is identified by its artwork alone; a
+  // library without an image drew an empty card.
+  test("names a library that has no image in the cover layout with titles off", async () => {
+    const options = useSettings().settings.libraryOptions;
+    const before = { ...options };
+    Object.assign(options, {
+      display: "list",
+      imageStyle: "cover",
+      showTitles: false,
+      showStats: false,
+    });
+    try {
+      await renderCard({ ...LIBRARY, ImageTags: {} });
+
+      expect(screen.getByText("Movies")).toBeTruthy();
+    } finally {
+      Object.assign(options, before);
+    }
   });
 });

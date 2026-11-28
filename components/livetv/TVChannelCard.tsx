@@ -1,11 +1,12 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React from "react";
-import { Animated, Image, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface TVChannelCardProps {
   channel: BaseItemDto;
@@ -17,6 +18,8 @@ interface TVChannelCardProps {
 
 const CARD_WIDTH = 200;
 const CARD_HEIGHT = 160;
+const LOGO_WIDTH = 80;
+const LOGO_HEIGHT = 60;
 
 export const TVChannelCard: React.FC<TVChannelCardProps> = ({
   channel,
@@ -32,11 +35,9 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
       duration: 120,
     });
 
-  const imageUrl = getPrimaryImageUrl({
-    api,
-    item: channel,
-    quality: 80,
-    width: 200,
+  const imageUrl = getItemImageUrl(api, channel, "primary", {
+    width: LOGO_WIDTH,
+    height: LOGO_HEIGHT,
   });
 
   return (
@@ -66,7 +67,7 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
             <Image
               source={{ uri: imageUrl }}
               style={styles.logo}
-              resizeMode='contain'
+              contentFit='contain'
             />
           ) : (
             <View
@@ -150,8 +151,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   logoContainer: {
-    width: 80,
-    height: 60,
+    width: LOGO_WIDTH,
+    height: LOGO_HEIGHT,
     marginBottom: 8,
     justifyContent: "center",
     alignItems: "center",

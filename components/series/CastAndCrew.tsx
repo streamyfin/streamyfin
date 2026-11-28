@@ -5,11 +5,12 @@ import type React from "react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { CARD_LAYOUTS } from "@/components/cards/CardData";
 import { CardRow } from "@/components/cards/CardRow";
 import useRouter from "@/hooks/useAppRouter";
 import { useCastCrew } from "@/hooks/useCastCrew";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -33,7 +34,9 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         id: person.Id,
         title: person.Name ?? "",
         subtitle: person.Role ?? null,
-        imageUrl: getPrimaryImageUrl({ api, item: person }),
+        imageUrl: getItemImageUrl(api, person, "primary", {
+          width: CARD_LAYOUTS.portrait.cardWidth,
+        }),
       })),
     [api, distinctPeople],
   );

@@ -400,8 +400,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         }}
       >
         <ItemImage
-          variant='Backdrop'
+          kind='backdrop'
           item={item}
+          width={windowWidth}
+          height={windowHeight}
           style={{ width: "100%", height: "100%" }}
         />
         {/* Gradient overlays for readability */}
@@ -555,8 +557,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               }}
             >
               <ItemImage
-                variant='Primary'
+                kind='primary'
                 item={item}
+                width={windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO}
+                height={windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO * 1.5}
                 style={{ width: "100%", height: "100%" }}
               />
             </View>

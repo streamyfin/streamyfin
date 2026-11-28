@@ -52,11 +52,14 @@ import {
 } from "@/components/tv";
 import { useTVCast } from "@/components/tv/useTVCast";
 import type { Track } from "@/components/video-player/controls/types";
+import { LOGO_HEIGHT } from "@/constants/Images";
 import {
+  TV_DETAIL_EPISODE_WIDTH_RATIO,
   TV_DETAIL_HEADER_MIN_HEIGHT_RATIO,
   TV_DETAIL_OVERVIEW_MAX_WIDTH_RATIO,
   TV_DETAIL_POSTER_WIDTH_RATIO,
 } from "@/constants/TVDetailLayout";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -76,8 +79,10 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { bitrateLabel, toBitrateRequest } from "@/utils/bitrate";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import {
+  getItemImageUrl,
+  getRelatedPosterUrl,
+} from "@/utils/jellyfin/image/getItemImageUrl";
 import { isPlayableItem } from "@/utils/jellyfin/media/isPlayableItem";
 import { getPlayingRunTimeTicks } from "@/utils/jellyfin/mediaSourceVersion";
 import { streamLanguageName } from "@/utils/jellyfin/trackLabel";
@@ -112,7 +117,17 @@ interface ItemContentTVProps {
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
+    const sizes = useScaledTVSizes();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    // The box the page draws the item's picture in, see the right-hand column.
+    const detailImageWidth =
+      item?.Type === "Episode"
+        ? windowWidth * TV_DETAIL_EPISODE_WIDTH_RATIO
+        : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO;
+    const detailImageHeight =
+      item?.Type === "Episode"
+        ? (detailImageWidth * 9) / 16
+        : (detailImageWidth * 3) / 2;
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -195,7 +210,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
-      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      () =>
+        getItemImageUrl(api, item, "logo", {
+          height: LOGO_HEIGHT,
+        }),
       [api, item],
     );
 
@@ -584,40 +602,46 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { cards: fullCast, castInText } = useTVCast(item);
 
     // Series/Season image URLs for episodes
-    const seriesImageUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !item.SeriesId) return null;
-      return getPrimaryImageUrlById({ api, id: item.SeriesId, width: 300 });
-    }, [api, item?.Type, item?.SeriesId]);
+    const seriesImageUrl = useMemo(
+      () =>
+        item?.Type === "Episode"
+          ? getRelatedPosterUrl(api, item, "seriesPrimary", {
+              width: sizes.posters.poster,
+            })
+          : null,
+      [api, item, sizes.posters.poster],
+    );
 
-    const seasonImageUrl = useMemo(() => {
-      if (item?.Type !== "Episode") return null;
-      const seasonId = item.SeasonId || item.ParentId;
-      if (!seasonId) return null;
-      return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
-    }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
+    const seasonImageUrl = useMemo(
+      () =>
+        item?.Type === "Episode"
+          ? getRelatedPosterUrl(api, item, "seasonPrimary", {
+              width: sizes.posters.poster,
+            })
+          : null,
+      [api, item, sizes.posters.poster],
+    );
 
-    // Episode thumbnail URL - episode's own primary image (16:9 for episodes)
-    const episodeThumbnailUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !api) return null;
-      return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
-    }, [api, item]);
-
-    // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
-    const seriesThumbUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !api) return null;
-      // No parent thumb means the series carries no Thumb image, and the tagless
-      // request below 404s. Use the series backdrop instead, like the cards do.
-      const parentBackdropTag = item.ParentBackdropImageTags?.[0];
-      if (
-        !(item.ParentThumbItemId && item.ParentThumbImageTag) &&
-        item.ParentBackdropItemId &&
-        parentBackdropTag
-      ) {
-        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${parentBackdropTag}`;
-      }
-      if (!item.SeriesId) return null;
-      return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=700&quality=80`;
-    }, [api, item]);
+    // Prefer the episode's still unless showSeriesPosterOnEpisode selects the
+    // series-first landscape chain.
+    const episodeImageUrl = useMemo(
+      () =>
+        item?.Type === "Episode"
+          ? getItemImageUrl(
+              api,
+              item,
+              settings.showSeriesPosterOnEpisode ? "wide" : "primary",
+              { width: detailImageWidth, height: detailImageHeight },
+            )
+          : null,
+      [
+        api,
+        item,
+        settings.showSeriesPosterOnEpisode,
+        detailImageWidth,
+        detailImageHeight,
+      ],
+    );
 
     // Navigation handlers
     const handleActorPress = useCallback(
@@ -966,10 +990,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             {/* Right side - Poster */}
             <View
               style={{
-                width:
-                  item.Type === "Episode"
-                    ? windowWidth * 0.35
-                    : windowWidth * TV_DETAIL_POSTER_WIDTH_RATIO,
+                width: detailImageWidth,
                 marginLeft: scaleSize(50),
               }}
             >
@@ -985,20 +1006,27 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 }}
               >
                 {item.Type === "Episode" ? (
-                  <Image
-                    source={{
-                      uri:
-                        settings.showSeriesPosterOnEpisode && seriesThumbUrl
-                          ? seriesThumbUrl
-                          : episodeThumbnailUrl!,
-                    }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit='cover'
-                  />
+                  episodeImageUrl ? (
+                    <Image
+                      source={{ uri: episodeImageUrl }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit='cover'
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                      }}
+                    />
+                  )
                 ) : (
                   <ItemImage
-                    variant='Primary'
+                    kind='primary'
                     item={item}
+                    width={detailImageWidth}
+                    height={detailImageHeight}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -1049,7 +1077,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             {fullCast.length > 0 && (
               <TVCastSection
                 cast={fullCast}
-                apiBasePath={api?.basePath}
                 onActorPress={handleActorPress}
                 firstActorRefSetter={setFirstActorCardRef}
                 horizontalPadding={insets.left + scaleSize(80)}

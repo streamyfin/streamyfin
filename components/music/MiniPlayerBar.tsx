@@ -25,10 +25,14 @@ import { ArtworkImage } from "@/components/music/ArtworkImage";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 
 const HORIZONTAL_MARGIN = Platform.OS === "android" ? 12 : 20;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
 const BAR_HEIGHT = Platform.OS === "android" ? 58 : 50;
+
+// Layout points, shared by the box and the image request sized from it.
+const ARTWORK_SIZE = 32;
 
 // Gesture thresholds
 const VELOCITY_THRESHOLD = 1000;
@@ -60,14 +64,14 @@ export const MiniPlayerBar: React.FC = () => {
   // Gesture state
   const translateY = useSharedValue(0);
 
-  const imageUrl = useMemo(() => {
-    if (!api || !currentTrack) return null;
-    const albumId = currentTrack.AlbumId || currentTrack.ParentId;
-    if (albumId) {
-      return `${api.basePath}/Items/${albumId}/Images/Primary?maxHeight=100&maxWidth=100`;
-    }
-    return `${api.basePath}/Items/${currentTrack.Id}/Images/Primary?maxHeight=100&maxWidth=100`;
-  }, [api, currentTrack]);
+  const imageUrl = useMemo(
+    () =>
+      getItemImageUrl(api, currentTrack, "album", {
+        width: ARTWORK_SIZE,
+        height: ARTWORK_SIZE,
+      }),
+    [api, currentTrack],
+  );
 
   const _progressPercentage = useMemo(() => {
     if (!duration || duration === 0) return 0;
@@ -301,8 +305,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   albumArt: {
-    width: 32,
-    height: 32,
+    width: ARTWORK_SIZE,
+    height: ARTWORK_SIZE,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#333",

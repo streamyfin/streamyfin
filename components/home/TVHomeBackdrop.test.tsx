@@ -14,14 +14,14 @@ jest.mock(
   () =>
     jest.requireActual("@/test-utils/jellyfinProvider").jellyfinProviderModule,
 );
-jest.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 // TVSizes reads the typography scale from the settings, which pull in the
 // whole settings UI; the backdrop only needs its timings.
 
+/** An item with a backdrop, or with no image at all when its id says so. */
 const item = (id: string): BaseItemDto => ({
   Id: id,
   Type: "Movie",
-  BackdropImageTags: [`tag-${id}`],
+  BackdropImageTags: id.startsWith("bare") ? [] : [`tag-${id}`],
 });
 
 /** Which item's backdrop each layer holds, in drawing order. */
@@ -36,6 +36,8 @@ const layers = () => {
 describe("TVHomeBackdrop", () => {
   beforeEach(() => {
     jest.useFakeTimers({ doNotFake: ["performance"] });
+    // A spec that slows the prefetch down must not slow the next one.
+    jest.mocked(prefetchServerImage).mockImplementation(async () => true);
     // The native driver runs the fade off the JS thread, and in Jest it would
     // end at once. End it after its duration instead, as on a device.
     jest.spyOn(Animated, "parallel").mockImplementation(
@@ -133,5 +135,39 @@ describe("TVHomeBackdrop", () => {
     await advance(PREFETCH_MS + 60);
 
     expect(layers()).toEqual(["b", "x"]);
+  });
+
+  // getItemImageUrl answers null for an item with no image, where the old
+  // helper built an untagged URL; the crossfade returned early on that null
+  // and the previous item's backdrop stayed behind the new one.
+  it("fades the backdrop out when the focused item has no image", async () => {
+    const ref = createRef<TVHomeBackdropRef>();
+    await render(<TVHomeBackdrop ref={ref} />);
+    await focus(ref, "a");
+    await act(async () => {
+      jest.advanceTimersByTime(TV_BACKDROP_CROSSFADE_MS);
+    });
+    expect(layers()).toEqual([null, "a"]);
+
+    await focus(ref, "bare");
+    await act(async () => {
+      jest.advanceTimersByTime(TV_BACKDROP_CROSSFADE_MS);
+    });
+
+    expect(layers()).toEqual([null, null]);
+  });
+
+  it("fades the next backdrop in after an item with no image", async () => {
+    const ref = createRef<TVHomeBackdropRef>();
+    await render(<TVHomeBackdrop ref={ref} />);
+    await focus(ref, "a");
+    await focus(ref, "bare");
+    await act(async () => {
+      jest.advanceTimersByTime(TV_BACKDROP_CROSSFADE_MS);
+    });
+
+    await focus(ref, "b");
+
+    expect(layers()).toContain("b");
   });
 });

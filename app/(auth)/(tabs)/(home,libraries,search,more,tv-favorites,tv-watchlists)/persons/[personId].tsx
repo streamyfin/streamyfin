@@ -17,8 +17,7 @@ import {
 } from "@/components/ParallaxPage";
 import { TVActorPage } from "@/components/persons/TVActorPage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { toImagePixels } from "@/utils/jellyfin/image/imagePixels";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const PAGE_SIZE = 16;
@@ -83,13 +82,10 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
 
   const backdropUrl = useMemo(
     () =>
-      getBackdropUrl({
-        api,
-        item,
-        quality: 90,
+      getItemImageUrl(api, item, "backdrop", {
         // The image covers the header, which spans the window.
-        width: toImagePixels(windowWidth),
-        height: toImagePixels(PARALLAX_HEADER_HEIGHT),
+        width: windowWidth,
+        height: PARALLAX_HEADER_HEIGHT,
       }),
     [api, item, windowWidth],
   );
@@ -101,20 +97,30 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
       </View>
     );
 
-  if (!item?.Id || !backdropUrl) return null;
+  if (!item?.Id) return null;
 
   return (
     <ParallaxScrollView
       headerImage={
-        <Image
-          source={{
-            uri: backdropUrl,
-          }}
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        />
+        backdropUrl ? (
+          <Image
+            source={{
+              uri: backdropUrl,
+            }}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        ) : (
+          <View
+            style={{
+              width: "100%",
+              height: "100%",
+              backgroundColor: "#1a1a1a",
+            }}
+          />
+        )
       }
     >
       <View className='flex flex-col space-y-4 my-4'>

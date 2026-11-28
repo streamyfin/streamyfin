@@ -78,9 +78,9 @@ async function stagePoster(
     const image = getItemImage({
       item,
       api,
-      variant: item.Type === "Episode" ? "SeriesPrimary" : "Primary",
-      quality: 90,
+      kind: "poster",
       width: 300,
+      pixels: true,
     });
     if (!image?.uri) return undefined;
 

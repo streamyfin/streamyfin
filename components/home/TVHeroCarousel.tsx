@@ -35,8 +35,7 @@ import {
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { getItemImageUrl } from "@/utils/jellyfin/image/getItemImageUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -66,41 +65,14 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     // Check if glass effect is available (tvOS 26+)
     const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
 
-    const posterUrl = useMemo(() => {
-      if (!api) return null;
-
-      // For episodes, always use series thumb.
-      // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
-      if (item.Type === "Episode") {
-        if (item.ParentThumbItemId && item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
-        }
-        // Series without a Thumb: fall back to its backdrop, like other Jellyfin
-        // clients do. The tagless Thumb request below 404s in that case.
-        const parentBackdropTag = item.ParentBackdropImageTags?.[0];
-        if (item.ParentBackdropItemId && parentBackdropTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=400&quality=80&tag=${parentBackdropTag}`;
-        }
-        // Neither parent pair resolved. The tagless series request below is a
-        // 404 whenever the series has no Thumb, which leaves the hero blank, so
-        // try the episode's own image first like the poster cards do.
-        if (item.ImageTags?.Primary) {
-          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=400&quality=80&tag=${item.ImageTags.Primary}`;
-        }
-        if (item.SeriesId) {
-          return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
-        }
-      }
-
-      // For non-episodes, use item's own thumb/primary
-      if (item.ImageTags?.Thumb) {
-        return `${api.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ImageTags.Thumb}`;
-      }
-      if (item.ImageTags?.Primary) {
-        return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=400&quality=80&tag=${item.ImageTags.Primary}`;
-      }
-      return null;
-    }, [api, item]);
+    const posterUrl = useMemo(
+      () =>
+        getItemImageUrl(api, item, "wide", {
+          width: sizes.posters.episode,
+          height: (sizes.posters.episode * 9) / 16,
+        }),
+      [api, item, sizes.posters.episode],
+    );
 
     const animateTo = useCallback(
       (value: number) =>
@@ -248,28 +220,59 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
   const layer0Opacity = useRef(new Animated.Value(0)).current;
   const layer1Opacity = useRef(new Animated.Value(0)).current;
 
+  // Extra top padding for tvOS to clear the menu bar
+  const tvosTopPadding = scaleSize(145);
+  const heroHeight = windowHeight * sizes.padding.heroHeight;
+  // The backdrop fills the whole hero, padding included.
+  const heroBoxHeight = heroHeight + insets.top + tvosTopPadding;
+  const logoHeight = scaleSize(100);
+
   // Get backdrop URL for active item
   const backdropUrl = useMemo(() => {
     if (!activeItem) return null;
-    return getBackdropUrl({
-      api,
-      item: activeItem,
-      quality: 90,
-      width: 1920,
+    return getItemImageUrl(api, activeItem, "backdrop", {
+      width: windowWidth,
+      height: heroBoxHeight,
     });
-  }, [api, activeItem]);
+  }, [api, activeItem, windowWidth, heroBoxHeight]);
 
   // Get logo URL for active item
   const logoUrl = useMemo(() => {
     if (!activeItem) return null;
-    return getLogoImageUrlById({ api, item: activeItem });
-  }, [api, activeItem]);
+    return getItemImageUrl(api, activeItem, "logo", {
+      height: logoHeight,
+    });
+  }, [api, activeItem, logoHeight]);
 
   // Crossfade effect for backdrop
   useEffect(() => {
-    if (!backdropUrl) return;
-
     let isCancelled = false;
+
+    // An item with no image takes the previous item's backdrop away with it,
+    // as jellyfin-web clears its backdrop.
+    if (!backdropUrl) {
+      Animated.parallel([
+        Animated.timing(layer0Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(layer1Opacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (isCancelled) return;
+        setLayer0Url(null);
+        setLayer1Url(null);
+      });
+      return () => {
+        isCancelled = true;
+      };
+    }
 
     const performCrossfade = async () => {
       // Disk-only prefetch: backdrops are ~8MB decoded ARGB; keeping them
@@ -403,14 +406,10 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
 
   if (items.length === 0) return null;
 
-  // Extra top padding for tvOS to clear the menu bar
-  const tvosTopPadding = scaleSize(145);
-  const heroHeight = windowHeight * sizes.padding.heroHeight;
-
   return (
     <View
       style={{
-        height: heroHeight + insets.top + tvosTopPadding,
+        height: heroBoxHeight,
         width: "100%",
         paddingTop: insets.top + tvosTopPadding,
       }}
@@ -517,7 +516,7 @@ const TVHeroCarouselComponent: React.FC<TVHeroCarouselProps> = ({
           <Image
             source={{ uri: logoUrl }}
             style={{
-              height: scaleSize(100),
+              height: logoHeight,
               width: windowWidth * 0.35,
               marginBottom: scaleSize(16),
             }}
