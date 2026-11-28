@@ -75,6 +75,17 @@ describe("useDownloadStalled", () => {
     expect(result.current).toBe(false);
   });
 
+  // A transcode the server is still preparing sends no first byte; counted
+  // from the start, its card stops spinning in silence (CodeRabbit on #2567).
+  it("reports a started download that never received a byte", async () => {
+    const process = job({ startTime: new Date() });
+    const { result } = await renderHook(() => useDownloadStalled(process));
+
+    await pass(DOWNLOAD_STALL_AFTER_MS);
+
+    expect(result.current).toBe(true);
+  });
+
   it("does not call a queued download stalled", async () => {
     const queued = job({
       status: "queued",

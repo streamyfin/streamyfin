@@ -8,7 +8,11 @@ import type { JobStatus } from "@/providers/Downloads/types";
  * notice. Holding the update it fired for, and not a flag, clears the stall on the next event.
  */
 export function useDownloadStalled(process: JobStatus): boolean {
-  const lastUpdate = process.lastProgressUpdateTime?.getTime();
+  // Until the first byte, quiet is counted from the start: a transcode the server is still
+  // preparing sends nothing at all.
+  const lastUpdate = (
+    process.lastProgressUpdateTime ?? process.startTime
+  )?.getTime();
   const isRunning = process.status === "downloading";
   const [stalledUpdate, setStalledUpdate] = useState<number>();
 
