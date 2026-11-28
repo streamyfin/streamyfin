@@ -71,7 +71,7 @@ describe("CurrentSeries", () => {
   test("pressing the card opens the series page", async () => {
     await render(<CurrentSeries item={episode} />);
 
-    fireEvent.press(screen.getByText("Severance"));
+    await fireEvent.press(screen.getByText("Severance"));
 
     expect(router.push).toHaveBeenCalledWith("/series/series");
   });
