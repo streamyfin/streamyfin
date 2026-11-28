@@ -302,16 +302,7 @@ export const getStreamUrl = async ({
   };
 };
 
-export const getDownloadStreamUrl = async ({
-  api,
-  item,
-  userId,
-  maxStreamingBitrate,
-  audioStreamIndex = 0,
-  subtitleStreamIndex = undefined,
-  mediaSourceId,
-  audioMode = "auto",
-}: {
+export type DownloadRequestParams = {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
   userId: string | null | undefined;
@@ -320,10 +311,28 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
   audioMode?: AudioTranscodeModeType;
-}): Promise<{
-  url: string | null;
+};
+
+/**
+ * The PlaybackInfo request a download is made from. The download and the
+ * sheet's direct-or-transcode check both send it, so the check can never
+ * answer for a request the download would not make.
+ */
+export const requestDownloadPlaybackInfo = async (
+  {
+    api,
+    item,
+    userId,
+    maxStreamingBitrate,
+    audioStreamIndex = 0,
+    subtitleStreamIndex = undefined,
+    mediaSourceId,
+    audioMode = "auto",
+  }: DownloadRequestParams,
+  signal?: AbortSignal,
+): Promise<{
   sessionId: string | null;
-  mediaSource: MediaSourceInfo | undefined;
+  mediaSource: MediaSourceInfo;
 } | null> => {
   if (!api || !userId || !item?.Id) {
     console.warn("Missing required parameters for getStreamUrl");
@@ -341,21 +350,35 @@ export const getDownloadStreamUrl = async ({
     AudioStreamIndex: audioStreamIndex,
     MediaSourceId: mediaSourceId,
   };
-  const res = await getMediaInfoApi(api).getPostedPlaybackInfo({
-    itemId: item.Id,
-    playbackInfoDto,
-  });
+  const res = await getMediaInfoApi(api).getPostedPlaybackInfo(
+    {
+      itemId: item.Id,
+      playbackInfoDto,
+    },
+    { signal },
+  );
 
   if (res.status !== 200) {
     console.error("Error getting playback info:", res.status, res.statusText);
   }
 
-  const sessionId = res.data.PlaySessionId || null;
   const mediaSource = res.data.MediaSources?.[0];
   if (!mediaSource) {
     console.warn("No media source offered for download");
     return null;
   }
 
-  return getDownloadUrl(api, mediaSource, sessionId);
+  return { sessionId: res.data.PlaySessionId || null, mediaSource };
+};
+
+export const getDownloadStreamUrl = async (
+  params: DownloadRequestParams,
+): Promise<{
+  url: string | null;
+  sessionId: string | null;
+  mediaSource: MediaSourceInfo | undefined;
+} | null> => {
+  const info = await requestDownloadPlaybackInfo(params);
+  if (!info || !params.api) return null;
+  return getDownloadUrl(params.api, info.mediaSource, info.sessionId);
 };
