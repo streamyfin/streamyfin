@@ -199,24 +199,23 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
             </View>
 
             {/* Row 2: Speed + ETA */}
+            {/* No fragment here: NativeWind 2 spaces gap-x by cloning each direct
+                child with a style, and a fragment cannot take one. */}
             <View className='flex flex-row items-center gap-x-2 mt-0.5'>
-              {isStalled ? (
+              {isStalled && (
                 <Text className='text-xs text-yellow-400'>
                   {t("home.downloads.stalled")}
                 </Text>
-              ) : (
-                <>
-                  {(process.speed ?? 0) > 0 && (
-                    <Text className='text-xs text-purple-400'>
-                      {bytesToMB(process.speed ?? 0).toFixed(2)} MB/s
-                    </Text>
-                  )}
-                  {eta && (
-                    <Text className='text-xs text-green-400'>
-                      {t("home.downloads.eta", { eta: eta })}
-                    </Text>
-                  )}
-                </>
+              )}
+              {!isStalled && (process.speed ?? 0) > 0 && (
+                <Text className='text-xs text-purple-400'>
+                  {bytesToMB(process.speed ?? 0).toFixed(2)} MB/s
+                </Text>
+              )}
+              {!isStalled && eta && (
+                <Text className='text-xs text-green-400'>
+                  {t("home.downloads.eta", { eta: eta })}
+                </Text>
               )}
             </View>
           </View>
